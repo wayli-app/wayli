@@ -2,7 +2,7 @@
 	import { Settings, User as UserIcon, Lock, UserPlus, Server, Database, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { toast } from 'svelte-sonner';
@@ -72,16 +72,20 @@
 		hasPrev: false
 	};
 
-	// Debounced search update
-	$: if (browser && searchQuery !== debouncedSearchQuery) {
+	// Debounced search update - only trigger when user changes the input
+	function handleSearchInput() {
 		clearTimeout(searchTimeout);
-		searchTimeout = setTimeout(() => {
-			debouncedSearchQuery = searchQuery;
-			updateURL();
+		searchTimeout = setTimeout(async () => {
+			if (searchQuery !== debouncedSearchQuery) {
+				console.log('Client - Search query changed:', searchQuery);
+				debouncedSearchQuery = searchQuery;
+				currentPage = 1; // Reset to first page when search changes
+				await fetchFilteredUsers();
+			}
 		}, 300);
 	}
 
-	async function updateURL() {
+	async function fetchFilteredUsers() {
 		if (!browser) return;
 
 		const params = new URLSearchParams();
@@ -89,14 +93,32 @@
 		if (currentPage > 1) params.set('page', currentPage.toString());
 		if (itemsPerPage !== 10) params.set('limit', itemsPerPage.toString());
 
-		await goto(`?${params.toString()}`, { replaceState: true });
+		try {
+			const response = await fetch(`/api/v1/admin/users?${params.toString()}`);
+			if (response.ok) {
+				const result = await response.json();
+				users = result.users || [];
+				pagination = result.pagination || {
+					page: 1,
+					limit: 10,
+					total: 0,
+					totalPages: 0,
+					hasNext: false,
+					hasPrev: false
+				};
+			} else {
+				console.error('Error response:', response.status, response.statusText);
+			}
+		} catch (error) {
+			console.error('Error fetching filtered users:', error);
+		}
 	}
 
 	async function goToPage(page: number) {
 		if (!browser) return;
 		if (page >= 1 && page <= pagination.totalPages) {
 			currentPage = page;
-			await updateURL();
+			await fetchFilteredUsers();
 		}
 	}
 
@@ -104,7 +126,7 @@
 		if (!browser) return;
 		if (pagination.hasPrev) {
 			currentPage--;
-			await updateURL();
+			await fetchFilteredUsers();
 		}
 	}
 
@@ -112,31 +134,15 @@
 		if (!browser) return;
 		if (pagination.hasNext) {
 			currentPage++;
-			await updateURL();
+			await fetchFilteredUsers();
 		}
 	}
 
 	async function handleItemsPerPageChange() {
 		if (!browser) return;
 		currentPage = 1; // Reset to first page when changing items per page
-		await updateURL();
+		await fetchFilteredUsers();
 	}
-
-	// Filter users based on search query
-	// $: filteredUsers = users.filter(user =>
-	// 	user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-	// 	user.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
-	// );
-
-	// Pagination logic
-	// $: totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-	// $: startIndex = (currentPage - 1) * itemsPerPage;
-	// $: endIndex = startIndex + itemsPerPage;
-	// $: paginatedUsers = filteredUsers.slice(startIndex, endIndex);
-
-	// $: if (searchQuery !== '') {
-	// 	currentPage = 1;
-	// }
 
 	function formatDate(dateString: string | null) {
 		if (!dateString) return 'Never';
@@ -385,12 +391,11 @@
 
 			<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
 				<div class="flex items-center">
-					<img class="h-10 w-10 rounded-full" src={getUserAvatar(userToDelete)} alt="" />
-					<div class="ml-3">
-						<p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+					<div>
+						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 							{getUserDisplayName(userToDelete)}
-						</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">{userToDelete.email}</p>
+						</div>
+						<div class="text-sm text-gray-500 dark:text-gray-400">{userToDelete.email}</div>
 					</div>
 				</div>
 			</div>
@@ -450,6 +455,7 @@
 							bind:value={searchQuery}
 							placeholder="Search users..."
 							class="w-64 rounded-md border border-[rgb(218,218,221)] bg-white py-2 pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
+							on:input={handleSearchInput}
 						/>
 					</div>
 					<!-- Items per page selector -->
@@ -524,10 +530,7 @@
 								<tr>
 									<td class="whitespace-nowrap px-6 py-4">
 										<div class="flex items-center">
-											<div class="h-10 w-10 flex-shrink-0">
-												<img class="h-10 w-10 rounded-full" src={getUserAvatar(user)} alt="" />
-											</div>
-											<div class="ml-4">
+											<div>
 												<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 													{getUserDisplayName(user)}
 												</div>

@@ -6,24 +6,27 @@
 	import { userStore } from '$lib/stores/auth';
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
+	import { UserService } from '$lib/services/user.service';
+	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
 
-	let email = '';
-	let firstName = '';
-	let lastName = '';
 	let currentPassword = '';
 	let newPassword = '';
 	let confirmPassword = '';
 	let twoFactorEnabled = false;
-	let preferredLanguage = 'English';
-	let distanceUnit = 'Kilometers (km)';
-	let temperatureUnit = 'Celsius (°C)';
-	let timezone = 'UTC+0 (London)';
 	let isLoading = true;
 	let isUpdatingPassword = false;
 	let isUpdatingProfile = false;
 	let isUpdatingPreferences = false;
 	let showTwoFactorSetup = false;
 	let showTwoFactorDisable = false;
+	let profile: UserProfile | null = null;
+	let preferences: UserPreferences | null = null;
+	let firstNameInput = '';
+	let lastNameInput = '';
+	let preferredLanguageInput = '';
+	let distanceUnitInput = '';
+	let temperatureUnitInput = '';
+	let timezoneInput = '';
 
 	const languages = ['English', 'Nederlands', 'Deutsch', 'Français', 'Español'];
 	const distanceUnits = ['Kilometers (km)', 'Miles (mi)'];
@@ -61,23 +64,26 @@
 
 	onMount(async () => {
 		await loadUserData();
+		if (profile) {
+			firstNameInput = profile.firstName;
+			lastNameInput = profile.lastName;
+		}
+		if (preferences) {
+			preferredLanguageInput = preferences.preferredLanguage;
+			distanceUnitInput = preferences.distanceUnit;
+			temperatureUnitInput = preferences.temperatureUnit;
+			timezoneInput = preferences.timezone;
+		}
 	});
 
 	async function loadUserData() {
 		try {
-			const { data: { user } } = await supabase.auth.getUser();
-			if (user) {
-				email = user.email || '';
-				firstName = user.user_metadata?.first_name || '';
-				lastName = user.user_metadata?.last_name || '';
-				twoFactorEnabled = user.user_metadata?.totp_enabled || false;
-
-				// Load preferences from user_metadata
-				preferredLanguage = user.user_metadata?.preferred_language || 'English';
-				distanceUnit = user.user_metadata?.distance_unit || 'Kilometers (km)';
-				temperatureUnit = user.user_metadata?.temperature_unit || 'Celsius (°C)';
-				timezone = user.user_metadata?.timezone || 'UTC+00:00 (London, Dublin)';
-			}
+			const [profileData, preferencesData] = await Promise.all([
+				UserService.getProfile(),
+				UserService.getPreferences()
+			]);
+			profile = profileData;
+			preferences = preferencesData;
 		} catch (error) {
 			console.error('Error loading user data:', error);
 			toast.error('Failed to load user data');
@@ -87,17 +93,15 @@
 	}
 
 	async function handleSaveProfile() {
+		if (!profile) return;
 		isUpdatingProfile = true;
-
 		try {
-			const { error } = await supabase.auth.updateUser({
-				data: {
-					first_name: firstName,
-					last_name: lastName
-				}
+			profile = await UserService.updateProfile({
+				firstName: firstNameInput,
+				lastName: lastNameInput
 			});
-
-			if (error) throw error;
+			firstNameInput = profile.firstName;
+			lastNameInput = profile.lastName;
 			toast.success('Profile updated successfully');
 		} catch (error) {
 			console.error('Error updating profile:', error);
@@ -108,30 +112,19 @@
 	}
 
 	async function handleSavePreferences() {
+		if (!preferences) return;
 		isUpdatingPreferences = true;
-
 		try {
-			const { error } = await supabase.auth.updateUser({
-				data: {
-					preferred_language: preferredLanguage,
-					distance_unit: distanceUnit,
-					temperature_unit: temperatureUnit,
-					timezone: timezone
-				}
+			preferences = await UserService.updatePreferences({
+				preferredLanguage: preferredLanguageInput,
+				distanceUnit: distanceUnitInput,
+				temperatureUnit: temperatureUnitInput,
+				timezone: timezoneInput
 			});
-
-			if (error) throw error;
-
-			// Refresh user data to ensure UI reflects the changes
-			await loadUserData();
-
-			// Also refresh the user session to ensure userStore gets updated
-			const { data: { user: refreshedUser } } = await supabase.auth.getUser();
-			if (refreshedUser) {
-				// Update the userStore manually to trigger UI updates
-				userStore.set(refreshedUser);
-			}
-
+			preferredLanguageInput = preferences.preferredLanguage;
+			distanceUnitInput = preferences.distanceUnit;
+			temperatureUnitInput = preferences.temperatureUnit;
+			timezoneInput = preferences.timezone;
 			toast.success('Preferences updated successfully');
 		} catch (error) {
 			console.error('Error updating preferences:', error);
@@ -147,51 +140,30 @@
 			toast.error('Please enter your current password');
 			return;
 		}
-
 		if (!newPassword) {
 			toast.error('Please enter a new password');
 			return;
 		}
-
 		if (newPassword.length < 6) {
 			toast.error('New password must be at least 6 characters long');
 			return;
 		}
-
 		if (newPassword !== confirmPassword) {
 			toast.error('New passwords do not match');
 			return;
 		}
-
 		isUpdatingPassword = true;
-
 		try {
-			// First, verify the current password by attempting to sign in
-			const { error: signInError } = await supabase.auth.signInWithPassword({
-				email: email,
-				password: currentPassword
+			const response = await UserService.updatePassword({
+				currentPassword,
+				newPassword
 			});
-
-			if (signInError) {
-				toast.error('Current password is incorrect');
-				return;
-			}
-
-			// Update the password
-			const { error } = await supabase.auth.updateUser({
-				password: newPassword
-			});
-
-			if (error) throw error;
-
+			if (!response.success) throw new Error(response.message || 'Update failed');
 			toast.success('Password updated successfully!');
-
-			// Clear password fields
 			currentPassword = '';
 			newPassword = '';
 			confirmPassword = '';
 		} catch (error) {
-			console.error('Error updating password:', error);
 			toast.error('Failed to update password. Please try again.');
 		} finally {
 			isUpdatingPassword = false;
@@ -221,16 +193,7 @@
 	// Subscribe to user store for real-time updates
 	userStore.subscribe(user => {
 		if (user && !isLoading) {
-			email = user.email || '';
-			firstName = user.user_metadata?.first_name || '';
-			lastName = user.user_metadata?.last_name || '';
 			twoFactorEnabled = user.user_metadata?.totp_enabled || false;
-
-			// Load preferences from user_metadata
-			preferredLanguage = user.user_metadata?.preferred_language || 'English';
-			distanceUnit = user.user_metadata?.distance_unit || 'Kilometers (km)';
-			temperatureUnit = user.user_metadata?.temperature_unit || 'Celsius (°C)';
-			timezone = user.user_metadata?.timezone || 'UTC+00:00 (London, Dublin)';
 		}
 	});
 </script>
@@ -269,7 +232,7 @@
 					<input
 						id="email"
 						type="email"
-						bind:value={email}
+						value={profile?.email}
 						disabled
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					/>
@@ -282,7 +245,7 @@
 						<input
 							id="firstName"
 							type="text"
-							bind:value={firstName}
+							bind:value={firstNameInput}
 							placeholder="Enter your first name"
 							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 						/>
@@ -293,7 +256,7 @@
 						<input
 							id="lastName"
 							type="text"
-							bind:value={lastName}
+							bind:value={lastNameInput}
 							placeholder="Enter your last name"
 							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 						/>
@@ -419,7 +382,7 @@
 					<label for="language" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Preferred Language</label>
 					<select
 						id="language"
-						bind:value={preferredLanguage}
+						bind:value={preferredLanguageInput}
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					>
 						{#each languages as language}
@@ -432,7 +395,7 @@
 					<label for="distanceUnit" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Distance Unit</label>
 					<select
 						id="distanceUnit"
-						bind:value={distanceUnit}
+						bind:value={distanceUnitInput}
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					>
 						{#each distanceUnits as unit}
@@ -445,7 +408,7 @@
 					<label for="temperatureUnit" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Temperature Unit</label>
 					<select
 						id="temperatureUnit"
-						bind:value={temperatureUnit}
+						bind:value={temperatureUnitInput}
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					>
 						{#each temperatureUnits as unit}
@@ -458,7 +421,7 @@
 					<label for="timezone" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Timezone</label>
 					<select
 						id="timezone"
-						bind:value={timezone}
+						bind:value={timezoneInput}
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					>
 						{#each timezones as tz}

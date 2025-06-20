@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { X, Shield, AlertTriangle, Lock } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { supabase } from '$lib/supabase';
+	import { UserService } from '$lib/services/user.service';
 
 	export let open = false;
 
@@ -19,33 +19,9 @@
 
 		isDisabling = true;
 		try {
-			// Get current user email
-			const { data: { user } } = await supabase.auth.getUser();
-			if (!user?.email) {
-				throw new Error('User not found');
-			}
-
-			// Verify password by attempting to sign in
-			const { error: signInError } = await supabase.auth.signInWithPassword({
-				email: user.email,
-				password: password
-			});
-
-			if (signInError) {
-				toast.error('Incorrect password');
-				return;
-			}
-
-			// Disable 2FA by removing the secret and setting enabled to false
-			const { error } = await supabase.auth.updateUser({
-				data: {
-					totp_secret: null,
-					totp_enabled: false
-				}
-			});
-
-			if (error) throw error;
-
+			// Call the new API endpoint for 2FA disable
+			const response = await UserService.disableTwoFactor({ password });
+			if (!response.success) throw new Error(response.message || 'Disable failed');
 			toast.success('Two-factor authentication disabled successfully');
 			dispatch('disabled');
 			closeModal();

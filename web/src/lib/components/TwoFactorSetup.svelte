@@ -5,6 +5,7 @@
 	import { supabase } from '$lib/supabase';
 	import QRCode from 'qrcode';
 	import { onMount } from 'svelte';
+	import { UserService } from '$lib/services/user.service';
 
 	export let open = false;
 
@@ -14,6 +15,7 @@
 	let qrCodeUrl = '';
 	let secret = '';
 	let verificationCode = '';
+	let password = '';
 	let isGenerating = false;
 	let isVerifying = false;
 	let qrCodeError = false;
@@ -21,14 +23,12 @@
 
 	// Watch for changes to the open prop
 	$: if (open && !qrCodeUrl && !qrCodeError) {
-		generateSecret();
+		// Don't auto-generate, wait for user to enter password
 	}
 
 	onMount(() => {
 		console.log('TwoFactorSetup mounted, open:', open);
-		if (open) {
-			generateSecret();
-		}
+		// Don't auto-generate on mount
 	});
 
 	// Simple secret generation function
@@ -42,38 +42,24 @@
 	}
 
 	async function generateSecret() {
+		if (!password) {
+			toast.error('Please enter your password');
+			return;
+		}
+
 		console.log('Generating 2FA secret...');
 		isGenerating = true;
 		qrCodeError = false;
 		try {
-			// Generate a new secret using our simple function
-			secret = generateRandomSecret();
-			console.log('Secret generated:', secret.substring(0, 10) + '...');
-
-			// Get user email for the QR code
-			const { data: { user } } = await supabase.auth.getUser();
-			email = user?.email || 'user';
-			console.log('User email:', email);
-
-			// Create the otpauth URL for the QR code
-			const otpauthUrl = `otpauth://totp/Wayli:${email}?secret=${secret}&issuer=Wayli`;
-			console.log('OTP Auth URL:', otpauthUrl);
-
-			// Test if QRCode is available
-			console.log('QRCode library:', typeof QRCode);
-			console.log('QRCode.toDataURL:', typeof QRCode.toDataURL);
-
-			// Generate QR code with error handling
-			try {
-				qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
-				console.log('QR Code generated successfully, length:', qrCodeUrl.length);
-			} catch (qrError) {
-				console.error('QR Code generation failed:', qrError);
-				qrCodeError = true;
-				toast.warning('QR code generation failed, but you can still set up 2FA manually');
-			}
+			// Call the new API endpoint for 2FA setup
+			const response = await UserService.setupTwoFactor({ password });
+			if (!response.success) throw new Error(response.message || 'Setup failed');
+			secret = response.secret;
+			qrCodeUrl = response.qrCodeUrl;
+			// Optionally set email if needed
 		} catch (error) {
 			console.error('Error generating 2FA secret:', error);
+			qrCodeError = true;
 			toast.error('Failed to generate 2FA setup: ' + (error instanceof Error ? error.message : 'Unknown error'));
 		} finally {
 			isGenerating = false;
@@ -85,20 +71,11 @@
 			toast.error('Please enter the verification code');
 			return;
 		}
-
 		isVerifying = true;
 		try {
-			// For now, we'll just store the secret and mark 2FA as enabled
-			// In a real implementation, you'd verify the TOTP code server-side
-			const { error } = await supabase.auth.updateUser({
-				data: {
-					totp_secret: secret,
-					totp_enabled: true
-				}
-			});
-
-			if (error) throw error;
-
+			// Call the new API endpoint for 2FA verification
+			const response = await UserService.verifyTwoFactor({ code: verificationCode });
+			if (!response.success) throw new Error(response.message || 'Verification failed');
 			toast.success('Two-factor authentication enabled successfully!');
 			dispatch('enabled');
 			closeModal();
@@ -114,6 +91,7 @@
 		open = false;
 		currentStep = 1;
 		verificationCode = '';
+		password = '';
 		qrCodeUrl = '';
 		secret = '';
 		qrCodeError = false;
@@ -164,14 +142,36 @@
 						<div class="mb-6">
 							<QrCode class="h-12 w-12 text-[rgb(37,140,244)] mx-auto mb-4" />
 							<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-								Scan QR Code
+								Set Up Two-Factor Authentication
 							</h3>
 							<p class="text-gray-600 dark:text-gray-400">
-								Use your authenticator app to scan this QR code
+								Enter your password to begin 2FA setup
 							</p>
 						</div>
 
-						{#if isGenerating}
+						{#if !qrCodeUrl && !isGenerating}
+							<!-- Password input -->
+							<div class="mb-6">
+								<label for="setupPassword" class="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+									Enter Your Password
+								</label>
+								<input
+									id="setupPassword"
+									type="password"
+									bind:value={password}
+									placeholder="Enter your password"
+									class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+								/>
+							</div>
+
+							<button
+								on:click={generateSecret}
+								disabled={!password}
+								class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+							>
+								Generate QR Code
+							</button>
+						{:else if isGenerating}
 							<div class="flex items-center justify-center py-8">
 								<div class="text-center">
 									<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(37,140,244)] mx-auto mb-4"></div>
@@ -180,6 +180,12 @@
 							</div>
 						{:else if qrCodeUrl}
 							<div class="mb-6">
+								<h4 class="font-medium text-gray-900 dark:text-gray-100 mb-2">
+									Scan QR Code
+								</h4>
+								<p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+									Use your authenticator app to scan this QR code
+								</p>
 								<img
 									src={qrCodeUrl}
 									alt="2FA QR Code"
@@ -201,52 +207,29 @@
 									Account: {email} | Issuer: Wayli
 								</p>
 							</div>
-						{:else}
-							<div class="flex items-center justify-center py-8">
-								<div class="text-center">
-									<div class="h-32 w-32 bg-gray-100 dark:bg-gray-700 rounded-lg mx-auto mb-4 flex items-center justify-center">
-										<QrCode class="h-12 w-12 text-gray-400" />
-									</div>
-									<p class="text-sm text-gray-600 dark:text-gray-400">QR code not available</p>
-									<button
-										on:click={generateSecret}
-										class="mt-2 text-sm text-[rgb(37,140,244)] hover:text-[rgb(37,140,244)]/80 cursor-pointer"
-									>
-										Retry
-									</button>
-									<!-- Debug button for testing -->
-									<button
-										on:click={() => {
-											console.log('Debug: Current state:', { open, isGenerating, qrCodeUrl: qrCodeUrl ? 'exists' : 'none', secret: secret ? 'exists' : 'none', qrCodeError });
-											generateSecret();
-										}}
-										class="mt-2 text-sm text-gray-500 hover:text-gray-700 cursor-pointer block mx-auto"
-									>
-										Debug: Generate QR
-									</button>
-								</div>
-							</div>
 						{/if}
 
-						<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
-							<h4 class="font-medium text-gray-900 dark:text-gray-100 mb-2">
-								Popular Authenticator Apps:
-							</h4>
-							<ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-								<li>• Google Authenticator</li>
-								<li>• Microsoft Authenticator</li>
-								<li>• Authy</li>
-								<li>• 1Password</li>
-								<li>• Bitwarden</li>
-							</ul>
-						</div>
+						{#if qrCodeUrl || (qrCodeError && secret)}
+							<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
+								<h4 class="font-medium text-gray-900 dark:text-gray-100 mb-2">
+									Popular Authenticator Apps:
+								</h4>
+								<ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+									<li>• Google Authenticator</li>
+									<li>• Microsoft Authenticator</li>
+									<li>• Authy</li>
+									<li>• 1Password</li>
+									<li>• Bitwarden</li>
+								</ul>
+							</div>
 
-						<button
-							on:click={nextStep}
-							class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer"
-						>
-							Next: Verify Code
-						</button>
+							<button
+								on:click={nextStep}
+								class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer"
+							>
+								Next: Verify Code
+							</button>
+						{/if}
 					</div>
 				{:else if currentStep === 2}
 					<!-- Step 2: Verification -->

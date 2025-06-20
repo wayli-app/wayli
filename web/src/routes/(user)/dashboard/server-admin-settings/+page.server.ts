@@ -27,10 +27,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const limit = parseInt(url.searchParams.get('limit') || '10');
 	const search = url.searchParams.get('search') || '';
 
-	// Fetch all users directly from Supabase Auth
+	console.log('Server load - Search parameter:', search);
+	console.log('Server load - All URL params:', Object.fromEntries(url.searchParams.entries()));
+
+	// Fetch all users (we'll need to get all to implement proper search)
+	// Note: Supabase Auth listUsers doesn't support server-side filtering
 	const { data: { users: authUsers }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers({
-		page: page,
-		perPage: limit,
+		page: 1,
+		perPage: 1000, // Get a large number to implement proper search
 	});
 
 	if (authUsersError) {
@@ -56,7 +60,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	});
 
-	// Client-side search, as listUsers doesn't support server-side filtering
+	// Apply search filter
 	const filteredUsers = search
 		? combinedUsers.filter(u =>
 				u.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -64,14 +68,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			)
 		: combinedUsers;
 
-	// Note: listUsers doesn't provide a total count, so pagination is limited to the current page.
+	console.log('Server load - Total users:', combinedUsers.length);
+	console.log('Server load - Filtered users:', filteredUsers.length);
+	console.log('Server load - Search term:', search);
+
+	// Calculate pagination
 	const total = filteredUsers.length;
 	const totalPages = Math.ceil(total / limit);
+	const startIndex = (page - 1) * limit;
+	const endIndex = startIndex + limit;
+	const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
 	return {
 		user: session.user,
 		isAdmin,
-		users: filteredUsers || [],
+		users: paginatedUsers || [],
 		pagination: {
 			page,
 			limit,
