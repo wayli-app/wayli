@@ -269,13 +269,13 @@
 	function stats() {
 		return [
 			{ id: 1, title: 'Total Distance', value: currentPeriodData().totalDistance, icon: Navigation, color: 'blue' },
-			{ id: 2, title: 'Earth Circumferences', value: currentPeriodData().earthCircumferences.toFixed(3) + 'x', icon: Globe2, color: 'green' },
-			{ id: 3, title: 'Geopoints Tracked', value: currentPeriodData().geopoints.toLocaleString(), icon: Pin, color: 'purple' },
-			{ id: 4, title: 'Time Moving', value: currentPeriodData().timeSpent, icon: Clock, color: 'orange' },
-			{ id: 5, title: 'Unique Places', value: currentPeriodData().uniquePlaces.toLocaleString(), icon: Flag, color: 'red' },
-			{ id: 6, title: 'Countries Visited', value: currentPeriodData().countriesVisited.toString(), icon: Globe2, color: 'indigo' },
-			{ id: 7, title: 'Locations Visited', value: currentPeriodData().locationsVisited, icon: Map, color: 'cyan' },
-			{ id: 8, title: 'Approximate Steps', value: currentPeriodData().steps.toLocaleString(), icon: Footprints, color: 'emerald' }
+			{ id: 2, title: 'Earth Circumferences', value: currentPeriodData().earthCircumferences.toFixed(3) + 'x', icon: Globe2, color: 'blue' },
+			{ id: 3, title: 'Geopoints Tracked', value: currentPeriodData().geopoints.toLocaleString(), icon: Pin, color: 'blue' },
+			{ id: 4, title: 'Time Moving', value: currentPeriodData().timeSpent, icon: Clock, color: 'blue' },
+			{ id: 5, title: 'Unique Places', value: currentPeriodData().uniquePlaces.toLocaleString(), icon: Flag, color: 'blue' },
+			{ id: 6, title: 'Countries Visited', value: currentPeriodData().countriesVisited.toString(), icon: Globe2, color: 'blue' },
+			{ id: 7, title: 'Locations Visited', value: currentPeriodData().locationsVisited, icon: Map, color: 'blue' },
+			{ id: 8, title: 'Approximate Steps', value: currentPeriodData().steps.toLocaleString(), icon: Footprints, color: 'blue' }
 		];
 	}
 

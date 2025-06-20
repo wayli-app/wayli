@@ -4,138 +4,121 @@ import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
 
-export const POST: RequestHandler = async ({ params, url, request }) => {
-	try {
-		const { user_id } = params;
-		const api_key = url.searchParams.get('api_key');
+// UUID validation function
+function isValidUUID(uuid: string): boolean {
+	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+	return uuidRegex.test(uuid);
+}
 
-		if (!user_id || !api_key) {
-			return json({ error: 'Missing user_id or api_key parameter' }, { status: 400 });
+export const POST: RequestHandler = async ({ request }) => {
+	try {
+		const body = await request.json();
+		const { user_id, lat, lon, tst, alt, acc, vel, cog, batt, bs, vac, t, tid, inregions } = body;
+
+		// Validate user_id format
+		if (!user_id || !isValidUUID(user_id)) {
+			return json({ error: 'Forbidden location.' }, { status: 403 });
 		}
 
-		// Create Supabase admin client to access user data
+		// Validate required fields
+		if (!lat || !lon || !tst) {
+			return json({ error: 'Missing required fields: lat, lon, tst' }, { status: 400 });
+		}
+
+		// Create Supabase admin client
 		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-		// Get user data to validate API key
-		const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(user_id);
+		// Convert timestamp to ISO string if it's a number
+		const timestamp = typeof tst === 'number' ? new Date(tst * 1000).toISOString() : tst;
 
-		if (userError || !user) {
-			return json({ error: 'User not found' }, { status: 404 });
+		// Create PostGIS point from lat/lon
+		const location = `POINT(${lon} ${lat})`;
+
+		// Prepare tracking data
+		const trackingData = {
+			user_id,
+			tracker_type: 'owntracks',
+			device_id: tid || 'unknown',
+			timestamp,
+			location,
+			altitude: alt || null,
+			accuracy: acc || null,
+			speed: vel || null,
+			heading: cog || null,
+			battery_level: batt || null,
+			is_charging: bs === 1,
+			activity_type: vac || null,
+			raw_data: {
+				lat,
+				lon,
+				tst,
+				alt,
+				acc,
+				vel,
+				cog,
+				batt,
+				bs,
+				vac,
+				t,
+				tid,
+				inregions
+			}
+		};
+
+		// Insert tracking data
+		const { error } = await supabaseAdmin
+			.from('tracker_data')
+			.insert(trackingData);
+
+		if (error) {
+			console.error('Error inserting tracking data:', error);
+			return json({ error: 'Failed to store tracking data' }, { status: 500 });
 		}
 
-		// Check if the provided API key matches the user's stored API key
-		const storedApiKey = user.user_metadata?.owntracks_api_key;
-		if (!storedApiKey || storedApiKey !== api_key) {
-			return json({ error: 'Invalid API key' }, { status: 401 });
-		}
-
-		// Parse the OwnTracks payload
-		const payload = await request.json();
-
-		// Validate that it's a valid OwnTracks payload
-		if (!payload._type || !['location', 'transition', 'waypoint', 'beacon'].includes(payload._type)) {
-			return json({ error: 'Invalid OwnTracks payload' }, { status: 400 });
-		}
-
-		// Handle different types of OwnTracks messages
-		switch (payload._type) {
-			case 'location':
-				// Process location data
-				if (payload.lat && payload.lon) {
-					// TODO: Store location data in your database
-					console.log('Received location:', {
-						user_id,
-						lat: payload.lat,
-						lon: payload.lon,
-						tst: payload.tst,
-						acc: payload.acc,
-						alt: payload.alt,
-						vel: payload.vel,
-						cog: payload.cog,
-						batt: payload.batt
-					});
-				}
-				break;
-
-			case 'transition':
-				// Process transition data (enter/leave events)
-				console.log('Received transition:', {
-					user_id,
-					event: payload.event,
-					desc: payload.desc,
-					tst: payload.tst
-				});
-				break;
-
-			case 'waypoint':
-				// Process waypoint data
-				console.log('Received waypoint:', {
-					user_id,
-					desc: payload.desc,
-					lat: payload.lat,
-					lon: payload.lon,
-					tst: payload.tst
-				});
-				break;
-
-			case 'beacon':
-				// Process beacon data
-				console.log('Received beacon:', {
-					user_id,
-					uuid: payload.uuid,
-					major: payload.major,
-					minor: payload.minor,
-					proximity: payload.proximity,
-					rssi: payload.rssi
-				});
-				break;
-		}
-
-		// Return success response
-		return json({ success: true, message: 'Data received successfully' });
-
-	} catch (error) {
-		console.error('Error processing OwnTracks request:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
-	}
-};
-
-export const GET: RequestHandler = async ({ params, url }) => {
-	try {
-		const { user_id } = params;
-		const api_key = url.searchParams.get('api_key');
-
-		if (!user_id || !api_key) {
-			return json({ error: 'Missing user_id or api_key parameter' }, { status: 400 });
-		}
-
-		// Create Supabase admin client to access user data
-		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-		// Get user data to validate API key
-		const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(user_id);
-
-		if (userError || !user) {
-			return json({ error: 'User not found' }, { status: 404 });
-		}
-
-		// Check if the provided API key matches the user's stored API key
-		const storedApiKey = user.user_metadata?.owntracks_api_key;
-		if (!storedApiKey || storedApiKey !== api_key) {
-			return json({ error: 'Invalid API key' }, { status: 401 });
-		}
-
-		// Return user's location data (if any)
-		// TODO: Implement retrieval of stored location data
 		return json({
 			success: true,
-			message: 'API endpoint is working correctly',
-			user_id,
-			last_seen: null // TODO: Add actual last seen timestamp
+			message: 'Tracking data stored successfully'
 		});
 
 	} catch (error) {
-		console.error('Error processing OwnTracks GET request:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		console.error('POST tracking data error:', error);
+		return json({ error: 'An unexpected error occurred' }, { status: 500 });
+	}
+};
+
+export const GET: RequestHandler = async ({ url }) => {
+	try {
+		const user_id = url.searchParams.get('user_id');
+
+		// Validate user_id format
+		if (!user_id || !isValidUUID(user_id)) {
+			return json({ error: 'Invalid user_id format' }, { status: 403 });
+		}
+
+		// Create Supabase admin client
+		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+		// Get tracking data for the user
+		const { data: trackingData, error } = await supabaseAdmin
+			.from('tracker_data')
+			.select('*')
+			.eq('user_id', user_id)
+			.eq('tracker_type', 'owntracks')
+			.order('timestamp', { ascending: false })
+			.limit(100);
+
+		if (error) {
+			console.error('Error fetching tracking data:', error);
+			return json({ error: 'Failed to fetch tracking data' }, { status: 500 });
+		}
+
+		return json({
+			success: true,
+			data: trackingData || []
+		});
+
+	} catch (error) {
+		console.error('GET tracking data error:', error);
+		return json({ error: 'An unexpected error occurred' }, { status: 500 });
 	}
 };

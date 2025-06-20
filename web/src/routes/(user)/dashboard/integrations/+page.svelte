@@ -151,8 +151,6 @@
 						<li>Generate an API key using the button above</li>
 						<li>Copy the API endpoint and key</li>
 						<li>In your OwnTracks app, set the endpoint to the copied URL</li>
-						<li>Set the username to your user ID: <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">{data.owntracksApiKey ? 'your-user-id' : 'Generate API key first'}</code></li>
-						<li>Set the password to the generated API key</li>
 					</ol>
 				</div>
 			</div>

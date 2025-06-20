@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		? 'http://localhost:5173'
 		: 'https://wayli.app'; // Replace with your actual domain
 	const owntracksEndpoint = owntracksApiKey
-		? `${baseUrl}/api/v1/owntracks/points?api_key=${owntracksApiKey}&user=${session.user.id}`
+		? `${baseUrl}/api/v1/owntracks/points?api_key=${owntracksApiKey}&user_id=${session.user.id}`
 		: null;
 
 	return {
