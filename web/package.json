@@ -25,6 +25,7 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"@testing-library/jest-dom": "^6.6.3",
 		"@testing-library/svelte": "^5.2.4",
+		"@types/qrcode": "^1.5.5",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
 		"eslint-plugin-svelte": "^3.0.0",
@@ -55,6 +56,8 @@
 		"leaflet": "^1.9.4",
 		"lodash-es": "^4.17.21",
 		"lucide-svelte": "^0.344.0",
+		"otplib": "^12.0.1",
+		"qrcode": "^1.5.4",
 		"svelte-sonner": "^1.0.5",
 		"tailwind-merge": "^2.6.0",
 		"uuid": "^11.1.0"

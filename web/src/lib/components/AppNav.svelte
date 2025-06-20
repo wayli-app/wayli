@@ -20,9 +20,10 @@
 		{ href: '/dashboard/integrations', label: 'Integrations', icon: Link }
 	];
 
-	const navUser = [
+	// Dynamic user navigation based on admin status
+	$: navUser = [
 		{ href: '/dashboard/account-settings', label: 'Account Settings', icon: User },
-		{ href: '/dashboard/server-admin-settings', label: 'Server Admin Settings', icon: Settings }
+		...(isAdmin ? [{ href: '/dashboard/server-admin-settings', label: 'Server Admin Settings', icon: Settings }] : [])
 	];
 
 	function isActive(href: string) {

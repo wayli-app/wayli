@@ -3,15 +3,21 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
-	import { userStore } from '$lib/stores/auth';
+	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowLeft, LogIn } from 'lucide-svelte';
 	import { page } from '$app/stores';
+	import TwoFactorVerification from '$lib/components/TwoFactorVerification.svelte';
+	import { isInTwoFactorFlow } from '$lib/stores/auth';
 
 	let email = '';
 	let password = '';
 	let loading = false;
 	let showPassword = false;
 	let isMagicLinkSent = false;
+	let showTwoFactorVerification = false;
+	let pendingUserEmail = '';
+	let pendingPassword = '';
+	let unsubscribeFromUserStore: (() => void) | null = null;
 
 	onMount(() => {
 		console.log('🔐 [SIGNIN] Page mounted');
@@ -33,10 +39,17 @@
 		})();
 
 		// Subscribe to auth changes for future logins
-		const unsubscribe = userStore.subscribe(user => {
+		unsubscribeFromUserStore = userStore.subscribe(user => {
 			console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
-			if (user) {
-				// Only redirect if we're on the signin page
+
+			// Get current 2FA flow state
+			let currentTwoFactorState = false;
+			isInTwoFactorFlow.subscribe(state => {
+				currentTwoFactorState = state;
+			})();
+
+			if (user && !currentTwoFactorState) {
+				// Only redirect if we're on the signin page and not in 2FA flow
 				if ($page.url.pathname.startsWith('/auth/signin')) {
 					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
 					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
@@ -45,39 +58,107 @@
 			}
 		});
 
-		return unsubscribe;
+		return unsubscribeFromUserStore;
 	});
+
+	function resubscribeToUserStore() {
+		console.log('🔐 [SIGNIN] Resubscribing to userStore');
+		unsubscribeFromUserStore = userStore.subscribe(user => {
+			console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
+
+			// Get current 2FA flow state
+			let currentTwoFactorState = false;
+			isInTwoFactorFlow.subscribe(state => {
+				currentTwoFactorState = state;
+			})();
+
+			if (user && !currentTwoFactorState) {
+				// Only redirect if we're on the signin page and not in 2FA flow
+				if ($page.url.pathname.startsWith('/auth/signin')) {
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
+					goto(redirectTo);
+				}
+			}
+		});
+	}
+
+	function updateAuthStores(session: any) {
+		console.log('🔐 [SIGNIN] Manually updating auth stores after 2FA verification');
+		sessionStore.set(session);
+		userStore.set(session?.user ?? null);
+	}
 
 	async function handleSignIn(event: Event) {
 		event.preventDefault();
 		loading = true;
 
 		try {
-			const { data, error } = await supabase.auth.signInWithPassword({
-				email,
-				password
+			// First, check if the user has 2FA enabled
+			const checkResponse = await fetch('/api/v1/auth/check-2fa', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ email })
 			});
 
-			if (error) throw error;
+			const checkResult = await checkResponse.json();
 
-			if (data.session) {
-				toast.success('Signed in successfully');
+			if (!checkResponse.ok) {
+				throw new Error(checkResult.error || 'Failed to check 2FA status');
+			}
 
-				// Force a small delay to ensure auth state is updated
-				await new Promise(resolve => setTimeout(resolve, 500));
+			const has2FA = checkResult.has2FA;
 
-				// Double-check the session and redirect
-				const { data: { session: currentSession } } = await supabase.auth.getSession();
-				if (currentSession) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
-					console.log('🔄 [SIGNIN] REDIRECTING: Login successful, going to', redirectTo);
-					goto(redirectTo, { replaceState: true });
-				} else {
-					console.log('❌ [SIGNIN] ERROR: Session not found after authentication');
-					toast.error('Session not found after authentication');
+			if (has2FA) {
+				// Set 2FA flow state IMMEDIATELY to prevent redirects
+				isInTwoFactorFlow.set(true);
+
+				// Store credentials for 2FA verification
+				pendingUserEmail = email;
+				pendingPassword = password;
+
+				// Show 2FA verification modal
+				showTwoFactorVerification = true;
+
+				console.log('🔐 [SIGNIN] 2FA flow started, unsubscribing from userStore');
+
+				// Unsubscribe from userStore to prevent automatic redirects
+				if (unsubscribeFromUserStore) {
+					unsubscribeFromUserStore();
+					unsubscribeFromUserStore = null;
 				}
+
+				toast.info('Please enter your 2FA verification code');
 			} else {
-				toast.error('No session returned from authentication');
+				// No 2FA enabled, proceed with normal login
+				const { data, error } = await supabase.auth.signInWithPassword({
+					email,
+					password
+				});
+
+				if (error) throw error;
+
+				if (data.session) {
+					toast.success('Signed in successfully');
+
+					// Force a small delay to ensure auth state is updated
+					await new Promise(resolve => setTimeout(resolve, 500));
+
+					// Double-check the session and redirect
+					const { data: { session: currentSession } } = await supabase.auth.getSession();
+					if (currentSession) {
+						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+						console.log('🔄 [SIGNIN] REDIRECTING: Login successful, going to', redirectTo);
+						goto(redirectTo, { replaceState: true });
+					} else {
+						console.log('❌ [SIGNIN] ERROR: Session not found after authentication');
+						toast.error('Session not found after authentication');
+					}
+				} else {
+					toast.error('No session returned from authentication');
+				}
 			}
 		} catch (error: any) {
 			console.error('Sign in error:', error);
@@ -134,6 +215,82 @@
 
 	function togglePassword() {
 		showPassword = !showPassword;
+	}
+
+	async function handleTwoFactorVerify(event: CustomEvent) {
+		const { code } = event.detail;
+
+		try {
+			// Call the 2FA verification API
+			const response = await fetch('/api/v1/auth/verify-2fa', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					email: pendingUserEmail,
+					code: code
+				})
+			});
+
+			const result = await response.json();
+
+			if (!response.ok) {
+				throw new Error(result.error || 'Verification failed');
+			}
+
+			// 2FA verification successful, now sign in with stored credentials
+			const { data, error } = await supabase.auth.signInWithPassword({
+				email: pendingUserEmail,
+				password: pendingPassword
+			});
+
+			if (error) throw error;
+
+			if (data.session) {
+				toast.success('Signed in successfully');
+
+				// Clear pending credentials
+				pendingUserEmail = '';
+				pendingPassword = '';
+				showTwoFactorVerification = false;
+				isInTwoFactorFlow.set(false);
+
+				// Resubscribe to userStore
+				resubscribeToUserStore();
+
+				// Redirect to intended destination
+				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+				console.log('🔄 [SIGNIN] REDIRECTING: 2FA verified, going to', redirectTo);
+				goto(redirectTo, { replaceState: true });
+
+				// Manually update auth stores
+				updateAuthStores(data.session);
+			}
+		} catch (error: any) {
+			console.error('2FA verification error:', error);
+			toast.error(error.message || '2FA verification failed');
+		}
+	}
+
+	function handleTwoFactorBack() {
+		showTwoFactorVerification = false;
+		pendingUserEmail = '';
+		pendingPassword = '';
+		isInTwoFactorFlow.set(false);
+
+		// Resubscribe to userStore
+		resubscribeToUserStore();
+	}
+
+	function handleTwoFactorCancel() {
+		showTwoFactorVerification = false;
+		pendingUserEmail = '';
+		pendingPassword = '';
+		isInTwoFactorFlow.set(false);
+
+		// Resubscribe to userStore
+		resubscribeToUserStore();
 	}
 </script>
 
@@ -261,3 +418,12 @@
 		</div>
 	</div>
 </div>
+
+<!-- Two-Factor Authentication Modal -->
+<TwoFactorVerification
+	open={showTwoFactorVerification}
+	userEmail={pendingUserEmail}
+	on:verify={handleTwoFactorVerify}
+	on:back={handleTwoFactorBack}
+	on:cancel={handleTwoFactorCancel}
+/>

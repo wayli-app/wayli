@@ -12,6 +12,7 @@
 
 	async function handleSignOut() {
 		await supabase.auth.signOut();
+		goto('/auth/signin');
 	}
 
 	onMount(() => {

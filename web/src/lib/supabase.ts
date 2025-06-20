@@ -28,7 +28,6 @@ export const supabase = createClient(config.url, config.anonKey, {
 				return localValue;
 			},
 			setItem: (key, value) => {
-				console.log('🔍 [SUPABASE-STORAGE] Setting item:', { key, value });
 				// Set in both cookies and localStorage
 				document.cookie = `${key}=${value}; path=/; max-age=31536000; SameSite=Lax`;
 				localStorage.setItem(key, value);
