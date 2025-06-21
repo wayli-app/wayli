@@ -25,7 +25,7 @@
 
 <AppNav isAdmin={data.isAdmin} on:signout={handleSignOut}>
 	<!-- Main content area -->
-	<div class="p-6">
+	<div class="bg-gray-50 dark:bg-gray-900 min-h-screen p-6">
 		<slot />
 	</div>
 </AppNav>

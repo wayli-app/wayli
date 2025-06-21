@@ -24,39 +24,36 @@
 	let firstNameInput = '';
 	let lastNameInput = '';
 	let preferredLanguageInput = '';
-	let distanceUnitInput = '';
-	let temperatureUnitInput = '';
-	let timezoneInput = '';
+	let themeInput = 'light';
+	let notificationsEnabledInput = true;
+	let timezoneInput = 'UTC+00:00 (London, Dublin)';
 
-	const languages = ['English', 'Nederlands', 'Deutsch', 'Français', 'Español'];
-	const distanceUnits = ['Kilometers (km)', 'Miles (mi)'];
-	const temperatureUnits = ['Celsius (°C)', 'Fahrenheit (°F)'];
+	const languages = ['en', 'nl'];
+	const themes = ['light', 'dark'];
 	const timezones = [
-		'UTC-12:00 (Baker Island)',
-		'UTC-11:00 (American Samoa)',
+		'UTC-12:00 (International Date Line West)',
+		'UTC-11:00 (Samoa)',
 		'UTC-10:00 (Hawaii)',
 		'UTC-09:00 (Alaska)',
-		'UTC-08:00 (Los Angeles, Vancouver)',
-		'UTC-07:00 (Phoenix, Calgary)',
-		'UTC-06:00 (Chicago, Mexico City)',
-		'UTC-05:00 (New York, Toronto)',
-		'UTC-04:00 (Santiago, Halifax)',
-		'UTC-03:00 (São Paulo, Buenos Aires)',
-		'UTC-02:00 (South Georgia)',
-		'UTC-01:00 (Cape Verde)',
+		'UTC-08:00 (Pacific Time)',
+		'UTC-07:00 (Mountain Time)',
+		'UTC-06:00 (Central Time)',
+		'UTC-05:00 (Eastern Time)',
+		'UTC-04:00 (Atlantic Time)',
+		'UTC-03:00 (Brasilia)',
+		'UTC-02:00 (Mid-Atlantic)',
+		'UTC-01:00 (Azores)',
 		'UTC+00:00 (London, Dublin)',
-		'UTC+01:00 (Paris, Amsterdam)',
-		'UTC+02:00 (Cairo, Jerusalem)',
-		'UTC+03:00 (Moscow, Istanbul)',
-		'UTC+04:00 (Dubai, Baku)',
-		'UTC+05:00 (Karachi, Tashkent)',
-		'UTC+05:30 (Mumbai, Colombo)',
-		'UTC+06:00 (Dhaka, Almaty)',
-		'UTC+07:00 (Bangkok, Jakarta)',
-		'UTC+08:00 (Singapore, Beijing)',
-		'UTC+09:00 (Tokyo, Seoul)',
-		'UTC+09:30 (Adelaide)',
-		'UTC+10:00 (Sydney, Brisbane)',
+		'UTC+01:00 (Paris, Berlin)',
+		'UTC+02:00 (Eastern Europe)',
+		'UTC+03:00 (Moscow)',
+		'UTC+04:00 (Gulf)',
+		'UTC+05:00 (Pakistan)',
+		'UTC+06:00 (Bangladesh)',
+		'UTC+07:00 (Bangkok)',
+		'UTC+08:00 (Beijing)',
+		'UTC+09:00 (Tokyo)',
+		'UTC+10:00 (Sydney)',
 		'UTC+11:00 (Solomon Islands)',
 		'UTC+12:00 (Auckland, Fiji)',
 		'UTC+13:00 (Samoa, Tonga)'
@@ -65,14 +62,14 @@
 	onMount(async () => {
 		await loadUserData();
 		if (profile) {
-			firstNameInput = profile.firstName;
-			lastNameInput = profile.lastName;
+			firstNameInput = profile.first_name || '';
+			lastNameInput = profile.last_name || '';
 		}
 		if (preferences) {
-			preferredLanguageInput = preferences.preferredLanguage;
-			distanceUnitInput = preferences.distanceUnit;
-			temperatureUnitInput = preferences.temperatureUnit;
-			timezoneInput = preferences.timezone;
+			preferredLanguageInput = preferences.language || 'en';
+			themeInput = preferences.theme || 'light';
+			notificationsEnabledInput = preferences.notifications_enabled || true;
+			timezoneInput = 'UTC+00:00 (London, Dublin)'; // Default timezone
 		}
 	});
 
@@ -97,11 +94,11 @@
 		isUpdatingProfile = true;
 		try {
 			profile = await UserService.updateProfile({
-				firstName: firstNameInput,
-				lastName: lastNameInput
+				first_name: firstNameInput,
+				last_name: lastNameInput
 			});
-			firstNameInput = profile.firstName;
-			lastNameInput = profile.lastName;
+			firstNameInput = profile.first_name || '';
+			lastNameInput = profile.last_name || '';
 			toast.success('Profile updated successfully');
 		} catch (error) {
 			console.error('Error updating profile:', error);
@@ -116,15 +113,14 @@
 		isUpdatingPreferences = true;
 		try {
 			preferences = await UserService.updatePreferences({
-				preferredLanguage: preferredLanguageInput,
-				distanceUnit: distanceUnitInput,
-				temperatureUnit: temperatureUnitInput,
-				timezone: timezoneInput
+				theme: themeInput as 'light' | 'dark',
+				language: preferredLanguageInput,
+				notifications_enabled: notificationsEnabledInput
 			});
-			preferredLanguageInput = preferences.preferredLanguage;
-			distanceUnitInput = preferences.distanceUnit;
-			temperatureUnitInput = preferences.temperatureUnit;
-			timezoneInput = preferences.timezone;
+			preferredLanguageInput = preferences.language;
+			themeInput = preferences.theme;
+			notificationsEnabledInput = preferences.notifications_enabled;
+			timezoneInput = 'UTC+00:00 (London, Dublin)'; // Default timezone
 			toast.success('Preferences updated successfully');
 		} catch (error) {
 			console.error('Error updating preferences:', error);
@@ -189,13 +185,6 @@
 		// Reload user data to check if 2FA was disabled
 		loadUserData();
 	}
-
-	// Subscribe to user store for real-time updates
-	userStore.subscribe(user => {
-		if (user && !isLoading) {
-			twoFactorEnabled = user.user_metadata?.totp_enabled || false;
-		}
-	});
 </script>
 
 <div>
@@ -392,28 +381,27 @@
 				</div>
 
 				<div>
-					<label for="distanceUnit" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Distance Unit</label>
+					<label for="theme" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Theme</label>
 					<select
-						id="distanceUnit"
-						bind:value={distanceUnitInput}
+						id="theme"
+						bind:value={themeInput}
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					>
-						{#each distanceUnits as unit}
-							<option value={unit}>{unit}</option>
+						{#each themes as theme}
+							<option value={theme}>{theme}</option>
 						{/each}
 					</select>
 				</div>
 
 				<div>
-					<label for="temperatureUnit" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Temperature Unit</label>
+					<label for="notificationsEnabled" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Notifications Enabled</label>
 					<select
-						id="temperatureUnit"
-						bind:value={temperatureUnitInput}
+						id="notificationsEnabled"
+						bind:value={notificationsEnabledInput}
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					>
-						{#each temperatureUnits as unit}
-							<option value={unit}>{unit}</option>
-						{/each}
+						<option value={true}>Enabled</option>
+						<option value={false}>Disabled</option>
 					</select>
 				</div>
 

@@ -49,11 +49,23 @@
 	<div
 		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
 		on:click={handleCancel}
+		on:keydown={(e) => e.key === 'Escape' && handleCancel()}
+		aria-modal="true"
+		role="dialog"
+		aria-labelledby="two-factor-modal-title"
+		aria-describedby="two-factor-modal-description"
+		tabindex="-1"
 	>
 		<!-- Modal -->
 		<div
 			class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
 			on:click|stopPropagation
+			on:keydown|stopPropagation
+			aria-modal="true"
+			role="dialog"
+			aria-labelledby="two-factor-modal-title"
+			aria-describedby="two-factor-modal-description"
+			tabindex="-1"
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">

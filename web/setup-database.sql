@@ -3,13 +3,13 @@
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "postgis";
-
-CREATE SCHEMA IF NOT EXISTS "gis";
 CREATE EXTENSION IF NOT EXISTS "postgis" WITH SCHEMA "gis";
 
+-- Create the schema for the application from a placeholder
+CREATE SCHEMA IF NOT EXISTS %%SCHEMA%%;
+
 -- Create profiles table
-CREATE TABLE IF NOT EXISTS profiles (
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     first_name TEXT,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 );
 
 -- Create trips table
-CREATE TABLE IF NOT EXISTS trips (
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.trips (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -35,10 +35,10 @@ CREATE TABLE IF NOT EXISTS trips (
 );
 
 -- Create locations table with PostGIS geometry
-CREATE TABLE IF NOT EXISTS locations (
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.locations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    trip_id UUID REFERENCES trips(id) ON DELETE CASCADE,
+    trip_id UUID REFERENCES %%SCHEMA%%.trips(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     description TEXT,
     location GEOMETRY(POINT, 4326), -- PostGIS point with WGS84 SRID
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS locations (
 );
 
 -- Create points_of_interest table with PostGIS geometry
-CREATE TABLE IF NOT EXISTS points_of_interest (
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.points_of_interest (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -62,9 +62,8 @@ CREATE TABLE IF NOT EXISTS points_of_interest (
 );
 
 -- Create user_preferences table
-CREATE TABLE IF NOT EXISTS user_preferences (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.user_preferences (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     theme TEXT DEFAULT 'light',
     language TEXT DEFAULT 'en',
     notifications_enabled BOOLEAN DEFAULT true,
@@ -73,12 +72,12 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 );
 
 -- Create tracker_data table for OwnTracks and other tracking apps
-CREATE TABLE IF NOT EXISTS tracker_data (
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.tracker_data (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     tracker_type TEXT NOT NULL, -- 'owntracks', 'gpx', 'fitbit', etc.
     device_id TEXT, -- Device identifier from tracking app
-    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    recorded_at TIMESTAMP WITH TIME ZONE NOT NULL,
     location GEOMETRY(POINT, 4326), -- PostGIS point with WGS84 SRID
     altitude DECIMAL(8, 2), -- Altitude in meters
     accuracy DECIMAL(8, 2), -- GPS accuracy in meters
@@ -92,149 +91,227 @@ CREATE TABLE IF NOT EXISTS tracker_data (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create jobs table for background job processing
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'completed', 'failed', 'cancelled')),
+    priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    data JSONB NOT NULL DEFAULT '{}',
+    progress INTEGER NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+    result JSONB,
+    error TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    created_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    worker_id TEXT
+);
+
+-- Create workers table for worker management
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.workers (
+    id TEXT PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'busy', 'stopped')),
+    current_job UUID REFERENCES %%SCHEMA%%.jobs(id) ON DELETE SET NULL,
+    last_heartbeat TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_trips_user_id ON trips(user_id);
-CREATE INDEX IF NOT EXISTS idx_locations_user_id ON locations(user_id);
-CREATE INDEX IF NOT EXISTS idx_locations_trip_id ON locations(trip_id);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_user_id ON points_of_interest(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id ON user_preferences(user_id);
-CREATE INDEX IF NOT EXISTS idx_tracker_data_user_id ON tracker_data(user_id);
-CREATE INDEX IF NOT EXISTS idx_tracker_data_timestamp ON tracker_data(timestamp);
-CREATE INDEX IF NOT EXISTS idx_tracker_data_device_id ON tracker_data(device_id);
+CREATE INDEX IF NOT EXISTS idx_trips_user_id ON %%SCHEMA%%.trips(user_id);
+CREATE INDEX IF NOT EXISTS idx_locations_user_id ON %%SCHEMA%%.locations(user_id);
+CREATE INDEX IF NOT EXISTS idx_locations_trip_id ON %%SCHEMA%%.locations(trip_id);
+CREATE INDEX IF NOT EXISTS idx_points_of_interest_user_id ON %%SCHEMA%%.points_of_interest(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_preferences_id ON %%SCHEMA%%.user_preferences(id);
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_id ON %%SCHEMA%%.tracker_data(user_id);
+CREATE INDEX IF NOT EXISTS idx_tracker_data_timestamp ON %%SCHEMA%%.tracker_data(recorded_at);
+CREATE INDEX IF NOT EXISTS idx_tracker_data_device_id ON %%SCHEMA%%.tracker_data(device_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON %%SCHEMA%%.jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_priority ON %%SCHEMA%%.jobs(priority);
+CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON %%SCHEMA%%.jobs(created_at);
+CREATE INDEX IF NOT EXISTS idx_jobs_created_by ON %%SCHEMA%%.jobs(created_by);
+CREATE INDEX IF NOT EXISTS idx_jobs_worker_id ON %%SCHEMA%%.jobs(worker_id);
+CREATE INDEX IF NOT EXISTS idx_workers_status ON %%SCHEMA%%.workers(status);
+CREATE INDEX IF NOT EXISTS idx_workers_last_heartbeat ON %%SCHEMA%%.workers(last_heartbeat);
 
 -- Create PostGIS spatial indexes
-CREATE INDEX IF NOT EXISTS idx_locations_location ON locations USING GIST(location);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_location ON points_of_interest USING GIST(location);
-CREATE INDEX IF NOT EXISTS idx_tracker_data_location ON tracker_data USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_locations_location ON %%SCHEMA%%.locations USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_points_of_interest_location ON %%SCHEMA%%.points_of_interest USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_tracker_data_location ON %%SCHEMA%%.tracker_data USING GIST(location);
 
 -- Create RLS (Row Level Security) policies
 
 -- Enable RLS on all tables
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
-ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE points_of_interest ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tracker_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.locations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.points_of_interest ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.tracker_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE %%SCHEMA%%.workers ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
-CREATE POLICY "Users can view their own profile" ON profiles
+CREATE POLICY "Users can view their own profile" ON %%SCHEMA%%.profiles
     FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile" ON profiles
+CREATE POLICY "Users can update their own profile" ON %%SCHEMA%%.profiles
     FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert their own profile" ON profiles
+CREATE POLICY "Users can insert their own profile" ON %%SCHEMA%%.profiles
     FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Trips policies
-CREATE POLICY "Users can view their own trips" ON trips
+CREATE POLICY "Users can view their own trips" ON %%SCHEMA%%.trips
     FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own trips" ON trips
+CREATE POLICY "Users can insert their own trips" ON %%SCHEMA%%.trips
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own trips" ON trips
+CREATE POLICY "Users can update their own trips" ON %%SCHEMA%%.trips
     FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own trips" ON trips
+CREATE POLICY "Users can delete their own trips" ON %%SCHEMA%%.trips
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Locations policies
-CREATE POLICY "Users can view their own locations" ON locations
+CREATE POLICY "Users can view their own locations" ON %%SCHEMA%%.locations
     FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own locations" ON locations
+CREATE POLICY "Users can insert their own locations" ON %%SCHEMA%%.locations
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own locations" ON locations
+CREATE POLICY "Users can update their own locations" ON %%SCHEMA%%.locations
     FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own locations" ON locations
+CREATE POLICY "Users can delete their own locations" ON %%SCHEMA%%.locations
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Points of interest policies
-CREATE POLICY "Users can view their own points of interest" ON points_of_interest
+CREATE POLICY "Users can view their own points of interest" ON %%SCHEMA%%.points_of_interest
     FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own points of interest" ON points_of_interest
+CREATE POLICY "Users can insert their own points of interest" ON %%SCHEMA%%.points_of_interest
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own points of interest" ON points_of_interest
+CREATE POLICY "Users can update their own points of interest" ON %%SCHEMA%%.points_of_interest
     FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own points of interest" ON points_of_interest
+CREATE POLICY "Users can delete their own points of interest" ON %%SCHEMA%%.points_of_interest
     FOR DELETE USING (auth.uid() = user_id);
 
 -- User preferences policies
-CREATE POLICY "Users can view their own preferences" ON user_preferences
-    FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own preferences" ON %%SCHEMA%%.user_preferences
+    FOR SELECT USING (auth.uid() = id);
 
-CREATE POLICY "Users can insert their own preferences" ON user_preferences
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own preferences" ON %%SCHEMA%%.user_preferences
+    FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can update their own preferences" ON user_preferences
-    FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can update their own preferences" ON %%SCHEMA%%.user_preferences
+    FOR UPDATE USING (auth.uid() = id);
 
 -- Tracker data policies
-CREATE POLICY "Users can view their own tracker data" ON tracker_data
+CREATE POLICY "Users can view their own tracker data" ON %%SCHEMA%%.tracker_data
     FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own tracker data" ON tracker_data
+CREATE POLICY "Users can insert their own tracker data" ON %%SCHEMA%%.tracker_data
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own tracker data" ON tracker_data
+CREATE POLICY "Users can update their own tracker data" ON %%SCHEMA%%.tracker_data
     FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own tracker data" ON tracker_data
+CREATE POLICY "Users can delete their own tracker data" ON %%SCHEMA%%.tracker_data
     FOR DELETE USING (auth.uid() = user_id);
 
+-- Jobs policies
+CREATE POLICY "Users can view their own jobs" ON %%SCHEMA%%.jobs
+    FOR SELECT USING (auth.uid() = created_by);
+
+CREATE POLICY "Users can insert their own jobs" ON %%SCHEMA%%.jobs
+    FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+CREATE POLICY "Users can update their own jobs" ON %%SCHEMA%%.jobs
+    FOR UPDATE USING (auth.uid() = created_by);
+
+CREATE POLICY "Users can delete their own jobs" ON %%SCHEMA%%.jobs
+    FOR DELETE USING (auth.uid() = created_by);
+
+-- Workers policies
+CREATE POLICY "Users can view their own workers" ON %%SCHEMA%%.workers
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own workers" ON %%SCHEMA%%.workers
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own workers" ON %%SCHEMA%%.workers
+    FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can delete their own workers" ON %%SCHEMA%%.workers
+    FOR DELETE USING (auth.uid() = id);
+
 -- Admin policies (allow admins to view all data)
-CREATE POLICY "Admins can view all profiles" ON profiles
+CREATE POLICY "Admins can view all profiles" ON %%SCHEMA%%.profiles
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM profiles
+            SELECT 1 FROM %%SCHEMA%%.profiles
             WHERE id = auth.uid() AND role = 'admin'
         )
     );
 
-CREATE POLICY "Admins can view all trips" ON trips
+CREATE POLICY "Admins can view all trips" ON %%SCHEMA%%.trips
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM profiles
+            SELECT 1 FROM %%SCHEMA%%.profiles
             WHERE id = auth.uid() AND role = 'admin'
         )
     );
 
-CREATE POLICY "Admins can view all locations" ON locations
+CREATE POLICY "Admins can view all locations" ON %%SCHEMA%%.locations
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM profiles
+            SELECT 1 FROM %%SCHEMA%%.profiles
             WHERE id = auth.uid() AND role = 'admin'
         )
     );
 
-CREATE POLICY "Admins can view all points of interest" ON points_of_interest
+CREATE POLICY "Admins can view all points of interest" ON %%SCHEMA%%.points_of_interest
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM profiles
+            SELECT 1 FROM %%SCHEMA%%.profiles
             WHERE id = auth.uid() AND role = 'admin'
         )
     );
 
-CREATE POLICY "Admins can view all tracker data" ON tracker_data
+CREATE POLICY "Admins can view all tracker data" ON %%SCHEMA%%.tracker_data
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM profiles
+            SELECT 1 FROM %%SCHEMA%%.profiles
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
+
+CREATE POLICY "Admins can view all jobs" ON %%SCHEMA%%.jobs
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM %%SCHEMA%%.profiles
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
+
+CREATE POLICY "Admins can view all workers" ON %%SCHEMA%%.workers
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM %%SCHEMA%%.profiles
             WHERE id = auth.uid() AND role = 'admin'
         )
     );
 
 -- Create function to handle user creation
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE OR REPLACE FUNCTION %%SCHEMA%%.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email, first_name, last_name, full_name, role)
+    INSERT INTO %%SCHEMA%%.profiles (id, email, first_name, last_name, full_name, role)
     VALUES (
         NEW.id,
         NEW.email,
@@ -244,7 +321,7 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'role', 'user')
     );
 
-    INSERT INTO public.user_preferences (user_id, theme, language, notifications_enabled)
+    INSERT INTO %%SCHEMA%%.user_preferences (id, theme, language, notifications_enabled)
     VALUES (NEW.id, 'light', 'en', true);
 
     RETURN NEW;
@@ -255,7 +332,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+    FOR EACH ROW EXECUTE FUNCTION %%SCHEMA%%.handle_new_user();
 
 -- Create helper functions for PostGIS operations
 
@@ -284,7 +361,7 @@ BEGIN
         l.id,
         l.name,
         ST_Distance(center_point::geography, l.location::geography) as distance
-    FROM locations l
+    FROM %%SCHEMA%%.locations l
     WHERE ST_DWithin(center_point::geography, l.location::geography, radius_meters)
     ORDER BY distance;
 END;
@@ -307,14 +384,14 @@ BEGIN
     RETURN QUERY
     SELECT
         td.id,
-        td.timestamp,
+        td.recorded_at,
         td.location,
         td.altitude,
         td.speed,
         td.activity_type
-    FROM tracker_data td
+    FROM %%SCHEMA%%.tracker_data td
     WHERE td.user_id = p_user_id
-    AND td.timestamp BETWEEN start_time AND end_time
-    ORDER BY td.timestamp;
+    AND td.recorded_at BETWEEN start_time AND end_time
+    ORDER BY td.recorded_at;
 END;
 $$ LANGUAGE plpgsql STABLE;

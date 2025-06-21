@@ -51,8 +51,8 @@ export const createServerClient = (accessToken?: string) => {
 	return createClient(config.url, config.anonKey, {
 		global: {
 			headers: accessToken ? {
-				Authorization: `Bearer ${accessToken}`
-			} : {}
+				Authorization: `Bearer ${accessToken}`,
+			} : undefined
 		}
 	})
 }

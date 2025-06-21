@@ -1,17 +1,5 @@
 // Database types for Wayli with PostGIS support
 
-export interface Profile {
-	id: string;
-	email: string;
-	first_name?: string;
-	last_name?: string;
-	full_name?: string;
-	role: 'user' | 'admin';
-	avatar_url?: string;
-	created_at: string;
-	updated_at: string;
-}
-
 export interface Trip {
 	id: string;
 	user_id: string;
@@ -50,8 +38,7 @@ export interface PointOfInterest {
 }
 
 export interface UserPreferences {
-	id: string;
-	user_id: string;
+	id: string; // References auth.users(id)
 	theme: 'light' | 'dark';
 	language: string;
 	notifications_enabled: boolean;
@@ -64,7 +51,7 @@ export interface TrackerData {
 	user_id: string;
 	tracker_type: 'owntracks' | 'gpx' | 'fitbit' | 'strava' | 'other';
 	device_id?: string;
-	timestamp: string;
+	recorded_at: string;
 	location: string; // PostGIS POINT geometry as WKT string
 	altitude?: number; // meters
 	accuracy?: number; // meters
@@ -151,7 +138,6 @@ export interface TrackerDataWithCoordinates extends Omit<TrackerData, 'location'
 
 // Database table names
 export const TABLES = {
-	PROFILES: 'profiles',
 	TRIPS: 'trips',
 	LOCATIONS: 'locations',
 	POINTS_OF_INTEREST: 'points_of_interest',

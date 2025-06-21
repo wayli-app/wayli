@@ -1,4 +1,5 @@
 import { supabase } from '$lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   UserProfile,
   UserPreferences,
@@ -17,21 +18,45 @@ import { handleApiError } from '$lib/utils/error-handler';
 import { apiClient } from './api.service';
 
 export class UserService {
+  static async isUserAdmin(supabase: SupabaseClient, userId: string): Promise<boolean> {
+    if (!userId) {
+      return false;
+    }
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        console.error('Error getting user:', error?.message);
+        return false;
+      }
+
+      // Check role from raw_user_metadata
+      const role = user.user_metadata?.role || 'user';
+      return role === 'admin';
+    } catch (e) {
+      console.error('Exception when checking admin status:', e);
+      return false;
+    }
+  }
+
   static async getProfile(): Promise<UserProfile> {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
       if (!user) throw new Error('User not authenticated');
 
+      // Get profile from raw_user_metadata
+      const metadata = user.user_metadata || {};
+
       return {
         id: user.id,
         email: user.email || '',
-        firstName: user.user_metadata?.first_name || '',
-        lastName: user.user_metadata?.last_name || '',
-        fullName: user.user_metadata?.full_name || '',
-        avatarUrl: user.user_metadata?.avatar_url,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at || user.created_at
+        first_name: metadata.first_name || '',
+        last_name: metadata.last_name || '',
+        full_name: metadata.full_name || '',
+        role: metadata.role || 'user',
+        avatar_url: metadata.avatar_url,
+        created_at: user.created_at,
+        updated_at: user.updated_at || user.created_at
       };
     } catch (error) {
       throw handleApiError(error, 'Failed to get user profile');
@@ -40,10 +65,19 @@ export class UserService {
 
   static async updateProfile(updates: UpdateProfileRequest): Promise<UserProfile> {
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: updates
-      });
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
+      if (!user) throw new Error('User not authenticated');
+
+      // Update profile in raw_user_metadata
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
+          ...updates
+        }
+      });
+
+      if (updateError) throw updateError;
       return await this.getProfile();
     } catch (error) {
       throw handleApiError(error, 'Failed to update profile');
@@ -56,11 +90,24 @@ export class UserService {
       if (error) throw error;
       if (!user) throw new Error('User not authenticated');
 
+      // Get preferences from database
+      const { data: preferences, error: preferencesError } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (preferencesError && preferencesError.code !== 'PGRST116') {
+        throw preferencesError;
+      }
+
       return {
-        preferredLanguage: user.user_metadata?.preferred_language || 'English',
-        distanceUnit: user.user_metadata?.distance_unit || 'Kilometers (km)',
-        temperatureUnit: user.user_metadata?.temperature_unit || 'Celsius (°C)',
-        timezone: user.user_metadata?.timezone || 'UTC+00:00 (London, Dublin)'
+        id: user.id,
+        theme: preferences?.theme || 'light',
+        language: preferences?.language || 'en',
+        notifications_enabled: preferences?.notifications_enabled ?? true,
+        created_at: preferences?.created_at || new Date().toISOString(),
+        updated_at: preferences?.updated_at || new Date().toISOString()
       };
     } catch (error) {
       throw handleApiError(error, 'Failed to get user preferences');
@@ -69,25 +116,20 @@ export class UserService {
 
   static async updatePreferences(updates: UpdatePreferencesRequest): Promise<UserPreferences> {
     try {
-      // Convert camelCase keys to snake_case for Supabase storage
-      const supabaseUpdates: any = {};
-      if (updates.preferredLanguage !== undefined) {
-        supabaseUpdates.preferred_language = updates.preferredLanguage;
-      }
-      if (updates.distanceUnit !== undefined) {
-        supabaseUpdates.distance_unit = updates.distanceUnit;
-      }
-      if (updates.temperatureUnit !== undefined) {
-        supabaseUpdates.temperature_unit = updates.temperatureUnit;
-      }
-      if (updates.timezone !== undefined) {
-        supabaseUpdates.timezone = updates.timezone;
-      }
-
-      const { error } = await supabase.auth.updateUser({
-        data: supabaseUpdates
-      });
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (error) throw error;
+      if (!user) throw new Error('User not authenticated');
+
+      // Update preferences in database
+      const { error: updateError } = await supabase
+        .from('user_preferences')
+        .upsert({
+          id: user.id,
+          ...updates,
+          updated_at: new Date().toISOString()
+        });
+
+      if (updateError) throw updateError;
       return await this.getPreferences();
     } catch (error) {
       throw handleApiError(error, 'Failed to update preferences');

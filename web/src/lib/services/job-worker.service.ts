@@ -1,0 +1,378 @@
+import { JobQueueService } from './job-queue.service';
+import { supabase } from '$lib/supabase';
+import type { Job, JobType } from '$lib/types/job-queue.types';
+import { randomUUID } from 'crypto';
+
+export class JobWorker {
+  private workerId: string;
+  private isRunning: boolean = false;
+  private currentJob: Job | null = null;
+  private intervalId?: NodeJS.Timeout;
+  private realtimeChannel: any;
+  private config: any;
+
+  constructor(workerId?: string) {
+    this.workerId = workerId || randomUUID();
+    this.config = JobQueueService.getConfig();
+  }
+
+  async start(): Promise<void> {
+    if (this.isRunning) return;
+
+    this.isRunning = true;
+    await JobQueueService.registerWorker(this.workerId);
+
+    console.log(`🚀 Worker ${this.workerId} started`);
+
+    // Start real-time notifications
+    await this.subscribeToRealtime();
+
+    // Start polling as fallback (less frequent)
+    this.intervalId = setInterval(async () => {
+      if (this.isRunning && !this.currentJob) {
+        await this.pollForJobs();
+      }
+    }, this.config.pollInterval * 3); // Poll less frequently as fallback
+  }
+
+  async stop(): Promise<void> {
+    this.isRunning = false;
+
+    // Unsubscribe from real-time notifications
+    if (this.realtimeChannel) {
+      await supabase.removeChannel(this.realtimeChannel);
+      this.realtimeChannel = null;
+    }
+
+    // Stop polling
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = undefined;
+    }
+
+    // Complete current job if running
+    if (this.currentJob) {
+      await JobQueueService.failJob(this.currentJob.id, 'Worker stopped');
+      this.currentJob = null;
+    }
+
+    console.log(`🛑 Worker ${this.workerId} stopped`);
+  }
+
+  private async subscribeToRealtime(): Promise<void> {
+    try {
+      // Check if we already have a channel
+      if (this.realtimeChannel) {
+        console.log(`📡 Worker ${this.workerId} already has a realtime channel`);
+        return;
+      }
+
+      // Create a unique channel name for this worker
+      const channelName = `worker-${this.workerId}-${Date.now()}`;
+
+      console.log(`📡 Worker ${this.workerId} creating realtime channel: ${channelName}`);
+
+      this.realtimeChannel = supabase
+        .channel(channelName)
+        .on('postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'jobs',
+            filter: 'status=eq.queued'
+          },
+          this.handleNewJob.bind(this)
+        )
+        .on('postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'jobs',
+            filter: 'status=eq.queued'
+          },
+          this.handleJobUpdated.bind(this)
+        )
+        .on('system', { event: 'disconnect' }, () => {
+          console.log(`📡 Worker ${this.workerId} realtime disconnected, attempting to reconnect...`);
+          this.reconnectRealtime();
+        })
+        .on('system', { event: 'reconnect' }, () => {
+          console.log(`📡 Worker ${this.workerId} realtime reconnected`);
+        })
+        .subscribe((status) => {
+          console.log(`📡 Worker ${this.workerId} realtime status:`, status);
+
+          if (status === 'SUBSCRIBED') {
+            console.log(`✅ Worker ${this.workerId} successfully subscribed to real-time job notifications`);
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error(`❌ Worker ${this.workerId} realtime channel error, falling back to polling`);
+            this.realtimeChannel = null;
+          }
+        });
+
+    } catch (error: any) {
+      console.error(`❌ Worker ${this.workerId} failed to subscribe to realtime:`, error?.message || error);
+      this.realtimeChannel = null;
+      // Fallback to polling only
+    }
+  }
+
+  private async reconnectRealtime(): Promise<void> {
+    try {
+      // Wait a bit before attempting to reconnect
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (this.isRunning && !this.realtimeChannel) {
+        console.log(`🔄 Worker ${this.workerId} attempting to reconnect to realtime...`);
+        await this.subscribeToRealtime();
+      }
+    } catch (error: any) {
+      console.error(`❌ Worker ${this.workerId} failed to reconnect to realtime:`, error?.message || error);
+    }
+  }
+
+  private async handleNewJob(payload: any): Promise<void> {
+    try {
+      console.log(`🔔 Worker ${this.workerId} received new job notification:`, payload.new.id);
+
+      // Only process if we're not already working on a job
+      if (!this.currentJob) {
+        await this.pollForJobs();
+      }
+    } catch (error: any) {
+      console.error(`❌ Worker ${this.workerId} error handling new job:`, error?.message || error);
+    }
+  }
+
+  private async handleJobUpdated(payload: any): Promise<void> {
+    try {
+      console.log(`🔄 Worker ${this.workerId} received job update notification:`, payload.new.id);
+
+      // If a job was updated to queued status and we're idle, try to get it
+      if (payload.new.status === 'queued' && !this.currentJob) {
+        await this.pollForJobs();
+      }
+    } catch (error: any) {
+      console.error(`❌ Worker ${this.workerId} error handling job update:`, error?.message || error);
+    }
+  }
+
+  private async pollForJobs(): Promise<void> {
+    try {
+      // Update heartbeat
+      await JobQueueService.updateWorkerHeartbeat(
+        this.workerId,
+        this.currentJob ? 'busy' : 'idle',
+        this.currentJob?.id
+      );
+
+      // If we're already processing a job, don't get another one
+      if (this.currentJob) return;
+
+      // Get next job
+      const job = await JobQueueService.getNextJob(this.workerId);
+      if (!job) return;
+
+      this.currentJob = job;
+      console.log(`📋 Worker ${this.workerId} processing job ${job.id} (${job.type})`);
+
+      // Process the job
+      await this.processJob(job);
+
+    } catch (error: any) {
+      console.error(`❌ Worker ${this.workerId} error:`, error);
+
+      if (this.currentJob) {
+        await this.failJob(this.currentJob.id, error?.message || 'Unknown error');
+        this.currentJob = null;
+      }
+    }
+  }
+
+  private async processJob(job: Job): Promise<void> {
+    try {
+      const processor = this.getJobProcessor(job.type);
+      if (!processor) {
+        throw new Error(`No processor found for job type: ${job.type}`);
+      }
+
+      await processor(job);
+
+      await this.completeJob(job.id, job.result);
+      console.log(`✅ Worker ${this.workerId} completed job ${job.id}`);
+
+    } catch (error: any) {
+      console.error(`❌ Worker ${this.workerId} failed job ${job.id}:`, error?.message || error);
+      await this.failJob(job.id, error?.message || 'Unknown error');
+    } finally {
+      this.currentJob = null;
+    }
+  }
+
+  private getJobProcessor(jobType: JobType) {
+    const processors: Record<JobType, (job: Job) => Promise<void>> = {
+      reverse_geocoding_full: this.processReverseGeocodingFull.bind(this),
+      reverse_geocoding_missing: this.processReverseGeocodingMissing.bind(this),
+      trip_cover_generation: this.processTripCoverGeneration.bind(this),
+      statistics_update: this.processStatisticsUpdate.bind(this),
+      photo_import: this.processPhotoImport.bind(this),
+      data_cleanup: this.processDataCleanup.bind(this),
+      user_analysis: this.processUserAnalysis.bind(this)
+    };
+
+    return processors[jobType];
+  }
+
+  // Job processors
+  private async processReverseGeocodingFull(job: Job): Promise<void> {
+    // Simulate reverse geocoding for all points
+    const totalSteps = 100;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate work
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async processReverseGeocodingMissing(job: Job): Promise<void> {
+    // Simulate reverse geocoding for missing points only
+    const totalSteps = 50;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 80)); // Simulate work
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async processTripCoverGeneration(job: Job): Promise<void> {
+    // Simulate AI cover generation
+    const totalSteps = 30;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 200)); // Simulate AI processing
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async processStatisticsUpdate(job: Job): Promise<void> {
+    // Simulate statistics calculation
+    const totalSteps = 40;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 150)); // Simulate calculation
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async processPhotoImport(job: Job): Promise<void> {
+    // Simulate photo import
+    const totalSteps = 60;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 120)); // Simulate import
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async processDataCleanup(job: Job): Promise<void> {
+    // Simulate data cleanup
+    const totalSteps = 25;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate cleanup
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async processUserAnalysis(job: Job): Promise<void> {
+    // Simulate user analysis
+    const totalSteps = 35;
+
+    for (let i = 0; i <= totalSteps; i++) {
+      await new Promise(resolve => setTimeout(resolve, 180)); // Simulate analysis
+      await this.updateJobProgress(job.id, (i / totalSteps) * 100);
+    }
+  }
+
+  private async updateJobProgress(jobId: string, progress: number, result?: any): Promise<void> {
+    const update: any = { progress, updated_at: new Date().toISOString() };
+    if (result) update.result = result;
+
+    const { error } = await supabase
+      .from('jobs')
+      .update(update)
+      .eq('id', jobId);
+
+    if (error) throw error;
+
+    // Log progress update for monitoring
+    console.log(`📊 Worker ${this.workerId} updated job ${jobId} progress: ${Math.round(progress)}%`);
+  }
+
+  private async completeJob(jobId: string, result?: any): Promise<void> {
+    const { error } = await supabase
+      .from('jobs')
+      .update({
+        status: 'completed',
+        progress: 100,
+        result,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
+
+    if (error) throw error;
+
+    console.log(`✅ Worker ${this.workerId} completed job ${jobId}`);
+  }
+
+  private async failJob(jobId: string, error: string): Promise<void> {
+    // First, get the current job to check retry attempts
+    const { data: job, error: fetchError } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('id', jobId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!job) throw new Error('Job not found');
+
+    const currentRetries = job.retry_count || 0;
+    const maxRetries = this.config.retryAttempts;
+
+    if (currentRetries < maxRetries) {
+      // Retry the job
+      const { error: retryError } = await supabase
+        .from('jobs')
+        .update({
+          status: 'queued',
+          retry_count: currentRetries + 1,
+          last_error: error,
+          updated_at: new Date().toISOString(),
+          // Clear worker assignment and timing fields
+          worker_id: null,
+          started_at: null,
+          progress: 0
+        })
+        .eq('id', jobId);
+
+      if (retryError) throw retryError;
+
+      console.log(`🔄 Worker ${this.workerId} will retry job ${jobId} (attempt ${currentRetries + 1}/${maxRetries})`);
+    } else {
+      // Max retries reached, mark as failed
+      const { error: updateError } = await supabase
+        .from('jobs')
+        .update({
+          status: 'failed',
+          error: `Failed after ${maxRetries} attempts. Last error: ${error}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      if (updateError) throw updateError;
+
+      console.log(`❌ Worker ${this.workerId} failed job ${jobId} permanently after ${maxRetries} attempts`);
+    }
+  }
+}

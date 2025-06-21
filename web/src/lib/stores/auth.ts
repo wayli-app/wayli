@@ -1,55 +1,47 @@
 import { writable } from 'svelte/store';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '$lib/supabase';
+import type { UserProfile } from '$lib/types/user.types';
 
-export const userStore = writable<User | null>(null);
-export const sessionStore = writable<Session | null>(null);
-export const isInTwoFactorFlow = writable<boolean>(false);
+type AuthStore = User & Partial<Pick<UserProfile, 'full_name' | 'avatar_url' | 'role'>>;
 
-// Initialize auth state
-async function initializeAuth() {
-	console.log('🔐 [AUTH] Initializing auth state...');
-	try {
-		const { data: { session }, error } = await supabase.auth.getSession();
+function createAuthStore() {
+	const { subscribe, set, update } = writable<AuthStore | null>(null);
 
-		if (error) {
-			console.error('❌ [AUTH] Error getting session:', error);
-			return;
-		}
+	async function initializeUser(user: User) {
+		// Get profile data from raw_user_metadata
+		const metadata = user.user_metadata || {};
 
-		console.log('🔐 [AUTH] Initial session:', session ? 'Found' : 'None');
-		if (session) {
-			console.log('🔐 [AUTH] User email:', session.user.email);
-		}
-		sessionStore.set(session);
-		userStore.set(session?.user ?? null);
-	} catch (error) {
-		console.error('❌ [AUTH] Error initializing auth:', error);
+		update((current) => {
+			if (!current) return null;
+			return {
+				...current,
+				full_name: metadata.full_name,
+				avatar_url: metadata.avatar_url,
+				role: metadata.role
+			};
+		});
 	}
+
+	supabase.auth.onAuthStateChange(async (event, session) => {
+		const userResponse = session ? await supabase.auth.getUser() : null;
+		const user = userResponse?.data.user ?? null;
+		set(user as AuthStore | null);
+
+		if (user) {
+			await initializeUser(user);
+		}
+	});
+
+	return {
+		subscribe
+	};
 }
 
-// Initialize on import
-initializeAuth();
+export const userStore = createAuthStore();
 
-// Listen for auth changes
-supabase.auth.onAuthStateChange((event, session) => {
-	console.log('🔄 [AUTH] Auth state change:', event, session ? 'Session present' : 'No session');
-	if (session) {
-		console.log('🔄 [AUTH] User email:', session.user.email);
-	}
+// Session store for tracking the current session
+export const sessionStore = writable<Session | null>(null);
 
-	// Get current 2FA flow state
-	let currentTwoFactorState = false;
-	isInTwoFactorFlow.subscribe(state => {
-		currentTwoFactorState = state;
-	})();
-
-	// Only update stores if not in 2FA flow or if signing out
-	if (!currentTwoFactorState || event === 'SIGNED_OUT') {
-		console.log('🔄 [AUTH] Updating auth stores');
-		sessionStore.set(session);
-		userStore.set(session?.user ?? null);
-	} else {
-		console.log('🔄 [AUTH] Skipping auth store update due to 2FA flow');
-	}
-});
+// Store for tracking 2FA flow state
+export const isInTwoFactorFlow = writable<boolean>(false);

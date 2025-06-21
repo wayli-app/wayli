@@ -1,19 +1,22 @@
 export interface UserProfile {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  avatarUrl?: string;
-  createdAt: string;
-  updatedAt: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  role: 'user' | 'admin';
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UserPreferences {
-  preferredLanguage: string;
-  distanceUnit: string;
-  temperatureUnit: string;
-  timezone: string;
+  id: string; // References auth.users(id)
+  theme: 'light' | 'dark';
+  language: string;
+  notifications_enabled: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UserSecurity {
@@ -22,15 +25,16 @@ export interface UserSecurity {
 }
 
 export interface UpdateProfileRequest {
-  firstName?: string;
-  lastName?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  avatar_url?: string;
 }
 
 export interface UpdatePreferencesRequest {
-  preferredLanguage?: string;
-  distanceUnit?: string;
-  temperatureUnit?: string;
-  timezone?: string;
+  theme?: 'light' | 'dark';
+  language?: string;
+  notifications_enabled?: boolean;
 }
 
 export interface TwoFactorSetupRequest {
