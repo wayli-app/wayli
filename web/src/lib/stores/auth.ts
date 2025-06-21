@@ -23,8 +23,9 @@ function createAuthStore() {
 		});
 	}
 
-	supabase.auth.onAuthStateChange(async (event, session) => {
-		const userResponse = session ? await supabase.auth.getUser() : null;
+	supabase.auth.onAuthStateChange(async (event) => {
+		// Always use getUser() for security, regardless of the session parameter
+		const userResponse = await supabase.auth.getUser();
 		const user = userResponse?.data.user ?? null;
 		set(user as AuthStore | null);
 

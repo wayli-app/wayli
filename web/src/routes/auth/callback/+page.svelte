@@ -12,40 +12,24 @@
 	onMount(async () => {
 		console.log('🔄 [CALLBACK] Page mounted');
 		try {
-			// Handle OAuth callback
-			const { data, error: authError } = await supabase.auth.getSession();
-			console.log('🔄 [CALLBACK] Session check:', data.session ? `Found - ${data.session.user.email}` : 'None');
+			// Handle OAuth callback - use getUser() for security
+			const { data: userData, error: userError } = await supabase.auth.getUser();
+			console.log('🔄 [CALLBACK] User check:', userData.user ? `Found - ${userData.user.email}` : 'None');
 
-			if (authError) {
-				console.log('❌ [CALLBACK] ERROR: Auth error:', authError);
-				throw authError;
+			if (userError) {
+				console.log('❌ [CALLBACK] ERROR: User error:', userError);
+				throw userError;
 			}
 
-			if (data.session) {
+			if (userData.user) {
 				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
-				console.log('🔄 [CALLBACK] REDIRECTING: Session found, going to', redirectTo);
+				console.log('🔄 [CALLBACK] REDIRECTING: User found, going to', redirectTo);
 				toast.success('Authentication successful');
 				goto(redirectTo);
 			} else {
-				// Check if there's a user
-				const { data: userData, error: userError } = await supabase.auth.getUser();
-				console.log('🔄 [CALLBACK] User check:', userData.user ? `Found - ${userData.user.email}` : 'None');
-
-				if (userError) {
-					console.log('❌ [CALLBACK] ERROR: User error:', userError);
-					throw userError;
-				}
-
-				if (userData.user) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
-					console.log('🔄 [CALLBACK] REDIRECTING: User found, going to', redirectTo);
-					toast.success('Authentication successful');
-					goto(redirectTo);
-				} else {
-					console.log('❌ [CALLBACK] ERROR: No session or user found');
-					error = 'No session found';
-					toast.error('Authentication failed');
-				}
+				console.log('❌ [CALLBACK] ERROR: No user found');
+				error = 'No user found';
+				toast.error('Authentication failed');
 			}
 		} catch (err: any) {
 			console.log('❌ [CALLBACK] ERROR: Exception:', err.message);

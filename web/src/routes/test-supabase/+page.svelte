@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabase';
-	import { userStore, sessionStore } from '$lib/stores/auth';
+	import { userStore } from '$lib/stores/auth';
 
 	let configStatus = 'Checking...';
 	let sessionStatus = 'Checking...';
@@ -11,7 +11,7 @@
 		// Test Supabase configuration
 		(async () => {
 			try {
-				const { data, error } = await supabase.auth.getSession();
+				const { data, error } = await supabase.auth.getUser();
 
 				if (error) {
 					configStatus = `Error: ${error.message}`;
@@ -19,7 +19,7 @@
 					configStatus = 'Supabase configured correctly';
 				}
 
-				sessionStatus = data.session ? 'Session found' : 'No session';
+				sessionStatus = data.user ? 'User found' : 'No user';
 			} catch (error: any) {
 				configStatus = `Error: ${error.message}`;
 			}

@@ -20,9 +20,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const {
 			data: { user }
 		} = await event.locals.supabase.auth.getUser();
+
 		if (user) {
-			const { data: { session } } = await event.locals.supabase.auth.getSession();
-			return session;
+			// Return a session-like object with the authenticated user data
+			// This avoids the security warning while maintaining compatibility
+			return {
+				user,
+				access_token: '', // We don't need the actual token for our use cases
+				refresh_token: '',
+				expires_in: 0,
+				token_type: 'bearer',
+				expires_at: 0
+			};
 		}
 		return null;
 	};

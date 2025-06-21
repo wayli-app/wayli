@@ -3,11 +3,10 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
-	import { userStore, sessionStore } from '$lib/stores/auth';
+	import { userStore, isInTwoFactorFlow } from '$lib/stores/auth';
 	import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowLeft, LogIn } from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import TwoFactorVerification from '$lib/components/TwoFactorVerification.svelte';
-	import { isInTwoFactorFlow } from '$lib/stores/auth';
 
 	let email = '';
 	let password = '';
@@ -23,10 +22,10 @@
 		console.log('🔐 [SIGNIN] Page mounted');
 		// Check if user is already authenticated
 		(async () => {
-			const { data: { session } } = await supabase.auth.getSession();
-			console.log('🔐 [SIGNIN] Session check:', session ? `Found - ${session.user.email}` : 'None');
+			const { data: { user } } = await supabase.auth.getUser();
+			console.log('🔐 [SIGNIN] User check:', user ? `Found - ${user.email}` : 'None');
 
-			if (session?.user) {
+			if (user) {
 				// Only redirect if we're on the signin page
 				if ($page.url.pathname.startsWith('/auth/signin')) {
 					// User is already authenticated, redirect to intended destination or default
@@ -81,12 +80,6 @@
 				}
 			}
 		});
-	}
-
-	function updateAuthStores(session: any) {
-		console.log('🔐 [SIGNIN] Manually updating auth stores after 2FA verification');
-		sessionStore.set(session);
-		userStore.set(session?.user ?? null);
 	}
 
 	async function handleSignIn(event: Event) {
@@ -146,15 +139,15 @@
 					// Force a small delay to ensure auth state is updated
 					await new Promise(resolve => setTimeout(resolve, 500));
 
-					// Double-check the session and redirect
-					const { data: { session: currentSession } } = await supabase.auth.getSession();
-					if (currentSession) {
+					// Double-check the user and redirect
+					const { data: { user: currentUser } } = await supabase.auth.getUser();
+					if (currentUser) {
 						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
 						console.log('🔄 [SIGNIN] REDIRECTING: Login successful, going to', redirectTo);
 						goto(redirectTo, { replaceState: true });
 					} else {
-						console.log('❌ [SIGNIN] ERROR: Session not found after authentication');
-						toast.error('Session not found after authentication');
+						console.log('❌ [SIGNIN] ERROR: User not found after authentication');
+						toast.error('User not found after authentication');
 					}
 				} else {
 					toast.error('No session returned from authentication');
@@ -264,8 +257,7 @@
 				console.log('🔄 [SIGNIN] REDIRECTING: 2FA verified, going to', redirectTo);
 				goto(redirectTo, { replaceState: true });
 
-				// Manually update auth stores
-				updateAuthStores(data.session);
+				// Auth store is automatically updated by onAuthStateChange, no need to manually update
 			}
 		} catch (error: any) {
 			console.error('2FA verification error:', error);

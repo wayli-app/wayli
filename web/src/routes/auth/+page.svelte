@@ -10,10 +10,10 @@
 		console.log('🔐 [AUTH] Page mounted');
 		// Check if user is already authenticated
 		(async () => {
-			const { data: { session } } = await supabase.auth.getSession();
-			console.log('🔐 [AUTH] Session check:', session ? `Found - ${session.user.email}` : 'None');
+			const { data: { user } } = await supabase.auth.getUser();
+			console.log('🔐 [AUTH] User check:', user ? `Found - ${user.email}` : 'None');
 
-			if (session?.user) {
+			if (user) {
 				// User is already authenticated, redirect to intended destination or default
 				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
 				console.log('🔄 [AUTH] REDIRECTING: User already authenticated, going to', redirectTo);
