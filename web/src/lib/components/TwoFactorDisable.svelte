@@ -2,7 +2,6 @@
 	import { createEventDispatcher } from 'svelte';
 	import { X, Shield, AlertTriangle, Lock } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { UserService } from '$lib/services/user.service';
 
 	export let open = false;
 
@@ -19,15 +18,21 @@
 
 		isDisabling = true;
 		try {
-			// Call the new API endpoint for 2FA disable
-			const response = await UserService.disableTwoFactor({ password });
-			if (!response.success) throw new Error(response.message || 'Disable failed');
+			const response = await fetch('/api/v1/auth/2fa/disable', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ password })
+			});
+			const responseData = await response.json();
+			if (!response.ok || !responseData.success) {
+				throw new Error(responseData.message || 'Disable failed');
+			}
 			toast.success('Two-factor authentication disabled successfully');
 			dispatch('disabled');
 			closeModal();
 		} catch (error) {
 			console.error('Error disabling 2FA:', error);
-			toast.error('Failed to disable two-factor authentication');
+			toast.error('Failed to disable 2FA: ' + (error instanceof Error ? error.message : 'Unknown error'));
 		} finally {
 			isDisabling = false;
 		}
@@ -45,11 +50,23 @@
 	<div
 		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
 		on:click={closeModal}
+		on:keydown={(e) => e.key === 'Escape' && closeModal()}
+		aria-modal="true"
+		role="dialog"
+		aria-labelledby="two-factor-disable-modal-title"
+		aria-describedby="two-factor-disable-modal-description"
+		tabindex="-1"
 	>
 		<!-- Modal -->
 		<div
 			class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
 			on:click|stopPropagation
+			on:keydown={(e) => e.key === 'Escape' && closeModal()}
+			aria-modal="true"
+			role="dialog"
+			aria-labelledby="two-factor-disable-modal-title"
+			aria-describedby="two-factor-disable-modal-description"
+			tabindex="-1"
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">

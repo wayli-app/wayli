@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { X, QrCode, Smartphone, Shield, CheckCircle } from 'lucide-svelte';
+	import { X, QrCode, Smartphone, Shield, CheckCircle, Copy, Download } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { supabase } from '$lib/supabase';
 	import QRCode from 'qrcode';
@@ -19,6 +19,7 @@
 	let isGenerating = false;
 	let isVerifying = false;
 	let qrCodeError = false;
+	let recoveryCodes: string[] = [];
 	let email = '';
 
 	// Watch for changes to the open prop
@@ -51,11 +52,23 @@
 		isGenerating = true;
 		qrCodeError = false;
 		try {
-			// Call the new API endpoint for 2FA setup
-			const response = await UserService.setupTwoFactor({ password });
-			if (!response.success) throw new Error(response.message || 'Setup failed');
-			secret = response.secret;
-			qrCodeUrl = response.qrCodeUrl;
+			// Call the API endpoint directly
+			const response = await fetch('/api/v1/auth/2fa/setup', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ password })
+			});
+
+			const responseData = await response.json();
+
+			if (!response.ok || !responseData.success) {
+				throw new Error(responseData.message || 'Setup failed');
+			}
+
+			secret = responseData.secret;
+			qrCodeUrl = responseData.qrCodeUrl;
 			// Optionally set email if needed
 		} catch (error) {
 			console.error('Error generating 2FA secret:', error);
@@ -73,18 +86,60 @@
 		}
 		isVerifying = true;
 		try {
-			// Call the new API endpoint for 2FA verification
-			const response = await UserService.verifyTwoFactor({ code: verificationCode });
-			if (!response.success) throw new Error(response.message || 'Verification failed');
-			toast.success('Two-factor authentication enabled successfully!');
-			dispatch('enabled');
-			closeModal();
+			// Call the API endpoint directly
+			const response = await fetch('/api/v1/auth/2fa/verify', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ code: verificationCode })
+			});
+
+			const responseData = await response.json();
+
+			if (!response.ok || !responseData.success) {
+				throw new Error(responseData.message || 'Verification failed');
+			}
+
+			recoveryCodes = responseData.recoveryCodes || [];
+			if (recoveryCodes.length > 0) {
+				nextStep();
+			} else {
+				toast.success('Two-factor authentication enabled successfully!');
+				dispatch('enabled');
+				closeModal();
+			}
 		} catch (error) {
 			console.error('Error enabling 2FA:', error);
-			toast.error('Failed to enable two-factor authentication');
+			toast.error('Failed to enable two-factor authentication: ' + (error instanceof Error ? error.message : 'Unknown error'));
 		} finally {
 			isVerifying = false;
 		}
+	}
+
+	function copyCodes() {
+		const codesString = recoveryCodes.join('\n');
+		navigator.clipboard.writeText(codesString);
+		toast.success('Recovery codes copied to clipboard');
+	}
+
+	function downloadCodes() {
+		const codesString = recoveryCodes.join('\n');
+		const blob = new Blob([codesString], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'wayli-recovery-codes.txt';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
+	function finishSetup() {
+		toast.success('Two-factor authentication enabled successfully!');
+		dispatch('enabled');
+		closeModal();
 	}
 
 	function closeModal() {
@@ -95,28 +150,40 @@
 		qrCodeUrl = '';
 		secret = '';
 		qrCodeError = false;
+		recoveryCodes = [];
 		dispatch('close');
 	}
 
 	function nextStep() {
-		currentStep = 2;
+		currentStep++;
 	}
 
 	function prevStep() {
-		currentStep = 1;
+		currentStep--;
 	}
 </script>
+
+<svelte:window on:keydown={(event) => event.key === 'Escape' && closeModal()} />
 
 {#if open}
 	<!-- Backdrop -->
 	<div
 		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
 		on:click={closeModal}
+		on:keydown={(event) => event.key === 'Escape' && closeModal()}
+		role="presentation"
+		tabindex="-1"
 	>
 		<!-- Modal -->
 		<div
 			class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
 			on:click|stopPropagation
+			on:keydown={(event) => event.key === 'Escape' && closeModal()}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="two-factor-setup-modal-title"
+			aria-describedby="two-factor-setup-modal-description"
+			tabindex="-1"
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
@@ -215,11 +282,12 @@
 									Popular Authenticator Apps:
 								</h4>
 								<ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-									<li>• Google Authenticator</li>
-									<li>• Microsoft Authenticator</li>
+									<li>• Aegis</li>
 									<li>• Authy</li>
-									<li>• 1Password</li>
 									<li>• Bitwarden</li>
+									<li>• 1Password</li>
+									<li>• Microsoft Authenticator</li>
+									<li>• Google Authenticator</li>
 								</ul>
 							</div>
 
@@ -269,6 +337,43 @@
 								{isVerifying ? 'Verifying...' : 'Enable 2FA'}
 							</button>
 						</div>
+					</div>
+				{:else if currentStep === 3}
+					<!-- Step 3: Recovery Codes -->
+					<div class="text-center">
+						<div class="mb-6">
+							<CheckCircle class="h-12 w-12 text-green-500 mx-auto mb-4" />
+							<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+								2FA Enabled! Save Your Recovery Codes
+							</h3>
+							<p class="text-sm text-gray-600 dark:text-gray-400">
+								Store these codes in a safe place. They can be used to access your account if you lose your device.
+							</p>
+						</div>
+
+						<div class="grid grid-cols-2 gap-4 mb-6 text-center font-mono text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg">
+							{#each recoveryCodes as code}
+								<p>{code}</p>
+							{/each}
+						</div>
+
+						<div class="flex gap-3 mb-4">
+							<button on:click={copyCodes} class="flex-1 inline-flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md font-medium hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
+								<Copy class="h-4 w-4" />
+								Copy
+							</button>
+							<button on:click={downloadCodes} class="flex-1 inline-flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md font-medium hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
+								<Download class="h-4 w-4" />
+								Download
+							</button>
+						</div>
+
+						<button
+							on:click={finishSetup}
+							class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer"
+						>
+							Finish Setup
+						</button>
 					</div>
 				{/if}
 			</div>

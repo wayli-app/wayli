@@ -13,7 +13,6 @@
 	let newPassword = '';
 	let confirmPassword = '';
 	let twoFactorEnabled = false;
-	let isLoading = true;
 	let isUpdatingPassword = false;
 	let isUpdatingProfile = false;
 	let isUpdatingPreferences = false;
@@ -24,12 +23,11 @@
 	let firstNameInput = '';
 	let lastNameInput = '';
 	let preferredLanguageInput = '';
-	let themeInput = 'light';
 	let notificationsEnabledInput = true;
 	let timezoneInput = 'UTC+00:00 (London, Dublin)';
+	let error: string | null = null;
 
 	const languages = ['en', 'nl'];
-	const themes = ['light', 'dark'];
 	const timezones = [
 		'UTC-12:00 (International Date Line West)',
 		'UTC-11:00 (Samoa)',
@@ -59,46 +57,294 @@
 		'UTC+13:00 (Samoa, Tonga)'
 	];
 
-	onMount(async () => {
-		await loadUserData();
-		if (profile) {
-			firstNameInput = profile.first_name || '';
-			lastNameInput = profile.last_name || '';
-		}
-		if (preferences) {
-			preferredLanguageInput = preferences.language || 'en';
-			themeInput = preferences.theme || 'light';
-			notificationsEnabledInput = preferences.notifications_enabled || true;
-			timezoneInput = 'UTC+00:00 (London, Dublin)'; // Default timezone
-		}
-	});
-
-	async function loadUserData() {
+	async function testWithRealToken() {
+		console.log('Testing with real access token...');
 		try {
-			const [profileData, preferencesData] = await Promise.all([
-				UserService.getProfile(),
-				UserService.getPreferences()
-			]);
-			profile = profileData;
-			preferences = preferencesData;
+			// Get the actual access token from localStorage
+			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
+			if (!supabaseKey) {
+				console.log('No auth token found in localStorage');
+				return;
+			}
+
+			const tokenData = JSON.parse(supabaseKey);
+			const accessToken = tokenData.access_token;
+
+			if (!accessToken) {
+				console.log('No access token found in token data');
+				return;
+			}
+
+			console.log('Using access token:', accessToken.substring(0, 20) + '...');
+
+			// Make request with real access token
+			const response = await fetch('https://wayli.int.hazen.nu/auth/v1/user', {
+				method: 'GET',
+				headers: {
+					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
+					'Authorization': `Bearer ${accessToken}`
+				}
+			});
+
+			console.log('Response status:', response.status);
+			const data = await response.text();
+			console.log('Response data:', data);
+
 		} catch (error) {
-			console.error('Error loading user data:', error);
-			toast.error('Failed to load user data');
-		} finally {
-			isLoading = false;
+			console.error('Real token test failed:', error);
 		}
 	}
 
+	async function testTokens() {
+		console.log('Testing available tokens...');
+		try {
+			// Check localStorage for Supabase tokens
+			console.log('Checking localStorage...');
+			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
+			console.log('Supabase auth token in localStorage:', supabaseKey ? 'Found' : 'Not found');
+
+			if (supabaseKey) {
+				try {
+					const tokenData = JSON.parse(supabaseKey);
+					console.log('Token data:', {
+						access_token: tokenData.access_token ? 'Present' : 'Missing',
+						refresh_token: tokenData.refresh_token ? 'Present' : 'Missing',
+						expires_at: tokenData.expires_at,
+						expires_in: tokenData.expires_in
+					});
+				} catch (e) {
+					console.log('Token data is not valid JSON');
+				}
+			}
+
+			// Check cookies for tokens
+			console.log('Checking cookies...');
+			const cookies = document.cookie.split(';');
+			const authCookies = cookies.filter(cookie => cookie.includes('sb-'));
+			console.log('Auth cookies found:', authCookies.length);
+			authCookies.forEach(cookie => {
+				const [name, value] = cookie.trim().split('=');
+				console.log(`Cookie: ${name} = ${value ? 'Present' : 'Missing'}`);
+			});
+
+		} catch (error) {
+			console.error('Token test failed:', error);
+		}
+	}
+
+	async function testDirectFetch() {
+		console.log('Testing direct fetch to Supabase...');
+		try {
+			// Test 1: Try to fetch from the auth endpoint directly
+			console.log('Test 1: Fetching auth endpoint directly...');
+			const response = await fetch('https://wayli.int.hazen.nu/auth/v1/user', {
+				method: 'GET',
+				headers: {
+					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
+					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs'
+				}
+			});
+
+			console.log('Response status:', response.status);
+			const data = await response.text();
+			console.log('Response data:', data);
+
+		} catch (error) {
+			console.error('Direct fetch test failed:', error);
+		}
+	}
+
+	async function testSession() {
+		console.log('Testing current session...');
+		try {
+			// Test 1: Check current session
+			console.log('Test 1: Getting current session...');
+			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			console.log('Session result:', { session: session?.user?.id, error: sessionError });
+
+			if (session) {
+				console.log('Session found:', {
+					userId: session.user.id,
+					email: session.user.email,
+					expiresAt: session.expires_at
+				});
+			} else {
+				console.log('No session found - user needs to sign in');
+			}
+
+		} catch (error) {
+			console.error('Session test failed:', error);
+		}
+	}
+
+	async function testSupabaseConfig() {
+		console.log('Testing Supabase configuration...');
+		try {
+			// Check if environment variables are available
+			console.log('Checking environment variables...');
+
+			// Try to access the config validation function
+			const { validateSupabaseConfig } = await import('$lib/supabase-config');
+			const config = validateSupabaseConfig();
+			console.log('Supabase config validation passed:', config);
+
+		} catch (error) {
+			console.error('Config test failed:', error);
+		}
+	}
+
+	async function testSupabaseAuth() {
+		console.log('Testing Supabase auth operations...');
+		try {
+			// Test 1: Check if supabase object exists
+			console.log('Test 1: Checking supabase object...');
+			console.log('supabase object:', supabase);
+			console.log('supabase.auth object:', supabase.auth);
+
+			// Test 2: Check if we can access getUser method
+			console.log('Test 2: Checking getUser method...');
+			console.log('getUser method exists:', typeof supabase.auth.getUser === 'function');
+
+			// Test 3: Try to get user with timeout
+			console.log('Test 3: Calling getUser with timeout...');
+			const getUserPromise = supabase.auth.getUser();
+			const timeoutPromise = new Promise((_, reject) => {
+				setTimeout(() => reject(new Error('getUser timed out after 5 seconds')), 5000);
+			});
+
+			const { data: { user }, error } = await Promise.race([getUserPromise, timeoutPromise]) as any;
+			console.log('Test 3 complete: getUser() completed');
+			console.log('getUser result:', { user: user?.id, error });
+
+			if (user) {
+				console.log('Current user metadata:', user.user_metadata);
+				console.log('Current user email:', user.email);
+			}
+		} catch (error) {
+			console.error('Test failed:', error);
+			console.error('Error details:', {
+				name: error instanceof Error ? error.name : 'Unknown',
+				message: error instanceof Error ? error.message : String(error)
+			});
+		}
+	}
+
+	async function loadUserData() {
+		try {
+			error = null;
+
+			// Get user data directly from localStorage instead of using UserService
+			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
+			if (!supabaseKey) {
+				throw new Error('No auth token found');
+			}
+
+			const tokenData = JSON.parse(supabaseKey);
+			const accessToken = tokenData.access_token;
+
+			if (!accessToken) {
+				throw new Error('No access token found');
+			}
+
+			// Get user data directly from Supabase auth endpoint
+			const response = await fetch('https://wayli.int.hazen.nu/auth/v1/user', {
+				method: 'GET',
+				headers: {
+					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
+					'Authorization': `Bearer ${accessToken}`
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to get user data');
+			}
+
+			const userData = await response.json();
+			console.log('User data loaded directly:', userData);
+
+			// Create profile and preferences objects from user data
+			const metadata = userData.user_metadata || {};
+
+			profile = {
+				id: userData.id,
+				email: userData.email,
+				first_name: metadata.firstName || metadata.first_name || '',
+				last_name: metadata.lastName || metadata.last_name || '',
+				full_name: metadata.fullName || metadata.full_name || '',
+				role: metadata.role || 'user',
+				avatar_url: metadata.avatar_url || '',
+				created_at: userData.created_at,
+				updated_at: userData.updated_at
+			};
+
+			preferences = {
+				id: userData.id,
+				theme: metadata.theme || 'light',
+				language: metadata.language || 'en',
+				notifications_enabled: metadata.notifications_enabled ?? true,
+				timezone: metadata.timezone || 'UTC+00:00 (London, Dublin)',
+				created_at: userData.created_at,
+				updated_at: userData.updated_at
+			};
+
+			console.log('Profile data loaded:', profile);
+			console.log('Preferences data loaded:', preferences);
+
+			// Initialize input fields with loaded data
+			if (profile) {
+				firstNameInput = profile.first_name || '';
+				lastNameInput = profile.last_name || '';
+			}
+			if (preferences) {
+				preferredLanguageInput = preferences.language || 'en';
+				notificationsEnabledInput = preferences.notifications_enabled ?? true;
+				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
+			}
+
+			// Check 2FA status from user metadata
+			twoFactorEnabled = metadata.two_factor_enabled === true;
+		} catch (error) {
+			console.error('Error loading user data:', error);
+			error = error instanceof Error ? error.message : 'Failed to load user data';
+			toast.error('Failed to load user data');
+		}
+	}
+
+	onMount(async () => {
+		await loadUserData();
+	});
+
 	async function handleSaveProfile() {
-		if (!profile) return;
+		console.log('handleSaveProfile called with:', { firstNameInput, lastNameInput });
 		isUpdatingProfile = true;
 		try {
-			profile = await UserService.updateProfile({
-				first_name: firstNameInput,
-				last_name: lastNameInput
+			console.log('Step 1: Calling server API directly...');
+			const response = await fetch('/api/v1/auth/profile', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					first_name: firstNameInput,
+					last_name: lastNameInput
+				})
 			});
-			firstNameInput = profile.first_name || '';
-			lastNameInput = profile.last_name || '';
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to update profile');
+			}
+
+			const result = await response.json();
+			console.log('Profile updated successfully:', result);
+
+			// Update local profile data
+			if (profile) {
+				profile.first_name = firstNameInput;
+				profile.last_name = lastNameInput;
+				profile.full_name = `${firstNameInput} ${lastNameInput}`.trim();
+			}
+
 			toast.success('Profile updated successfully');
 		} catch (error) {
 			console.error('Error updating profile:', error);
@@ -109,18 +355,37 @@
 	}
 
 	async function handleSavePreferences() {
-		if (!preferences) return;
+		console.log('handleSavePreferences called with:', { preferredLanguageInput, notificationsEnabledInput, timezoneInput });
 		isUpdatingPreferences = true;
 		try {
-			preferences = await UserService.updatePreferences({
-				theme: themeInput as 'light' | 'dark',
-				language: preferredLanguageInput,
-				notifications_enabled: notificationsEnabledInput
+			console.log('Step 1: Calling server API directly...');
+			const response = await fetch('/api/v1/auth/preferences', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					language: preferredLanguageInput,
+					notifications_enabled: notificationsEnabledInput,
+					timezone: timezoneInput
+				})
 			});
-			preferredLanguageInput = preferences.language;
-			themeInput = preferences.theme;
-			notificationsEnabledInput = preferences.notifications_enabled;
-			timezoneInput = 'UTC+00:00 (London, Dublin)'; // Default timezone
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to update preferences');
+			}
+
+			const result = await response.json();
+			console.log('Preferences updated successfully:', result);
+
+			// Update local preferences data
+			if (preferences) {
+				preferences.language = preferredLanguageInput;
+				preferences.notifications_enabled = notificationsEnabledInput;
+				preferences.timezone = timezoneInput;
+			}
+
 			toast.success('Preferences updated successfully');
 		} catch (error) {
 			console.error('Error updating preferences:', error);
@@ -196,12 +461,11 @@
 		</div>
 	</div>
 
-	{#if isLoading}
-		<!-- Loading State -->
+	{#if error}
+		<!-- Error State -->
 		<div class="flex items-center justify-center py-12">
 			<div class="text-center">
-				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(37,140,244)] mx-auto mb-4"></div>
-				<p class="text-gray-600 dark:text-gray-400">Loading account settings...</p>
+				<p class="text-red-600 dark:text-red-400">{error}</p>
 			</div>
 		</div>
 	{:else}
@@ -376,19 +640,6 @@
 					>
 						{#each languages as language}
 							<option value={language}>{language}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label for="theme" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Theme</label>
-					<select
-						id="theme"
-						bind:value={themeInput}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-					>
-						{#each themes as theme}
-							<option value={theme}>{theme}</option>
 						{/each}
 					</select>
 				</div>

@@ -29,8 +29,9 @@ export class UserService {
         return false;
       }
 
-      // Check role from raw_user_metadata
-      const role = user.user_metadata?.role || 'user';
+      // Check role from user_metadata
+      const metadata = user.user_metadata || {};
+      const role = metadata.role || 'user';
       return role === 'admin';
     } catch (e) {
       console.error('Exception when checking admin status:', e);
@@ -44,9 +45,12 @@ export class UserService {
       if (error) throw error;
       if (!user) throw new Error('User not authenticated');
 
-      // Get profile from raw_user_metadata
+      // Get profile from user_metadata
       const metadata = user.user_metadata || {};
+      console.log('UserService - User metadata:', metadata);
+      console.log('UserService - User object:', user);
 
+      // Return profile with defaults if no data exists
       return {
         id: user.id,
         email: user.email || '',
@@ -54,32 +58,60 @@ export class UserService {
         last_name: metadata.last_name || '',
         full_name: metadata.full_name || '',
         role: metadata.role || 'user',
-        avatar_url: metadata.avatar_url,
+        avatar_url: metadata.avatar_url || '',
         created_at: user.created_at,
         updated_at: user.updated_at || user.created_at
       };
     } catch (error) {
-      throw handleApiError(error, 'Failed to get user profile');
+      console.error('UserService.getProfile error:', error);
+      // Return a default profile instead of throwing
+      return {
+        id: '',
+        email: '',
+        first_name: '',
+        last_name: '',
+        full_name: '',
+        role: 'user',
+        avatar_url: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
     }
   }
 
   static async updateProfile(updates: UpdateProfileRequest): Promise<UserProfile> {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      if (!user) throw new Error('User not authenticated');
+      console.log('UserService.updateProfile called with:', updates);
 
-      // Update profile in raw_user_metadata
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: {
-          ...user.user_metadata,
-          ...updates
-        }
+      console.log('Step 1: Calling server API...');
+      const response = await fetch('/api/v1/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
       });
 
-      if (updateError) throw updateError;
-      return await this.getProfile();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      const result = await response.json();
+      console.log('Step 1 complete: Profile updated via API');
+
+      console.log('Step 2: Getting updated profile...');
+      const profile = await this.getProfile();
+      console.log('Step 2 complete: Profile retrieved');
+
+      return profile;
     } catch (error) {
+      console.error('UserService.updateProfile error:', error);
+      console.error('Error details:', {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw handleApiError(error, 'Failed to update profile');
     }
   }
@@ -90,48 +122,62 @@ export class UserService {
       if (error) throw error;
       if (!user) throw new Error('User not authenticated');
 
-      // Get preferences from database
-      const { data: preferences, error: preferencesError } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (preferencesError && preferencesError.code !== 'PGRST116') {
-        throw preferencesError;
-      }
+      // Get preferences from user_metadata
+      const metadata = user.user_metadata || {};
+      console.log('UserService - Preferences user metadata:', metadata);
 
       return {
         id: user.id,
-        theme: preferences?.theme || 'light',
-        language: preferences?.language || 'en',
-        notifications_enabled: preferences?.notifications_enabled ?? true,
-        created_at: preferences?.created_at || new Date().toISOString(),
-        updated_at: preferences?.updated_at || new Date().toISOString()
+        theme: metadata.theme || 'light',
+        language: metadata.language || 'en',
+        notifications_enabled: metadata.notifications_enabled ?? true,
+        timezone: metadata.timezone || 'UTC+00:00 (London, Dublin)',
+        created_at: user.created_at,
+        updated_at: user.updated_at || user.created_at
       };
     } catch (error) {
-      throw handleApiError(error, 'Failed to get user preferences');
+      console.error('UserService.getPreferences error:', error);
+      // Return default preferences instead of throwing
+      return {
+        id: '',
+        theme: 'light',
+        language: 'en',
+        notifications_enabled: true,
+        timezone: 'UTC+00:00 (London, Dublin)',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
     }
   }
 
   static async updatePreferences(updates: UpdatePreferencesRequest): Promise<UserPreferences> {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      if (!user) throw new Error('User not authenticated');
+      console.log('UserService.updatePreferences called with:', updates);
 
-      // Update preferences in database
-      const { error: updateError } = await supabase
-        .from('user_preferences')
-        .upsert({
-          id: user.id,
-          ...updates,
-          updated_at: new Date().toISOString()
-        });
+      console.log('Step 1: Calling server API...');
+      const response = await fetch('/api/v1/auth/preferences', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
 
-      if (updateError) throw updateError;
-      return await this.getPreferences();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update preferences');
+      }
+
+      const result = await response.json();
+      console.log('Step 1 complete: Preferences updated via API');
+
+      console.log('Step 2: Getting updated preferences...');
+      const preferences = await this.getPreferences();
+      console.log('Step 2 complete: Preferences retrieved');
+
+      return preferences;
     } catch (error) {
+      console.error('UserService.updatePreferences error:', error);
       throw handleApiError(error, 'Failed to update preferences');
     }
   }

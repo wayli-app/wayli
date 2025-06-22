@@ -9,7 +9,7 @@ function createAuthStore() {
 	const { subscribe, set, update } = writable<AuthStore | null>(null);
 
 	async function initializeUser(user: User) {
-		// Get profile data from raw_user_metadata
+		// Get profile data from user_metadata
 		const metadata = user.user_metadata || {};
 
 		update((current) => {

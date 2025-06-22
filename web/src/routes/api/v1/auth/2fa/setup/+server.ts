@@ -1,10 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const { password } = await request.json();
 
@@ -12,14 +14,19 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ success: false, message: 'Password is required' }, { status: 400 });
     }
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
+    // Get current user from session
+    const session = await locals.getSession();
+    if (!session) {
       return json({ success: false, message: 'User not authenticated' }, { status: 401 });
     }
 
-    // Verify password by attempting to sign in
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const user = session.user;
+
+    // Create admin client with service role key
+    const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Verify password by attempting to sign in with admin client
+    const { error: signInError } = await supabaseAdmin.auth.signInWithPassword({
       email: user.email!,
       password: password
     });
@@ -44,9 +51,10 @@ export const POST: RequestHandler = async ({ request }) => {
       // Continue without QR code, user can enter secret manually
     }
 
-    // Store the secret in user metadata (but don't enable 2FA yet)
-    const { error: updateError } = await supabase.auth.updateUser({
-      data: {
+    // Store the secret in user metadata using admin API
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...user.user_metadata,
         totp_secret: secret
       }
     });

@@ -15,6 +15,7 @@ export interface UserPreferences {
   theme: 'light' | 'dark';
   language: string;
   notifications_enabled: boolean;
+  timezone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ export interface UpdatePreferencesRequest {
   theme?: 'light' | 'dark';
   language?: string;
   notifications_enabled?: boolean;
+  timezone?: string;
 }
 
 export interface TwoFactorSetupRequest {
