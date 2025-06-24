@@ -60,7 +60,7 @@ export interface TrackerData {
 	battery_level?: number; // percentage
 	is_charging?: boolean;
 	activity_type?: string; // 'walking', 'driving', 'cycling', etc.
-	raw_data?: any; // JSONB field for original data
+	raw_data?: unknown; // JSONB field for original data
 	created_at: string;
 	updated_at: string;
 }
@@ -164,10 +164,50 @@ export const PostGIS = {
 		return null;
 	},
 
-	// Calculate distance between two points in meters
+	// Calculate distance between two points in meters using Haversine formula
 	distance: (point1: string, point2: string): number => {
-		// This would be calculated using PostGIS ST_Distance in SQL
-		// For client-side, you'd need a different approach
-		return 0;
+		const coords1 = PostGIS.latLonFromPoint(point1);
+		const coords2 = PostGIS.latLonFromPoint(point2);
+
+		if (!coords1 || !coords2) {
+			return 0;
+		}
+
+		return PostGIS.haversineDistance(coords1, coords2);
+	},
+
+	// Calculate distance between two coordinate pairs using Haversine formula
+	haversineDistance: (coord1: Coordinates, coord2: Coordinates): number => {
+		const R = 6371000; // Earth's radius in meters
+		const dLat = PostGIS.toRadians(coord2.latitude - coord1.latitude);
+		const dLon = PostGIS.toRadians(coord2.longitude - coord1.longitude);
+
+		const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+				  Math.cos(PostGIS.toRadians(coord1.latitude)) * Math.cos(PostGIS.toRadians(coord2.latitude)) *
+				  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+		return R * c; // Distance in meters
+	},
+
+	// Convert degrees to radians
+	toRadians: (degrees: number): number => {
+		return degrees * (Math.PI / 180);
+	},
+
+	// Calculate distance between two lat/lon coordinates directly
+	distanceBetweenCoordinates: (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+		const coord1: Coordinates = { latitude: lat1, longitude: lon1 };
+		const coord2: Coordinates = { latitude: lat2, longitude: lon2 };
+		return PostGIS.haversineDistance(coord1, coord2);
+	},
+
+	// Format distance for display (meters to km if > 1000m)
+	formatDistance: (distanceInMeters: number): string => {
+		if (distanceInMeters < 1000) {
+			return `${Math.round(distanceInMeters)}m`;
+		} else {
+			return `${(distanceInMeters / 1000).toFixed(2)}km`;
+		}
 	}
 };

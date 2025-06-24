@@ -3,6 +3,15 @@ import { JobQueueService } from './job-queue.service';
 import { RealtimeSetupService } from './realtime-setup.service';
 import type { JobConfig } from '$lib/types/job-queue.types';
 
+// Browser-compatible UUID generation
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 export class WorkerManager {
   private workers: JobWorker[] = [];
   private isRunning: boolean = false;
@@ -24,11 +33,13 @@ export class WorkerManager {
     const realtimeStatus = RealtimeSetupService.getStatus();
 
     console.log(`🚀 Starting worker manager with ${currentConfig.maxWorkers} workers`);
-    console.log(`📡 Realtime status: ${realtimeStatus.isEnabled ? '✅ Enabled' : '⚠️ Disabled (using polling)'}`);
+    console.log(`📡 Realtime status: ⚠️ Disabled (database replication not supported)`);
 
-    // Create and start workers
+    // Create and start workers with proper UUIDs
     for (let i = 0; i < currentConfig.maxWorkers; i++) {
-      const worker = new JobWorker(`worker-${i + 1}`);
+      const workerId = generateUUID();
+      console.log(`🔧 Creating worker with ID: ${workerId}`);
+      const worker = new JobWorker(workerId);
       this.workers.push(worker);
       await worker.start();
     }
@@ -73,7 +84,7 @@ export class WorkerManager {
     if (newCount > currentCount) {
       // Add more workers
       for (let i = currentCount; i < newCount; i++) {
-        const worker = new JobWorker(`worker-${i + 1}`);
+        const worker = new JobWorker(generateUUID());
         this.workers.push(worker);
         await worker.start();
       }

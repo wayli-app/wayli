@@ -211,20 +211,36 @@
 	}
 
 	async function handleTwoFactorVerify(event: CustomEvent) {
-		const { code } = event.detail;
+		const { code, recoveryCode } = event.detail;
 
 		try {
-			// Call the 2FA verification API
-			const response = await fetch('/api/v1/auth/verify-2fa', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					email: pendingUserEmail,
-					code: code
-				})
-			});
+			let response;
+
+			if (recoveryCode) {
+				// Handle recovery code verification
+				response = await fetch('/api/v1/auth/2fa/recovery', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						email: pendingUserEmail,
+						recoveryCode: recoveryCode
+					})
+				});
+			} else {
+				// Handle 2FA code verification
+				response = await fetch('/api/v1/auth/verify-2fa', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						email: pendingUserEmail,
+						code: code
+					})
+				});
+			}
 
 			const result = await response.json();
 
@@ -232,7 +248,7 @@
 				throw new Error(result.error || 'Verification failed');
 			}
 
-			// 2FA verification successful, now sign in with stored credentials
+			// Verification successful, now sign in with stored credentials
 			const { data, error } = await supabase.auth.signInWithPassword({
 				email: pendingUserEmail,
 				password: pendingPassword
@@ -261,7 +277,7 @@
 			}
 		} catch (error: any) {
 			console.error('2FA verification error:', error);
-			toast.error(error.message || '2FA verification failed');
+			toast.error(error.message || 'Verification failed');
 		}
 	}
 

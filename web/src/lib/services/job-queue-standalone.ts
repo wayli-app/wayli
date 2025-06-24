@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabase';
+import { supabase } from '$lib/supabase-worker';
 import type { Job, JobType, JobStatus, JobPriority, JobConfig, WorkerInfo } from '$lib/types/job-queue.types';
 
 export class JobQueueService {
@@ -199,24 +199,24 @@ export class JobQueueService {
       .range((page - 1) * limit, page * limit - 1);
 
     if (error) throw error;
-    return { jobs: jobs || [], total: count || 0 };
+
+    return {
+      jobs: jobs || [],
+      total: count || 0
+    };
   }
 
   static async registerWorker(workerId: string): Promise<void> {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('workers')
-      .insert({
+      .upsert({
+        id: workerId,
         status: 'idle',
         last_heartbeat: new Date().toISOString(),
         started_at: new Date().toISOString()
-      })
-      .select('id')
-      .single();
+      });
 
     if (error) throw error;
-
-    // Store the generated UUID for future use
-    console.log(`📝 Worker registered with ID: ${data.id} (original: ${workerId})`);
   }
 
   static async updateWorkerHeartbeat(workerId: string, status: 'idle' | 'busy', currentJob?: string): Promise<void> {
@@ -224,7 +224,7 @@ export class JobQueueService {
       .from('workers')
       .update({
         status,
-        current_job: currentJob,
+        current_job: currentJob || null,
         last_heartbeat: new Date().toISOString()
       })
       .eq('id', workerId);
@@ -236,7 +236,7 @@ export class JobQueueService {
     const { data: workers, error } = await supabase
       .from('workers')
       .select('*')
-      .gte('last_heartbeat', new Date(Date.now() - 30000).toISOString()); // Workers active in last 30 seconds
+      .gte('last_heartbeat', new Date(Date.now() - 60000).toISOString()); // Workers active in last minute
 
     if (error) throw error;
     return workers || [];
@@ -248,7 +248,7 @@ export class JobQueueService {
     // Find jobs that have been running too long
     const { data: staleJobs, error: fetchError } = await supabase
       .from('jobs')
-      .select('id, worker_id, started_at, retry_count')
+      .select('id, retry_count')
       .eq('status', 'running')
       .lt('started_at', timeoutThreshold);
 
@@ -258,40 +258,9 @@ export class JobQueueService {
       console.log(`🧹 Found ${staleJobs.length} stale jobs to cleanup`);
 
       for (const job of staleJobs) {
-        const currentRetries = job.retry_count || 0;
-        const maxRetries = this.config.retryAttempts;
-
-        if (currentRetries < maxRetries) {
-          // Retry the job
-          await this.failJob(job.id, 'Job timeout exceeded - worker may have died');
-        } else {
-          // Mark as permanently failed
-          const { error: updateError } = await supabase
-            .from('jobs')
-            .update({
-              status: 'failed',
-              error: `Job timeout exceeded after ${maxRetries} attempts - worker may have died`,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', job.id);
-
-          if (updateError) throw updateError;
-        }
+        await this.failJob(job.id, 'Job timed out');
       }
     }
-
-    // Also cleanup stale workers (workers that haven't sent heartbeat in 2 minutes)
-    const staleWorkerThreshold = new Date(Date.now() - 120000).toISOString();
-    const { error: workerCleanupError } = await supabase
-      .from('workers')
-      .update({
-        status: 'stopped',
-        updated_at: new Date().toISOString()
-      })
-      .lt('last_heartbeat', staleWorkerThreshold)
-      .neq('status', 'stopped');
-
-    if (workerCleanupError) throw workerCleanupError;
   }
 
   static async getJobStats(): Promise<{
@@ -302,13 +271,13 @@ export class JobQueueService {
     failed: number;
     cancelled: number;
   }> {
-    const { data: stats, error } = await supabase
+    const { data, error } = await supabase
       .from('jobs')
-      .select('status', { count: 'exact' });
+      .select('status');
 
     if (error) throw error;
 
-    const counts = {
+    const stats = {
       total: 0,
       queued: 0,
       running: 0,
@@ -317,11 +286,11 @@ export class JobQueueService {
       cancelled: 0
     };
 
-    stats?.forEach(job => {
-      counts.total++;
-      counts[job.status as keyof typeof counts]++;
+    data?.forEach(job => {
+      stats.total++;
+      stats[job.status as keyof typeof stats]++;
     });
 
-    return counts;
+    return stats;
   }
 }

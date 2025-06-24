@@ -81,7 +81,8 @@ export class RealtimeSetupService {
    * Check if realtime is properly configured and available
    */
   static isRealtimeAvailable(): boolean {
-    return this.isInitialized && this.isRealtimeEnabled;
+    // Database replication is not supported, so Realtime is not available
+    return false;
   }
 
   /**

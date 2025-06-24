@@ -12,7 +12,7 @@ export const supabase = createClient(config.url, config.anonKey, {
 		detectSessionInUrl: true,
 		storage: browser ? {
 			getItem: (key) => {
-				console.log('🔍 [SUPABASE-STORAGE] Getting item:', key);
+				// console.log('🔍 [SUPABASE-STORAGE] Getting item:', key);
 				// Try to get from cookies first, fallback to localStorage
 				const cookies = document.cookie.split(';');
 
@@ -24,7 +24,7 @@ export const supabase = createClient(config.url, config.anonKey, {
 				}
 				// Fallback to localStorage
 				const localValue = localStorage.getItem(key);
-				console.log('🔍 [SUPABASE-STORAGE] Fallback localStorage value:', { key, value: localValue });
+				// console.log('🔍 [SUPABASE-STORAGE] Fallback localStorage value:', { key, value: localValue });
 				return localValue;
 			},
 			setItem: (key, value) => {
@@ -33,14 +33,14 @@ export const supabase = createClient(config.url, config.anonKey, {
 				localStorage.setItem(key, value);
 			},
 			removeItem: (key) => {
-				console.log('🔍 [SUPABASE-STORAGE] Removing item:', key);
+				// console.log('🔍 [SUPABASE-STORAGE] Removing item:', key);
 				// Remove from both cookies and localStorage
 				document.cookie = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 				localStorage.removeItem(key);
-				console.log('🔍 [SUPABASE-STORAGE] Storage after removal:', {
-					cookies: document.cookie,
-					localStorage: localStorage.getItem(key)
-				});
+				// console.log('🔍 [SUPABASE-STORAGE] Storage after removal:', {
+				// 	cookies: document.cookie,
+				// 	localStorage: localStorage.getItem(key)
+				// });
 			}
 		} : undefined
 	}

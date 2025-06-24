@@ -24,7 +24,8 @@ export type JobType =
   | 'statistics_update'
   | 'photo_import'
   | 'data_cleanup'
-  | 'user_analysis';
+  | 'user_analysis'
+  | 'data_import';
 
 export type JobStatus =
   | 'queued'

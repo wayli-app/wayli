@@ -4,6 +4,47 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
+export const GET: RequestHandler = async ({ locals }) => {
+  try {
+    // Get current user from session
+    const session = await locals.getSession();
+    if (!session) {
+      return json({ success: false, message: 'User not authenticated' }, { status: 401 });
+    }
+
+    const user = session.user;
+    const metadata = user.user_metadata || {};
+
+    return json({
+      success: true,
+      profile: {
+        id: user.id,
+        email: user.email,
+        first_name: metadata.first_name || metadata.firstName || '',
+        last_name: metadata.last_name || metadata.lastName || '',
+        full_name: metadata.full_name || metadata.fullName || '',
+        role: metadata.role || 'user',
+        avatar_url: metadata.avatar_url || '',
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      },
+      preferences: {
+        id: user.id,
+        theme: metadata.theme || 'light',
+        language: metadata.language || 'en',
+        notifications_enabled: metadata.notifications_enabled ?? true,
+        timezone: metadata.timezone || 'UTC+00:00 (London, Dublin)',
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      },
+      two_factor_enabled: metadata.two_factor_enabled === true
+    });
+  } catch (error) {
+    console.error('Profile get error:', error);
+    return json({ success: false, message: 'Internal server error' }, { status: 500 });
+  }
+};
+
 export const PUT: RequestHandler = async ({ request, locals }) => {
   try {
     const { first_name, last_name } = await request.json();

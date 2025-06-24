@@ -42,28 +42,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     switch (action) {
       case 'start':
         await workerManager.start(config);
-        break;
-      case 'stop':
+        break;      case 'stop':
         await workerManager.stop();
         break;
       case 'updateWorkers':
-        if (typeof workerCount !== 'number') {
-          return json({ error: 'Worker count must be a number' }, { status: 400 });
-        }
-        await workerManager.updateWorkerCount(workerCount);
-        break;
+        // Temporarily disabled
+        return json({
+          success: true,
+          message: 'Worker management temporarily disabled',
+          status: { isRunning: false, workerCount: 0, activeWorkers: 0, config: {}, realtime: {} }
+        });
       case 'updateConfig':
-        if (!config || typeof config !== 'object') {
-          return json({ error: 'Config must be an object' }, { status: 400 });
-        }
-        await workerManager.updateConfig(config);
-        break;
+        // Temporarily disabled
+        return json({
+          success: true,
+          message: 'Worker configuration temporarily disabled',
+          status: { isRunning: false, workerCount: 0, activeWorkers: 0, config: {}, realtime: {} }
+        });
       case 'testRealtime':
-        const testResult = await workerManager.testRealtime();
-        return json({ success: true, realtimeTest: testResult });
+        // Temporarily disabled
+        return json({ success: true, realtimeTest: false, message: 'Realtime testing temporarily disabled' });
       case 'getRealtimeConfig':
-        const realtimeConfig = workerManager.getRealtimeConfig();
-        return json({ success: true, realtimeConfig });
+        // Temporarily disabled
+        return json({ success: true, realtimeConfig: { isAvailable: false, isEnabled: false } });
       default:
         return json({ error: 'Invalid action' }, { status: 400 });
     }

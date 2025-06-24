@@ -17,7 +17,13 @@
 		"test:realtime": "bun run src/scripts/test-realtime.ts",
 		"test:jobs": "bun run src/scripts/test-job-creation.ts",
 		"test:live-updates": "bun run src/scripts/test-live-updates.ts",
-		"test:enhanced-jobs": "bun run src/scripts/test-enhanced-jobs.ts"
+		"test:enhanced-jobs": "bun run src/scripts/test-enhanced-jobs.ts",
+		"worker": "bun run src/scripts/worker.ts",
+		"worker:start": "bun run src/scripts/worker.ts",
+		"worker:dev": "bun --watch src/scripts/worker.ts",
+		"workers": "bun run src/scripts/worker-manager.ts",
+		"workers:start": "bun run src/scripts/worker-manager.ts",
+		"workers:dev": "bun --watch src/scripts/worker-manager.ts"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -57,6 +63,8 @@
 		"@types/uuid": "^10.0.0",
 		"clsx": "^2.1.0",
 		"date-fns": "^4.1.0",
+		"dotenv": "^16.5.0",
+		"fast-xml-parser": "^5.2.5",
 		"leaflet": "^1.9.4",
 		"lodash-es": "^4.17.21",
 		"lucide-svelte": "^0.344.0",

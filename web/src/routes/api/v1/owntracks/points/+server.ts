@@ -1,11 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
-import type { TrackerData, OwnTracksPayload } from '$lib/types/database.types';
-import type { PostgrestError } from '@supabase/supabase-js';
-import { SupabaseClient } from '@supabase/supabase-js';
 
 // UUID validation function
 function isValidUUID(uuid: string): boolean {
@@ -26,27 +23,60 @@ function isValidLongitude(lon: number): boolean {
 	return isValidCoordinate(lon) && lon >= -180 && lon <= 180;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, url }) => {
 	try {
-		const body = await request.json();
-		const { user_id, lat, lon, tst, alt, acc, vel, cog, batt, bs, vac, t, tid, inregions } = body;
+		// Get user_id from query parameters (OwnTracks sends it this way)
+		const user_id = url.searchParams.get('user_id');
 
 		// Validate user_id format
 		if (!user_id || !isValidUUID(user_id)) {
+			console.warn('Invalid user_id format:', user_id);
 			return json({ error: 'Forbidden location.' }, { status: 403 });
 		}
 
+		// Try to get the request body
+		let body;
+		try {
+			body = await request.json();
+		} catch {
+			// If no JSON body, try to get data from query parameters
+			const lat = url.searchParams.get('lat');
+			const lon = url.searchParams.get('lon');
+			const tst = url.searchParams.get('tst');
+			const alt = url.searchParams.get('alt');
+			const acc = url.searchParams.get('acc');
+			const vel = url.searchParams.get('vel');
+			const cog = url.searchParams.get('cog');
+			const batt = url.searchParams.get('batt');
+			const bs = url.searchParams.get('bs');
+			const vac = url.searchParams.get('vac');
+			const t = url.searchParams.get('t');
+			const tid = url.searchParams.get('tid');
+			const inregions = url.searchParams.get('inregions');
+
+			body = { lat, lon, tst, alt, acc, vel, cog, batt, bs, vac, t, tid, inregions };
+		}
+
+		const { lat, lon, tst, alt, acc, vel, cog, batt, bs, vac, t, tid, inregions } = body;
+
 		// Validate required fields
 		if (!lat || !lon || !tst) {
+			console.warn('Missing required fields:', { lat, lon, tst });
 			return json({ error: 'Missing required fields: lat, lon, tst' }, { status: 400 });
 		}
 
+		// Convert string values to numbers for validation
+		const latNum = typeof lat === 'string' ? parseFloat(lat) : lat;
+		const lonNum = typeof lon === 'string' ? parseFloat(lon) : lon;
+
 		// Validate coordinates
-		if (!isValidLatitude(lat)) {
+		if (!isValidLatitude(latNum)) {
+			console.warn('Invalid latitude value:', latNum);
 			return json({ error: 'Invalid latitude value' }, { status: 400 });
 		}
 
-		if (!isValidLongitude(lon)) {
+		if (!isValidLongitude(lonNum)) {
+			console.warn('Invalid longitude value:', lonNum);
 			return json({ error: 'Invalid longitude value' }, { status: 400 });
 		}
 
@@ -54,10 +84,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 		// Convert timestamp to ISO string if it's a number
-		const recorded_at = typeof tst === 'number' ? new Date(tst * 1000).toISOString() : tst;
+		const tstNum = typeof tst === 'string' ? parseInt(tst) : tst;
+		const recorded_at = typeof tstNum === 'number' ? new Date(tstNum * 1000).toISOString() : tst;
 
 		// Create PostGIS point from lat/lon (longitude first, then latitude)
-		const location = `POINT(${lon} ${lat})`;
+		const location = `POINT(${lonNum} ${latNum})`;
 
 		// Prepare tracking data
 		const trackingData = {
@@ -71,12 +102,12 @@ export const POST: RequestHandler = async ({ request }) => {
 			speed: vel !== undefined && vel !== null ? Number(vel) : null,
 			heading: cog !== undefined && cog !== null ? Number(cog) : null,
 			battery_level: batt !== undefined && batt !== null ? Number(batt) : null,
-			is_charging: bs === 1,
+			is_charging: bs === '1' || bs === 1,
 			activity_type: vac || null,
 			raw_data: {
-				lat,
-				lon,
-				tst,
+				lat: latNum,
+				lon: lonNum,
+				tst: tstNum,
 				alt,
 				acc,
 				vel,
@@ -97,17 +128,17 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (error) {
 			console.error('Error inserting tracking data:', error);
-			return json({ error: 'Failed to store tracking data' }, { status: 500 });
+			// Return success anyway to prevent OwnTracks from retrying indefinitely
+			return json({ success: true, message: 'Location received' });
 		}
 
-		return json({
-			success: true,
-			message: 'Tracking data stored successfully'
-		});
+		// Return simple success response that OwnTracks expects
+		return json({ success: true, message: 'Location received' });
 
 	} catch (error) {
 		console.error('POST tracking data error:', error);
-		return json({ error: 'An unexpected error occurred' }, { status: 500 });
+		// Return success anyway to prevent OwnTracks from retrying indefinitely
+		return json({ success: true, message: 'Location received' });
 	}
 };
 
@@ -183,20 +214,3 @@ export const PUT: RequestHandler = async ({ request }) => {
 		return json({ error: 'An unexpected error occurred' }, { status: 500 });
 	}
 };
-
-// This is an example of how you might fetch the latest point for a user
-async function getLatestPoint(supabase: SupabaseClient, userId: string) {
-	const { data, error } = await supabase
-		.from('tracker_data')
-		.select('*')
-		.eq('user_id', userId)
-		.order('recorded_at', { ascending: false })
-		.limit(1)
-		.single();
-
-	if (error) {
-		console.error('Error fetching latest point:', error);
-		return null;
-	}
-	return data;
-}

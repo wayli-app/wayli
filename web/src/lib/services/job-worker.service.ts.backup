@@ -1,14 +1,7 @@
 import { JobQueueService } from './job-queue.service';
 import { supabase } from '$lib/supabase';
 import type { Job, JobType } from '$lib/types/job-queue.types';
-// Browser-compatible UUID generation
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+import { randomUUID } from 'crypto';
 
 export class JobWorker {
   private workerId: string;
@@ -19,7 +12,7 @@ export class JobWorker {
   private config: any;
 
   constructor(workerId?: string) {
-    this.workerId = workerId || generateUUID();
+    this.workerId = workerId || randomUUID();
     this.config = JobQueueService.getConfig();
   }
 
@@ -31,15 +24,15 @@ export class JobWorker {
 
     console.log(`🚀 Worker ${this.workerId} started`);
 
-    // Skip Realtime since database replication is not supported
-    // await this.subscribeToRealtime(); // Skipped - database replication not supported
+    // Start real-time notifications
+    await this.subscribeToRealtime();
 
     // Start polling as fallback (less frequent)
     this.intervalId = setInterval(async () => {
       if (this.isRunning && !this.currentJob) {
         await this.pollForJobs();
       }
-    }, this.config.pollInterval); // Use normal poll interval since no Realtime
+    }, this.config.pollInterval * 3); // Poll less frequently as fallback
   }
 
   async stop(): Promise<void> {
@@ -78,13 +71,6 @@ export class JobWorker {
       const channelName = `worker-${this.workerId}-${Date.now()}`;
 
       console.log(`📡 Worker ${this.workerId} creating realtime channel: ${channelName}`);
-      console.log(`🔧 Supabase URL: ${supabase.supabaseUrl}`);
-      console.log(`🔧 Supabase client info:`, {
-        hasSupabase: !!supabase,
-        hasChannel: !!supabase.channel,
-        supabaseUrl: supabase.supabaseUrl,
-        hasAnonKey: !!supabase.supabaseKey
-      });
 
       this.realtimeChannel = supabase
         .channel(channelName)
@@ -120,11 +106,6 @@ export class JobWorker {
             console.log(`✅ Worker ${this.workerId} successfully subscribed to real-time job notifications`);
           } else if (status === 'CHANNEL_ERROR') {
             console.error(`❌ Worker ${this.workerId} realtime channel error, falling back to polling`);
-            console.error(`🔍 Channel error details:`, {
-              channelName,
-              supabaseUrl: supabase.supabaseUrl,
-              timestamp: new Date().toISOString()
-            });
             this.realtimeChannel = null;
           }
         });
@@ -143,7 +124,7 @@ export class JobWorker {
 
       if (this.isRunning && !this.realtimeChannel) {
         console.log(`🔄 Worker ${this.workerId} attempting to reconnect to realtime...`);
-        // await this.subscribeToRealtime(); // Skipped - database replication not supported
+        await this.subscribeToRealtime();
       }
     } catch (error: any) {
       console.error(`❌ Worker ${this.workerId} failed to reconnect to realtime:`, error?.message || error);

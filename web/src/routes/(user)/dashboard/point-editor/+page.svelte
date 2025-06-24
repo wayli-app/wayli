@@ -346,11 +346,9 @@
 
 <div>
 	<!-- Header -->
-	<div class="mb-8">
-		<div class="flex items-center gap-3">
-			<Edit class="h-7 w-7 text-blue-600" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Point Editor</h1>
-		</div>
+	<div class="mb-8 flex items-center gap-3">
+		<Edit class="h-7 w-7 text-[rgb(37,140,244)]" />
+		<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">GPS Point Editor</h1>
 	</div>
 
 	<!-- Date Range Picker -->

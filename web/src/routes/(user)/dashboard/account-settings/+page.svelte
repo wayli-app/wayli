@@ -233,25 +233,11 @@
 		try {
 			error = null;
 
-			// Get user data directly from localStorage instead of using UserService
-			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
-			if (!supabaseKey) {
-				throw new Error('No auth token found');
-			}
-
-			const tokenData = JSON.parse(supabaseKey);
-			const accessToken = tokenData.access_token;
-
-			if (!accessToken) {
-				throw new Error('No access token found');
-			}
-
-			// Get user data directly from Supabase auth endpoint
-			const response = await fetch('https://wayli.int.hazen.nu/auth/v1/user', {
+			// Get user data from our server API
+			const response = await fetch('/api/v1/auth/profile', {
 				method: 'GET',
 				headers: {
-					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
-					'Authorization': `Bearer ${accessToken}`
+					'Content-Type': 'application/json'
 				}
 			});
 
@@ -259,33 +245,18 @@
 				throw new Error('Failed to get user data');
 			}
 
-			const userData = await response.json();
-			console.log('User data loaded directly:', userData);
+			const data = await response.json();
 
-			// Create profile and preferences objects from user data
-			const metadata = userData.user_metadata || {};
+			if (!data.success) {
+				throw new Error(data.message || 'Failed to load user data');
+			}
 
-			profile = {
-				id: userData.id,
-				email: userData.email,
-				first_name: metadata.firstName || metadata.first_name || '',
-				last_name: metadata.lastName || metadata.last_name || '',
-				full_name: metadata.fullName || metadata.full_name || '',
-				role: metadata.role || 'user',
-				avatar_url: metadata.avatar_url || '',
-				created_at: userData.created_at,
-				updated_at: userData.updated_at
-			};
+			console.log('User data loaded from API:', data);
 
-			preferences = {
-				id: userData.id,
-				theme: metadata.theme || 'light',
-				language: metadata.language || 'en',
-				notifications_enabled: metadata.notifications_enabled ?? true,
-				timezone: metadata.timezone || 'UTC+00:00 (London, Dublin)',
-				created_at: userData.created_at,
-				updated_at: userData.updated_at
-			};
+			// Set profile and preferences from API response
+			profile = data.profile;
+			preferences = data.preferences;
+			twoFactorEnabled = data.two_factor_enabled;
 
 			console.log('Profile data loaded:', profile);
 			console.log('Preferences data loaded:', preferences);
@@ -300,9 +271,6 @@
 				notificationsEnabledInput = preferences.notifications_enabled ?? true;
 				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
 			}
-
-			// Check 2FA status from user metadata
-			twoFactorEnabled = metadata.two_factor_enabled === true;
 		} catch (error) {
 			console.error('Error loading user data:', error);
 			error = error instanceof Error ? error.message : 'Failed to load user data';
@@ -476,7 +444,7 @@
 					<User class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Profile Settings</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600">Manage your personal information and account details</p>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">Manage your personal information and account details</p>
 			</div>
 
 			<div class="space-y-6">
@@ -533,7 +501,7 @@
 					<Lock class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Settings</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600">Manage your password and security preferences</p>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">Manage your password and security preferences</p>
 			</div>
 
 			<div class="space-y-4">
@@ -627,7 +595,7 @@
 					<Globe class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Preferences</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600">Configure your language, units, and display preferences</p>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">Configure your language, units, and display preferences</p>
 			</div>
 
 			<div class="grid gap-6 md:grid-cols-2">

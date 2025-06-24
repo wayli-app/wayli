@@ -3,7 +3,7 @@
 
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "postgis" WITH SCHEMA "gis";
+CREATE EXTENSION IF NOT EXISTS "postgis";
 
 -- Create the schema for the application from a placeholder
 CREATE SCHEMA IF NOT EXISTS %%SCHEMA%%;
@@ -111,12 +111,17 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.jobs (
 
 -- Create workers table for worker management
 CREATE TABLE IF NOT EXISTS %%SCHEMA%%.workers (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'busy', 'stopped')),
     current_job UUID REFERENCES %%SCHEMA%%.jobs(id) ON DELETE SET NULL,
     last_heartbeat TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Note: Workers table does not have RLS enabled since workers are system processes
+-- ALTER TABLE %%SCHEMA%%.workers ENABLE ROW LEVEL SECURITY;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_trips_user_id ON %%SCHEMA%%.trips(user_id);
@@ -134,6 +139,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_by ON %%SCHEMA%%.jobs(created_by);
 CREATE INDEX IF NOT EXISTS idx_jobs_worker_id ON %%SCHEMA%%.jobs(worker_id);
 CREATE INDEX IF NOT EXISTS idx_workers_status ON %%SCHEMA%%.workers(status);
 CREATE INDEX IF NOT EXISTS idx_workers_last_heartbeat ON %%SCHEMA%%.workers(last_heartbeat);
+CREATE INDEX IF NOT EXISTS idx_workers_updated_at ON %%SCHEMA%%.workers(updated_at);
 
 -- Create PostGIS spatial indexes
 CREATE INDEX IF NOT EXISTS idx_locations_location ON %%SCHEMA%%.locations USING GIST(location);
@@ -150,7 +156,7 @@ ALTER TABLE %%SCHEMA%%.points_of_interest ENABLE ROW LEVEL SECURITY;
 ALTER TABLE %%SCHEMA%%.user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE %%SCHEMA%%.tracker_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE %%SCHEMA%%.jobs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE %%SCHEMA%%.workers ENABLE ROW LEVEL SECURITY;
+-- Workers table does not have RLS enabled since workers are system processes
 
 -- Profiles policies
 CREATE POLICY "Users can view their own profile" ON %%SCHEMA%%.profiles
@@ -237,75 +243,12 @@ CREATE POLICY "Users can update their own jobs" ON %%SCHEMA%%.jobs
 CREATE POLICY "Users can delete their own jobs" ON %%SCHEMA%%.jobs
     FOR DELETE USING (auth.uid() = created_by);
 
--- Workers policies
-CREATE POLICY "Users can view their own workers" ON %%SCHEMA%%.workers
-    FOR SELECT USING (auth.uid() = id);
+-- Allow workers to update jobs they're processing (no auth check for system workers)
+CREATE POLICY "Workers can update jobs" ON %%SCHEMA%%.jobs
+    FOR UPDATE USING (true);
 
-CREATE POLICY "Users can insert their own workers" ON %%SCHEMA%%.workers
-    FOR INSERT WITH CHECK (auth.uid() = id);
-
-CREATE POLICY "Users can update their own workers" ON %%SCHEMA%%.workers
-    FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can delete their own workers" ON %%SCHEMA%%.workers
-    FOR DELETE USING (auth.uid() = id);
-
--- Admin policies (allow admins to view all data)
-CREATE POLICY "Admins can view all profiles" ON %%SCHEMA%%.profiles
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
-CREATE POLICY "Admins can view all trips" ON %%SCHEMA%%.trips
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
-CREATE POLICY "Admins can view all locations" ON %%SCHEMA%%.locations
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
-CREATE POLICY "Admins can view all points of interest" ON %%SCHEMA%%.points_of_interest
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
-CREATE POLICY "Admins can view all tracker data" ON %%SCHEMA%%.tracker_data
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
-CREATE POLICY "Admins can view all jobs" ON %%SCHEMA%%.jobs
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
-CREATE POLICY "Admins can view all workers" ON %%SCHEMA%%.workers
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM %%SCHEMA%%.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
+-- Workers table does not have RLS enabled since workers are system processes
+-- No RLS policies needed for workers table
 
 -- Create function to handle user creation
 CREATE OR REPLACE FUNCTION %%SCHEMA%%.handle_new_user()
@@ -333,6 +276,20 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION %%SCHEMA%%.handle_new_user();
+
+-- Create trigger to update updated_at column for workers
+CREATE OR REPLACE FUNCTION %%SCHEMA%%.update_workers_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_workers_updated_at ON %%SCHEMA%%.workers;
+CREATE TRIGGER update_workers_updated_at
+    BEFORE UPDATE ON %%SCHEMA%%.workers
+    FOR EACH ROW EXECUTE FUNCTION %%SCHEMA%%.update_workers_updated_at();
 
 -- Create helper functions for PostGIS operations
 
@@ -374,7 +331,7 @@ CREATE OR REPLACE FUNCTION get_user_tracking_data(
     end_time TIMESTAMP WITH TIME ZONE
 ) RETURNS TABLE (
     id UUID,
-    timestamp TIMESTAMP WITH TIME ZONE,
+    "timestamp" TIMESTAMP WITH TIME ZONE,
     location GEOMETRY(POINT, 4326),
     altitude DECIMAL,
     speed DECIMAL,
