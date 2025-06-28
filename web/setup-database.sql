@@ -73,12 +73,12 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.user_preferences (
 
 -- Create tracker_data table for OwnTracks and other tracking apps
 CREATE TABLE IF NOT EXISTS %%SCHEMA%%.tracker_data (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     tracker_type TEXT NOT NULL, -- 'owntracks', 'gpx', 'fitbit', etc.
     device_id TEXT, -- Device identifier from tracking app
     recorded_at TIMESTAMP WITH TIME ZONE NOT NULL,
     location GEOMETRY(POINT, 4326), -- PostGIS point with WGS84 SRID
+    country_code VARCHAR(2), -- ISO 3166-1 alpha-2 country code
     altitude DECIMAL(8, 2), -- Altitude in meters
     accuracy DECIMAL(8, 2), -- GPS accuracy in meters
     speed DECIMAL(8, 2), -- Speed in m/s
@@ -87,8 +87,25 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.tracker_data (
     is_charging BOOLEAN,
     activity_type TEXT, -- 'walking', 'driving', 'cycling', etc.
     raw_data JSONB, -- Store original data from tracking app
+    reverse_geocode JSONB, -- Store geocoded data from Nominatim
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, location, recorded_at)
+);
+
+-- Create geocoded_points table to track reverse geocoding status
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.geocoded_points (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    table_name TEXT NOT NULL, -- 'locations' or 'points_of_interest'
+    record_id UUID NOT NULL, -- ID of the record in the source table
+    location GEOMETRY(POINT, 4326), -- PostGIS point with WGS84 SRID
+    address TEXT, -- Reverse geocoded address
+    geocoding_data JSONB, -- Full response from Nominatim
+    geocoded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(table_name, record_id)
 );
 
 -- Create jobs table for background job processing
@@ -132,6 +149,9 @@ CREATE INDEX IF NOT EXISTS idx_user_preferences_id ON %%SCHEMA%%.user_preference
 CREATE INDEX IF NOT EXISTS idx_tracker_data_user_id ON %%SCHEMA%%.tracker_data(user_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_timestamp ON %%SCHEMA%%.tracker_data(recorded_at);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_device_id ON %%SCHEMA%%.tracker_data(device_id);
+CREATE INDEX IF NOT EXISTS idx_geocoded_points_user_id ON %%SCHEMA%%.geocoded_points(user_id);
+CREATE INDEX IF NOT EXISTS idx_geocoded_points_table_record ON %%SCHEMA%%.geocoded_points(table_name, record_id);
+CREATE INDEX IF NOT EXISTS idx_geocoded_points_location ON %%SCHEMA%%.geocoded_points USING GIST(location);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON %%SCHEMA%%.jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_priority ON %%SCHEMA%%.jobs(priority);
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON %%SCHEMA%%.jobs(created_at);
@@ -230,6 +250,19 @@ CREATE POLICY "Users can update their own tracker data" ON %%SCHEMA%%.tracker_da
 CREATE POLICY "Users can delete their own tracker data" ON %%SCHEMA%%.tracker_data
     FOR DELETE USING (auth.uid() = user_id);
 
+-- Geocoded points policies
+CREATE POLICY "Users can view their own geocoded points" ON %%SCHEMA%%.geocoded_points
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own geocoded points" ON %%SCHEMA%%.geocoded_points
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own geocoded points" ON %%SCHEMA%%.geocoded_points
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own geocoded points" ON %%SCHEMA%%.geocoded_points
+    FOR DELETE USING (auth.uid() = user_id);
+
 -- Jobs policies
 CREATE POLICY "Users can view their own jobs" ON %%SCHEMA%%.jobs
     FOR SELECT USING (auth.uid() = created_by);
@@ -242,6 +275,9 @@ CREATE POLICY "Users can update their own jobs" ON %%SCHEMA%%.jobs
 
 CREATE POLICY "Users can delete their own jobs" ON %%SCHEMA%%.jobs
     FOR DELETE USING (auth.uid() = created_by);
+
+CREATE POLICY "Allow service role to update jobs" ON %%SCHEMA%%.jobs
+    FOR UPDATE USING (auth.role() = 'service_role');
 
 -- Allow workers to update jobs they're processing (no auth check for system workers)
 CREATE POLICY "Workers can update jobs" ON %%SCHEMA%%.jobs
@@ -331,7 +367,7 @@ CREATE OR REPLACE FUNCTION get_user_tracking_data(
     end_time TIMESTAMP WITH TIME ZONE
 ) RETURNS TABLE (
     id UUID,
-    "timestamp" TIMESTAMP WITH TIME ZONE,
+    recorded_at TIMESTAMP WITH TIME ZONE,
     location GEOMETRY(POINT, 4326),
     altitude DECIMAL,
     speed DECIMAL,

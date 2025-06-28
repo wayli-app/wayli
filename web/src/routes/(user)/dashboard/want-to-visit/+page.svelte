@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Star, Search, ChevronDown, Plus, Heart } from 'lucide-svelte';
+	import { Star, Search, ChevronDown, Plus, Heart, X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { Map as LeafletMap, LatLngExpression } from 'leaflet';
 	import { debounce } from 'lodash-es';
@@ -114,7 +114,7 @@
 			if (showAddForm) {
 				latitude = lat.toFixed(6);
 				longitude = lng.toFixed(6);
-				map.setView([lat, lng], 15);
+				map.setView([lat, lng], 13);
 			}
 		});
 
@@ -229,18 +229,18 @@
 	<div class="mb-8">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-3">
-				<Star class="h-7 w-7 text-[rgb(37,140,244)]" />
+				<Star class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 				<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Want to Visit</h1>
 			</div>
-			<button
-				class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 {showAddForm
-					? 'border-red-500 bg-red-500 text-white hover:bg-red-600'
-					: ''}"
-				on:click={() => (showAddForm = !showAddForm)}
-				type="button"
-			>
-				{showAddForm ? 'Cancel' : 'Add destination'}
-			</button>
+			{#if !showAddForm}
+				<button
+					class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
+					on:click={() => (showAddForm = !showAddForm)}
+					type="button"
+				>
+					{showAddForm ? 'Cancel' : 'Add destination'}
+				</button>
+			{/if}
 		</div>
 	</div>
 
@@ -253,29 +253,42 @@
 		></div>
 		{#if showAddForm}
 			<div
-				class="absolute bottom-4 right-4 z-20 w-80 rounded-xl border border-[rgb(218,218,221)] bg-white dark:bg-[#2d2d35] p-6 shadow-2xl"
+				class="absolute bottom-4 right-4 z-20 w-96 rounded-xl border border-[rgb(218,218,221)] bg-white dark:bg-[#2d2d35] p-8 shadow-2xl"
 			>
-				<h3 class="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">Add New Destination</h3>
+				<div class="flex items-center justify-between mb-6">
+					<h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">Add New Destination</h3>
+					<button
+						on:click={() => (showAddForm = false)}
+						class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+					>
+						<X class="h-5 w-5" />
+					</button>
+				</div>
 				<form on:submit|preventDefault={() => {}}>
-					<div class="space-y-4">
+					<div class="space-y-6">
 						<div>
-							<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+							<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
 							<input
 								type="text"
 								id="name"
 								bind:value={name}
 								on:input={handleNameInput}
-								class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+								class="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
 								placeholder="e.g., Eiffel Tower"
 							/>
 							{#if showSearchResults}
-								<ul class="mt-1 w-full rounded-md border border-gray-300 bg-white shadow-lg">
+								<ul class="mt-2 w-full rounded-lg border border-gray-300 bg-white shadow-lg max-h-40 overflow-y-auto">
 									{#each searchResults as result}
-										<li
-											class="cursor-pointer p-2 hover:bg-gray-100"
-											on:click={() => selectPlace(result)}
-										>
-											{result.name}
+										<li>
+											<button
+												type="button"
+												class="w-full text-left cursor-pointer p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+												on:click={() => selectPlace(result)}
+												on:keydown={(e) => e.key === 'Enter' && selectPlace(result)}
+											>
+												<div class="text-sm text-gray-900">{result.name.split(',')[0]}</div>
+												<div class="text-xs text-gray-500">{result.name}</div>
+											</button>
 										</li>
 									{/each}
 								</ul>
@@ -283,42 +296,51 @@
 						</div>
 						<div class="grid grid-cols-2 gap-4">
 							<div>
-								<label for="latitude" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Latitude</label>
+								<label for="latitude" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Latitude</label>
 								<input
 									type="text"
 									id="latitude"
 									bind:value={latitude}
-									class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+									class="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
 									placeholder="e.g., 48.8584"
 								/>
 							</div>
 							<div>
-								<label for="longitude" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Longitude</label>
+								<label for="longitude" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Longitude</label>
 								<input
 									type="text"
 									id="longitude"
 									bind:value={longitude}
-									class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+									class="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
 									placeholder="e.g., 2.2945"
 								/>
 							</div>
 						</div>
 						<div>
-							<label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+							<label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
 							<textarea
 								id="description"
 								bind:value={description}
-								rows="3"
-								class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-								placeholder="Notes about why you want to visit"
+								rows="4"
+								class="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:bg-gray-800 dark:border-gray-600 dark:text-white resize-none"
+								placeholder="Notes about why you want to visit this destination..."
 							></textarea>
 						</div>
-						<button
-							type="submit"
-							class="w-full rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-white hover:bg-blue-700"
-						>
-							Add to List
-						</button>
+						<div class="flex gap-3 pt-2">
+							<button
+								type="button"
+								on:click={() => (showAddForm = false)}
+								class="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+							>
+								Cancel
+							</button>
+							<button
+								type="submit"
+								class="flex-1 rounded-lg bg-[rgb(37,140,244)] px-4 py-3 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 transition-colors"
+							>
+								Add to List
+							</button>
+						</div>
 					</div>
 				</form>
 			</div>

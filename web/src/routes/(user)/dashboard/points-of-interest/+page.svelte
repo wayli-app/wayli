@@ -168,7 +168,7 @@ function selectType(type: string) {
 <div>
   <!-- Header -->
   <div class="mb-8 flex items-center gap-3">
-    <Star class="h-7 w-7 text-[rgb(37,140,244)]" />
+    <Star class="h-8 w-8 text-blue-600 dark:text-gray-400" />
     <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Visited POIs</h1>
   </div>
 

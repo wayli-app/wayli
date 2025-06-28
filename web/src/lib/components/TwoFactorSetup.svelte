@@ -5,7 +5,6 @@
 	import { supabase } from '$lib/supabase';
 	import QRCode from 'qrcode';
 	import { onMount } from 'svelte';
-	import { UserService } from '$lib/services/user.service';
 
 	export let open = false;
 
@@ -32,16 +31,6 @@
 		// Don't auto-generate on mount
 	});
 
-	// Simple secret generation function
-	function generateRandomSecret(length = 32) {
-		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-		let result = '';
-		for (let i = 0; i < length; i++) {
-			result += chars.charAt(Math.floor(Math.random() * chars.length));
-		}
-		return result;
-	}
-
 	async function generateSecret() {
 		if (!password) {
 			toast.error('Please enter your password');
@@ -64,12 +53,12 @@
 			const responseData = await response.json();
 
 			if (!response.ok || !responseData.success) {
-				throw new Error(responseData.message || 'Setup failed');
+				throw new Error(responseData.error?.message || 'Setup failed');
 			}
 
-			secret = responseData.secret;
-			qrCodeUrl = responseData.qrCodeUrl;
-			// Optionally set email if needed
+			secret = responseData.data.secret;
+			qrCodeUrl = responseData.data.qrCodeUrl;
+			email = responseData.data.email || '';
 		} catch (error) {
 			console.error('Error generating 2FA secret:', error);
 			qrCodeError = true;
@@ -98,10 +87,10 @@
 			const responseData = await response.json();
 
 			if (!response.ok || !responseData.success) {
-				throw new Error(responseData.message || 'Verification failed');
+				throw new Error(responseData.error?.message || 'Verification failed');
 			}
 
-			recoveryCodes = responseData.recoveryCodes || [];
+			recoveryCodes = responseData.data.recoveryCodes || [];
 			if (recoveryCodes.length > 0) {
 				nextStep();
 			} else {

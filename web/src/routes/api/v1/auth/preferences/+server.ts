@@ -1,5 +1,5 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
@@ -11,7 +11,7 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
     // Get current user from session
     const session = await locals.getSession();
     if (!session) {
-      return json({ success: false, message: 'User not authenticated' }, { status: 401 });
+      return errorResponse('User not authenticated', 401);
     }
 
     const user = session.user;
@@ -30,11 +30,10 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
     });
 
     if (updateError) {
-      return json({ success: false, message: updateError.message }, { status: 500 });
+      return errorResponse(updateError.message, 500);
     }
 
-    return json({
-      success: true,
+    return successResponse({
       message: 'Preferences updated successfully',
       preferences: {
         id: user.id,
@@ -46,6 +45,6 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
     });
   } catch (error) {
     console.error('Preferences update error:', error);
-    return json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return errorResponse(error);
   }
 };

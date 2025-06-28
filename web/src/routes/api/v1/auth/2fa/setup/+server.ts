@@ -1,23 +1,22 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { successResponse, errorResponse, validationErrorResponse } from '$lib/utils/api/response';
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { authenticator } from 'otplib';
-import QRCode from 'qrcode';
+import { TOTPService } from '$lib/services/totp.service';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const { password } = await request.json();
 
     if (!password) {
-      return json({ success: false, message: 'Password is required' }, { status: 400 });
+      return validationErrorResponse('Password is required');
     }
 
     // Get current user from session
     const session = await locals.getSession();
     if (!session) {
-      return json({ success: false, message: 'User not authenticated' }, { status: 401 });
+      return errorResponse('User not authenticated', 401);
     }
 
     const user = session.user;
@@ -32,45 +31,40 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     });
 
     if (signInError) {
-      return json({ success: false, message: 'Password is incorrect' }, { status: 401 });
+      return errorResponse('Password is incorrect', 401);
     }
 
-    // Generate TOTP secret
-    const secret = authenticator.generateSecret();
-    const email = user.email!;
+    // Generate TOTP setup using the service
+    const totpConfig = {
+      issuer: 'Wayli',
+      label: user.email!,
+      email: user.email!
+    };
 
-    // Create otpauth URL for QR code
-    const otpauthUrl = `otpauth://totp/Wayli:${email}?secret=${secret}&issuer=Wayli`;
-
-    // Generate QR code
-    let qrCodeUrl = '';
-    try {
-      qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
-    } catch (qrError) {
-      console.error('QR code generation failed:', qrError);
-      // Continue without QR code, user can enter secret manually
-    }
+    const { secret, qrCodeUrl } = await TOTPService.createTOTPSetup(totpConfig);
 
     // Store the secret in user metadata using admin API
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
       user_metadata: {
         ...user.user_metadata,
-        totp_secret: secret
+        totp_secret: secret,
+        totp_setup_completed: false // Mark as not yet verified
       }
     });
 
     if (updateError) {
-      return json({ success: false, message: updateError.message }, { status: 500 });
+      return errorResponse(updateError.message, 500);
     }
 
-    return json({
-      success: true,
-      qrCodeUrl,
+    return successResponse({
       secret,
-      message: '2FA setup initiated successfully'
+      qrCodeUrl,
+      email: user.email,
+      message: 'TOTP setup generated successfully. Please verify with your authenticator app.'
     });
+
   } catch (error) {
     console.error('2FA setup error:', error);
-    return json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return errorResponse(error);
   }
 };

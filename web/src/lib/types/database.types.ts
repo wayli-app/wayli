@@ -47,7 +47,7 @@ export interface UserPreferences {
 }
 
 export interface TrackerData {
-	id: string;
+	// Composite primary key: (user_id, location, recorded_at)
 	user_id: string;
 	tracker_type: 'owntracks' | 'gpx' | 'fitbit' | 'strava' | 'other';
 	device_id?: string;
@@ -152,9 +152,23 @@ export const PostGIS = {
 		return `POINT(${longitude} ${latitude})`;
 	},
 
-	// Extract lat/lon from PostGIS POINT WKT
-	latLonFromPoint: (point: string): Coordinates | null => {
-		const match = point.match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
+	// Extract lat/lon from PostGIS POINT WKT or GeoJSON
+	latLonFromPoint: (point: unknown): Coordinates | null => {
+		if (!point) return null;
+		function hasCoordinates(obj: unknown): obj is { coordinates: [number, number] } {
+			return typeof obj === 'object' && obj !== null && 'coordinates' in obj && Array.isArray((obj as { coordinates: unknown }).coordinates);
+		}
+		if (hasCoordinates(point)) {
+			const coords = point.coordinates;
+			return {
+				longitude: coords[0],
+				latitude: coords[1]
+			};
+		}
+		if (typeof point !== 'string') {
+			point = String(point);
+		}
+		const match = (point as string).match(/POINT\(([-\d.]+)\s+([-\d.]+)\)/);
 		if (match) {
 			return {
 				longitude: parseFloat(match[1]),

@@ -3,12 +3,15 @@
 	import { onMount } from 'svelte';
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { initializeTheme } from '$lib/stores/app-state.svelte';
+	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 	import { Toaster } from 'svelte-sonner';
 
 	onMount(() => {
 		console.log('🌐 [ROOT] Layout mounted');
 		// Initialize theme
 		initializeTheme();
+		// Suppress deprecation warnings from third-party libraries
+		suppressDeprecationWarnings();
 	});
 
 	// Track page changes using modern navigation lifecycle

@@ -1,3 +1,46 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark mode overrides for air-datepicker (used by @svelte-plugins/datepicker) */
+html.dark .air-datepicker,
+body.dark .air-datepicker {
+  background: #23232a !important;
+  color: #f3f4f6 !important;
+  border-color: #44444c !important;
+}
+html.dark .air-datepicker-nav,
+body.dark .air-datepicker-nav {
+  background: #23232a !important;
+  color: #f3f4f6 !important;
+}
+html.dark .air-datepicker-cell,
+body.dark .air-datepicker-cell {
+  color: #f3f4f6 !important;
+}
+html.dark .air-datepicker-cell.-selected-,
+body.dark .air-datepicker-cell.-selected- {
+  background: #2563eb !important;
+  color: #fff !important;
+}
+html.dark .air-datepicker-cell.-current-,
+body.dark .air-datepicker-cell.-current- {
+  border-color: #2563eb !important;
+}
+html.dark .air-datepicker-nav--title,
+body.dark .air-datepicker-nav--title {
+  color: #f3f4f6 !important;
+}
+html.dark .air-datepicker-nav--action,
+body.dark .air-datepicker-nav--action {
+  color: #f3f4f6 !important;
+}
+html.dark .air-datepicker-buttons,
+body.dark .air-datepicker-buttons {
+  background: #23232a !important;
+}
+html.dark .air-datepicker-time,
+body.dark .air-datepicker-time {
+  background: #23232a !important;
+  color: #f3f4f6 !important;
+}

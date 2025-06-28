@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { User, Lock, Globe, Shield } from 'lucide-svelte';
+	import { User, Settings, Bell, Globe, Shield, Key, QrCode, Download, Upload, Trash2, Save, X, Check, AlertCircle, Info, Lock } from 'lucide-svelte';
 	import { supabase } from '$lib/supabase';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { userStore } from '$lib/stores/auth';
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
-	import { UserService } from '$lib/services/user.service';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
 
 	let currentPassword = '';
@@ -157,23 +159,23 @@
 	async function testSession() {
 		console.log('Testing current session...');
 		try {
-			// Test 1: Check current session
-			console.log('Test 1: Getting current session...');
-			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-			console.log('Session result:', { session: session?.user?.id, error: sessionError });
+			// Test 1: Check current user using secure authentication
+			console.log('Test 1: Getting current user...');
+			const { data: { user }, error: userError } = await supabase.auth.getUser();
+			console.log('User result:', { user: user?.id, error: userError });
 
-			if (session) {
-				console.log('Session found:', {
-					userId: session.user.id,
-					email: session.user.email,
-					expiresAt: session.expires_at
+			if (user) {
+				console.log('User found:', {
+					userId: user.id,
+					email: user.email,
+					metadata: user.user_metadata
 				});
 			} else {
-				console.log('No session found - user needs to sign in');
+				console.log('No user found - user needs to sign in');
 			}
 
 		} catch (error) {
-			console.error('Session test failed:', error);
+			console.error('User test failed:', error);
 		}
 	}
 
@@ -183,9 +185,9 @@
 			// Check if environment variables are available
 			console.log('Checking environment variables...');
 
-			// Try to access the config validation function
-			const { validateSupabaseConfig } = await import('$lib/supabase-config');
-			const config = validateSupabaseConfig();
+			// Test the centralized configuration
+			const { getSupabaseConfig } = await import('$lib/core/config/environment');
+			const config = getSupabaseConfig();
 			console.log('Supabase config validation passed:', config);
 
 		} catch (error) {
@@ -245,18 +247,18 @@
 				throw new Error('Failed to get user data');
 			}
 
-			const data = await response.json();
+			const result = await response.json();
 
-			if (!data.success) {
-				throw new Error(data.message || 'Failed to load user data');
+			if (!result.success) {
+				throw new Error(result.error?.message || 'Failed to load user data');
 			}
 
-			console.log('User data loaded from API:', data);
+			console.log('User data loaded from API:', result);
 
 			// Set profile and preferences from API response
-			profile = data.profile;
-			preferences = data.preferences;
-			twoFactorEnabled = data.two_factor_enabled;
+			profile = result.data.profile;
+			preferences = result.data.preferences;
+			twoFactorEnabled = result.data.two_factor_enabled;
 
 			console.log('Profile data loaded:', profile);
 			console.log('Preferences data loaded:', preferences);
@@ -383,11 +385,19 @@
 		}
 		isUpdatingPassword = true;
 		try {
-			const response = await UserService.updatePassword({
-				currentPassword,
-				newPassword
+			const response = await fetch('/api/v1/auth/password', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					currentPassword,
+					newPassword
+				})
 			});
-			if (!response.success) throw new Error(response.message || 'Update failed');
+
+			const result = await response.json();
+			if (!result.success) throw new Error(result.message || 'Update failed');
 			toast.success('Password updated successfully!');
 			currentPassword = '';
 			newPassword = '';
@@ -424,7 +434,7 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
-			<User class="h-7 w-7 text-[rgb(37,140,244)]" />
+			<User class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Account Settings</h1>
 		</div>
 	</div>

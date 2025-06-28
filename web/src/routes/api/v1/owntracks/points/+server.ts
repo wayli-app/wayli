@@ -1,8 +1,9 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { successResponse, errorResponse, validationErrorResponse } from '$lib/utils/api/response';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
+import { getCountryForPoint } from '$lib/services/external/country-reverse-geocoding.service';
 
 // UUID validation function
 function isValidUUID(uuid: string): boolean {
@@ -31,7 +32,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// Validate user_id format
 		if (!user_id || !isValidUUID(user_id)) {
 			console.warn('Invalid user_id format:', user_id);
-			return json({ error: 'Forbidden location.' }, { status: 403 });
+			return errorResponse('Forbidden location.', 403);
 		}
 
 		// Try to get the request body
@@ -62,7 +63,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// Validate required fields
 		if (!lat || !lon || !tst) {
 			console.warn('Missing required fields:', { lat, lon, tst });
-			return json({ error: 'Missing required fields: lat, lon, tst' }, { status: 400 });
+			return validationErrorResponse('Missing required fields: lat, lon, tst');
 		}
 
 		// Convert string values to numbers for validation
@@ -72,12 +73,12 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// Validate coordinates
 		if (!isValidLatitude(latNum)) {
 			console.warn('Invalid latitude value:', latNum);
-			return json({ error: 'Invalid latitude value' }, { status: 400 });
+			return validationErrorResponse('Invalid latitude value');
 		}
 
 		if (!isValidLongitude(lonNum)) {
 			console.warn('Invalid longitude value:', lonNum);
-			return json({ error: 'Invalid longitude value' }, { status: 400 });
+			return validationErrorResponse('Invalid longitude value');
 		}
 
 		// Create Supabase admin client
@@ -89,6 +90,9 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		// Create PostGIS point from lat/lon (longitude first, then latitude)
 		const location = `POINT(${lonNum} ${latNum})`;
+
+		// After latNum and lonNum are parsed:
+		const countryCode = getCountryForPoint(latNum, lonNum);
 
 		// Prepare tracking data
 		const trackingData = {
@@ -118,27 +122,31 @@ export const POST: RequestHandler = async ({ request, url }) => {
 				t,
 				tid,
 				inregions
-			}
+			},
+			country_code: countryCode
 		};
 
-		// Insert tracking data
+		// Insert tracking data using upsert to handle duplicates
 		const { error } = await supabaseAdmin
 			.from('tracker_data')
-			.insert(trackingData);
+			.upsert(trackingData, {
+				onConflict: 'user_id,location,recorded_at',
+				ignoreDuplicates: false
+			});
 
 		if (error) {
 			console.error('Error inserting tracking data:', error);
 			// Return success anyway to prevent OwnTracks from retrying indefinitely
-			return json({ success: true, message: 'Location received' });
+			return successResponse({ message: 'Location received' });
 		}
 
 		// Return simple success response that OwnTracks expects
-		return json({ success: true, message: 'Location received' });
+		return successResponse({ message: 'Location received' });
 
 	} catch (error) {
 		console.error('POST tracking data error:', error);
 		// Return success anyway to prevent OwnTracks from retrying indefinitely
-		return json({ success: true, message: 'Location received' });
+		return successResponse({ message: 'Location received' });
 	}
 };
 
@@ -148,7 +156,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// Validate user_id format
 		if (!user_id || !isValidUUID(user_id)) {
-			return json({ error: 'Invalid user_id format' }, { status: 403 });
+			return errorResponse('Invalid user_id format', 403);
 		}
 
 		// Create Supabase admin client
@@ -165,17 +173,16 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		if (error) {
 			console.error('Error fetching tracking data:', error);
-			return json({ error: 'Failed to fetch tracking data' }, { status: 500 });
+			return errorResponse('Failed to fetch tracking data', 500);
 		}
 
-		return json({
-			success: true,
+		return successResponse({
 			data: trackingData || []
 		});
 
 	} catch (error) {
 		console.error('GET tracking data error:', error);
-		return json({ error: 'An unexpected error occurred' }, { status: 500 });
+		return errorResponse('An unexpected error occurred', 500);
 	}
 };
 
@@ -187,30 +194,50 @@ export const PUT: RequestHandler = async ({ request }) => {
 
 		// Validate user_id format
 		if (!user_id || !isValidUUID(user_id)) {
-			return json({ error: 'Invalid user_id format' }, { status: 403 });
+			return errorResponse('Invalid user_id format', 403);
 		}
 
 		// Validate coordinates
 		if (!isValidLatitude(lat)) {
-			return json({ error: 'Invalid latitude value' }, { status: 400 });
+			return validationErrorResponse('Invalid latitude value');
 		}
 
 		if (!isValidLongitude(lon)) {
-			return json({ error: 'Invalid longitude value' }, { status: 400 });
+			return validationErrorResponse('Invalid longitude value');
 		}
 
-		// Create PostGIS point from lat/lon (longitude first, then latitude)
+		// Create PostGIS point
 		const location = `POINT(${lon} ${lat})`;
 
-		return json({
-			success: true,
+		// Create Supabase admin client
+		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+		// Test insert
+		const { error } = await supabaseAdmin
+			.from('tracker_data')
+			.insert({
+				user_id,
+				tracker_type: 'test',
+				device_id: 'test-device',
+				recorded_at: new Date().toISOString(),
+				location,
+				raw_data: { lat, lon }
+			});
+
+		if (error) {
+			console.error('Error testing PostGIS point creation:', error);
+			return errorResponse('Failed to create PostGIS point', 500);
+		}
+
+		return successResponse({
 			message: 'PostGIS point created successfully',
 			location,
-			coordinates: { lat, lon }
+			lat,
+			lon
 		});
 
 	} catch (error) {
-		console.error('PUT test error:', error);
-		return json({ error: 'An unexpected error occurred' }, { status: 500 });
+		console.error('PUT test endpoint error:', error);
+		return errorResponse('An unexpected error occurred', 500);
 	}
 };

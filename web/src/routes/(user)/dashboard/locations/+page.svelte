@@ -5,8 +5,6 @@
 	import type { Map } from 'leaflet';
 	import 'leaflet/dist/leaflet.css';
 
-	let period = 'Last 30 days';
-	const periods = ['Last 7 days', 'Last 30 days', 'Last 90 days'];
 	let startDate: Date | null = null;
 	let endDate: Date | null = null;
 	let isDatePickerOpen = false;
@@ -125,22 +123,10 @@
 <!-- Header -->
 <div class="flex items-center justify-between mb-6">
 	<div class="flex items-center gap-3">
-		<MapPin class="h-7 w-7 text-blue-600" />
+		<MapPin class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 		<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Locations</h1>
 	</div>
 	<div class="flex items-center gap-4">
-    <div class="flex rounded-md border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-1">
-      {#each periods as p}
-        <button
-          class="cursor-pointer rounded px-3 py-1.5 text-sm transition-colors {period === p
-            ? 'bg-[rgb(37,140,244)] text-white dark:bg-blue-700 dark:text-white'
-            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-[#23232a] dark:hover:text-gray-100'}"
-          on:click={() => (period = p)}
-        >
-          {p}
-        </button>
-      {/each}
-    </div>
 		<button
 			class="flex h-[38px] cursor-pointer items-center gap-2 rounded-md border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] px-4 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#23232a]"
 			on:click={() => isDatePickerOpen = !isDatePickerOpen}

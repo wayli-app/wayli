@@ -96,9 +96,6 @@ export const actions = {
 			const { data: { user: updatedUser }, error: verifyError } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
 			if (verifyError || !updatedUser) {
 				console.error('❌ [INTEGRATIONS] Failed to verify update:', verifyError);
-			} else {
-				console.log('✅ [INTEGRATIONS] Verification - user_metadata:', updatedUser.user_metadata);
-				console.log('✅ [INTEGRATIONS] Verification - API key in user_metadata:', updatedUser.user_metadata?.owntracks_api_key);
 			}
 
 			console.log('✅ [INTEGRATIONS] API key generated and stored successfully');

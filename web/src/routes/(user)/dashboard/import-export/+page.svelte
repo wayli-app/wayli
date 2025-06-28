@@ -8,6 +8,8 @@
 	import { page } from '$app/stores';
 	import { tick } from 'svelte';
 	import { writable } from 'svelte/store';
+	import { createClient } from '@supabase/supabase-js';
+	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 	let importFormat: string | null = null;
 	let exportFormat = 'GeoJSON';
@@ -22,6 +24,8 @@
 	let importedCount = 0;
 	let totalCount = 0;
 	let fileInputEl: HTMLInputElement | null = null;
+	let importStartTime: number | null = null;
+	let eta: string | null = null;
 
 	const importFormats = [
 		{ value: 'GeoJSON', label: 'GeoJSON', icon: MapPin, description: 'Geographic data in JSON format' },
@@ -30,7 +34,6 @@
 	];
 
 	const exportFormats = ['GeoJSON', 'GPX', 'OwnTracks'];
-	const dateRanges = ['All Time', 'Last 7 days', 'Last 30 days', 'Last 90 days', 'Last year', 'Custom range'];
 
 	function getAcceptedFileTypes(format: string): string {
 		switch (format) {
@@ -98,6 +101,8 @@
 		importStatus.set('Starting import...');
 		importedCount = 0;
 		totalCount = 0;
+		importStartTime = Date.now();
+		eta = null;
 
 		toast.info('Starting import process...', {
 			description: `Processing ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
@@ -139,7 +144,6 @@
 			if (result.success) {
 				importedCount = result.importedCount || 0;
 				totalCount = result.totalCount || 0;
-				importProgress = 100;
 				importStatus.set('Import completed successfully!');
 				isImporting.set(false);
 
@@ -191,11 +195,28 @@
 		try {
 			const response = await fetch(`/api/v1/import/progress?id=${importId}`);
 			if (response.ok) {
-				const progress = await response.json();
-				importProgress = progress.percentage;
+				const result = await response.json();
+				const progress = result.data || {};
+				importProgress = progress.percentage ?? 0;
 				importStatus.set(progress.status);
 				importedCount = progress.current;
 				totalCount = progress.total;
+
+				// ETA calculation
+				if (importProgress > 0 && importProgress < 100 && importStartTime) {
+					const elapsed = (Date.now() - importStartTime) / 1000; // seconds
+					const estimatedTotal = elapsed / (importProgress / 100);
+					const remaining = estimatedTotal - elapsed;
+					if (remaining > 0) {
+						const mins = Math.floor(remaining / 60);
+						const secs = Math.round(remaining % 60);
+						eta = `${mins > 0 ? mins + 'm ' : ''}${secs}s remaining`;
+					} else {
+						eta = null;
+					}
+				} else {
+					eta = null;
+				}
 			}
 		} catch (error) {
 			console.error('Error polling progress:', error);
@@ -229,7 +250,7 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
-			<Import class="h-7 w-7 text-[rgb(37,140,244)]" />
+			<Import class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Import/Export</h1>
 		</div>
 	</div>
@@ -300,19 +321,20 @@
 					<p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
 						📤 {$importStatus}
 					</p>
-					{#if importProgress > 0}
-						<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
-							<div
-								class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-								style="width: {importProgress}%"
-							></div>
-						</div>
-						<p class="text-xs text-blue-600 dark:text-blue-400">
-							Progress: {importProgress}%
-							{#if importedCount > 0}
-								({importedCount} items processed)
-							{/if}
-						</p>
+					<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
+						<div
+							class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+							style="width: {importProgress}%"
+						></div>
+					</div>
+					<p class="text-xs text-blue-600 dark:text-blue-400">
+						Progress: {importProgress}%
+						{#if importedCount > 0}
+							({importedCount} items processed)
+						{/if}
+					</p>
+					{#if eta}
+						<p class="text-xs text-blue-600 dark:text-blue-400 mt-1">ETA: {eta}</p>
 					{/if}
 					<p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
 						Check the browser console for detailed progress updates.
@@ -351,19 +373,6 @@
 					>
 						{#each exportFormats as format}
 							<option value={format}>{format}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label for="dateRange" class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100">Date Range</label>
-					<select
-						id="dateRange"
-						bind:value={dateRange}
-						class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-					>
-						{#each dateRanges as range}
-							<option value={range}>{range}</option>
 						{/each}
 					</select>
 				</div>

@@ -12,7 +12,6 @@ export const state = $state({
 	showUserMenu: false,
 
 	// Filter states for different pages
-	filtersPeriod: 'Last 30 days',
 	filtersStartDate: null as Date | null,
 	filtersEndDate: null as Date | null,
 	filtersIsDatePickerOpen: false,
@@ -81,11 +80,6 @@ export function openSidebar() {
 	state.isSidebarOpen = true;
 }
 
-// Filter functions
-export function setPeriod(period: string) {
-	state.filtersPeriod = period;
-}
-
 export function setDateRange(startDate: Date | null, endDate: Date | null) {
 	state.filtersStartDate = startDate;
 	state.filtersEndDate = endDate;
@@ -97,6 +91,11 @@ export function setStartDate(startDate: Date | null) {
 
 export function setEndDate(endDate: Date | null) {
 	state.filtersEndDate = endDate;
+}
+
+export function clearFilters() {
+	state.filtersStartDate = null;
+	state.filtersEndDate = null;
 }
 
 export function toggleDatePicker() {

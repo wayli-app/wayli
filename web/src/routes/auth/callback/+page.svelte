@@ -22,7 +22,7 @@
 			}
 
 			if (userData.user) {
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 				console.log('🔄 [CALLBACK] REDIRECTING: User found, going to', redirectTo);
 				toast.success('Authentication successful');
 				goto(redirectTo);

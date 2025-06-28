@@ -1,12 +1,13 @@
-import { json } from '@sveltejs/kit';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+import type { RequestHandler } from './$types';
+import { successResponse, errorResponse } from '$lib/utils/api/response';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import postgres from 'postgres';
 import fs from 'fs/promises';
 import path from 'path';
 
-export async function POST() {
+export const POST: RequestHandler = async () => {
 	if (!PUBLIC_SUPABASE_URL) {
-		return json({ error: 'PUBLIC_SUPABASE_URL environment variable is not set.' }, { status: 500 });
+		return errorResponse('PUBLIC_SUPABASE_URL environment variable is not set.', 500);
 	}
 
 	// Construct database URL from Supabase URL
@@ -27,11 +28,14 @@ export async function POST() {
 		await sql.unsafe(sqlFileContent);
 
 		console.log('Database initialization script executed successfully.');
-		return json({ message: 'Database initialized successfully' });
-	} catch (error: any) {
+		return successResponse({
+			message: 'Database initialized successfully'
+		});
+	} catch (error: unknown) {
 		console.error('Database initialization failed:', error);
-		return json({ error: 'Database initialization failed: ' + error.message }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		return errorResponse('Database initialization failed: ' + errorMessage, 500);
 	} finally {
 		await sql.end();
 	}
-}
+};

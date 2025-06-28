@@ -58,7 +58,7 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
-			<Link class="h-7 w-7 text-[rgb(37,140,244)]" />
+			<Link class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Integrations</h1>
 		</div>
 	</div>

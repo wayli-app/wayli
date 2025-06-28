@@ -1,6 +1,5 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { supabase } from '$lib/supabase';
+import { successResponse, errorResponse, validationErrorResponse, notFoundResponse } from '$lib/utils/api/response';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
@@ -11,7 +10,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const session = await locals.getSession();
 
 		if (!session?.user) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
+			return errorResponse('Unauthorized', 401);
 		}
 
 		// Create a Supabase client with service role key for admin operations
@@ -21,7 +20,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const isAdmin = session.user.user_metadata?.role === 'admin';
 
 		if (!isAdmin) {
-			return json({ error: 'Forbidden' }, { status: 403 });
+			return errorResponse('Forbidden', 403);
 		}
 
 		// Get pagination parameters from URL
@@ -41,7 +40,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		if (authUsersError) {
 			console.error('Error fetching auth users:', authUsersError);
-			return json({
+			return successResponse({
 				users: [],
 				pagination: { page: 1, limit: 10, total: 0, totalPages: 0, hasNext: false, hasPrev: false }
 			});
@@ -79,7 +78,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const endIndex = startIndex + limit;
 		const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
-		return json({
+		return successResponse({
 			users: paginatedUsers || [],
 			pagination: {
 				page,
@@ -93,7 +92,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	} catch (error) {
 		console.error('Error in users API:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		return errorResponse(error);
 	}
 };
 
@@ -102,7 +101,7 @@ export const PUT: RequestHandler = async ({ request }) => {
     const { userId, email, fullName, role } = await request.json();
 
     if (!userId || !email || !fullName || !role) {
-      return json({ success: false, message: 'Missing required fields' }, { status: 400 });
+      return validationErrorResponse('Missing required fields');
     }
 
     // Create Supabase admin client
@@ -111,7 +110,7 @@ export const PUT: RequestHandler = async ({ request }) => {
     // Get the user to preserve existing metadata
     const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (getUserError || !user) {
-      return json({ success: false, message: 'User not found' }, { status: 404 });
+      return notFoundResponse('User not found');
     }
 
     // Update the user
@@ -125,12 +124,14 @@ export const PUT: RequestHandler = async ({ request }) => {
     });
 
     if (updateError) {
-      return json({ success: false, message: updateError.message }, { status: 500 });
+      return errorResponse(updateError.message, 500);
     }
 
-    return json({ success: true, message: 'User updated successfully' });
+    return successResponse({
+      message: 'User updated successfully'
+    });
   } catch (error) {
     console.error('Admin user update error:', error);
-    return json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return errorResponse(error);
   }
 };

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { JobWorker } from '../lib/services/job-worker-standalone';
+import { JobWorker } from '../lib/services/workers/job-worker.service';
 import { randomUUID } from 'crypto';
 
 // Get worker ID from command line arguments or generate one

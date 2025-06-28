@@ -1,7 +1,10 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { successResponse, errorResponse, validationErrorResponse } from '$lib/utils/api/response';
 import { XMLParser } from 'fast-xml-parser';
-import { supabase } from '$lib/supabase';
+import { getCountryForPoint } from '$lib/services/external/country-reverse-geocoding.service';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Global progress tracking (shared with progress endpoint)
 declare global {
@@ -26,29 +29,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const format = formData.get('format') as string;
 
 		if (!file) {
-			return json({ success: false, message: 'No file provided' }, { status: 400 });
+			return validationErrorResponse('No file provided');
 		}
 
 		if (!format) {
-			return json({ success: false, message: 'No format specified' }, { status: 400 });
+			return validationErrorResponse('No format specified');
 		}
 
 		console.log(`Processing import: ${file.name}, format: ${format}, size: ${file.size}`);
 
-		// Get user ID from session
-		const { data: { session }, error: sessionError } = await locals.supabase.auth.getSession();
+		// Get user ID using secure authentication
+		const { data: { user }, error: userError } = await locals.supabase.auth.getUser();
 
-		if (sessionError) {
-			console.error('Session error:', sessionError);
-			return json({ success: false, message: 'Authentication error: ' + sessionError.message }, { status: 401 });
+		if (userError) {
+			console.error('Authentication error:', userError);
+			return errorResponse('Authentication error: ' + userError.message, 401);
 		}
 
-		if (!session?.user?.id) {
-			console.error('No user session found');
-			return json({ success: false, message: 'No authenticated user found' }, { status: 401 });
+		if (!user?.id) {
+			console.error('No authenticated user found');
+			return errorResponse('No authenticated user found', 401);
 		}
 
-		const userId = session.user.id;
+		const userId = user.id;
 		// Use client-provided import ID or generate one if not provided
 		const importId = (formData.get('importId') as string) || `${userId}-${Date.now()}`;
 		console.log('🔐 Authenticated user:', userId, 'Import ID:', importId);
@@ -65,7 +68,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (testError) {
 			console.error('❌ Database connection test failed:', testError);
-			return json({ success: false, message: 'Database connection failed: ' + testError.message }, { status: 500 });
+			return errorResponse('Database connection failed: ' + testError.message, 500);
 		}
 		console.log('✅ Database connection test passed');
 
@@ -83,7 +86,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (insertTestError) {
 			console.error('❌ Insert permission test failed:', insertTestError);
-			return json({ success: false, message: 'Database insert permission failed: ' + insertTestError.message }, { status: 500 });
+			return errorResponse('Database insert permission failed: ' + insertTestError.message, 500);
 		}
 		console.log('✅ Insert permission test passed');
 
@@ -117,7 +120,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				importedCount = await importOwnTracks(fileContent, userId, locals.supabase, importId);
 				break;
 			default:
-				return json({ success: false, message: 'Unsupported format' }, { status: 400 });
+				return validationErrorResponse('Unsupported format');
 		}
 
 		// Update final progress
@@ -153,20 +156,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const totalRecords = (poiCount || 0) + (trackerCount || 0);
 		console.log(`✅ Total verification: Found ${totalRecords} total records for user ${userId}`);
 
-		return json({
-			success: true,
+		return successResponse({
 			importedCount,
 			totalCount: totalItems || importedCount,
-			message: `Successfully imported ${importedCount} items (waypoints → Points of Interest, track points → Tracking Data)`,
+			message: `Successfully imported ${importedCount} items`,
 			importId
 		});
 
 	} catch (error) {
 		console.error('Import error:', error);
-		return json({
-			success: false,
-			message: error instanceof Error ? error.message : 'Import failed'
-		}, { status: 500 });
+		return errorResponse(error);
 	}
 };
 
@@ -195,6 +194,7 @@ async function importGeoJSON(content: string, userId: string, supabase: any, imp
 					const [longitude, latitude] = feature.geometry.coordinates;
 					const properties = feature.properties || {};
 
+					const countryCode = getCountryForPoint(latitude, longitude);
 					const { error } = await supabase
 						.from('points_of_interest')
 						.insert({
@@ -202,7 +202,8 @@ async function importGeoJSON(content: string, userId: string, supabase: any, imp
 							location: `POINT(${longitude} ${latitude})`,
 							name: properties.name || 'Imported Point',
 							description: properties.description || '',
-							created_at: properties.timestamp ? new Date(properties.timestamp) : new Date()
+							created_at: properties.timestamp ? new Date(properties.timestamp) : null,
+							country_code: countryCode
 						});
 
 					if (!error) {
@@ -265,17 +266,30 @@ async function importGPX(content: string, userId: string, supabase: any, importI
 					location: `POINT(${trkpt['@_lon']} ${trkpt['@_lat']})`,
 					recorded_at: trkpt.time ? new Date(trkpt.time) : new Date(),
 					altitude: trkpt.ele ? parseFloat(trkpt.ele) : null,
-					speed: null, // GPX doesn't always have speed data
+					speed: null,
 					activity_type: 'tracking',
 					device_id: 'gpx-import',
-					tracker_type: 'gpx'
+					tracker_type: 'gpx',
 				});
 
 				if (buffer.length === BATCH_SIZE) {
+					// Assign country codes in parallel
+					buffer = await Promise.all(buffer.map(async (point) => ({
+						...point,
+						country_code: getCountryForPoint(
+							parseFloat(point.location.split(' ')[1].replace(')', '')),
+							parseFloat(point.location.split(' ')[0].replace('POINT(', ''))
+						)
+					})));
 					try {
-						const { error } = await supabase.from('tracker_data').insert(buffer);
+						const { error } = await supabase.from('tracker_data').upsert(buffer, {
+							onConflict: 'user_id,location,recorded_at',
+							ignoreDuplicates: false
+						});
 						if (!error) {
 							importedCount += buffer.length;
+							console.log(`Inserted ${importedCount} GPX points so far...`);
+							globalThis.importProgress.set(importId, { current: importedCount, total: totalItems, status: `Processing track points... ${i + 1}/${trackPoints.length}` });
 						} else {
 							console.error('Error inserting GPX track point batch:', error);
 						}
@@ -283,16 +297,27 @@ async function importGPX(content: string, userId: string, supabase: any, importI
 						console.error('Exception inserting GPX track point batch:', batchError);
 					}
 					buffer = [];
-					// Update progress after each batch
-					globalThis.importProgress.set(importId, { current: importedCount, total: totalItems, status: `Processing track points... ${i + 1}/${trackPoints.length}` });
 				}
 			}
 			// Insert any remaining points
 			if (buffer.length > 0) {
+				// Assign country codes in parallel
+				buffer = await Promise.all(buffer.map(async (point) => ({
+					...point,
+					country_code: getCountryForPoint(
+						parseFloat(point.location.split(' ')[1].replace(')', '')),
+						parseFloat(point.location.split(' ')[0].replace('POINT(', ''))
+					)
+				})));
 				try {
-					const { error } = await supabase.from('tracker_data').insert(buffer);
+					const { error } = await supabase.from('tracker_data').upsert(buffer, {
+						onConflict: 'user_id,location,recorded_at',
+						ignoreDuplicates: false
+					});
 					if (!error) {
 						importedCount += buffer.length;
+						console.log(`Inserted ${importedCount} GPX points so far...`);
+						globalThis.importProgress.set(importId, { current: importedCount, total: totalItems, status: `Processing track points... ${trackPoints.length}/${trackPoints.length}` });
 					} else {
 						console.error('Error inserting GPX track point batch:', error);
 					}
@@ -300,7 +325,6 @@ async function importGPX(content: string, userId: string, supabase: any, importI
 					console.error('Exception inserting GPX track point batch:', batchError);
 				}
 				buffer = [];
-				globalThis.importProgress.set(importId, { current: importedCount, total: totalItems, status: `Processing track points... ${trackPoints.length}/${trackPoints.length}` });
 			}
 			console.log(`✅ Completed track points: ${importedCount} total imported`);
 		}
@@ -342,12 +366,12 @@ async function importOwnTracks(content: string, userId: string, supabase: any, i
 					buffer.push({
 						user_id: userId,
 						location: `POINT(${longitude} ${latitude})`,
-						recorded_at: new Date(parseInt(timestamp) * 1000), // Convert Unix timestamp
+						recorded_at: new Date(parseInt(timestamp) * 1000),
 						altitude: parts[3] ? parseFloat(parts[3]) : null,
 						speed: parts[6] ? parseFloat(parts[6]) : null,
 						activity_type: 'tracking',
 						device_id: 'owntracks-import',
-						tracker_type: 'owntracks'
+						tracker_type: 'owntracks',
 					});
 				}
 			}
@@ -358,10 +382,23 @@ async function importOwnTracks(content: string, userId: string, supabase: any, i
 			}
 
 			if (buffer.length === BATCH_SIZE) {
+				// Assign country codes in parallel
+				buffer = await Promise.all(buffer.map(async (point) => ({
+					...point,
+					country_code: getCountryForPoint(
+						parseFloat(point.location.split(' ')[1].replace(')', '')),
+						parseFloat(point.location.split(' ')[0].replace('POINT(', ''))
+					)
+				})));
 				try {
-					const { error } = await supabase.from('tracker_data').insert(buffer);
+					const { error } = await supabase.from('tracker_data').upsert(buffer, {
+						onConflict: 'user_id,location,recorded_at',
+						ignoreDuplicates: false
+					});
 					if (!error) {
 						importedCount += buffer.length;
+						console.log(`Inserted ${importedCount} OwnTracks points so far...`);
+						globalThis.importProgress.set(importId, { current: importedCount, total: lines.length, status: `Processing OwnTracks data... ${i + 1}/${lines.length}` });
 					} else {
 						console.error('Error inserting OwnTracks batch:', error);
 					}
@@ -369,15 +406,27 @@ async function importOwnTracks(content: string, userId: string, supabase: any, i
 					console.error('Exception inserting OwnTracks batch:', batchError);
 				}
 				buffer = [];
-				globalThis.importProgress.set(importId, { current: importedCount, total: lines.length, status: `Processing OwnTracks data... ${i + 1}/${lines.length}` });
 			}
 		}
 		// Insert any remaining points
 		if (buffer.length > 0) {
+			// Assign country codes in parallel
+			buffer = await Promise.all(buffer.map(async (point) => ({
+				...point,
+				country_code: getCountryForPoint(
+					parseFloat(point.location.split(' ')[1].replace(')', '')),
+					parseFloat(point.location.split(' ')[0].replace('POINT(', ''))
+				)
+			})));
 			try {
-				const { error } = await supabase.from('tracker_data').insert(buffer);
+				const { error } = await supabase.from('tracker_data').upsert(buffer, {
+					onConflict: 'user_id,location,recorded_at',
+					ignoreDuplicates: false
+				});
 				if (!error) {
 					importedCount += buffer.length;
+					console.log(`Inserted ${importedCount} OwnTracks points so far...`);
+					globalThis.importProgress.set(importId, { current: importedCount, total: lines.length, status: `Processing OwnTracks data... ${lines.length}/${lines.length}` });
 				} else {
 					console.error('Error inserting OwnTracks batch:', error);
 				}
@@ -385,7 +434,6 @@ async function importOwnTracks(content: string, userId: string, supabase: any, i
 				console.error('Exception inserting OwnTracks batch:', batchError);
 			}
 			buffer = [];
-			globalThis.importProgress.set(importId, { current: importedCount, total: lines.length, status: `Processing OwnTracks data... ${lines.length}/${lines.length}` });
 		}
 
 		console.log(`OwnTracks import completed: ${importedCount} items imported`);

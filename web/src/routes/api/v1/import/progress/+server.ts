@@ -1,5 +1,4 @@
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import { successResponse } from '$lib/utils/api/response';
 
 // Global progress tracking (shared with import endpoint)
 declare global {
@@ -10,23 +9,16 @@ if (!globalThis.importProgress) {
 	globalThis.importProgress = new Map();
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET = async ({ url }) => {
 	const importId = url.searchParams.get('id');
-
 	if (!importId) {
-		return json({ error: 'No import ID provided' }, { status: 400 });
+		return successResponse({ percentage: 0, current: 0, total: 0, status: 'No import in progress' });
 	}
-
-	const progress = globalThis.importProgress.get(importId);
-
+	const progress = globalThis.importProgress?.get(importId);
 	if (!progress) {
-		return json({ error: 'Import not found' }, { status: 404 });
+		return successResponse({ percentage: 0, current: 0, total: 0, status: 'No import in progress' });
 	}
-
-	return json({
-		current: progress.current,
-		total: progress.total,
-		status: progress.status,
-		percentage: progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0
-	});
+	const { current = 0, total = 0, status = '' } = progress;
+	const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+	return successResponse({ percentage, current, total, status });
 };

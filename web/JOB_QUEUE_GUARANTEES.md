@@ -61,13 +61,13 @@ for (let i = 0; i <= totalSteps; i++) {
 
 ### Job Status Transitions
 
-| Status | Description | Fields Updated |
-|--------|-------------|----------------|
-| `queued` | Job created, waiting for worker | `created_at`, `created_by` |
-| `running` | Job claimed by worker | `worker_id`, `started_at`, `updated_at` |
-| `completed` | Job finished successfully | `progress: 100`, `result`, `completed_at` |
-| `failed` | Job failed permanently | `error`, `updated_at` |
-| `cancelled` | Job cancelled by user | `updated_at` |
+| Status      | Description                     | Fields Updated                            |
+| ----------- | ------------------------------- | ----------------------------------------- |
+| `queued`    | Job created, waiting for worker | `created_at`, `created_by`                |
+| `running`   | Job claimed by worker           | `worker_id`, `started_at`, `updated_at`   |
+| `completed` | Job finished successfully       | `progress: 100`, `result`, `completed_at` |
+| `failed`    | Job failed permanently          | `error`, `updated_at`                     |
+| `cancelled` | Job cancelled by user           | `updated_at`                              |
 
 ### Worker Heartbeats
 

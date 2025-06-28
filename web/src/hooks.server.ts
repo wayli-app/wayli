@@ -1,39 +1,47 @@
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 import { createServerClient } from '@supabase/ssr';
 import type { Handle } from '@sveltejs/kit';
-import { workerManager } from '$lib/services/worker-manager.service';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
-		cookies: {
-			get: (key) => event.cookies.get(key),
-			set: (key, value, options) => {
-				event.cookies.set(key, value, { ...options, path: '/' });
-			},
-			remove: (key, options) => {
-				event.cookies.delete(key, { ...options, path: '/' });
+	event.locals.supabase = createServerClient(
+		PUBLIC_SUPABASE_URL,
+		PUBLIC_SUPABASE_ANON_KEY,
+		{
+			cookies: {
+				get: (key: string) => event.cookies.get(key),
+				set: (key: string, value: string, options: Record<string, unknown>) => {
+					event.cookies.set(key, value, { ...options, path: '/' });
+				},
+				remove: (key: string, options: Record<string, unknown>) => {
+					event.cookies.delete(key, { ...options, path: '/' });
+				}
 			}
 		}
-	});
+	);
 
+	/**
+	 * Secure helper that authenticates the user by contacting the Supabase Auth server
+	 * instead of relying on potentially insecure session data from cookies/storage
+	 */
 	event.locals.getSession = async () => {
 		const {
-			data: { user }
+			data: { user },
+			error
 		} = await event.locals.supabase.auth.getUser();
 
-		if (user) {
-			// Return a session-like object with the authenticated user data
-			// This avoids the security warning while maintaining compatibility
-			return {
-				user,
-				access_token: '', // We don't need the actual token for our use cases
-				refresh_token: '',
-				expires_in: 0,
-				token_type: 'bearer',
-				expires_at: 0
-			};
+		if (error || !user) {
+			return null;
 		}
-		return null;
+
+		// Return a session-like object with the authenticated user data
+		return {
+			user,
+			access_token: '', // We don't need the actual token for our use cases
+			refresh_token: '',
+			expires_in: 0,
+			token_type: 'bearer',
+			expires_at: 0
+		};
 	};
 
 	return resolve(event, {
@@ -42,28 +50,3 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	});
 };
-
-// Initialize worker manager with configurable settings
-const WORKER_CONFIG = {
-	maxWorkers: parseInt(process.env.MAX_WORKERS || '2'),
-	pollInterval: parseInt(process.env.WORKER_POLL_INTERVAL || '5000'),
-	jobTimeout: parseInt(process.env.JOB_TIMEOUT || '300000'),
-	retryAttempts: parseInt(process.env.RETRY_ATTEMPTS || '3'),
-	retryDelay: parseInt(process.env.RETRY_DELAY || '60000')
-};
-
-// Start the worker manager when the server starts
-workerManager.start(WORKER_CONFIG).catch(console.error);
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-	console.log('Shutting down worker manager...');
-	await workerManager.stop();
-	process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-	console.log('Shutting down worker manager...');
-	await workerManager.stop();
-	process.exit(0);
-});

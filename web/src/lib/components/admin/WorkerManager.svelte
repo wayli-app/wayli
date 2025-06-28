@@ -4,7 +4,6 @@
   import Button from '$lib/components/ui/button/index.svelte';
   import Input from '$lib/components/ui/input/index.svelte';
   import Card from '$lib/components/ui/card/index.svelte';
-  import { apiClient } from '$lib/services/api.service';
 
   interface WorkerStatus {
     isRunning: boolean;
@@ -58,17 +57,23 @@
 
   async function loadStatus() {
     try {
-      const response = await apiClient.get<{ status: WorkerStatus; activeWorkers: ActiveWorker[] }>('/admin/workers');
-      status = response.status;
-      activeWorkers = response.activeWorkers;
-      newWorkerCount = status.config.maxWorkers.toString();
-      config = {
-        maxWorkers: status.config.maxWorkers.toString(),
-        pollInterval: status.config.pollInterval.toString(),
-        jobTimeout: status.config.jobTimeout.toString(),
-        retryAttempts: status.config.retryAttempts.toString(),
-        retryDelay: status.config.retryDelay.toString()
-      };
+      const response = await fetch('/api/v1/admin/workers');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      status = data.data.status;
+      activeWorkers = data.data.activeWorkers;
+      if (status) {
+        newWorkerCount = status.config.maxWorkers.toString();
+        config = {
+          maxWorkers: status.config.maxWorkers.toString(),
+          pollInterval: status.config.pollInterval.toString(),
+          jobTimeout: status.config.jobTimeout.toString(),
+          retryAttempts: status.config.retryAttempts.toString(),
+          retryDelay: status.config.retryDelay.toString()
+        };
+      }
     } catch (err) {
       console.error('Failed to load worker status:', err);
     }
@@ -76,8 +81,16 @@
 
   async function loadRealtimeConfig() {
     try {
-      const response = await apiClient.post<{ realtimeConfig: any }>('/admin/workers', { action: 'getRealtimeConfig' });
-      realtimeConfig = response.realtimeConfig;
+      const response = await fetch('/api/v1/admin/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getRealtimeConfig' })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      realtimeConfig = data.data.realtimeConfig;
     } catch (err) {
       console.error('Failed to load realtime config:', err);
     }
@@ -87,8 +100,16 @@
     loading = true;
     error = '';
     try {
-      const response = await apiClient.post<{ realtimeTest: boolean }>('/admin/workers', { action: 'testRealtime' });
-      realtimeTestResult = response.realtimeTest;
+      const response = await fetch('/api/v1/admin/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'testRealtime' })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      const data = await response.json();
+      realtimeTestResult = data.data.realtimeTest;
       if (realtimeTestResult) {
         error = '';
       } else {
@@ -107,7 +128,14 @@
     loading = true;
     error = '';
     try {
-      await apiClient.post('/admin/workers', { action: 'start' });
+      const response = await fetch('/api/v1/admin/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       await loadStatus();
     } catch (err) {
       error = 'Failed to start workers';
@@ -121,7 +149,14 @@
     loading = true;
     error = '';
     try {
-      await apiClient.post('/admin/workers', { action: 'stop' });
+      const response = await fetch('/api/v1/admin/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       await loadStatus();
     } catch (err) {
       error = 'Failed to stop workers';
@@ -135,10 +170,17 @@
     loading = true;
     error = '';
     try {
-      await apiClient.post('/admin/workers', {
-        action: 'updateWorkers',
-        workerCount: parseInt(newWorkerCount)
+      const response = await fetch('/api/v1/admin/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateWorkers',
+          workerCount: parseInt(newWorkerCount)
+        })
       });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       await loadStatus();
     } catch (err) {
       error = 'Failed to update worker count';
@@ -159,10 +201,17 @@
         retryAttempts: parseInt(config.retryAttempts),
         retryDelay: parseInt(config.retryDelay)
       };
-      await apiClient.post('/admin/workers', {
-        action: 'updateConfig',
-        config: numericConfig
+      const response = await fetch('/api/v1/admin/workers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateConfig',
+          config: numericConfig
+        })
       });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       await loadStatus();
       showConfigModal = false;
     } catch (err) {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { MapPin, Calendar, BarChart, Import, Edit, Landmark, Star, ListTodo, Link, Settings, User, LogOut, Navigation, Sun, Moon, Monitor, Menu, X, Crown } from 'lucide-svelte';
+	import { MapPin, Calendar, BarChart, Import, Edit, Landmark, Star, ListTodo, Link, Settings, User, LogOut, Navigation, Sun, Moon, Monitor, Menu, X, Crown, Map } from 'lucide-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
 	import { onMount } from 'svelte';
@@ -10,11 +10,11 @@
 	const dispatch = createEventDispatcher();
 
 	const navMain = [
-		{ href: '/dashboard/trips', label: 'Trips', icon: Calendar },
 		{ href: '/dashboard/statistics', label: 'Statistics', icon: BarChart },
+		{ href: '/dashboard/trips', label: 'Trips', icon: Map },
 		{ href: '/dashboard/import-export', label: 'Import/Export', icon: Import },
 		{ href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
-		{ href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
+		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
 		{ href: '/dashboard/want-to-visit', label: 'Want to Visit', icon: Star },
 		{ href: '/dashboard/jobs', label: 'Jobs', icon: ListTodo },
 		{ href: '/dashboard/integrations', label: 'Integrations', icon: Link }

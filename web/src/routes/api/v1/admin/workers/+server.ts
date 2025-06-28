@@ -1,27 +1,45 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { workerManager } from '$lib/services/worker-manager.service';
-import { JobQueueService } from '$lib/services/job-queue.service';
+import { successResponse, errorResponse, validationErrorResponse } from '$lib/utils/api/response';
+import { JobQueueService } from '$lib/services/queue/job-queue.service';
 
 export const GET: RequestHandler = async ({ locals }) => {
   try {
     const session = await locals.getSession();
     if (!session?.user) {
-      return json({ error: 'Unauthorized' }, { status: 401 });
+      return errorResponse('Unauthorized', 401);
     }
 
     // Check if user is admin
     if (session.user.user_metadata?.role !== 'admin') {
-      return json({ error: 'Forbidden' }, { status: 403 });
+      return errorResponse('Forbidden', 403);
     }
 
-    const status = await workerManager.getStatus();
-    const activeWorkers = await JobQueueService.getActiveWorkers();
+    // Get job statistics instead of worker status
+    const stats = await JobQueueService.getJobStats();
 
-    return json({ status, activeWorkers });
+    // Simplified status response
+    const status = {
+      isRunning: false, // Worker manager is currently disabled
+      workerCount: 0,
+      activeWorkers: 0,
+      config: {
+        maxWorkers: 2,
+        pollInterval: 5000,
+        jobTimeout: 300000,
+        retryAttempts: 3,
+        retryDelay: 60000
+      },
+      realtime: {
+        isInitialized: false,
+        isConnected: false,
+        isAvailable: false
+      }
+    };
+
+    return successResponse({ status, stats });
   } catch (error) {
     console.error('Error getting worker status:', error);
-    return json({ error: 'Failed to get worker status' }, { status: 500 });
+    return errorResponse('Failed to get worker status', 500);
   }
 };
 
@@ -29,50 +47,52 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const session = await locals.getSession();
     if (!session?.user) {
-      return json({ error: 'Unauthorized' }, { status: 401 });
+      return errorResponse('Unauthorized', 401);
     }
 
     // Check if user is admin
     if (session.user.user_metadata?.role !== 'admin') {
-      return json({ error: 'Forbidden' }, { status: 403 });
+      return errorResponse('Forbidden', 403);
     }
 
-    const { action, workerCount, config } = await request.json();
+    const { action } = await request.json();
 
     switch (action) {
       case 'start':
-        await workerManager.start(config);
-        break;      case 'stop':
-        await workerManager.stop();
-        break;
+        // Worker manager is currently disabled
+        return successResponse({
+          message: 'Worker management is currently disabled',
+          status: { isRunning: false, workerCount: 0, activeWorkers: 0, config: {}, realtime: {} }
+        });
+      case 'stop':
+        // Worker manager is currently disabled
+        return successResponse({
+          message: 'Worker management is currently disabled',
+          status: { isRunning: false, workerCount: 0, activeWorkers: 0, config: {}, realtime: {} }
+        });
       case 'updateWorkers':
         // Temporarily disabled
-        return json({
-          success: true,
+        return successResponse({
           message: 'Worker management temporarily disabled',
           status: { isRunning: false, workerCount: 0, activeWorkers: 0, config: {}, realtime: {} }
         });
       case 'updateConfig':
         // Temporarily disabled
-        return json({
-          success: true,
+        return successResponse({
           message: 'Worker configuration temporarily disabled',
           status: { isRunning: false, workerCount: 0, activeWorkers: 0, config: {}, realtime: {} }
         });
       case 'testRealtime':
         // Temporarily disabled
-        return json({ success: true, realtimeTest: false, message: 'Realtime testing temporarily disabled' });
+        return successResponse({ realtimeTest: false, message: 'Realtime testing temporarily disabled' });
       case 'getRealtimeConfig':
         // Temporarily disabled
-        return json({ success: true, realtimeConfig: { isAvailable: false, isEnabled: false } });
+        return successResponse({ realtimeConfig: { isAvailable: false, isEnabled: false } });
       default:
-        return json({ error: 'Invalid action' }, { status: 400 });
+        return validationErrorResponse('Invalid action');
     }
-
-    const status = await workerManager.getStatus();
-    return json({ success: true, status });
   } catch (error) {
     console.error('Error managing workers:', error);
-    return json({ error: 'Failed to manage workers' }, { status: 500 });
+    return errorResponse('Failed to manage workers', 500);
   }
 };

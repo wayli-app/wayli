@@ -1,16 +1,22 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { successResponse, errorResponse, validationErrorResponse, notFoundResponse } from '$lib/utils/api/response';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
-import { authenticator } from 'otplib';
+import { TOTPService } from '$lib/services/totp.service';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const { email, code } = await request.json();
 
 		if (!email || !code) {
-			return json({ error: 'Email and verification code are required' }, { status: 400 });
+			return validationErrorResponse('Email and verification code are required');
+		}
+
+		// Validate token format
+		const tokenValidation = TOTPService.validateToken(code);
+		if (!tokenValidation.isValid) {
+			return validationErrorResponse(tokenValidation.error || 'Invalid token format');
 		}
 
 		// Create Supabase admin client
@@ -20,14 +26,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();
 
 		if (userError) {
-			return json({ error: 'Failed to retrieve user data' }, { status: 500 });
+			return errorResponse('Failed to retrieve user data', 500);
 		}
 
 		// Find the user by email
 		const user = users.find(u => u.email === email);
 
 		if (!user) {
-			return json({ error: 'User not found' }, { status: 404 });
+			return notFoundResponse('User not found');
 		}
 
 		// Check if 2FA is enabled
@@ -35,37 +41,23 @@ export const POST: RequestHandler = async ({ request }) => {
 		const totpSecret = user.user_metadata?.totp_secret;
 
 		if (!totpEnabled || !totpSecret) {
-			return json({ error: 'Two-factor authentication is not enabled for this account' }, { status: 400 });
+			return validationErrorResponse('Two-factor authentication is not enabled for this account');
 		}
 
-		// For now, we'll do a simple verification
-		// In a production environment, you should use a proper TOTP library
-		// This is a placeholder implementation
-		const isValid = verifyTOTP(code, totpSecret);
+		// Verify the TOTP code using the service
+		const isValid = TOTPService.verifyCode(code, totpSecret);
 
 		if (!isValid) {
-			return json({ error: 'Invalid verification code' }, { status: 401 });
+			return errorResponse('Invalid verification code', 401);
 		}
 
 		// If verification is successful, return success
-		return json({
-			success: true,
+		return successResponse({
 			message: 'Two-factor authentication verified successfully'
 		});
 
 	} catch (error) {
 		console.error('Error verifying 2FA:', error);
-		return json({ error: 'Internal server error' }, { status: 500 });
+		return errorResponse(error);
 	}
 };
-
-// Proper TOTP verification using otplib
-function verifyTOTP(code: string, secret: string): boolean {
-	try {
-		// Verify the TOTP code with a window of ±1 time step (30 seconds)
-		return authenticator.verify({ token: code, secret });
-	} catch (error) {
-		console.error('TOTP verification error:', error);
-		return false;
-	}
-}

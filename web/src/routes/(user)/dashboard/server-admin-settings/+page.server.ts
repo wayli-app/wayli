@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const isAdmin = session.user.user_metadata?.role === 'admin';
 
 	if (!isAdmin) {
-		throw redirect(302, '/dashboard/trips');
+		throw redirect(302, '/dashboard/statistics');
 	}
 
 	// Get pagination parameters from URL

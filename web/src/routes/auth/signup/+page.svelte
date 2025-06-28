@@ -46,7 +46,7 @@
 
 			if (user) {
 				// User is already authenticated, redirect to intended destination or default
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 				console.log('🔄 [SIGNUP] REDIRECTING: User already authenticated, going to', redirectTo);
 				goto(redirectTo);
 				return;
@@ -57,7 +57,7 @@
 		const unsubscribe = userStore.subscribe(user => {
 			console.log('🔐 [SIGNUP] User store updated:', user ? `User: ${user.email}` : 'No user');
 			if (user) {
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 				console.log('🔄 [SIGNUP] REDIRECTING: User authenticated, going to', redirectTo);
 				goto(redirectTo);
 			}

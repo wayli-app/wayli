@@ -29,7 +29,7 @@
 				// Only redirect if we're on the signin page
 				if ($page.url.pathname.startsWith('/auth/signin')) {
 					// User is already authenticated, redirect to intended destination or default
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 					console.log('🔄 [SIGNIN] REDIRECTING: User already authenticated, going to', redirectTo);
 					goto(redirectTo);
 					return;
@@ -50,7 +50,7 @@
 			if (user && !currentTwoFactorState) {
 				// Only redirect if we're on the signin page and not in 2FA flow
 				if ($page.url.pathname.startsWith('/auth/signin')) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
 					goto(redirectTo);
 				}
@@ -74,7 +74,7 @@
 			if (user && !currentTwoFactorState) {
 				// Only redirect if we're on the signin page and not in 2FA flow
 				if ($page.url.pathname.startsWith('/auth/signin')) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
 					goto(redirectTo);
 				}
@@ -142,7 +142,7 @@
 					// Double-check the user and redirect
 					const { data: { user: currentUser } } = await supabase.auth.getUser();
 					if (currentUser) {
-						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 						console.log('🔄 [SIGNIN] REDIRECTING: Login successful, going to', redirectTo);
 						goto(redirectTo, { replaceState: true });
 					} else {
@@ -269,7 +269,7 @@
 				resubscribeToUserStore();
 
 				// Redirect to intended destination
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/trips';
+				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 				console.log('🔄 [SIGNIN] REDIRECTING: 2FA verified, going to', redirectTo);
 				goto(redirectTo, { replaceState: true });
 

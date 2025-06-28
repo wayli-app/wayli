@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "fast-xml-parser": "^5.2.5"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16"
   }
 }
