@@ -13,7 +13,7 @@
 		{ href: '/dashboard/statistics', label: 'Statistics', icon: BarChart },
 		{ href: '/dashboard/trips', label: 'Trips', icon: Map },
 		{ href: '/dashboard/import-export', label: 'Import/Export', icon: Import },
-		{ href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
+		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
 		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
 		{ href: '/dashboard/want-to-visit', label: 'Want to Visit', icon: Star },
 		{ href: '/dashboard/jobs', label: 'Jobs', icon: ListTodo },
