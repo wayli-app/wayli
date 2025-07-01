@@ -2,13 +2,67 @@ import type { RequestHandler } from './$types';
 import { JobQueueService } from '$lib/services/queue/job-queue.service.server';
 import type { Job } from '$lib/types/job-queue.types';
 
-export const GET: RequestHandler = async ({ locals, setHeaders }) => {
+export const GET: RequestHandler = async ({ locals, setHeaders, request }) => {
   try {
     console.log('[SSE] New SSE connection request');
 
-    const session = await locals.getSession();
+    // Try to get session from locals first
+    let session = await locals.getSession();
+
+        // If no session in locals, try to get it from the URL parameter or Authorization header
     if (!session) {
-      console.log('[SSE] Unauthorized connection attempt');
+      console.log('[SSE] No session in locals, checking for token...');
+
+      // Try URL parameter first (for EventSource)
+      const url = new URL(request.url);
+      let token = url.searchParams.get('token');
+
+      // If no token in URL, try Authorization header
+      if (!token) {
+        const authHeader = request.headers.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7);
+        }
+      }
+
+                  if (token) {
+        console.log('[SSE] Found token, attempting to validate...');
+
+        try {
+          // Create a temporary client to validate the token
+          const { createClient } = await import('@supabase/supabase-js');
+          const { PUBLIC_SUPABASE_URL } = await import('$env/static/public');
+          const { SUPABASE_SERVICE_ROLE_KEY } = await import('$env/static/private');
+
+          const tempClient = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          const { data: { user }, error } = await tempClient.auth.getUser(token);
+
+          if (error || !user) {
+            console.log('[SSE] Token validation failed:', error);
+            return new Response('Unauthorized', { status: 401 });
+          }
+
+          console.log('[SSE] Token validation successful for user:', user.id);
+
+          // Create a session-like object
+          session = {
+            user,
+            access_token: token,
+            refresh_token: '',
+            expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            token_type: 'bearer'
+          };
+          console.log('[SSE] Created session from token for user:', user.id);
+        } catch (validationError) {
+          console.error('[SSE] Error during token validation:', validationError);
+          return new Response('Unauthorized', { status: 401 });
+        }
+      }
+    }
+
+    if (!session) {
+      console.log('[SSE] Unauthorized connection attempt - no valid session found');
       return new Response('Unauthorized', { status: 401 });
     }
 
@@ -187,6 +241,7 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
     });
 
     console.log('[SSE] SSE stream created successfully');
+    console.log('[SSE] Returning SSE response for user:', session.user.id);
     return new Response(stream);
 
   } catch (error) {

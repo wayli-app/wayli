@@ -97,29 +97,41 @@
 			console.log('[Jobs] Session store updated:', session ? 'session present' : 'no session');
 		});
 
-		// Always try to get session and load jobs immediately
+				// Always try to get session and load jobs immediately
 		const loadJobsWithSession = async () => {
 			try {
-				console.log('[Jobs] Getting session directly from Supabase...');
-				const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-				if (sessionError) {
-					console.error('[Jobs] Error getting session:', sessionError);
-				}
-				console.log('[Jobs] Direct session result:', session ? 'session present' : 'no session');
+				console.log('[Jobs] Using session from store instead of fetching from Supabase...');
+
+				// Get session from store (which should be populated by the auth store)
+				const session = get(sessionStore);
+				console.log('[Jobs] Session from store:', session ? 'present' : 'not present');
+
 				if (session?.access_token) {
 					console.log('[Jobs] User is authenticated, loading jobs...');
-					sessionStore.set(session);
+				} else {
+					console.log('[Jobs] No session found, will try to load jobs anyway...');
 				}
+
+				console.log('[Jobs] About to call loadJobs()...');
 				await loadJobs();
+				console.log('[Jobs] loadJobs() completed');
 			} catch (err) {
-				console.error('[Jobs] Failed to get session:', err);
-				error = 'Failed to load jobs. Please try again.';
-				loading = false;
+				console.error('[Jobs] Failed to load jobs:', err);
+				console.error('[Jobs] Error details:', {
+					name: err instanceof Error ? err.name : 'Unknown',
+					message: err instanceof Error ? err.message : String(err)
+				});
 			}
 		};
 
+		console.log('[Jobs] Calling loadJobsWithSession()...');
 		loadJobsWithSession();
-		startEventSource();
+
+		// Delay SSE connection to ensure session is ready
+		setTimeout(() => {
+			console.log('[Jobs] Starting SSE connection after delay...');
+			startEventSource();
+		}, 1000);
 
 		// Set a timeout to prevent loading state from getting stuck
 		const loadingTimeout = setTimeout(() => {
@@ -154,11 +166,27 @@
 	function startEventSource() {
 		try {
 			console.log('[Jobs] Starting EventSource connection...');
+
+			// Get the current session to include in the SSE request
+			const session = get(sessionStore);
+			let sseUrl = '/api/v1/jobs/stream';
+
+			// If we have a session, include the token in the URL (EventSource doesn't support custom headers)
+			if (session?.access_token) {
+				sseUrl += `?token=${encodeURIComponent(session.access_token)}`;
+				console.log('[Jobs] Including token in SSE URL');
+			} else {
+				console.log('[Jobs] No session token available for SSE');
+			}
+
 			// Create EventSource for real-time job updates
-			eventSource = new EventSource('/api/v1/jobs/stream');
+			eventSource = new EventSource(sseUrl);
+			console.log('[Jobs] EventSource created with URL:', eventSource.url);
+			console.log('[Jobs] EventSource readyState:', eventSource.readyState);
 
 			eventSource.onopen = () => {
 				console.log('[Jobs] 🔗 Connected to job updates stream');
+				console.log('[Jobs] SSE connection established successfully');
 				isConnected = true;
 				connectionRetries = 0; // Reset retry counter on successful connection
 			};
@@ -175,6 +203,11 @@
 
 			eventSource.onerror = (error) => {
 				console.error('[Jobs] SSE connection error:', error);
+				console.error('[Jobs] SSE error details:', {
+					readyState: eventSource?.readyState,
+					url: eventSource?.url,
+					withCredentials: eventSource?.withCredentials
+				});
 				isConnected = false;
 
 				// Increment retry counter
@@ -329,18 +362,25 @@
 		const startTime = Date.now();
 		try {
 			console.log('[Jobs] [loadJobs] Starting to load jobs...');
+			console.log('[Jobs] [loadJobs] Function called successfully');
 			loading = true;
 
 			const session = get(sessionStore);
+			console.log('[Jobs] [loadJobs] Session from store:', session ? 'present' : 'not present');
+			console.log('[Jobs] [loadJobs] Session details:', session ? {
+				hasAccessToken: !!session.access_token,
+				userId: session.user?.id,
+				email: session.user?.email
+			} : 'no session');
 			const headers: Record<string, string> = {};
 			if (session?.access_token) {
 				headers['Authorization'] = `Bearer ${session.access_token}`;
-				console.log('[Jobs] [loadJobs] Using authenticated request');
+				console.log('[Jobs] [loadJobs] Using authenticated request with token');
 			} else {
 				console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
 			}
 
-			console.log('[Jobs] [loadJobs] Making API request...');
+			console.log('[Jobs] [loadJobs] Making API request to /api/v1/jobs...');
 			const apiStartTime = Date.now();
 
 			// Add timeout to prevent hanging requests
@@ -383,6 +423,8 @@
 			}
 
 			const serverJobs = Array.isArray(data.data) ? data.data : [];
+			console.log('[Jobs] [loadJobs] Server jobs count:', serverJobs.length);
+			console.log('[Jobs] [loadJobs] Server jobs:', serverJobs);
 			console.log('[Jobs] [loadJobs] initialLoadComplete:', initialLoadComplete);
 
 			// Smart merge: preserve existing job data and only update what's changed
@@ -421,6 +463,12 @@
 				jobs = [];
 				error = 'Failed to load jobs due to network error';
 			}
+			// Always log the error details for debugging
+			console.error('[Jobs] [loadJobs] Error details:', {
+				name: err instanceof Error ? err.name : 'Unknown',
+				message: err instanceof Error ? err.message : String(err),
+				stack: err instanceof Error ? err.stack : undefined
+			});
 		} finally {
 			loading = false;
 			const totalTime = Date.now() - startTime;
@@ -869,28 +917,36 @@
 
 <!-- Import Modal -->
 {#if showImportModal}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-		<div class="bg-white rounded-lg p-6 w-full max-w-md">
-			<h3 class="text-lg font-semibold mb-4">Import Data</h3>
-			<div class="space-y-4">
+	<!-- Modal Overlay -->
+	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
+		on:click={() => showImportModal = false}>
+		<!-- Modal Box -->
+		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
+			on:click|stopPropagation>
+			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Import Data</h3>
+			<div class="space-y-6">
 				<div>
-					<label class="block text-sm font-medium mb-2">Select File</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select File</label>
 					<input
 						type="file"
 						accept=".json,.gpx,.geojson"
 						bind:this={fileInputEl}
 						on:change={handleFileSelect}
-						class="w-full border border-gray-300 rounded-lg p-2"
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
 					/>
 				</div>
-				<div class="flex gap-2">
-					<Button on:click={handleFileImport} disabled={!selectedFile} class="flex-1">
-						<Upload class="w-4 h-4 mr-2" />
-						Import
+				<div class="flex gap-3 mt-4">
+					<Button on:click={handleFileImport} disabled={!selectedFile} class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
+						<span class="flex items-center justify-center gap-2 w-full">
+							<Upload class="w-4 h-4 text-white" />
+							Import
+						</span>
 					</Button>
-					<Button variant="outline" on:click={() => showImportModal = false} class="flex-1">
-						<X class="w-4 h-4 mr-2" />
-						Cancel
+					<Button variant="outline" on:click={() => showImportModal = false} class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
+						<span class="flex items-center justify-center gap-2 w-full">
+							<X class="w-4 h-4 text-gray-700 dark:text-gray-200" />
+							Cancel
+						</span>
 					</Button>
 				</div>
 			</div>

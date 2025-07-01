@@ -276,6 +276,16 @@
 			if (profile) {
 				firstNameInput = profile.first_name || '';
 				lastNameInput = profile.last_name || '';
+
+				// Initialize home address if it exists
+				if (profile.home_address) {
+					if (typeof profile.home_address === 'string') {
+						homeAddressInput = profile.home_address;
+					} else if (typeof profile.home_address === 'object' && profile.home_address.display_name) {
+						homeAddressInput = profile.home_address.display_name;
+						selectedHomeAddress = profile.home_address;
+					}
+				}
 			}
 			if (preferences) {
 				preferredLanguageInput = preferences.language || 'en';

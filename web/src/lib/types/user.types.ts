@@ -4,6 +4,20 @@ export interface UserProfile {
   first_name?: string;
   last_name?: string;
   full_name?: string;
+  home_address?: string | {
+    display_name: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+    address?: Record<string, string | number | boolean>;
+  };
+  home_location?: {
+    lat: number;
+    lng: number;
+    display_name: string;
+    address?: Record<string, string | number | boolean>;
+  } | null;
   role: 'user' | 'admin';
   avatar_url?: string;
   created_at: string;
@@ -29,6 +43,14 @@ export interface UpdateProfileRequest {
   first_name?: string;
   last_name?: string;
   full_name?: string;
+  home_address?: string | {
+    display_name: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+    address?: Record<string, string | number | boolean>;
+  };
   avatar_url?: string;
 }
 
