@@ -2,11 +2,12 @@
 	import { supabase } from '$lib/supabase';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { userStore, isInTwoFactorFlow } from '$lib/stores/auth';
 	import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowLeft, LogIn } from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import TwoFactorVerification from '$lib/components/TwoFactorVerification.svelte';
+	import { get } from 'svelte/store';
 
 	let email = '';
 	let password = '';
@@ -20,66 +21,79 @@
 
 	onMount(() => {
 		console.log('🔐 [SIGNIN] Page mounted');
-		// Check if user is already authenticated
-		(async () => {
-			const { data: { user } } = await supabase.auth.getUser();
-			console.log('🔐 [SIGNIN] User check:', user ? `Found - ${user.email}` : 'None');
 
-			if (user) {
-				// Only redirect if we're on the signin page
-				if ($page.url.pathname.startsWith('/auth/signin')) {
-					// User is already authenticated, redirect to intended destination or default
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-					console.log('🔄 [SIGNIN] REDIRECTING: User already authenticated, going to', redirectTo);
-					goto(redirectTo);
-					return;
-				}
-			}
-		})();
+		// Only subscribe to auth changes if we're actually on the signin page
+		if ($page.url.pathname.startsWith('/auth/signin')) {
+			console.log('🔐 [SIGNIN] On signin page, subscribing to user store');
 
-		// Subscribe to auth changes for future logins
-		unsubscribeFromUserStore = userStore.subscribe(user => {
-			console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
+			// Subscribe to auth changes for future logins
+			unsubscribeFromUserStore = userStore.subscribe(user => {
+				console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
+				console.log('🔐 [SIGNIN] Current pathname:', $page.url.pathname);
 
-			// Get current 2FA flow state
-			let currentTwoFactorState = false;
-			isInTwoFactorFlow.subscribe(state => {
-				currentTwoFactorState = state;
-			})();
+				// Get current 2FA flow state
+				let currentTwoFactorState = false;
+				isInTwoFactorFlow.subscribe(state => {
+					currentTwoFactorState = state;
+				})();
 
-			if (user && !currentTwoFactorState) {
-				// Only redirect if we're on the signin page and not in 2FA flow
-				if ($page.url.pathname.startsWith('/auth/signin')) {
+				console.log('🔐 [SIGNIN] 2FA flow state:', currentTwoFactorState);
+
+				// Only redirect if user is authenticated, not in 2FA flow, and we're on the signin page
+				// (This handles the case where user logs in successfully)
+				if (user && !currentTwoFactorState && $page.url.pathname.startsWith('/auth/signin')) {
 					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
 					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
-					goto(redirectTo);
+					// Redirect immediately without delay since the user is already authenticated
+					goto(redirectTo, { replaceState: true });
+				} else {
+					console.log('🔐 [SIGNIN] Not redirecting because:', {
+						hasUser: !!user,
+						twoFactorState: currentTwoFactorState,
+						pathname: $page.url.pathname,
+						startsWithSignin: $page.url.pathname.startsWith('/auth/signin')
+					});
 				}
-			}
-		});
+			});
+		} else {
+			console.log('🔐 [SIGNIN] Not on signin page, not subscribing to user store');
+		}
+	});
 
-		return unsubscribeFromUserStore;
+	onDestroy(() => {
+		console.log('🔐 [SIGNIN] Page destroyed, cleaning up subscriptions');
+		if (unsubscribeFromUserStore) {
+			unsubscribeFromUserStore();
+			unsubscribeFromUserStore = null;
+		}
 	});
 
 	function resubscribeToUserStore() {
 		console.log('🔐 [SIGNIN] Resubscribing to userStore');
-		unsubscribeFromUserStore = userStore.subscribe(user => {
-			console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
 
-			// Get current 2FA flow state
-			let currentTwoFactorState = false;
-			isInTwoFactorFlow.subscribe(state => {
-				currentTwoFactorState = state;
-			})();
+		// Only subscribe if we're on the signin page
+		if ($page.url.pathname.startsWith('/auth/signin')) {
+			unsubscribeFromUserStore = userStore.subscribe(user => {
+				console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
 
-			if (user && !currentTwoFactorState) {
-				// Only redirect if we're on the signin page and not in 2FA flow
-				if ($page.url.pathname.startsWith('/auth/signin')) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
-					goto(redirectTo);
+				// Get current 2FA flow state
+				let currentTwoFactorState = false;
+				isInTwoFactorFlow.subscribe(state => {
+					currentTwoFactorState = state;
+				})();
+
+				if (user && !currentTwoFactorState) {
+					// Only redirect if we're on the signin page and not in 2FA flow
+					if ($page.url.pathname.startsWith('/auth/signin')) {
+						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+						console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
+						goto(redirectTo);
+					}
 				}
-			}
-		});
+			});
+		} else {
+			console.log('🔐 [SIGNIN] Not on signin page, not resubscribing to user store');
+		}
 	}
 
 	async function handleSignIn(event: Event) {
@@ -135,20 +149,18 @@
 
 				if (data.session) {
 					toast.success('Signed in successfully');
+					// The auth state change will handle the redirect automatically
+					console.log('🔐 [SIGNIN] Login successful, waiting for auth state change');
 
-					// Force a small delay to ensure auth state is updated
-					await new Promise(resolve => setTimeout(resolve, 500));
-
-					// Double-check the user and redirect
-					const { data: { user: currentUser } } = await supabase.auth.getUser();
-					if (currentUser) {
-						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-						console.log('🔄 [SIGNIN] REDIRECTING: Login successful, going to', redirectTo);
-						goto(redirectTo, { replaceState: true });
-					} else {
-						console.log('❌ [SIGNIN] ERROR: User not found after authentication');
-						toast.error('User not found after authentication');
-					}
+					// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
+					setTimeout(() => {
+						const currentUser = get(userStore);
+						if (currentUser && $page.url.pathname.startsWith('/auth/signin')) {
+							const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+							console.log('🔄 [SIGNIN] FALLBACK REDIRECT: User authenticated, going to', redirectTo);
+							goto(redirectTo, { replaceState: true });
+						}
+					}, 1000);
 				} else {
 					toast.error('No session returned from authentication');
 				}

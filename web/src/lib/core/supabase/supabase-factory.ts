@@ -4,8 +4,9 @@ import type { Database } from './types';
 export function createSupabaseClient(url: string, key: string): SupabaseClient<Database> {
   return createClient<Database>(url, key, {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false
+      autoRefreshToken: true,
+      persistSession: true,
+      storageKey: 'wayli-auth'
     }
   });
 }

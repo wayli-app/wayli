@@ -765,9 +765,6 @@
 		map.fitBounds(group.getBounds(), { padding: [20, 20] });
 	}
 
-	// Debug loading states
-	$: console.log('Loading states:', { isLoading, isCacheLoading, isInitialLoad });
-
 	// Track last filter state to prevent infinite loops
 	let lastFilterState = '';
 

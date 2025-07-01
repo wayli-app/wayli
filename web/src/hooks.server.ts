@@ -8,7 +8,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		PUBLIC_SUPABASE_ANON_KEY,
 		{
 			cookies: {
-				get: (key: string) => event.cookies.get(key),
+				get: (key: string) => {
+					const value = event.cookies.get(key);
+					return value;
+				},
 				set: (key: string, value: string, options: Record<string, unknown>) => {
 					event.cookies.set(key, value, { ...options, path: '/' });
 				},
@@ -25,33 +28,46 @@ export const handle: Handle = async ({ event, resolve }) => {
 	 */
 	event.locals.getSession = async () => {
 		try {
-			console.log('[Hooks] Getting session for request:', event.url.pathname);
+			// First get the session to check if we have auth cookies
+			const {
+				data: { session },
+				error: sessionError
+			} = await event.locals.supabase.auth.getSession();
 
+			if (sessionError) {
+				console.error('[Hooks] Error getting session:', sessionError);
+				return null;
+			}
+
+			if (!session) {
+				console.log('[Hooks] No session found');
+				return null;
+			}
+
+			// For security, verify the user by calling getUser() which contacts the auth server
 			const {
 				data: { user },
-				error
+				error: userError
 			} = await event.locals.supabase.auth.getUser();
 
-			if (error) {
-				console.error('[Hooks] Error getting user:', error);
+			if (userError) {
+				console.error('[Hooks] Error getting user:', userError);
 				return null;
 			}
 
 			if (!user) {
-				console.log('[Hooks] No user found');
+				console.log('[Hooks] No user found after verification');
 				return null;
 			}
-
-			console.log('[Hooks] User authenticated:', user.id);
 
 			// Return a session-like object with the authenticated user data
 			return {
 				user,
-				access_token: '', // We don't need the actual token for our use cases
-				refresh_token: '',
-				expires_in: 0,
-				token_type: 'bearer',
-				expires_at: 0
+				access_token: session.access_token,
+				refresh_token: session.refresh_token,
+				expires_in: session.expires_in,
+				token_type: session.token_type,
+				expires_at: session.expires_at
 			};
 		} catch (error) {
 			console.error('[Hooks] Unexpected error in getSession:', error);

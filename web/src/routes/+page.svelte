@@ -3,7 +3,7 @@
 	import { MapPin, Globe, Calendar, BarChart, ArrowRight, LogIn, Sun, Moon, User, LogOut } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { state, setTheme } from '$lib/stores/app-state.svelte';
-	import { userStore } from '$lib/stores/auth';
+	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
 
 	async function handleLogin() {
@@ -11,20 +11,36 @@
 	}
 
 	async function handleSignOut() {
-		await supabase.auth.signOut();
-		goto('/auth/signin');
+		console.log('🏠 [LANDING] Signout initiated - clearing client stores first');
+
+		// Clear client-side stores immediately
+		userStore.set(null);
+		sessionStore.set(null);
+
+		// Then redirect to server-side signout endpoint
+		goto('/auth/signout');
 	}
 
 	onMount(() => {
 		console.log('🏠 [LANDING] Page mounted');
 		// Theme is already initialized in the store
 
-		// Subscribe to user store for debugging
+		// Subscribe to user store for real-time updates
 		const unsubscribe = userStore.subscribe(user => {
 			console.log('🏠 [LANDING] User state:', user ? `Logged in - ${user.email}` : 'Not logged in');
+			console.log('🏠 [LANDING] User store value:', user);
 		});
 
-		return unsubscribe;
+		// Also subscribe to session store for additional auth state tracking
+		const sessionUnsubscribe = sessionStore.subscribe(session => {
+			console.log('🏠 [LANDING] Session state:', session ? 'session present' : 'no session');
+			console.log('🏠 [LANDING] Session store value:', session);
+		});
+
+		return () => {
+			unsubscribe();
+			sessionUnsubscribe();
+		};
 	});
 </script>
 
@@ -52,11 +68,11 @@
 		</button>
 	</div>
 
-	{#if $userStore}
+	{#if $userStore && $userStore.email}
 		<!-- User Menu -->
 		<div class="relative group">
 			<a
-				href="/dashboard/trips"
+				href="/dashboard/statistics"
 				class="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
 			>
 				<User class="h-4 w-4" />
@@ -67,7 +83,7 @@
 			<div class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
 				<div class="py-2">
 					<a
-						href="/dashboard/trips"
+						href="/dashboard/statistics"
 						class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
 					>
 						Dashboard
