@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Settings, User as UserIcon, Lock, UserPlus, Server, Database, Search, Edit, Trash2, ChevronLeft, ChevronRight, Users } from 'lucide-svelte';
+	import { Settings, User as UserIcon, Lock, UserPlus, Server, Database, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
 	import { invalidateAll } from '$app/navigation';
@@ -7,7 +7,6 @@
 	import { browser } from '$app/environment';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
-	import WorkerManager from '$lib/components/admin/WorkerManager.svelte';
 
 	export let data: PageData;
 
@@ -53,8 +52,6 @@
 	let oauthEnabled = false;
 	let serverName = '';
 	let adminEmail = '';
-	let maxUsers = 0;
-	let storageLimit = 0;
 	let allowRegistration = false;
 	let requireEmailVerification = false;
 	let showAddUserModal = false;
@@ -63,7 +60,7 @@
 	let showDeleteConfirm = false;
 	let userToDelete: User | null = null;
 	let searchTimeout: ReturnType<typeof setTimeout>;
-	let activeTab = 'users'; // Add tab state
+	let activeTab = 'settings'; // Add tab state - default to settings tab
 
 	// Get pagination data from server
 	$: pagination = data.pagination || {
@@ -224,8 +221,6 @@
 	function resetForm() {
 		serverName = '';
 		adminEmail = '';
-		maxUsers = 0;
-		storageLimit = 0;
 		allowRegistration = false;
 		requireEmailVerification = false;
 	}
@@ -443,30 +438,21 @@
 		<div class="mb-6 border-b border-gray-200 dark:border-gray-700">
 			<nav class="-mb-px flex space-x-8">
 				<button
-					class="py-2 px-1 border-b-2 font-medium text-sm {activeTab === 'users' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
+					class="py-2 px-1 border-b-2 font-medium text-sm cursor-pointer {activeTab === 'settings' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
+					on:click={() => activeTab = 'settings'}
+				>
+					<div class="flex items-center gap-2">
+						<Server class="h-4 w-4" />
+						General
+					</div>
+				</button>
+				<button
+					class="py-2 px-1 border-b-2 font-medium text-sm cursor-pointer {activeTab === 'users' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
 					on:click={() => activeTab = 'users'}
 				>
 					<div class="flex items-center gap-2">
 						<UserIcon class="h-4 w-4" />
 						Users
-					</div>
-				</button>
-				<button
-					class="py-2 px-1 border-b-2 font-medium text-sm {activeTab === 'workers' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
-					on:click={() => activeTab = 'workers'}
-				>
-					<div class="flex items-center gap-2">
-						<Users class="h-4 w-4" />
-						Workers
-					</div>
-				</button>
-				<button
-					class="py-2 px-1 border-b-2 font-medium text-sm {activeTab === 'settings' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
-					on:click={() => activeTab = 'settings'}
-				>
-					<div class="flex items-center gap-2">
-						<Server class="h-4 w-4" />
-						Settings
 					</div>
 				</button>
 			</nav>
@@ -665,10 +651,7 @@
 			</div>
 		{/if}
 
-		<!-- Workers Tab -->
-		{#if activeTab === 'workers'}
-			<WorkerManager />
-		{/if}
+
 
 		<!-- Settings Tab -->
 		{#if activeTab === 'settings'}
@@ -709,57 +692,47 @@
 							</div>
 						</div>
 
-						<!-- Max Users -->
-						<div>
-							<label for="maxUsers" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Maximum Users</label>
-							<div class="mt-1">
-								<input
-									type="number"
-									id="maxUsers"
-									bind:value={maxUsers}
-									class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-									placeholder="0 (unlimited)"
-								/>
-							</div>
-						</div>
-
-						<!-- Storage Limit -->
-						<div>
-							<label for="storageLimit" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Storage Limit (GB)</label>
-							<div class="mt-1">
-								<input
-									type="number"
-									id="storageLimit"
-									bind:value={storageLimit}
-									class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-									placeholder="0 (unlimited)"
-								/>
-							</div>
-						</div>
-
 						<!-- Registration Settings -->
 						<div class="space-y-4">
-							<div class="flex items-center">
-								<input
-									type="checkbox"
+							<div class="flex items-center justify-between">
+								<div>
+									<label for="allowRegistration" class="block text-sm font-medium text-gray-900 dark:text-gray-100">
+										Allow new user registration
+									</label>
+									<p class="text-sm text-gray-500 dark:text-gray-400">Enable public user registration</p>
+								</div>
+								<button
+									type="button"
 									id="allowRegistration"
-									bind:checked={allowRegistration}
-									class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
-								/>
-								<label for="allowRegistration" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-									Allow new user registration
-								</label>
+									on:click={() => allowRegistration = !allowRegistration}
+									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 {allowRegistration ? 'bg-[rgb(37,140,244)]' : 'bg-gray-200 dark:bg-gray-700'}"
+									role="switch"
+									aria-checked={allowRegistration}
+								>
+									<span
+										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {allowRegistration ? 'translate-x-5' : 'translate-x-0'}"
+									/>
+								</button>
 							</div>
-							<div class="flex items-center">
-								<input
-									type="checkbox"
+							<div class="flex items-center justify-between">
+								<div>
+									<label for="requireEmailVerification" class="block text-sm font-medium text-gray-900 dark:text-gray-100">
+										Require email verification
+									</label>
+									<p class="text-sm text-gray-500 dark:text-gray-400">Users must verify their email before accessing the system</p>
+								</div>
+								<button
+									type="button"
 									id="requireEmailVerification"
-									bind:checked={requireEmailVerification}
-									class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
-								/>
-								<label for="requireEmailVerification" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
-									Require email verification
-								</label>
+									on:click={() => requireEmailVerification = !requireEmailVerification}
+									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 {requireEmailVerification ? 'bg-[rgb(37,140,244)]' : 'bg-gray-200 dark:bg-gray-700'}"
+									role="switch"
+									aria-checked={requireEmailVerification}
+								>
+									<span
+										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {requireEmailVerification ? 'translate-x-5' : 'translate-x-0'}"
+									/>
+								</button>
 							</div>
 						</div>
 					</div>

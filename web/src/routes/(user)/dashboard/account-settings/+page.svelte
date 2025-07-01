@@ -28,6 +28,15 @@
 	let notificationsEnabledInput = true;
 	let timezoneInput = 'UTC+00:00 (London, Dublin)';
 	let error: string | null = null;
+	let homeAddressInput = '';
+	let homeAddressInputElement: HTMLInputElement | undefined;
+	let isHomeAddressSearching = false;
+	let homeAddressSuggestions: any[] = [];
+	let showHomeAddressSuggestions = false;
+	let selectedHomeAddress: any | null = null;
+	let selectedHomeAddressIndex = -1;
+	let homeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+	let homeAddressSearchError: string | null = null;
 
 	const languages = ['en', 'nl'];
 	const timezones = [
@@ -285,19 +294,23 @@
 	});
 
 	async function handleSaveProfile() {
-		console.log('handleSaveProfile called with:', { firstNameInput, lastNameInput });
+		console.log('handleSaveProfile called with:', { firstNameInput, lastNameInput, selectedHomeAddress });
 		isUpdatingProfile = true;
 		try {
 			console.log('Step 1: Calling server API directly...');
+			const body: any = {
+				first_name: firstNameInput,
+				last_name: lastNameInput
+			};
+			if (selectedHomeAddress) {
+				body.home_address = selectedHomeAddress;
+			}
 			const response = await fetch('/api/v1/auth/profile', {
-				method: 'PUT',
+				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({
-					first_name: firstNameInput,
-					last_name: lastNameInput
-				})
+				body: JSON.stringify(body)
 			});
 
 			if (!response.ok) {
@@ -313,6 +326,9 @@
 				profile.first_name = firstNameInput;
 				profile.last_name = lastNameInput;
 				profile.full_name = `${firstNameInput} ${lastNameInput}`.trim();
+				if (selectedHomeAddress) {
+					profile.home_address = selectedHomeAddress;
+				}
 			}
 
 			toast.success('Profile updated successfully');
@@ -428,6 +444,96 @@
 		// Reload user data to check if 2FA was disabled
 		loadUserData();
 	}
+
+	function handleHomeAddressInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		homeAddressInput = target.value;
+		selectedHomeAddressIndex = -1;
+		selectedHomeAddress = null;
+		if (homeAddressSearchTimeout) clearTimeout(homeAddressSearchTimeout);
+		if (!homeAddressInput.trim()) {
+			homeAddressSuggestions = [];
+			showHomeAddressSuggestions = false;
+			return;
+		}
+		homeAddressSearchTimeout = setTimeout(() => searchHomeAddressSuggestions(), 300);
+	}
+
+	function handleHomeAddressKeydown(event: KeyboardEvent) {
+		if (!showHomeAddressSuggestions || homeAddressSuggestions.length === 0) return;
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				selectedHomeAddressIndex = Math.min(selectedHomeAddressIndex + 1, homeAddressSuggestions.length - 1);
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				selectedHomeAddressIndex = Math.max(selectedHomeAddressIndex - 1, 0);
+				break;
+			case 'Enter':
+				event.preventDefault();
+				if (selectedHomeAddressIndex >= 0 && selectedHomeAddressIndex < homeAddressSuggestions.length) {
+					selectHomeAddress(homeAddressSuggestions[selectedHomeAddressIndex]);
+				}
+				break;
+			case 'Escape':
+				event.preventDefault();
+				showHomeAddressSuggestions = false;
+				selectedHomeAddressIndex = -1;
+				break;
+		}
+	}
+
+	async function searchHomeAddressSuggestions() {
+		if (!homeAddressInput.trim() || homeAddressInput.trim().length < 3) {
+			homeAddressSuggestions = [];
+			showHomeAddressSuggestions = false;
+			homeAddressSearchError = null;
+			return;
+		}
+		isHomeAddressSearching = true;
+		showHomeAddressSuggestions = true;
+		homeAddressSearchError = null;
+		try {
+			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(homeAddressInput.trim())}`);
+			const data = await response.json();
+			const results = data.data?.results;
+			if (response.ok && data.success && Array.isArray(results)) {
+				homeAddressSuggestions = results.map((result: any) => ({
+					display_name: result.display_name,
+					coordinates: {
+						lat: parseFloat(result.lat),
+						lng: parseFloat(result.lon)
+					},
+					address: result.address
+				}));
+				showHomeAddressSuggestions = true;
+				if (homeAddressSuggestions.length === 0) {
+					homeAddressSearchError = 'No addresses found';
+				}
+			} else {
+				homeAddressSuggestions = [];
+				homeAddressSearchError = 'No addresses found';
+				showHomeAddressSuggestions = true;
+			}
+		} catch (error) {
+			console.error('Error searching for home address:', error);
+			homeAddressSuggestions = [];
+			homeAddressSearchError = 'Failed to search for home address';
+			showHomeAddressSuggestions = true;
+		} finally {
+			isHomeAddressSearching = false;
+		}
+	}
+
+	function selectHomeAddress(suggestion: any) {
+		console.log('selectHomeAddress called with:', suggestion);
+		homeAddressInput = suggestion.display_name;
+		selectedHomeAddress = suggestion;
+		showHomeAddressSuggestions = false;
+		selectedHomeAddressIndex = -1;
+	}
 </script>
 
 <div>
@@ -458,7 +564,8 @@
 			</div>
 
 			<div class="space-y-6">
-				<div>
+				<!-- Email Address Field (restored) -->
+				<div class="mb-4">
 					<label for="email" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Email Address</label>
 					<input
 						id="email"
@@ -468,6 +575,70 @@
 						class="w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
 					/>
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Email address cannot be changed yet.</p>
+				</div>
+
+				<!-- Home Address Autocomplete Field -->
+				<div class="mb-4">
+					<label for="homeAddress" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Home Address</label>
+					<div class="relative">
+						<input
+							id="homeAddress"
+							type="text"
+							bind:value={homeAddressInput}
+							bind:this={homeAddressInputElement}
+							on:input={handleHomeAddressInput}
+							on:keydown={handleHomeAddressKeydown}
+							placeholder="Start typing your home address..."
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+						/>
+						{#if isHomeAddressSearching}
+							<div class="absolute right-3 top-1/2 -translate-y-1/2">
+								<div class="animate-spin h-4 w-4 border-2 border-[rgb(37,140,244)] border-t-transparent rounded-full"></div>
+							</div>
+						{/if}
+					</div>
+					{#if homeAddressSuggestions.length > 0 && showHomeAddressSuggestions}
+						<div class="mt-1 border border-[rgb(218,218,221)] dark:border-[#3f3f46] rounded-md bg-white dark:bg-[#23232a] shadow-lg max-h-48 overflow-y-auto">
+							{#each homeAddressSuggestions as suggestion, index}
+								<button
+									type="button"
+									class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-[#2d2d35] focus:bg-gray-50 dark:focus:bg-[#2d2d35] focus:outline-none {selectedHomeAddressIndex === index ? 'bg-[rgb(37,140,244)]/10 dark:bg-[rgb(37,140,244)]/20' : ''}"
+									on:click={() => selectHomeAddress(suggestion)}
+								>
+									<div class="font-medium">{suggestion.display_name}</div>
+									{#if suggestion.coordinates}
+										<div class="text-xs text-gray-500 dark:text-gray-400">
+											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(6)}
+										</div>
+									{/if}
+								</button>
+							{/each}
+							{#if homeAddressSearchError}
+								<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+									{homeAddressSearchError}
+								</div>
+							{/if}
+						</div>
+					{:else if showHomeAddressSuggestions && homeAddressSearchError}
+						<div class="mt-1 border border-[rgb(218,218,221)] dark:border-[#3f3f46] rounded-md bg-white dark:bg-[#23232a] shadow-lg max-h-48 overflow-y-auto">
+							<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+								{homeAddressSearchError}
+							</div>
+						</div>
+					{/if}
+					{#if selectedHomeAddress && selectedHomeAddress.coordinates}
+						<div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+							<div class="text-sm text-green-800 dark:text-green-200">
+								📍 Coordinates: {selectedHomeAddress.coordinates.lat.toFixed(6)}, {selectedHomeAddress.coordinates.lng.toFixed(6)}
+							</div>
+							<div class="text-xs text-green-600 dark:text-green-300 mt-1">
+								{selectedHomeAddress.display_name}
+							</div>
+						</div>
+					{/if}
+					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+						Setting this is optional and is currently just used for trip generation.
+					</p>
 				</div>
 
 				<div class="grid gap-6 md:grid-cols-2">

@@ -1,24 +1,53 @@
-import { successResponse } from '$lib/utils/api/response';
+import { successResponse, errorResponse } from '$lib/utils/api/response';
+import { supabase } from '$lib/core/supabase/server';
+import type { RequestHandler } from './$types';
 
-// Global progress tracking (shared with import endpoint)
-declare global {
-	var importProgress: Map<string, { current: number; total: number; status: string }>;
-}
+export const GET: RequestHandler = async ({ url }) => {
+	try {
+		const jobId = url.searchParams.get('id');
+		if (!jobId) {
+			return successResponse({
+				percentage: 0,
+				current: 0,
+				total: 0,
+				status: 'No job ID provided'
+			});
+		}
 
-if (!globalThis.importProgress) {
-	globalThis.importProgress = new Map();
-}
+		// Get job progress from database
+		const { data: job, error } = await supabase
+			.from('jobs')
+			.select('*')
+			.eq('id', jobId)
+			.single();
 
-export const GET = async ({ url }) => {
-	const importId = url.searchParams.get('id');
-	if (!importId) {
-		return successResponse({ percentage: 0, current: 0, total: 0, status: 'No import in progress' });
+		if (error || !job) {
+			return successResponse({
+				percentage: 0,
+				current: 0,
+				total: 0,
+				status: 'Job not found'
+			});
+		}
+
+		// Extract progress information from job result
+		const result = job.result as Record<string, unknown> || {};
+		const progress = job.progress || 0;
+		const status = result.message || job.status;
+		const current = result.totalProcessed || 0;
+		const total = result.totalItems || 0;
+
+		return successResponse({
+			percentage: progress,
+			current,
+			total,
+			status,
+			jobStatus: job.status,
+			result
+		});
+
+	} catch (error) {
+		console.error('Error fetching job progress:', error);
+		return errorResponse('Failed to fetch job progress');
 	}
-	const progress = globalThis.importProgress?.get(importId);
-	if (!progress) {
-		return successResponse({ percentage: 0, current: 0, total: 0, status: 'No import in progress' });
-	}
-	const { current = 0, total = 0, status = '' } = progress;
-	const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
-	return successResponse({ percentage, current, total, status });
 };

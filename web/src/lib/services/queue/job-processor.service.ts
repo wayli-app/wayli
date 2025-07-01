@@ -2,8 +2,36 @@ import type { Job, JobType } from '$lib/types/job-queue.types';
 import { reverseGeocode } from '../external/nominatim.service';
 import { supabase } from '$lib/core/supabase/worker';
 import { JobQueueService } from './job-queue.service.worker';
+import { PoiVisitDetectionService } from '../poi-visit-detection.service';
 
 export class JobProcessorService {
+  /**
+   * Check if a job has been cancelled
+   */
+  private static async isJobCancelled(jobId: string): Promise<boolean> {
+    const { data: job, error } = await supabase
+      .from('jobs')
+      .select('status')
+      .eq('id', jobId)
+      .single();
+
+    if (error || !job) {
+      console.error('Error checking job status:', error);
+      return false;
+    }
+
+    return job.status === 'cancelled';
+  }
+
+  /**
+   * Throw an error if the job has been cancelled
+   */
+  private static async checkJobCancellation(jobId: string): Promise<void> {
+    if (await this.isJobCancelled(jobId)) {
+      throw new Error('Job was cancelled');
+    }
+  }
+
   static async processJob(job: Job): Promise<void> {
     const processor = this.getJobProcessor(job.type);
     if (!processor) {
@@ -17,8 +45,8 @@ export class JobProcessorService {
     const processors: Record<JobType, (job: Job) => Promise<void>> = {
       'reverse_geocoding_missing': this.processReverseGeocodingMissing.bind(this),
       'trip_cover_generation': this.processTripCoverGeneration.bind(this),
-      'statistics_update': this.processStatisticsUpdate.bind(this),
-      'data_import': this.processDataImport.bind(this)
+      'data_import': this.processDataImport.bind(this),
+      'poi_visit_detection': this.processPoiVisitDetection.bind(this)
     };
 
     return processors[jobType];
@@ -35,6 +63,9 @@ export class JobProcessorService {
     let totalErrors = 0;
 
     try {
+      // Check for cancellation before starting
+      await this.checkJobCancellation(job.id);
+
       // Get total count of tracker data points that need geocoding
       const { count: trackerDataCount, error: trackerDataCountError } = await supabase
         .from('tracker_data')
@@ -81,6 +112,11 @@ export class JobProcessorService {
       console.log(`✅ Reverse geocoding completed: ${totalSuccess} successful, ${totalErrors} errors out of ${totalProcessed} total`);
 
     } catch (error: unknown) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 Reverse geocoding job ${job.id} was cancelled`);
+        return;
+      }
       console.error(`❌ Error in reverse geocoding missing job:`, error);
       throw error;
     }
@@ -99,6 +135,9 @@ export class JobProcessorService {
     const CONCURRENT_REQUESTS = 20; // Process 20 requests in parallel
 
     while (true) {
+      // Check for cancellation before processing each batch
+      await this.checkJobCancellation(jobId);
+
       // Get batch of tracker data points that need geocoding
       const { data: points, error } = await supabase
         .from('tracker_data')
@@ -307,13 +346,518 @@ export class JobProcessorService {
     // Implementation would go here
   }
 
-  private static async processStatisticsUpdate(job: Job): Promise<void> {
-    console.log(`📊 Processing statistics update job ${job.id}`);
-    // Implementation would go here
-  }
-
   private static async processDataImport(job: Job): Promise<void> {
     console.log(`📥 Processing data import job ${job.id}`);
-    // Implementation would go here
+
+    const startTime = Date.now();
+    const userId = job.created_by;
+
+    try {
+      // Check for cancellation before starting
+      await this.checkJobCancellation(job.id);
+
+      // Extract job data
+      const { tempFileId, format, fileName } = job.data as {
+        tempFileId: string;
+        format: string;
+        fileName: string;
+      };
+
+      if (!tempFileId || !format) {
+        throw new Error('Missing temp file ID or format in job data');
+      }
+
+      // Fetch file content from temp_files table
+      const { data: tempFile, error: tempFileError } = await supabase
+        .from('temp_files')
+        .select('file_content')
+        .eq('id', tempFileId)
+        .single();
+
+      if (tempFileError || !tempFile) {
+        throw new Error('Failed to fetch temporary file content');
+      }
+
+      const fileContent = tempFile.file_content;
+
+      console.log(`📁 Processing import: ${fileName}, format: ${format}, content length: ${fileContent.length}`);
+
+      // Update initial progress
+      await JobQueueService.updateJobProgress(job.id, 0, {
+        message: `Starting ${format} import...`,
+        fileName,
+        format,
+        totalProcessed: 0,
+        totalItems: 0
+      });
+
+      let importedCount = 0;
+      let totalItems = 0;
+
+      // Process based on format
+      switch (format) {
+        case 'GeoJSON':
+          importedCount = await this.importGeoJSONWithProgress(fileContent, userId, job.id, fileName);
+          break;
+        case 'GPX': {
+          const result = await this.importGPXWithProgress(fileContent, userId, job.id, fileName);
+          importedCount = result.importedCount;
+          totalItems = result.totalItems;
+          break;
+        }
+        case 'OwnTracks':
+          importedCount = await this.importOwnTracksWithProgress(fileContent, userId, job.id, fileName);
+          break;
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
+
+      // Update final progress
+      const elapsedSeconds = (Date.now() - startTime) / 1000;
+      await JobQueueService.updateJobProgress(job.id, 100, {
+        message: `✅ Import completed successfully!`,
+        fileName,
+        format,
+        totalProcessed: importedCount,
+        totalItems: totalItems || importedCount,
+        importedCount,
+        elapsedSeconds: elapsedSeconds.toFixed(1)
+      });
+
+      // Clean up temporary file after successful processing
+      await supabase
+        .from('temp_files')
+        .delete()
+        .eq('id', tempFileId);
+
+      console.log(`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`);
+
+    } catch (error: unknown) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 Data import job ${job.id} was cancelled`);
+        // Clean up temporary file on cancellation
+        try {
+          const { tempFileId } = job.data as { tempFileId: string };
+          if (tempFileId) {
+            await supabase
+              .from('temp_files')
+              .delete()
+              .eq('id', tempFileId);
+          }
+        } catch (cleanupError) {
+          console.error('Failed to cleanup temporary file on cancellation:', cleanupError);
+        }
+        return;
+      }
+      console.error(`❌ Error in data import job:`, error);
+      // Clean up temporary file on error as well
+      try {
+        const { tempFileId } = job.data as { tempFileId: string };
+        if (tempFileId) {
+          await supabase
+            .from('temp_files')
+            .delete()
+            .eq('id', tempFileId);
+        }
+      } catch (cleanupError) {
+        console.error('Failed to cleanup temporary file:', cleanupError);
+      }
+      throw error;
+    }
+  }
+
+  private static async importGeoJSONWithProgress(content: string, userId: string, jobId: string, fileName: string): Promise<number> {
+    try {
+      console.log('Starting GeoJSON import with progress tracking');
+      const geojson = JSON.parse(content);
+      let importedCount = 0;
+
+      if (geojson.type === 'FeatureCollection' && geojson.features) {
+        const totalFeatures = geojson.features.length;
+        console.log(`Processing ${totalFeatures} features`);
+
+        // Update progress with total items
+        await JobQueueService.updateJobProgress(jobId, 0, {
+          message: `Processing ${totalFeatures} GeoJSON features...`,
+          fileName,
+          format: 'GeoJSON',
+          totalProcessed: 0,
+          totalItems: totalFeatures
+        });
+
+        for (let i = 0; i < geojson.features.length; i++) {
+          // Check for cancellation every 10 features
+          if (i % 10 === 0) {
+            await this.checkJobCancellation(jobId);
+          }
+
+          const feature = geojson.features[i];
+
+          // Update progress every 10 features or at the end
+          if (i % 10 === 0 || i === geojson.features.length - 1) {
+            const progress = Math.round((i / geojson.features.length) * 100);
+            await JobQueueService.updateJobProgress(jobId, progress, {
+              message: `Processing GeoJSON features... ${i + 1}/${totalFeatures}`,
+              fileName,
+              format: 'GeoJSON',
+              totalProcessed: importedCount,
+              totalItems: totalFeatures,
+              currentFeature: i + 1
+            });
+          }
+
+          if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
+            const [longitude, latitude] = feature.geometry.coordinates;
+            const properties = feature.properties || {};
+
+            // Get country code
+            const countryCode = await this.getCountryForPoint(latitude, longitude);
+
+            const { error } = await supabase
+              .from('points_of_interest')
+              .insert({
+                user_id: userId,
+                location: `POINT(${longitude} ${latitude})`,
+                name: properties.name || `Imported Point ${i + 1}`,
+                description: properties.description || `Imported from ${fileName}`,
+                country_code: countryCode,
+                created_at: new Date().toISOString()
+              });
+
+            if (!error) {
+              importedCount++;
+            } else {
+              console.error(`Error inserting feature ${i}:`, error);
+            }
+          }
+        }
+      }
+
+      return importedCount;
+    } catch (error) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 GeoJSON import was cancelled`);
+        return 0;
+      }
+      console.error('Error in GeoJSON import:', error);
+      throw error;
+    }
+  }
+
+  private static async importGPXWithProgress(content: string, userId: string, jobId: string, fileName: string): Promise<{ importedCount: number; totalItems: number }> {
+    try {
+      console.log('Starting GPX import with progress tracking');
+
+      // Parse GPX content
+      const parser = new (await import('fast-xml-parser')).XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: '@_'
+      });
+
+      const gpxData = parser.parse(content);
+      const tracks = gpxData.gpx?.trk || [];
+      const waypoints = gpxData.gpx?.wpt || [];
+
+      const totalItems = tracks.length + waypoints.length;
+      let importedCount = 0;
+
+      await JobQueueService.updateJobProgress(jobId, 0, {
+        message: `Processing ${totalItems} GPX items...`,
+        fileName,
+        format: 'GPX',
+        totalProcessed: 0,
+        totalItems
+      });
+
+      // Process waypoints
+      for (let i = 0; i < waypoints.length; i++) {
+        // Check for cancellation every 5 waypoints
+        if (i % 5 === 0) {
+          await this.checkJobCancellation(jobId);
+        }
+
+        const waypoint = waypoints[i];
+        const lat = parseFloat(waypoint['@_lat']);
+        const lon = parseFloat(waypoint['@_lon']);
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+          const countryCode = await this.getCountryForPoint(lat, lon);
+
+          const { error } = await supabase
+            .from('points_of_interest')
+            .insert({
+              user_id: userId,
+              location: `POINT(${lon} ${lat})`,
+              name: waypoint.name || `GPX Waypoint ${i + 1}`,
+              description: waypoint.desc || `Imported from ${fileName}`,
+              country_code: countryCode,
+              created_at: new Date().toISOString()
+            });
+
+          if (!error) {
+            importedCount++;
+          }
+        }
+
+        // Update progress every 5 waypoints
+        if (i % 5 === 0 || i === waypoints.length - 1) {
+          const progress = Math.round((i / totalItems) * 100);
+          await JobQueueService.updateJobProgress(jobId, progress, {
+            message: `Processing GPX waypoints... ${i + 1}/${waypoints.length}`,
+            fileName,
+            format: 'GPX',
+            totalProcessed: importedCount,
+            totalItems
+          });
+        }
+      }
+
+      // Process tracks
+      for (let i = 0; i < tracks.length; i++) {
+        // Check for cancellation before processing each track
+        await this.checkJobCancellation(jobId);
+
+        const track = tracks[i];
+        const trackPoints = track.trkseg?.trkpt || [];
+
+        for (let j = 0; j < trackPoints.length; j++) {
+          const point = trackPoints[j];
+          const lat = parseFloat(point['@_lat']);
+          const lon = parseFloat(point['@_lon']);
+
+          if (!isNaN(lat) && !isNaN(lon)) {
+            const countryCode = await this.getCountryForPoint(lat, lon);
+
+            const { error } = await supabase
+              .from('tracker_data')
+              .insert({
+                user_id: userId,
+                location: `POINT(${lon} ${lat})`,
+                recorded_at: point.time || new Date().toISOString(),
+                country_code: countryCode,
+                created_at: new Date().toISOString()
+              });
+
+            if (!error) {
+              importedCount++;
+            }
+          }
+        }
+
+        // Update progress every track
+        const progress = Math.round(((waypoints.length + i + 1) / totalItems) * 100);
+        await JobQueueService.updateJobProgress(jobId, progress, {
+          message: `Processing GPX tracks... ${i + 1}/${tracks.length}`,
+          fileName,
+          format: 'GPX',
+          totalProcessed: importedCount,
+          totalItems
+        });
+      }
+
+      return { importedCount, totalItems };
+    } catch (error) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 GPX import was cancelled`);
+        return { importedCount: 0, totalItems: 0 };
+      }
+      console.error('Error in GPX import:', error);
+      throw error;
+    }
+  }
+
+  private static async importOwnTracksWithProgress(content: string, userId: string, jobId: string, fileName: string): Promise<number> {
+    try {
+      console.log('Starting OwnTracks import with progress tracking');
+
+      const lines = content.split('\n').filter(line => line.trim());
+      const totalLines = lines.length;
+      let importedCount = 0;
+
+      await JobQueueService.updateJobProgress(jobId, 0, {
+        message: `Processing ${totalLines} OwnTracks lines...`,
+        fileName,
+        format: 'OwnTracks',
+        totalProcessed: 0,
+        totalItems: totalLines
+      });
+
+      for (let i = 0; i < lines.length; i++) {
+        // Check for cancellation every 100 lines
+        if (i % 100 === 0) {
+          await this.checkJobCancellation(jobId);
+        }
+
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse OwnTracks format: timestamp,lat,lon,altitude,accuracy,vertical_accuracy,velocity,heading,event
+        const parts = line.split(',');
+        if (parts.length >= 3) {
+          const timestamp = parseInt(parts[0]);
+          const lat = parseFloat(parts[1]);
+          const lon = parseFloat(parts[2]);
+
+          if (!isNaN(timestamp) && !isNaN(lat) && !isNaN(lon)) {
+            const countryCode = await this.getCountryForPoint(lat, lon);
+
+            const { error } = await supabase
+              .from('tracker_data')
+              .insert({
+                user_id: userId,
+                location: `POINT(${lon} ${lat})`,
+                recorded_at: new Date(timestamp * 1000).toISOString(),
+                country_code: countryCode,
+                created_at: new Date().toISOString()
+              });
+
+            if (!error) {
+              importedCount++;
+            }
+          }
+        }
+
+        // Update progress every 100 lines
+        if (i % 100 === 0 || i === lines.length - 1) {
+          const progress = Math.round((i / totalLines) * 100);
+          await JobQueueService.updateJobProgress(jobId, progress, {
+            message: `Processing OwnTracks data... ${i + 1}/${totalLines}`,
+            fileName,
+            format: 'OwnTracks',
+            totalProcessed: importedCount,
+            totalItems: totalLines
+          });
+        }
+      }
+
+      return importedCount;
+    } catch (error) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 OwnTracks import was cancelled`);
+        return 0;
+      }
+      console.error('Error in OwnTracks import:', error);
+      throw error;
+    }
+  }
+
+  private static async getCountryForPoint(lat: number, lon: number): Promise<string | null> {
+    try {
+      // Import the country reverse geocoding service
+      const { getCountryForPoint } = await import('$lib/services/external/country-reverse-geocoding.service');
+      return getCountryForPoint(lat, lon);
+    } catch (error) {
+      console.warn('Failed to get country for point:', error);
+      return null;
+    }
+  }
+
+  private static async processPoiVisitDetection(job: Job): Promise<void> {
+    console.log(`📍 Processing POI visit detection job ${job.id}`);
+
+    const startTime = Date.now();
+    const poiService = new PoiVisitDetectionService();
+
+    try {
+      // Check for cancellation before starting
+      await this.checkJobCancellation(job.id);
+
+      // Update job progress to started
+      await JobQueueService.updateJobProgress(job.id, 0, {
+        message: 'Starting POI visit detection...',
+        totalProcessed: 0,
+        totalDetected: 0
+      });
+
+      // Get configuration from job data or use defaults
+      const config = {
+        minDwellMinutes: (job.data.minDwellMinutes as number) || 15,
+        maxDistanceMeters: (job.data.maxDistanceMeters as number) || 100,
+        minConsecutivePoints: (job.data.minConsecutivePoints as number) || 3,
+        lookbackDays: (job.data.lookbackDays as number) || 7
+      };
+
+      // Check if this is for a specific user or all users
+      const targetUserId = job.data.userId as string;
+
+      if (targetUserId) {
+        // Process for specific user
+        await JobQueueService.updateJobProgress(job.id, 25, {
+          message: `Detecting visits for user ${targetUserId}...`,
+          totalProcessed: 0,
+          totalDetected: 0
+        });
+
+        // Check for cancellation before processing user
+        await this.checkJobCancellation(job.id);
+
+        const userResult = await poiService.detectVisitsForUser(targetUserId, config);
+
+        await JobQueueService.updateJobProgress(job.id, 75, {
+          message: `Found ${userResult.totalDetected} visits for user`,
+          totalProcessed: 1,
+          totalDetected: userResult.totalDetected
+        });
+
+        // Complete the job
+        const elapsedSeconds = (Date.now() - startTime) / 1000;
+
+        await JobQueueService.updateJobProgress(job.id, 100, {
+          message: `✅ POI visit detection completed for user ${targetUserId}`,
+          totalProcessed: 1,
+          totalDetected: userResult.totalDetected,
+          elapsedSeconds: elapsedSeconds.toFixed(1)
+        });
+
+        console.log(`✅ POI visit detection completed in ${elapsedSeconds.toFixed(1)}s`);
+
+      } else {
+        // Process for all users
+        await JobQueueService.updateJobProgress(job.id, 25, {
+          message: 'Detecting visits for all users...',
+          totalProcessed: 0,
+          totalDetected: 0
+        });
+
+        // Check for cancellation before processing all users
+        await this.checkJobCancellation(job.id);
+
+        const allUsersResults = await poiService.detectVisitsForAllUsers(config);
+
+        const totalDetected = allUsersResults.reduce((sum, r) => sum + r.totalDetected, 0);
+        const totalUsers = allUsersResults.length;
+
+        await JobQueueService.updateJobProgress(job.id, 75, {
+          message: `Found ${totalDetected} visits across ${totalUsers} users`,
+          totalProcessed: totalUsers,
+          totalDetected: totalDetected
+        });
+
+        // Complete the job
+        const elapsedSeconds = (Date.now() - startTime) / 1000;
+
+        await JobQueueService.updateJobProgress(job.id, 100, {
+          message: `✅ POI visit detection completed for all users`,
+          totalProcessed: totalUsers,
+          totalDetected: totalDetected,
+          elapsedSeconds: elapsedSeconds.toFixed(1)
+        });
+
+        console.log(`✅ POI visit detection completed in ${elapsedSeconds.toFixed(1)}s`);
+      }
+
+    } catch (error: unknown) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 POI visit detection job ${job.id} was cancelled`);
+        return;
+      }
+      console.error(`❌ Error in POI visit detection job:`, error);
+      throw error;
+    }
   }
 }

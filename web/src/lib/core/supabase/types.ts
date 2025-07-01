@@ -128,6 +128,67 @@ export interface Database {
           updated_at?: string;
         };
       };
+      workers: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          status: string;
+          current_job: string | null;
+          last_heartbeat: string;
+          started_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          status?: string;
+          current_job?: string | null;
+          last_heartbeat?: string;
+          started_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          status?: string;
+          current_job?: string | null;
+          last_heartbeat?: string;
+          started_at?: string;
+          updated_at?: string;
+        };
+      };
+      temp_files: {
+        Row: {
+          id: string;
+          user_id: string;
+          file_name: string;
+          file_content: string;
+          format: string;
+          file_size: number;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          file_name: string;
+          file_content: string;
+          format: string;
+          file_size: number;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          file_name?: string;
+          file_content?: string;
+          format?: string;
+          file_size?: number;
+          created_at?: string;
+          expires_at?: string;
+        };
+      };
       // Add other tables as needed...
     };
     Views: {

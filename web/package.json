@@ -20,6 +20,7 @@
 		"test:enhanced-jobs": "bun run src/scripts/test-enhanced-jobs.ts",
 		"test:totp": "bun run src/scripts/test-totp.ts",
 		"test:cache": "bun run src/scripts/test-cache.ts",
+		"test:poi-visits": "bun run src/scripts/test-poi-visit-detection.ts",
 		"worker": "bun run src/scripts/worker.ts",
 		"worker:start": "bun run src/scripts/worker.ts",
 		"worker:dev": "bun --watch src/scripts/worker.ts",
@@ -74,6 +75,7 @@
 		"otplib": "^12.0.1",
 		"postgres": "^3.4.7",
 		"qrcode": "^1.5.4",
+		"supabase": "^2.26.9",
 		"svelte-sonner": "^1.0.5",
 		"tailwind-merge": "^2.6.0",
 		"uuid": "^11.1.0"

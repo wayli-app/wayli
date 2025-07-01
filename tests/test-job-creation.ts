@@ -17,34 +17,6 @@ async function testJobCreation() {
   console.log('🧪 Testing job creation...\n');
 
   try {
-    // Test 1: Create a simple job
-    console.log('1. Creating a simple statistics job...');
-    const { data: job1, error: error1 } = await supabase
-      .from('jobs')
-      .insert({
-        type: 'statistics_update',
-        status: 'queued',
-        priority: 'normal',
-        data: { include_charts: true },
-        progress: 0,
-        created_by: '00000000-0000-0000-0000-000000000000' // Test user ID
-      })
-      .select()
-      .single();
-
-    if (error1) {
-      console.log('   ⚠️ Could not create test job (table might not exist):', error1.message);
-    } else {
-      console.log('   ✅ Test job created:', job1.id);
-
-      // Clean up test job
-      await supabase
-        .from('jobs')
-        .delete()
-        .eq('id', job1.id);
-      console.log('   🧹 Test job cleaned up');
-    }
-
     // Test 2: Create a job with custom data
     console.log('\n2. Creating a job with custom configuration...');
     const { data: job2, error: error2 } = await supabase

@@ -166,7 +166,7 @@
 
 		try {
 			const response = await fetch(
-				`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(name)}`
+				`https://nominatim.int.hazen.nu/search?format=json&q=${encodeURIComponent(name)}`
 			);
 			const data = await response.json();
 			searchResults = data.slice(0, 5).map((result: any) => ({

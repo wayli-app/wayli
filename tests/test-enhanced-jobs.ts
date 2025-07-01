@@ -22,14 +22,6 @@ async function testEnhancedJobDisplay() {
 
     const testJobs = [
       {
-        type: 'statistics_update',
-        status: 'queued',
-        priority: 'normal',
-        data: { include_charts: true },
-        progress: 0,
-        created_by: '00000000-0000-0000-0000-000000000000'
-      },
-      {
         type: 'reverse_geocoding_full',
         status: 'running',
         priority: 'high',

@@ -1253,19 +1253,19 @@
 				<span>Location cache: {cacheStats.entries} entries, {(cacheStats.size / (1024 * 1024)).toFixed(1)}MB</span>
 				<span>•</span>
 				<span>Statistics cache: {statisticsCache.size} periods</span>
-				<button
+					<button
 					onclick={() => { clearCache(); clearStatisticsCache(); }}
 					class="cursor-pointer text-xs text-red-500 underline hover:text-red-700 dark:hover:text-red-400 ml-2"
 					title="Clear all caches"
 				>
 					Clear all
-				</button>
+					</button>
 			</div>
 			<div class="relative flex items-center h-full self-stretch" style="z-index:2001;">
-				<button
+			<button
 					type="button"
 					class="date-field w-[250px] max-w-full px-2 py-0.5 text-base text-left rounded-lg shadow bg-white dark:bg-gray-800 flex items-center gap-2 cursor-pointer"
-					onclick={toggleDatePicker}
+				onclick={toggleDatePicker}
 					onkeydown={(e) => e.key === 'Enter' && toggleDatePicker()}
 					class:open={isOpen}
 					aria-label="Select date range"
@@ -1278,7 +1278,7 @@
 						{:else}
 							Pick a date
 						{/if}
-					</div>
+		</div>
 				</button>
 				{#if isOpen}
 					<div class="date-picker-container absolute right-0 mt-2" style="z-index:2001;">
@@ -1295,12 +1295,12 @@
 									loadStatistics();
 								}
 							}}
-						/>
-					</div>
+					/>
+				</div>
 				{/if}
+				</div>
 			</div>
 		</div>
-	</div>
 
 	<!-- Map -->
 	<div
@@ -1311,7 +1311,7 @@
 			<div
 				class="absolute left-0 top-0 z-[1100] w-full bg-blue-500 py-2 text-center font-semibold text-white shadow-lg">
 				Edit mode: Click points to select. Use the buttons to delete or create a trip.
-				</div>
+	</div>
 		{/if}
 		<div bind:this={mapContainer} class="h-full w-full"></div>
 
@@ -1346,15 +1346,15 @@
 					</button>
 				{/if}
 			{/if}
-				</div>
+						</div>
 
 		<!-- Selection Info -->
 		{#if isEditMode && selectedMarkers.length > 0}
 			<div class="absolute bottom-4 left-4 z-[1001] rounded bg-white p-3 shadow dark:bg-gray-800">
 				<div class="text-sm text-gray-700 dark:text-gray-300">
 					{selectedMarkers.length} point{selectedMarkers.length !== 1 ? 's' : ''} selected
-			</div>
-		</div>
+						</div>
+					</div>
 	{/if}
 
 		<!-- Load More Button -->
@@ -1370,7 +1370,7 @@
 				Load More ({loadedGpsPoints}/{totalGpsPoints})
 			</button>
 		{/if}
-	</div>
+			</div>
 
 	<!-- Stats -->
 	<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -1386,31 +1386,31 @@
 					<div class="flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-						</div>
+							</div>
 					<div class="mt-1 h-6 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-			</div>
-		{/each}
+						</div>
+					{/each}
 		{:else if getStatistics().length === 0}
 			<div class="col-span-4 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
 				No statistics available for this period.
-	</div>
+				</div>
 		{:else}
 			{#each getStatistics() as stat}
 				{@const IconComponent = stat.icon}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 				>
-					<div class="flex items-center gap-2">
+								<div class="flex items-center gap-2">
 						<IconComponent class="h-5 w-5 text-{stat.color}-500" />
 						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
-			</div>
+								</div>
 					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
 						{stat.value}
 							</div>
 						</div>
 					{/each}
 		{/if}
-		</div>
+	</div>
 
 	<!-- Country Time Distribution and Modes of Transport: Side by Side -->
 	<div class="mb-8 flex flex-col gap-6 md:flex-row">
@@ -1504,8 +1504,8 @@
 				</table>
 				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">based on speed and context</div>
 				</div>
-		{/if}
-		</div>
+							{/if}
+						</div>
 
 	<!-- Train Station Visits Table -->
 	{#if statisticsData && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
@@ -1517,7 +1517,7 @@
 				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
 					>Train Station Visits</span
 				>
-						</div>
+							</div>
 			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
 				<thead>
 					<tr>

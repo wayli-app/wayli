@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PostGIS } from '$lib/types/database.types';
-import { detectMode } from '$lib/utils/transport-mode';
+import { detectMode, detectTrainMode } from '$lib/utils/transport-mode';
 import type { ModeContext } from '$lib/utils/transport-mode';
 
 interface StatisticsData {
@@ -126,8 +126,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     })).sort((a, b) => b.percent - a.percent);
     // Distance, time moving, and transport mode detection
     const modeStats: Record<string, { distance: number; time: number }> = {};
-    // --- Train mode detection logic (copied from trips/locations) ---
-    let currentTrainJourney = false;
+
+    // Enhanced train detection with velocity-based continuity
+    const modeContext: ModeContext = {};
+
     for (let i = 1; i < trackerData.length; i++) {
       const prev = trackerData[i - 1];
       const curr = trackerData[i];
@@ -150,6 +152,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       }
       const dt = (new Date(curr.recorded_at).getTime() - new Date(prev.recorded_at).getTime()) / 1000; // seconds
       if (dt <= 0) continue;
+
       // Haversine distance in meters
       const toRad = (x: number) => x * Math.PI / 180;
       const R = 6371e3;
@@ -162,14 +165,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       const distance = R * c; // meters
       if (!isFinite(distance) || isNaN(distance)) continue;
       totalDistance += distance;
-      const speedKmh = (distance / dt) * 3.6;
       const speed = distance / dt; // m/s
       if (speed > 0.833) {
         timeSpentMoving += dt;
       }
-      // --- Train type detection ---
-      let atTrainType = false;
-      // Check current point
+
+      // Check if current point is at a railway location
+      let atTrainLocation = false;
       if (curr.reverse_geocode) {
         try {
           const geocode = typeof curr.reverse_geocode === 'string' ? JSON.parse(curr.reverse_geocode) : curr.reverse_geocode;
@@ -179,36 +181,23 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             (geocode && geocode.type === 'platform') ||
             (geocode && geocode.addresstype === 'railway')
           ) {
-            atTrainType = true;
+            atTrainLocation = true;
           }
-        } catch {}
-      }
-      let transport_mode = 'unknown';
-      // Start train journey if at train type and speed is in train range
-      if (atTrainType && speedKmh > 30 && speedKmh < 300) {
-        currentTrainJourney = true;
-        transport_mode = 'train';
-      }
-      // Continue train journey if already started and speed is in train range (30-120) or still at train type
-      else if (currentTrainJourney) {
-        if ((speedKmh > 30 && speedKmh < 120) || atTrainType) {
-          transport_mode = 'train';
-        } else if (!atTrainType && speedKmh <= 30) {
-          currentTrainJourney = false;
-          // Fallback to regular detection
-          const modeContext: ModeContext = {};
-          transport_mode = detectMode(prevLat, prevLng, currLat, currLng, dt, modeContext);
-        } else {
-          transport_mode = 'train';
+        } catch {
+          // Ignore parsing errors
         }
-      } else {
-        // Not in a train journey
-        currentTrainJourney = false;
-        // Use regular detection
-        const modeContext: ModeContext = {};
+      }
+
+      // Use enhanced train detection
+      const trainDetection = detectTrainMode(prevLat, prevLng, currLat, currLng, dt, atTrainLocation, modeContext);
+      let transport_mode = trainDetection.mode;
+
+      // If not detected as train, use regular mode detection
+      if (transport_mode !== 'train') {
         transport_mode = detectMode(prevLat, prevLng, currLat, currLng, dt, modeContext);
       }
-      // --- End train mode logic ---
+
+      // Track statistics
       if (!modeStats[transport_mode]) modeStats[transport_mode] = { distance: 0, time: 0 };
       modeStats[transport_mode].distance += distance;
       if (speed > 0.833) {

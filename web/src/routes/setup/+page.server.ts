@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { createServerClient } from '$lib/core/supabase/server-client';
+import { DatabaseMigrationService } from '$lib/services/database/migration.service';
 
 export const load: PageServerLoad = async ({ locals: { getSession } }) => {
 	const session = await getSession();
@@ -8,27 +9,21 @@ export const load: PageServerLoad = async ({ locals: { getSession } }) => {
 	// Use server-side Supabase client for admin operations
 	const supabaseAdmin = createServerClient();
 
-	// Check if database is initialized by trying to query the users table
-	let dbInitialized = false;
+	// Check database health using the new migration service
+	let dbHealth = null;
 	try {
-		const { error } = await supabaseAdmin
-			.from('users')
-			.select('id')
-			.limit(1);
-
-		// If we get an error about the table not existing, the database isn't initialized
-		if (error && error.code === '42P01') { // PostgreSQL table doesn't exist error
-			dbInitialized = false;
-		} else {
-			dbInitialized = true;
-		}
+		dbHealth = await DatabaseMigrationService.checkDatabaseHealth();
 	} catch (error) {
-		console.error('Error checking database initialization:', error);
-		dbInitialized = false;
+		console.error('Error checking database health:', error);
+		dbHealth = {
+			healthy: false,
+			initialized: false,
+			errors: ['Failed to check database health']
+		};
 	}
 
-	if (dbInitialized) {
-		// Check if first user exists
+	// If database is healthy and initialized, check if first user exists
+	if (dbHealth?.healthy && dbHealth?.initialized) {
 		try {
 			const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers({
 				page: 1,
@@ -51,7 +46,9 @@ export const load: PageServerLoad = async ({ locals: { getSession } }) => {
 
 	return {
 		user: session?.user,
-		dbInitialized,
-		session
+		dbHealth,
+		session,
+		message: dbHealth?.healthy ? 'Database is ready' : 'Database needs initialization',
+		error: dbHealth?.errors.length > 0 ? dbHealth.errors.join(', ') : null
 	};
 };

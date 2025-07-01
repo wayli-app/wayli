@@ -1,8 +1,9 @@
 # Use Node.js as base image
 FROM node:20-slim AS builder
 
-# Install bun
+# Install bun and Supabase CLI
 RUN npm install -g bun
+RUN npm install -g supabase
 
 # Set working directory
 WORKDIR /app
@@ -23,8 +24,9 @@ RUN bun run build
 # Production stage
 FROM node:20-slim
 
-# Install bun
+# Install bun and Supabase CLI
 RUN npm install -g bun
+RUN npm install -g supabase
 
 # Set working directory
 WORKDIR /app

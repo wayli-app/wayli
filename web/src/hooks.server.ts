@@ -24,24 +24,39 @@ export const handle: Handle = async ({ event, resolve }) => {
 	 * instead of relying on potentially insecure session data from cookies/storage
 	 */
 	event.locals.getSession = async () => {
-		const {
-			data: { user },
-			error
-		} = await event.locals.supabase.auth.getUser();
+		try {
+			console.log('[Hooks] Getting session for request:', event.url.pathname);
 
-		if (error || !user) {
+			const {
+				data: { user },
+				error
+			} = await event.locals.supabase.auth.getUser();
+
+			if (error) {
+				console.error('[Hooks] Error getting user:', error);
+				return null;
+			}
+
+			if (!user) {
+				console.log('[Hooks] No user found');
+				return null;
+			}
+
+			console.log('[Hooks] User authenticated:', user.id);
+
+			// Return a session-like object with the authenticated user data
+			return {
+				user,
+				access_token: '', // We don't need the actual token for our use cases
+				refresh_token: '',
+				expires_in: 0,
+				token_type: 'bearer',
+				expires_at: 0
+			};
+		} catch (error) {
+			console.error('[Hooks] Unexpected error in getSession:', error);
 			return null;
 		}
-
-		// Return a session-like object with the authenticated user data
-		return {
-			user,
-			access_token: '', // We don't need the actual token for our use cases
-			refresh_token: '',
-			expires_in: 0,
-			token_type: 'bearer',
-			expires_at: 0
-		};
 	};
 
 	return resolve(event, {

@@ -9,22 +9,59 @@ const supabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
   try {
+    console.log('[Jobs API] DELETE request received for job:', params.job_id);
+
     const session = await locals.getSession();
     if (!session?.user) {
+      console.log('[Jobs API] Unauthorized request - no session');
       return errorResponse('Unauthorized', 401);
     }
 
-    // Actually delete the job from the jobs table
-    const { error } = await locals.supabase
+    console.log('[Jobs API] Authorized request for user:', session.user.id);
+
+    const jobId = params.job_id;
+    const userId = session.user.user_metadata?.role === 'admin' ? undefined : session.user.id;
+
+    // First, get the job to check if it exists and belongs to the user
+    let query = locals.supabase.from('jobs').select('*').eq('id', jobId);
+    if (userId) query = query.eq('created_by', userId);
+
+    const { data: job, error: fetchError } = await query.single();
+
+    if (fetchError) {
+      console.error('[Jobs API] Error fetching job:', fetchError);
+      return errorResponse('Job not found', 404);
+    }
+
+    if (!job) {
+      return errorResponse('Job not found', 404);
+    }
+
+    // Check if the job can be cancelled (only queued or running jobs)
+    if (!['queued', 'running'].includes(job.status)) {
+      return errorResponse('Job cannot be cancelled - it is not in a cancellable state', 400);
+    }
+
+    // Cancel the job
+    const { error: updateError } = await locals.supabase
       .from('jobs')
-      .delete()
-      .eq('id', params.job_id);
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+        completed_at: new Date().toISOString()
+      })
+      .eq('id', jobId);
 
-    if (error) throw error;
-	console.log('[DELETE] Job deleted:', params.job_id);
+    if (updateError) {
+      console.error('[Jobs API] Error cancelling job:', updateError);
+      return errorResponse('Failed to cancel job');
+    }
 
-    return successResponse({ success: true });
+    console.log(`[Jobs API] ✅ Job cancelled: ${jobId}`);
+
+    return successResponse({ message: 'Job cancelled successfully' });
   } catch (error) {
+    console.error('[Jobs API] Error in DELETE handler:', error);
     return errorResponse(error);
   }
 };

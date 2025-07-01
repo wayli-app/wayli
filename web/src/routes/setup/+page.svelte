@@ -134,6 +134,32 @@
 				</p>
 			</div>
 
+			<!-- Database Health Status -->
+			{#if data.dbHealth}
+				<div class="mb-6 p-4 rounded-lg border {data.dbHealth.healthy ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'}">
+					<div class="flex items-center gap-2 mb-2">
+						<div class="w-2 h-2 rounded-full {data.dbHealth.healthy ? 'bg-green-500' : 'bg-yellow-500'}"></div>
+						<h3 class="font-medium text-sm {data.dbHealth.healthy ? 'text-green-800 dark:text-green-200' : 'text-yellow-800 dark:text-yellow-200'}">
+							Database Status: {data.dbHealth.healthy ? 'Healthy' : 'Needs Setup'}
+						</h3>
+					</div>
+					<div class="text-xs {data.dbHealth.healthy ? 'text-green-700 dark:text-green-300' : 'text-yellow-700 dark:text-yellow-300'}">
+						{#if data.dbHealth.healthy}
+							✅ Database is initialized and ready
+						{:else}
+							⚠️ Database needs initialization
+							{#if data.dbHealth.errors.length > 0}
+								<ul class="mt-1 list-disc list-inside">
+									{#each data.dbHealth.errors as error}
+										<li>{error}</li>
+									{/each}
+								</ul>
+							{/if}
+						{/if}
+					</div>
+				</div>
+			{/if}
+
 			<!-- Error Message -->
 			{#if data.error}
 				<div class="mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">

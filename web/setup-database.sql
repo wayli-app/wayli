@@ -61,6 +61,24 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.points_of_interest (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create poi_visits table to track when users visit POIs
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.poi_visits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    poi_id UUID REFERENCES %%SCHEMA%%.points_of_interest(id) ON DELETE CASCADE,
+    visit_start TIMESTAMP WITH TIME ZONE NOT NULL,
+    visit_end TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_minutes INTEGER NOT NULL, -- Duration in minutes
+    location GEOMETRY(POINT, 4326), -- PostGIS point with WGS84 SRID (where they actually stayed)
+    address TEXT, -- Address where they stayed
+    confidence_score DECIMAL(3,2) CHECK (confidence_score >= 0 AND confidence_score <= 1), -- How confident we are this was a real visit
+    visit_type TEXT DEFAULT 'detected' CHECK (visit_type IN ('detected', 'manual', 'confirmed')),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, poi_id, visit_start) -- Prevent duplicate visits for same POI at same time
+);
+
 -- Create user_preferences table
 CREATE TABLE IF NOT EXISTS %%SCHEMA%%.user_preferences (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -137,6 +155,18 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.workers (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create temporary files table for storing file content during import jobs
+CREATE TABLE IF NOT EXISTS %%SCHEMA%%.temp_files (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_content TEXT NOT NULL,
+    format TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
+);
+
 -- Note: Workers table does not have RLS enabled since workers are system processes
 -- ALTER TABLE %%SCHEMA%%.workers ENABLE ROW LEVEL SECURITY;
 
@@ -160,6 +190,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_worker_id ON %%SCHEMA%%.jobs(worker_id);
 CREATE INDEX IF NOT EXISTS idx_workers_status ON %%SCHEMA%%.workers(status);
 CREATE INDEX IF NOT EXISTS idx_workers_last_heartbeat ON %%SCHEMA%%.workers(last_heartbeat);
 CREATE INDEX IF NOT EXISTS idx_workers_updated_at ON %%SCHEMA%%.workers(updated_at);
+CREATE INDEX IF NOT EXISTS idx_temp_files_user_id ON %%SCHEMA%%.temp_files(user_id);
+CREATE INDEX IF NOT EXISTS idx_temp_files_expires_at ON %%SCHEMA%%.temp_files(expires_at);
 
 -- Create PostGIS spatial indexes
 CREATE INDEX IF NOT EXISTS idx_locations_location ON %%SCHEMA%%.locations USING GIST(location);
@@ -283,6 +315,23 @@ CREATE POLICY "Allow service role to update jobs" ON %%SCHEMA%%.jobs
 CREATE POLICY "Workers can update jobs" ON %%SCHEMA%%.jobs
     FOR UPDATE USING (true);
 
+-- Enable RLS on temp_files table
+ALTER TABLE %%SCHEMA%%.temp_files ENABLE ROW LEVEL SECURITY;
+
+-- Temp files policies
+CREATE POLICY "Users can view their own temp files" ON %%SCHEMA%%.temp_files
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own temp files" ON %%SCHEMA%%.temp_files
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own temp files" ON %%SCHEMA%%.temp_files
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Allow service role to access temp files for job processing
+CREATE POLICY "Service role can access temp files" ON %%SCHEMA%%.temp_files
+    FOR ALL USING (auth.role() = 'service_role');
+
 -- Workers table does not have RLS enabled since workers are system processes
 -- No RLS policies needed for workers table
 
@@ -326,6 +375,21 @@ DROP TRIGGER IF EXISTS update_workers_updated_at ON %%SCHEMA%%.workers;
 CREATE TRIGGER update_workers_updated_at
     BEFORE UPDATE ON %%SCHEMA%%.workers
     FOR EACH ROW EXECUTE FUNCTION %%SCHEMA%%.update_workers_updated_at();
+
+-- Create function to clean up expired temporary files
+CREATE OR REPLACE FUNCTION %%SCHEMA%%.cleanup_expired_temp_files()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM %%SCHEMA%%.temp_files
+    WHERE expires_at < NOW();
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create helper functions for PostGIS operations
 

@@ -3,7 +3,7 @@ import { successResponse, errorResponse, validationErrorResponse } from '$lib/ut
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { detectMode, haversine } from '$lib/utils/transport-mode';
+import { detectMode, detectTrainMode } from '$lib/utils/transport-mode';
 import type { ModeContext } from '$lib/utils/transport-mode';
 
 interface LocationData {
@@ -194,13 +194,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       } else {
         console.log('API: All tracker data points fetched for mode calculation:', allTrackerData?.length || 0);
 
-        // Calculate transport modes for all tracker points
-        const trackerDataWithModes = allTrackerData?.map((track, index) => {
-          let transportMode = 'unknown';
-          let isInTrainJourney = false;
-          let atTrainType = false;
+        // Enhanced train detection with velocity-based continuity
+        const modeContext: ModeContext = {};
 
-          // Check if this point is at a railway location based on extended train type logic
+        const finalTrackerData = allTrackerData?.map((track, index) => {
+          let transportMode = 'unknown';
+
+          // Check if this point is at a railway location
+          let atTrainLocation = false;
           if (track.reverse_geocode) {
             try {
               const geocode = typeof track.reverse_geocode === 'string'
@@ -213,36 +214,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                 (geocode && geocode.type === 'platform') ||
                 (geocode && geocode.addresstype === 'railway')
               ) {
-                atTrainType = true;
+                atTrainLocation = true;
               }
             } catch { /* Ignore parsing errors */ }
           }
 
-          // Calculate speed if possible
-          let speedKmh = 0;
+          // Calculate transport mode if we have a previous point
           if (index > 0) {
-            const prevTrack = allTrackerData[index - 1];
-            const prevCoords = extractCoordinates(prevTrack.location);
-            const currCoords = extractCoordinates(track.location);
-            if (prevCoords && currCoords) {
-              const prevTime = new Date(prevTrack.recorded_at).getTime();
-              const currTime = new Date(track.recorded_at).getTime();
-              const dt = (currTime - prevTime) / 1000; // seconds
-              if (dt > 0) {
-                const distance = haversine(prevCoords.lat, prevCoords.lng, currCoords.lat, currCoords.lng);
-                speedKmh = (distance / dt) * 3.6;
-              }
-            }
-          }
-
-          // Start train journey if at train type and speed is in train range
-          if (atTrainType && speedKmh > 30 && speedKmh < 300) {
-            transportMode = 'train';
-            isInTrainJourney = true;
-          }
-
-          // If not determined by above, calculate based on speed and context
-          if (transportMode === 'unknown' && index > 0) {
             const prevTrack = allTrackerData[index - 1];
             const prevCoords = extractCoordinates(prevTrack.location);
             const currCoords = extractCoordinates(track.location);
@@ -254,81 +232,35 @@ export const GET: RequestHandler = async ({ url, locals }) => {
               const dt = (currTime - prevTime) / 1000; // seconds
 
               if (dt > 0) {
-                // Calculate mode using the same logic as statistics API
-                const modeContext: ModeContext = {};
-                transportMode = detectMode(
+                // Use enhanced train detection
+                const trainDetection = detectTrainMode(
                   prevCoords.lat, prevCoords.lng,
                   currCoords.lat, currCoords.lng,
                   dt,
+                  atTrainLocation,
                   modeContext
                 );
-              }
-            }
-          }
 
-          return {
-            ...track,
-            transport_mode: transportMode,
-            isInTrainJourney,
-            atTrainType
-          };
-        }) || [];
+                transportMode = trainDetection.mode;
 
-        // Post-process to handle train journey continuity
-        let currentTrainJourney = false;
-        const finalTrackerData = trackerDataWithModes.map((track, index) => {
-          let finalTransportMode = track.transport_mode;
-
-          // Start train journey if at train type and speed is in train range
-          if (track.atTrainType && track.transport_mode === 'train') {
-            currentTrainJourney = true;
-            finalTransportMode = 'train';
-          }
-          // Continue train journey if already started and speed is in train range (now 30-120 km/h)
-          else if (currentTrainJourney && index > 0) {
-            const prevTrack = trackerDataWithModes[index - 1];
-            const prevCoords = extractCoordinates(prevTrack.location);
-            const currCoords = extractCoordinates(track.location);
-            if (prevCoords && currCoords) {
-              const prevTime = new Date(prevTrack.recorded_at).getTime();
-              const currTime = new Date(track.recorded_at).getTime();
-              const dt = (currTime - prevTime) / 1000; // seconds
-              let speedKmh = 0;
-              if (dt > 0) {
-                const distance = haversine(prevCoords.lat, prevCoords.lng, currCoords.lat, currCoords.lng);
-                speedKmh = (distance / dt) * 3.6;
-              }
-              // Continue train journey if speed is in train range (30-120) or still at train type
-              if ((speedKmh > 30 && speedKmh < 120) || track.atTrainType) {
-                finalTransportMode = 'train';
-              } else {
-                // End train journey if speed drops below 30 and not at train type
-                if (!track.atTrainType && speedKmh <= 30) {
-                  currentTrainJourney = false;
-                  // Fallback to regular detection
-                  const modeContext: ModeContext = {};
-                  finalTransportMode = detectMode(
+                // If not detected as train, use regular mode detection
+                if (transportMode !== 'train') {
+                  transportMode = detectMode(
                     prevCoords.lat, prevCoords.lng,
                     currCoords.lat, currCoords.lng,
                     dt,
                     modeContext
                   );
-                } else {
-                  // Still at train type, keep as train
-                  finalTransportMode = 'train';
                 }
               }
             }
-          } else {
-            // Not in a train journey
-            currentTrainJourney = false;
           }
 
           return {
             ...track,
-            transport_mode: finalTransportMode
+            transport_mode: transportMode
           };
-        });
+        }) || [];
 
         // Apply pagination to the processed data
         const paginatedTrackerData = finalTrackerData

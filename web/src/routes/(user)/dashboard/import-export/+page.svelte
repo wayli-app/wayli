@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Import, FileDown, Database, Image, FileText, MapPin, Route, Upload } from 'lucide-svelte';
+	import { Import, FileDown, Database, Image, FileText, MapPin, Route, Upload, Clock } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { supabase } from '$lib/supabase';
 	import { onMount, onDestroy } from 'svelte';
@@ -10,6 +10,9 @@
 	import { writable } from 'svelte/store';
 	import { createClient } from '@supabase/supabase-js';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
+	import { sessionStore } from '$lib/stores/auth';
+	import { get } from 'svelte/store';
+	import type { Job } from '$lib/types/job-queue.types';
 
 	let importFormat: string | null = null;
 	let exportFormat = 'GeoJSON';
@@ -26,6 +29,10 @@
 	let fileInputEl: HTMLInputElement | null = null;
 	let importStartTime: number | null = null;
 	let eta: string | null = null;
+
+	// Active import job tracking
+	let activeImportJob: Job | null = null;
+	let jobPollingInterval: NodeJS.Timeout | null = null;
 
 	const importFormats = [
 		{ value: 'GeoJSON', label: 'GeoJSON', icon: MapPin, description: 'Geographic data in JSON format' },
@@ -98,7 +105,7 @@
 		console.log('🚀 Starting import process...', { fileName: file.name, fileSize: file.size, format: importFormat });
 		isImporting.set(true);
 		importProgress = 0;
-		importStatus.set('Starting import...');
+		importStatus.set('Creating import job...');
 		importedCount = 0;
 		totalCount = 0;
 		importStartTime = Date.now();
@@ -108,22 +115,19 @@
 			description: `Processing ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
 		});
 
-		const importId = `import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		let jobId: string | null = null;
 		let progressInterval: NodeJS.Timeout | null = null;
 
 		try {
 			const formData = new FormData();
 			formData.append('file', file);
 			formData.append('format', importFormat);
-			formData.append('importId', importId); // Send import ID to server
 
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
 
-			importStatus.set('Uploading file...');
+			importStatus.set('Uploading file and creating job...');
 			importProgress = 0;
-
-			progressInterval = setInterval(() => pollProgress(importId), 1000); // Poll every second
 
 			const response = await fetch('/api/v1/import', {
 				method: 'POST',
@@ -139,42 +143,88 @@
 			}
 
 			const result = await response.json();
-			console.log('✅ Import completed successfully:', result);
+			console.log('✅ Import job created successfully:', result);
 
-			if (result.success) {
-				importedCount = result.importedCount || 0;
-				totalCount = result.totalCount || 0;
-				importStatus.set('Import completed successfully!');
-				isImporting.set(false);
+			if (result.success && result.data?.jobId) {
+				jobId = result.data.jobId;
+				importStatus.set('Job created, waiting for worker to start...');
 
-				toast.success(`Import completed successfully!`, {
-					description: `Imported ${importedCount} items (track points → Tracking Data)`
+				// Create a job object for tracking
+				activeImportJob = {
+					id: jobId!,
+					type: 'data_import',
+					status: 'queued',
+					data: {
+						fileName: file.name,
+						format: importFormat,
+						fileSize: file.size
+					},
+					progress: 0,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+					created_by: '',
+					priority: 'normal'
+				};
+
+				// Start polling for job updates
+				startJobPolling();
+
+				toast.success(`Import job created successfully!`, {
+					description: `Job ID: ${jobId}. Check the Jobs page for detailed progress.`
 				});
 
-				try {
-					const { data: trackerData, error: trackerError, count: trackerCount } = await supabase
-						.from('tracker_data')
-						.select('*', { count: 'exact', head: true });
-					if (!trackerError && trackerCount !== null) {
-						console.log(`✅ Database verification: Found ${trackerCount} tracker records`);
-						toast.info(`Database verification: ${trackerCount} tracker records found`, {
-							description: `Check the Tracking pages to view your imported data`
-						});
-					} else {
-						console.error('❌ Database verification failed:', { trackerError });
-					}
-				} catch (verifyError) {
-					console.error('❌ Database verification error:', verifyError);
-				}
+				// Continue polling until job is completed or failed
+				await new Promise<void>((resolve, reject) => {
+					const checkInterval = setInterval(async () => {
+						try {
+							const session = get(sessionStore);
+							const headers: Record<string, string> = {};
+							if (session?.access_token) {
+								headers['Authorization'] = `Bearer ${session.access_token}`;
+							}
 
-				setTimeout(() => {
-					importProgress = 0;
-					importStatus.set('');
-					importedCount = 0;
-					totalCount = 0;
-				}, 5000);
+							const jobResponse = await fetch(`/api/v1/jobs/${jobId}`, { headers });
+							if (jobResponse.ok) {
+								const jobData = await jobResponse.json();
+								const job = jobData.data?.job || jobData.job;
+
+								if (job && (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled')) {
+									clearInterval(checkInterval);
+
+									if (job.status === 'completed') {
+										const result = job.result as Record<string, unknown> || {};
+										importedCount = (result.importedCount as number) || 0;
+										totalCount = (result.totalItems as number) || importedCount;
+										importStatus.set('Import completed successfully!');
+
+										toast.success(`Import completed successfully!`, {
+											description: `Imported ${importedCount} items`
+										});
+									} else if (job.status === 'failed') {
+										importStatus.set('Import failed');
+										toast.error('Import failed', {
+											description: job.error || 'Unknown error occurred'
+										});
+									} else {
+										importStatus.set('Import cancelled');
+										toast.info('Import was cancelled');
+									}
+
+									// Clear the active job
+									activeImportJob = null;
+									stopJobPolling();
+
+									resolve();
+								}
+							}
+						} catch (error) {
+							console.error('Error checking job status:', error);
+						}
+					}, 2000); // Check every 2 seconds
+				});
+
 			} else {
-				throw new Error(result.message || 'Import failed');
+				throw new Error(result.message || 'Failed to create import job');
 			}
 		} catch (error) {
 			console.error('❌ Import failed:', error);
@@ -190,38 +240,7 @@
 		}
 	}
 
-	// Function to poll for progress updates
-	async function pollProgress(importId: string) {
-		try {
-			const response = await fetch(`/api/v1/import/progress?id=${importId}`);
-			if (response.ok) {
-				const result = await response.json();
-				const progress = result.data || {};
-				importProgress = progress.percentage ?? 0;
-				importStatus.set(progress.status);
-				importedCount = progress.current;
-				totalCount = progress.total;
 
-				// ETA calculation
-				if (importProgress > 0 && importProgress < 100 && importStartTime) {
-					const elapsed = (Date.now() - importStartTime) / 1000; // seconds
-					const estimatedTotal = elapsed / (importProgress / 100);
-					const remaining = estimatedTotal - elapsed;
-					if (remaining > 0) {
-						const mins = Math.floor(remaining / 60);
-						const secs = Math.round(remaining % 60);
-						eta = `${mins > 0 ? mins + 'm ' : ''}${secs}s remaining`;
-					} else {
-						eta = null;
-					}
-				} else {
-					eta = null;
-				}
-			}
-		} catch (error) {
-			console.error('Error polling progress:', error);
-		}
-	}
 
 	async function handleExport() {
 		toast.promise(
@@ -244,6 +263,141 @@
 			}
 		);
 	}
+
+	onMount(() => {
+		checkForActiveImportJob();
+	});
+
+	onDestroy(() => {
+		if (jobPollingInterval) {
+			clearInterval(jobPollingInterval);
+		}
+	});
+
+	async function checkForActiveImportJob() {
+		try {
+			const session = get(sessionStore);
+			const headers: Record<string, string> = {};
+			if (session?.access_token) {
+				headers['Authorization'] = `Bearer ${session.access_token}`;
+			}
+
+			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
+			const data = await response.json();
+
+			if (data.success && data.data?.jobs) {
+				const activeJobs = data.data.jobs.filter((job: Job) =>
+					job.type === 'data_import' &&
+					(job.status === 'queued' || job.status === 'running')
+				);
+
+				if (activeJobs.length > 0) {
+					activeImportJob = activeJobs[0]; // Get the most recent active job
+					console.log('Found active import job:', activeImportJob);
+
+					// Start polling for job updates
+					startJobPolling();
+
+					// Set the import state to show progress
+					isImporting.set(true);
+					importStartTime = Date.now();
+
+					// Update progress from job data
+					if (activeImportJob) {
+						updateProgressFromJob(activeImportJob);
+					}
+				}
+			}
+		} catch (error) {
+			console.error('Error checking for active import jobs:', error);
+		}
+	}
+
+	function startJobPolling() {
+		if (jobPollingInterval) {
+			clearInterval(jobPollingInterval);
+		}
+
+		jobPollingInterval = setInterval(async () => {
+			if (!activeImportJob) return;
+
+			try {
+				const session = get(sessionStore);
+				const headers: Record<string, string> = {};
+				if (session?.access_token) {
+					headers['Authorization'] = `Bearer ${session.access_token}`;
+				}
+
+				const response = await fetch(`/api/v1/jobs/${activeImportJob.id}`, { headers });
+				const data = await response.json();
+
+				if (data.success && data.data?.job) {
+					const job = data.data.job;
+					activeImportJob = job;
+					updateProgressFromJob(job);
+
+					// Check if job is completed
+					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+						stopJobPolling();
+						isImporting.set(false);
+
+						if (job.status === 'completed') {
+							const result = job.result as Record<string, unknown> || {};
+							importedCount = (result.importedCount as number) || 0;
+							totalCount = (result.totalItems as number) || importedCount;
+							importStatus.set('Import completed successfully!');
+
+							toast.success(`Import completed successfully!`, {
+								description: `Imported ${importedCount} items`
+							});
+						} else if (job.status === 'failed') {
+							importStatus.set('Import failed');
+							toast.error('Import failed', {
+								description: job.error || 'Unknown error occurred'
+							});
+						} else {
+							importStatus.set('Import cancelled');
+							toast.info('Import was cancelled');
+						}
+					}
+				}
+			} catch (error) {
+				console.error('Error polling job status:', error);
+			}
+		}, 2000); // Poll every 2 seconds
+	}
+
+	function stopJobPolling() {
+		if (jobPollingInterval) {
+			clearInterval(jobPollingInterval);
+			jobPollingInterval = null;
+		}
+	}
+
+	function updateProgressFromJob(job: Job) {
+		importProgress = job.progress || 0;
+
+		const result = job.result as Record<string, unknown> || {};
+		importStatus.set(result.message as string || job.status);
+		importedCount = (result.totalProcessed as number) || 0;
+		totalCount = (result.totalItems as number) || 0;
+
+		// ETA calculation
+		if (importProgress > 0 && importProgress < 100 && importStartTime) {
+			const elapsed = (Date.now() - importStartTime) / 1000; // seconds
+			const estimatedTotal = elapsed / (importProgress / 100);
+			const remaining = estimatedTotal - elapsed;
+			if (remaining > 0) {
+				const mins = Math.floor(remaining / 60);
+				const secs = Math.round(remaining % 60);
+				eta = `${mins > 0 ? mins + 'm ' : ''}${secs}s remaining`;
+			} else {
+				eta = null;
+			}
+		} else {
+			eta = null;
+		}
+	}
 </script>
 
 <div>
@@ -262,7 +416,9 @@
 				<FileDown class="h-5 w-5 text-gray-400" />
 				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Import Data</h2>
 			</div>
-			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">Import your travel data from various sources</p>
+			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+				Import your travel data from various sources. Imports are processed in the background by workers and you can track progress on the Jobs page.
+			</p>
 
 			<div class="flex-1 space-y-4">
 				<div>
@@ -304,19 +460,51 @@
 			<button
 				type="button"
 				on:click={handleImport}
-				disabled={$isImporting || !selectedFile}
+				disabled={$isImporting || !selectedFile || activeImportJob !== null}
 				class="mt-6 flex w-full items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 			>
 				{#if $isImporting}
 					<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
 					Importing... (This may take a few minutes for large files)
+				{:else if activeImportJob}
+					<Clock class="h-4 w-4" />
+					Import in Progress
 				{:else}
 					<Import class="h-4 w-4" />
 					Import Data
 				{/if}
 			</button>
 
-			{#if $isImporting}
+			{#if activeImportJob}
+				<div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+					<p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
+						📤 Active import job detected: {activeImportJob.data?.fileName || 'Unknown file'}
+					</p>
+					<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
+						<div
+							class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+							style="width: {importProgress}%"
+						></div>
+					</div>
+					<p class="text-xs text-blue-600 dark:text-blue-400 mb-2">
+						Progress: {importProgress}%
+						{#if importedCount > 0}
+							({importedCount} items processed)
+						{/if}
+					</p>
+					{#if eta}
+						<p class="text-xs text-blue-600 dark:text-blue-400 mt-1">ETA: {eta}</p>
+					{/if}
+					<p class="text-xs text-blue-600 dark:text-blue-400 mb-2">
+						Job ID: {activeImportJob.id} | Status: {activeImportJob.status}
+					</p>
+					<p class="text-xs text-blue-600 dark:text-blue-400">
+						<a href="/dashboard/jobs" class="underline hover:no-underline">
+							View detailed progress on Jobs page →
+						</a>
+					</p>
+				</div>
+			{:else if $isImporting}
 				<div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
 					<p class="text-sm text-blue-800 dark:text-blue-200 mb-2">
 						📤 {$importStatus}
@@ -337,7 +525,9 @@
 						<p class="text-xs text-blue-600 dark:text-blue-400 mt-1">ETA: {eta}</p>
 					{/if}
 					<p class="text-xs text-blue-600 dark:text-blue-400 mt-2">
-						Check the browser console for detailed progress updates.
+						<a href="/dashboard/jobs" class="underline hover:no-underline">
+							View detailed progress on Jobs page →
+						</a>
 					</p>
 				</div>
 			{:else if importedCount > 0}
@@ -349,6 +539,11 @@
 						Imported {importedCount} items (track points → Tracking Data).
 						<a href="/dashboard/points-of-interest" class="underline hover:no-underline">
 							View Tracking Data →
+						</a>
+					</p>
+					<p class="text-xs text-green-600 dark:text-green-400">
+						<a href="/dashboard/jobs" class="underline hover:no-underline">
+							View job history →
 						</a>
 					</p>
 				</div>
