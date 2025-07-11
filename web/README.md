@@ -194,7 +194,7 @@ RETRY_DELAY=60000
 Run the database setup script to create all necessary tables and policies:
 
 ```sql
--- Run setup-database.sql in your Supabase SQL editor
+-- Run sql/setup-database.sql in your Supabase SQL editor
 ```
 
 ## Development
@@ -256,7 +256,7 @@ web/
 │   │   ├── api/            # API endpoints
 │   │   └── setup/          # Initial setup flow
 │   └── static/             # Static assets
-├── setup-database.sql      # Database initialization script
+├── sql/setup-database.sql      # Database initialization script
 └── SETUP.md               # Detailed setup guide
 ```
 

@@ -2,7 +2,6 @@ let PUBLIC_SUPABASE_URL: string = '';
 let PUBLIC_SUPABASE_ANON_KEY: string = '';
 
 try {
-  // @ts-expect-error SvelteKit $env/static/public only available in SvelteKit runtime
   const envMod = await import('$env/static/public');
   PUBLIC_SUPABASE_URL = envMod.PUBLIC_SUPABASE_URL;
   PUBLIC_SUPABASE_ANON_KEY = envMod.PUBLIC_SUPABASE_ANON_KEY;
@@ -31,6 +30,10 @@ export interface EnvironmentConfig {
   nominatim: {
     endpoint: string;
     rateLimit: number;
+  };
+
+  unsplash: {
+    accessKey: string;
   };
 
   // Application Configuration
@@ -94,6 +97,9 @@ export function validateEnvironmentConfig(): EnvironmentConfig {
     errors.push('NOMINATIM_RATE_LIMIT must be a number between 0.1 and 10');
   }
 
+  // Note: Unsplash access key is optional, so we don't validate it
+  const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY || '';
+
   // Report all errors
   if (errors.length > 0) {
     console.error('Environment configuration errors:');
@@ -116,6 +122,9 @@ export function validateEnvironmentConfig(): EnvironmentConfig {
     nominatim: {
       endpoint: nominatimEndpoint,
       rateLimit: nominatimRateLimit
+    },
+    unsplash: {
+      accessKey: unsplashAccessKey
     },
     app: {
       nodeEnv: process.env.NODE_ENV || 'development',
@@ -147,4 +156,8 @@ export function getWorkerConfig() {
 
 export function getNominatimConfig() {
   return env.nominatim;
+}
+
+export function getUnsplashConfig() {
+  return env.unsplash;
 }

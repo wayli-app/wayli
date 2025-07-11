@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { User, Settings, Bell, Globe, Shield, Key, QrCode, Download, Upload, Trash2, Save, X, Check, AlertCircle, Info, Lock } from 'lucide-svelte';
+	import { User, Settings, Bell, Globe, Shield, Key, QrCode, Download, Upload, Trash2, Save, X, Check, AlertCircle, Info, Lock, MapPin, Plus } from 'lucide-svelte';
 	import { supabase } from '$lib/supabase';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
@@ -37,6 +37,17 @@
 	let selectedHomeAddressIndex = -1;
 	let homeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let homeAddressSearchError: string | null = null;
+
+	// Trip exclusions state
+	let tripExclusions: any[] = [];
+	let showAddExclusionModal = false;
+	let newExclusion = {
+		name: '',
+		value: '',
+		exclusion_type: 'city' as 'city' | 'address' | 'region'
+	};
+	let isAddingExclusion = false;
+	let isDeletingExclusion = false;
 
 	const languages = ['en', 'nl'];
 	const timezones = [
@@ -88,8 +99,12 @@
 
 			console.log('Using access token:', accessToken.substring(0, 20) + '...');
 
+			// Get Supabase configuration
+			const { getSupabaseConfig } = await import('$lib/core/config/environment');
+			const config = getSupabaseConfig();
+
 			// Make request with real access token
-			const response = await fetch('https://wayli.int.hazen.nu/auth/v1/user', {
+			const response = await fetch(`${config.url}/auth/v1/user`, {
 				method: 'GET',
 				headers: {
 					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
@@ -148,7 +163,12 @@
 		try {
 			// Test 1: Try to fetch from the auth endpoint directly
 			console.log('Test 1: Fetching auth endpoint directly...');
-			const response = await fetch('https://wayli.int.hazen.nu/auth/v1/user', {
+
+			// Get Supabase configuration
+			const { getSupabaseConfig } = await import('$lib/core/config/environment');
+			const config = getSupabaseConfig();
+
+			const response = await fetch(`${config.url}/auth/v1/user`, {
 				method: 'GET',
 				headers: {
 					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
@@ -301,7 +321,92 @@
 
 	onMount(async () => {
 		await loadUserData();
+		await loadTripExclusions();
 	});
+
+	async function loadTripExclusions() {
+		try {
+			const response = await fetch('/api/v1/trip-exclusions', {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to load trip exclusions');
+			}
+
+			const result = await response.json();
+			if (result.success) {
+				tripExclusions = result.data.exclusions || [];
+			}
+		} catch (error) {
+			console.error('Error loading trip exclusions:', error);
+		}
+	}
+
+	async function handleAddExclusion() {
+		if (!newExclusion.name || !newExclusion.value) {
+			toast.error('Please fill in all fields');
+			return;
+		}
+
+		isAddingExclusion = true;
+		try {
+			const response = await fetch('/api/v1/trip-exclusions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(newExclusion)
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to add exclusion');
+			}
+
+			const result = await response.json();
+			if (result.success) {
+				tripExclusions = [result.data.exclusion, ...tripExclusions];
+				newExclusion = { name: '', value: '', exclusion_type: 'city' };
+				showAddExclusionModal = false;
+				toast.success('Trip exclusion added successfully');
+			}
+		} catch (error) {
+			console.error('Error adding exclusion:', error);
+			toast.error('Failed to add exclusion');
+		} finally {
+			isAddingExclusion = false;
+		}
+	}
+
+	async function handleDeleteExclusion(exclusionId: string) {
+		isDeletingExclusion = true;
+		try {
+			const response = await fetch('/api/v1/trip-exclusions', {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ id: exclusionId })
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to delete exclusion');
+			}
+
+			tripExclusions = tripExclusions.filter(ex => ex.id !== exclusionId);
+			toast.success('Trip exclusion deleted successfully');
+		} catch (error) {
+			console.error('Error deleting exclusion:', error);
+			toast.error('Failed to delete exclusion');
+		} finally {
+			isDeletingExclusion = false;
+		}
+	}
 
 	async function handleSaveProfile() {
 		console.log('handleSaveProfile called with:', { firstNameInput, lastNameInput, selectedHomeAddress });
@@ -837,6 +942,65 @@
 				{isUpdatingPreferences ? 'Saving Preferences...' : 'Save Preferences'}
 			</button>
 		</div>
+
+		<!-- Trip Exclusions -->
+		<div class="mt-8 rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
+			<div class="mb-6">
+				<div class="flex items-center gap-2">
+					<MapPin class="h-5 w-5 text-gray-400" />
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Trip Exclusions</h2>
+				</div>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
+					Configure places to exclude from automatic trip generation. Maximum 10 exclusions allowed.
+				</p>
+			</div>
+
+			<div class="space-y-4">
+				{#if tripExclusions.length > 0}
+					<div class="space-y-3">
+						{#each tripExclusions as exclusion}
+							<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+								<div class="flex-1">
+									<div class="font-medium text-gray-900 dark:text-gray-100">{exclusion.name}</div>
+									<div class="text-sm text-gray-600 dark:text-gray-400">{exclusion.value}</div>
+									{#if exclusion.location?.display_name}
+										<div class="text-xs text-gray-500 dark:text-gray-500">{exclusion.location.display_name}</div>
+									{/if}
+									<div class="text-xs text-gray-500 dark:text-gray-500 capitalize">{exclusion.exclusion_type}</div>
+								</div>
+								<button
+									on:click={() => handleDeleteExclusion(exclusion.id)}
+									disabled={isDeletingExclusion}
+									class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+								>
+									<Trash2 class="w-4 h-4" />
+								</button>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="text-center py-8 text-gray-500 dark:text-gray-400">
+						<MapPin class="w-12 h-12 mx-auto mb-4 opacity-50" />
+						<p>No trip exclusions configured</p>
+						<p class="text-sm">Add exclusions to prevent certain places from being considered as trips</p>
+					</div>
+				{/if}
+
+				{#if tripExclusions.length < 10}
+					<button
+						on:click={() => showAddExclusionModal = true}
+						class="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+					>
+						<Plus class="w-4 h-4" />
+						Add Trip Exclusion
+					</button>
+				{:else}
+					<div class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+						Maximum of 10 trip exclusions reached
+					</div>
+				{/if}
+			</div>
+		</div>
 	{/if}
 </div>
 
@@ -853,3 +1017,62 @@
 	on:close={handleTwoFactorDisableClose}
 	on:disabled={handleTwoFactorDisableClose}
 />
+
+<!-- Add Trip Exclusion Modal -->
+{#if showAddExclusionModal}
+	<!-- Modal Overlay -->
+	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
+		on:click={() => showAddExclusionModal = false}>
+		<!-- Modal Box -->
+		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
+			on:click|stopPropagation>
+			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Add Trip Exclusion</h3>
+			<div class="space-y-6">
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+					<input
+						type="text"
+						bind:value={newExclusion.name}
+						placeholder="e.g., Work Office"
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Value</label>
+					<input
+						type="text"
+						bind:value={newExclusion.value}
+						placeholder="e.g., Amsterdam, Netherlands"
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+					<select
+						bind:value={newExclusion.exclusion_type}
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+					>
+						<option value="city">City</option>
+						<option value="address">Address</option>
+						<option value="region">Region</option>
+					</select>
+				</div>
+				<div class="flex gap-3 mt-4">
+					<button
+						on:click={handleAddExclusion}
+						disabled={isAddingExclusion || !newExclusion.name || !newExclusion.value}
+						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{isAddingExclusion ? 'Adding...' : 'Add Exclusion'}
+					</button>
+					<button
+						on:click={() => showAddExclusionModal = false}
+						class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer"
+					>
+						Cancel
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}

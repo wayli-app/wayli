@@ -1,17 +1,12 @@
+import type { GeocodedLocation } from './geocoding.types';
+
 export interface UserProfile {
   id: string;
   email: string;
   first_name?: string;
   last_name?: string;
   full_name?: string;
-  home_address?: string | {
-    display_name: string;
-    coordinates?: {
-      lat: number;
-      lng: number;
-    };
-    address?: Record<string, string | number | boolean>;
-  };
+  home_address?: string | GeocodedLocation;
   home_location?: {
     lat: number;
     lng: number;
@@ -43,14 +38,7 @@ export interface UpdateProfileRequest {
   first_name?: string;
   last_name?: string;
   full_name?: string;
-  home_address?: string | {
-    display_name: string;
-    coordinates?: {
-      lat: number;
-      lng: number;
-    };
-    address?: Record<string, string | number | boolean>;
-  };
+  home_address?: string | GeocodedLocation;
   avatar_url?: string;
 }
 

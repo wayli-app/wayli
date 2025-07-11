@@ -1,4 +1,5 @@
 import type { Job, JobType } from '$lib/types/job-queue.types';
+import type { TripGenerationData, TripExclusion, TrackerDataPoint, DetectedTrip, HomeAddress } from '$lib/types/trip-generation.types';
 import { reverseGeocode } from '../external/nominatim.service';
 import { supabase } from '$lib/core/supabase/worker';
 import { JobQueueService } from './job-queue.service.worker';
@@ -46,7 +47,8 @@ export class JobProcessorService {
       'reverse_geocoding_missing': this.processReverseGeocodingMissing.bind(this),
       'trip_cover_generation': this.processTripCoverGeneration.bind(this),
       'data_import': this.processDataImport.bind(this),
-      'poi_visit_detection': this.processPoiVisitDetection.bind(this)
+      'poi_visit_detection': this.processPoiVisitDetection.bind(this),
+      'trip_generation': this.processTripGeneration.bind(this)
     };
 
     return processors[jobType];
@@ -344,6 +346,124 @@ export class JobProcessorService {
   private static async processTripCoverGeneration(job: Job): Promise<void> {
     console.log(`🖼️ Processing trip cover generation job ${job.id}`);
     // Implementation would go here
+  }
+
+    private static async processTripGeneration(job: Job): Promise<void> {
+    console.log(`🗺️ Processing trip generation job ${job.id}`);
+
+    const startTime = Date.now();
+    const userId = job.created_by;
+    const { startDate, endDate, useCustomHomeAddress, customHomeAddress } = job.data as unknown as TripGenerationData;
+
+    try {
+      // Check for cancellation before starting
+      await this.checkJobCancellation(job.id);
+
+      // Update job progress
+      await JobQueueService.updateJobProgress(job.id, 5, {
+        message: 'Starting trip generation analysis...',
+        startDate,
+        endDate
+      });
+
+      // Get user's home address
+      let homeAddress = null;
+      if (useCustomHomeAddress && customHomeAddress) {
+        homeAddress = customHomeAddress;
+      } else {
+        // Get user's stored home address from metadata
+        const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId);
+        if (userError) throw userError;
+
+        homeAddress = user.user?.user_metadata?.home_address;
+      }
+
+      await JobQueueService.updateJobProgress(job.id, 10, {
+        message: 'Retrieved home address, fetching GPS data...',
+        homeAddress: homeAddress ? 'configured' : 'not configured'
+      });
+
+      // Fetch GPS data for the date range
+      const { data: trackerData, error: trackerError } = await supabase
+        .from('tracker_data')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('recorded_at', `${startDate}T00:00:00Z`)
+        .lte('recorded_at', `${endDate}T23:59:59Z`)
+        .order('recorded_at', { ascending: true });
+
+      if (trackerError) throw trackerError;
+
+      await JobQueueService.updateJobProgress(job.id, 20, {
+        message: `Fetched ${trackerData?.length || 0} GPS data points`,
+        dataPoints: trackerData?.length || 0
+      });
+
+      if (!trackerData || trackerData.length === 0) {
+        await JobQueueService.updateJobProgress(job.id, 100, {
+          message: 'No GPS data found for the specified date range',
+          tripsGenerated: 0
+        });
+        return;
+      }
+
+      // Get user's trip exclusions from metadata
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('metadata')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const exclusions = profile?.metadata?.trip_exclusions || [];
+
+      await JobQueueService.updateJobProgress(job.id, 30, {
+        message: 'Retrieved trip exclusions, analyzing data...',
+        exclusionsCount: exclusions?.length || 0
+      });
+
+      // Analyze GPS data to detect trips
+      const trips = await this.analyzeTripsFromGPSData(
+        trackerData,
+        homeAddress,
+        exclusions || []
+      );
+
+      await JobQueueService.updateJobProgress(job.id, 80, {
+        message: `Detected ${trips.length} potential trips, generating banners...`,
+        tripsDetected: trips.length
+      });
+
+      // Generate banner images for trips
+      const tripsWithBanners = await this.generateTripBanners(trips);
+
+      await JobQueueService.updateJobProgress(job.id, 90, {
+        message: 'Saving trips to database...',
+        tripsWithBanners: tripsWithBanners.length
+      });
+
+      // Save trips to database
+      const savedTrips = await this.saveTripsToDatabase(tripsWithBanners, userId, job.id);
+
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Trip generation completed: ${savedTrips.length} trips generated in ${totalTime}ms`);
+
+      await JobQueueService.updateJobProgress(job.id, 100, {
+        message: `Successfully generated ${savedTrips.length} trips`,
+        tripsGenerated: savedTrips.length,
+        totalTime: `${Math.round(totalTime / 1000)}s`
+      });
+
+    } catch (error: unknown) {
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 Trip generation job ${job.id} was cancelled`);
+        return;
+      }
+      console.error(`❌ Error in trip generation job:`, error);
+      throw error;
+    }
   }
 
   private static async processDataImport(job: Job): Promise<void> {
@@ -859,5 +979,245 @@ export class JobProcessorService {
       console.error(`❌ Error in POI visit detection job:`, error);
       throw error;
     }
+  }
+
+  // Trip Generation Helper Methods
+
+    private static async analyzeTripsFromGPSData(
+    trackerData: TrackerDataPoint[],
+    homeAddress: HomeAddress | null,
+    exclusions: TripExclusion[]
+  ): Promise<DetectedTrip[]> {
+    const trips: DetectedTrip[] = [];
+    const HOME_RADIUS_KM = 50; // Consider within 50km as "home"
+
+    // Group data points by day
+    const dailyGroups = this.groupDataByDay(trackerData);
+
+    // Analyze each day to detect overnight stays
+    for (const [date, dayData] of Object.entries(dailyGroups)) {
+      if (dayData.length === 0) continue;
+
+      // Check if user was away from home for an extended period
+      const isAwayFromHome = this.isAwayFromHome(dayData, homeAddress, HOME_RADIUS_KM);
+
+      if (isAwayFromHome) {
+        // Check if this location is in the exclusion list
+        const isExcluded = this.isLocationExcluded(dayData[0], exclusions);
+
+        if (!isExcluded) {
+          // This could be the start of a trip
+          const trip = await this.createTripFromDayData(date, dayData);
+          if (trip) {
+            trips.push(trip);
+          }
+        }
+      }
+    }
+
+    // Merge consecutive days into single trips
+    return this.mergeConsecutiveTrips(trips);
+  }
+
+    private static groupDataByDay(trackerData: TrackerDataPoint[]): Record<string, TrackerDataPoint[]> {
+    const groups: Record<string, TrackerDataPoint[]> = {};
+
+    for (const point of trackerData) {
+      const date = new Date(point.recorded_at).toISOString().split('T')[0];
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(point);
+    }
+
+    return groups;
+  }
+
+  private static isAwayFromHome(dayData: TrackerDataPoint[], homeAddress: HomeAddress | null, radiusKm: number): boolean {
+    if (!homeAddress || !homeAddress.coordinates) {
+      // If no home address, assume user is always "away"
+      return true;
+    }
+
+    const homeLat = homeAddress.coordinates.lat;
+    const homeLng = homeAddress.coordinates.lng;
+
+    // Check if any point in the day is away from home
+    for (const point of dayData) {
+      if (point.location && point.location.coordinates) {
+        const distance = this.calculateDistance(
+          homeLat, homeLng,
+          point.location.coordinates[1], // lat
+          point.location.coordinates[0]  // lng
+        );
+
+        if (distance > radiusKm) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private static isLocationExcluded(point: TrackerDataPoint, exclusions: TripExclusion[]): boolean {
+    if (!point.location || !point.location.coordinates) return false;
+
+    for (const exclusion of exclusions) {
+      if (exclusion.location && exclusion.location.coordinates) {
+        const distance = this.calculateDistance(
+          point.location.coordinates[1], // lat
+          point.location.coordinates[0], // lng
+          exclusion.location.coordinates.lat,
+          exclusion.location.coordinates.lng
+        );
+
+        // If within 10km of exclusion, consider it excluded
+        if (distance < 10) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private static async createTripFromDayData(date: string, dayData: TrackerDataPoint[]): Promise<DetectedTrip | null> {
+    if (dayData.length === 0) return null;
+
+    // Get the most common location for this day
+    const location = this.getMostCommonLocation(dayData);
+    if (!location) return null;
+
+    // Try to get city name from reverse geocoding
+    let cityName = 'Unknown Location';
+    try {
+      const geocodeResult = await reverseGeocode(location.coordinates[1], location.coordinates[0]);
+      if (geocodeResult && geocodeResult.address) {
+        cityName = geocodeResult.address.city ||
+                  geocodeResult.address.town ||
+                  geocodeResult.address.village ||
+                  'Unknown Location';
+      }
+    } catch (error) {
+      console.warn('Failed to reverse geocode location:', error);
+    }
+
+    return {
+      startDate: date,
+      endDate: date,
+      title: `Trip to ${cityName}`,
+      description: `Automatically generated trip to ${cityName}`,
+      location: location,
+      cityName: cityName
+    };
+  }
+
+  private static getMostCommonLocation(dayData: TrackerDataPoint[]): { type: string; coordinates: number[] } | null {
+    // Simple implementation: return the first valid location
+    for (const point of dayData) {
+      if (point.location && point.location.coordinates) {
+        return point.location;
+      }
+    }
+    return null;
+  }
+
+  private static mergeConsecutiveTrips(trips: DetectedTrip[]): DetectedTrip[] {
+    if (trips.length <= 1) return trips;
+
+    const merged: DetectedTrip[] = [];
+    let currentTrip = { ...trips[0] };
+
+    for (let i = 1; i < trips.length; i++) {
+      const nextTrip = trips[i];
+      const currentEnd = new Date(currentTrip.endDate);
+      const nextStart = new Date(nextTrip.startDate);
+
+      // Check if trips are consecutive (within 1 day)
+      const dayDiff = (nextStart.getTime() - currentEnd.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (dayDiff <= 1 && currentTrip.cityName === nextTrip.cityName) {
+        // Merge trips
+        currentTrip.endDate = nextTrip.endDate;
+        currentTrip.title = `Trip to ${currentTrip.cityName}`;
+      } else {
+        // End current trip and start new one
+        merged.push(currentTrip);
+        currentTrip = { ...nextTrip };
+      }
+    }
+
+    merged.push(currentTrip);
+    return merged;
+  }
+
+  private static calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLng = this.deg2rad(lng2 - lng1);
+    const a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  private static deg2rad(deg: number): number {
+    return deg * (Math.PI/180);
+  }
+
+    private static async generateTripBanners(trips: DetectedTrip[]): Promise<DetectedTrip[]> {
+    const tripsWithBanners = [...trips];
+
+    // Get unique city names
+    const cities = [...new Set(trips.map(trip => trip.cityName))];
+
+    // Fetch banner images for cities
+    const { getMultipleTripBannerImages } = await import('../external/unsplash.service');
+    const bannerImages = await getMultipleTripBannerImages(cities);
+
+    // Assign banner images to trips
+    for (const trip of tripsWithBanners) {
+      trip.image_url = bannerImages[trip.cityName] || undefined;
+    }
+
+    return tripsWithBanners;
+  }
+
+  private static async saveTripsToDatabase(trips: DetectedTrip[], userId: string, jobId: string): Promise<unknown[]> {
+    const savedTrips = [];
+
+    for (const trip of trips) {
+              const { data: savedTrip, error } = await supabase
+          .from('trips')
+          .insert({
+            user_id: userId,
+            title: trip.title,
+            description: trip.description,
+            start_date: trip.startDate,
+            end_date: trip.endDate,
+            image_url: trip.image_url,
+            labels: ['auto-generated'],
+            metadata: {
+              distance_traveled: 0, // Will be calculated from tracker data
+              visited_places_count: 1, // At least the destination city
+              cityName: trip.cityName,
+              location: trip.location,
+              jobId: jobId
+            }
+          })
+          .select()
+          .single();
+
+      if (error) {
+        console.error('Error saving trip:', error);
+      } else {
+        savedTrips.push(savedTrip);
+      }
+    }
+
+    return savedTrips;
   }
 }

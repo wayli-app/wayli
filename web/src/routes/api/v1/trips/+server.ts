@@ -1,95 +1,171 @@
 import type { RequestHandler } from './$types';
 import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { requireAuth } from '$lib/middleware/auth.middleware';
+import { supabase } from '$lib/core/supabase/server';
 
 export const GET: RequestHandler = async (event) => {
 	try {
 		// Authenticate user
-		await requireAuth(event);
+		const { user } = await requireAuth(event);
 
-		// For now, return sample trip data
-		// In the future, this would query the database for actual trips
-		const sampleTrips = [
-			{
-				id: '1',
-				title: 'Weekend in Amsterdam',
-				description: 'A wonderful weekend exploring the canals and museums',
-				start_date: '2024-06-15T10:00:00Z',
-				end_date: '2024-06-17T18:00:00Z',
-				total_distance: 15420,
-				point_count: 156,
-				image_url: null,
-				created_at: '2024-06-15T10:00:00Z',
-				updated_at: '2024-06-17T18:00:00Z'
-			},
-			{
-				id: '2',
-				title: 'Hiking in the Alps',
-				description: 'Challenging mountain trails with breathtaking views',
-				start_date: '2024-05-20T08:00:00Z',
-				end_date: '2024-05-25T16:00:00Z',
-				total_distance: 45230,
-				point_count: 324,
-				image_url: null,
-				created_at: '2024-05-20T08:00:00Z',
-				updated_at: '2024-05-25T16:00:00Z'
-			},
-			{
-				id: '3',
-				title: 'City Walk in Paris',
-				description: 'Exploring the beautiful streets and landmarks',
-				start_date: '2024-06-10T14:00:00Z',
-				end_date: '2024-06-10T20:00:00Z',
-				total_distance: 8200,
-				point_count: 89,
-				image_url: null,
-				created_at: '2024-06-10T14:00:00Z',
-				updated_at: '2024-06-10T20:00:00Z'
-			},
-			{
-				id: '4',
-				title: 'Beach Vacation in Bali',
-				description: 'Relaxing days by the ocean and exploring local culture',
-				start_date: '2024-04-15T12:00:00Z',
-				end_date: '2024-04-22T10:00:00Z',
-				total_distance: 28750,
-				point_count: 201,
-				image_url: null,
-				created_at: '2024-04-15T12:00:00Z',
-				updated_at: '2024-04-22T10:00:00Z'
-			},
-			{
-				id: '5',
-				title: 'Business Trip to Tokyo',
-				description: 'Work meetings and exploring the city after hours',
-				start_date: '2024-03-10T09:00:00Z',
-				end_date: '2024-03-15T17:00:00Z',
-				total_distance: 18340,
-				point_count: 145,
-				image_url: null,
-				created_at: '2024-03-10T09:00:00Z',
-				updated_at: '2024-03-15T17:00:00Z'
-			},
-			{
-				id: '6',
-				title: 'Weekend Getaway to Barcelona',
-				description: 'Quick escape to enjoy tapas and architecture',
-				start_date: '2024-02-28T12:00:00Z',
-				end_date: '2024-03-02T14:00:00Z',
-				total_distance: 12350,
-				point_count: 98,
-				image_url: null,
-				created_at: '2024-02-28T12:00:00Z',
-				updated_at: '2024-03-02T14:00:00Z'
-			}
-		];
+		// Fetch trips from database
+		const { data: trips, error } = await supabase
+			.from('trips')
+			.select(`
+				id,
+				title,
+				description,
+				start_date,
+				end_date,
+				status,
+				image_url,
+				labels,
+				metadata,
+				created_at,
+				updated_at
+			`)
+			.eq('user_id', user.id)
+			.eq('status', 'active')
+			.order('start_date', { ascending: false });
+
+		if (error) {
+			console.error('Database error fetching trips:', error);
+			throw new Error('Failed to fetch trips from database');
+		}
+
+		// Transform the data to include computed fields
+		const transformedTrips = trips?.map(trip => ({
+			...trip,
+			// Add placeholder values for fields that might not exist in the current schema
+			total_distance: 0, // This would be calculated from tracker data
+			point_count: 0, // This would be calculated from tracker data
+		})) || [];
 
 		return successResponse({
-			trips: sampleTrips,
-			total: sampleTrips.length
+			trips: transformedTrips,
+			total: transformedTrips.length
 		});
 	} catch (error) {
 		console.error('Error fetching trips:', error);
+		return errorResponse(error);
+	}
+};
+
+export const POST: RequestHandler = async (event) => {
+	try {
+		// Authenticate user
+		const { user } = await requireAuth(event);
+
+		// Parse request body
+		const body = await event.request.json();
+		const { title, description, start_date, end_date, labels, metadata, image_url } = body;
+
+		// Validate required fields
+		if (!title || !start_date || !end_date) {
+			return errorResponse(new Error('Title, start date, and end date are required'));
+		}
+
+		// Validate dates
+		const startDate = new Date(start_date);
+		const endDate = new Date(end_date);
+
+		if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+			return errorResponse(new Error('Invalid date format'));
+		}
+
+		if (endDate < startDate) {
+			return errorResponse(new Error('End date must be after start date'));
+		}
+
+		// Insert new trip
+		const { data: newTrip, error } = await supabase
+			.from('trips')
+			.insert({
+				user_id: user.id,
+				title: title.trim(),
+				description: description?.trim() || null,
+				start_date: start_date,
+				end_date: end_date,
+				labels: labels || [],
+				metadata: metadata || {},
+				image_url: image_url || null,
+				status: 'active'
+			})
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Database error creating trip:', error);
+			throw new Error('Failed to create trip');
+		}
+
+		return successResponse({
+			trip: newTrip
+		});
+	} catch (error) {
+		console.error('Error creating trip:', error);
+		return errorResponse(error);
+	}
+};
+
+export const PUT: RequestHandler = async (event) => {
+	try {
+		// Authenticate user
+		const { user } = await requireAuth(event);
+
+		// Parse request body
+		const body = await event.request.json();
+		const { id, title, description, start_date, end_date, labels, metadata, image_url } = body;
+
+		// Validate required fields
+		if (!id || !title || !start_date || !end_date) {
+			return errorResponse(new Error('Trip ID, title, start date, and end date are required'));
+		}
+
+		// Validate dates
+		const startDate = new Date(start_date);
+		const endDate = new Date(end_date);
+
+		if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+			return errorResponse(new Error('Invalid date format'));
+		}
+
+		if (endDate < startDate) {
+			return errorResponse(new Error('End date must be after start date'));
+		}
+
+		// Update trip
+		const { data: updatedTrip, error } = await supabase
+			.from('trips')
+			.update({
+				title: title.trim(),
+				description: description?.trim() || null,
+				start_date: start_date,
+				end_date: end_date,
+				labels: labels || [],
+				metadata: metadata || {},
+				image_url: image_url || null,
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', id)
+			.eq('user_id', user.id)
+			.select()
+			.single();
+
+		if (error) {
+			console.error('Database error updating trip:', error);
+			throw new Error('Failed to update trip');
+		}
+
+		if (!updatedTrip) {
+			return errorResponse(new Error('Trip not found or access denied'));
+		}
+
+		return successResponse({
+			trip: updatedTrip
+		});
+	} catch (error) {
+		console.error('Error updating trip:', error);
 		return errorResponse(error);
 	}
 };

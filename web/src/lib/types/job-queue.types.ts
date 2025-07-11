@@ -17,7 +17,7 @@ export interface Job {
     priority: JobPriority;
   }
 
-export type JobType = 'reverse_geocoding_missing' | 'trip_cover_generation' | 'data_import' | 'poi_visit_detection';
+export type JobType = 'reverse_geocoding_missing' | 'trip_cover_generation' | 'data_import' | 'poi_visit_detection' | 'trip_generation';
 export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
 

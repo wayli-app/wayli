@@ -76,7 +76,7 @@ If you see "Database initialization failed":
 1. **Check Supabase Permissions**: Ensure your service role key has admin privileges
 2. **Verify Environment Variables**: Make sure all Supabase credentials are correct
 3. **Check Network**: Ensure your app can reach Supabase
-4. **Manual Setup**: If automatic setup fails, you can still run the `setup-database.sql` script manually
+4. **Manual Setup**: If automatic setup fails, you can still run the `sql/setup-database.sql` script manually
 
 ### Setup Already Completed Error
 
@@ -100,7 +100,7 @@ If automatic database initialization fails, you can still set up the database ma
 
 1. Go to your Supabase project dashboard
 2. Navigate to the SQL Editor
-3. Copy and paste the contents of `setup-database.sql` into the editor
+3. Copy and paste the contents of `sql/setup-database.sql` into the editor
 4. Run the script to create all necessary tables, policies, and triggers
 
 ## Security Notes

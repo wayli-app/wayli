@@ -4,6 +4,7 @@ import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
 import { getCountryForPoint } from '$lib/services/external/country-reverse-geocoding.service';
+import { reverseGeocode } from '$lib/services/external/nominatim.service';
 
 // UUID validation function
 function isValidUUID(uuid: string): boolean {
@@ -94,6 +95,15 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		// After latNum and lonNum are parsed:
 		const countryCode = getCountryForPoint(latNum, lonNum);
 
+		// --- Reverse geocode the point ---
+		let reverseGeocodeResult = null;
+		try {
+			reverseGeocodeResult = await reverseGeocode(latNum, lonNum);
+		} catch (geocodeError) {
+			console.error('[OwnTracks] Reverse geocoding failed:', geocodeError);
+			// Do not block ingestion if geocoding fails
+		}
+
 		// Prepare tracking data
 		const trackingData = {
 			user_id,
@@ -123,7 +133,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 				tid,
 				inregions
 			},
-			country_code: countryCode
+			country_code: countryCode,
+			reverse_geocode: reverseGeocodeResult
 		};
 
 		// Insert tracking data using upsert to handle duplicates

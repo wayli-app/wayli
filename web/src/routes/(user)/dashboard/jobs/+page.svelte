@@ -14,7 +14,8 @@
 		Clock,
 		AlertCircle,
 		Upload,
-		X
+		X,
+		Route
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/index.svelte';
 	import Card from '$lib/components/ui/card/index.svelte';
@@ -61,6 +62,15 @@
 	let importFormat: string | null = null;
 	let fileInputEl: HTMLInputElement | null = null;
 
+	// Modal state for trip generation
+	let showTripGenerationModal = false;
+	let tripGenerationData = {
+		startDate: new Date().toISOString().split('T')[0],
+		endDate: new Date().toISOString().split('T')[0],
+		useCustomHomeAddress: false,
+		customHomeAddress: ''
+	};
+
 	const jobTemplates: JobTemplate[] = [
 		{
 			type: 'reverse_geocoding_missing',
@@ -77,6 +87,38 @@
 			icon: Image,
 			estimatedTime: '3-8 minutes',
 			fields: []
+		},
+		{
+			type: 'trip_generation',
+			title: 'Generate trips automatically',
+			description: 'Analyze GPS data to automatically detect and create trips based on overnight stays away from home.',
+			icon: Route,
+			estimatedTime: '5-15 minutes',
+			fields: [
+				{
+					name: 'startDate',
+					label: 'Start Date',
+					type: 'select',
+					description: 'Start date for trip analysis',
+					default: new Date().toISOString().split('T')[0],
+					options: []
+				},
+				{
+					name: 'endDate',
+					label: 'End Date',
+					type: 'select',
+					description: 'End date for trip analysis',
+					default: new Date().toISOString().split('T')[0],
+					options: []
+				},
+				{
+					name: 'useCustomHomeAddress',
+					label: 'Use Custom Home Address',
+					type: 'checkbox',
+					description: 'Temporarily use a different home address for this analysis',
+					default: false
+				}
+			]
 		},
 		{
 			type: 'data_import',
@@ -623,6 +665,8 @@
 		if (template.requiresFile) {
 			showImportModal = true;
 			importFormat = template.type;
+		} else if (template.type === 'trip_generation') {
+			showTripGenerationModal = true;
 		} else {
 			try {
 				await createJob(template.type);
@@ -663,6 +707,25 @@
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files[0]) {
 			selectedFile = target.files[0];
+		}
+	}
+
+	async function handleTripGeneration() {
+		try {
+			const jobData: Record<string, unknown> = {
+				startDate: tripGenerationData.startDate,
+				endDate: tripGenerationData.endDate,
+				useCustomHomeAddress: tripGenerationData.useCustomHomeAddress
+			};
+
+			if (tripGenerationData.useCustomHomeAddress && tripGenerationData.customHomeAddress) {
+				jobData.customHomeAddress = tripGenerationData.customHomeAddress;
+			}
+
+			await createJob('trip_generation', jobData);
+			showTripGenerationModal = false;
+		} catch (error) {
+			console.error('Failed to create trip generation job:', error);
 		}
 	}
 
@@ -943,6 +1006,73 @@
 						</span>
 					</Button>
 					<Button variant="outline" on:click={() => showImportModal = false} class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
+						<span class="flex items-center justify-center gap-2 w-full">
+							<X class="w-4 h-4 text-gray-700 dark:text-gray-200" />
+							Cancel
+						</span>
+					</Button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Trip Generation Modal -->
+{#if showTripGenerationModal}
+	<!-- Modal Overlay -->
+	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
+		on:click={() => showTripGenerationModal = false}>
+		<!-- Modal Box -->
+		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
+			on:click|stopPropagation>
+			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Generate Trips</h3>
+			<div class="space-y-6">
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
+					<input
+						type="date"
+						bind:value={tripGenerationData.startDate}
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date</label>
+					<input
+						type="date"
+						bind:value={tripGenerationData.endDate}
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+					/>
+				</div>
+				<div class="flex items-center gap-3">
+					<input
+						type="checkbox"
+						id="useCustomHomeAddress"
+						bind:checked={tripGenerationData.useCustomHomeAddress}
+						class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+					/>
+					<label for="useCustomHomeAddress" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+						Use custom home address for this analysis
+					</label>
+				</div>
+				{#if tripGenerationData.useCustomHomeAddress}
+					<div>
+						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Custom Home Address</label>
+						<input
+							type="text"
+							bind:value={tripGenerationData.customHomeAddress}
+							placeholder="Enter custom home address..."
+							class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+						/>
+					</div>
+				{/if}
+				<div class="flex gap-3 mt-4">
+					<Button on:click={handleTripGeneration} class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
+						<span class="flex items-center justify-center gap-2 w-full">
+							<Route class="w-4 h-4 text-white" />
+							Generate Trips
+						</span>
+					</Button>
+					<Button variant="outline" on:click={() => showTripGenerationModal = false} class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
 						<span class="flex items-center justify-center gap-2 w-full">
 							<X class="w-4 h-4 text-gray-700 dark:text-gray-200" />
 							Cancel

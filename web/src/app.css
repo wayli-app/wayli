@@ -44,3 +44,8 @@ body.dark .air-datepicker-time {
   background: #23232a !important;
   color: #f3f4f6 !important;
 }
+
+button:hover:not(:disabled),
+button:focus-visible:not(:disabled) {
+  cursor: pointer;
+}

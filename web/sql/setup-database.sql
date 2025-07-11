@@ -27,11 +27,14 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.trips (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT,
-    start_date DATE,
-    end_date DATE,
-    status TEXT DEFAULT 'planned',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    image_url TEXT, -- Supabase Storage image URL for trip image
+    labels TEXT[] DEFAULT '{}', -- Array of string labels for trip categorization
+    metadata JSONB, -- Trip metadata including distance traveled and visited places count
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- Create locations table with PostGIS geometry
@@ -172,6 +175,9 @@ CREATE TABLE IF NOT EXISTS %%SCHEMA%%.temp_files (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_trips_user_id ON %%SCHEMA%%.trips(user_id);
+CREATE INDEX IF NOT EXISTS idx_trips_start_date ON %%SCHEMA%%.trips(start_date);
+CREATE INDEX IF NOT EXISTS idx_trips_end_date ON %%SCHEMA%%.trips(end_date);
+CREATE INDEX IF NOT EXISTS idx_trips_generated ON %%SCHEMA%%.trips(generated_from_tracker_data);
 CREATE INDEX IF NOT EXISTS idx_locations_user_id ON %%SCHEMA%%.locations(user_id);
 CREATE INDEX IF NOT EXISTS idx_locations_trip_id ON %%SCHEMA%%.locations(trip_id);
 CREATE INDEX IF NOT EXISTS idx_points_of_interest_user_id ON %%SCHEMA%%.points_of_interest(user_id);
@@ -452,3 +458,52 @@ BEGIN
     ORDER BY td.recorded_at;
 END;
 $$ LANGUAGE plpgsql STABLE;
+
+-- Trip exclusions are now stored in user metadata instead of a separate table
+
+-- =============================================================================
+-- STORAGE SETUP FOR TRIP IMAGES
+-- =============================================================================
+
+-- Create the trip-images bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('trip-images', 'trip-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable Row Level Security (RLS) on the storage.objects table
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow users to upload images to their own folder
+CREATE POLICY "Users can upload images to their own folder" ON storage.objects
+FOR INSERT WITH CHECK (
+  bucket_id = 'trip-images'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Create policy to allow users to view their own images
+CREATE POLICY "Users can view their own images" ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'trip-images'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Create policy to allow users to update their own images
+CREATE POLICY "Users can update their own images" ON storage.objects
+FOR UPDATE USING (
+  bucket_id = 'trip-images'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Create policy to allow users to delete their own images
+CREATE POLICY "Users can delete their own images" ON storage.objects
+FOR DELETE USING (
+  bucket_id = 'trip-images'
+  AND auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Create policy to allow public read access to all images (optional)
+-- This allows images to be displayed without authentication
+CREATE POLICY "Public read access to trip images" ON storage.objects
+FOR SELECT USING (
+  bucket_id = 'trip-images'
+);

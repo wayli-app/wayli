@@ -46,7 +46,7 @@ NOMINATIM_RATE_LIMIT=1 # requests per second
 Run the database migration to create the required tables:
 
 ```sql
--- This is included in setup-database.sql
+-- This is included in sql/setup-database.sql
 -- If you need to add it manually:
 ALTER TABLE %%SCHEMA%%.geocoded_points ENABLE ROW LEVEL SECURITY;
 ```

@@ -5,6 +5,7 @@ import { DatabaseMigrationService } from '$lib/services/database/migration.servi
 export const GET: RequestHandler = async () => {
 	try {
 		console.log('=== DATABASE HEALTH CHECK ===');
+		console.log('🔍 Starting health check request...');
 
 		const healthCheck = await DatabaseMigrationService.checkDatabaseHealth();
 
@@ -19,11 +20,13 @@ export const GET: RequestHandler = async () => {
 		}
 
 		if (healthCheck.healthy) {
+			console.log('✅ Health check successful - database is healthy');
 			return successResponse({
 				message: 'Database is healthy',
 				health: healthCheck
 			});
 		} else {
+			console.log('❌ Health check failed - database is not healthy');
 			return errorResponse('Database health check failed', 500, {
 				health: healthCheck
 			});

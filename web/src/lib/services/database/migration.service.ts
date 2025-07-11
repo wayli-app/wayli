@@ -1,7 +1,5 @@
 import { createServerClient } from '$lib/core/supabase/server-client';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { getServerSupabaseConfig } from '$lib/core/config/server-environment';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -23,7 +21,7 @@ export interface MigrationResult {
 
 export class DatabaseMigrationService {
   private static supabase = createServerClient();
-  private static migrationsPath = path.resolve(process.cwd(), 'supabase/migrations');
+  private static migrationsPath = path.resolve(process.cwd(), 'sql');
 
   /**
    * Get all available migrations from the migrations directory
@@ -97,8 +95,6 @@ export class DatabaseMigrationService {
    * Apply a single migration
    */
   static async applyMigration(migration: Migration): Promise<MigrationResult> {
-    const startTime = Date.now();
-
     try {
       console.log(`Applying migration: ${migration.version} - ${migration.name}`);
 
@@ -110,8 +106,6 @@ export class DatabaseMigrationService {
       if (error) {
         throw new Error(`Migration execution failed: ${error.message}`);
       }
-
-      const executionTimeMs = Date.now() - startTime;
 
       // Record the migration as applied
       const { error: insertError } = await this.supabase
@@ -137,7 +131,6 @@ export class DatabaseMigrationService {
       };
 
     } catch (error) {
-      const executionTimeMs = Date.now() - startTime;
       console.error(`❌ Migration failed: ${migration.version} - ${migration.name}`, error);
 
       return {
@@ -184,23 +177,65 @@ export class DatabaseMigrationService {
     let initialized = false;
 
     try {
-      // Check if wayli schema exists
+      console.log('🔍 Starting database health check...');
+
+      // Log the Supabase configuration (without sensitive data)
+      const serverConfig = getServerSupabaseConfig();
+      console.log('📋 Supabase config:', {
+        url: serverConfig.url,
+        serviceRoleKeyLength: serverConfig.serviceRoleKey?.length || 0
+      });
+
+      // Check if wayli schema exists by trying to query the jobs table (core application table)
+      console.log('🔍 Testing database connection by querying jobs table...');
       const { error: schemaError } = await this.supabase
-        .from('profiles')
+        .from('jobs')
         .select('id')
         .limit(1);
 
       if (schemaError) {
-        errors.push(`Database schema not found: ${schemaError.message}`);
-        healthy = false;
+        console.log('❌ Database query failed:', {
+          message: schemaError.message,
+          details: schemaError.details,
+          hint: schemaError.hint
+        });
+
+        // Check if this is a "table doesn't exist" error vs a real connection/auth error
+        if (schemaError.message.includes('relation') && schemaError.message.includes('does not exist')) {
+          // This is expected during setup - the table doesn't exist yet
+          console.log('✅ Database is healthy, table just doesn\'t exist yet (expected during setup)');
+          healthy = true; // Database is healthy, just not initialized
+          initialized = false;
+        } else if (schemaError.message.includes('authentication') || schemaError.message.includes('permission')) {
+          // This is a real authentication/permission error
+          console.log('❌ Authentication/permission error detected');
+          errors.push(`Database authentication failed: ${schemaError.message}`);
+          healthy = false;
+        } else {
+          // Other database errors
+          console.log('❌ Other database error detected');
+          errors.push(`Database schema error: ${schemaError.message}`);
+          healthy = false;
+        }
       } else {
+        // Table exists, database is initialized
+        console.log('✅ Database is healthy and initialized');
         initialized = true;
       }
 
     } catch (error) {
+      // Network or other connection errors
+      console.log('❌ Connection error caught:', error);
       errors.push(`Database connection failed: ${error instanceof Error ? error.message : String(error)}`);
       healthy = false;
     }
+
+    console.log('📊 Health check results:', {
+      healthy,
+      initialized,
+      errorCount: errors.length,
+      errors
+    });
 
     return {
       healthy,

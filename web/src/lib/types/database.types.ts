@@ -8,6 +8,13 @@ export interface Trip {
 	start_date?: string;
 	end_date?: string;
 	status: 'planned' | 'active' | 'completed' | 'cancelled';
+	image_url?: string; // Supabase Storage image URL for trip image
+	labels?: string[]; // Array of string labels for trip categorization
+	metadata?: {
+		distance_traveled?: number; // Distance traveled in kilometers
+		visited_places_count?: number; // Number of unique places visited
+		[key: string]: unknown; // Allow additional metadata
+	};
 	created_at: string;
 	updated_at: string;
 }
@@ -134,6 +141,18 @@ export interface PointOfInterestWithCoordinates extends Omit<PointOfInterest, 'l
 export interface TrackerDataWithCoordinates extends Omit<TrackerData, 'location'> {
 	latitude: number;
 	longitude: number;
+}
+
+import type { GeocodedLocation } from './geocoding.types';
+
+export interface TripExclusion {
+	id: string;
+	name: string; // User-friendly name for the exclusion
+	value: string; // The actual value to exclude (city name, address, etc.)
+	exclusion_type: 'city' | 'address' | 'region';
+	location?: GeocodedLocation; // Reverse geocoded location data from Nominatim
+	created_at: string;
+	updated_at: string;
 }
 
 // Database table names

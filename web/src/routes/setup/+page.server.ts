@@ -48,7 +48,11 @@ export const load: PageServerLoad = async ({ locals: { getSession } }) => {
 		user: session?.user,
 		dbHealth,
 		session,
-		message: dbHealth?.healthy ? 'Database is ready' : 'Database needs initialization',
+		message: dbHealth?.healthy && dbHealth?.initialized
+			? 'Database is ready'
+			: dbHealth?.healthy
+				? 'Database connection is ready, but needs initialization'
+				: 'Database needs initialization',
 		error: dbHealth?.errors.length > 0 ? dbHealth.errors.join(', ') : null
 	};
 };
