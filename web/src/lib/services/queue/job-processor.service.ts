@@ -3,7 +3,7 @@ import type { TripGenerationData, TripExclusion, TrackerDataPoint, DetectedTrip,
 import { reverseGeocode } from '../external/nominatim.service';
 import { supabase } from '$lib/core/supabase/worker';
 import { JobQueueService } from './job-queue.service.worker';
-import { PoiVisitDetectionService } from '../poi-visit-detection.service';
+import { EnhancedPoiDetectionService } from '../enhanced-poi-detection.service';
 
 export class JobProcessorService {
   /**
@@ -477,28 +477,27 @@ export class JobProcessorService {
       await this.checkJobCancellation(job.id);
 
       // Extract job data
-      const { tempFileId, format, fileName } = job.data as {
-        tempFileId: string;
+      const { storagePath, format, fileName } = job.data as {
+        storagePath: string;
         format: string;
         fileName: string;
       };
 
-      if (!tempFileId || !format) {
-        throw new Error('Missing temp file ID or format in job data');
+      if (!storagePath || !format) {
+        throw new Error('Missing storage path or format in job data');
       }
 
-      // Fetch file content from temp_files table
-      const { data: tempFile, error: tempFileError } = await supabase
-        .from('temp_files')
-        .select('file_content')
-        .eq('id', tempFileId)
-        .single();
+      // Download file content from Supabase Storage
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('temp-files')
+        .download(storagePath);
 
-      if (tempFileError || !tempFile) {
-        throw new Error('Failed to fetch temporary file content');
+      if (downloadError || !fileData) {
+        throw new Error(`Failed to download file from storage: ${downloadError?.message || 'Unknown error'}`);
       }
 
-      const fileContent = tempFile.file_content;
+      // Convert blob to text
+      const fileContent = await fileData.text();
 
       console.log(`📁 Processing import: ${fileName}, format: ${format}, content length: ${fileContent.length}`);
 
@@ -544,11 +543,10 @@ export class JobProcessorService {
         elapsedSeconds: elapsedSeconds.toFixed(1)
       });
 
-      // Clean up temporary file after successful processing
-      await supabase
-        .from('temp_files')
-        .delete()
-        .eq('id', tempFileId);
+      // Clean up temporary file from storage after successful processing
+      await supabase.storage
+        .from('temp-files')
+        .remove([storagePath]);
 
       console.log(`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`);
 
@@ -558,12 +556,11 @@ export class JobProcessorService {
         console.log(`🛑 Data import job ${job.id} was cancelled`);
         // Clean up temporary file on cancellation
         try {
-          const { tempFileId } = job.data as { tempFileId: string };
-          if (tempFileId) {
-            await supabase
-              .from('temp_files')
-              .delete()
-              .eq('id', tempFileId);
+          const { storagePath } = job.data as { storagePath: string };
+          if (storagePath) {
+            await supabase.storage
+              .from('temp-files')
+              .remove([storagePath]);
           }
         } catch (cleanupError) {
           console.error('Failed to cleanup temporary file on cancellation:', cleanupError);
@@ -573,12 +570,11 @@ export class JobProcessorService {
       console.error(`❌ Error in data import job:`, error);
       // Clean up temporary file on error as well
       try {
-        const { tempFileId } = job.data as { tempFileId: string };
-        if (tempFileId) {
-          await supabase
-            .from('temp_files')
-            .delete()
-            .eq('id', tempFileId);
+        const { storagePath } = job.data as { storagePath: string };
+        if (storagePath) {
+          await supabase.storage
+            .from('temp-files')
+            .remove([storagePath]);
         }
       } catch (cleanupError) {
         console.error('Failed to cleanup temporary file:', cleanupError);
@@ -619,6 +615,18 @@ export class JobProcessorService {
             const progress = Math.round((i / geojson.features.length) * 100);
             await JobQueueService.updateJobProgress(jobId, progress, {
               message: `Processing GeoJSON features... ${i + 1}/${totalFeatures}`,
+              fileName,
+              format: 'GeoJSON',
+              totalProcessed: importedCount,
+              totalItems: totalFeatures,
+              currentFeature: i + 1
+            });
+          }
+
+          // NEW: Log every 1,000 imported points
+          if (importedCount > 0 && importedCount % 1000 === 0) {
+            await JobQueueService.updateJobProgress(jobId, Math.round((i / geojson.features.length) * 100), {
+              message: `Imported ${importedCount.toLocaleString()} / ${totalFeatures.toLocaleString()} points...`,
               fileName,
               format: 'GeoJSON',
               totalProcessed: importedCount,
@@ -880,7 +888,7 @@ export class JobProcessorService {
     console.log(`📍 Processing POI visit detection job ${job.id}`);
 
     const startTime = Date.now();
-    const poiService = new PoiVisitDetectionService();
+    const enhancedPoiService = new EnhancedPoiDetectionService();
 
     try {
       // Check for cancellation before starting
@@ -915,7 +923,7 @@ export class JobProcessorService {
         // Check for cancellation before processing user
         await this.checkJobCancellation(job.id);
 
-        const userResult = await poiService.detectVisitsForUser(targetUserId, config);
+        const userResult = await enhancedPoiService.detectVisitsForUser(targetUserId, config);
 
         await JobQueueService.updateJobProgress(job.id, 75, {
           message: `Found ${userResult.totalDetected} visits for user`,
@@ -946,7 +954,35 @@ export class JobProcessorService {
         // Check for cancellation before processing all users
         await this.checkJobCancellation(job.id);
 
-        const allUsersResults = await poiService.detectVisitsForAllUsers(config);
+        // For automatic POI detection, we need to process users individually
+        // since we don't have a separate POI table to query
+        const { data: users, error: usersError } = await supabase
+          .from('tracker_data')
+          .select('user_id')
+          .not('reverse_geocode', 'is', null);
+
+        if (usersError) throw usersError;
+
+        const uniqueUserIds = [...new Set(users.map(u => u.user_id))];
+        const allUsersResults = [];
+
+        for (const userId of uniqueUserIds) {
+          try {
+            const result = await enhancedPoiService.detectVisitsForUser(userId, config);
+            allUsersResults.push({
+              userId,
+              visits: result.visits,
+              totalDetected: result.totalDetected
+            });
+          } catch (error) {
+            console.error(`Error detecting visits for user ${userId}:`, error);
+            allUsersResults.push({
+              userId,
+              visits: [],
+              totalDetected: 0
+            });
+          }
+        }
 
         const totalDetected = allUsersResults.reduce((sum, r) => sum + r.totalDetected, 0);
         const totalUsers = allUsersResults.length;

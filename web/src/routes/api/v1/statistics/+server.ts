@@ -3,7 +3,6 @@ import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { PostGIS } from '$lib/types/database.types';
 import { detectMode, detectTrainMode } from '$lib/utils/transport-mode';
 import type { ModeContext } from '$lib/utils/transport-mode';
 
@@ -205,40 +204,48 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       }
     }
 
-    // 2. Calculate unique places (locations + POIs)
-    let uniquePlacesQuery = supabaseAdmin
-      .from('locations')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
+    // 2. Calculate unique places based on reverse geocoded data from tracker_data
+    const uniqueLocations = new Set<string>();
+    const uniquePOIs = new Set<string>();
 
-    if (startDate) {
-      uniquePlacesQuery = uniquePlacesQuery.gte('created_at', startDate);
+    for (const row of trackerData) {
+      if (row.reverse_geocode) {
+        try {
+          const geocode = typeof row.reverse_geocode === 'string'
+            ? JSON.parse(row.reverse_geocode)
+            : row.reverse_geocode;
+
+          if (geocode && geocode.address) {
+            // Create a unique identifier for the location
+            const city = geocode.address.city || '';
+            const town = geocode.address.town || '';
+            const village = geocode.address.village || '';
+            const suburb = geocode.address.suburb || '';
+            const neighbourhood = geocode.address.neighbourhood || '';
+
+            // Use the most specific location name available
+            const locationName = city || town || village || suburb || neighbourhood;
+
+            if (locationName) {
+              // Add country code to make it unique globally
+              const countryCode = row.country_code || '';
+              const uniqueLocationKey = `${locationName}, ${countryCode}`;
+              uniqueLocations.add(uniqueLocationKey);
+            }
+
+            // Check if this is a point of interest (specific named places)
+            if (geocode.name && geocode.name !== locationName) {
+              const poiKey = `${geocode.name}, ${row.country_code || ''}`;
+              uniquePOIs.add(poiKey);
+            }
+          }
+        } catch {
+          // Ignore parsing errors
+        }
+      }
     }
-    if (endDate) {
-      uniquePlacesQuery = uniquePlacesQuery.lte('created_at', endDate + ' 23:59:59');
-    }
 
-    const { count: uniquePlaces, error: uniquePlacesError } = await uniquePlacesQuery;
-
-    let uniquePOIsQuery = supabaseAdmin
-      .from('points_of_interest')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
-    if (startDate) {
-      uniquePOIsQuery = uniquePOIsQuery.gte('created_at', startDate);
-    }
-    if (endDate) {
-      uniquePOIsQuery = uniquePOIsQuery.lte('created_at', endDate + ' 23:59:59');
-    }
-
-    const { count: uniquePOIs, error: uniquePOIsError } = await uniquePOIsQuery;
-
-    if (uniquePlacesError || uniquePOIsError) {
-      console.error('Error counting unique places:', uniquePlacesError || uniquePOIsError);
-    }
-
-    const totalUniquePlaces = (uniquePlaces || 0) + (uniquePOIs || 0);
+    const totalUniquePlaces = uniqueLocations.size + uniquePOIs.size;
 
     // 3. Calculate total distance from tracker data
     const totalDistanceKm = isFinite(totalDistance / 1000) ? totalDistance / 1000 : 0;
@@ -261,36 +268,86 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       const dayStart = date.toISOString().split('T')[0];
       const dayEnd = new Date(date.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      // Count locations for this day
-      const { count: dayLocations } = await supabaseAdmin
-        .from('locations')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', dayStart)
-        .lt('created_at', dayEnd);
+      // Count unique locations for this day based on reverse geocoded data
+      const dayTrackerData = trackerData.filter(row => {
+        const rowDate = row.recorded_at.split('T')[0];
+        return rowDate >= dayStart && rowDate < dayEnd;
+      });
+
+      const dayUniqueLocations = new Set<string>();
+      for (const row of dayTrackerData) {
+        if (row.reverse_geocode) {
+          try {
+            const geocode = typeof row.reverse_geocode === 'string'
+              ? JSON.parse(row.reverse_geocode)
+              : row.reverse_geocode;
+
+            if (geocode && geocode.address) {
+              const city = geocode.address.city || '';
+              const town = geocode.address.town || '';
+              const village = geocode.address.village || '';
+              const suburb = geocode.address.suburb || '';
+              const neighbourhood = geocode.address.neighbourhood || '';
+
+              const locationName = city || town || village || suburb || neighbourhood;
+
+              if (locationName) {
+                const countryCode = row.country_code || '';
+                const uniqueLocationKey = `${locationName}, ${countryCode}`;
+                dayUniqueLocations.add(uniqueLocationKey);
+              }
+            }
+          } catch {
+            // Ignore parsing errors
+          }
+        }
+      }
 
       // Calculate distance for this day
-      const { data: dayTrackerData } = await supabaseAdmin
-        .from('tracker_data')
-        .select('location')
-        .eq('user_id', user.id)
-        .gte('recorded_at', dayStart)
-        .lt('recorded_at', dayEnd)
-        .order('recorded_at', { ascending: true });
-
       let dayDistance = 0;
-      if (dayTrackerData && dayTrackerData.length > 1) {
+      if (dayTrackerData.length > 1) {
         for (let j = 1; j < dayTrackerData.length; j++) {
           const prevPoint = dayTrackerData[j - 1].location;
           const currPoint = dayTrackerData[j].location;
-          dayDistance += PostGIS.distance(prevPoint, currPoint);
+
+          // Extract coordinates from location objects
+          const prevCoords = prevPoint.coordinates;
+          const currCoords = currPoint.coordinates;
+
+          if (
+            Array.isArray(prevCoords) && prevCoords.length >= 2 &&
+            Array.isArray(currCoords) && currCoords.length >= 2
+          ) {
+            const [prevLng, prevLat] = prevCoords;
+            const [currLng, currLat] = currCoords;
+
+            if (
+              typeof prevLat === 'number' && typeof prevLng === 'number' &&
+              typeof currLat === 'number' && typeof currLng === 'number' &&
+              !isNaN(prevLat) && !isNaN(prevLng) && !isNaN(currLat) && !isNaN(currLng)
+            ) {
+              // Haversine distance calculation
+              const toRad = (x: number) => x * Math.PI / 180;
+              const R = 6371e3;
+              const φ1 = toRad(prevLat);
+              const φ2 = toRad(currLat);
+              const Δφ = toRad(currLat - prevLat);
+              const Δλ = toRad(currLng - prevLng);
+              const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              const distance = R * c; // meters
+              if (isFinite(distance) && !isNaN(distance)) {
+                dayDistance += distance;
+              }
+            }
+          }
         }
       }
 
       activityData.push({
         label: daysOfWeek[date.getDay()],
         distance: Math.round(dayDistance / 1000 * 10) / 10, // Convert to km and round to 1 decimal
-        locations: dayLocations || 0
+        locations: dayUniqueLocations.size
       });
     }
 
@@ -320,7 +377,35 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
         // Only count if both points have the same activity type
         if (prevPoint.activity_type && currPoint.activity_type === prevPoint.activity_type) {
-          const distance = PostGIS.distance(prevPoint.location, currPoint.location);
+          // Extract coordinates from location objects
+          const prevCoords = prevPoint.location.coordinates;
+          const currCoords = currPoint.location.coordinates;
+
+          let distance = 0;
+          if (
+            Array.isArray(prevCoords) && prevCoords.length >= 2 &&
+            Array.isArray(currCoords) && currCoords.length >= 2
+          ) {
+            const [prevLng, prevLat] = prevCoords;
+            const [currLng, currLat] = currCoords;
+
+            if (
+              typeof prevLat === 'number' && typeof prevLng === 'number' &&
+              typeof currLat === 'number' && typeof currLng === 'number' &&
+              !isNaN(prevLat) && !isNaN(prevLng) && !isNaN(currLat) && !isNaN(currLng)
+            ) {
+              // Haversine distance calculation
+              const toRad = (x: number) => x * Math.PI / 180;
+              const R = 6371e3;
+              const φ1 = toRad(prevLat);
+              const φ2 = toRad(currLat);
+              const Δφ = toRad(currLat - prevLat);
+              const Δλ = toRad(currLng - prevLng);
+              const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              distance = R * c; // meters
+            }
+          }
           const mode = prevPoint.activity_type;
 
           if (!transportModes.has(mode)) {

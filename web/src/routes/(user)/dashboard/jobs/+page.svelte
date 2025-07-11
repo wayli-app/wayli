@@ -896,12 +896,86 @@
 										style="width: {activeJob?.progress || 0}%"
 									></div>
 								</div>
-								{#if activeJob?.started_at}
+
+								<!-- Enhanced progress details for data import jobs -->
+								{#if template.type === 'data_import' && (activeJob?.result || activeJob?.status === 'running')}
+									{@const result = activeJob.result as Record<string, unknown> || {}}
+									{@const importedCount = (result.importedCount as number) || 0}
+									{@const totalItems = (result.totalItems as number) || 0}
+									{@const totalProcessed = (result.totalProcessed as number) || 0}
+									{@const message = result.message as string || ''}
+									{@const fileName = activeJob.data?.fileName as string || 'Unknown file'}
+									{@const format = activeJob.data?.format as string || 'Unknown format'}
+									{@const fileSize = activeJob.data?.fileSize as number || 0}
+
+									<div class="mt-3 space-y-2">
+										<!-- File information -->
+										<div class="text-xs {textColor} flex items-center gap-2 max-w-full overflow-x-auto">
+											<Database class="w-3 h-3" />
+											<span class="font-medium">File:</span>
+											<span
+												class="break-all truncate max-w-[12rem] md:max-w-[18rem]"
+												title={fileName}
+												style="display: inline-block;"
+											>
+												{fileName}
+											</span>
+											{#if format}
+												<span class="text-gray-500">({format})</span>
+											{/if}
+											{#if fileSize > 0}
+												<span class="text-gray-500">({(fileSize / 1024 / 1024).toFixed(1)} MB)</span>
+											{/if}
+										</div>
+
+										<!-- Progress message -->
+										{#if message}
+											<div class="text-xs {textColor} font-medium">
+												{message}
+											</div>
+										{/if}
+
+										<!-- Import statistics -->
+										{#if totalProcessed > 0 || importedCount > 0}
+											<div class="text-xs {textColor} flex items-center gap-4">
+												{#if totalProcessed > 0}
+													<span>
+														<span class="font-medium">Processed:</span> {totalProcessed.toLocaleString()}
+														{#if totalItems > 0}
+															/ {totalItems.toLocaleString()}
+														{/if}
+													</span>
+												{/if}
+												{#if importedCount > 0}
+													<span>
+														<span class="font-medium">Imported:</span> {importedCount.toLocaleString()}
+													</span>
+												{/if}
+											</div>
+										{/if}
+
+										<!-- ETA calculation for running jobs -->
+										{#if activeJob.status === 'running' && activeJob.progress > 0 && activeJob.progress < 100 && activeJob.started_at}
+											{@const elapsed = (Date.now() - new Date(activeJob.started_at).getTime()) / 1000}
+											{@const estimatedTotal = elapsed / (activeJob.progress / 100)}
+											{@const remaining = estimatedTotal - elapsed}
+											{#if remaining > 0}
+												{@const mins = Math.floor(remaining / 60)}
+												{@const secs = Math.round(remaining % 60)}
+												<div class="text-xs {textColor} flex items-center gap-1">
+													<Clock class="w-3 h-3" />
+													ETA: {mins > 0 ? mins + 'm ' : ''}{secs}s remaining
+												</div>
+											{/if}
+										{/if}
+									</div>
+								{:else if activeJob?.started_at}
 									<div class="text-xs {textColor} mt-2 flex items-center gap-1">
 										<Clock class="w-3 h-3" />
 										Duration: {formatDuration(activeJob.started_at, activeJob.completed_at)}
 									</div>
 								{/if}
+
 								{#if isFinished}
 									<div class="text-xs {textColor} mt-1 flex items-center gap-1">
 										<span class="animate-pulse">Job will disappear in a moment...</span>

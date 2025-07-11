@@ -40,7 +40,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     const latestJobs = Object.values(latestJobsByType);
 
-    return successResponse(latestJobs);
+    return successResponse({ jobs: latestJobs });
   } catch (error) {
     console.error('[Jobs API] Error in GET handler:', error);
     return errorResponse(error);

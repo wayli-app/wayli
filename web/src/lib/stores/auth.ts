@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { User, Session } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import { supabase } from '$lib/supabase';
 import type { UserProfile } from '$lib/types/user.types';
 
@@ -23,7 +23,7 @@ function createAuthStore() {
 		});
 	}
 
-	supabase.auth.onAuthStateChange(async (event, session) => {
+	function handleAuthStateChange(event: AuthChangeEvent, session: Session | null) {
 		console.log('[AuthStore] Auth state change:', event, session ? 'session present' : 'no session');
 
 		// Update session store
@@ -32,57 +32,39 @@ function createAuthStore() {
 		// Handle different auth events appropriately
 		if (event === 'SIGNED_IN' && session) {
 			console.log('[AuthStore] User signed in, verifying with server...');
-			// For SIGNED_IN events, immediately set the user from the session
-			// and then verify with the server
 			const sessionUser = session.user;
 			console.log('[AuthStore] Setting user from session immediately:', sessionUser.email);
 			set(sessionUser as AuthStore | null);
-
-			// Now verify with the server
-			try {
-				const userResponse = await supabase.auth.getUser();
-				const verifiedUser = userResponse?.data.user ?? null;
-
-				console.log('[AuthStore] getUser verification result:', verifiedUser ? 'user verified' : 'verification failed');
-				if (verifiedUser) {
-					console.log('[AuthStore] Verified user email:', verifiedUser.email);
-					// Update with verified user data
-					set(verifiedUser as AuthStore | null);
-					await initializeUser(verifiedUser);
-				} else {
-					console.log('[AuthStore] Verification failed, keeping session user');
-				}
-			} catch (error) {
-				console.error('[AuthStore] Error verifying user:', error);
-				// Keep the session user if verification fails
-			}
+			// Now verify with the server asynchronously
+			verifyUserWithServer();
 		} else if (event === 'SIGNED_OUT' || !session) {
 			console.log('[AuthStore] User signed out or no session, clearing store');
 			set(null);
-			// Also clear session store to ensure consistency
 			sessionStore.set(null);
 		} else {
-			// For other events (TOKEN_REFRESHED, USER_UPDATED, etc.), verify the user
 			console.log('[AuthStore] Other auth event, verifying user...');
-			const userResponse = await supabase.auth.getUser();
-			const user = userResponse?.data.user ?? null;
-
-			console.log('[AuthStore] getUser result:', user ? 'user present' : 'no user');
-			if (user) {
-				console.log('[AuthStore] User email:', user.email);
-			}
-
-			// Update user store
-			set(user as AuthStore | null);
-
-			if (user) {
-				console.log('[AuthStore] Initializing user:', user.email);
-				await initializeUser(user);
-			} else {
-				console.log('[AuthStore] No user, clearing store');
-			}
+			verifyUserWithServer();
 		}
-	});
+	}
+
+	async function verifyUserWithServer() {
+		try {
+			const userResponse = await supabase.auth.getUser();
+			const verifiedUser = userResponse?.data.user ?? null;
+			console.log('[AuthStore] getUser verification result:', verifiedUser ? 'user verified' : 'verification failed');
+			if (verifiedUser) {
+				console.log('[AuthStore] Verified user email:', verifiedUser.email);
+				set(verifiedUser as AuthStore | null);
+				await initializeUser(verifiedUser);
+			} else {
+				console.log('[AuthStore] Verification failed, keeping session user');
+			}
+		} catch (error) {
+			console.error('[AuthStore] Error verifying user:', error);
+		}
+	}
+
+	supabase.auth.onAuthStateChange(handleAuthStateChange);
 
 	return {
 		subscribe,

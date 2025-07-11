@@ -35,7 +35,10 @@
 	} from '$lib/stores/app-state.svelte';
 	import { toast } from 'svelte-sonner';
 	import { LocationCacheService } from '$lib/services/location-cache.service';
+	import { StatisticsService } from '$lib/services/statistics.service';
+	import { TripLocationsService } from '$lib/services/trip-locations.service';
 	import { DatePicker } from '@svelte-plugins/datepicker';
+	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
 
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
@@ -280,52 +283,30 @@
 				}
 			}
 
-			// If we reach here, cache is empty or no cache found - make API call
-			console.log('Cache is empty or no cache found - making API call');
+			// If we reach here, cache is empty or no cache found - use frontend service
+			console.log('Cache is empty or no cache found - using frontend service');
 
-			const params = new URLSearchParams({
-				limit: BATCH_SIZE.toString(),
-				offset: currentOffset.toString(),
-				includeLocations: 'true',
-				includePOIs: 'false',
-				includeTrackerData: 'true'
-			});
+			const startDate = state.filtersStartDate
+				? getDateObject(state.filtersStartDate)?.toISOString().split('T')[0]
+				: undefined;
+			const endDate = state.filtersEndDate
+				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
+				: undefined;
 
-			// Add date filters if set
-			if (state.filtersStartDate) {
-				params.set(
-					'startDate',
-					getDateObject(state.filtersStartDate)?.toISOString().split('T')[0] || ''
-				);
-			}
-			if (state.filtersEndDate) {
-				params.set(
-					'endDate',
-					getDateObject(state.filtersEndDate)?.toISOString().split('T')[0] || ''
-				);
-			}
+			const tripLocationsService = new TripLocationsService();
+			const result = await tripLocationsService.getLocationsByDateRange(
+				startDate,
+				endDate,
+				BATCH_SIZE,
+				currentOffset
+			);
 
-			console.log('API request URL:', `/api/v1/trips/locations?${params.toString()}`);
-			console.log('API parameters:', Object.fromEntries(params.entries()));
+			const newData = result.locations;
 
-			const response = await fetch(`/api/v1/trips/locations?${params.toString()}`);
-			if (!response.ok) {
-				throw new Error('Failed to load location data');
-			}
-
-			const result = await response.json();
-
-			if (!result.success) {
-				throw new Error(result.error?.message || 'Failed to load location data');
-			}
-
-			const newData = result.data.locations || [];
-
-			console.log('API response:', {
-				success: result.success,
-				total: result.data.total,
-				count: result.data.count,
-				hasMore: result.data.hasMore,
+			console.log('Service response:', {
+				total: result.total,
+				count: result.locations.length,
+				hasMore: result.hasMore,
 				locationsReceived: newData.length
 			});
 
@@ -335,11 +316,28 @@
 				locationData = [...locationData, ...newData];
 			}
 
-			hasMoreData = result.data.hasMore;
+			hasMoreData = result.hasMore;
 			currentOffset += newData.length;
 
+			// Transform TripLocation data to LocationData format for caching
+			const transformedData = newData.map(item => ({
+				id: item.id,
+				name: item.name,
+				description: item.description,
+				location: JSON.stringify(item.coordinates), // Convert coordinates to string
+				address: item.city,
+				created_at: item.created_at,
+				updated_at: item.updated_at,
+				type: item.type,
+				coordinates: item.coordinates,
+				recorded_at: item.recorded_at,
+				altitude: item.altitude,
+				accuracy: item.accuracy,
+				speed: item.speed
+			}));
+
 			// Cache the data (this will also cache by individual days)
-			LocationCacheService.setCachedData(cacheKey, newData, result.data.total, result.data.hasMore);
+			LocationCacheService.setCachedData(cacheKey, transformedData, result.total, result.hasMore);
 
 			// Update cache statistics display
 			cacheUpdateTrigger++;
@@ -353,15 +351,12 @@
 			}
 
 			console.log(
-				`Loaded ${newData.length} locations from API (total: ${locationData.length}, hasMore: ${hasMoreData})`
+				`Loaded ${newData.length} locations from service (total: ${locationData.length}, hasMore: ${hasMoreData})`
 			);
-
-			// DEBUG: Force the load more button to always appear
-			hasMoreData = true; // Remove this after debugging
 
 			// Update loaded/total GPS points state
 			loadedGpsPoints = locationData.length;
-			totalGpsPoints = result.data.total || loadedGpsPoints;
+			totalGpsPoints = result.total || loadedGpsPoints;
 		} catch (error) {
 			console.error('Error loading location data:', error);
 			toast.error('Failed to load location data');
@@ -374,7 +369,6 @@
 
 			isLoading = false;
 			isInitialLoad = false;
-			console.log('=== LOADING COMPLETE ===');
 		}
 	}
 
@@ -880,39 +874,27 @@
 
 			statisticsLoading = true;
 			statisticsError = '';
-			const params = new URLSearchParams();
-			if (state.filtersStartDate) {
-				const startDateObj = getDateObject(state.filtersStartDate);
-				if (startDateObj) params.set('startDate', startDateObj.toISOString().split('T')[0]);
-			}
-			if (state.filtersEndDate) {
-				const endDateObj = getDateObject(state.filtersEndDate);
-				if (endDateObj) params.set('endDate', endDateObj.toISOString().split('T')[0]);
-			}
-			const url = `/api/v1/statistics?${params.toString()}`;
-			console.log('Fetching statistics from:', url);
-			const response = await fetch(url);
-			console.log('API response status:', response.status);
-			let result;
-			try {
-				result = await response.json();
-				console.log('API response JSON:', result);
-			} catch (jsonErr) {
-				console.error('Failed to parse JSON:', jsonErr);
-				throw new Error('Invalid JSON response from statistics API');
-			}
-			if (!response.ok) throw new Error('HTTP error: ' + response.status);
-			if (!result.success) throw new Error(result.error?.message || 'Failed to fetch statistics');
-			statisticsData = result.data;
-			console.log('Fetched statisticsData:', statisticsData);
+
+			// Use the new frontend statistics service
+			const statisticsService = new StatisticsService();
+			const startDate = state.filtersStartDate
+				? getDateObject(state.filtersStartDate)?.toISOString().split('T')[0]
+				: undefined;
+			const endDate = state.filtersEndDate
+				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
+				: undefined;
+
+			console.log('Calculating statistics for date range:', { startDate, endDate });
+			statisticsData = await statisticsService.calculateStatistics(startDate, endDate);
+			console.log('Calculated statisticsData:', statisticsData);
 
 			// Cache the result
-			setCachedStatistics(result.data);
+			setCachedStatistics(statisticsData);
 
 			// Update cache statistics display
 			cacheUpdateTrigger++;
 		} catch (err) {
-			console.error('Statistics fetch error:', err);
+			console.error('Statistics calculation error:', err);
 			statisticsError = err instanceof Error ? err.message : String(err);
 			statisticsData = null;
 		} finally {

@@ -304,19 +304,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // Calculate hasMore based on total count
     const hasMore = offset + limit < totalCount;
 
-    console.log('=== API RESPONSE SUMMARY ===');
-    console.log('Total results:', results.length);
-    console.log('Total count from database:', totalCount);
-    console.log('Offset:', offset);
-    console.log('Limit:', limit);
-    console.log('Returning:', results.length);
-    console.log('Has more:', hasMore);
-    console.log('Breakdown by type:');
-    console.log('  - Locations:', results.filter(r => r.type === 'location').length);
-    console.log('  - POIs:', results.filter(r => r.type === 'poi').length);
-    console.log('  - Tracker data:', results.filter(r => r.type === 'tracker').length);
-    console.log('============================');
-
     return successResponse({
       locations: results,
       total: totalCount,

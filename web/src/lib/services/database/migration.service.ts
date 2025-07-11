@@ -244,32 +244,5 @@ export class DatabaseMigrationService {
     };
   }
 
-  /**
-   * Initialize database with basic schema
-   */
-  static async initializeDatabase(): Promise<boolean> {
-    try {
-      console.log('Initializing database...');
 
-      // For now, we'll use the existing setup approach
-      // In the future, this will use Supabase CLI migrations
-      const response = await fetch('/api/v1/setup/init-database', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Database initialization failed: ${response.statusText}`);
-      }
-
-      console.log('✅ Database initialized successfully');
-      return true;
-
-    } catch (error) {
-      console.error('Failed to initialize database:', error);
-      return false;
-    }
-  }
 }

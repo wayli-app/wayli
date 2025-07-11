@@ -5,6 +5,8 @@
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { toast } from 'svelte-sonner';
 	import { uploadTripImage } from '$lib/services/external/image-upload.service';
+	import { TripsService } from '$lib/services/trips.service';
+	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
 
 	interface Trip {
 		id: string;
@@ -27,6 +29,7 @@
 
 	let trips: Trip[] = [];
 	let isLoading = false;
+	let isInitialLoad = true;
 	let searchQuery = '';
 	let selectedFilter = 'all';
 	let filteredTrips: Trip[] = [];
@@ -129,33 +132,31 @@
 		filteredTrips = filtered;
 	}
 
-	async function loadTrips() {
+	async function loadTrips(userId?: string) {
 		if (isLoading) return;
 
 		isLoading = true;
 		try {
-			const response = await fetch('/api/v1/trips');
-			if (!response.ok) {
-				throw new Error('Failed to load trips');
-			}
-
-			const result = await response.json();
-			if (!result.success) {
-				throw new Error(result.error?.message || 'Failed to load trips');
-			}
-
-			trips = result.data.trips || [];
+			const tripsService = new TripsService();
+			trips = await tripsService.getTrips(userId);
+			console.log('[TripsPage] Trips loaded:', trips);
 			filterTrips();
 		} catch (error) {
 			console.error('Error loading trips:', error);
 			toast.error('Failed to load trips');
 		} finally {
 			isLoading = false;
+			isInitialLoad = false;
 		}
 	}
 
 	$: if (searchQuery || selectedFilter) {
 		filterTrips();
+	}
+
+	$: if (browser && $sessionStoreReady && $sessionStore) {
+		console.log('[TripsPage] Session ready, loading trips. Session:', $sessionStore);
+		loadTrips($sessionStore?.user?.id);
 	}
 
 	function openAddTripModal() {
@@ -235,53 +236,27 @@
 			// Use the pre-uploaded image URL if available
 			const imageUrl = uploadedImageUrl || (isEditing && editingTrip?.image_url ? editingTrip.image_url : undefined);
 
-			const method = isEditing ? 'PUT' : 'POST';
-			const url = isEditing ? `/api/v1/trips` : '/api/v1/trips';
-
-			const requestBody = {
+			const tripsService = new TripsService();
+			const tripData = {
 				title: tripForm.title.trim(),
 				description: tripForm.description?.trim() || '',
 				start_date: tripForm.start_date,
 				end_date: tripForm.end_date,
 				labels: tripForm.labels,
-				metadata: {},
 				image_url: imageUrl
 			};
 
 			if (isEditing && editingTrip) {
-				(requestBody as any).id = editingTrip.id;
-			}
-
-			console.log('Sending request:', { method, url, requestBody });
-
-			// Add timeout to the fetch request
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-			const response = await fetch(url, {
-				method,
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(requestBody),
-				signal: controller.signal
-			});
-
-			clearTimeout(timeoutId);
-
-			console.log('Response received:', { status: response.status, ok: response.ok });
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				console.error('Response error:', errorData);
-				throw new Error(errorData.error?.message || `Failed to ${isEditing ? 'update' : 'create'} trip`);
-			}
-
-			const result = await response.json();
-			console.log('Response result:', result);
-
-			if (!result.success) {
-				throw new Error(result.error?.message || `Failed to ${isEditing ? 'update' : 'create'} trip`);
+				await tripsService.updateTrip({
+					id: editingTrip.id,
+					...tripData
+				});
+			} else {
+				// Include user_id for new trip creation
+				await tripsService.createTrip({
+					...tripData,
+					user_id: $sessionStore?.user?.id || ''
+				});
 			}
 
 			closeTripModal();
@@ -321,11 +296,18 @@
 		tripToDelete = null;
 		showDeleteConfirm = false;
 	}
-	function deleteTrip() {
+	async function deleteTrip() {
 		if (tripToDelete) {
-			trips = trips.filter(t => t.id !== tripToDelete?.id);
-			filterTrips();
-			toast.success('Trip deleted!');
+			try {
+				const tripsService = new TripsService();
+				await tripsService.deleteTrip(tripToDelete.id);
+				trips = trips.filter(t => t.id !== tripToDelete?.id);
+				filterTrips();
+				toast.success('Trip deleted!');
+			} catch (error) {
+				console.error('Error deleting trip:', error);
+				toast.error('Failed to delete trip');
+			}
 		}
 		tripToDelete = null;
 		showDeleteConfirm = false;
@@ -438,12 +420,20 @@
 
 	<!-- Trip Modal -->
 	{#if showTripModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm modal-overlay cursor-pointer"
-			on:click={closeTripModal}>
-			<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4 relative cursor-default"
-				on:click|stopPropagation>
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm modal-overlay cursor-pointer"
+			on:click={closeTripModal}
+			on:keydown={(e) => e.key === 'Escape' && closeTripModal()}
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="modal-title"
+			tabindex="-1">
+			<div
+				class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4 relative cursor-default"
+				on:click|stopPropagation
+				role="document">
 				<button class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors cursor-pointer" on:click={closeTripModal} aria-label="Close modal">&times;</button>
-				<h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">{isEditing ? 'Edit Trip' : 'Add New Trip'}</h2>
+				<h2 id="modal-title" class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">{isEditing ? 'Edit Trip' : 'Add New Trip'}</h2>
 				<form on:submit|preventDefault={submitTrip} class="space-y-5">
 					<div>
 						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="title">Title</label>
@@ -466,11 +456,12 @@
 
 					<!-- Labels Section -->
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
+						<label for="new-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
 						<div class="space-y-3">
 							<!-- Add new label -->
 							<div class="flex gap-2">
 								<input
+									id="new-label"
 									type="text"
 									bind:value={newLabel}
 									on:keydown={(e) => e.key === 'Enter' && (e.preventDefault(), addLabel())}
@@ -507,8 +498,8 @@
 					</div>
 
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trip Image</label>
-						<input type="file" accept="image/*" on:change={handleImageChange} class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" disabled={isUploadingImage} />
+						<label for="trip-image" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trip Image</label>
+						<input id="trip-image" type="file" accept="image/*" on:change={handleImageChange} class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" disabled={isUploadingImage} />
 
 						{#if isUploadingImage}
 							<div class="flex items-center gap-2 mt-2 text-blue-600 dark:text-blue-400">
@@ -556,7 +547,7 @@
 	{/if}
 
 	<!-- Loading State -->
-	{#if isLoading}
+	{#if isLoading || isInitialLoad}
 		<div class="flex items-center justify-center py-12">
 			<div class="text-center">
 				<Loader2 class="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />

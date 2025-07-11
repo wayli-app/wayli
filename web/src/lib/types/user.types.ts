@@ -2,19 +2,11 @@ import type { GeocodedLocation } from './geocoding.types';
 
 export interface UserProfile {
   id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
+  email?: string;
   full_name?: string;
-  home_address?: string | GeocodedLocation;
-  home_location?: {
-    lat: number;
-    lng: number;
-    display_name: string;
-    address?: Record<string, string | number | boolean>;
-  } | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'moderator';
   avatar_url?: string;
+  email_confirmed_at?: string;
   created_at: string;
   updated_at: string;
 }

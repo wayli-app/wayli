@@ -35,43 +35,62 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const userId = user.id;
 		console.log('🔐 Authenticated user:', userId);
 
-		// Read the file content
-		const fileContent = await file.text();
-		console.log(`File content read, length: ${fileContent.length}`);
-
-		// Store file content in a temporary table to avoid storing it in job data
-		const { data: tempFile, error: tempFileError } = await locals.supabase
-			.from('temp_files')
-			.insert({
-				user_id: userId,
-				file_name: file.name,
-				file_content: fileContent,
-				format: format,
-				file_size: file.size,
-				created_at: new Date().toISOString()
-			})
-			.select()
-			.single();
-
-		if (tempFileError) {
-			console.error('Error storing temporary file:', tempFileError);
-			return errorResponse('Failed to store file temporarily');
+		// Check file size limit (1GB)
+		const maxFileSize = 1024 * 1024 * 1024; // 1GB
+		if (file.size > maxFileSize) {
+			return errorResponse(`File too large. Maximum size is ${(maxFileSize / 1024 / 1024).toFixed(0)}MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.`);
 		}
 
-		// Create a job for the import with only metadata
+		// Generate a unique file path for storage
+		const fileId = crypto.randomUUID();
+		const filePath = `temp-imports/${userId}/${fileId}/${file.name}`;
+
+		console.log(`Uploading file to Supabase Storage: ${filePath}`);
+
+		// Upload file to Supabase Storage
+		const { error: uploadError } = await locals.supabase.storage
+			.from('temp-files')
+			.upload(filePath, file, {
+				cacheControl: '3600',
+				upsert: false
+			});
+
+		if (uploadError) {
+			console.error('Error uploading file to storage:', uploadError);
+			return errorResponse(`Failed to upload file: ${uploadError.message}`);
+		}
+
+		console.log('File uploaded successfully to storage');
+
+		// Create a job for the import with storage metadata
 		const jobData = {
-			tempFileId: tempFile.id,
+			storagePath: filePath,
 			format,
 			fileName: file.name,
 			fileSize: file.size
 		};
 
-		const job = await JobQueueService.createJob(
-			'data_import',
-			jobData,
-			'normal',
-			userId
-		);
+		console.log('Creating import job...');
+		let job;
+		try {
+			job = await JobQueueService.createJob(
+				'data_import',
+				jobData,
+				'normal',
+				userId
+			);
+		} catch (jobError) {
+			console.error('Error creating job:', jobError);
+			// Clean up storage file if job creation fails
+			try {
+				await locals.supabase.storage
+					.from('temp-files')
+					.remove([filePath]);
+			} catch (cleanupError) {
+				console.error('Failed to cleanup storage file after job creation error:', cleanupError);
+			}
+			return errorResponse(`Failed to create import job: ${jobError instanceof Error ? jobError.message : 'Unknown error'}`);
+		}
 
 		console.log(`📝 Created import job: ${job.id}`);
 
@@ -85,6 +104,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	} catch (error) {
 		console.error('Import error:', error);
-		return errorResponse(error);
+		console.error('Error details:', {
+			name: error instanceof Error ? error.name : 'Unknown',
+			message: error instanceof Error ? error.message : 'Unknown error',
+			stack: error instanceof Error ? error.stack : undefined
+		});
+		return errorResponse(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	}
 };

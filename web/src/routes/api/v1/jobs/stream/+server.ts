@@ -100,6 +100,8 @@ export const GET: RequestHandler = async ({ locals, setHeaders, request }) => {
           } catch (error) {
             console.error('[SSE] Error sending event:', error);
             closed = true;
+            // Optionally, try to close the controller if not already closed
+            try { controller.close(); } catch {} // ignore
           }
         };
 
