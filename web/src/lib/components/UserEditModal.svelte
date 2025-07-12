@@ -2,41 +2,20 @@
 	import { createEventDispatcher } from 'svelte';
 	import { User as UserIcon, Mail, Shield, X } from 'lucide-svelte';
 	import RoleSelector from './RoleSelector.svelte';
-
-	// Define User type locally for component scope
-	type User = {
-		id: string;
-		email?: string;
-		full_name?: string;
-		avatar_url?: string;
-		is_admin: boolean;
-		created_at: string;
-		user_metadata: {
-			role?: 'admin' | 'user';
-			[key: string]: any;
-		}
-		[key: string]: any;
-	};
+	import type { UserProfile } from '$lib/types/user.types';
 
 	export let isOpen = false;
-	export let user: User | null;
+	export let user: UserProfile | null;
 
-	let localUser: User;
+	let localUser: UserProfile;
 	const dispatch = createEventDispatcher();
 
 	$: if (user) {
 		// Create a local copy to avoid modifying the original user object directly
 		localUser = JSON.parse(JSON.stringify(user));
-		// Ensure user_metadata and role exist
-		if (!localUser.user_metadata) {
-			localUser.user_metadata = {};
-		}
-		if (!localUser.user_metadata.role) {
-			localUser.user_metadata.role = 'user';
-		}
 	}
 
-	$: role = localUser?.user_metadata?.role || 'user';
+	$: role = localUser?.role || 'user';
 
 	function closeModal() {
 		dispatch('close');
@@ -44,8 +23,8 @@
 
 	function handleSave() {
 		// Update the role in the local user
-		if (localUser && localUser.user_metadata) {
-			localUser.user_metadata.role = role;
+		if (localUser) {
+			localUser.role = role;
 		}
 		dispatch('save', localUser);
 	}
@@ -91,26 +70,41 @@
 				/>
 				<div>
 					<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-						{localUser.full_name || 'N/A'}
+						{localUser.full_name || `${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() || 'N/A'}
 					</p>
 					<p class="text-sm text-gray-500 dark:text-gray-400">{localUser.email}</p>
 				</div>
 			</div>
 
-
 			<!-- Form Fields -->
 			<div class="space-y-6">
-				<div>
-					<label for="fullName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-					<div class="relative">
-						<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-						<input
-							type="text"
-							id="fullName"
-							bind:value={localUser.full_name}
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
-							placeholder="e.g. Jane Doe"
-						/>
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label for="firstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
+						<div class="relative">
+							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<input
+								type="text"
+								id="firstName"
+								bind:value={localUser.first_name}
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								placeholder="e.g. Jane"
+							/>
+						</div>
+					</div>
+
+					<div>
+						<label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
+						<div class="relative">
+							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<input
+								type="text"
+								id="lastName"
+								bind:value={localUser.last_name}
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								placeholder="e.g. Doe"
+							/>
+						</div>
 					</div>
 				</div>
 

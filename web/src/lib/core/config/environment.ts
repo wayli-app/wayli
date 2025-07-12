@@ -1,14 +1,4 @@
-let PUBLIC_SUPABASE_URL: string = '';
-let PUBLIC_SUPABASE_ANON_KEY: string = '';
-
-try {
-  const envMod = await import('$env/static/public');
-  PUBLIC_SUPABASE_URL = envMod.PUBLIC_SUPABASE_URL;
-  PUBLIC_SUPABASE_ANON_KEY = envMod.PUBLIC_SUPABASE_ANON_KEY;
-} catch {
-  PUBLIC_SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL || '';
-  PUBLIC_SUPABASE_ANON_KEY = process.env.PUBLIC_SUPABASE_ANON_KEY || '';
-}
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 export interface EnvironmentConfig {
   // Supabase Configuration

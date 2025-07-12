@@ -3,8 +3,8 @@ import type { UserProfile } from '$lib/types/user.types';
 
 export class UserProfileService {
   private static supabase = createClient(
-    process.env.PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    'http://127.0.0.1:54321',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
   );
 
   /**
@@ -25,12 +25,15 @@ export class UserProfileService {
       return {
         id: user.id,
         email: user.email ?? '',
-        full_name: metadata.full_name || metadata.first_name || metadata.last_name,
+        first_name: metadata.first_name || '',
+        last_name: metadata.last_name || '',
+        full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
         role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
         avatar_url: metadata.avatar_url || user.user_metadata?.avatar_url,
+        home_address: metadata.home_address,
         email_confirmed_at: user.email_confirmed_at,
         created_at: user.created_at,
-        updated_at: user.updated_at
+        updated_at: user.updated_at || user.created_at
       };
     } catch (error) {
       console.error('Error in getUserProfile:', error);
@@ -110,12 +113,15 @@ export class UserProfileService {
         return {
           id: user.id,
           email: user.email,
-          full_name: metadata.full_name || metadata.first_name || metadata.last_name,
+          first_name: metadata.first_name || '',
+          last_name: metadata.last_name || '',
+          full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
           role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
           avatar_url: metadata.avatar_url || user.user_metadata?.avatar_url,
+          home_address: metadata.home_address,
           email_confirmed_at: user.email_confirmed_at,
           created_at: user.created_at,
-          updated_at: user.updated_at
+          updated_at: user.updated_at || user.created_at
         };
       });
     } catch (error) {

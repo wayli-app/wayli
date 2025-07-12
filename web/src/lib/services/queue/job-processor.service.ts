@@ -4,6 +4,9 @@ import { reverseGeocode } from '../external/nominatim.service';
 import { supabase } from '$lib/core/supabase/worker';
 import { JobQueueService } from './job-queue.service.worker';
 import { EnhancedPoiDetectionService } from '../enhanced-poi-detection.service';
+import { TripLocationsService } from '../../services/trip-locations.service';
+import { haversineDistance } from '../../utils';
+import { getCountryForPoint, normalizeCountryCode } from '../external/country-reverse-geocoding.service';
 
 export class JobProcessorService {
   /**
@@ -408,15 +411,11 @@ export class JobProcessorService {
       }
 
       // Get user's trip exclusions from metadata
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('metadata')
-        .eq('id', userId)
-        .single();
+      const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId);
 
-      if (profileError) throw profileError;
+      if (userError || !user.user) throw userError || new Error('User not found');
 
-      const exclusions = profile?.metadata?.trip_exclusions || [];
+      const exclusions = user.user.user_metadata?.trip_exclusions || [];
 
       await JobQueueService.updateJobProgress(job.id, 30, {
         message: 'Retrieved trip exclusions, analyzing data...',
@@ -639,18 +638,60 @@ export class JobProcessorService {
             const [longitude, latitude] = feature.geometry.coordinates;
             const properties = feature.properties || {};
 
-            // Get country code
-            const countryCode = await this.getCountryForPoint(latitude, longitude);
+            // Extract timestamp from properties - handle both seconds and milliseconds
+            let recordedAt = new Date().toISOString();
+            if (properties.timestamp) {
+              // Check if timestamp is in seconds (Unix timestamp) or milliseconds
+              const timestamp = properties.timestamp;
+              if (timestamp < 10000000000) {
+                // Timestamp is in seconds, convert to milliseconds
+                recordedAt = new Date(timestamp * 1000).toISOString();
+              } else {
+                // Timestamp is already in milliseconds
+                recordedAt = new Date(timestamp).toISOString();
+              }
+            } else if (properties.time) {
+              recordedAt = new Date(properties.time).toISOString();
+            } else if (properties.date) {
+              recordedAt = new Date(properties.date).toISOString();
+            }
+
+                        // Extract country code from properties first, then from coordinates if not available
+            let countryCode = properties.countrycode || properties.country_code || properties.country || null;
+
+            // If no country code in properties, determine it from coordinates
+            if (!countryCode) {
+              countryCode = this.getCountryForPoint(latitude, longitude);
+            }
+
+            // Normalize the country code to ensure it's a valid 2-character ISO code
+            countryCode = this.normalizeCountryCode(countryCode);
+
+            // Use geodata for reverse_geocode if available
+            let reverseGeocode = null;
+            if (properties.geodata) {
+              reverseGeocode = properties.geodata;
+            }
 
             const { error } = await supabase
-              .from('points_of_interest')
-              .insert({
+              .from('tracker_data')
+              .upsert({
                 user_id: userId,
+                tracker_type: 'import',
                 location: `POINT(${longitude} ${latitude})`,
-                name: properties.name || `Imported Point ${i + 1}`,
-                description: properties.description || `Imported from ${fileName}`,
+                recorded_at: recordedAt,
                 country_code: countryCode,
+                reverse_geocode: reverseGeocode,
+                altitude: properties.altitude || properties.elevation || null,
+                accuracy: properties.accuracy || null,
+                speed: properties.speed || properties.velocity || null,
+                heading: properties.heading || properties.bearing || properties.course || null,
+                activity_type: properties.activity_type || null,
+                raw_data: { ...properties, import_source: 'geojson' }, // Store all original properties plus import source
                 created_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,location,recorded_at',
+                ignoreDuplicates: false
               });
 
             if (!error) {
@@ -711,17 +752,28 @@ export class JobProcessorService {
         const lon = parseFloat(waypoint['@_lon']);
 
         if (!isNaN(lat) && !isNaN(lon)) {
-          const countryCode = await this.getCountryForPoint(lat, lon);
+          // Determine country code from coordinates
+          const countryCode = await this.normalizeCountryCode(this.getCountryForPoint(lat, lon));
 
           const { error } = await supabase
-            .from('points_of_interest')
-            .insert({
+            .from('tracker_data')
+            .upsert({
               user_id: userId,
+              tracker_type: 'import',
               location: `POINT(${lon} ${lat})`,
-              name: waypoint.name || `GPX Waypoint ${i + 1}`,
-              description: waypoint.desc || `Imported from ${fileName}`,
+              recorded_at: waypoint.time || new Date().toISOString(),
               country_code: countryCode,
+              raw_data: {
+                name: waypoint.name || `GPX Waypoint ${i + 1}`,
+                description: waypoint.desc || `Imported from ${fileName}`,
+                category: 'waypoint',
+                import_source: 'gpx',
+                data_type: 'waypoint'
+              },
               created_at: new Date().toISOString()
+            }, {
+              onConflict: 'user_id,location,recorded_at',
+              ignoreDuplicates: false
             });
 
           if (!error) {
@@ -756,16 +808,25 @@ export class JobProcessorService {
           const lon = parseFloat(point['@_lon']);
 
           if (!isNaN(lat) && !isNaN(lon)) {
-            const countryCode = await this.getCountryForPoint(lat, lon);
+            // Determine country code from coordinates
+            const countryCode = this.normalizeCountryCode(this.getCountryForPoint(lat, lon));
 
             const { error } = await supabase
               .from('tracker_data')
-              .insert({
+              .upsert({
                 user_id: userId,
+                tracker_type: 'import',
                 location: `POINT(${lon} ${lat})`,
                 recorded_at: point.time || new Date().toISOString(),
                 country_code: countryCode,
+                raw_data: {
+                  import_source: 'gpx',
+                  data_type: 'track_point'
+                },
                 created_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,location,recorded_at',
+                ignoreDuplicates: false
               });
 
             if (!error) {
@@ -830,16 +891,25 @@ export class JobProcessorService {
           const lon = parseFloat(parts[2]);
 
           if (!isNaN(timestamp) && !isNaN(lat) && !isNaN(lon)) {
-            const countryCode = await this.getCountryForPoint(lat, lon);
+            // Determine country code from coordinates
+            const countryCode = this.normalizeCountryCode(this.getCountryForPoint(lat, lon));
 
             const { error } = await supabase
               .from('tracker_data')
-              .insert({
+              .upsert({
                 user_id: userId,
+                tracker_type: 'import',
                 location: `POINT(${lon} ${lat})`,
                 recorded_at: new Date(timestamp * 1000).toISOString(),
                 country_code: countryCode,
+                raw_data: {
+                  import_source: 'owntracks',
+                  data_type: 'track_point'
+                },
                 created_at: new Date().toISOString()
+              }, {
+                onConflict: 'user_id,location,recorded_at',
+                ignoreDuplicates: false
               });
 
             if (!error) {
@@ -873,13 +943,20 @@ export class JobProcessorService {
     }
   }
 
-  private static async getCountryForPoint(lat: number, lon: number): Promise<string | null> {
+  private static getCountryForPoint(lat: number, lon: number): string | null {
     try {
-      // Import the country reverse geocoding service
-      const { getCountryForPoint } = await import('$lib/services/external/country-reverse-geocoding.service');
       return getCountryForPoint(lat, lon);
     } catch (error) {
       console.warn('Failed to get country for point:', error);
+      return null;
+    }
+  }
+
+  private static normalizeCountryCode(countryCode: string | null): string | null {
+    try {
+      return normalizeCountryCode(countryCode);
+    } catch (error) {
+      console.warn('Failed to normalize country code:', error);
       return null;
     }
   }
@@ -1224,32 +1301,50 @@ export class JobProcessorService {
 
   private static async saveTripsToDatabase(trips: DetectedTrip[], userId: string, jobId: string): Promise<unknown[]> {
     const savedTrips = [];
+    const tripLocationsService = new TripLocationsService();
 
     for (const trip of trips) {
-              const { data: savedTrip, error } = await supabase
-          .from('trips')
-          .insert({
-            user_id: userId,
-            title: trip.title,
-            description: trip.description,
-            start_date: trip.startDate,
-            end_date: trip.endDate,
-            image_url: trip.image_url,
-            labels: ['auto-generated'],
-            metadata: {
-              distance_traveled: 0, // Will be calculated from tracker data
-              visited_places_count: 1, // At least the destination city
-              cityName: trip.cityName,
-              location: trip.location,
-              jobId: jobId
-            }
-          })
-          .select()
-          .single();
+      const { data: savedTrip, error } = await supabase
+        .from('trips')
+        .insert({
+          user_id: userId,
+          title: trip.title,
+          description: trip.description,
+          start_date: trip.startDate,
+          end_date: trip.endDate,
+          image_url: trip.image_url,
+          labels: ['auto-generated'],
+          metadata: {
+            distance_traveled: 0, // Will be calculated from tracker data
+            visited_places_count: 1, // At least the destination city
+            cityName: trip.cityName,
+            location: trip.location,
+            jobId: jobId
+          }
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error('Error saving trip:', error);
-      } else {
+      } else if (savedTrip && savedTrip.id) {
+        // --- Calculate geopoints and distance, then update metadata ---
+        try {
+          const points = await tripLocationsService.getTripLocations(savedTrip.id);
+          const pointCount = points.length;
+          let distance = 0;
+          for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1].location.coordinates;
+            const curr = points[i].location.coordinates;
+            distance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+          }
+          await supabase
+            .from('trips')
+            .update({ metadata: { ...savedTrip.metadata, point_count: pointCount, distance_traveled: distance } })
+            .eq('id', savedTrip.id);
+        } catch (err) {
+          console.error('Error updating trip metadata (auto-generated):', err);
+        }
         savedTrips.push(savedTrip);
       }
     }

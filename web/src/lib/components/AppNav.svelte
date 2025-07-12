@@ -16,7 +16,7 @@
 		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
 		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
 		{ href: '/dashboard/want-to-visit', label: 'Want to Visit', icon: Star },
-		{ href: '/dashboard/jobs', label: 'Jobs', icon: ListTodo },
+		{ href: '/dashboard/jobs', label: 'Background jobs', icon: ListTodo },
 		{ href: '/dashboard/integrations', label: 'Integrations', icon: Link }
 	];
 

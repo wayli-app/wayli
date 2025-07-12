@@ -42,3 +42,48 @@ export function getCountryForPoint(lat: number, lng: number): string | null {
 	}
 	return null;
 }
+
+/**
+ * Converts a country name to ISO 3166-1 alpha-2 code, or returns null if not found.
+ */
+export function getCountryCodeFromName(countryName: string): string | null {
+	if (!countryName) return null;
+
+	const geojson = loadCountriesGeoJSON();
+	const normalizedName = countryName.toLowerCase().trim();
+
+	for (const feature of geojson.features) {
+		const props = feature.properties || {};
+		const adminName = props.ADMIN?.toLowerCase();
+		const name = props.NAME?.toLowerCase();
+		const altName = props.ALTNAME?.toLowerCase();
+
+		if (adminName === normalizedName ||
+			name === normalizedName ||
+			altName === normalizedName) {
+			return props.ISO_A2 || null;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Ensures a country code is valid (2 characters max) and converts country names to codes if needed.
+ */
+export function normalizeCountryCode(countryCode: string | null): string | null {
+	if (!countryCode) return null;
+
+	// If it's already a 2-character code, return it
+	if (countryCode.length === 2 && /^[A-Z]{2}$/.test(countryCode.toUpperCase())) {
+		return countryCode.toUpperCase();
+	}
+
+	// If it's longer than 2 characters, try to convert it from a country name
+	if (countryCode.length > 2) {
+		return getCountryCodeFromName(countryCode);
+	}
+
+	// If it's 1 character or invalid format, return null
+	return null;
+}

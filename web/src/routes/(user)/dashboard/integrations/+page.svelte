@@ -155,24 +155,5 @@
 				</div>
 			</div>
 		</div>
-
-		<!-- Immich Integration (placeholder) -->
-		<div class="rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
-			<div class="mb-6">
-				<div class="flex items-center gap-2">
-					<Database class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Immich Integration</h2>
-				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-					Connect with Immich to sync photo locations and metadata. (Coming soon)
-				</p>
-			</div>
-
-			<div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-				<p class="text-sm text-gray-600 dark:text-gray-400">
-					This integration is not yet available. Check back later for updates.
-				</p>
-			</div>
-		</div>
 	</div>
 </div>

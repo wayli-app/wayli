@@ -59,8 +59,8 @@ interface AddressData {
 
 export class EnhancedPoiDetectionService {
   private supabase = createClient(
-    process.env.PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    'http://127.0.0.1:54321',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
   );
 
   /**
@@ -276,28 +276,36 @@ export class EnhancedPoiDetectionService {
       // Calculate visit statistics for this POI
       const visitStats = this.calculateVisitStats(trackerData, poi, config);
 
-      // Check if POI already exists
+      // Check if POI already exists in tracker_data
       const { data: existingPoi } = await this.supabase
-        .from('points_of_interest')
+        .from('tracker_data')
         .select('*')
         .eq('user_id', userId)
-        .eq('name', poi.name)
-        .eq('category', poi.category)
+        .eq('tracker_type', 'import')
+        .eq('raw_data->>name', poi.name)
+        .eq('raw_data->>category', poi.category)
+        .eq('raw_data->>data_type', 'poi')
         .single();
 
       if (existingPoi) {
-        // Update existing POI with new statistics
+        // Update existing POI with new statistics in raw_data
+        const existingRawData = existingPoi.raw_data as Record<string, unknown> || {};
+        const updatedRawData = {
+          ...existingRawData,
+          visit_count: (existingRawData.visit_count as number || 0) + visitStats.visit_count,
+          first_visit: existingRawData.first_visit || visitStats.first_visit,
+          last_visit: visitStats.last_visit || existingRawData.last_visit,
+          total_visit_duration_minutes: (existingRawData.total_visit_duration_minutes as number || 0) + visitStats.total_duration_minutes,
+          average_visit_duration_minutes: this.calculateAverageDuration(
+            (existingRawData.total_visit_duration_minutes as number || 0) + visitStats.total_duration_minutes,
+            (existingRawData.visit_count as number || 0) + visitStats.visit_count
+          )
+        };
+
         const { error } = await this.supabase
-          .from('points_of_interest')
+          .from('tracker_data')
           .update({
-            visit_count: existingPoi.visit_count + visitStats.visit_count,
-            first_visit: existingPoi.first_visit || visitStats.first_visit,
-            last_visit: visitStats.last_visit || existingPoi.last_visit,
-            total_visit_duration_minutes: existingPoi.total_visit_duration_minutes + visitStats.total_duration_minutes,
-            average_visit_duration_minutes: this.calculateAverageDuration(
-              existingPoi.total_visit_duration_minutes + visitStats.total_duration_minutes,
-              existingPoi.visit_count + visitStats.visit_count
-            ),
+            raw_data: updatedRawData,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingPoi.id);
@@ -307,30 +315,36 @@ export class EnhancedPoiDetectionService {
         } else {
           updatedPois.push({
             ...poi,
-            visit_count: existingPoi.visit_count + visitStats.visit_count,
-            first_visit: existingPoi.first_visit || visitStats.first_visit,
-            last_visit: visitStats.last_visit || existingPoi.last_visit
+            visit_count: (existingRawData.visit_count as number || 0) + visitStats.visit_count,
+            first_visit: existingRawData.first_visit as string || visitStats.first_visit,
+            last_visit: visitStats.last_visit || existingRawData.last_visit as string
           });
         }
       } else {
-        // Create new POI with initial statistics
+        // Create new POI with initial statistics in tracker_data
         const { error } = await this.supabase
-          .from('points_of_interest')
+          .from('tracker_data')
           .insert({
             user_id: userId,
-            name: poi.name,
-            category: poi.category,
-            location: poi.location,
-            address: poi.address,
+            tracker_type: 'import',
+            location: `POINT(${poi.location.coordinates[0]} ${poi.location.coordinates[1]})`,
+            recorded_at: visitStats.first_visit || new Date().toISOString(),
             country_code: poi.country_code,
-            poi_type: 'detected',
-            discovery_source: 'reverse_geocode',
-            confidence_score: 0.8,
-            visit_count: visitStats.visit_count,
-            first_visit: visitStats.first_visit,
-            last_visit: visitStats.last_visit,
-            total_visit_duration_minutes: visitStats.total_duration_minutes,
-            average_visit_duration_minutes: visitStats.average_duration_minutes
+            raw_data: {
+              name: poi.name,
+              category: poi.category,
+              address: poi.address,
+              data_type: 'poi',
+              poi_type: 'detected',
+              discovery_source: 'reverse_geocode',
+              confidence_score: 0.8,
+              visit_count: visitStats.visit_count,
+              first_visit: visitStats.first_visit,
+              last_visit: visitStats.last_visit,
+              total_visit_duration_minutes: visitStats.total_duration_minutes,
+              average_visit_duration_minutes: visitStats.average_duration_minutes
+            },
+            created_at: new Date().toISOString()
           })
           .select('*')
           .single();

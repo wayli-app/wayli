@@ -112,13 +112,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       }
     }
 
-    // Fetch points of interest if requested
+    // Fetch points of interest if requested (now from tracker_data with import type)
     if (includePOIs) {
-      console.log('API: Fetching POIs...');
+      console.log('API: Fetching POIs from tracker_data...');
       let query = supabaseAdmin
-        .from('points_of_interest')
-        .select('id, name, description, location, address, category, rating, created_at, updated_at')
-        .eq('user_id', user.id);
+        .from('tracker_data')
+        .select('id, user_id, location, recorded_at, created_at, raw_data, reverse_geocode')
+        .eq('user_id', user.id)
+        .eq('tracker_type', 'import')
+        .eq('raw_data->>data_type', 'waypoint'); // Filter for waypoint-type imported data
 
       if (startDate) {
         console.log('API: Adding startDate filter for POIs:', startDate);
@@ -136,11 +138,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         console.error('API: Error fetching POIs:', poisError);
       } else {
         console.log('API: POIs found:', pois?.length || 0);
-        const processedPOIs = pois?.map(poi => ({
-          ...poi,
-          type: 'poi' as const,
-          coordinates: extractCoordinates(poi.location)
-        })) || [];
+        const processedPOIs = pois?.map(poi => {
+          const rawData = poi.raw_data as Record<string, unknown> || {};
+          return {
+            id: poi.id,
+            name: (rawData.name as string) || 'Unknown POI',
+            description: (rawData.description as string) || `Imported POI`,
+            location: poi.location,
+            address: (rawData.address as string) || '',
+            category: (rawData.category as string) || '',
+            rating: (rawData.rating as number) || undefined,
+            created_at: poi.created_at,
+            type: 'poi' as const,
+            coordinates: extractCoordinates(poi.location)
+          };
+        }) || [];
         results.push(...processedPOIs);
       }
     }

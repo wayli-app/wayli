@@ -1,8 +1,6 @@
-// @ts-ignore
+// @ts-expect-error - Deno is available in Edge Functions runtime
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { createAuthenticatedClient } from '../_shared/supabase.ts'
-
-// @ts-expect-error - Deno is available in Edge Functions runtime
 Deno.serve(async (req) => {
   // Handle CORS
   const corsResponse = handleCors(req)
@@ -31,13 +29,17 @@ Deno.serve(async (req) => {
     }
 
     // Check if user is admin
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id)
 
-    if (profileError || profile?.role !== 'admin') {
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const userRole = userData.user.user_metadata?.role || 'user'
+    if (userRole !== 'admin') {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -47,26 +49,28 @@ Deno.serve(async (req) => {
     // Handle different HTTP methods
     if (req.method === 'GET') {
       // Get all users
-      const { data: users, error: usersError } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          email,
-          full_name,
-          role,
-          created_at,
-          updated_at,
-          last_sign_in_at,
-          trip_exclusions,
-          preferences
-        `)
-        .order('created_at', { ascending: false })
+      const { data: users, error: usersError } = await supabase.auth.admin.listUsers()
 
       if (usersError) {
         throw usersError
       }
 
-      return new Response(JSON.stringify(users || []), {
+      const formattedUsers = (users.users || []).map(user => {
+        const metadata = user.user_metadata || {}
+        return {
+          id: user.id,
+          email: user.email,
+          full_name: metadata.full_name || metadata.first_name || metadata.last_name,
+          role: metadata.role || 'user',
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+          last_sign_in_at: user.last_sign_in_at,
+          trip_exclusions: metadata.trip_exclusions || [],
+          preferences: metadata.preferences || {}
+        }
+      })
+
+      return new Response(JSON.stringify(formattedUsers), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -90,18 +94,44 @@ Deno.serve(async (req) => {
         })
       }
 
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('profiles')
-        .update({ role })
-        .eq('id', user_id)
-        .select()
-        .single()
+      // Get current user data
+      const { data: currentUser, error: fetchError } = await supabase.auth.admin.getUserById(user_id)
+
+      if (fetchError || !currentUser.user) {
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // Update user metadata with new role
+      const updatedMetadata = {
+        ...currentUser.user.user_metadata,
+        role: role
+      }
+
+      const { data: updatedUser, error: updateError } = await supabase.auth.admin.updateUserById(user_id, {
+        user_metadata: updatedMetadata
+      })
 
       if (updateError) {
         throw updateError
       }
 
-      return new Response(JSON.stringify(updatedUser), {
+      const metadata = updatedUser.user?.user_metadata || {}
+      const formattedUser = {
+        id: updatedUser.user?.id,
+        email: updatedUser.user?.email,
+        full_name: metadata.full_name || metadata.first_name || metadata.last_name,
+        role: metadata.role || 'user',
+        created_at: updatedUser.user?.created_at,
+        updated_at: updatedUser.user?.updated_at,
+        last_sign_in_at: updatedUser.user?.last_sign_in_at,
+        trip_exclusions: metadata.trip_exclusions || [],
+        preferences: metadata.preferences || {}
+      }
+
+      return new Response(JSON.stringify(formattedUser), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }

@@ -24,8 +24,23 @@ export const GET: RequestHandler = async ({ locals }) => {
     // Check if user is admin
     const isAdmin = await UserProfileService.isUserAdmin(user.id);
 
+    // Get user preferences from metadata
+    const metadata = user.user_metadata || {};
+    const preferences = {
+      id: user.id,
+      language: metadata.language || 'en',
+      notifications_enabled: metadata.notifications_enabled ?? true,
+      timezone: metadata.timezone || 'UTC+00:00 (London, Dublin)',
+      theme: metadata.theme || 'light'
+    };
+
+    // Check if 2FA is enabled
+    const two_factor_enabled = !!metadata.totp_enabled;
+
     return successResponse({
       profile,
+      preferences,
+      two_factor_enabled,
       isAdmin,
       user: {
         id: user.id,
@@ -44,7 +59,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
   try {
     const body = await request.json();
-    const { full_name, avatar_url } = body;
+    const { first_name, last_name, full_name, avatar_url, home_address } = body;
 
     // Get current user from session
     const session = await locals.getSession();
@@ -56,12 +71,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // Update user metadata in auth.users
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Prepare updated metadata
+    const updatedMetadata = {
+      ...user.user_metadata,
+      ...(first_name !== undefined && { first_name }),
+      ...(last_name !== undefined && { last_name }),
+      ...(full_name !== undefined && { full_name }),
+      ...(avatar_url !== undefined && { avatar_url }),
+      ...(home_address !== undefined && { home_address })
+    };
+
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: {
-        ...user.user_metadata,
-        full_name,
-        avatar_url
-      }
+      user_metadata: updatedMetadata
     });
 
     if (updateError) {

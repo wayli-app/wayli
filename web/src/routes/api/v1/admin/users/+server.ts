@@ -46,16 +46,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			});
 		}
 
-		// Map auth users to the format needed by the page, deriving data from user_metadata
+		// Map auth users to the UserProfile format
 		const combinedUsers = authUsers.map(authUser => {
+			const metadata = authUser.user_metadata || {};
 			return {
-				...authUser,
 				id: authUser.id,
-				full_name: authUser.user_metadata?.full_name,
-				avatar_url: authUser.user_metadata?.avatar_url,
-				is_admin: authUser.user_metadata?.role === 'admin',
+				email: authUser.email,
+				first_name: metadata.first_name || '',
+				last_name: metadata.last_name || '',
+				full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
+				role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+				avatar_url: metadata.avatar_url,
+				home_address: metadata.home_address,
+				email_confirmed_at: authUser.email_confirmed_at,
 				created_at: authUser.created_at,
-				email: authUser.email
+				updated_at: authUser.updated_at || authUser.created_at
 			};
 		});
 
@@ -63,7 +68,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		const filteredUsers = search
 			? combinedUsers.filter(u =>
 					u.email?.toLowerCase().includes(search.toLowerCase()) ||
-					u.full_name?.toLowerCase().includes(search.toLowerCase())
+					u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+					u.first_name?.toLowerCase().includes(search.toLowerCase()) ||
+					u.last_name?.toLowerCase().includes(search.toLowerCase())
 				)
 			: combinedUsers;
 

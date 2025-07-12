@@ -4,6 +4,32 @@ import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
+export const GET: RequestHandler = async ({ locals }) => {
+  try {
+    // Get current user from session
+    const session = await locals.getSession();
+    if (!session) {
+      return errorResponse('User not authenticated', 401);
+    }
+
+    const user = session.user;
+    const metadata = user.user_metadata || {};
+
+    return successResponse({
+      preferences: {
+        id: user.id,
+        language: metadata.language || 'en',
+        notifications_enabled: metadata.notifications_enabled ?? true,
+        timezone: metadata.timezone || 'UTC+00:00 (London, Dublin)',
+        theme: metadata.theme || 'light'
+      }
+    });
+  } catch (error) {
+    console.error('Preferences fetch error:', error);
+    return errorResponse('Failed to fetch preferences', 500);
+  }
+};
+
 export const PUT: RequestHandler = async ({ request, locals }) => {
   try {
     const { language, notifications_enabled, timezone } = await request.json();

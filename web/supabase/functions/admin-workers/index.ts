@@ -29,13 +29,17 @@ Deno.serve(async (req) => {
     }
 
     // Check if user is admin
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id)
 
-    if (profileError || profile?.role !== 'admin') {
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const userRole = userData.user.user_metadata?.role || 'user'
+    if (userRole !== 'admin') {
       return new Response(JSON.stringify({ error: 'Admin access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

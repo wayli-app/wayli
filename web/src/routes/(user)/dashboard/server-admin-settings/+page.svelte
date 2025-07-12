@@ -1,29 +1,16 @@
 <script lang="ts">
-	import { Settings, User as UserIcon, Lock, UserPlus, Server, Database, Search, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { Settings, User as UserIcon, Lock, UserPlus, Server, Database, Search, Edit, Trash2, ChevronLeft, ChevronRight, X, Mail } from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
+	import RoleSelector from '$lib/components/RoleSelector.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
+	import type { UserProfile } from '$lib/types/user.types';
 
 	export let data: PageData;
-
-	// Define types
-	type User = {
-		id: string;
-		email?: string;
-		full_name?: string;
-		avatar_url?: string;
-		is_admin: boolean;
-		created_at: string;
-		user_metadata: {
-			role?: 'admin' | 'user';
-			[key: string]: any;
-		};
-		[key: string]: any;
-	};
 
 	type Integration = {
 		id: string;
@@ -50,15 +37,17 @@
 	let itemsPerPage = data.pagination?.limit || 10;
 	let registrationEnabled = true;
 	let oauthEnabled = false;
+
+	// Initialize server settings
 	let serverName = '';
 	let adminEmail = '';
-	let allowRegistration = false;
+	let allowRegistration = true;
 	let requireEmailVerification = false;
 	let showAddUserModal = false;
 	let isModalOpen = false;
-	let selectedUser: User | null = null;
+	let selectedUser: UserProfile | null = null;
 	let showDeleteConfirm = false;
-	let userToDelete: User | null = null;
+	let userToDelete: UserProfile | null = null;
 	let searchTimeout: ReturnType<typeof setTimeout>;
 	let activeTab = 'settings'; // Add tab state - default to settings tab
 
@@ -97,8 +86,10 @@
 			const response = await fetch(`/api/v1/admin/users?${params.toString()}`);
 			if (response.ok) {
 				const result = await response.json();
-				users = result.users || [];
-				pagination = result.pagination || {
+				// Handle the wrapped response format
+				const data = result.data || result;
+				users = data.users || [];
+				pagination = data.pagination || {
 					page: 1,
 					limit: 10,
 					total: 0,
@@ -149,70 +140,17 @@
 		return new Date(dateString).toLocaleDateString();
 	}
 
-	function getUserDisplayName(user: User) {
-		return user.full_name || user.email?.split('@')[0] || 'Unknown User';
+	function getUserDisplayName(user: UserProfile) {
+		return user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email?.split('@')[0] || 'Unknown User';
 	}
 
-	function getUserAvatar(user: User) {
+	function getUserAvatar(user: UserProfile) {
 		return user.avatar_url;
 	}
 
-	function handleAddUser(event: CustomEvent) {
+	function handleAddUserEvent(event: CustomEvent) {
 		// ... existing code ...
 	}
-
-	const integrations: Integration[] = [
-		{
-			id: 'oauth',
-			title: 'OAuth Provider',
-			description: 'Configure OAuth provider settings for user authentication',
-			icon: Database,
-			fields: [
-				{
-					id: 'clientId',
-					label: 'Client ID',
-					type: 'text',
-					placeholder: 'Enter your OAuth client ID',
-					value: ''
-				},
-				{
-					id: 'clientSecret',
-					label: 'Client Secret',
-					type: 'text',
-					placeholder: 'Enter your OAuth client secret',
-					value: ''
-				},
-				{
-					id: 'authorizationUrl',
-					label: 'Authorization URL',
-					type: 'text',
-					placeholder: 'https://example.com/oauth/authorize',
-					value: ''
-				},
-				{
-					id: 'tokenUrl',
-					label: 'Token URL',
-					type: 'text',
-					placeholder: 'https://example.com/oauth/token',
-					value: ''
-				},
-				{
-					id: 'userInfoUrl',
-					label: 'User Info URL',
-					type: 'text',
-					placeholder: 'https://example.com/oauth/userinfo',
-					value: ''
-				},
-				{
-					id: 'scopes',
-					label: 'Scopes',
-					type: 'text',
-					placeholder: 'email profile openid',
-					value: ''
-				}
-			]
-		}
-	];
 
 	function handleUpdateServerName() {
 		// TODO: Implement server name update
@@ -225,12 +163,40 @@
 		requireEmailVerification = false;
 	}
 
-	function saveSettings() {
-		// TODO: Implement save settings
-		console.log('Saving settings...');
+	async function saveSettings() {
+		try {
+			const response = await fetch('/api/v1/admin/server-settings', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					server_name: serverName,
+					admin_email: adminEmail,
+					allow_registration: allowRegistration,
+					require_email_verification: requireEmailVerification
+				})
+			});
+
+			if (response.ok) {
+				toast.success('Settings saved successfully');
+			} else {
+				let errorDescription = 'An unknown error occurred while saving settings.';
+				try {
+					const result = await response.json();
+					errorDescription = result.error || errorDescription;
+				} catch (e) {
+					// The response was not JSON.
+				}
+				toast.error('Failed to save settings', { description: errorDescription });
+			}
+		} catch (error) {
+			console.error('Error saving settings:', error);
+			toast.error('Failed to save settings', { description: 'An unexpected error occurred.' });
+		}
 	}
 
-	function handleEditUser(user: User) {
+	function handleEditUser(user: UserProfile) {
 		selectedUser = user;
 		isModalOpen = true;
 	}
@@ -268,7 +234,7 @@
 		return pages;
 	}
 
-	function handleDeleteUser(user: User) {
+	function handleDeleteUser(user: UserProfile) {
 		userToDelete = user;
 		showDeleteConfirm = true;
 	}
@@ -318,8 +284,9 @@
 		const formData = new FormData();
 		formData.append('userId', updatedUser.id);
 		formData.append('email', updatedUser.email);
-		formData.append('fullName', updatedUser.full_name || '');
-		formData.append('role', updatedUser.user_metadata?.role || 'user');
+		formData.append('firstName', updatedUser.first_name || '');
+		formData.append('lastName', updatedUser.last_name || '');
+		formData.append('role', updatedUser.role || 'user');
 
 		const response = await fetch('?/updateUser', {
 			method: 'POST',
@@ -345,9 +312,79 @@
 		handleCloseModal();
 	}
 
+	async function loadServerSettings() {
+		try {
+			const response = await fetch('/api/v1/admin/server-settings');
+			if (response.ok) {
+				const settings = await response.json();
+				serverName = settings.server_name || '';
+				adminEmail = settings.admin_email || '';
+				allowRegistration = settings.allow_registration ?? true;
+				requireEmailVerification = settings.require_email_verification ?? false;
+			} else {
+				console.error('Failed to load server settings');
+			}
+		} catch (error) {
+			console.error('Error loading server settings:', error);
+		}
+	}
+
 	onMount(() => {
-		// Additional initialization code if needed
+		// Load server settings when component mounts
+		loadServerSettings();
 	});
+
+	// Add User Modal State
+	let newUserEmail = '';
+	let newUserFirstName = '';
+	let newUserLastName = '';
+	let newUserRole: 'admin' | 'user' = 'user';
+
+	function handleCloseAddUserModal() {
+		showAddUserModal = false;
+		newUserEmail = '';
+		newUserFirstName = '';
+		newUserLastName = '';
+		newUserRole = 'user';
+	}
+
+	async function handleAddUser() {
+		if (!newUserEmail || !newUserFirstName || !newUserLastName) {
+			toast.error('Please fill in all required fields');
+			return;
+		}
+
+		try {
+			const formData = new FormData();
+			formData.append('email', newUserEmail);
+			formData.append('firstName', newUserFirstName);
+			formData.append('lastName', newUserLastName);
+			formData.append('role', newUserRole);
+
+			const response = await fetch('?/addUser', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.ok) {
+				toast.success('User added successfully');
+				handleCloseAddUserModal();
+				await invalidateAll(); // Refresh the user list
+			} else {
+				let errorDescription = 'An unknown error occurred while adding the user.';
+				try {
+					const result = await response.json();
+					errorDescription = result.error || errorDescription;
+				} catch (e) {
+					// The response was not JSON.
+				}
+				toast.error('Failed to add user', { description: errorDescription });
+			}
+		} catch (error) {
+			console.error('Error adding user:', error);
+			toast.error('Failed to add user', { description: 'An unexpected error occurred.' });
+		}
+	}
 </script>
 
 <svelte:window />
@@ -359,6 +396,112 @@
 		on:close={handleCloseModal}
 		on:save={handleSaveUser}
 	/>
+{/if}
+
+<!-- Add User Modal -->
+{#if showAddUserModal}
+	<div
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
+		on:click={handleCloseAddUserModal}
+		on:keydown={(e) => e.key === 'Escape' && handleCloseAddUserModal()}
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="add-user-modal-title"
+	>
+		<div
+			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
+			on:click|stopPropagation
+			role="document"
+		>
+			<!-- Modal Header -->
+			<div class="flex items-start justify-between mb-6">
+				<div>
+					<h2 id="add-user-modal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+						Add New User
+					</h2>
+					<p class="text-gray-500 dark:text-gray-400">Create a new user account.</p>
+				</div>
+				<button
+					on:click={handleCloseAddUserModal}
+					class="p-1 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+					aria-label="Close modal"
+				>
+					<X class="h-6 w-6" />
+				</button>
+			</div>
+
+			<!-- Form Fields -->
+			<div class="space-y-6">
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label for="newUserFirstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
+						<div class="relative">
+							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<input
+								type="text"
+								id="newUserFirstName"
+								bind:value={newUserFirstName}
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								placeholder="e.g. Jane"
+								required
+							/>
+						</div>
+					</div>
+
+					<div>
+						<label for="newUserLastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
+						<div class="relative">
+							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<input
+								type="text"
+								id="newUserLastName"
+								bind:value={newUserLastName}
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								placeholder="e.g. Doe"
+								required
+							/>
+						</div>
+					</div>
+				</div>
+
+				<div>
+					<label for="newUserEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address *</label>
+					<div class="relative">
+						<Mail class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+						<input
+							type="email"
+							id="newUserEmail"
+							bind:value={newUserEmail}
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+							placeholder="e.g. jane.doe@example.com"
+							required
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
+					<RoleSelector bind:role={newUserRole} />
+				</div>
+			</div>
+
+			<!-- Modal Footer -->
+			<div class="mt-8 flex justify-end gap-3">
+				<button
+					on:click={handleCloseAddUserModal}
+					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+				>
+					Cancel
+				</button>
+				<button
+					on:click={handleAddUser}
+					class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+				>
+					Add User
+				</button>
+			</div>
+		</div>
+	</div>
 {/if}
 
 <!-- Delete Confirmation Modal -->
@@ -565,11 +708,12 @@
 										</td>
 										<td class="whitespace-nowrap px-6 py-4">
 											<span
-												class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {user.is_admin
+												class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {user.role === 'admin'
 													? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+													: user.role === 'moderator' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
 													: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'}"
 											>
-												{user.is_admin ? 'Admin' : 'User'}
+												{user.role === 'admin' ? 'Admin' : user.role === 'moderator' ? 'Moderator' : 'User'}
 											</span>
 										</td>
 										<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -745,68 +889,6 @@
 						>
 							Save Settings
 						</button>
-					</div>
-				</div>
-
-				<!-- Integrations -->
-				<div class="rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
-					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Integrations</h2>
-						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Configure third-party integrations and OAuth providers.</p>
-					</div>
-
-					<div class="space-y-6">
-						{#each integrations as integration}
-							<div class="rounded-lg border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-gray-50 dark:bg-[#2d2d35] p-4">
-								<div class="flex items-center gap-3 mb-4">
-									<svelte:component this={integration.icon} class="h-6 w-6 text-[rgb(37,140,244)]" />
-									<div>
-										<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">{integration.title}</h3>
-										<p class="text-sm text-gray-600 dark:text-gray-300">{integration.description}</p>
-									</div>
-								</div>
-
-								<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-									{#each integration.fields as field}
-										<div>
-											<label for={field.id} class="block text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
-											<div class="mt-1">
-												{#if field.type === 'text'}
-													<input
-														type="text"
-														id={field.id}
-														bind:value={field.value}
-														class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-														placeholder={field.placeholder}
-													/>
-												{:else if field.type === 'select'}
-													<select
-														id={field.id}
-														bind:value={field.value}
-														class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-													>
-														{#each field.options || [] as option}
-															<option value={option.value}>{option.label}</option>
-														{/each}
-													</select>
-												{:else if field.type === 'checkbox'}
-													<input
-														type="checkbox"
-														id={field.id}
-														checked={typeof field.value === 'boolean' ? field.value : field.value === 'true'}
-														on:change={(e) => field.value = e.currentTarget.checked}
-														class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
-													/>
-												{/if}
-												{#if field.description}
-													<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{field.description}</p>
-												{/if}
-											</div>
-										</div>
-									{/each}
-								</div>
-							</div>
-						{/each}
 					</div>
 				</div>
 			</div>

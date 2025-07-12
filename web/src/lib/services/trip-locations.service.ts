@@ -50,16 +50,35 @@ export class TripLocationsService {
     this.supabase = supabase;
   }
 
-  async getTripLocations(tripId: string): Promise<TripLocation[]> {
+  async getTripLocations(tripId: string, userId?: string): Promise<TripLocation[]> {
     try {
+      // First, get the trip to get its date range
+      const { data: trip, error: tripError } = await this.supabase
+        .from('trips')
+        .select('start_date, end_date, user_id')
+        .eq('id', tripId)
+        .single();
+
+      if (tripError || !trip) {
+        console.error('Error fetching trip:', tripError);
+        throw tripError || new Error('Trip not found');
+      }
+
+      // Use the trip's user_id if userId is not provided
+      const targetUserId = userId || trip.user_id;
+
+      // Fetch tracker data for the user within the trip's date range
       const { data: locations, error } = await this.supabase
         .from('tracker_data')
         .select('*')
-        .eq('trip_id', tripId)
+        .eq('user_id', targetUserId)
+        .gte('recorded_at', `${trip.start_date}T00:00:00Z`)
+        .lte('recorded_at', `${trip.end_date}T23:59:59Z`)
         .order('recorded_at', { ascending: true });
 
       if (error) throw error;
 
+      console.log(`[getTripLocations] Found ${locations?.length || 0} points for trip ${tripId} (${trip.start_date} to ${trip.end_date})`);
       return this.transformLocations(locations || []);
     } catch (error) {
       console.error('Error fetching trip locations:', error);

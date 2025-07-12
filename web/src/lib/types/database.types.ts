@@ -159,7 +159,6 @@ export interface TripExclusion {
 export const TABLES = {
 	TRIPS: 'trips',
 	LOCATIONS: 'locations',
-	POINTS_OF_INTEREST: 'points_of_interest',
 	USER_PREFERENCES: 'user_preferences',
 	TRACKER_DATA: 'tracker_data'
 } as const;
@@ -238,9 +237,9 @@ export const PostGIS = {
 	// Format distance for display (meters to km if > 1000m)
 	formatDistance: (distanceInMeters: number): string => {
 		if (distanceInMeters < 1000) {
-			return `${Math.round(distanceInMeters)}m`;
+			return `${Math.round(distanceInMeters)} m`;
 		} else {
-			return `${(distanceInMeters / 1000).toFixed(2)}km`;
+			return `${(distanceInMeters / 1000).toFixed(2)} km`;
 		}
 	}
 };

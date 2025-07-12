@@ -1,4 +1,4 @@
-import { JobQueueService } from '$lib/services/queue/job-queue.service';
+import { JobQueueService } from '$lib/services/queue/job-queue.service.server';
 import { errorResponse, notFoundResponse, successResponse } from '$lib/utils/api/response';
 import type { RequestHandler } from './$types';
 

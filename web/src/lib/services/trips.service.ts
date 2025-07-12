@@ -1,4 +1,6 @@
 import { supabase } from '$lib/core/supabase/client';
+import { TripLocationsService } from './trip-locations.service';
+import { haversineDistance } from '../utils';
 
 interface Trip {
   id: string;
@@ -89,6 +91,11 @@ export class TripsService {
         throw error;
       }
 
+      // --- Calculate geopoints and distance, then update metadata ---
+      if (trip && trip.id) {
+        await this.updateTripMetadata(trip.id);
+      }
+
       console.log('[TripsService] Trip created successfully:', trip);
       return trip as unknown as Trip;
     } catch (error) {
@@ -108,6 +115,11 @@ export class TripsService {
         .single();
 
       if (error) throw error;
+
+      // --- Calculate geopoints and distance, then update metadata ---
+      if (trip && trip.id) {
+        await this.updateTripMetadata(trip.id);
+      }
 
       return trip as unknown as Trip;
     } catch (error) {
@@ -144,6 +156,42 @@ export class TripsService {
     } catch (error) {
       console.error('Error searching trips:', error);
       throw error;
+    }
+  }
+
+  // Helper to update trip metadata with geopoint count and distance
+  async updateTripMetadata(tripId: string): Promise<void> {
+    try {
+      console.log('[updateTripMetadata] Start for tripId:', tripId);
+      // Fetch the trip to get user_id
+      const { data: trip, error: tripError } = await this.supabase
+        .from('trips')
+        .select('user_id')
+        .eq('id', tripId)
+        .single();
+      console.log('[updateTripMetadata] Trip fetch result:', { trip, tripError });
+      if (tripError || !trip) throw tripError || new Error('Trip not found');
+      const userId = trip.user_id;
+      const tripLocationsService = new TripLocationsService();
+      const points = await tripLocationsService.getTripLocations(tripId, userId);
+      console.log('[updateTripMetadata] Points fetched:', points.length, points);
+      const pointCount = points.length;
+      let distance = 0;
+      for (let i = 1; i < points.length; i++) {
+        const prev = points[i - 1].location.coordinates;
+        const curr = points[i].location.coordinates;
+        distance += haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+      }
+      console.log('[updateTripMetadata] Calculated:', { pointCount, distance });
+      const { error: updateError } = await this.supabase
+        .from('trips')
+        .update({
+          metadata: { point_count: pointCount, distance_traveled: distance }
+        })
+        .eq('id', tripId);
+      console.log('[updateTripMetadata] Update result:', { updateError });
+    } catch (error) {
+      console.error('Error updating trip metadata:', error);
     }
   }
 }

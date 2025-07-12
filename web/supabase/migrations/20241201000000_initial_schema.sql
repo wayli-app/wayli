@@ -23,29 +23,7 @@ CREATE TABLE IF NOT EXISTS public.trips (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- Create points_of_interest table with PostGIS geometry and visit tracking
-CREATE TABLE IF NOT EXISTS public.points_of_interest (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT,
-    category TEXT,
-    location GEOMETRY(POINT, 4326), -- PostGIS point with WGS84 SRID
-    address TEXT,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    visit_count INTEGER DEFAULT 0,
-    first_visit TIMESTAMP WITH TIME ZONE,
-    last_visit TIMESTAMP WITH TIME ZONE,
-    total_visit_duration_minutes INTEGER DEFAULT 0,
-    average_visit_duration_minutes DECIMAL(8,2) DEFAULT 0,
-    confidence_score DECIMAL(3,2) DEFAULT 1.0 CHECK (confidence_score >= 0 AND confidence_score <= 1),
-    poi_type TEXT DEFAULT 'manual' CHECK (poi_type IN ('manual', 'detected', 'confirmed')),
-    discovery_source TEXT DEFAULT 'manual' CHECK (discovery_source IN ('manual', 'reverse_geocode', 'gps_clustering')),
-    country_code VARCHAR(2),
-    metadata JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+
 
 
 
@@ -133,12 +111,7 @@ CREATE TABLE IF NOT EXISTS public.poi_visit_logs (
 CREATE INDEX IF NOT EXISTS idx_trips_user_id ON public.trips(user_id);
 CREATE INDEX IF NOT EXISTS idx_trips_start_date ON public.trips(start_date);
 CREATE INDEX IF NOT EXISTS idx_trips_end_date ON public.trips(end_date);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_user_id ON public.points_of_interest(user_id);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_visit_count ON public.points_of_interest(visit_count);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_last_visit ON public.points_of_interest(last_visit);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_poi_type ON public.points_of_interest(poi_type);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_discovery_source ON public.points_of_interest(discovery_source);
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_country_code ON public.points_of_interest(country_code);
+
 CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_poi_id ON public.poi_visit_logs(poi_id);
 CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_user_id ON public.poi_visit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_visit_start ON public.poi_visit_logs(visit_start);
@@ -158,12 +131,10 @@ CREATE INDEX IF NOT EXISTS idx_workers_updated_at ON public.workers(updated_at);
 
 
 -- Create spatial indexes for PostGIS
-CREATE INDEX IF NOT EXISTS idx_points_of_interest_location ON public.points_of_interest USING GIST(location);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_location ON public.tracker_data USING GIST(location);
 
 
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.points_of_interest ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.poi_visit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracker_data ENABLE ROW LEVEL SECURITY;
@@ -184,17 +155,7 @@ CREATE POLICY "Users can update their own trips" ON public.trips
 CREATE POLICY "Users can delete their own trips" ON public.trips
     FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can view their own points of interest" ON public.points_of_interest
-    FOR SELECT USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own points of interest" ON public.points_of_interest
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own points of interest" ON public.points_of_interest
-    FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own points of interest" ON public.points_of_interest
-    FOR DELETE USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can view their own POI visit logs" ON public.poi_visit_logs
     FOR SELECT USING (auth.uid() = user_id);
@@ -559,3 +520,60 @@ BEGIN
         (SELECT visit_count FROM poi_counts LIMIT 1)::INTEGER;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- SERVER SETTINGS
+-- ============================================================================
+
+-- Create server_settings table for global server configuration
+CREATE TABLE IF NOT EXISTS public.server_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    server_name TEXT DEFAULT 'Wayli',
+    admin_email TEXT,
+    allow_registration BOOLEAN DEFAULT true,
+    require_email_verification BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert default settings if table is empty
+INSERT INTO public.server_settings (server_name, admin_email, allow_registration, require_email_verification)
+VALUES ('Wayli', NULL, true, false)
+ON CONFLICT DO NOTHING;
+
+-- Create function to get server settings
+CREATE OR REPLACE FUNCTION get_server_settings()
+RETURNS TABLE (
+    server_name TEXT,
+    admin_email TEXT,
+    allow_registration BOOLEAN,
+    require_email_verification BOOLEAN
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ss.server_name,
+        ss.admin_email,
+        ss.allow_registration,
+        ss.require_email_verification
+    FROM public.server_settings ss
+    LIMIT 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant access to authenticated users
+GRANT SELECT ON public.server_settings TO authenticated;
+GRANT EXECUTE ON FUNCTION get_server_settings() TO authenticated;
+
+-- Enable RLS on server_settings table
+ALTER TABLE public.server_settings ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow admins to read and update server settings
+CREATE POLICY "Admins can manage server settings" ON public.server_settings
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM auth.users
+            WHERE auth.users.id = auth.uid()
+            AND auth.users.raw_user_meta_data->>'role' = 'admin'
+        )
+    );

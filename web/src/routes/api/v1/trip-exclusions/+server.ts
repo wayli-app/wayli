@@ -3,16 +3,12 @@ import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { forwardGeocode } from '$lib/services/external/nominatim.service';
 import type { GeocodedLocation } from '$lib/types/geocoding.types';
-import { fromNominatimResponse } from '$lib/types/geocoding.types';
 
 interface TripExclusion {
   id: string;
   name: string;
-  value: string;
-  exclusion_type: 'city' | 'address' | 'region';
-  location?: GeocodedLocation;
+  location: GeocodedLocation;
   created_at: string;
   updated_at: string;
 }
@@ -28,20 +24,15 @@ export const GET: RequestHandler = async ({ locals }) => {
     const user = session.user;
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get user's profile to access metadata
-    const { data: profile, error } = await supabaseAdmin
-      .from('profiles')
-      .select('metadata')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
+    // Get user's user_metadata from auth.users
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(user.id);
+    if (error || !data.user) {
       console.error('Error fetching user profile:', error);
       return errorResponse('Failed to fetch user profile', 500);
     }
 
-    // Extract trip exclusions from metadata
-    const exclusions: TripExclusion[] = profile?.metadata?.trip_exclusions || [];
+    // Extract trip exclusions from user_metadata
+    const exclusions: TripExclusion[] = data.user.user_metadata?.trip_exclusions || [];
 
     return successResponse({
       exclusions: exclusions
@@ -62,47 +53,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     const user = session.user;
     const body = await request.json();
-    const { name, value, exclusion_type, location } = body;
+    const { name, location } = body;
 
     // Validate required fields
-    if (!name || !value || !exclusion_type) {
-      return errorResponse('Name, value, and exclusion_type are required', 400);
+    if (!name || !location) {
+      return errorResponse('Name and location are required', 400);
     }
 
-    // Validate exclusion_type
-    if (!['city', 'address', 'region'].includes(exclusion_type)) {
-      return errorResponse('Invalid exclusion_type. Must be city, address, or region', 400);
-    }
-
-    // Geocode the value if coordinates are not provided
-    let geocodedLocation = location;
-    if (!location || !location.coordinates) {
-      try {
-        const geocodeResult = await forwardGeocode(value);
-        if (geocodeResult) {
-          geocodedLocation = fromNominatimResponse(geocodeResult);
-        }
-      } catch (error) {
-        console.warn('Failed to geocode exclusion value:', error);
-        // Continue without geocoding if it fails
-      }
+    // Validate location has required fields
+    if (!location.display_name || !location.coordinates) {
+      return errorResponse('Location must have display_name and coordinates', 400);
     }
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user profile
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('metadata')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError) {
+    // Get current user_metadata
+    const { data, error: profileError } = await supabaseAdmin.auth.admin.getUserById(user.id);
+    if (profileError || !data.user) {
       console.error('Error fetching user profile:', profileError);
       return errorResponse('Failed to fetch user profile', 500);
     }
-
-    const currentMetadata = profile?.metadata || {};
+    const currentMetadata = data.user.user_metadata || {};
     const currentExclusions: TripExclusion[] = currentMetadata.trip_exclusions || [];
 
     // Check if user already has 10 exclusions (maximum limit)
@@ -120,9 +91,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const newExclusion: TripExclusion = {
       id: crypto.randomUUID(),
       name,
-      value,
-      exclusion_type,
-      location: geocodedLocation,
+      location,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -130,17 +99,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Add to exclusions array
     const updatedExclusions = [...currentExclusions, newExclusion];
 
-    // Update user metadata
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        metadata: {
-          ...currentMetadata,
-          trip_exclusions: updatedExclusions
-        },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
+    // Update user_metadata
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...currentMetadata,
+        trip_exclusions: updatedExclusions
+      }
+    });
 
     if (updateError) {
       console.error('Error updating user metadata:', updateError);
@@ -166,47 +131,27 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
     const user = session.user;
     const body = await request.json();
-    const { id, name, value, exclusion_type, location } = body;
+    const { id, name, location } = body;
 
     // Validate required fields
-    if (!id || !name || !value || !exclusion_type) {
-      return errorResponse('ID, name, value, and exclusion_type are required', 400);
+    if (!id || !name || !location) {
+      return errorResponse('ID, name, and location are required', 400);
     }
 
-    // Validate exclusion_type
-    if (!['city', 'address', 'region'].includes(exclusion_type)) {
-      return errorResponse('Invalid exclusion_type. Must be city, address, or region', 400);
-    }
-
-    // Geocode the value if coordinates are not provided
-    let geocodedLocation = location;
-    if (!location || !location.coordinates) {
-      try {
-        const geocodeResult = await forwardGeocode(value);
-        if (geocodeResult) {
-          geocodedLocation = fromNominatimResponse(geocodeResult);
-        }
-      } catch (error) {
-        console.warn('Failed to geocode exclusion value:', error);
-        // Continue without geocoding if it fails
-      }
+    // Validate location has required fields
+    if (!location.display_name || !location.coordinates) {
+      return errorResponse('Location must have display_name and coordinates', 400);
     }
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user profile
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('metadata')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError) {
+    // Get current user_metadata
+    const { data, error: profileError } = await supabaseAdmin.auth.admin.getUserById(user.id);
+    if (profileError || !data.user) {
       console.error('Error fetching user profile:', profileError);
       return errorResponse('Failed to fetch user profile', 500);
     }
-
-    const currentMetadata = profile?.metadata || {};
+    const currentMetadata = data.user.user_metadata || {};
     const currentExclusions: TripExclusion[] = currentMetadata.trip_exclusions || [];
 
     // Find the exclusion to update
@@ -225,25 +170,19 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
     const updatedExclusion: TripExclusion = {
       ...currentExclusions[exclusionIndex],
       name,
-      value,
-      exclusion_type,
-      location: geocodedLocation,
+      location,
       updated_at: new Date().toISOString()
     };
 
     currentExclusions[exclusionIndex] = updatedExclusion;
 
-    // Update user metadata
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        metadata: {
-          ...currentMetadata,
-          trip_exclusions: currentExclusions
-        },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
+    // Update user_metadata
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...currentMetadata,
+        trip_exclusions: currentExclusions
+      }
+    });
 
     if (updateError) {
       console.error('Error updating user metadata:', updateError);
@@ -277,19 +216,13 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user profile
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('metadata')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError) {
+    // Get current user_metadata
+    const { data, error: profileError } = await supabaseAdmin.auth.admin.getUserById(user.id);
+    if (profileError || !data.user) {
       console.error('Error fetching user profile:', profileError);
       return errorResponse('Failed to fetch user profile', 500);
     }
-
-    const currentMetadata = profile?.metadata || {};
+    const currentMetadata = data.user.user_metadata || {};
     const currentExclusions: TripExclusion[] = currentMetadata.trip_exclusions || [];
 
     // Find and remove the exclusion
@@ -299,17 +232,13 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
       return errorResponse('Trip exclusion not found', 404);
     }
 
-    // Update user metadata
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        metadata: {
-          ...currentMetadata,
-          trip_exclusions: updatedExclusions
-        },
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id);
+    // Update user_metadata
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: {
+        ...currentMetadata,
+        trip_exclusions: updatedExclusions
+      }
+    });
 
     if (updateError) {
       console.error('Error updating user metadata:', updateError);

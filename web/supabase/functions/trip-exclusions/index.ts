@@ -31,18 +31,14 @@ Deno.serve(async (req) => {
     // Handle different HTTP methods
     if (req.method === 'GET') {
       // Get user's trip exclusions from metadata
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('trip_exclusions')
-        .eq('id', user.id)
-        .single()
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id)
 
-      if (profileError) {
-        throw profileError
+      if (userError || !userData.user) {
+        throw userError || new Error('User not found')
       }
 
       return new Response(JSON.stringify({
-        exclusions: profile?.trip_exclusions || []
+        exclusions: userData.user.user_metadata?.trip_exclusions || []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -60,10 +56,25 @@ Deno.serve(async (req) => {
         })
       }
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ trip_exclusions: exclusions })
-        .eq('id', user.id)
+      // Get current user data
+      const { data: currentUser, error: fetchError } = await supabase.auth.admin.getUserById(user.id)
+
+      if (fetchError || !currentUser.user) {
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      // Update user metadata with new exclusions
+      const updatedMetadata = {
+        ...currentUser.user.user_metadata,
+        trip_exclusions: exclusions
+      }
+
+      const { error: updateError } = await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: updatedMetadata
+      })
 
       if (updateError) {
         throw updateError

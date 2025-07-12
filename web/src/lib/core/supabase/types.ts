@@ -2,38 +2,6 @@
 export interface Database {
   public: {
     Tables: {
-      profiles: {
-        Row: {
-          id: string;
-          email: string;
-          first_name: string | null;
-          last_name: string | null;
-          full_name: string | null;
-          role: string;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          email: string;
-          first_name?: string | null;
-          last_name?: string | null;
-          full_name?: string | null;
-          role?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          email?: string;
-          first_name?: string | null;
-          last_name?: string | null;
-          full_name?: string | null;
-          role?: string;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
       jobs: {
         Row: {
           id: string;

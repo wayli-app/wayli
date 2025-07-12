@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { User, Settings, Bell, Globe, Shield, Key, QrCode, Download, Upload, Trash2, Save, X, Check, AlertCircle, Info, Lock, MapPin, Plus } from 'lucide-svelte';
+	import { User, Settings, Bell, Globe, Shield, Key, QrCode, Download, Upload, Trash2, Save, X, Check, AlertCircle, Info, Lock, MapPin, Plus, Pencil } from 'lucide-svelte';
 	import { supabase } from '$lib/supabase';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
@@ -25,7 +25,7 @@
 	let firstNameInput = '';
 	let lastNameInput = '';
 	let preferredLanguageInput = '';
-	let notificationsEnabledInput = true;
+
 	let timezoneInput = 'UTC+00:00 (London, Dublin)';
 	let error: string | null = null;
 	let homeAddressInput = '';
@@ -41,13 +41,41 @@
 	// Trip exclusions state
 	let tripExclusions: any[] = [];
 	let showAddExclusionModal = false;
+	let showEditExclusionModal = false;
 	let newExclusion = {
 		name: '',
-		value: '',
-		exclusion_type: 'city' as 'city' | 'address' | 'region'
+		location: null as any
+	};
+	let editingExclusion = {
+		id: '',
+		name: '',
+		location: null as any
 	};
 	let isAddingExclusion = false;
+	let isEditingExclusion = false;
 	let isDeletingExclusion = false;
+
+	// Trip exclusion address search state
+	let exclusionAddressInput = '';
+	let exclusionAddressInputElement: HTMLInputElement | undefined;
+	let isExclusionAddressSearching = false;
+	let exclusionAddressSuggestions: any[] = [];
+	let showExclusionAddressSuggestions = false;
+	let selectedExclusionAddress: any | null = null;
+	let selectedExclusionAddressIndex = -1;
+	let exclusionAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+	let exclusionAddressSearchError: string | null = null;
+
+	// Edit exclusion address search state
+	let editExclusionAddressInput = '';
+	let editExclusionAddressInputElement: HTMLInputElement | undefined;
+	let isEditExclusionAddressSearching = false;
+	let editExclusionAddressSuggestions: any[] = [];
+	let showEditExclusionAddressSuggestions = false;
+	let selectedEditExclusionAddress: any | null = null;
+	let selectedEditExclusionAddressIndex = -1;
+	let editExclusionAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+	let editExclusionAddressSearchError: string | null = null;
 
 	const languages = ['en', 'nl'];
 	const timezones = [
@@ -309,7 +337,6 @@
 			}
 			if (preferences) {
 				preferredLanguageInput = preferences.language || 'en';
-				notificationsEnabledInput = preferences.notifications_enabled ?? true;
 				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
 			}
 		} catch (error) {
@@ -347,7 +374,7 @@
 	}
 
 	async function handleAddExclusion() {
-		if (!newExclusion.name || !newExclusion.value) {
+		if (!newExclusion.name || !newExclusion.location) {
 			toast.error('Please fill in all fields');
 			return;
 		}
@@ -359,7 +386,10 @@
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(newExclusion)
+				body: JSON.stringify({
+					name: newExclusion.name,
+					location: newExclusion.location
+				})
 			});
 
 			if (!response.ok) {
@@ -370,7 +400,9 @@
 			const result = await response.json();
 			if (result.success) {
 				tripExclusions = [result.data.exclusion, ...tripExclusions];
-				newExclusion = { name: '', value: '', exclusion_type: 'city' };
+				newExclusion = { name: '', location: null };
+				exclusionAddressInput = '';
+				selectedExclusionAddress = null;
 				showAddExclusionModal = false;
 				toast.success('Trip exclusion added successfully');
 			}
@@ -456,7 +488,7 @@
 	}
 
 	async function handleSavePreferences() {
-		console.log('handleSavePreferences called with:', { preferredLanguageInput, notificationsEnabledInput, timezoneInput });
+		console.log('handleSavePreferences called with:', { preferredLanguageInput, timezoneInput });
 		isUpdatingPreferences = true;
 		try {
 			console.log('Step 1: Calling server API directly...');
@@ -467,7 +499,6 @@
 				},
 				body: JSON.stringify({
 					language: preferredLanguageInput,
-					notifications_enabled: notificationsEnabledInput,
 					timezone: timezoneInput
 				})
 			});
@@ -483,7 +514,6 @@
 			// Update local preferences data
 			if (preferences) {
 				preferences.language = preferredLanguageInput;
-				preferences.notifications_enabled = notificationsEnabledInput;
 				preferences.timezone = timezoneInput;
 			}
 
@@ -649,6 +679,250 @@
 		showHomeAddressSuggestions = false;
 		selectedHomeAddressIndex = -1;
 	}
+
+	// Trip exclusion address search functions
+	function handleExclusionAddressInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		exclusionAddressInput = target.value;
+		selectedExclusionAddressIndex = -1;
+		selectedExclusionAddress = null;
+		if (exclusionAddressSearchTimeout) clearTimeout(exclusionAddressSearchTimeout);
+		if (!exclusionAddressInput.trim()) {
+			exclusionAddressSuggestions = [];
+			showExclusionAddressSuggestions = false;
+			return;
+		}
+		exclusionAddressSearchTimeout = setTimeout(() => searchExclusionAddressSuggestions(), 300);
+	}
+
+	function handleExclusionAddressKeydown(event: KeyboardEvent) {
+		if (!showExclusionAddressSuggestions || exclusionAddressSuggestions.length === 0) return;
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				selectedExclusionAddressIndex = Math.min(selectedExclusionAddressIndex + 1, exclusionAddressSuggestions.length - 1);
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				selectedExclusionAddressIndex = Math.max(selectedExclusionAddressIndex - 1, 0);
+				break;
+			case 'Enter':
+				event.preventDefault();
+				if (selectedExclusionAddressIndex >= 0 && selectedExclusionAddressIndex < exclusionAddressSuggestions.length) {
+					selectExclusionAddress(exclusionAddressSuggestions[selectedExclusionAddressIndex]);
+				}
+				break;
+			case 'Escape':
+				event.preventDefault();
+				showExclusionAddressSuggestions = false;
+				selectedExclusionAddressIndex = -1;
+				break;
+		}
+	}
+
+	async function searchExclusionAddressSuggestions() {
+		if (!exclusionAddressInput.trim() || exclusionAddressInput.trim().length < 3) {
+			exclusionAddressSuggestions = [];
+			showExclusionAddressSuggestions = false;
+			exclusionAddressSearchError = null;
+			return;
+		}
+		isExclusionAddressSearching = true;
+		showExclusionAddressSuggestions = true;
+		exclusionAddressSearchError = null;
+		try {
+			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(exclusionAddressInput.trim())}`);
+			const data = await response.json();
+			const results = data.data?.results;
+			if (response.ok && data.success && Array.isArray(results)) {
+				exclusionAddressSuggestions = results.map((result: any) => ({
+					display_name: result.display_name,
+					coordinates: {
+						lat: parseFloat(result.lat),
+						lng: parseFloat(result.lon)
+					},
+					address: result.address
+				}));
+				showExclusionAddressSuggestions = true;
+				if (exclusionAddressSuggestions.length === 0) {
+					exclusionAddressSearchError = 'No addresses found';
+				}
+			} else {
+				exclusionAddressSuggestions = [];
+				exclusionAddressSearchError = 'No addresses found';
+				showExclusionAddressSuggestions = true;
+			}
+		} catch (error) {
+			console.error('Error searching for exclusion address:', error);
+			exclusionAddressSuggestions = [];
+			exclusionAddressSearchError = 'Failed to search for address';
+			showExclusionAddressSuggestions = true;
+		} finally {
+			isExclusionAddressSearching = false;
+		}
+	}
+
+	function selectExclusionAddress(suggestion: any) {
+		console.log('selectExclusionAddress called with:', suggestion);
+		exclusionAddressInput = suggestion.display_name;
+		selectedExclusionAddress = suggestion;
+		newExclusion.location = suggestion;
+		showExclusionAddressSuggestions = false;
+		selectedExclusionAddressIndex = -1;
+	}
+
+	// Edit exclusion functions
+	function handleEditExclusion(exclusion: any) {
+		editingExclusion = {
+			id: exclusion.id,
+			name: exclusion.name,
+			location: exclusion.location
+		};
+		editExclusionAddressInput = exclusion.location.display_name;
+		selectedEditExclusionAddress = exclusion.location;
+		showEditExclusionModal = true;
+	}
+
+	async function handleUpdateExclusion() {
+		if (!editingExclusion.name || !editingExclusion.location) {
+			toast.error('Please fill in all fields');
+			return;
+		}
+
+		isEditingExclusion = true;
+		try {
+			const response = await fetch('/api/v1/trip-exclusions', {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					id: editingExclusion.id,
+					name: editingExclusion.name,
+					location: editingExclusion.location
+				})
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Failed to update exclusion');
+			}
+
+			const result = await response.json();
+			if (result.success) {
+				// Update the exclusion in the local array
+				const index = tripExclusions.findIndex(ex => ex.id === editingExclusion.id);
+				if (index !== -1) {
+					tripExclusions[index] = result.data.exclusion;
+				}
+
+				// Reset form
+				editingExclusion = { id: '', name: '', location: null };
+				editExclusionAddressInput = '';
+				selectedEditExclusionAddress = null;
+				showEditExclusionModal = false;
+				toast.success('Trip exclusion updated successfully');
+			}
+		} catch (error) {
+			console.error('Error updating exclusion:', error);
+			toast.error('Failed to update exclusion');
+		} finally {
+			isEditingExclusion = false;
+		}
+	}
+
+	// Edit exclusion address search functions
+	function handleEditExclusionAddressInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		editExclusionAddressInput = target.value;
+		selectedEditExclusionAddressIndex = -1;
+		selectedEditExclusionAddress = null;
+		if (editExclusionAddressSearchTimeout) clearTimeout(editExclusionAddressSearchTimeout);
+		if (!editExclusionAddressInput.trim()) {
+			editExclusionAddressSuggestions = [];
+			showEditExclusionAddressSuggestions = false;
+			return;
+		}
+		editExclusionAddressSearchTimeout = setTimeout(() => searchEditExclusionAddressSuggestions(), 300);
+	}
+
+	function handleEditExclusionAddressKeydown(event: KeyboardEvent) {
+		if (!showEditExclusionAddressSuggestions || editExclusionAddressSuggestions.length === 0) return;
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				selectedEditExclusionAddressIndex = Math.min(selectedEditExclusionAddressIndex + 1, editExclusionAddressSuggestions.length - 1);
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				selectedEditExclusionAddressIndex = Math.max(selectedEditExclusionAddressIndex - 1, 0);
+				break;
+			case 'Enter':
+				event.preventDefault();
+				if (selectedEditExclusionAddressIndex >= 0 && selectedEditExclusionAddressIndex < editExclusionAddressSuggestions.length) {
+					selectEditExclusionAddress(editExclusionAddressSuggestions[selectedEditExclusionAddressIndex]);
+				}
+				break;
+			case 'Escape':
+				event.preventDefault();
+				showEditExclusionAddressSuggestions = false;
+				selectedEditExclusionAddressIndex = -1;
+				break;
+		}
+	}
+
+	async function searchEditExclusionAddressSuggestions() {
+		if (!editExclusionAddressInput.trim() || editExclusionAddressInput.trim().length < 3) {
+			editExclusionAddressSuggestions = [];
+			showEditExclusionAddressSuggestions = false;
+			editExclusionAddressSearchError = null;
+			return;
+		}
+		isEditExclusionAddressSearching = true;
+		showEditExclusionAddressSuggestions = true;
+		editExclusionAddressSearchError = null;
+		try {
+			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(editExclusionAddressInput.trim())}`);
+			const data = await response.json();
+			const results = data.data?.results;
+			if (response.ok && data.success && Array.isArray(results)) {
+				editExclusionAddressSuggestions = results.map((result: any) => ({
+					display_name: result.display_name,
+					coordinates: {
+						lat: parseFloat(result.lat),
+						lng: parseFloat(result.lon)
+					},
+					address: result.address
+				}));
+				showEditExclusionAddressSuggestions = true;
+				if (editExclusionAddressSuggestions.length === 0) {
+					editExclusionAddressSearchError = 'No addresses found';
+				}
+			} else {
+				editExclusionAddressSuggestions = [];
+				editExclusionAddressSearchError = 'No addresses found';
+				showEditExclusionAddressSuggestions = true;
+			}
+		} catch (error) {
+			console.error('Error searching for edit exclusion address:', error);
+			editExclusionAddressSuggestions = [];
+			editExclusionAddressSearchError = 'Failed to search for address';
+			showEditExclusionAddressSuggestions = true;
+		} finally {
+			isEditExclusionAddressSearching = false;
+		}
+	}
+
+	function selectEditExclusionAddress(suggestion: any) {
+		console.log('selectEditExclusionAddress called with:', suggestion);
+		editExclusionAddressInput = suggestion.display_name;
+		selectedEditExclusionAddress = suggestion;
+		editingExclusion.location = suggestion;
+		showEditExclusionAddressSuggestions = false;
+		selectedEditExclusionAddressIndex = -1;
+	}
 </script>
 
 <div>
@@ -752,7 +1026,7 @@
 						</div>
 					{/if}
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-						Setting this is optional and is currently just used for trip generation.
+						Used for trip generation.
 					</p>
 				</div>
 
@@ -908,17 +1182,7 @@
 					</select>
 				</div>
 
-				<div>
-					<label for="notificationsEnabled" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Notifications Enabled</label>
-					<select
-						id="notificationsEnabled"
-						bind:value={notificationsEnabledInput}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
-					>
-						<option value={true}>Enabled</option>
-						<option value={false}>Disabled</option>
-					</select>
-				</div>
+
 
 				<div>
 					<label for="timezone" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Timezone</label>
@@ -962,19 +1226,28 @@
 							<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
 								<div class="flex-1">
 									<div class="font-medium text-gray-900 dark:text-gray-100">{exclusion.name}</div>
-									<div class="text-sm text-gray-600 dark:text-gray-400">{exclusion.value}</div>
-									{#if exclusion.location?.display_name}
-										<div class="text-xs text-gray-500 dark:text-gray-500">{exclusion.location.display_name}</div>
+									<div class="text-sm text-gray-600 dark:text-gray-400">{exclusion.location.display_name}</div>
+									{#if exclusion.location.coordinates}
+										<div class="text-xs text-gray-500 dark:text-gray-500">
+											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(6)}
+										</div>
 									{/if}
-									<div class="text-xs text-gray-500 dark:text-gray-500 capitalize">{exclusion.exclusion_type}</div>
 								</div>
-								<button
-									on:click={() => handleDeleteExclusion(exclusion.id)}
-									disabled={isDeletingExclusion}
-									class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-								>
-									<Trash2 class="w-4 h-4" />
-								</button>
+								<div class="flex items-center gap-2">
+									<button
+										on:click={() => handleEditExclusion(exclusion)}
+										class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+									>
+										<Pencil class="w-4 h-4" />
+									</button>
+									<button
+										on:click={() => handleDeleteExclusion(exclusion.id)}
+										disabled={isDeletingExclusion}
+										class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+									>
+										<Trash2 class="w-4 h-4" />
+									</button>
+								</div>
 							</div>
 						{/each}
 					</div>
@@ -1038,35 +1311,170 @@
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Value</label>
-					<input
-						type="text"
-						bind:value={newExclusion.value}
-						placeholder="e.g., Amsterdam, Netherlands"
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
-					<select
-						bind:value={newExclusion.exclusion_type}
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-					>
-						<option value="city">City</option>
-						<option value="address">Address</option>
-						<option value="region">Region</option>
-					</select>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+					<div class="relative">
+						<input
+							type="text"
+							bind:value={exclusionAddressInput}
+							bind:this={exclusionAddressInputElement}
+							on:input={handleExclusionAddressInput}
+							on:keydown={handleExclusionAddressKeydown}
+							placeholder="Start typing an address..."
+							class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+						/>
+						{#if isExclusionAddressSearching}
+							<div class="absolute right-3 top-1/2 -translate-y-1/2">
+								<div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+							</div>
+						{/if}
+					</div>
+					{#if exclusionAddressSuggestions.length > 0 && showExclusionAddressSuggestions}
+						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
+							{#each exclusionAddressSuggestions as suggestion, index}
+								<button
+									type="button"
+									class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-50 dark:focus:bg-gray-700 focus:outline-none {selectedExclusionAddressIndex === index ? 'bg-blue-500/10 dark:bg-blue-500/20' : ''}"
+									on:click={() => selectExclusionAddress(suggestion)}
+								>
+									<div class="font-medium">{suggestion.display_name}</div>
+									{#if suggestion.coordinates}
+										<div class="text-xs text-gray-500 dark:text-gray-400">
+											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(6)}
+										</div>
+									{/if}
+								</button>
+							{/each}
+							{#if exclusionAddressSearchError}
+								<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+									{exclusionAddressSearchError}
+								</div>
+							{/if}
+						</div>
+					{:else if showExclusionAddressSuggestions && exclusionAddressSearchError}
+						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
+							<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+								{exclusionAddressSearchError}
+							</div>
+						</div>
+					{/if}
+					{#if selectedExclusionAddress && selectedExclusionAddress.coordinates}
+						<div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+							<div class="text-sm text-green-800 dark:text-green-200">
+								📍 Coordinates: {selectedExclusionAddress.coordinates.lat.toFixed(6)}, {selectedExclusionAddress.coordinates.lng.toFixed(6)}
+							</div>
+							<div class="text-xs text-green-600 dark:text-green-300 mt-1">
+								{selectedExclusionAddress.display_name}
+							</div>
+						</div>
+					{/if}
 				</div>
 				<div class="flex gap-3 mt-4">
 					<button
 						on:click={handleAddExclusion}
-						disabled={isAddingExclusion || !newExclusion.name || !newExclusion.value}
+						disabled={isAddingExclusion || !newExclusion.name || !newExclusion.location}
 						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						{isAddingExclusion ? 'Adding...' : 'Add Exclusion'}
 					</button>
 					<button
 						on:click={() => showAddExclusionModal = false}
+						class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer"
+					>
+						Cancel
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Edit Trip Exclusion Modal -->
+{#if showEditExclusionModal}
+	<!-- Modal Overlay -->
+	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
+		on:click={() => showEditExclusionModal = false}>
+		<!-- Modal Box -->
+		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
+			on:click|stopPropagation>
+			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Edit Trip Exclusion</h3>
+			<div class="space-y-6">
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+					<input
+						type="text"
+						bind:value={editingExclusion.name}
+						placeholder="e.g., Work Office"
+						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+					<div class="relative">
+						<input
+							type="text"
+							bind:value={editExclusionAddressInput}
+							bind:this={editExclusionAddressInputElement}
+							on:input={handleEditExclusionAddressInput}
+							on:keydown={handleEditExclusionAddressKeydown}
+							placeholder="Start typing an address..."
+							class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+						/>
+						{#if isEditExclusionAddressSearching}
+							<div class="absolute right-3 top-1/2 -translate-y-1/2">
+								<div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+							</div>
+						{/if}
+					</div>
+					{#if editExclusionAddressSuggestions.length > 0 && showEditExclusionAddressSuggestions}
+						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
+							{#each editExclusionAddressSuggestions as suggestion, index}
+								<button
+									type="button"
+									class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-50 dark:focus:bg-gray-700 focus:outline-none {selectedEditExclusionAddressIndex === index ? 'bg-blue-500/10 dark:bg-blue-500/20' : ''}"
+									on:click={() => selectEditExclusionAddress(suggestion)}
+								>
+									<div class="font-medium">{suggestion.display_name}</div>
+									{#if suggestion.coordinates}
+										<div class="text-xs text-gray-500 dark:text-gray-400">
+											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(6)}
+										</div>
+									{/if}
+								</button>
+							{/each}
+							{#if editExclusionAddressSearchError}
+								<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+									{editExclusionAddressSearchError}
+								</div>
+							{/if}
+						</div>
+					{:else if showEditExclusionAddressSuggestions && editExclusionAddressSearchError}
+						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
+							<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+								{editExclusionAddressSearchError}
+							</div>
+						</div>
+					{/if}
+					{#if selectedEditExclusionAddress && selectedEditExclusionAddress.coordinates}
+						<div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+							<div class="text-sm text-green-800 dark:text-green-200">
+								📍 Coordinates: {selectedEditExclusionAddress.coordinates.lat.toFixed(6)}, {selectedEditExclusionAddress.coordinates.lng.toFixed(6)}
+							</div>
+							<div class="text-xs text-green-600 dark:text-green-300 mt-1">
+								{selectedEditExclusionAddress.display_name}
+							</div>
+						</div>
+					{/if}
+				</div>
+				<div class="flex gap-3 mt-4">
+					<button
+						on:click={handleUpdateExclusion}
+						disabled={isEditingExclusion || !editingExclusion.name || !editingExclusion.location}
+						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{isEditingExclusion ? 'Updating...' : 'Update Exclusion'}
+					</button>
+					<button
+						on:click={() => showEditExclusionModal = false}
 						class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer"
 					>
 						Cancel

@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { successResponse, errorResponse, validationErrorResponse } from '$lib/utils/api/response';
-import { JobQueueService } from '$lib/services/queue/job-queue.service';
+import { JobQueueService } from '$lib/services/queue/job-queue.service.server';
 
 export const GET: RequestHandler = async ({ locals }) => {
   try {

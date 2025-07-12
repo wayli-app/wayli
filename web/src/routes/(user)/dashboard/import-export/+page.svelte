@@ -194,7 +194,7 @@
 				startImportJobPolling(jobId!);
 
 				toast.success(`Import job created successfully!`, {
-					description: `Job ID: ${jobId}. Check the Jobs page for detailed progress.`
+					description: `Job ID: ${jobId}. Check the Background jobs page for detailed progress.`
 				});
 
 				// Continue polling until job is completed or failed
@@ -306,8 +306,8 @@
 			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
 			const data = await response.json();
 
-			if (data.success && data.data?.jobs) {
-				const activeJobs = data.data.jobs.filter(
+			if (data.success && Array.isArray(data.data)) {
+				const activeJobs = data.data.filter(
 					(job: Job) =>
 						job.type === 'data_import' && (job.status === 'queued' || job.status === 'running')
 				);
@@ -448,7 +448,7 @@
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
 				Import your travel data from various sources. Imports are processed in the background by
-				workers and you can track progress on the Jobs page.
+				workers and you can track progress on the Background jobs page.
 			</p>
 
 			{#if activeImportJob}
@@ -457,7 +457,7 @@
 					class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
 				>
 					<p class="mb-2 text-sm text-blue-800 dark:text-blue-200">
-						📤 Active import job detected: {activeImportJob.data?.fileName || 'Unknown file'}
+						📤 Active import job: {activeImportJob.data?.fileName || 'Unknown file'}
 					</p>
 					<div class="mb-2 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
 						<div
@@ -479,7 +479,7 @@
 					</p>
 					<p class="text-xs text-blue-600 dark:text-blue-400">
 						<a href="/dashboard/jobs" class="underline hover:no-underline">
-							View detailed progress on Jobs page →
+							View detailed progress on Background jobs page →
 						</a>
 					</p>
 				</div>

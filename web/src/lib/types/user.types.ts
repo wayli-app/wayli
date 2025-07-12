@@ -3,9 +3,12 @@ import type { GeocodedLocation } from './geocoding.types';
 export interface UserProfile {
   id: string;
   email?: string;
+  first_name?: string;
+  last_name?: string;
   full_name?: string;
   role: 'user' | 'admin' | 'moderator';
   avatar_url?: string;
+  home_address?: string | GeocodedLocation;
   email_confirmed_at?: string;
   created_at: string;
   updated_at: string;

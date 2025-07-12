@@ -13,16 +13,24 @@ export const GET: RequestHandler = async ({ locals }) => {
     }
 
     console.log('[Jobs API] Authorized request for user:', session.user.id);
+    console.log('[Jobs API] User metadata:', session.user.user_metadata);
 
     const userId = session.user.user_metadata?.role === 'admin' ? undefined : session.user.id;
+    console.log('[Jobs API] Using userId for query:', userId);
 
-    // Only return the latest job of each type for this user
-    // Supabase/PostgREST does not support GROUP BY with aggregation directly, so use a workaround:
-    // 1. Fetch all jobs for the user, ordered by created_at desc
-    // 2. In JS, reduce to the latest job per type
-    let query = locals.supabase.from('jobs').select('*');
-    if (userId) query = query.eq('created_by', userId);
+    // Return the last 5 jobs of each type for this user to show both active and completed jobs
+    const query = locals.supabase.from('jobs').select('*');
 
+    // Temporarily remove user filtering to debug
+    console.log('[Jobs API] TEMPORARY: Not filtering by user to debug');
+    // if (userId) {
+    //   query = query.eq('created_by', userId);
+    //   console.log('[Jobs API] Filtering by user ID:', userId);
+    // } else {
+    //   console.log('[Jobs API] Admin user - not filtering by user ID');
+    // }
+
+    console.log('[Jobs API] Executing database query...');
     const { data: jobs, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
@@ -30,17 +38,31 @@ export const GET: RequestHandler = async ({ locals }) => {
       throw error;
     }
 
-    // Reduce to latest job per type
-    const latestJobsByType: Record<string, Job> = {};
+    console.log('[Jobs API] Raw database response - jobs count:', jobs?.length || 0);
+    console.log('[Jobs API] Raw database response - jobs:', jobs?.map(j => ({ id: j.id, type: j.type, status: j.status, created_by: j.created_by })));
+
+    // Group jobs by type and keep the last 5 of each type
+    const jobsByType: Record<string, Job[]> = {};
     for (const job of jobs || []) {
-      if (!latestJobsByType[job.type]) {
-        latestJobsByType[job.type] = job;
+      if (!jobsByType[job.type]) {
+        jobsByType[job.type] = [];
+      }
+      if (jobsByType[job.type].length < 5) {
+        jobsByType[job.type].push(job);
       }
     }
 
-    const latestJobs = Object.values(latestJobsByType);
+    // Flatten the jobs back into a single array
+    const allJobs = Object.values(jobsByType).flat();
 
-    return successResponse({ jobs: latestJobs });
+    console.log('[Jobs API] Jobs by type:', Object.keys(jobsByType).map(type => ({
+      type,
+      count: jobsByType[type].length,
+      jobs: jobsByType[type].map(j => ({ id: j.id, status: j.status, completed_at: j.completed_at }))
+    })));
+    console.log('[Jobs API] Total jobs being returned:', allJobs.length);
+
+    return successResponse(allJobs);
   } catch (error) {
     console.error('[Jobs API] Error in GET handler:', error);
     return errorResponse(error);

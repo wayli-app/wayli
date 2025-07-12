@@ -209,17 +209,9 @@
 		try {
 			console.log('[Jobs] Starting EventSource connection...');
 
-			// Get the current session to include in the SSE request
-			const session = get(sessionStore);
+			// Use the session cookie instead of passing token in URL
 			let sseUrl = '/api/v1/jobs/stream';
-
-			// If we have a session, include the token in the URL (EventSource doesn't support custom headers)
-			if (session?.access_token) {
-				sseUrl += `?token=${encodeURIComponent(session.access_token)}`;
-				console.log('[Jobs] Including token in SSE URL');
-			} else {
-				console.log('[Jobs] No session token available for SSE');
-			}
+			console.log('[Jobs] Using session-based authentication for SSE');
 
 			// Create EventSource for real-time job updates
 			eventSource = new EventSource(sseUrl);
@@ -415,12 +407,8 @@
 				email: session.user?.email
 			} : 'no session');
 			const headers: Record<string, string> = {};
-			if (session?.access_token) {
-				headers['Authorization'] = `Bearer ${session.access_token}`;
-				console.log('[Jobs] [loadJobs] Using authenticated request with token');
-			} else {
-				console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
-			}
+			// Removed: if (session?.access_token) { ... }
+			console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
 
 			console.log('[Jobs] [loadJobs] Making API request to /api/v1/jobs...');
 			const apiStartTime = Date.now();
@@ -732,14 +720,39 @@
 	// Add helper to get last job of a type (any status)
 	function getLastJob(type: string): Job | undefined {
 		const jobArr = Array.isArray(jobs) ? jobs : [];
-		return jobArr
-			.filter(
-				(job) =>
-					job &&
-					typeof job.type === 'string' &&
-					job.type === type
-			)
-			.sort((a, b) => new Date(b.completed_at || b.updated_at || b.created_at).getTime() - new Date(a.completed_at || a.updated_at || a.created_at).getTime())[0];
+		const jobsOfType = jobArr.filter(
+			(job) =>
+				job &&
+				typeof job.type === 'string' &&
+				job.type === type
+		);
+
+		console.log(`[Jobs] [getLastJob] Looking for jobs of type: ${type}`);
+		console.log(`[Jobs] [getLastJob] Total jobs available: ${jobArr.length}`);
+		console.log(`[Jobs] [getLastJob] Jobs of type ${type}:`, jobsOfType.map(j => ({ id: j.id, status: j.status, completed_at: j.completed_at })));
+
+		if (jobsOfType.length === 0) return undefined;
+
+		// First try to find the most recent completed job
+		const completedJobs = jobsOfType.filter(job => job.status === 'completed');
+		console.log(`[Jobs] [getLastJob] Completed jobs of type ${type}:`, completedJobs.length);
+
+		if (completedJobs.length > 0) {
+			const lastCompleted = completedJobs.sort((a, b) =>
+				new Date(b.completed_at || b.updated_at || b.created_at).getTime() -
+				new Date(a.completed_at || a.updated_at || a.created_at).getTime()
+			)[0];
+			console.log(`[Jobs] [getLastJob] Returning last completed job:`, { id: lastCompleted.id, status: lastCompleted.status, completed_at: lastCompleted.completed_at });
+			return lastCompleted;
+		}
+
+		// If no completed jobs, return the most recent job of any status
+		const lastJob = jobsOfType.sort((a, b) =>
+			new Date(b.completed_at || b.updated_at || b.created_at).getTime() -
+			new Date(a.completed_at || a.updated_at || a.created_at).getTime()
+		)[0];
+		console.log(`[Jobs] [getLastJob] Returning last job (any status):`, { id: lastJob.id, status: lastJob.status, completed_at: lastJob.completed_at });
+		return lastJob;
 	}
 
 	async function killJob(jobId: string) {
@@ -781,7 +794,7 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<ListTodo class="h-8 w-8 text-blue-600 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Jobs</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Background jobs</h1>
 		</div>
 	</div>
 
