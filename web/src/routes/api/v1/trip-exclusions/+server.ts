@@ -24,15 +24,20 @@ export const GET: RequestHandler = async ({ locals }) => {
     const user = session.user;
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get user's user_metadata from auth.users
-    const { data, error } = await supabaseAdmin.auth.admin.getUserById(user.id);
-    if (error || !data.user) {
-      console.error('Error fetching user profile:', error);
-      return errorResponse('Failed to fetch user profile', 500);
-    }
+    // Get trip exclusions from user preferences
+    const { data: userPreferences, error: userPreferencesError } = await supabaseAdmin
+      .from('user_preferences')
+      .select('trip_exclusions')
+      .eq('id', user.id)
+      .maybeSingle();
 
-    // Extract trip exclusions from user_metadata
-    const exclusions: TripExclusion[] = data.user.user_metadata?.trip_exclusions || [];
+    let exclusions: TripExclusion[] = [];
+    if (userPreferencesError) {
+      console.error('Error fetching user preferences for trip exclusions:', userPreferencesError);
+      // Fallback to empty array if preferences not found
+    } else {
+      exclusions = userPreferences?.trip_exclusions || [];
+    }
 
     return successResponse({
       exclusions: exclusions
@@ -67,14 +72,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user_metadata
-    const { data, error: profileError } = await supabaseAdmin.auth.admin.getUserById(user.id);
-    if (profileError || !data.user) {
-      console.error('Error fetching user profile:', profileError);
-      return errorResponse('Failed to fetch user profile', 500);
+    // Get current trip exclusions from user preferences
+    const { data: userPreferences, error: preferencesError } = await supabaseAdmin
+      .from('user_preferences')
+      .select('trip_exclusions')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (preferencesError) {
+      console.error('Error fetching user preferences:', preferencesError);
+      return errorResponse('Failed to fetch user preferences', 500);
     }
-    const currentMetadata = data.user.user_metadata || {};
-    const currentExclusions: TripExclusion[] = currentMetadata.trip_exclusions || [];
+
+    const currentExclusions: TripExclusion[] = userPreferences?.trip_exclusions || [];
 
     // Check if user already has 10 exclusions (maximum limit)
     if (currentExclusions.length >= 10) {
@@ -99,16 +109,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // Add to exclusions array
     const updatedExclusions = [...currentExclusions, newExclusion];
 
-    // Update user_metadata
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: {
-        ...currentMetadata,
-        trip_exclusions: updatedExclusions
-      }
-    });
+    // Upsert user preferences with new exclusions
+    const { error: upsertError } = await supabaseAdmin
+      .from('user_preferences')
+      .upsert({
+        id: user.id,
+        trip_exclusions: updatedExclusions,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
+      });
 
-    if (updateError) {
-      console.error('Error updating user metadata:', updateError);
+    if (upsertError) {
+      console.error('Error upserting user preferences:', upsertError);
       return errorResponse('Failed to save trip exclusion', 500);
     }
 
@@ -145,14 +158,19 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user_metadata
-    const { data, error: profileError } = await supabaseAdmin.auth.admin.getUserById(user.id);
-    if (profileError || !data.user) {
-      console.error('Error fetching user profile:', profileError);
-      return errorResponse('Failed to fetch user profile', 500);
+    // Get current trip exclusions from user preferences
+    const { data: userPreferences, error: preferencesError } = await supabaseAdmin
+      .from('user_preferences')
+      .select('trip_exclusions')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (preferencesError) {
+      console.error('Error fetching user preferences:', preferencesError);
+      return errorResponse('Failed to fetch user preferences', 500);
     }
-    const currentMetadata = data.user.user_metadata || {};
-    const currentExclusions: TripExclusion[] = currentMetadata.trip_exclusions || [];
+
+    const currentExclusions: TripExclusion[] = userPreferences?.trip_exclusions || [];
 
     // Find the exclusion to update
     const exclusionIndex = currentExclusions.findIndex(ex => ex.id === id);
@@ -176,16 +194,19 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
 
     currentExclusions[exclusionIndex] = updatedExclusion;
 
-    // Update user_metadata
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: {
-        ...currentMetadata,
-        trip_exclusions: currentExclusions
-      }
-    });
+    // Upsert user preferences with updated exclusions
+    const { error: upsertError } = await supabaseAdmin
+      .from('user_preferences')
+      .upsert({
+        id: user.id,
+        trip_exclusions: currentExclusions,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
+      });
 
-    if (updateError) {
-      console.error('Error updating user metadata:', updateError);
+    if (upsertError) {
+      console.error('Error upserting user preferences:', upsertError);
       return errorResponse('Failed to update trip exclusion', 500);
     }
 
@@ -216,14 +237,19 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
 
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get current user_metadata
-    const { data, error: profileError } = await supabaseAdmin.auth.admin.getUserById(user.id);
-    if (profileError || !data.user) {
-      console.error('Error fetching user profile:', profileError);
-      return errorResponse('Failed to fetch user profile', 500);
+    // Get current trip exclusions from user preferences
+    const { data: userPreferences, error: preferencesError } = await supabaseAdmin
+      .from('user_preferences')
+      .select('trip_exclusions')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (preferencesError) {
+      console.error('Error fetching user preferences:', preferencesError);
+      return errorResponse('Failed to fetch user preferences', 500);
     }
-    const currentMetadata = data.user.user_metadata || {};
-    const currentExclusions: TripExclusion[] = currentMetadata.trip_exclusions || [];
+
+    const currentExclusions: TripExclusion[] = userPreferences?.trip_exclusions || [];
 
     // Find and remove the exclusion
     const updatedExclusions = currentExclusions.filter(ex => ex.id !== id);
@@ -232,16 +258,19 @@ export const DELETE: RequestHandler = async ({ request, locals }) => {
       return errorResponse('Trip exclusion not found', 404);
     }
 
-    // Update user_metadata
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-      user_metadata: {
-        ...currentMetadata,
-        trip_exclusions: updatedExclusions
-      }
-    });
+    // Upsert user preferences with updated exclusions
+    const { error: upsertError } = await supabaseAdmin
+      .from('user_preferences')
+      .upsert({
+        id: user.id,
+        trip_exclusions: updatedExclusions,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
+      });
 
-    if (updateError) {
-      console.error('Error updating user metadata:', updateError);
+    if (upsertError) {
+      console.error('Error upserting user preferences:', upsertError);
       return errorResponse('Failed to delete trip exclusion', 500);
     }
 

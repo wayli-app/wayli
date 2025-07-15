@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { detectMode, detectTrainMode, haversine } from './transport-mode';
-import type { ModeContext } from './transport-mode';
+import { detectMode, detectTrainMode, haversine, detectEnhancedMode, getSpeedBracket, isAtTrainStation, isModeSwitchPossible } from './transport-mode';
+import type { ModeContext, EnhancedModeContext } from './transport-mode';
 
 describe('Transport Mode Detection', () => {
   describe('Debug Tests', () => {
@@ -18,39 +18,26 @@ describe('Transport Mode Detection', () => {
 
   describe('detectMode', () => {
     it('should detect walking for slow speeds', () => {
-      // Very slow movement: ~5 km/h
-      const result = detectMode(0, 0, 0.0001, 0.0001, 60);
+      // Walking speed: ~5 km/h (between 2-8 km/h)
+      const result = detectMode(0, 0, 0.0002, 0.0002, 60);
       expect(result).toBe('walking');
     });
 
     it('should detect cycling for moderate speeds', () => {
-      // Moderate speed: ~15 km/h
-      const result = detectMode(0, 0, 0.0004, 0.0004, 60);
+      // Cycling speed: ~15 km/h (between 8-25 km/h)
+      const result = detectMode(0, 0, 0.0006, 0.0006, 60);
       expect(result).toBe('cycling');
     });
 
     it('should detect car for higher speeds', () => {
-      // Higher speed: ~60 km/h
+      // Car speed: ~60 km/h (between 25-120 km/h)
       const result = detectMode(0, 0, 0.002, 0.002, 60);
       expect(result).toBe('car');
     });
 
-    it('should detect airplane after 1 hour of high speed', () => {
-      const context: ModeContext = {};
-
-      // Simulate 30 minutes of high speed
-      for (let i = 0; i < 30; i++) {
-        detectMode(0, 0, 0.5, 0.5, 120, context); // ~900 km/h
-      }
-      expect(context.airplaneTime).toBe(3600);
-
-      const result = detectMode(0, 0, 0.5, 0.5, 120, context);
+    it('should detect airplane for high speeds', () => {
+      const result = detectMode(0, 0, 0.5, 0.5, 120); // ~900 km/h
       expect(result).toBe('airplane');
-    });
-
-    it('should return unknown for airplane speeds without context', () => {
-      const result = detectMode(0, 0, 0.5, 0.5, 120); // High speed without context
-      expect(result).toBe('unknown');
     });
   });
 
@@ -186,7 +173,7 @@ export const createMockTrackerData = (scenarios: Array<{
       coordinates: [0 + index * 0.001, 0 + index * 0.001]
     },
     recorded_at: scenario.timestamp,
-    reverse_geocode: scenario.atTrainType ? JSON.stringify({
+    geocode: scenario.atTrainType ? JSON.stringify({
       type: 'railway_station',
       class: 'railway'
     }) : null
@@ -268,5 +255,90 @@ describe('Train Detection Scenarios', () => {
     // After bridge (car speed again, not at railway)
     const afterResult = detectTrainMode(0.05, 0.05, 0.06, 0.06, 60, false, context);
     expect(afterResult.mode).toBe('unknown'); // Should end train journey
+  });
+});
+
+describe('Enhanced Transport Mode Detection', () => {
+  describe('Speed Brackets', () => {
+    it('should categorize speeds correctly', () => {
+      expect(getSpeedBracket(0)).toBe('stationary');
+      expect(getSpeedBracket(5)).toBe('walking');
+      expect(getSpeedBracket(15)).toBe('cycling');
+      expect(getSpeedBracket(60)).toBe('car');
+      expect(getSpeedBracket(150)).toBe('train');
+      expect(getSpeedBracket(500)).toBe('airplane');
+    });
+  });
+
+  describe('Train Station Detection', () => {
+    it('should detect train stations from geocode data', () => {
+      const trainStationGeocode = {
+        type: 'railway_station',
+        address: { name: 'Central Station', city: 'Amsterdam' }
+      };
+      expect(isAtTrainStation(trainStationGeocode)).toBe(true);
+    });
+
+    it('should not detect non-train locations', () => {
+      const restaurantGeocode = {
+        type: 'restaurant',
+        address: { name: 'McDonalds', city: 'Amsterdam' }
+      };
+      expect(isAtTrainStation(restaurantGeocode)).toBe(false);
+    });
+  });
+
+  describe('Mode Switch Validation', () => {
+    it('should allow valid mode switches', () => {
+      expect(isModeSwitchPossible('walking', 'cycling', false)).toBe(true);
+      expect(isModeSwitchPossible('car', 'train', true)).toBe(true);
+      expect(isModeSwitchPossible('train', 'car', true)).toBe(true);
+    });
+
+    it('should prevent impossible mode switches', () => {
+      expect(isModeSwitchPossible('car', 'train', false)).toBe(false);
+      expect(isModeSwitchPossible('train', 'car', false)).toBe(false);
+    });
+  });
+
+  describe('Enhanced Mode Detection', () => {
+    it('should detect train journey with station visits', () => {
+      const context: EnhancedModeContext = {
+        currentMode: 'unknown',
+        modeStartTime: Date.now(),
+        lastSpeed: 0,
+        trainStations: [],
+        averageSpeed: 0,
+        speedHistory: [],
+        isInTrainJourney: false
+      };
+
+      // Simulate starting at train station
+      const trainStationGeocode = {
+        type: 'railway_station',
+        address: { name: 'Central Station', city: 'Amsterdam' }
+      };
+
+      const result = detectEnhancedMode(0, 0, 0.01, 0.01, 60, trainStationGeocode, context);
+      expect(result.mode).toBe('train');
+      expect(context.isInTrainJourney).toBe(true);
+    });
+
+    it('should maintain mode continuity', () => {
+      const context: EnhancedModeContext = {
+        currentMode: 'car',
+        modeStartTime: Date.now(),
+        lastSpeed: 60,
+        trainStations: [],
+        averageSpeed: 60,
+        speedHistory: [60],
+        isInTrainJourney: false
+      };
+
+      // Continue at similar speed
+      const result = detectEnhancedMode(0.01, 0.01, 0.02, 0.02, 60, null, context);
+      expect(result.mode).toBe('car');
+      expect(result.reason).toContain('Mode continuity');
+    });
   });
 });

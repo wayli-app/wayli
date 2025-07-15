@@ -19,34 +19,20 @@ export const GET: RequestHandler = async ({ url }) => {
     const searchResult = await forwardGeocode(query.trim());
 
     if (searchResult) {
-      results.push(searchResult);
+      results.push({
+        display_name: searchResult.display_name,
+        coordinates: {
+          lat: parseFloat(searchResult.lat),
+          lng: parseFloat(searchResult.lon)
+        },
+        lat: parseFloat(searchResult.lat),
+        lon: parseFloat(searchResult.lon),
+        address: searchResult.address || {}
+      });
     }
 
-    // Try a few variations to get more results
-    const variations = [
-      query.trim(),
-      `${query.trim()}, `,
-      `${query.trim()} street`,
-      `${query.trim()} road`
-    ];
-
-    for (const variation of variations.slice(1)) { // Skip the first one as we already tried it
-      try {
-        const result = await forwardGeocode(variation);
-        if (result && !results.some(r => r.display_name === result.display_name)) {
-          results.push(result);
-        }
-        if (results.length >= 5) break; // Limit to 5 results
-      } catch {
-        // Continue with next variation if this one fails
-        continue;
-      }
-    }
-
-    return successResponse({
-      results,
-      query: query.trim()
-    });
+    // Return the results wrapped in a results property to match frontend expectations
+    return successResponse({ results });
 
   } catch (error) {
     console.error('Geocoding search error:', error);

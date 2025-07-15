@@ -20,6 +20,7 @@ export interface UserPreferences {
   language: string;
   notifications_enabled: boolean;
   timezone?: string;
+  pexels_api_key?: string;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +43,7 @@ export interface UpdatePreferencesRequest {
   language?: string;
   notifications_enabled?: boolean;
   timezone?: string;
+  pexels_api_key?: string;
 }
 
 export interface TwoFactorSetupRequest {

@@ -3,8 +3,8 @@ import { successResponse, errorResponse, validationErrorResponse } from '$lib/ut
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { detectMode, detectTrainMode } from '$lib/utils/transport-mode';
-import type { ModeContext } from '$lib/utils/transport-mode';
+import { detectEnhancedMode } from '$lib/utils/transport-mode';
+import type { EnhancedModeContext } from '$lib/utils/transport-mode';
 
 interface LocationData {
   id: string;
@@ -117,7 +117,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       console.log('API: Fetching POIs from tracker_data...');
       let query = supabaseAdmin
         .from('tracker_data')
-        .select('id, user_id, location, recorded_at, created_at, raw_data, reverse_geocode')
+        .select('id, user_id, location, recorded_at, created_at, raw_data, geocode')
         .eq('user_id', user.id)
         .eq('tracker_type', 'import')
         .eq('raw_data->>data_type', 'waypoint'); // Filter for waypoint-type imported data
@@ -186,7 +186,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       // Fetch all tracker data for transport mode calculation (without pagination)
       let allTrackerQuery = supabaseAdmin
         .from('tracker_data')
-        .select('user_id, tracker_type, device_id, recorded_at, location, altitude, accuracy, speed, heading, battery_level, is_charging, activity_type, created_at, reverse_geocode')
+        .select('user_id, tracker_type, device_id, recorded_at, location, altitude, accuracy, speed, heading, battery_level, is_charging, activity_type, created_at, geocode')
         .eq('user_id', user.id);
 
       if (startDate) {
@@ -206,30 +206,19 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       } else {
         console.log('API: All tracker data points fetched for mode calculation:', allTrackerData?.length || 0);
 
-        // Enhanced train detection with velocity-based continuity
-        const modeContext: ModeContext = {};
+        // Enhanced transport mode detection with all constraints
+        const modeContext: EnhancedModeContext = {
+          currentMode: 'unknown',
+          modeStartTime: Date.now(),
+          lastSpeed: 0,
+          trainStations: [],
+          averageSpeed: 0,
+          speedHistory: [],
+          isInTrainJourney: false
+        };
 
         const finalTrackerData = allTrackerData?.map((track, index) => {
           let transportMode = 'unknown';
-
-          // Check if this point is at a railway location
-          let atTrainLocation = false;
-          if (track.reverse_geocode) {
-            try {
-              const geocode = typeof track.reverse_geocode === 'string'
-                ? JSON.parse(track.reverse_geocode)
-                : track.reverse_geocode;
-
-              if (
-                (geocode && geocode.type === 'railway_station') ||
-                (geocode && geocode.class === 'railway') ||
-                (geocode && geocode.type === 'platform') ||
-                (geocode && geocode.addresstype === 'railway')
-              ) {
-                atTrainLocation = true;
-              }
-            } catch { /* Ignore parsing errors */ }
-          }
 
           // Calculate transport mode if we have a previous point
           if (index > 0) {
@@ -244,26 +233,16 @@ export const GET: RequestHandler = async ({ url, locals }) => {
               const dt = (currTime - prevTime) / 1000; // seconds
 
               if (dt > 0) {
-                // Use enhanced train detection
-                const trainDetection = detectTrainMode(
+                // Use enhanced transport mode detection
+                const modeDetection = detectEnhancedMode(
                   prevCoords.lat, prevCoords.lng,
                   currCoords.lat, currCoords.lng,
                   dt,
-                  atTrainLocation,
+                  track.geocode,
                   modeContext
                 );
 
-                transportMode = trainDetection.mode;
-
-                // If not detected as train, use regular mode detection
-                if (transportMode !== 'train') {
-                  transportMode = detectMode(
-                    prevCoords.lat, prevCoords.lng,
-                    currCoords.lat, currCoords.lng,
-                    dt,
-                    modeContext
-                  );
-                }
+                transportMode = modeDetection.mode;
               }
             }
           }

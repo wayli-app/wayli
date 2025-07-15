@@ -111,6 +111,8 @@ onMount(async () => {
   L = (await import('leaflet')).default;
   if (map) return;
   map = L.map(mapContainer, {
+    center: [20, 0], // Default center of the world
+    zoom: 2, // Default zoom level to show the world
     zoomControl: true,
     attributionControl: false
   });

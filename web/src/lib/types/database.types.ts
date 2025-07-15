@@ -7,7 +7,7 @@ export interface Trip {
 	description?: string;
 	start_date?: string;
 	end_date?: string;
-	status: 'planned' | 'active' | 'completed' | 'cancelled';
+	status: 'planned' | 'active' | 'completed' | 'cancelled' | 'approved' | 'rejected';
 	image_url?: string; // Supabase Storage image URL for trip image
 	labels?: string[]; // Array of string labels for trip categorization
 	metadata?: {

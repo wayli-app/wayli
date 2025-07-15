@@ -1,3 +1,4 @@
+import { SPEED_BRACKETS } from './transport-mode.config';
 // Haversine distance in meters
 export function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const toRad = (x: number) => x * Math.PI / 180;
@@ -9,139 +10,289 @@ export function haversine(lat1: number, lng1: number, lat2: number, lng2: number
   return R * c;
 }
 
-// Context object to track cumulative airplane time and train time
+// Speed brackets for transport modes (km/h)
+export const MIN_STOP_DURATION = 300; // 5 minutes
+
+// Context object to track transport mode state
+export interface EnhancedModeContext {
+  currentMode: string;
+  modeStartTime: number;
+  lastSpeed: number;
+  trainStations: Array<{
+    timestamp: number;
+    name: string;
+    coordinates: { lat: number; lng: number };
+  }>;
+  lastTrainStation?: {
+    timestamp: number;
+    name: string;
+    coordinates: { lat: number; lng: number };
+  };
+  averageSpeed: number;
+  speedHistory: number[];
+  isInTrainJourney: boolean;
+  trainJourneyStartTime?: number;
+  trainJourneyStartStation?: string;
+}
+
+// Get speed bracket for a given speed
+export function getSpeedBracket(speedKmh: number): string {
+  for (const bracket of SPEED_BRACKETS) {
+    if (speedKmh >= bracket.min && speedKmh < bracket.max) {
+      return bracket.mode;
+    }
+  }
+  return 'unknown';
+}
+
+// Check if a point is at a train station
+export function isAtTrainStation(reverseGeocode: unknown): boolean {
+  if (!reverseGeocode) return false;
+
+  try {
+    const geocode = typeof reverseGeocode === 'string' ? JSON.parse(reverseGeocode) : reverseGeocode;
+    // Check top-level and address fields for class/type
+    const hasRailwayClass = geocode.class === 'railway' || (geocode.address && geocode.address.class === 'railway');
+    const hasPlatformType = geocode.type === 'platform' || (geocode.address && geocode.address.type === 'platform');
+    return !!(
+      (geocode && geocode.type === 'railway_station') ||
+      (geocode && geocode.class === 'railway') ||
+      (geocode && geocode.type === 'platform') ||
+      (geocode && geocode.addresstype === 'railway') ||
+      hasRailwayClass ||
+      hasPlatformType
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Get train station name from reverse geocode
+export function getTrainStationName(reverseGeocode: unknown): string | null {
+  if (!reverseGeocode) return null;
+
+  try {
+    const geocode = typeof reverseGeocode === 'string' ? JSON.parse(reverseGeocode) : reverseGeocode;
+    if (geocode && geocode.address) {
+      const city = geocode.address.city || '';
+      const name = geocode.address.name || '';
+      return city && name ? `${city} - ${name}` : (name || city || null);
+    }
+  } catch {
+    // Ignore parsing errors
+  }
+  return null;
+}
+
+// Check if mode switch is possible
+export function isModeSwitchPossible(fromMode: string, toMode: string, atTrainStation: boolean): boolean {
+  // Impossible switches
+  if (fromMode === 'car' && toMode === 'train' && !atTrainStation) return false;
+  if (fromMode === 'train' && toMode === 'car' && !atTrainStation) return false;
+
+  // Stationary can switch to anything
+  if (fromMode === 'stationary') return true;
+
+  // Walking can switch to anything
+  if (fromMode === 'walking') return true;
+
+  // Cycling can switch to anything
+  if (fromMode === 'cycling') return true;
+
+  // Car can only switch to train at station, or to walking/cycling/stationary
+  if (fromMode === 'car') {
+    return ['walking', 'cycling', 'stationary', ...(atTrainStation ? ['train'] : [])].includes(toMode);
+  }
+
+  // Train can only switch to car at station, or to walking/stationary
+  if (fromMode === 'train') {
+    return ['walking', 'stationary', ...(atTrainStation ? ['car'] : [])].includes(toMode);
+  }
+
+  // Airplane can switch to anything (landing)
+  if (fromMode === 'airplane') return true;
+
+  return true;
+}
+
+// Enhanced transport mode detection with all constraints
+export function detectEnhancedMode(
+  prevLat: number, prevLng: number, currLat: number, currLng: number,
+  dt: number, // seconds
+  reverseGeocode: unknown,
+  context: EnhancedModeContext
+): { mode: string; confidence: number; reason: string } {
+  const distance = haversine(prevLat, prevLng, currLat, currLng);
+  const speedKmh = (distance / dt) * 3.6;
+
+  // Update context
+  context.lastSpeed = speedKmh;
+  context.speedHistory.push(speedKmh);
+  if (context.speedHistory.length > 10) {
+    context.speedHistory.shift();
+  }
+
+  // Calculate average speed
+  context.averageSpeed = context.speedHistory.reduce((a, b) => a + b, 0) / context.speedHistory.length;
+
+  // Check if at train station
+  const atTrainStation = isAtTrainStation(reverseGeocode);
+  const stationName = atTrainStation ? getTrainStationName(reverseGeocode) : null;
+
+  // Record train station visit
+  if (atTrainStation && stationName) {
+    const stationInfo = {
+      timestamp: Date.now(),
+      name: stationName,
+      coordinates: { lat: currLat, lng: currLng }
+    };
+    context.trainStations.push(stationInfo);
+    context.lastTrainStation = stationInfo;
+  }
+
+  // Get speed bracket for current speed
+  let speedBracket = getSpeedBracket(speedKmh);
+
+  // --- Fallback: Always assign a mode based on speed if no context is available ---
+  // If speedBracket is 'unknown' but speed is a valid number, assign 'car' as a default fallback
+  if ((speedBracket === 'unknown' || !speedBracket) && typeof speedKmh === 'number' && speedKmh >= 0) {
+    speedBracket = 'car';
+  }
+
+  // Special handling for train detection
+  let detectedMode = speedBracket;
+  let confidence = 0.5;
+  let reason = `Speed bracket: ${speedBracket}`;
+
+  // Train detection logic
+  if (speedBracket === 'train' || (context.isInTrainJourney && speedKmh >= 30)) {
+    // Check if we should start a train journey
+    if (!context.isInTrainJourney && atTrainStation) {
+      context.isInTrainJourney = true;
+      context.trainJourneyStartTime = Date.now();
+      context.trainJourneyStartStation = stationName || 'Unknown';
+      detectedMode = 'train';
+      confidence = 0.8;
+      reason = 'Started train journey at station';
+    }
+    // Continue train journey if already in one
+    else if (context.isInTrainJourney) {
+      detectedMode = 'train';
+      confidence = 0.7;
+      reason = 'Continuing train journey';
+
+      // End train journey if we reach another station
+      if (atTrainStation && context.trainJourneyStartStation !== stationName) {
+        context.isInTrainJourney = false;
+        context.trainJourneyStartTime = undefined;
+        context.trainJourneyStartStation = undefined;
+        reason = 'Ended train journey at destination station';
+      }
+    }
+    // Infer train journey if we have a recent train station and high speed
+    else if (context.lastTrainStation &&
+             (Date.now() - context.lastTrainStation.timestamp) < 3600000 && // Within 1 hour
+             speedKmh >= 50) { // High speed
+      context.isInTrainJourney = true;
+      context.trainJourneyStartTime = context.lastTrainStation.timestamp;
+      context.trainJourneyStartStation = context.lastTrainStation.name;
+      detectedMode = 'train';
+      confidence = 0.6;
+      reason = 'Inferred train journey from recent station visit';
+    }
+  }
+
+  // End train journey if speed drops significantly
+  if (context.isInTrainJourney && speedKmh < 20) {
+    context.isInTrainJourney = false;
+    context.trainJourneyStartTime = undefined;
+    context.trainJourneyStartStation = undefined;
+    detectedMode = speedBracket;
+    reason = 'Ended train journey due to low speed';
+  }
+
+  // Mode continuity: if speed is in same bracket and no significant stop, maintain mode
+  if (context.currentMode &&
+      context.currentMode !== 'stationary' &&
+      context.currentMode !== 'unknown' &&
+      context.lastSpeed > 0 &&
+      speedBracket === getSpeedBracket(context.lastSpeed) &&
+      dt < MIN_STOP_DURATION) {
+
+    // Check if mode switch is possible
+    if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
+      detectedMode = context.currentMode;
+      confidence = 0.9;
+      reason = 'Mode continuity maintained';
+    }
+  }
+
+  // Update context
+  context.currentMode = detectedMode;
+  context.modeStartTime = Date.now();
+
+  return { mode: detectedMode, confidence, reason };
+}
+
+// Legacy functions for backward compatibility
 export interface ModeContext {
   airplaneTime?: number;
   trainTime?: number;
   isInTrainJourney?: boolean;
-  trainVelocityHistory?: number[]; // Track recent train velocities for continuity
-  lastTrainVelocity?: number; // Last confirmed train velocity
-  trainJourneyStartTime?: number; // When the current train journey started
+  trainVelocityHistory?: number[];
+  lastTrainVelocity?: number;
+  trainJourneyStartTime?: number;
 }
 
-// Enhanced train detection with velocity-based continuity
 export function detectTrainMode(
   prevLat: number, prevLng: number, currLat: number, currLng: number,
-  dt: number, // seconds
-  atTrainLocation: boolean, // Whether current point is at a railway location
+  dt: number,
+  atTrainLocation: boolean,
   context: ModeContext
 ): { mode: string; confidence: number } {
-  const distance = haversine(prevLat, prevLng, currLat, currLng);
-  const speedKmh = (distance / dt) * 3.6;
+  // Create enhanced context
+  const enhancedContext: EnhancedModeContext = {
+    currentMode: context.isInTrainJourney ? 'train' : 'unknown',
+    modeStartTime: Date.now(),
+    lastSpeed: 0,
+    trainStations: [],
+    averageSpeed: 0,
+    speedHistory: [],
+    isInTrainJourney: context.isInTrainJourney || false,
+    trainJourneyStartTime: context.trainJourneyStartTime
+  };
 
-  // Initialize context properties if not present
-  if (!context.trainVelocityHistory) context.trainVelocityHistory = [];
-  if (!context.trainJourneyStartTime) context.trainJourneyStartTime = 0;
+  // Create mock geocode data for train station if atTrainLocation is true
+  const mockGeocode = atTrainLocation ? {
+    type: 'railway_station',
+    address: { name: 'Test Station', city: 'Test City' }
+  } : null;
 
-  // Train velocity range: 30-300 km/h
-  const isTrainSpeed = speedKmh >= 30 && speedKmh <= 300;
+  const result = detectEnhancedMode(prevLat, prevLng, currLat, currLng, dt, mockGeocode, enhancedContext);
 
-  // Velocity similarity threshold (within 20% of previous train velocity)
-  const velocitySimilarityThreshold = 0.2;
-  const isVelocitySimilar = context.lastTrainVelocity
-    ? Math.abs(speedKmh - context.lastTrainVelocity) / context.lastTrainVelocity <= velocitySimilarityThreshold
-    : false;
+  // Update legacy context
+  context.isInTrainJourney = enhancedContext.isInTrainJourney;
+  context.trainJourneyStartTime = enhancedContext.trainJourneyStartTime;
+  context.trainVelocityHistory = enhancedContext.speedHistory;
+  context.lastTrainVelocity = enhancedContext.lastSpeed;
 
-  // Check if we should start or continue a train journey
-  const shouldStartTrainJourney = atTrainLocation && isTrainSpeed;
-  const shouldContinueTrainJourney = context.isInTrainJourney && (
-    atTrainLocation ||
-    (isTrainSpeed && isVelocitySimilar) ||
-    (isTrainSpeed && context.trainVelocityHistory.length > 0)
-  );
-
-  if (shouldStartTrainJourney || shouldContinueTrainJourney) {
-    // Start new train journey
-    if (!context.isInTrainJourney) {
-      context.isInTrainJourney = true;
-      context.trainJourneyStartTime = Date.now();
-      context.trainVelocityHistory = [];
-      context.lastTrainVelocity = speedKmh;
-    }
-
-    // Add current velocity to history (keep last 10 velocities)
-    context.trainVelocityHistory.push(speedKmh);
-    if (context.trainVelocityHistory.length > 10) {
-      context.trainVelocityHistory.shift();
-    }
-
-    // Update last train velocity
-    context.lastTrainVelocity = speedKmh;
-
-    // Calculate confidence based on journey duration and velocity consistency
-    const journeyDuration = context.trainJourneyStartTime ? (Date.now() - context.trainJourneyStartTime) / 1000 : 0;
-    const minJourneyTime = 300; // 5 minutes minimum
-
-    let confidence = 0.5; // Base confidence
-
-    // Increase confidence with journey duration
-    if (journeyDuration >= minJourneyTime) {
-      confidence += 0.3;
-    }
-    if (journeyDuration >= 600) { // 10 minutes
-      confidence += 0.2;
-    }
-
-    // Increase confidence with velocity consistency
-    if (context.trainVelocityHistory.length >= 3) {
-      const avgVelocity = context.trainVelocityHistory.reduce((a, b) => a + b, 0) / context.trainVelocityHistory.length;
-      const velocityVariance = context.trainVelocityHistory.reduce((sum, v) => sum + Math.pow(v - avgVelocity, 2), 0) / context.trainVelocityHistory.length;
-      const velocityStdDev = Math.sqrt(velocityVariance);
-
-      // Lower standard deviation = higher confidence
-      if (velocityStdDev < 10) confidence += 0.2;
-      else if (velocityStdDev < 20) confidence += 0.1;
-    }
-
-    // Increase confidence if at train location
-    if (atTrainLocation) {
-      confidence += 0.1;
-    }
-
-    return { mode: 'train', confidence: Math.min(confidence, 1.0) };
-  } else {
-    // End train journey if conditions are not met
-    if (context.isInTrainJourney) {
-      context.isInTrainJourney = false;
-      context.trainVelocityHistory = [];
-      context.lastTrainVelocity = undefined;
-      context.trainJourneyStartTime = undefined;
-    }
-
-    return { mode: 'unknown', confidence: 0 };
-  }
+  return { mode: result.mode, confidence: result.confidence };
 }
 
 export function detectMode(
   prevLat: number, prevLng: number, currLat: number, currLng: number,
-  dt: number, // seconds
-  context?: ModeContext
+  dt: number
 ): string {
-  const distance = haversine(prevLat, prevLng, currLat, currLng);
-  const speedKmh = (distance / dt) * 3.6;
+  const enhancedContext: EnhancedModeContext = {
+    currentMode: 'unknown',
+    modeStartTime: Date.now(),
+    lastSpeed: 0,
+    trainStations: [],
+    averageSpeed: 0,
+    speedHistory: [],
+    isInTrainJourney: false
+  };
 
-  if (speedKmh < 7) return 'walking';
-  if (speedKmh < 18) return 'cycling';
-
-  // Track airplane time in context
-  if (speedKmh > 300) {
-    if (context) {
-      context.airplaneTime = (context.airplaneTime || 0) + dt;
-      if (context.airplaneTime >= 3600) {
-        return 'airplane';
-      } else {
-        return 'unknown';
-      }
-    } else {
-      // No context provided, fallback to unknown
-      return 'unknown';
-    }
-  }
-
-  // Remove speed-based train detection. Only backend can set 'train'.
-  // if (speedKmh > 30 && speedKmh < 300) return 'train';
-
-  if (speedKmh > 20 && speedKmh < 120) return 'car';
-
-  return 'unknown';
+  const result = detectEnhancedMode(prevLat, prevLng, currLat, currLng, dt, null, enhancedContext);
+  return result.mode;
 }

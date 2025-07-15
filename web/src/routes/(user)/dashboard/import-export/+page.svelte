@@ -437,6 +437,68 @@
 		</div>
 	</div>
 
+	<!-- Active Import Job Progress Display -->
+	{#if activeImportJob}
+		<div class="mb-8">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Active Import Job</h2>
+			<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
+				<div class="flex items-center justify-between mb-3">
+					<div class="flex items-center gap-3">
+						<div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+							<Upload class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+						</div>
+						<div>
+							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+								{activeImportJob.data?.fileName || 'Unknown file'}
+							</h3>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Job ID: {activeImportJob.id} | Status: {activeImportJob.status}
+							</p>
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+							{importProgress}%
+						</div>
+						{#if eta}
+							<div class="text-sm text-gray-500 dark:text-gray-400">{eta}</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Progress Bar -->
+				<div class="mb-3">
+					<div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+						<span>Progress</span>
+					</div>
+					<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+						<div
+							class="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+							style="width: {importProgress}%"
+						></div>
+					</div>
+				</div>
+
+				<!-- Status Message -->
+				{#if importStatus}
+					<div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+						{importStatus}
+					</div>
+				{/if}
+
+				<!-- Job Details -->
+				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+					<div class="flex items-center gap-4">
+						<span>Format: {activeImportJob.data?.format || 'Unknown'}</span>
+						{#if activeImportJob.data?.fileSize && typeof activeImportJob.data.fileSize === 'number'}
+							<span>Size: {(activeImportJob.data.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<div class="grid gap-8 md:grid-cols-2">
 		<!-- Import Section -->
 		<div
@@ -451,39 +513,7 @@
 				workers and you can track progress on the Background jobs page.
 			</p>
 
-			{#if activeImportJob}
-				<!-- Show progress UI if there is an active import job -->
-				<div
-					class="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
-				>
-					<p class="mb-2 text-sm text-blue-800 dark:text-blue-200">
-						📤 Active import job: {activeImportJob.data?.fileName || 'Unknown file'}
-					</p>
-					<div class="mb-2 h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-						<div
-							class="h-2 rounded-full bg-blue-600 transition-all duration-300"
-							style="width: {importProgress}%"
-						></div>
-					</div>
-					<p class="mb-2 text-xs text-blue-600 dark:text-blue-400">
-						Progress: {importProgress}%
-						{#if importedCount > 0}
-							({importedCount} items processed)
-						{/if}
-					</p>
-					{#if eta}
-						<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">ETA: {eta}</p>
-					{/if}
-					<p class="mb-2 text-xs text-blue-600 dark:text-blue-400">
-						Job ID: {activeImportJob.id} | Status: {activeImportJob.status}
-					</p>
-					<p class="text-xs text-blue-600 dark:text-blue-400">
-						<a href="/dashboard/jobs" class="underline hover:no-underline">
-							View detailed progress on Background jobs page →
-						</a>
-					</p>
-				</div>
-			{:else}
+			{#if !activeImportJob}
 				<!-- Show file upload UI and import button only if no active import job -->
 				<div class="flex-1 space-y-4">
 					<div>
@@ -530,15 +560,12 @@
 					<button
 						type="button"
 						on:click={handleImport}
-						disabled={$isImporting || !selectedFile || activeImportJob !== null}
+						disabled={$isImporting || !selectedFile}
 						class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{#if $isImporting}
 							<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 							Importing... (This may take a few minutes for large files)
-						{:else if activeImportJob}
-							<Clock class="h-4 w-4" />
-							Import in Progress
 						{:else}
 							<Import class="h-4 w-4" />
 							Import Data

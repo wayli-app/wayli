@@ -134,7 +134,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 				inregions
 			},
 			country_code: countryCode,
-			reverse_geocode: reverseGeocodeResult
+			geocode: reverseGeocodeResult
 		};
 
 		// Insert tracking data using upsert to handle duplicates

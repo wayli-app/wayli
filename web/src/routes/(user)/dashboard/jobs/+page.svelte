@@ -19,6 +19,8 @@
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/index.svelte';
 	import Card from '$lib/components/ui/card/index.svelte';
+	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
+	import ConfirmationModal from '$lib/components/modals/ConfirmationModal.svelte';
 	import type { Job } from '$lib/types/job-queue.types';
 	import { toast } from 'svelte-sonner';
 	import { get } from 'svelte/store';
@@ -62,14 +64,16 @@
 	let importFormat: string | null = null;
 	let fileInputEl: HTMLInputElement | null = null;
 
-	// Modal state for trip generation
-	let showTripGenerationModal = false;
+	// Trip generation data
 	let tripGenerationData = {
 		startDate: new Date().toISOString().split('T')[0],
 		endDate: new Date().toISOString().split('T')[0],
 		useCustomHomeAddress: false,
 		customHomeAddress: ''
 	};
+
+	// Trip generation modal state
+	let showTripGenerationModal = false;
 
 	const jobTemplates: JobTemplate[] = [
 		{
@@ -99,7 +103,7 @@
 					name: 'startDate',
 					label: 'Start Date',
 					type: 'select',
-					description: 'Start date for trip analysis',
+					description: 'Start date for trip analysis (leave empty for automatic detection)',
 					default: new Date().toISOString().split('T')[0],
 					options: []
 				},
@@ -107,7 +111,7 @@
 					name: 'endDate',
 					label: 'End Date',
 					type: 'select',
-					description: 'End date for trip analysis',
+					description: 'End date for trip analysis (leave empty for automatic detection)',
 					default: new Date().toISOString().split('T')[0],
 					options: []
 				},
@@ -408,7 +412,7 @@
 			} : 'no session');
 			const headers: Record<string, string> = {};
 			// Removed: if (session?.access_token) { ... }
-			console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
+				console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
 
 			console.log('[Jobs] [loadJobs] Making API request to /api/v1/jobs...');
 			const apiStartTime = Date.now();
@@ -654,7 +658,20 @@
 			showImportModal = true;
 			importFormat = template.type;
 		} else if (template.type === 'trip_generation') {
+			// Reset trip generation data to empty dates to match trips page behavior
+			tripGenerationData = {
+				startDate: '',
+				endDate: '',
+				useCustomHomeAddress: false,
+				customHomeAddress: ''
+			};
 			showTripGenerationModal = true;
+		} else if (template.type === 'reverse_geocoding_missing') {
+			try {
+				await createJob(template.type, {});
+			} catch (error) {
+				console.error('Failed to create job:', error);
+			}
 		} else {
 			try {
 				await createJob(template.type);
@@ -721,10 +738,10 @@
 	function getLastJob(type: string): Job | undefined {
 		const jobArr = Array.isArray(jobs) ? jobs : [];
 		const jobsOfType = jobArr.filter(
-			(job) =>
-				job &&
-				typeof job.type === 'string' &&
-				job.type === type
+				(job) =>
+					job &&
+					typeof job.type === 'string' &&
+					job.type === type
 		);
 
 		console.log(`[Jobs] [getLastJob] Looking for jobs of type: ${type}`);
@@ -787,6 +804,21 @@
 			toast.error('Failed to cancel job', { description: error instanceof Error ? error.message : 'Unknown error' });
 		}
 	}
+
+	// Trip generation modal functions
+	function openTripGenerationModal() {
+		showTripGenerationModal = true;
+	}
+
+	function handleTripGenerationClose() {
+		showTripGenerationModal = false;
+	}
+
+	function handleTripGenerationSubmit(event: CustomEvent) {
+		const data = event.detail;
+		tripGenerationData = { ...data };
+		handleTripGeneration();
+	}
 </script>
 
 <div class="container mx-auto p-6">
@@ -829,174 +861,164 @@
 		</div>
 	{/if}
 
+	<!-- Active Jobs Progress Display -->
+	{#if jobs.filter(job => job.status === 'running' || job.status === 'queued').length > 0}
+		<div class="mb-8">
+			<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Active Jobs</h2>
+			<div class="space-y-4">
+				{#each jobs.filter(job => job.status === 'running' || job.status === 'queued') as job (job.id)}
+					<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
+						<div class="flex items-center justify-between mb-3">
+							<div class="flex items-center gap-3">
+								<div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+									{#if job.type === 'reverse_geocoding_missing'}
+										<MapPin class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+									{:else if job.type === 'data_import'}
+										<Upload class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+									{:else if job.type === 'trip_generation'}
+										<Route class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+									{:else}
+										<Database class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+									{/if}
+								</div>
+								<div>
+									<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+										{getJobTitle(job.type)}
+									</h3>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										Job ID: {job.id}
+									</p>
+								</div>
+							</div>
+							<div class="flex items-center gap-2">
+								<button
+									on:click={() => killJob(job.id)}
+									class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+									title="Cancel job"
+								>
+									<X class="w-4 h-4" />
+								</button>
+							</div>
+						</div>
+
+						<!-- Progress Bar -->
+						<div class="mb-3">
+							<div class="flex justify-between items-center mb-1">
+								<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+									Progress: {job.progress}%
+								</span>
+								<span class="text-sm text-gray-500 dark:text-gray-400">
+									{job.status === 'running' ? 'Running' : 'Queued'}
+								</span>
+							</div>
+							<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+								<div
+									class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+									style="width: {job.progress}%"
+								></div>
+							</div>
+						</div>
+
+						<!-- Detailed Progress Information -->
+						{#if job.result}
+							{@const result = job.result as Record<string, unknown>}
+							<div class="space-y-2 text-sm">
+								{#if result.message}
+									<p class="text-gray-700 dark:text-gray-300">
+										{result.message as string}
+									</p>
+								{/if}
+
+								<!-- For reverse geocoding jobs -->
+								{#if job.type === 'reverse_geocoding_missing' && result.processedCount !== undefined}
+									<div class="grid grid-cols-3 gap-4 text-xs">
+										<div class="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+											<div class="font-semibold text-green-700 dark:text-green-300">
+												{(result.successCount as number)?.toLocaleString() || 0}
+											</div>
+											<div class="text-green-600 dark:text-green-400">Successful</div>
+										</div>
+										<div class="bg-red-50 dark:bg-red-900/20 p-2 rounded">
+											<div class="font-semibold text-red-700 dark:text-red-300">
+												{(result.errorCount as number)?.toLocaleString() || 0}
+											</div>
+											<div class="text-red-600 dark:text-red-400">Errors</div>
+										</div>
+										<div class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+											<div class="font-semibold text-blue-700 dark:text-blue-300">
+												{(result.processedCount as number)?.toLocaleString() || 0} / {(result.totalCount as number)?.toLocaleString() || 0}
+											</div>
+											<div class="text-blue-600 dark:text-blue-400">Processed</div>
+										</div>
+									</div>
+								{/if}
+
+								<!-- For import jobs -->
+								{#if job.type === 'data_import' && result.importedCount !== undefined}
+									<div class="grid grid-cols-2 gap-4 text-xs">
+										<div class="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+											<div class="font-semibold text-green-700 dark:text-green-300">
+												{(result.importedCount as number)?.toLocaleString() || 0}
+											</div>
+											<div class="text-green-600 dark:text-green-400">Imported</div>
+										</div>
+										<div class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+											<div class="font-semibold text-blue-700 dark:text-blue-300">
+												{(result.totalItems as number)?.toLocaleString() || 0}
+											</div>
+											<div class="text-blue-600 dark:text-blue-400">Total Items</div>
+										</div>
+									</div>
+								{/if}
+
+								{#if result.estimatedTimeRemaining}
+									<p class="text-gray-500 dark:text-gray-400">
+										ETA: {result.estimatedTimeRemaining as string}
+									</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
 	<!-- Job Templates -->
 	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
 		{#each jobTemplates as template (template.type)}
 			{#key jobs}
 				{@const lastJob = getLastJob(template.type)}
-				<Card class="relative flex flex-col justify-between h-full bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
-					<div class="flex-1 flex flex-col gap-4">
-						<div class="flex items-center gap-4 mb-2">
-							<div class="p-3 bg-blue-50 rounded-xl flex items-center justify-center">
-								<svelte:component this={template.icon} class="w-7 h-7 text-blue-600" />
-							</div>
-							<div>
-								<h3 class="font-bold text-lg text-gray-900 leading-tight">{template.title}</h3>
-								<p class="text-gray-500 text-sm mt-1 leading-relaxed">{template.description}</p>
-							</div>
+				<Card class="relative flex flex-col h-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+					<!-- Header: Icon + Title/Description -->
+					<div class="flex flex-row items-start gap-4 h-[112px] overflow-hidden">
+						<div class="p-3 bg-blue-50 rounded-xl flex items-center justify-center h-12 w-12">
+							<svelte:component this={template.icon} class="w-7 h-7 text-blue-600" />
 						</div>
-						<div class="mt-2 flex flex-col gap-2">
-							{#if lastJob}
-								<div class="flex flex-col gap-2">
-									<div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs">
-										<span class="font-medium text-gray-700">Last run:</span>
-										<span class="text-gray-800">{lastJob.completed_at ? formatDate(lastJob.completed_at) : lastJob.updated_at ? formatDate(lastJob.updated_at) : formatDate(lastJob.created_at)}</span>
-										<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold {lastJob.status === 'completed' ? 'bg-green-100 text-green-700' : lastJob.status === 'failed' ? 'bg-red-100 text-red-700' : lastJob.status === 'cancelled' ? 'bg-gray-100 text-gray-700' : lastJob.status === 'running' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}">
-											{getStatusText(lastJob.status)}
-										</span>
-									</div>
-									{#if lastJob.status === 'completed' && lastJob.result}
-										{#if typeof lastJob.result === 'string'}
-											<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 flex items-center gap-2">
-												<span class="font-medium">Result:</span> {lastJob.result}
-											</div>
-										{:else if lastJob.result.message}
-											<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 flex items-center gap-2">
-												<span class="font-medium">Result:</span> {lastJob.result.message}
-											</div>
-										{/if}
-									{:else if lastJob.status === 'failed' && lastJob.error}
-										<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-red-700 flex items-center gap-2">
-											<span class="font-medium">Error:</span> {lastJob.error}
-										</div>
-									{:else if lastJob.status === 'cancelled'}
-										<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-500 flex items-center gap-2">
-											<span class="font-medium">Cancelled</span>
-										</div>
-									{:else if lastJob.status === 'queued'}
-										<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-yellow-700 flex items-center gap-2">
-											<span class="font-medium">Queued</span>
-										</div>
-									{:else if lastJob.status === 'running'}
-										<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-blue-700 flex items-center gap-2">
-											<span class="font-medium">Running</span>
-										</div>
-									{/if}
-								</div>
-							{:else}
-								<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-400">Never run</div>
-							{/if}
+						<div class="flex flex-col justify-center flex-1">
+							<h3 class="font-bold text-lg text-gray-900 dark:text-gray-100 leading-tight">{template.title}</h3>
+							<p class="text-gray-500 dark:text-gray-400 text-sm mt-1 leading-relaxed line-clamp-2">{template.description}</p>
 						</div>
-						{#if hasActiveJob(template.type)}
-							{@const activeJob = getActiveJob(template.type)}
-							{@const isFinished = activeJob?.status === 'completed' || activeJob?.status === 'failed' || activeJob?.status === 'cancelled'}
-							{@const progressColor = activeJob?.status === 'completed' ? 'from-green-500 to-green-600' : activeJob?.status === 'failed' ? 'from-red-500 to-red-600' : activeJob?.status === 'cancelled' ? 'from-gray-500 to-gray-600' : 'from-blue-500 to-blue-600'}
-							{@const bgColor = activeJob?.status === 'completed' ? 'from-green-50 to-emerald-50' : activeJob?.status === 'failed' ? 'from-red-50 to-pink-50' : activeJob?.status === 'cancelled' ? 'from-gray-50 to-slate-50' : 'from-blue-50 to-indigo-50'}
-							{@const borderColor = activeJob?.status === 'completed' ? 'border-green-200' : activeJob?.status === 'failed' ? 'border-red-200' : activeJob?.status === 'cancelled' ? 'border-gray-200' : 'border-blue-200'}
-							{@const textColor = activeJob?.status === 'completed' ? 'text-green-800' : activeJob?.status === 'failed' ? 'text-red-800' : activeJob?.status === 'cancelled' ? 'text-gray-800' : 'text-blue-800'}
-							{@const statusBgColor = activeJob?.status === 'completed' ? 'bg-green-100 text-green-700' : activeJob?.status === 'failed' ? 'bg-red-100 text-red-700' : activeJob?.status === 'cancelled' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-700'}
-							{@const progressBgColor = activeJob?.status === 'completed' ? 'bg-green-200' : activeJob?.status === 'failed' ? 'bg-red-200' : activeJob?.status === 'cancelled' ? 'bg-gray-200' : 'bg-blue-200'}
-							<div class="mb-4 p-4 bg-gradient-to-r {bgColor} rounded-lg border {borderColor} {isFinished ? 'animate-pulse' : ''}">
-								<div class="flex justify-between text-sm mb-2">
-									<span class="font-medium {textColor}">Progress: {activeJob?.progress || 0}%</span>
-									<span class="px-2 py-1 {statusBgColor} rounded-full text-xs font-medium">
-										{getStatusText(activeJob?.status || 'queued')}
-									</span>
-								</div>
-								<div class="w-full {progressBgColor} rounded-full h-3 shadow-inner">
-									<div
-										class="h-3 rounded-full transition-all duration-500 bg-gradient-to-r {progressColor} shadow-sm"
-										style="width: {activeJob?.progress || 0}%"
-									></div>
-								</div>
-
-								<!-- Enhanced progress details for data import jobs -->
-								{#if template.type === 'data_import' && (activeJob?.result || activeJob?.status === 'running')}
-									{@const result = activeJob.result as Record<string, unknown> || {}}
-									{@const importedCount = (result.importedCount as number) || 0}
-									{@const totalItems = (result.totalItems as number) || 0}
-									{@const totalProcessed = (result.totalProcessed as number) || 0}
-									{@const message = result.message as string || ''}
-									{@const fileName = activeJob.data?.fileName as string || 'Unknown file'}
-									{@const format = activeJob.data?.format as string || 'Unknown format'}
-									{@const fileSize = activeJob.data?.fileSize as number || 0}
-
-									<div class="mt-3 space-y-2">
-										<!-- File information -->
-										<div class="text-xs {textColor} flex items-center gap-2 max-w-full overflow-x-auto">
-											<Database class="w-3 h-3" />
-											<span class="font-medium">File:</span>
-											<span
-												class="break-all truncate max-w-[12rem] md:max-w-[18rem]"
-												title={fileName}
-												style="display: inline-block;"
-											>
-												{fileName}
-											</span>
-											{#if format}
-												<span class="text-gray-500">({format})</span>
-											{/if}
-											{#if fileSize > 0}
-												<span class="text-gray-500">({(fileSize / 1024 / 1024).toFixed(1)} MB)</span>
-											{/if}
-										</div>
-
-										<!-- Progress message -->
-										{#if message}
-											<div class="text-xs {textColor} font-medium">
-												{message}
-											</div>
-										{/if}
-
-										<!-- Import statistics -->
-										{#if totalProcessed > 0 || importedCount > 0}
-											<div class="text-xs {textColor} flex items-center gap-4">
-												{#if totalProcessed > 0}
-													<span>
-														<span class="font-medium">Processed:</span> {totalProcessed.toLocaleString()}
-														{#if totalItems > 0}
-															/ {totalItems.toLocaleString()}
-														{/if}
-													</span>
-												{/if}
-												{#if importedCount > 0}
-													<span>
-														<span class="font-medium">Imported:</span> {importedCount.toLocaleString()}
-													</span>
-												{/if}
-											</div>
-										{/if}
-
-										<!-- ETA calculation for running jobs -->
-										{#if activeJob.status === 'running' && activeJob.progress > 0 && activeJob.progress < 100 && activeJob.started_at}
-											{@const elapsed = (Date.now() - new Date(activeJob.started_at).getTime()) / 1000}
-											{@const estimatedTotal = elapsed / (activeJob.progress / 100)}
-											{@const remaining = estimatedTotal - elapsed}
-											{#if remaining > 0}
-												{@const mins = Math.floor(remaining / 60)}
-												{@const secs = Math.round(remaining % 60)}
-												<div class="text-xs {textColor} flex items-center gap-1">
-													<Clock class="w-3 h-3" />
-													ETA: {mins > 0 ? mins + 'm ' : ''}{secs}s remaining
-												</div>
-											{/if}
-										{/if}
-									</div>
-								{:else if activeJob?.started_at}
-									<div class="text-xs {textColor} mt-2 flex items-center gap-1">
-										<Clock class="w-3 h-3" />
-										Duration: {formatDuration(activeJob.started_at, activeJob.completed_at)}
-									</div>
-								{/if}
-
-								{#if isFinished}
-									<div class="text-xs {textColor} mt-1 flex items-center gap-1">
-										<span class="animate-pulse">Job will disappear in a moment...</span>
-									</div>
-								{/if}
+					</div>
+					<!-- Divider -->
+					<div class="my-4 border-t border-gray-200 dark:border-gray-700 w-full"></div>
+					<!-- Status Section -->
+					<div class="flex flex-col min-h-[48px] justify-center">
+						{#if lastJob}
+							<div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs w-full">
+								<span class="font-medium text-gray-700 dark:text-gray-300">Last run:</span>
+								<span class="text-gray-800 dark:text-gray-200">{lastJob.completed_at ? formatDate(lastJob.completed_at) : lastJob.updated_at ? formatDate(lastJob.updated_at) : formatDate(lastJob.created_at)}</span>
+								<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold {lastJob.status === 'completed' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : lastJob.status === 'failed' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300' : lastJob.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300' : lastJob.status === 'running' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'}">
+									{getStatusText(lastJob.status)}
+								</span>
 							</div>
+						{:else}
+							<div class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs text-gray-400 dark:text-gray-500 w-full">Never run</div>
 						{/if}
 					</div>
+					<!-- Spacer to push button to bottom -->
+					<div class="flex-1"></div>
+					<!-- Action Button -->
 					<div class="flex justify-center mt-6">
 						{#if hasActiveJob(template.type)}
 							{@const activeJob = getActiveJob(template.type)}
@@ -1046,7 +1068,7 @@
 							{/if}
 						{:else}
 							<Button
-								on:click={() => handleJobTemplateClick(template)}
+								on:click={() => template.type === 'trip_generation' ? openTripGenerationModal() : handleJobTemplateClick(template)}
 								class="px-6 py-3 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 cursor-pointer"
 								size="lg"
 							>
@@ -1105,68 +1127,12 @@
 {/if}
 
 <!-- Trip Generation Modal -->
-{#if showTripGenerationModal}
-	<!-- Modal Overlay -->
-	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
-		on:click={() => showTripGenerationModal = false}>
-		<!-- Modal Box -->
-		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
-			on:click|stopPropagation>
-			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Generate Trips</h3>
-			<div class="space-y-6">
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
-					<input
-						type="date"
-						bind:value={tripGenerationData.startDate}
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date</label>
-					<input
-						type="date"
-						bind:value={tripGenerationData.endDate}
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-					/>
-				</div>
-				<div class="flex items-center gap-3">
-					<input
-						type="checkbox"
-						id="useCustomHomeAddress"
-						bind:checked={tripGenerationData.useCustomHomeAddress}
-						class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-					/>
-					<label for="useCustomHomeAddress" class="text-sm font-medium text-gray-700 dark:text-gray-300">
-						Use custom home address for this analysis
-					</label>
-				</div>
-				{#if tripGenerationData.useCustomHomeAddress}
-					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Custom Home Address</label>
-						<input
-							type="text"
-							bind:value={tripGenerationData.customHomeAddress}
-							placeholder="Enter custom home address..."
-							class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-						/>
-					</div>
-				{/if}
-				<div class="flex gap-3 mt-4">
-					<Button on:click={handleTripGeneration} class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
-						<span class="flex items-center justify-center gap-2 w-full">
-							<Route class="w-4 h-4 text-white" />
-							Generate Trips
-						</span>
-					</Button>
-					<Button variant="outline" on:click={() => showTripGenerationModal = false} class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
-						<span class="flex items-center justify-center gap-2 w-full">
-							<X class="w-4 h-4 text-gray-700 dark:text-gray-200" />
-							Cancel
-						</span>
-					</Button>
-				</div>
-			</div>
-		</div>
-	</div>
-{/if}
+<TripGenerationModal
+	open={showTripGenerationModal}
+	bind:startDate={tripGenerationData.startDate}
+	bind:endDate={tripGenerationData.endDate}
+	bind:useCustomHomeAddress={tripGenerationData.useCustomHomeAddress}
+	bind:customHomeAddress={tripGenerationData.customHomeAddress}
+	on:close={handleTripGenerationClose}
+	on:generate={handleTripGenerationSubmit}
+/>

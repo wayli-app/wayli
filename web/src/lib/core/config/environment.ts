@@ -22,7 +22,7 @@ export interface EnvironmentConfig {
     rateLimit: number;
   };
 
-  unsplash: {
+  pexels: {
     accessKey: string;
   };
 
@@ -77,7 +77,7 @@ export function validateEnvironmentConfig(): EnvironmentConfig {
   }
 
   // Validate Nominatim configuration
-  const nominatimEndpoint = process.env.NOMINATIM_ENDPOINT || 'https://nominatim.openstreetmap.org';
+  const nominatimEndpoint = process.env.NOMINATIM_ENDPOINT || 'https://nominatim.int.hazen.nu';
   if (!nominatimEndpoint.startsWith('http')) {
     errors.push('NOMINATIM_ENDPOINT must be a valid URL starting with http:// or https://');
   }
@@ -87,8 +87,8 @@ export function validateEnvironmentConfig(): EnvironmentConfig {
     errors.push('NOMINATIM_RATE_LIMIT must be a number between 0.1 and 10');
   }
 
-  // Note: Unsplash access key is optional, so we don't validate it
-  const unsplashAccessKey = process.env.UNSPLASH_ACCESS_KEY || '';
+  // Note: Pexels access key is optional, so we don't validate it
+  const pexelsAccessKey = process.env.PEXELS_ACCESS_KEY || '';
 
   // Report all errors
   if (errors.length > 0) {
@@ -113,8 +113,8 @@ export function validateEnvironmentConfig(): EnvironmentConfig {
       endpoint: nominatimEndpoint,
       rateLimit: nominatimRateLimit
     },
-    unsplash: {
-      accessKey: unsplashAccessKey
+    pexels: {
+      accessKey: pexelsAccessKey
     },
     app: {
       nodeEnv: process.env.NODE_ENV || 'development',
@@ -148,6 +148,6 @@ export function getNominatimConfig() {
   return env.nominatim;
 }
 
-export function getUnsplashConfig() {
-  return env.unsplash;
+export function getPexelsConfig() {
+  return env.pexels;
 }

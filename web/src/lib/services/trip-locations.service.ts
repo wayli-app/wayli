@@ -1,4 +1,5 @@
-import { supabase } from '$lib/core/supabase/client';
+import { supabase } from '$lib/core/supabase/worker';
+import { getSupabaseConfig } from '$lib/core/config/node-environment';
 
 interface TripLocation {
   id: string;
@@ -21,7 +22,7 @@ interface TripLocation {
   is_charging?: boolean;
   activity_type?: string;
   raw_data?: Record<string, unknown>;
-  reverse_geocode?: {
+  geocode?: {
     city?: string;
     display_name?: string;
     amenity?: string;
@@ -48,6 +49,32 @@ export class TripLocationsService {
     console.log('[TripLocationsService] Initializing with authenticated client');
     // Use the authenticated client from the auth store
     this.supabase = supabase;
+  }
+
+  // Allow override for test/worker/Node.js
+  static setSupabaseClient() {
+    // TODO: Implement static client override
+    console.log('[TripLocationsService] Static client override not yet implemented');
+  }
+
+  // Allow override for Node/worker: call this at startup in worker context
+  static useWorkerClient() {
+    // TODO: Implement static worker client override
+    console.log('[TripLocationsService] Static worker client override not yet implemented');
+  }
+
+  // Instance method to switch to worker client
+  useWorkerClient() {
+    this.supabase = supabase;
+    console.log('[TripLocationsService] Switched to worker Supabase client');
+  }
+
+  // Instance method to switch to node environment config
+  async useNodeEnvironmentConfig() {
+    const config = getSupabaseConfig();
+    const { createClient } = await import('@supabase/supabase-js');
+    this.supabase = createClient(config.url, config.serviceRoleKey);
+    console.log('[TripLocationsService] Switched to Node environment Supabase client');
   }
 
   async getTripLocations(tripId: string, userId?: string): Promise<TripLocation[]> {
@@ -129,51 +156,60 @@ export class TripLocationsService {
   }
 
   private transformLocations(locations: unknown[]): TripLocation[] {
-    return locations.map((location: any, index) => {
+    return locations.map((location: unknown, index) => {
+      const loc = location as Record<string, unknown>;
+
       // Extract coordinates from PostGIS geometry
-      const coordinates = location.location ? {
-        lat: location.location.coordinates?.[1] || 0,
-        lng: location.location.coordinates?.[0] || 0
+      const locationData = loc.location as { coordinates?: number[] } | null;
+      const coordinates = locationData?.coordinates ? {
+        lat: locationData.coordinates[1] || 0,
+        lng: locationData.coordinates[0] || 0
       } : { lat: 0, lng: 0 };
 
       // Determine transport mode from activity_type or speed
       let transportMode = 'unknown';
-      if (location.activity_type) {
-        transportMode = location.activity_type;
-      } else if (location.speed) {
-        const speedKmh = location.speed * 3.6; // Convert m/s to km/h
+      if (loc.activity_type) {
+        transportMode = loc.activity_type as string;
+      } else if (loc.speed) {
+        const speedKmh = (loc.speed as number) * 3.6; // Convert m/s to km/h
         if (speedKmh < 5) transportMode = 'walking';
         else if (speedKmh < 20) transportMode = 'cycling';
         else if (speedKmh < 100) transportMode = 'car';
         else transportMode = 'airplane';
       }
 
+      const geocode = loc.geocode as { display_name?: string; name?: string; amenity?: string; city?: string; error?: boolean } | null;
+
       return {
-        id: `${location.user_id}_${location.recorded_at}_${index}`, // Generate unique ID
-        user_id: location.user_id,
-        tracker_type: location.tracker_type,
-        device_id: location.device_id,
-        recorded_at: location.recorded_at,
+        id: `${loc.user_id}_${loc.recorded_at}_${index}`, // Generate unique ID
+        user_id: loc.user_id as string,
+        tracker_type: loc.tracker_type as string,
+        device_id: loc.device_id as string | undefined,
+        recorded_at: loc.recorded_at as string,
         location: { coordinates },
-        country_code: location.country_code,
-        altitude: location.altitude,
-        accuracy: location.accuracy,
-        speed: location.speed,
-        heading: location.heading,
-        battery_level: location.battery_level,
-        is_charging: location.is_charging,
-        activity_type: location.activity_type,
-        raw_data: location.raw_data,
-        reverse_geocode: location.reverse_geocode,
-        created_at: location.created_at,
-        updated_at: location.updated_at,
+        country_code: loc.country_code as string | undefined,
+        altitude: loc.altitude as number | undefined,
+        accuracy: loc.accuracy as number | undefined,
+        speed: loc.speed as number | undefined,
+        heading: loc.heading as number | undefined,
+        battery_level: loc.battery_level as number | undefined,
+        is_charging: loc.is_charging as boolean | undefined,
+        activity_type: loc.activity_type as string | undefined,
+        raw_data: loc.raw_data as Record<string, unknown> | undefined,
+        geocode: geocode || undefined,
+        created_at: loc.created_at as string,
+        updated_at: loc.updated_at as string,
         // Additional fields for compatibility
-        name: location.reverse_geocode?.display_name || location.reverse_geocode?.name || 'Unknown Location',
-        description: location.reverse_geocode?.amenity || '',
+        name: (geocode && typeof geocode === 'object' && 'error' in geocode)
+          ? 'Error occurred during geocoding'
+          : (geocode?.display_name || geocode?.name || 'Unknown Location'),
+        description: geocode?.amenity || '',
         type: 'tracker' as const,
         transport_mode: transportMode,
         coordinates,
-        city: location.reverse_geocode?.city || ''
+        city: (geocode && typeof geocode === 'object' && 'error' in geocode)
+          ? ''
+          : (geocode?.city || '')
       };
     });
   }

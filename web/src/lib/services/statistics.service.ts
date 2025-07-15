@@ -41,7 +41,7 @@ export class StatisticsService {
       // Fetch all relevant tracker_data in a single query
       let trackerQuery = this.supabase
         .from('tracker_data')
-        .select('location, recorded_at, country_code, reverse_geocode')
+        .select('location, recorded_at, country_code, geocode')
         .order('recorded_at', { ascending: true });
 
       if (startDate) {
@@ -58,7 +58,7 @@ export class StatisticsService {
         location: { coordinates: { lat: number; lng: number }; altitude?: number; accuracy?: number };
         recorded_at: string;
         country_code?: string;
-        reverse_geocode?: { city?: string; display_name?: string; amenity?: string; name?: string };
+        geocode?: { city?: string; display_name?: string; amenity?: string; name?: string };
       }>);
     } catch (error) {
       console.error('Error calculating statistics:', error);
@@ -70,7 +70,7 @@ export class StatisticsService {
     location: { coordinates: { lat: number; lng: number }; altitude?: number; accuracy?: number };
     recorded_at: string;
     country_code?: string;
-    reverse_geocode?: { city?: string; display_name?: string; amenity?: string; name?: string };
+    geocode?: { city?: string; display_name?: string; amenity?: string; name?: string };
   }>): StatisticsData {
     // Compute all metrics from trackerData
     let totalDistance = 0;
@@ -133,17 +133,22 @@ export class StatisticsService {
         byCountry[point.country_code].push(new Date(point.recorded_at));
       }
 
-      if (point.reverse_geocode?.city) {
-        uniqueCities.add(point.reverse_geocode.city);
+      // Skip geocode processing if it's an error
+      if (point.geocode && typeof point.geocode === 'object' && 'error' in point.geocode) {
+        continue;
       }
 
-      if (point.reverse_geocode?.display_name) {
-        uniquePlaces.add(point.reverse_geocode.display_name);
+      if (point.geocode?.city) {
+        uniqueCities.add(point.geocode.city);
+      }
+
+      if (point.geocode?.display_name) {
+        uniquePlaces.add(point.geocode.display_name);
       }
 
       // Track train station visits
-      if (point.reverse_geocode?.amenity === 'train_station') {
-        const stationName = point.reverse_geocode.name || point.reverse_geocode.display_name;
+      if (point.geocode?.amenity === 'train_station') {
+        const stationName = point.geocode.name || point.geocode.display_name;
         if (stationName) {
           if (!stationVisits.has(stationName)) {
             stationVisits.set(stationName, []);

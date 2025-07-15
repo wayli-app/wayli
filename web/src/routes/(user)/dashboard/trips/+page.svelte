@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { MapPin, Calendar, Route, Clock, Loader2, Plus, Search, Filter, Trash2, Edit, X, RefreshCw } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { MapPin, Calendar, Route, Clock, Loader2, Plus, Search, Filter, Trash2, Edit, X, RefreshCw, BarChart } from 'lucide-svelte';
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { toast } from 'svelte-sonner';
 	import { uploadTripImage } from '$lib/services/external/image-upload.service';
 	import { TripsService } from '$lib/services/trips.service';
 	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
+	import { setDateRange } from '$lib/stores/app-state.svelte';
+	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
 
 	interface Trip {
 		id: string;
@@ -49,10 +52,36 @@
 	let tripToDelete: Trip | null = null;
 	let showDeleteConfirm = false;
 	let imageFile: File | null = null;
+	let showSuggestedTripsModal = false;
+	let showTripGenerationModal = false;
+	let suggestedTrips: any[] = [];
+	let isLoadingSuggestedTrips = false;
+	let selectedSuggestedTrips: string[] = [];
+	// Custom home address geocoding state
+	let customHomeAddressInput = '';
+	let customHomeAddressInputElement: HTMLInputElement | undefined;
+	let isCustomHomeAddressSearching = false;
+	let customHomeAddressSuggestions: any[] = [];
+	let showCustomHomeAddressSuggestions = false;
+	let selectedCustomHomeAddress: any | null = null;
+	let selectedCustomHomeAddressIndex = -1;
+	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+	let customHomeAddressSearchError: string | null = null;
+
+	let tripGenerationData = {
+		startDate: '',
+		endDate: '',
+		useCustomHomeAddress: false,
+		customHomeAddress: ''
+	};
 	let imagePreview: string | null = null;
 	let imageError: string = '';
 	let uploadedImageUrl: string | null = null;
 	let isUploadingImage = false;
+	let isSuggestingImage = false;
+	let suggestedImageUrl: string | null = null;
+	let tripAnalysis: any = null;
+	let userPreferences: any = null;
 
 	const filters = [
 		{ value: 'all', label: 'All Trips' },
@@ -97,6 +126,18 @@
 		return formatDistanceToNow(new Date(date), { addSuffix: true });
 	}
 
+	function showTripStatistics(trip: Trip) {
+		// Set the date range to match the trip's start and end dates
+		const startDate = new Date(trip.start_date);
+		const endDate = new Date(trip.end_date);
+
+		// Set the date range in the global state
+		setDateRange(startDate, endDate);
+
+		// Navigate to the statistics page
+		goto('/dashboard/statistics');
+	}
+
 	function filterTrips() {
 		let filtered = trips;
 
@@ -139,6 +180,8 @@
 		try {
 			const tripsService = new TripsService();
 			trips = await tripsService.getTrips(userId);
+			// Sort trips by end_date descending
+			trips = trips.sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
 			console.log('[TripsPage] Trips loaded:', trips);
 			filterTrips();
 		} catch (error) {
@@ -150,14 +193,123 @@
 		}
 	}
 
+	async function loadUserPreferences() {
+		try {
+			const response = await fetch('/api/v1/auth/preferences', {
+				method: 'GET',
+				headers: { 'Content-Type': 'application/json' }
+			});
+			if (response.ok) {
+				const result = await response.json();
+				userPreferences = result.preferences || null;
+			} else {
+				userPreferences = null;
+			}
+		} catch (e) {
+			userPreferences = null;
+		}
+	}
+
 	$: if (searchQuery || selectedFilter) {
 		filterTrips();
+	}
+
+		// Auto-suggest image when both dates are selected and no image is uploaded yet
+	$: if (tripForm.start_date && tripForm.end_date && !uploadedImageUrl && !imageFile && !isEditing && showTripModal && !isSuggestingImage) {
+		// Add a small delay to avoid too many requests
+		setTimeout(() => {
+			suggestTripImage();
+		}, 1000);
 	}
 
 	$: if (browser && $sessionStoreReady && $sessionStore) {
 		console.log('[TripsPage] Session ready, loading trips. Session:', $sessionStore);
 		loadTrips($sessionStore?.user?.id);
 	}
+
+	async function openSuggestedTripsModal() {
+		showSuggestedTripsModal = true;
+		isLoadingSuggestedTrips = true;
+		selectedSuggestedTrips = [];
+
+		try {
+			const response = await fetch('/api/v1/trips/suggested?status=pending');
+			if (response.ok) {
+				const result = await response.json();
+				suggestedTrips = result.data.suggestedTrips || [];
+			} else {
+				toast.error('Failed to load suggested trips');
+			}
+		} catch (error) {
+			console.error('Error loading suggested trips:', error);
+			toast.error('Failed to load suggested trips');
+		} finally {
+			isLoadingSuggestedTrips = false;
+		}
+	}
+
+	function openTripGenerationModal() {
+		showTripGenerationModal = true;
+		tripGenerationData = {
+			startDate: '',
+			endDate: '',
+			useCustomHomeAddress: false,
+			customHomeAddress: ''
+		};
+		// Reset custom home address input state
+		customHomeAddressInput = '';
+		customHomeAddressSuggestions = [];
+		showCustomHomeAddressSuggestions = false;
+		selectedCustomHomeAddress = null;
+		selectedCustomHomeAddressIndex = -1;
+		customHomeAddressSearchError = null;
+	}
+
+	async function generateNewTripSuggestions() {
+		try {
+			const jobData: Record<string, unknown> = {
+				useCustomHomeAddress: tripGenerationData.useCustomHomeAddress
+			};
+
+			// Only include dates if they are provided
+			if (tripGenerationData.startDate && tripGenerationData.endDate) {
+				jobData.startDate = tripGenerationData.startDate;
+				jobData.endDate = tripGenerationData.endDate;
+			}
+
+			if (tripGenerationData.useCustomHomeAddress && tripGenerationData.customHomeAddress) {
+				jobData.customHomeAddress = tripGenerationData.customHomeAddress;
+			}
+
+			const response = await fetch('/api/v1/jobs', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					type: 'trip_generation',
+					data: jobData
+				})
+			});
+
+			if (response.ok) {
+				const result = await response.json();
+				const message = tripGenerationData.startDate && tripGenerationData.endDate
+					? `Trip generation job started for ${tripGenerationData.startDate} to ${tripGenerationData.endDate}!`
+					: 'Trip generation job started! The system will automatically find available date ranges and generate suggestions.';
+				toast.success(message);
+				// Close modals and refresh suggested trips
+				showTripGenerationModal = false;
+				showSuggestedTripsModal = false;
+				await openSuggestedTripsModal();
+			} else {
+				toast.error('Failed to start trip generation job');
+			}
+		} catch (error) {
+			console.error('Error generating new trip suggestions:', error);
+			toast.error('Failed to generate new trip suggestions');
+		}
+	}
+
+
 
 	function openAddTripModal() {
 		showTripModal = true;
@@ -169,6 +321,9 @@
 		imageError = '';
 		uploadedImageUrl = null;
 		isUploadingImage = false;
+		isSuggestingImage = false;
+		suggestedImageUrl = null;
+		tripAnalysis = null;
 		formError = '';
 	}
 
@@ -184,6 +339,14 @@
 			labels: trip.labels || []
 		};
 		// Show existing image if available
+		imageFile = null;
+		imagePreview = null;
+		imageError = '';
+		uploadedImageUrl = null;
+		isUploadingImage = false;
+		isSuggestingImage = false;
+		suggestedImageUrl = null;
+		tripAnalysis = null;
 		if (trip.image_url) {
 			imagePreview = trip.image_url;
 			uploadedImageUrl = trip.image_url;
@@ -207,6 +370,9 @@
 		imageError = '';
 		uploadedImageUrl = null;
 		isUploadingImage = false;
+		isSuggestingImage = false;
+		suggestedImageUrl = null;
+		tripAnalysis = null;
 		formError = '';
 	}
 
@@ -313,6 +479,49 @@
 		showDeleteConfirm = false;
 	}
 
+	async function suggestTripImage() {
+		if (!tripForm.start_date || !tripForm.end_date || !$sessionStore?.user?.id) {
+			return;
+		}
+
+		isSuggestingImage = true;
+		imageError = '';
+
+		try {
+			const response = await fetch('/api/v1/trips/suggest-image', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					startDate: tripForm.start_date,
+					endDate: tripForm.end_date
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error('Failed to suggest image');
+			}
+
+			const result = await response.json();
+			if (result.success && result.data) {
+				suggestedImageUrl = result.data.suggestedImageUrl;
+				tripAnalysis = result.data.analysis;
+
+				if (suggestedImageUrl) {
+					imagePreview = suggestedImageUrl;
+					uploadedImageUrl = suggestedImageUrl;
+					toast.success('Trip image suggested based on your travel data!');
+				}
+			}
+		} catch (error) {
+			console.error('Error suggesting trip image:', error);
+			imageError = 'Failed to suggest image. Please try uploading your own.';
+		} finally {
+			isSuggestingImage = false;
+		}
+	}
+
 	async function handleImageChange(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
@@ -321,6 +530,8 @@
 		imagePreview = null;
 		uploadedImageUrl = null;
 		isUploadingImage = false;
+		suggestedImageUrl = null;
+		tripAnalysis = null;
 
 		if (file) {
 			// Validate file
@@ -382,9 +593,189 @@
 		}
 	}
 
+	async function handleApproveTrips() {
+		if (selectedSuggestedTrips.length === 0) return;
+
+		try {
+			// First approve the trips
+			const approveResponse = await fetch('/api/v1/trips/suggested', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'approve',
+					tripIds: selectedSuggestedTrips
+				})
+			});
+
+			if (approveResponse.ok) {
+				const approveResult = await approveResponse.json();
+				toast.success(approveResult.data.message);
+
+				// Then automatically generate images for the approved trips
+				try {
+					const imageResponse = await fetch('/api/v1/trips/generate-images', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({
+							tripIds: selectedSuggestedTrips
+						})
+					});
+
+					if (imageResponse.ok) {
+						const imageResult = await imageResponse.json();
+						toast.success(`Trips approved and images queued for generation: ${imageResult.data.message}`);
+					} else {
+						toast.warning('Trips approved but failed to queue image generation');
+					}
+				} catch (imageError) {
+					console.error('Error generating images:', imageError);
+					toast.warning('Trips approved but failed to queue image generation');
+				}
+
+				showSuggestedTripsModal = false;
+				await loadTrips(); // Reload trips to show new ones
+			} else {
+				toast.error('Failed to approve trips');
+			}
+		} catch (error) {
+			console.error('Error approving trips:', error);
+			toast.error('Failed to approve trips');
+		}
+	}
+
+
+
+	async function handleRejectTrips() {
+		if (selectedSuggestedTrips.length === 0) return;
+
+		try {
+			const response = await fetch('/api/v1/trips/suggested', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					action: 'reject',
+					tripIds: selectedSuggestedTrips
+				})
+			});
+
+			if (response.ok) {
+				const result = await response.json();
+				toast.success(result.data.message);
+				// Remove rejected trips from the list
+				suggestedTrips = suggestedTrips.filter(trip => !selectedSuggestedTrips.includes(trip.id));
+				selectedSuggestedTrips = [];
+			} else {
+				toast.error('Failed to reject trips');
+			}
+		} catch (error) {
+			console.error('Error rejecting trips:', error);
+			toast.error('Failed to reject trips');
+		}
+	}
+
+	// Custom home address geocoding functions
+	function handleCustomHomeAddressInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		customHomeAddressInput = target.value;
+		tripGenerationData.customHomeAddress = target.value;
+		selectedCustomHomeAddressIndex = -1;
+		selectedCustomHomeAddress = null;
+		if (customHomeAddressSearchTimeout) clearTimeout(customHomeAddressSearchTimeout);
+		if (!customHomeAddressInput.trim()) {
+			customHomeAddressSuggestions = [];
+			showCustomHomeAddressSuggestions = false;
+			return;
+		}
+		customHomeAddressSearchTimeout = setTimeout(() => searchCustomHomeAddressSuggestions(), 300);
+	}
+
+	function handleCustomHomeAddressKeydown(event: KeyboardEvent) {
+		if (!showCustomHomeAddressSuggestions || customHomeAddressSuggestions.length === 0) return;
+
+		switch (event.key) {
+			case 'ArrowDown':
+				event.preventDefault();
+				selectedCustomHomeAddressIndex = Math.min(selectedCustomHomeAddressIndex + 1, customHomeAddressSuggestions.length - 1);
+				break;
+			case 'ArrowUp':
+				event.preventDefault();
+				selectedCustomHomeAddressIndex = Math.max(selectedCustomHomeAddressIndex - 1, 0);
+				break;
+			case 'Enter':
+				event.preventDefault();
+				if (selectedCustomHomeAddressIndex >= 0 && selectedCustomHomeAddressIndex < customHomeAddressSuggestions.length) {
+					selectCustomHomeAddress(customHomeAddressSuggestions[selectedCustomHomeAddressIndex]);
+				}
+				break;
+			case 'Escape':
+				event.preventDefault();
+				showCustomHomeAddressSuggestions = false;
+				selectedCustomHomeAddressIndex = -1;
+				break;
+		}
+	}
+
+	async function searchCustomHomeAddressSuggestions() {
+		if (!customHomeAddressInput.trim() || customHomeAddressInput.trim().length < 3) {
+			customHomeAddressSuggestions = [];
+			showCustomHomeAddressSuggestions = false;
+			customHomeAddressSearchError = null;
+			return;
+		}
+		isCustomHomeAddressSearching = true;
+		showCustomHomeAddressSuggestions = true;
+		customHomeAddressSearchError = null;
+		try {
+			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(customHomeAddressInput.trim())}`);
+			if (response.ok) {
+				const data = await response.json();
+				// Handle both old format (data.data as array) and new format (data.data.results as array)
+				customHomeAddressSuggestions = data.data?.results || data.data || [];
+				showCustomHomeAddressSuggestions = true;
+				if (customHomeAddressSuggestions.length === 0) {
+					customHomeAddressSearchError = 'No addresses found';
+				}
+			} else {
+				customHomeAddressSuggestions = [];
+				customHomeAddressSearchError = 'No addresses found';
+				showCustomHomeAddressSuggestions = true;
+			}
+		} catch (error) {
+			console.error('Error searching for custom home address:', error);
+			customHomeAddressSuggestions = [];
+			customHomeAddressSearchError = 'Failed to search for address';
+			showCustomHomeAddressSuggestions = true;
+		} finally {
+			isCustomHomeAddressSearching = false;
+		}
+	}
+
+	function selectCustomHomeAddress(suggestion: any) {
+		console.log('selectCustomHomeAddress called with:', suggestion);
+		customHomeAddressInput = suggestion.display_name;
+		tripGenerationData.customHomeAddress = suggestion.display_name;
+		selectedCustomHomeAddress = suggestion;
+		showCustomHomeAddressSuggestions = false;
+		selectedCustomHomeAddressIndex = -1;
+	}
+
+	function handleCustomHomeAddressToggle() {
+		if (!tripGenerationData.useCustomHomeAddress) {
+			// Reset custom home address when unchecking
+			customHomeAddressInput = '';
+			tripGenerationData.customHomeAddress = '';
+			customHomeAddressSuggestions = [];
+			showCustomHomeAddressSuggestions = false;
+			selectedCustomHomeAddress = null;
+			selectedCustomHomeAddressIndex = -1;
+			customHomeAddressSearchError = null;
+		}
+	}
+
 	onMount(() => {
 		if (browser) {
 			loadTrips();
+			loadUserPreferences();
 		}
 	});
 </script>
@@ -400,10 +791,16 @@
 			<Route class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Trips</h1>
 		</div>
-		<button class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer" on:click={openAddTripModal}>
-			<Plus class="h-4 w-4" />
-			New Trip
-		</button>
+		<div class="flex gap-2">
+			<button class="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer" on:click={openSuggestedTripsModal}>
+				<BarChart class="h-4 w-4" />
+				Review Suggested Trips
+			</button>
+			<button class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer" on:click={openAddTripModal}>
+				<Plus class="h-4 w-4" />
+				New Trip
+			</button>
+		</div>
 	</div>
 
 	<!-- Search and Filters -->
@@ -434,16 +831,12 @@
 	<!-- Trip Modal -->
 	{#if showTripModal}
 		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm modal-overlay cursor-pointer"
-			on:click={closeTripModal}
-			on:keydown={(e) => e.key === 'Escape' && closeTripModal()}
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm modal-overlay"
 			role="dialog"
 			aria-modal="true"
-			aria-labelledby="modal-title"
-			tabindex="-1">
+			aria-labelledby="modal-title">
 			<div
 				class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-lg mx-4 relative cursor-default"
-				on:click|stopPropagation
 				role="document">
 				<button class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors cursor-pointer" on:click={closeTripModal} aria-label="Close modal">&times;</button>
 				<h2 id="modal-title" class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">{isEditing ? 'Edit Trip' : 'Add New Trip'}</h2>
@@ -512,7 +905,61 @@
 
 					<div>
 						<label for="trip-image" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trip Image</label>
-						<input id="trip-image" type="file" accept="image/*" on:change={handleImageChange} class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" disabled={isUploadingImage} />
+
+						<!-- Image suggestion section -->
+						{#if !uploadedImageUrl && !imageFile && tripForm.start_date && tripForm.end_date}
+							<div class="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+								<div class="flex items-center justify-between mb-2">
+									<span class="text-sm font-medium text-blue-700 dark:text-blue-300">Auto-suggested Image</span>
+									{#if isSuggestingImage}
+										<Loader2 class="h-4 w-4 animate-spin text-blue-600" />
+									{/if}
+								</div>
+
+								{#if tripAnalysis && tripAnalysis.primaryCountry}
+									<div class="text-xs text-blue-600 dark:text-blue-400 mb-2">
+										Based on your travel to: <strong>{tripAnalysis.primaryCity || tripAnalysis.primaryCountry}</strong>
+									</div>
+								{/if}
+
+								{#if suggestedImageUrl}
+									<div class="flex items-center gap-2 text-green-600 dark:text-green-400">
+										<span class="text-sm">✅ Image suggested successfully</span>
+									</div>
+								{/if}
+
+								{#if imageError}
+									<div class="text-red-500 text-xs">{imageError}</div>
+								{/if}
+							</div>
+						{/if}
+
+						{#if isEditing && userPreferences?.pexels_api_key && tripForm.start_date && tripForm.end_date && !uploadedImageUrl && !imageFile}
+							<div class="mb-3">
+								<button type="button" class="text-blue-600 hover:text-blue-700 underline text-sm font-medium" on:click={suggestTripImage} disabled={isSuggestingImage}>
+									{isSuggestingImage ? 'Suggesting...' : 'Auto-suggest image'}
+								</button>
+							</div>
+						{/if}
+
+						<!-- Manual upload section -->
+						<div class="space-y-2">
+							<input id="trip-image" type="file" accept="image/*" on:change={handleImageChange} class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" disabled={isUploadingImage} />
+
+							{#if tripForm.start_date && tripForm.end_date}
+								<div class="text-xs text-gray-500 dark:text-gray-400">
+									{#if !uploadedImageUrl && !imageFile}
+										Or <button type="button" class="text-blue-600 hover:text-blue-700 underline" on:click={suggestTripImage} disabled={isSuggestingImage}>
+											{isSuggestingImage ? 'Suggesting...' : 'suggest an image'}
+										</button> based on your travel data
+									{:else if suggestedImageUrl}
+										<button type="button" class="text-blue-600 hover:text-blue-700 underline" on:click={suggestTripImage} disabled={isSuggestingImage}>
+											{isSuggestingImage ? 'Suggesting...' : 'suggest a different image'}
+										</button> based on your travel data
+									{/if}
+								</div>
+							{/if}
+						</div>
 
 						{#if isUploadingImage}
 							<div class="flex items-center gap-2 mt-2 text-blue-600 dark:text-blue-400">
@@ -521,22 +968,23 @@
 							</div>
 						{/if}
 
-						{#if uploadedImageUrl}
+						{#if uploadedImageUrl && !suggestedImageUrl}
 							<div class="flex items-center gap-2 mt-2 text-green-600 dark:text-green-400">
 								<span class="text-sm">✅ Image uploaded successfully</span>
 							</div>
 						{/if}
 
-						{#if imageError}
-							<div class="text-red-500 text-xs mt-1">{imageError}</div>
-						{/if}
-
 						{#if imagePreview}
 							<div class="mt-2 relative">
 								<img src={imagePreview} alt="Preview" class="rounded-lg max-h-40" />
-								{#if isUploadingImage}
+								{#if isUploadingImage || isSuggestingImage}
 									<div class="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
 										<Loader2 class="h-6 w-6 animate-spin text-white" />
+									</div>
+								{/if}
+								{#if suggestedImageUrl}
+									<div class="absolute top-2 right-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">
+										Suggested
 									</div>
 								{/if}
 							</div>
@@ -585,7 +1033,7 @@
 		<!-- Trips Grid -->
 		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			{#each filteredTrips as trip}
-				<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow relative">
+				<div class="relative flex flex-col h-full rounded-xl border border-gray-200 dark:border-[#23232a] bg-white dark:bg-[#23232a] shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-lg overflow-hidden">
 					<!-- Action Buttons -->
 					<div class="absolute top-3 right-3 flex gap-2 z-10">
 						<button class="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer" on:click={() => refreshTripMetadata(trip)} aria-label="Refresh trip metadata">
@@ -617,19 +1065,16 @@
 							</div>
 						{/if}
 					</div>
-
-					<!-- Trip Details -->
-					<div class="p-4">
+					<!-- Trip Details and Footer -->
+					<div class="flex flex-col flex-1 p-4 min-h-0">
 						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
 							{trip.title}
 						</h3>
-
 						{#if trip.description}
 							<p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
 								{trip.description}
 							</p>
 						{/if}
-
 						<!-- Trip Stats -->
 						<div class="space-y-2 mb-4">
 							<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -644,7 +1089,6 @@
 								<MapPin class="h-4 w-4" />
 								<span>{trip.metadata?.point_count ?? 0} points</span>
 							</div>
-
 							<!-- Labels -->
 							{#if trip.labels && trip.labels.length > 0}
 								<div class="flex flex-wrap gap-1">
@@ -661,14 +1105,17 @@
 								</div>
 							{/if}
 						</div>
-
-						<!-- Trip Actions -->
-						<div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+						<!-- Footer: always at the bottom -->
+						<div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700 mt-auto">
 							<span class="text-xs text-gray-500 dark:text-gray-400">
 								Updated {getRelativeTime(trip.updated_at)}
 							</span>
-							<button class="text-blue-500 hover:text-blue-600 text-sm font-medium transition-colors cursor-pointer">
-								View Details
+							<button
+								class="text-blue-500 hover:text-blue-600 text-sm font-medium transition-colors cursor-pointer flex items-center gap-1"
+								on:click={() => showTripStatistics(trip)}
+							>
+								<BarChart class="h-4 w-4" />
+								Show statistics
 							</button>
 						</div>
 					</div>
@@ -684,20 +1131,192 @@
 		</div>
 	{/if}
 
-	<!-- Delete Confirmation Modal -->
-	{#if showDeleteConfirm && tripToDelete}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-			<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 relative">
-				<h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">Delete Trip</h2>
-				<p class="mb-6 text-gray-700 dark:text-gray-300">Are you sure you want to delete <span class="font-semibold">{tripToDelete?.title || ''}</span>? This action cannot be undone.</p>
-				<div class="flex justify-end gap-3">
-					<button class="px-5 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium transition-colors hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer" on:click={cancelDeleteTrip}>Cancel</button>
-					<button class="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors cursor-pointer" on:click={deleteTrip}>Delete</button>
+			<!-- Suggested Trips Modal -->
+		{#if showSuggestedTripsModal}
+			<div
+				class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm cursor-pointer"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="suggested-trips-modal-title"
+				on:click={() => showSuggestedTripsModal = false}
+			>
+				<div
+					class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-4xl mx-4 relative max-h-[90vh] overflow-y-auto"
+					role="document"
+					on:click|stopPropagation
+				>
+					<button class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors cursor-pointer" on:click={() => showSuggestedTripsModal = false} aria-label="Close modal">&times;</button>
+					<div class="flex items-center justify-between mb-6">
+						<h2 id="suggested-trips-modal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">Review Suggested Trips</h2>
+						<button
+							class="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors cursor-pointer"
+							on:click={openTripGenerationModal}
+						>
+							<RefreshCw class="h-4 w-4" />
+							Generate New Suggestions
+						</button>
+					</div>
+
+					{#if isLoadingSuggestedTrips}
+						<div class="flex items-center justify-center py-12">
+							<Loader2 class="h-8 w-8 animate-spin text-blue-500" />
+							<span class="ml-2 text-gray-600 dark:text-gray-400">Loading suggested trips...</span>
+						</div>
+					{:else if suggestedTrips.length === 0}
+						<div class="text-center py-12">
+							<Route class="h-12 w-12 text-gray-400 mx-auto mb-4" />
+							<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No suggested trips</h3>
+							<p class="text-gray-600 dark:text-gray-400">No pending trip suggestions found.</p>
+						</div>
+					{:else}
+						<div class="space-y-4">
+							<div class="flex items-center justify-between">
+								<p class="text-sm text-gray-600 dark:text-gray-400">
+									{suggestedTrips.length} suggested trip{suggestedTrips.length !== 1 ? 's' : ''} found
+								</p>
+								<div class="flex gap-2">
+									<button
+										class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium transition-colors hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
+										on:click={() => selectedSuggestedTrips = suggestedTrips.map(t => t.id)}
+									>
+										Select All
+									</button>
+									<button
+										class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium transition-colors hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
+										on:click={() => selectedSuggestedTrips = []}
+									>
+										Clear Selection
+									</button>
+								</div>
+							</div>
+
+							<div class="grid gap-4">
+								{#each suggestedTrips as trip}
+									<div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+										<div class="flex items-start gap-4">
+											<input
+												type="checkbox"
+												id={`trip-${trip.id}`}
+												checked={selectedSuggestedTrips.includes(trip.id)}
+												on:change={(e) => {
+													const target = e.target as HTMLInputElement;
+													if (target.checked) {
+														selectedSuggestedTrips = [...selectedSuggestedTrips, trip.id];
+													} else {
+														selectedSuggestedTrips = selectedSuggestedTrips.filter(id => id !== trip.id);
+													}
+												}}
+												class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+											/>
+											<div class="flex-1">
+												<div class="flex items-center justify-between mb-2">
+													<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{trip.title}</h3>
+													<div class="flex items-center gap-2">
+														<span class="text-sm text-gray-500 dark:text-gray-400">
+															{Math.round(trip.confidence * 100)}% confidence
+														</span>
+														<div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+															<div class="bg-blue-500 h-2 rounded-full" style="width: {trip.confidence * 100}%"></div>
+														</div>
+													</div>
+												</div>
+												<p class="text-sm text-gray-600 dark:text-gray-400 mb-2">{trip.description}</p>
+												<div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600 dark:text-gray-400">
+													<div>
+														<span class="font-medium">Dates:</span><br/>
+														{format(new Date(trip.start_date), 'MMM d')} - {format(new Date(trip.end_date), 'MMM d, yyyy')}
+													</div>
+													<div>
+														<span class="font-medium">Location:</span><br/>
+														{trip.city_name}
+													</div>
+													<div>
+														<span class="font-medium">Overnight stays:</span><br/>
+														{trip.overnight_stays}
+													</div>
+													<div>
+														<span class="font-medium">Data points:</span><br/>
+														{trip.data_points}
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+
+							<div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+								<button
+									class="px-5 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium transition-colors hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
+									on:click={() => showSuggestedTripsModal = false}
+								>
+									Cancel
+								</button>
+								<button
+									class="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors cursor-pointer"
+									on:click={() => handleRejectTrips()}
+									disabled={selectedSuggestedTrips.length === 0}
+								>
+									Reject Selected ({selectedSuggestedTrips.length})
+								</button>
+								<button
+									class="px-5 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white font-medium transition-colors cursor-pointer"
+									on:click={() => handleApproveTrips()}
+									disabled={selectedSuggestedTrips.length === 0}
+								>
+									Approve Selected ({selectedSuggestedTrips.length})
+								</button>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
-		</div>
-	{/if}
-</div>
+		{/if}
+
+		<!-- Trip Generation Modal -->
+		<TripGenerationModal
+			open={showTripGenerationModal}
+			bind:startDate={tripGenerationData.startDate}
+			bind:endDate={tripGenerationData.endDate}
+			bind:useCustomHomeAddress={tripGenerationData.useCustomHomeAddress}
+			bind:customHomeAddress={tripGenerationData.customHomeAddress}
+			bind:customHomeAddressInput
+			bind:isCustomHomeAddressSearching
+			bind:customHomeAddressSuggestions
+			bind:showCustomHomeAddressSuggestions
+			bind:selectedCustomHomeAddressIndex
+			bind:customHomeAddressSearchError
+			bind:selectedCustomHomeAddress
+			on:close={() => showTripGenerationModal = false}
+			on:generate={generateNewTripSuggestions}
+			on:customHomeAddressToggle={handleCustomHomeAddressToggle}
+			on:customHomeAddressInput={handleCustomHomeAddressInput}
+			on:customHomeAddressKeydown={handleCustomHomeAddressKeydown}
+			on:selectCustomHomeAddress={selectCustomHomeAddress}
+		/>
+
+		<!-- Delete Confirmation Modal -->
+		{#if showDeleteConfirm && tripToDelete}
+			<div
+				class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="delete-modal-title"
+			>
+				<div
+					class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 relative"
+					role="document"
+				>
+					<h2 id="delete-modal-title" class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">Delete Trip</h2>
+					<p class="mb-6 text-gray-700 dark:text-gray-300">Are you sure you want to delete <span class="font-semibold">{tripToDelete?.title || ''}</span>? This action cannot be undone.</p>
+					<div class="flex justify-end gap-3">
+						<button class="px-5 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium transition-colors hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer" on:click={cancelDeleteTrip}>Cancel</button>
+						<button class="px-5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors cursor-pointer" on:click={deleteTrip}>Delete</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+	</div>
 
 <style>
 	.line-clamp-2 {

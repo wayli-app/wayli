@@ -1,43 +1,126 @@
 import { createClient } from '@supabase/supabase-js';
 import type { UserProfile } from '$lib/types/user.types';
+// Supports both SvelteKit and Node/worker environments. By default, uses SvelteKit $env/static/*, but can be configured for Node/worker via setSupabaseClient or setSupabaseConfig.
+import { getSupabaseConfig } from '$lib/core/config/node-environment';
 
 export class UserProfileService {
-  private static supabase = createClient(
-    'http://127.0.0.1:54321',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
-  );
+  private static supabase = createClient(getSupabaseConfig().url, getSupabaseConfig().serviceRoleKey);
+
+  // Allow override for test/worker/Node.js
+  static setSupabaseClient(client: ReturnType<typeof createClient>) {
+    this.supabase = client;
+  }
+
+  // Allow override for Node/worker: call this at startup in worker context
+  static setSupabaseConfig(url: string, serviceRoleKey: string) {
+    this.supabase = createClient(url, serviceRoleKey);
+  }
+
+  // Helper for Node/worker: call this at startup
+  static useNodeEnvironmentConfig() {
+    const config = getSupabaseConfig();
+    this.supabase = createClient(config.url, config.serviceRoleKey);
+  }
 
   /**
-   * Get user profile by ID
+   * Get user profile by ID from user_profiles table, joining auth.users for email fields
    */
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
-      const { data, error } = await this.supabase.auth.admin.getUserById(userId);
+      // Fetch from user_profiles
+      const { data: profileData, error: profileError } = await this.supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-      if (error || !data.user) {
-        console.error('Error fetching user profile:', error);
+      let profile = profileData;
+
+      // If profile doesn't exist, create one from user_metadata
+      if (profileError && profileError.code === 'PGRST116') {
+        console.log('User profile not found, creating from user_metadata...');
+        const created = await this.createUserProfileFromMetadata(userId);
+        if (!created) {
+          console.error('Failed to create user profile from metadata');
+          return null;
+        }
+        // Fetch the newly created profile
+        const { data: newProfile, error: newProfileError } = await this.supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (newProfileError || !newProfile) {
+          console.error('Error fetching newly created profile:', newProfileError);
+          return null;
+        }
+        profile = newProfile;
+      } else if (profileError || !profile) {
+        console.error('Error fetching user profile from user_profiles:', profileError);
         return null;
       }
 
-      const user = data.user;
-      const metadata = user.user_metadata || {};
-
+      // Fetch from auth.users for email, confirmation, created_at
+      const { data: userData, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+      if (userError || !userData.user) {
+        console.error('Error fetching user from auth.users:', userError);
+        return null;
+      }
+      const user = userData.user;
       return {
         id: user.id,
         email: user.email ?? '',
-        first_name: metadata.first_name || '',
-        last_name: metadata.last_name || '',
-        full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
-        role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
-        avatar_url: metadata.avatar_url || user.user_metadata?.avatar_url,
-        home_address: metadata.home_address,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        full_name: profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || '',
+        role: (profile.role as 'user' | 'admin' | 'moderator') || 'user',
+        avatar_url: profile.avatar_url,
+        home_address: profile.home_address,
         email_confirmed_at: user.email_confirmed_at,
         created_at: user.created_at,
-        updated_at: user.updated_at || user.created_at
+        updated_at: profile.updated_at || user.created_at
       };
     } catch (error) {
       console.error('Error in getUserProfile:', error);
       return null;
+    }
+  }
+
+  /**
+   * Create user profile from user_metadata (fallback for existing users)
+   */
+  private static async createUserProfileFromMetadata(userId: string): Promise<boolean> {
+    try {
+      const { data: userData, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+      if (userError || !userData.user) {
+        console.error('Error fetching user for profile creation:', userError);
+        return false;
+      }
+
+      const user = userData.user;
+      const metadata = user.user_metadata || {};
+
+      const { error: insertError } = await this.supabase
+        .from('user_profiles')
+        .insert({
+          id: userId,
+          first_name: metadata.first_name || '',
+          last_name: metadata.last_name || '',
+          full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
+          role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+          avatar_url: metadata.avatar_url,
+          home_address: metadata.home_address
+        });
+
+      if (insertError) {
+        console.error('Error creating user profile:', insertError);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in createUserProfileFromMetadata:', error);
+      return false;
     }
   }
 
@@ -92,6 +175,26 @@ export class UserProfileService {
       return true;
     } catch (error) {
       console.error('Error in updateUserRole:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Update user profile in user_profiles table
+   */
+  static async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
+    try {
+      const { error } = await this.supabase
+        .from('user_profiles')
+        .update(updates)
+        .eq('id', userId);
+      if (error) {
+        console.error('Error updating user profile:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in updateUserProfile:', error);
       return false;
     }
   }

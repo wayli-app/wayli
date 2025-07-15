@@ -3,6 +3,7 @@
 	import type { PageData } from './$types';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
 	import RoleSelector from '$lib/components/RoleSelector.svelte';
+	import UserAvatar from '$lib/components/ui/UserAvatar.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { browser } from '$app/environment';
@@ -697,7 +698,8 @@
 								{#each users as user}
 									<tr>
 										<td class="whitespace-nowrap px-6 py-4">
-											<div class="flex items-center">
+											<div class="flex items-center gap-3">
+												<UserAvatar user={user} size="lg" />
 												<div>
 													<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 														{getUserDisplayName(user)}

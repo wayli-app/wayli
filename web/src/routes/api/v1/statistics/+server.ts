@@ -3,8 +3,8 @@ import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { detectMode, detectTrainMode } from '$lib/utils/transport-mode';
-import type { ModeContext } from '$lib/utils/transport-mode';
+import { detectEnhancedMode, haversine } from '$lib/utils/transport-mode';
+import type { EnhancedModeContext } from '$lib/utils/transport-mode';
 
 interface StatisticsData {
   totalDistance: string;
@@ -14,6 +14,7 @@ interface StatisticsData {
   geopoints: number;
   steps: number;
   uniquePlaces: number;
+  uniqueCitiesVisited: number;
   countriesVisited: number;
   activity: Array<{
     label: string;
@@ -27,6 +28,17 @@ interface StatisticsData {
     time: number;
   }>;
   trainStationVisits: { name: string, count: number }[];
+  segments: Array<{
+    start_index: number;
+    end_index: number;
+    start_time: string;
+    end_time: string;
+    mode: string;
+    distance: number;
+    duration: number;
+    confidence: number;
+    points: Array<{ location: { coordinates: { lat: number; lng: number } }; recorded_at: string; country_code?: string; geocode?: unknown }>;
+  }>;
 }
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -48,11 +60,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Fetch all relevant tracker_data in a single query
-    let trackerData: Array<{ location: { coordinates: { lat: number; lng: number } }; recorded_at: string; country_code?: string; reverse_geocode?: unknown }> = [];
+    let trackerData: Array<{ location: { coordinates: { lat: number; lng: number } }; recorded_at: string; country_code?: string; geocode?: unknown }> = [];
     try {
       let trackerQuery = supabaseAdmin
         .from('tracker_data')
-        .select('location, recorded_at, country_code, reverse_geocode')
+        .select('location, recorded_at, country_code, geocode')
         .eq('user_id', user.id)
         .order('recorded_at', { ascending: true });
       if (startDate) {
@@ -69,139 +81,124 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       // ignore
     }
 
-    // Compute all metrics from trackerData
+    // 1. Build segments
+    const segments = [];
+    let currentSegment = null;
     let totalDistance = 0;
     let timeSpentMoving = 0;
-    const geopoints = trackerData.length;
-    let countryTimeDistribution: { country_code: string, timeMs: number, percent: number }[] = [];
-    let countriesVisited = 0;
-    let visitedPlaces = 0;
-    const byCountry: Record<string, Date[]> = {};
-    const uniqueCountries = new Set<string>();
-    const uniqueCities = new Set<string>();
-    for (let i = 0; i < trackerData.length; i++) {
-      const row = trackerData[i];
-      // Country distribution
-      if (row.country_code && row.recorded_at) {
-        if (!byCountry[row.country_code]) byCountry[row.country_code] = [];
-        byCountry[row.country_code].push(new Date(row.recorded_at));
-        uniqueCountries.add(row.country_code);
-      }
-      // Visited places (unique cities)
-      if (row.reverse_geocode) {
-        let geo;
-        try {
-          geo = typeof row.reverse_geocode === 'string' ? JSON.parse(row.reverse_geocode) : row.reverse_geocode;
-        } catch {
-          continue;
-        }
-        if (geo && geo.address && geo.address.city) {
-          uniqueCities.add(geo.address.city);
-        }
-      }
-    }
-    countriesVisited = uniqueCountries.size;
-    visitedPlaces = uniqueCities.size;
-    // Country time distribution
-    let totalTimeMs = 0;
-    const countryTimes: { country_code: string, timeMs: number }[] = [];
-    for (const [country_code, dates] of Object.entries(byCountry)) {
-      if (dates.length > 1) {
-        dates.sort((a, b) => a.getTime() - b.getTime());
-        const timeMs = dates[dates.length - 1].getTime() - dates[0].getTime();
-        countryTimes.push({ country_code, timeMs });
-        totalTimeMs += timeMs;
-      } else {
-        countryTimes.push({ country_code, timeMs: 0 });
-      }
-    }
-    if (totalTimeMs === 0 && startDate && endDate) {
-      totalTimeMs = new Date(endDate + 'T23:59:59').getTime() - new Date(startDate + 'T00:00:00').getTime();
-    }
-    countryTimeDistribution = countryTimes.map(({ country_code, timeMs }) => ({
-      country_code,
-      timeMs,
-      percent: totalTimeMs > 0 ? Math.round((timeMs / totalTimeMs) * 1000) / 10 : 0
-    })).sort((a, b) => b.percent - a.percent);
-    // Distance, time moving, and transport mode detection
-    const modeStats: Record<string, { distance: number; time: number }> = {};
-
-    // Enhanced train detection with velocity-based continuity
-    const modeContext: ModeContext = {};
-
+    const modeContext: EnhancedModeContext = {
+      currentMode: 'unknown',
+      modeStartTime: Date.now(),
+      lastSpeed: 0,
+      trainStations: [],
+      averageSpeed: 0,
+      speedHistory: [],
+      isInTrainJourney: false
+    };
     for (let i = 1; i < trackerData.length; i++) {
       const prev = trackerData[i - 1];
       const curr = trackerData[i];
       const prevCoords = prev.location.coordinates;
       const currCoords = curr.location.coordinates;
-      if (
-        !Array.isArray(prevCoords) || prevCoords.length < 2 ||
-        !Array.isArray(currCoords) || currCoords.length < 2
-      ) {
-        continue;
-      }
+      if (!Array.isArray(prevCoords) || prevCoords.length < 2 || !Array.isArray(currCoords) || currCoords.length < 2) continue;
       const [prevLng, prevLat] = prevCoords;
       const [currLng, currLat] = currCoords;
-      if (
-        typeof prevLat !== 'number' || typeof prevLng !== 'number' ||
-        typeof currLat !== 'number' || typeof currLng !== 'number' ||
-        isNaN(prevLat) || isNaN(prevLng) || isNaN(currLat) || isNaN(currLng)
-      ) {
-        continue;
-      }
+      if (typeof prevLat !== 'number' || typeof prevLng !== 'number' || typeof currLat !== 'number' || typeof currLng !== 'number' || isNaN(prevLat) || isNaN(prevLng) || isNaN(currLat) || isNaN(currLng)) continue;
       const dt = (new Date(curr.recorded_at).getTime() - new Date(prev.recorded_at).getTime()) / 1000; // seconds
       if (dt <= 0) continue;
-
-      // Haversine distance in meters
-      const toRad = (x: number) => x * Math.PI / 180;
-      const R = 6371e3;
-      const φ1 = toRad(prevLat);
-      const φ2 = toRad(currLat);
-      const Δφ = toRad(currLat - prevLat);
-      const Δλ = toRad(currLng - prevLng);
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c; // meters
+      const distance = (() => {
+        const toRad = (x: number) => x * Math.PI / 180;
+        const R = 6371e3;
+        const φ1 = toRad(prevLat);
+        const φ2 = toRad(currLat);
+        const Δφ = toRad(currLat - prevLat);
+        const Δλ = toRad(currLng - prevLng);
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      })();
       if (!isFinite(distance) || isNaN(distance)) continue;
       totalDistance += distance;
       const speed = distance / dt; // m/s
-      if (speed > 0.833) {
-        timeSpentMoving += dt;
-      }
-
-      // Check if current point is at a railway location
-      let atTrainLocation = false;
-      if (curr.reverse_geocode) {
-        try {
-          const geocode = typeof curr.reverse_geocode === 'string' ? JSON.parse(curr.reverse_geocode) : curr.reverse_geocode;
-          if (
-            (geocode && geocode.type === 'railway_station') ||
-            (geocode && geocode.class === 'railway') ||
-            (geocode && geocode.type === 'platform') ||
-            (geocode && geocode.addresstype === 'railway')
-          ) {
-            atTrainLocation = true;
+      if (speed > 0.833) timeSpentMoving += dt;
+      const modeDetection = detectEnhancedMode(prevLat, prevLng, currLat, currLng, dt, curr.geocode, modeContext);
+      const transport_mode = modeDetection.mode;
+      // Start new segment if needed
+      if (!currentSegment || currentSegment.mode !== transport_mode) {
+        if (currentSegment) {
+          currentSegment.end_index = i - 1;
+          currentSegment.end_time = prev.recorded_at;
+          currentSegment.duration = (new Date(currentSegment.end_time).getTime() - new Date(currentSegment.start_time).getTime()) / 1000;
+          // If mode is 'unknown', inherit from previous segment if possible
+          if (currentSegment.mode === 'unknown' && segments.length > 0) {
+            currentSegment.mode = segments[segments.length - 1].mode;
           }
-        } catch {
-          // Ignore parsing errors
+          segments.push(currentSegment);
         }
+        // Helper to normalize a point's coordinates
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        function normalizePoint(pt: any) {
+          const coords = pt.location && pt.location.coordinates;
+          if (Array.isArray(coords) && coords.length >= 2) {
+            return {
+              ...pt,
+              location: {
+                ...pt.location,
+                coordinates: { lat: coords[1], lng: coords[0] }
+              }
+            };
+          }
+          return pt;
+        }
+        currentSegment = {
+          start_index: i - 1,
+          end_index: i,
+          start_time: prev.recorded_at,
+          end_time: curr.recorded_at,
+          mode: transport_mode,
+          distance: 0,
+          duration: 0,
+          confidence: modeDetection.confidence,
+          points: [normalizePoint(prev), normalizePoint(curr)]
+        };
+      } else {
+        currentSegment.end_index = i;
+        currentSegment.end_time = curr.recorded_at;
+        // Helper to normalize a point's coordinates
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        function normalizePoint(pt: any) {
+          const coords = pt.location && pt.location.coordinates;
+          if (Array.isArray(coords) && coords.length >= 2) {
+            return {
+              ...pt,
+              location: {
+                ...pt.location,
+                coordinates: { lat: coords[1], lng: coords[0] }
+              }
+            };
+          }
+          return pt;
+        }
+        currentSegment.points.push(normalizePoint(curr));
+        // Update confidence (average)
+        currentSegment.confidence = (currentSegment.confidence * (currentSegment.points.length - 2) + modeDetection.confidence) / (currentSegment.points.length - 1);
       }
-
-      // Use enhanced train detection
-      const trainDetection = detectTrainMode(prevLat, prevLng, currLat, currLng, dt, atTrainLocation, modeContext);
-      let transport_mode = trainDetection.mode;
-
-      // If not detected as train, use regular mode detection
-      if (transport_mode !== 'train') {
-        transport_mode = detectMode(prevLat, prevLng, currLat, currLng, dt, modeContext);
+      currentSegment.distance += distance;
+    }
+    if (currentSegment) {
+      currentSegment.duration = (new Date(currentSegment.end_time).getTime() - new Date(currentSegment.start_time).getTime()) / 1000;
+      // If mode is 'unknown', inherit from previous segment if possible
+      if (currentSegment.mode === 'unknown' && segments.length > 0) {
+        currentSegment.mode = segments[segments.length - 1].mode;
       }
-
-      // Track statistics
-      if (!modeStats[transport_mode]) modeStats[transport_mode] = { distance: 0, time: 0 };
-      modeStats[transport_mode].distance += distance;
-      if (speed > 0.833) {
-        modeStats[transport_mode].time += dt;
-      }
+      segments.push(currentSegment);
+    }
+    // Calculate transport stats from segments
+    const modeStats: Record<string, { distance: number; time: number }> = {};
+    for (const seg of segments) {
+      if (!modeStats[seg.mode]) modeStats[seg.mode] = { distance: 0, time: 0 };
+      modeStats[seg.mode].distance += seg.distance;
+      modeStats[seg.mode].time += seg.duration;
     }
 
     // 2. Calculate unique places based on reverse geocoded data from tracker_data
@@ -209,11 +206,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const uniquePOIs = new Set<string>();
 
     for (const row of trackerData) {
-      if (row.reverse_geocode) {
+      if (row.geocode) {
         try {
-          const geocode = typeof row.reverse_geocode === 'string'
-            ? JSON.parse(row.reverse_geocode)
-            : row.reverse_geocode;
+          const geocode = typeof row.geocode === 'string'
+            ? JSON.parse(row.geocode)
+            : row.geocode;
 
           if (geocode && geocode.address) {
             // Create a unique identifier for the location
@@ -247,6 +244,37 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     const totalUniquePlaces = uniqueLocations.size + uniquePOIs.size;
 
+    // After uniqueLocations/uniquePOIs
+    const uniqueCountries = new Set<string>();
+    const byCountry: Record<string, Date[]> = {};
+    for (const row of trackerData) {
+      if (row.country_code && row.recorded_at) {
+        if (!byCountry[row.country_code]) byCountry[row.country_code] = [];
+        byCountry[row.country_code].push(new Date(row.recorded_at));
+        uniqueCountries.add(row.country_code);
+      }
+    }
+    let totalTimeMs = 0;
+    const countryTimes: { country_code: string, timeMs: number }[] = [];
+    for (const [country_code, dates] of Object.entries(byCountry)) {
+      if (dates.length > 1) {
+        dates.sort((a, b) => a.getTime() - b.getTime());
+        const timeMs = dates[dates.length - 1].getTime() - dates[0].getTime();
+        countryTimes.push({ country_code, timeMs });
+        totalTimeMs += timeMs;
+      } else {
+        countryTimes.push({ country_code, timeMs: 0 });
+      }
+    }
+    if (totalTimeMs === 0 && startDate && endDate) {
+      totalTimeMs = new Date(endDate + 'T23:59:59').getTime() - new Date(startDate + 'T00:00:00').getTime();
+    }
+    const countryTimeDistribution = countryTimes.map(({ country_code, timeMs }) => ({
+      country_code,
+      timeMs,
+      percent: totalTimeMs > 0 ? Math.round((timeMs / totalTimeMs) * 1000) / 10 : 0
+    })).sort((a, b) => b.percent - a.percent);
+
     // 3. Calculate total distance from tracker data
     const totalDistanceKm = isFinite(totalDistance / 1000) ? totalDistance / 1000 : 0;
 
@@ -276,11 +304,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
       const dayUniqueLocations = new Set<string>();
       for (const row of dayTrackerData) {
-        if (row.reverse_geocode) {
+        if (row.geocode) {
           try {
-            const geocode = typeof row.reverse_geocode === 'string'
-              ? JSON.parse(row.reverse_geocode)
-              : row.reverse_geocode;
+            const geocode = typeof row.geocode === 'string'
+              ? JSON.parse(row.geocode)
+              : row.geocode;
 
             if (geocode && geocode.address) {
               const city = geocode.address.city || '';
@@ -441,11 +469,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const stationVisits = new Map<string, number[]>();
 
     for (const row of trackerData) {
-      if (row.reverse_geocode) {
+      if (row.geocode) {
         try {
-          const geocode = typeof row.reverse_geocode === 'string'
-            ? JSON.parse(row.reverse_geocode)
-            : row.reverse_geocode;
+          const geocode = typeof row.geocode === 'string'
+            ? JSON.parse(row.geocode)
+            : row.geocode;
 
           // Check if this is a railway station
           if (geocode && geocode.type === 'railway_station' && geocode.address) {
@@ -501,15 +529,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
       locationsVisited: totalUniquePlaces.toString(),
       timeSpent,
       timeSpentMoving: timeSpentMovingHours,
-      geopoints: geopoints || 0,
+      geopoints: trackerData.length || 0,
       steps,
       uniquePlaces: totalUniquePlaces,
-      countriesVisited,
+      uniqueCitiesVisited: uniqueLocations.size,
+      countriesVisited: uniqueCountries.size,
       activity: activityData,
       transport: transport,
       countryTimeDistribution,
-      visitedPlaces,
-      trainStationVisits
+      visitedPlaces: uniqueLocations.size,
+      trainStationVisits,
+      segments
     };
 
     return successResponse(data);

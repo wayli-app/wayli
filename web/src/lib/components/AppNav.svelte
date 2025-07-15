@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
 	import { MapPin, Calendar, BarChart, Import, Edit, Landmark, Star, ListTodo, Link, Settings, User, LogOut, Navigation, Sun, Moon, Monitor, Menu, X, Crown, Map } from 'lucide-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
@@ -26,9 +27,11 @@
 		...(isAdmin ? [{ href: '/dashboard/server-admin-settings', label: 'Server Admin Settings', icon: Settings }] : [])
 	];
 
-	function isActive(href: string) {
-		return $page.url.pathname === href;
-	}
+	// Force reactive update after navigation
+	afterNavigate(() => {
+		// This will trigger a reactive update of the page store
+		console.log('[AppNav] Navigation completed, current path:', $page.url.pathname);
+	});
 
 	function handleSignOut() {
 		dispatch('signout');
@@ -63,7 +66,7 @@
 	>
 		<!-- Sidebar Header - Fixed at top -->
 		<div class="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-			<a href="/dashboard/trips" class="flex items-center cursor-pointer">
+			<a href="/dashboard/statistics" class="flex items-center cursor-pointer">
 				<Navigation class="h-8 w-8 text-[rgb(37,140,244)] mr-2" />
 				<span class="text-xl font-bold text-gray-900 dark:text-gray-100">Wayli</span>
 			</a>
@@ -81,7 +84,7 @@
 				{#each navMain as item}
 					<a
 						href={item.href}
-						class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {isActive(item.href) ? 'bg-[rgb(37,140,244)] text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+						class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {$page.url.pathname === item.href ? 'bg-[rgb(37,140,244)] text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
 						onclick={closeSidebar}
 					>
 						<svelte:component this={item.icon} class="h-5 w-5 mr-3" />
@@ -121,7 +124,7 @@
 					{#each navUser as item}
 						<a
 							href={item.href}
-							class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {isActive(item.href) ? 'bg-[rgb(37,140,244)] text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+							class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {$page.url.pathname === item.href ? 'bg-[rgb(37,140,244)] text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
 							onclick={closeSidebar}
 						>
 							<svelte:component this={item.icon} class="h-5 w-5 mr-3" />

@@ -1,5 +1,5 @@
-import { createServerClient } from '$lib/core/supabase/server-client';
-import { getServerSupabaseConfig } from '$lib/core/config/server-environment';
+import { createWorkerClient } from '$lib/core/supabase/worker-client';
+import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -20,7 +20,7 @@ export interface MigrationResult {
 }
 
 export class DatabaseMigrationService {
-  private static supabase = createServerClient();
+  private static supabase = createWorkerClient();
   private static migrationsPath = path.resolve(process.cwd(), 'sql');
 
   /**
@@ -180,7 +180,7 @@ export class DatabaseMigrationService {
       console.log('🔍 Starting database health check...');
 
       // Log the Supabase configuration (without sensitive data)
-      const serverConfig = getServerSupabaseConfig();
+      const serverConfig = getWorkerSupabaseConfig();
       console.log('📋 Supabase config:', {
         url: serverConfig.url,
         serviceRoleKeyLength: serverConfig.serviceRoleKey?.length || 0

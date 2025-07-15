@@ -29,7 +29,7 @@ interface VisitDetectionConfig {
 interface TrackerDataPoint {
   user_id: string;
   location: { type: string; coordinates: number[] };
-  reverse_geocode: string | GeocodeData | null;
+  geocode: string | GeocodeData | null;
   recorded_at: string;
   country_code?: string;
 }
@@ -98,7 +98,7 @@ export class EnhancedPoiDetectionService {
         .from('tracker_data')
         .select('*')
         .eq('user_id', userId)
-        .not('reverse_geocode', 'is', null)
+        .not('geocode', 'is', null)
         .gte('recorded_at', lookbackDate.toISOString())
         .order('recorded_at', { ascending: true });
 
@@ -139,12 +139,12 @@ export class EnhancedPoiDetectionService {
     const poiGroups = new Map<string, DiscoveredPOI>();
 
     for (const point of trackerData) {
-      if (!point.reverse_geocode || !point.location) continue;
+      if (!point.geocode || !point.location) continue;
 
       try {
-        const geocode = typeof point.reverse_geocode === 'string'
-          ? JSON.parse(point.reverse_geocode)
-          : point.reverse_geocode;
+        const geocode = typeof point.geocode === 'string'
+  ? JSON.parse(point.geocode)
+  : point.geocode;
 
         if (!geocode || !geocode.address) continue;
 
@@ -335,14 +335,14 @@ export class EnhancedPoiDetectionService {
               category: poi.category,
               address: poi.address,
               data_type: 'poi',
-              poi_type: 'detected',
-              discovery_source: 'reverse_geocode',
-              confidence_score: 0.8,
-              visit_count: visitStats.visit_count,
-              first_visit: visitStats.first_visit,
-              last_visit: visitStats.last_visit,
-              total_visit_duration_minutes: visitStats.total_duration_minutes,
-              average_visit_duration_minutes: visitStats.average_duration_minutes
+            poi_type: 'detected',
+            discovery_source: 'geocode',
+            confidence_score: 0.8,
+            visit_count: visitStats.visit_count,
+            first_visit: visitStats.first_visit,
+            last_visit: visitStats.last_visit,
+            total_visit_duration_minutes: visitStats.total_duration_minutes,
+            average_visit_duration_minutes: visitStats.average_duration_minutes
             },
             created_at: new Date().toISOString()
           })

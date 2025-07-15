@@ -1,5 +1,5 @@
 import { supabase } from '$lib/core/supabase/server';
-import { getWorkerConfig } from '$lib/core/config/environment';
+import { getWorkerConfig } from '$lib/core/config/node-environment';
 import type { Job, JobType, JobStatus, JobPriority, JobConfig } from '$lib/types/job-queue.types';
 
 export class JobQueueService {
@@ -179,6 +179,21 @@ export class JobQueueService {
       .eq('id', jobId);
 
     if (error) throw error;
+  }
+
+  static async getJobStatus(jobId: string): Promise<string | null> {
+    const { data: job, error } = await this.supabase
+      .from('jobs')
+      .select('status')
+      .eq('id', jobId)
+      .single();
+
+    if (error) {
+      console.error('Error getting job status:', error);
+      return null;
+    }
+
+    return job?.status || null;
   }
 
   static async getJobs(

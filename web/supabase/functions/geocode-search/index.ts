@@ -1,7 +1,7 @@
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { createAuthenticatedClient } from '../_shared/supabase.ts'
 
-const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.openstreetmap.org'
+const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.int.hazen.nu'
 const NOMINATIM_RATE_LIMIT = parseInt(Deno.env.get('NOMINATIM_RATE_LIMIT') || '1000')
 
 Deno.serve(async (req) => {

@@ -69,6 +69,17 @@
 	async function handleSignUp(event: Event) {
 		event.preventDefault();
 
+		// Validate required fields
+		if (!firstName.trim()) {
+			toast.error('First name is required');
+			return;
+		}
+
+		if (!lastName.trim()) {
+			toast.error('Last name is required');
+			return;
+		}
+
 		if (!isPasswordValid) {
 			toast.error('Please ensure your password meets all requirements');
 			return;
@@ -87,9 +98,9 @@
 				password,
 				options: {
 					data: {
-						first_name: firstName,
-						last_name: lastName,
-						full_name: `${firstName} ${lastName}`.trim()
+						first_name: firstName.trim(),
+						last_name: lastName.trim(),
+						full_name: `${firstName.trim()} ${lastName.trim()}`.trim()
 					},
 					emailRedirectTo: `${window.location.origin}/auth/callback`
 				}
@@ -185,6 +196,7 @@
 									id="firstName"
 									type="text"
 									bind:value={firstName}
+									required
 									class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors"
 									placeholder="First name"
 								/>
@@ -198,6 +210,7 @@
 								id="lastName"
 								type="text"
 								bind:value={lastName}
+								required
 								class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors"
 								placeholder="Last name"
 							/>

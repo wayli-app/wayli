@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { User as UserIcon, Mail, Shield, X } from 'lucide-svelte';
 	import RoleSelector from './RoleSelector.svelte';
+	import UserAvatar from './ui/UserAvatar.svelte';
 	import type { UserProfile } from '$lib/types/user.types';
 
 	export let isOpen = false;
@@ -63,11 +64,7 @@
 
 			<!-- User Info -->
 			<div class="flex items-center gap-4 mb-8">
-				<img
-					src={localUser.avatar_url || `https://api.dicebear.com/6.x/initials/svg?seed=${localUser.email}`}
-					alt="User avatar"
-					class="h-16 w-16 rounded-full"
-				/>
+				<UserAvatar user={localUser} />
 				<div>
 					<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
 						{localUser.full_name || `${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() || 'N/A'}
@@ -93,17 +90,17 @@
 						</div>
 					</div>
 
-					<div>
+				<div>
 						<label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
-						<div class="relative">
-							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-							<input
-								type="text"
+					<div class="relative">
+						<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+						<input
+							type="text"
 								id="lastName"
 								bind:value={localUser.last_name}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
 								placeholder="e.g. Doe"
-							/>
+						/>
 						</div>
 					</div>
 				</div>

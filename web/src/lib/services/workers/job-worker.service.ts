@@ -12,7 +12,10 @@ export class JobWorker {
   private isRunning: boolean = false;
   private currentJob: Job | null = null;
   private intervalId?: NodeJS.Timeout;
+  private cancellationCheckInterval?: NodeJS.Timeout;
   private pollInterval: number = 5000; // 5 seconds default
+  private cancellationCheckIntervalMs: number = 10000; // 10 seconds default
+  private jobCancelled: boolean = false;
 
   constructor(workerId?: string) {
     this.workerId = workerId || randomUUID();
@@ -21,7 +24,6 @@ export class JobWorker {
   async start(): Promise<void> {
     if (this.isRunning) return;
 
-    // Debug: Check environment variables
     await this.checkEnvironmentVariables();
 
     this.isRunning = true;
@@ -36,6 +38,13 @@ export class JobWorker {
       }
     }, this.pollInterval);
 
+    // Start cancellation checking for running jobs
+    this.cancellationCheckInterval = setInterval(async () => {
+      if (this.isRunning && this.currentJob) {
+        await this.checkJobCancellation();
+      }
+    }, this.cancellationCheckIntervalMs);
+
     // Initial poll
     await this.pollForJobs();
   }
@@ -48,22 +57,16 @@ export class JobWorker {
 
     if (!supabaseUrl) {
       console.error('❌ PUBLIC_SUPABASE_URL is not set! Worker cannot connect to Supabase.');
-    } else {
-      console.log('✅ PUBLIC_SUPABASE_URL is set:', supabaseUrl.substring(0, 20) + '...');
     }
 
     if (!serviceRoleKey) {
       console.error('❌ SUPABASE_SERVICE_ROLE_KEY is not set! Worker cannot access jobs table.');
-    } else {
-      console.log('✅ SUPABASE_SERVICE_ROLE_KEY is set:', serviceRoleKey.substring(0, 10) + '...');
     }
 
     if (!supabaseUrl || !serviceRoleKey) {
       console.error('🚨 Worker will not be able to retrieve jobs due to missing environment variables!');
       console.error('   Please set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.');
     } else {
-      console.log('✅ All required environment variables are set. Testing Supabase connection...');
-
       // Test the connection by trying to get job stats
       try {
         const stats = await JobQueueService.getJobStats();
@@ -88,6 +91,12 @@ export class JobWorker {
       this.intervalId = undefined;
     }
 
+    // Stop cancellation checking
+    if (this.cancellationCheckInterval) {
+      clearInterval(this.cancellationCheckInterval);
+      this.cancellationCheckInterval = undefined;
+    }
+
     // Complete current job if running
     if (this.currentJob) {
       await JobQueueService.failJob(this.currentJob.id, 'Worker stopped');
@@ -96,6 +105,24 @@ export class JobWorker {
 
     await this.unregisterWorker();
     console.log(`🛑 Worker ${this.workerId} stopped`);
+  }
+
+  private async checkJobCancellation(): Promise<void> {
+    if (!this.currentJob) return;
+
+    try {
+      // Check if the current job has been cancelled
+      const jobStatus = await JobQueueService.getJobStatus(this.currentJob.id);
+
+      if (jobStatus === 'cancelled') {
+        console.log(`🛑 Worker ${this.workerId} detected job ${this.currentJob.id} was cancelled, stopping processing`);
+        this.jobCancelled = true;
+        // The job processor will handle the cancellation when it next calls checkJobCancellation
+        // We just need to mark that the job was cancelled
+      }
+    } catch (error) {
+      console.error(`❌ Worker ${this.workerId} error in cancellation check:`, error);
+    }
   }
 
   private async registerWorker(): Promise<void> {
@@ -122,6 +149,7 @@ export class JobWorker {
       }
 
       this.currentJob = job;
+      this.jobCancelled = false;
       console.log(`📋 Worker ${this.workerId} claimed job ${job.id} (${job.type})`);
 
       // Process the job
@@ -140,15 +168,29 @@ export class JobWorker {
   private async processJob(job: Job): Promise<void> {
     try {
       await JobProcessorService.processJob(job);
+
+      // Check if job was cancelled during processing
+      if (this.jobCancelled) {
+        console.log(`🛑 Worker ${this.workerId} job ${job.id} was cancelled during processing`);
+        return;
+      }
+
       await this.completeJob(job.id, { processed: true });
 
     } catch (error: unknown) {
       console.error(`❌ Worker ${this.workerId} error processing job ${job.id}:`, error);
 
+      // Check if the error is due to cancellation
+      if (error instanceof Error && error.message === 'Job was cancelled') {
+        console.log(`🛑 Worker ${this.workerId} job ${job.id} was cancelled`);
+        return;
+      }
+
       const errorMessage = (error as Error)?.message || 'Unknown error';
       await this.failJob(job.id, errorMessage);
     } finally {
       this.currentJob = null;
+      this.jobCancelled = false;
     }
   }
 

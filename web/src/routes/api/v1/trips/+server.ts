@@ -8,8 +8,12 @@ export const GET: RequestHandler = async (event) => {
 		// Authenticate user
 		const { user } = await requireAuth(event);
 
-		// Fetch trips from database
-		const { data: trips, error } = await supabase
+		// Get query parameters
+		const url = new URL(event.request.url);
+		const status = url.searchParams.get('status') || 'active';
+
+		// Build query
+		let query = supabase
 			.from('trips')
 			.select(`
 				id,
@@ -24,9 +28,14 @@ export const GET: RequestHandler = async (event) => {
 				created_at,
 				updated_at
 			`)
-			.eq('user_id', user.id)
-			.eq('status', 'active')
-			.order('start_date', { ascending: false });
+			.eq('user_id', user.id);
+
+		// Filter by status if specified
+		if (status !== 'all') {
+			query = query.eq('status', status);
+		}
+
+		const { data: trips, error } = await query.order('start_date', { ascending: false });
 
 		if (error) {
 			console.error('Database error fetching trips:', error);
@@ -89,7 +98,7 @@ export const POST: RequestHandler = async (event) => {
 				labels: labels || [],
 				metadata: metadata || {},
 				image_url: image_url || null,
-				status: 'active'
+				status: 'approved'
 			})
 			.select()
 			.single();

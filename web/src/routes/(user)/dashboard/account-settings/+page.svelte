@@ -27,6 +27,7 @@
 	let preferredLanguageInput = '';
 
 	let timezoneInput = 'UTC+00:00 (London, Dublin)';
+	let pexelsApiKeyInput = '';
 	let error: string | null = null;
 	let homeAddressInput = '';
 	let homeAddressInputElement: HTMLInputElement | undefined;
@@ -335,10 +336,11 @@
 					}
 				}
 			}
-			if (preferences) {
-				preferredLanguageInput = preferences.language || 'en';
-				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
-			}
+				if (preferences) {
+		preferredLanguageInput = preferences.language || 'en';
+		timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
+		pexelsApiKeyInput = preferences.pexels_api_key || '';
+	}
 		} catch (error) {
 			console.error('Error loading user data:', error);
 			error = error instanceof Error ? error.message : 'Failed to load user data';
@@ -488,7 +490,7 @@
 	}
 
 	async function handleSavePreferences() {
-		console.log('handleSavePreferences called with:', { preferredLanguageInput, timezoneInput });
+		console.log('handleSavePreferences called with:', { preferredLanguageInput, timezoneInput, pexelsApiKeyInput });
 		isUpdatingPreferences = true;
 		try {
 			console.log('Step 1: Calling server API directly...');
@@ -499,7 +501,8 @@
 				},
 				body: JSON.stringify({
 					language: preferredLanguageInput,
-					timezone: timezoneInput
+					timezone: timezoneInput,
+					pexels_api_key: pexelsApiKeyInput || undefined
 				})
 			});
 
@@ -515,6 +518,7 @@
 			if (preferences) {
 				preferences.language = preferredLanguageInput;
 				preferences.timezone = timezoneInput;
+				preferences.pexels_api_key = pexelsApiKeyInput || undefined;
 			}
 
 			toast.success('Preferences updated successfully');
@@ -1182,8 +1186,6 @@
 					</select>
 				</div>
 
-
-
 				<div>
 					<label for="timezone" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Timezone</label>
 					<select
@@ -1195,6 +1197,34 @@
 							<option value={tz}>{tz}</option>
 						{/each}
 					</select>
+				</div>
+			</div>
+
+			<!-- Pexels API Key Section -->
+			<div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+				<div class="flex items-start gap-3">
+					<Info class="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+					<div class="flex-1">
+						<h3 class="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Trip Image Suggestions</h3>
+						<p class="text-sm text-blue-700 dark:text-blue-300 mb-3">
+							Configure a Pexels API key to enable automatic trip image suggestions based on your travel destinations.
+							<a href="https://www.pexels.com/api/" target="_blank" rel="noopener noreferrer" class="underline hover:text-blue-800 dark:hover:text-blue-200">Get your free API key here</a>.
+						</p>
+
+						<div>
+							<label for="pexels-api-key" class="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Pexels API Key</label>
+							<input
+								type="text"
+								id="pexels-api-key"
+								bind:value={pexelsApiKeyInput}
+								placeholder="Enter your Pexels API key (optional)"
+								class="w-full rounded-md border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+							/>
+							<p class="text-xs text-blue-600 dark:text-blue-400 mt-1">
+								{pexelsApiKeyInput ? '✅ API key configured - trip image suggestions enabled' : '⚠️ No API key - trip image suggestions disabled'}
+							</p>
+						</div>
+					</div>
 				</div>
 			</div>
 

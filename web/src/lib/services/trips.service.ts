@@ -43,10 +43,16 @@ export class TripsService {
   async getTrips(userId?: string): Promise<Trip[]> {
     try {
       console.log('[TripsService] Fetching trips for user:', userId);
-      let query = this.supabase.from('trips').select('*').order('created_at', { ascending: false });
+      let query = this.supabase
+        .from('trips')
+        .select('*')
+        .eq('status', 'active') // Only get active trips by default
+        .order('created_at', { ascending: false });
+
       if (userId) {
         query = query.eq('user_id', userId);
       }
+
       const { data: trips, error } = await query;
       if (error) {
         console.error('[TripsService] Database error fetching trips:', error);
