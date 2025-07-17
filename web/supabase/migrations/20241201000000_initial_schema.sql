@@ -867,6 +867,16 @@ VALUES (
     ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 ) ON CONFLICT (id) DO NOTHING;
 
+-- Create exports bucket for user data exports
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'exports',
+    'exports',
+    false,
+    104857600, -- 100MB in bytes
+    ARRAY['application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream']
+) ON CONFLICT (id) DO NOTHING;
+
 -- Enable RLS on storage.objects
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
@@ -935,6 +945,64 @@ CREATE POLICY "Users can delete their own trip-images" ON storage.objects
 -- Service role can access all trip-images (for background processing)
 CREATE POLICY "Service role can access trip-images" ON storage.objects
     FOR ALL USING (auth.role() = 'service_role');
+
+-- Create storage policies for exports bucket
+-- Users can upload their own export files
+CREATE POLICY "Users can upload to exports" ON storage.objects
+    FOR INSERT WITH CHECK (
+        bucket_id = 'exports' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+    );
+
+-- Users can view their own export files
+CREATE POLICY "Users can view their own exports" ON storage.objects
+    FOR SELECT USING (
+        bucket_id = 'exports' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+    );
+
+-- Users can delete their own export files
+CREATE POLICY "Users can delete their own exports" ON storage.objects
+    FOR DELETE USING (
+        bucket_id = 'exports' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+    );
+
+-- Service role can access all exports (for background processing)
+CREATE POLICY "Service role can access exports" ON storage.objects
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Create function to clean up expired export files
+CREATE OR REPLACE FUNCTION cleanup_expired_exports()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER := 0;
+    expired_job RECORD;
+BEGIN
+    -- Find expired export jobs
+    FOR expired_job IN
+        SELECT id, (data->>'file_path') as file_path
+        FROM public.jobs
+        WHERE type = 'data_export'
+          AND (data->>'expires_at')::timestamp with time zone < NOW()
+          AND data->>'file_path' IS NOT NULL
+    LOOP
+        -- Delete the file from storage
+        DELETE FROM storage.objects
+        WHERE name = expired_job.file_path AND bucket_id = 'exports';
+
+        -- Delete the job record
+        DELETE FROM public.jobs WHERE id = expired_job.id;
+
+        deleted_count := deleted_count + 1;
+    END LOOP;
+
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission to service role
+GRANT EXECUTE ON FUNCTION cleanup_expired_exports() TO service_role;
 
 -- Create want_to_visit_places table
 CREATE TABLE IF NOT EXISTS public.want_to_visit_places (

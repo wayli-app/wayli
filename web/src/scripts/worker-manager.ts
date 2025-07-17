@@ -12,37 +12,37 @@ const workers: ChildProcess[] = [];
 
 // Start workers
 for (let i = 0; i < numWorkers; i++) {
-  const workerId = randomUUID();
+	const workerId = randomUUID();
 
-  console.log(`Starting worker ${i + 1}/${numWorkers} with ID: ${workerId}`);
+	console.log(`Starting worker ${i + 1}/${numWorkers} with ID: ${workerId}`);
 
-  const worker = spawn('bun', ['run', 'src/scripts/worker.ts', workerId], {
-    stdio: 'inherit',
-    cwd: process.cwd()
-  });
+	const worker = spawn('bun', ['run', 'src/scripts/worker.ts', workerId], {
+		stdio: 'inherit',
+		cwd: process.cwd()
+	});
 
-  worker.on('error', (error) => {
-    console.error(`❌ Worker ${workerId} failed to start:`, error);
-  });
+	worker.on('error', (error) => {
+		console.error(`❌ Worker ${workerId} failed to start:`, error);
+	});
 
-  worker.on('exit', (code) => {
-    console.log(`🛑 Worker ${workerId} exited with code ${code}`);
-  });
+	worker.on('exit', (code) => {
+		console.log(`🛑 Worker ${workerId} exited with code ${code}`);
+	});
 
-  workers.push(worker);
+	workers.push(worker);
 }
 
 // Handle graceful shutdown
 process.on('SIGINT', () => {
-  console.log('\n🛑 Received SIGINT, shutting down all workers...');
-  workers.forEach(worker => worker.kill('SIGINT'));
-  process.exit(0);
+	console.log('\n🛑 Received SIGINT, shutting down all workers...');
+	workers.forEach((worker) => worker.kill('SIGINT'));
+	process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n🛑 Received SIGTERM, shutting down all workers...');
-  workers.forEach(worker => worker.kill('SIGTERM'));
-  process.exit(0);
+	console.log('\n🛑 Received SIGTERM, shutting down all workers...');
+	workers.forEach((worker) => worker.kill('SIGTERM'));
+	process.exit(0);
 });
 
 console.log(`✅ All ${numWorkers} worker(s) started. Press Ctrl+C to stop all workers.`);

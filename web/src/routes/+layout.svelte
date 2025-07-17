@@ -5,13 +5,23 @@
 	import { initializeTheme } from '$lib/stores/app-state.svelte';
 	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 	import { Toaster } from 'svelte-sonner';
+	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
+	import { serviceAdapter } from '$lib/services/service-layer-adapter';
 
-	onMount(() => {
+	onMount(async () => {
 		console.log('🌐 [ROOT] Layout mounted');
 		// Initialize theme
 		initializeTheme();
 		// Suppress deprecation warnings from third-party libraries
 		suppressDeprecationWarnings();
+
+		// Initialize client-side service layer
+		try {
+			await serviceAdapter.initialize();
+			console.log('🌐 [ROOT] Client service layer initialized');
+		} catch (error) {
+			console.error('🌐 [ROOT] Failed to initialize client service layer:', error);
+		}
 	});
 
 	// Track page changes using modern navigation lifecycle
@@ -37,4 +47,8 @@
 
 <Toaster richColors />
 
-<slot />
+<ErrorBoundary
+	fallback="Something went wrong with the application. Please try refreshing the page."
+>
+	<slot />
+</ErrorBoundary>

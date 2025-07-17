@@ -58,32 +58,33 @@
 
 {#if loading}
 	<div
-		class="animate-pulse bg-gray-200 dark:bg-gray-700 rounded icon {className}"
+		class="icon animate-pulse rounded bg-gray-200 dark:bg-gray-700 {className}"
 		style="width: {size}px; height: {size}px;"
 		{color}
 		{strokeWidth}
 	/>
 {:else if error}
 	<div
-		class="flex items-center justify-center text-gray-400 dark:text-gray-600 icon {className}"
+		class="icon flex items-center justify-center text-gray-400 dark:text-gray-600 {className}"
 		style="width: {size}px; height: {size}px;"
 		{color}
 		{strokeWidth}
 	>
-		<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={strokeWidth}>
-			<circle cx="12" cy="12" r="10"/>
-			<line x1="15" y1="9" x2="9" y2="15"/>
-			<line x1="9" y1="9" x2="15" y2="15"/>
+		<svg
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width={strokeWidth}
+		>
+			<circle cx="12" cy="12" r="10" />
+			<line x1="15" y1="9" x2="9" y2="15" />
+			<line x1="9" y1="9" x2="15" y2="15" />
 		</svg>
 	</div>
 {:else if iconComponent}
-	<svelte:component
-		this={iconComponent}
-		{size}
-		{color}
-		{strokeWidth}
-		class="icon {className}"
-	/>
+	<svelte:component this={iconComponent} {size} {color} {strokeWidth} class="icon {className}" />
 {/if}
 
 <style>

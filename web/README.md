@@ -2,6 +2,180 @@
 
 A SvelteKit + Supabase application for location tracking and trip management.
 
+## Architecture Overview
+
+The application uses a layered service architecture that separates client-side and server-side concerns for security and maintainability.
+
+```mermaid
+graph TB
+    %% Client Layer
+    subgraph "Client Layer"
+        UI[UI Components]
+        Pages[Svelte Pages]
+        Stores[Svelte Stores]
+    end
+
+    %% Service Layer
+    subgraph "Service Layer"
+        subgraph "Client-Safe Services"
+            CSA[Service Layer Adapter]
+            US[User Profile Service]
+            TS[Trips Service]
+            SS[Statistics Service]
+            LCS[Location Cache Service]
+            TOTP[TOTP Service]
+            WTVS[Want to Visit Service]
+            TLS[Trip Locations Service]
+        end
+
+        subgraph "Server-Only Services"
+            SSA[Server Service Adapter]
+            ALS[Audit Logger Service]
+            TISS[Trip Image Suggestion Service]
+            EPDS[Enhanced POI Detection Service]
+            ETDS[Enhanced Trip Detection Service]
+        end
+    end
+
+    %% Core Layer
+    subgraph "Core Layer"
+        SM[Service Manager]
+        SC[Service Container]
+        ES[Enhanced Cache Service]
+        ELS[Enhanced Logger Service]
+    end
+
+    %% Infrastructure Layer
+    subgraph "Infrastructure Layer"
+        subgraph "Supabase Clients"
+            BC[Browser Client]
+            SC2[Server Client]
+            WC[Worker Client]
+        end
+
+        subgraph "Environment Config"
+            CEC[Client Environment]
+            SEC[Server Environment]
+            WEC[Worker Environment]
+        end
+
+        subgraph "External Services"
+            NS[Nominatim Service]
+            CRGS[Country Reverse Geocoding]
+            IUS[Image Upload Service]
+            PS[Pexels Service]
+        end
+    end
+
+    %% Database Layer
+    subgraph "Database Layer"
+        DB[(PostgreSQL Database)]
+        RLS[Row Level Security]
+        RT[Realtime Channels]
+    end
+
+    %% Connections
+    UI --> CSA
+    Pages --> CSA
+    Stores --> CSA
+
+    CSA --> US
+    CSA --> TS
+    CSA --> SS
+    CSA --> LCS
+    CSA --> TOTP
+    CSA --> WTVS
+    CSA --> TLS
+
+    SSA --> ALS
+    SSA --> TISS
+    SSA --> EPDS
+    SSA --> ETDS
+
+    CSA --> SM
+    SSA --> SM
+    SM --> SC
+    SC --> ES
+    SC --> ELS
+
+    US --> BC
+    TS --> BC
+    SS --> BC
+    LCS --> BC
+    TOTP --> BC
+    WTVS --> BC
+    TLS --> BC
+
+    ALS --> SC2
+    TISS --> SC2
+    EPDS --> SC2
+    ETDS --> SC2
+
+    EPDS --> WC
+    ETDS --> WC
+    TISS --> WC
+
+    BC --> CEC
+    SC2 --> SEC
+    WC --> WEC
+
+    CEC --> DB
+    SEC --> DB
+    WEC --> DB
+
+    TISS --> PS
+    EPDS --> NS
+    ETDS --> CRGS
+    TISS --> IUS
+
+    DB --> RLS
+    DB --> RT
+
+    %% Styling
+    classDef clientLayer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef serviceLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef coreLayer fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef infraLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef dbLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    class UI,Pages,Stores clientLayer
+    class CSA,US,TS,SS,LCS,TOTP,WTVS,TLS,SSA,ALS,TISS,EPDS,ETDS serviceLayer
+    class SM,SC,ES,ELS coreLayer
+    class BC,SC2,WC,CEC,SEC,WEC,NS,CRGS,IUS,PS infraLayer
+    class DB,RLS,RT dbLayer
+```
+
+### Architecture Principles
+
+1. **Security First**: Server-only services are never exposed to the client
+2. **Separation of Concerns**: Clear boundaries between client and server code
+3. **Dependency Injection**: Services are managed through a service container
+4. **Environment Isolation**: Different environment configs for different contexts
+5. **Type Safety**: Full TypeScript support throughout the architecture
+
+### Service Categories
+
+#### Client-Safe Services
+- **User Profile Service**: User data management
+- **Trips Service**: Trip CRUD operations
+- **Statistics Service**: Travel analytics
+- **Location Cache Service**: Geographic data caching
+- **TOTP Service**: Two-factor authentication
+- **Want to Visit Service**: Location wishlist
+- **Trip Locations Service**: Location management
+
+#### Server-Only Services
+- **Audit Logger Service**: Security event logging
+- **Trip Image Suggestion Service**: AI-powered image suggestions
+- **Enhanced POI Detection Service**: Points of interest detection
+- **Enhanced Trip Detection Service**: Intelligent trip analysis
+
+#### Core Services
+- **Service Manager**: Lifecycle management
+- **Service Container**: Dependency injection
+- **Enhanced Cache Service**: Memory management
+- **Enhanced Logger Service**: Structured logging
+
 ## Features
 
 - User authentication and authorization
@@ -39,11 +213,13 @@ The system uses **Supabase Realtime** for immediate job detection:
 #### Channel Setup
 
 Realtime channels are automatically initialized during:
+
 - **First User Setup**: When creating the initial admin account
 - **Worker Manager Startup**: When starting the worker system
 - **Individual Worker Startup**: When each worker connects
 
 The system includes a `RealtimeSetupService` that:
+
 - Tests realtime connectivity during initialization
 - Creates unique channels for each worker
 - Handles connection failures gracefully
@@ -52,6 +228,7 @@ The system includes a `RealtimeSetupService` that:
 #### Monitoring and Testing
 
 The admin interface provides:
+
 - **Realtime Status**: Connection health and availability
 - **Configuration Info**: Supabase URL and realtime support status
 - **Test Functionality**: Verify realtime is working correctly
@@ -60,6 +237,7 @@ The admin interface provides:
 #### Troubleshooting
 
 If realtime is not working:
+
 1. Check Supabase project settings for realtime enablement
 2. Verify network connectivity to Supabase
 3. Check browser console for connection errors
@@ -221,6 +399,7 @@ For production deployments, consider:
 For detailed setup instructions, see [SETUP.md](./SETUP.md).
 
 The first time you run Wayli, you'll need to:
+
 1. Create the database tables using the provided SQL script
 2. Create your first admin account through the setup flow
 3. Configure any additional settings

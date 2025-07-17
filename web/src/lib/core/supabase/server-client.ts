@@ -7,24 +7,24 @@ import { getServerSupabaseConfig } from '../config/server-environment';
  * This should only be used in server-side code (API routes, server load functions, etc.)
  */
 export function createServerClient(): SupabaseClient<Database> {
-  const serverConfig = getServerSupabaseConfig();
-  return createClient<Database>(serverConfig.url, serverConfig.serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
+	const serverConfig = getServerSupabaseConfig();
+	return createClient<Database>(serverConfig.url, serverConfig.serviceRoleKey, {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	});
 }
 
 /**
  * Creates a Supabase client with service role key for server-side worker code only
  */
 export function createWorkerServerClient(): SupabaseClient<Database> {
-  const serverConfig = getServerSupabaseConfig();
-  return createClient<Database>(serverConfig.url, serverConfig.serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
+	const serverConfig = getServerSupabaseConfig();
+	return createClient<Database>(serverConfig.url, serverConfig.serviceRoleKey, {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	});
 }

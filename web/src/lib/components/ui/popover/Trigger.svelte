@@ -8,7 +8,11 @@
 	};
 </script>
 
-<div on:click={toggleOpen} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && toggleOpen()}>
+<div
+	on:click={toggleOpen}
+	role="button"
+	tabindex="0"
+	on:keydown={(e) => e.key === 'Enter' && toggleOpen()}
+>
 	<slot />
 </div>
-

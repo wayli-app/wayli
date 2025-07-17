@@ -120,7 +120,11 @@ export interface OwnTracksBeacon {
 	proximity: 'immediate' | 'near' | 'far' | 'unknown';
 }
 
-export type OwnTracksPayload = OwnTracksLocation | OwnTracksTransition | OwnTracksWaypoint | OwnTracksBeacon;
+export type OwnTracksPayload =
+	| OwnTracksLocation
+	| OwnTracksTransition
+	| OwnTracksWaypoint
+	| OwnTracksBeacon;
 
 // Helper types for coordinate handling
 export interface Coordinates {
@@ -174,7 +178,12 @@ export const PostGIS = {
 	latLonFromPoint: (point: unknown): Coordinates | null => {
 		if (!point) return null;
 		function hasCoordinates(obj: unknown): obj is { coordinates: [number, number] } {
-			return typeof obj === 'object' && obj !== null && 'coordinates' in obj && Array.isArray((obj as { coordinates: unknown }).coordinates);
+			return (
+				typeof obj === 'object' &&
+				obj !== null &&
+				'coordinates' in obj &&
+				Array.isArray((obj as { coordinates: unknown }).coordinates)
+			);
 		}
 		if (hasCoordinates(point)) {
 			const coords = point.coordinates;
@@ -214,9 +223,12 @@ export const PostGIS = {
 		const dLat = PostGIS.toRadians(coord2.latitude - coord1.latitude);
 		const dLon = PostGIS.toRadians(coord2.longitude - coord1.longitude);
 
-		const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-				  Math.cos(PostGIS.toRadians(coord1.latitude)) * Math.cos(PostGIS.toRadians(coord2.latitude)) *
-				  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+		const a =
+			Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+			Math.cos(PostGIS.toRadians(coord1.latitude)) *
+				Math.cos(PostGIS.toRadians(coord2.latitude)) *
+				Math.sin(dLon / 2) *
+				Math.sin(dLon / 2);
 
 		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 		return R * c; // Distance in meters

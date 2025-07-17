@@ -25,12 +25,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 			return json({ error: error.message }, { status: 500 });
 		}
 
-		return json(data?.[0] || {
-			server_name: 'Wayli',
-			admin_email: '',
-			allow_registration: true,
-			require_email_verification: false
-		});
+		return json(
+			data?.[0] || {
+				server_name: 'Wayli',
+				admin_email: '',
+				allow_registration: true,
+				require_email_verification: false
+			}
+		);
 	} catch (error) {
 		console.error('Unexpected error in GET server settings:', error);
 		return json({ error: 'An unexpected server error occurred' }, { status: 500 });
@@ -90,14 +92,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		} else {
 			// Insert new row
-			const { error: insertError } = await supabase
-				.from('server_settings')
-				.insert({
-					server_name,
-					admin_email,
-					allow_registration,
-					require_email_verification
-				});
+			const { error: insertError } = await supabase.from('server_settings').insert({
+				server_name,
+				admin_email,
+				allow_registration,
+				require_email_verification
+			});
 
 			if (insertError) {
 				console.error('Error inserting server settings:', insertError);

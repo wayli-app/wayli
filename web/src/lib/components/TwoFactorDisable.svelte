@@ -32,7 +32,9 @@
 			closeModal();
 		} catch (error) {
 			console.error('Error disabling 2FA:', error);
-			toast.error('Failed to disable 2FA: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			toast.error(
+				'Failed to disable 2FA: ' + (error instanceof Error ? error.message : 'Unknown error')
+			);
 		} finally {
 			isDisabling = false;
 		}
@@ -48,7 +50,7 @@
 {#if open}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
 		on:click={closeModal}
 		on:keydown={(e) => e.key === 'Escape' && closeModal()}
 		aria-modal="true"
@@ -59,7 +61,7 @@
 	>
 		<!-- Modal -->
 		<div
-			class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+			class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800"
 			on:click|stopPropagation
 			on:keydown={(e) => e.key === 'Escape' && closeModal()}
 			aria-modal="true"
@@ -69,7 +71,9 @@
 			tabindex="-1"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+			<div
+				class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700"
+			>
 				<div class="flex items-center gap-3">
 					<AlertTriangle class="h-6 w-6 text-red-500" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -78,7 +82,7 @@
 				</div>
 				<button
 					on:click={closeModal}
-					class="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 				>
 					<X class="h-5 w-5" />
 				</button>
@@ -87,32 +91,37 @@
 			<!-- Content -->
 			<div class="p-6">
 				<div class="mb-6">
-					<div class="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-						<AlertTriangle class="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+					<div
+						class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+					>
+						<AlertTriangle class="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
 						<div>
-							<h3 class="font-medium text-red-800 dark:text-red-200 mb-1">
-								Security Warning
-							</h3>
+							<h3 class="mb-1 font-medium text-red-800 dark:text-red-200">Security Warning</h3>
 							<p class="text-sm text-red-700 dark:text-red-300">
-								Disabling two-factor authentication will make your account less secure.
-								You'll only need your password to sign in.
+								Disabling two-factor authentication will make your account less secure. You'll only
+								need your password to sign in.
 							</p>
 						</div>
 					</div>
 				</div>
 
 				<div class="mb-6">
-					<label for="disablePassword" class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100">
+					<label
+						for="disablePassword"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+					>
 						Enter Your Password
 					</label>
 					<div class="relative">
-						<Lock class="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+						<Lock
+							class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400"
+						/>
 						<input
 							id="disablePassword"
 							type="password"
 							bind:value={password}
 							placeholder="Enter your password to confirm"
-							class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+							class="w-full rounded-md border border-gray-300 bg-white py-2 pr-3 pl-10 text-gray-900 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
 						/>
 					</div>
 					<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -124,14 +133,14 @@
 				<div class="flex gap-3">
 					<button
 						on:click={closeModal}
-						class="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md font-medium hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
+						class="flex-1 cursor-pointer rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 					>
 						Cancel
 					</button>
 					<button
 						on:click={handleDisable2FA}
 						disabled={isDisabling || !password}
-						class="flex-1 bg-red-600 text-white px-4 py-2 rounded-md font-medium hover:bg-red-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						class="flex-1 cursor-pointer rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isDisabling ? 'Disabling...' : 'Disable 2FA'}
 					</button>

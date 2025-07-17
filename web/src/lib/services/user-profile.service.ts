@@ -4,260 +4,271 @@ import type { UserProfile } from '$lib/types/user.types';
 import { getSupabaseConfig } from '$lib/core/config/node-environment';
 
 export class UserProfileService {
-  private static supabase = createClient(getSupabaseConfig().url, getSupabaseConfig().serviceRoleKey);
+	private static supabase = createClient(
+		getSupabaseConfig().url,
+		getSupabaseConfig().serviceRoleKey
+	);
 
-  // Allow override for test/worker/Node.js
-  static setSupabaseClient(client: ReturnType<typeof createClient>) {
-    this.supabase = client;
-  }
+	// Allow override for test/worker/Node.js
+	static setSupabaseClient(client: ReturnType<typeof createClient>) {
+		this.supabase = client;
+	}
 
-  // Allow override for Node/worker: call this at startup in worker context
-  static setSupabaseConfig(url: string, serviceRoleKey: string) {
-    this.supabase = createClient(url, serviceRoleKey);
-  }
+	// Allow override for Node/worker: call this at startup in worker context
+	static setSupabaseConfig(url: string, serviceRoleKey: string) {
+		this.supabase = createClient(url, serviceRoleKey);
+	}
 
-  // Helper for Node/worker: call this at startup
-  static useNodeEnvironmentConfig() {
-    const config = getSupabaseConfig();
-    this.supabase = createClient(config.url, config.serviceRoleKey);
-  }
+	// Helper for Node/worker: call this at startup
+	static useNodeEnvironmentConfig() {
+		const config = getSupabaseConfig();
+		this.supabase = createClient(config.url, config.serviceRoleKey);
+	}
 
-  /**
-   * Get user profile by ID from user_profiles table, joining auth.users for email fields
-   */
-  static async getUserProfile(userId: string): Promise<UserProfile | null> {
-    try {
-      // Fetch from user_profiles
-      const { data: profileData, error: profileError } = await this.supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+	/**
+	 * Get user profile by ID from user_profiles table, joining auth.users for email fields
+	 */
+	static async getUserProfile(userId: string): Promise<UserProfile | null> {
+		try {
+			// Fetch from user_profiles
+			const { data: profileData, error: profileError } = await this.supabase
+				.from('user_profiles')
+				.select('*')
+				.eq('id', userId)
+				.single();
 
-      let profile = profileData;
+			let profile = profileData;
 
-      // If profile doesn't exist, create one from user_metadata
-      if (profileError && profileError.code === 'PGRST116') {
-        console.log('User profile not found, creating from user_metadata...');
-        const created = await this.createUserProfileFromMetadata(userId);
-        if (!created) {
-          console.error('Failed to create user profile from metadata');
-          return null;
-        }
-        // Fetch the newly created profile
-        const { data: newProfile, error: newProfileError } = await this.supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        if (newProfileError || !newProfile) {
-          console.error('Error fetching newly created profile:', newProfileError);
-          return null;
-        }
-        profile = newProfile;
-      } else if (profileError || !profile) {
-        console.error('Error fetching user profile from user_profiles:', profileError);
-        return null;
-      }
+			// If profile doesn't exist, create one from user_metadata
+			if (profileError && profileError.code === 'PGRST116') {
+				console.log('User profile not found, creating from user_metadata...');
+				const created = await this.createUserProfileFromMetadata(userId);
+				if (!created) {
+					console.error('Failed to create user profile from metadata');
+					return null;
+				}
+				// Fetch the newly created profile
+				const { data: newProfile, error: newProfileError } = await this.supabase
+					.from('user_profiles')
+					.select('*')
+					.eq('id', userId)
+					.single();
+				if (newProfileError || !newProfile) {
+					console.error('Error fetching newly created profile:', newProfileError);
+					return null;
+				}
+				profile = newProfile;
+			} else if (profileError || !profile) {
+				console.error('Error fetching user profile from user_profiles:', profileError);
+				return null;
+			}
 
-      // Fetch from auth.users for email, confirmation, created_at
-      const { data: userData, error: userError } = await this.supabase.auth.admin.getUserById(userId);
-      if (userError || !userData.user) {
-        console.error('Error fetching user from auth.users:', userError);
-        return null;
-      }
-      const user = userData.user;
-      return {
-        id: user.id,
-        email: user.email ?? '',
-        first_name: profile.first_name || '',
-        last_name: profile.last_name || '',
-        full_name: profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || '',
-        role: (profile.role as 'user' | 'admin' | 'moderator') || 'user',
-        avatar_url: profile.avatar_url,
-        home_address: profile.home_address,
-        email_confirmed_at: user.email_confirmed_at,
-        created_at: user.created_at,
-        updated_at: profile.updated_at || user.created_at
-      };
-    } catch (error) {
-      console.error('Error in getUserProfile:', error);
-      return null;
-    }
-  }
+			// Fetch from auth.users for email, confirmation, created_at
+			const { data: userData, error: userError } =
+				await this.supabase.auth.admin.getUserById(userId);
+			if (userError || !userData.user) {
+				console.error('Error fetching user from auth.users:', userError);
+				return null;
+			}
+			const user = userData.user;
+			return {
+				id: user.id,
+				email: user.email ?? '',
+				first_name: profile.first_name || '',
+				last_name: profile.last_name || '',
+				full_name:
+					profile.full_name ||
+					`${profile.first_name || ''} ${profile.last_name || ''}`.trim() ||
+					'',
+				role: (profile.role as 'user' | 'admin' | 'moderator') || 'user',
+				avatar_url: profile.avatar_url,
+				home_address: profile.home_address,
+				email_confirmed_at: user.email_confirmed_at,
+				created_at: user.created_at,
+				updated_at: profile.updated_at || user.created_at
+			};
+		} catch (error) {
+			console.error('Error in getUserProfile:', error);
+			return null;
+		}
+	}
 
-  /**
-   * Create user profile from user_metadata (fallback for existing users)
-   */
-  private static async createUserProfileFromMetadata(userId: string): Promise<boolean> {
-    try {
-      const { data: userData, error: userError } = await this.supabase.auth.admin.getUserById(userId);
-      if (userError || !userData.user) {
-        console.error('Error fetching user for profile creation:', userError);
-        return false;
-      }
+	/**
+	 * Create user profile from user_metadata (fallback for existing users)
+	 */
+	private static async createUserProfileFromMetadata(userId: string): Promise<boolean> {
+		try {
+			const { data: userData, error: userError } =
+				await this.supabase.auth.admin.getUserById(userId);
+			if (userError || !userData.user) {
+				console.error('Error fetching user for profile creation:', userError);
+				return false;
+			}
 
-      const user = userData.user;
-      const metadata = user.user_metadata || {};
+			const user = userData.user;
+			const metadata = user.user_metadata || {};
 
-      const { error: insertError } = await this.supabase
-        .from('user_profiles')
-        .insert({
-          id: userId,
-          first_name: metadata.first_name || '',
-          last_name: metadata.last_name || '',
-          full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
-          role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
-          avatar_url: metadata.avatar_url,
-          home_address: metadata.home_address
-        });
+			const { error: insertError } = await this.supabase.from('user_profiles').insert({
+				id: userId,
+				first_name: metadata.first_name || '',
+				last_name: metadata.last_name || '',
+				full_name:
+					metadata.full_name ||
+					`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
+					'',
+				role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+				avatar_url: metadata.avatar_url,
+				home_address: metadata.home_address
+			});
 
-      if (insertError) {
-        console.error('Error creating user profile:', insertError);
-        return false;
-      }
+			if (insertError) {
+				console.error('Error creating user profile:', insertError);
+				return false;
+			}
 
-      return true;
-    } catch (error) {
-      console.error('Error in createUserProfileFromMetadata:', error);
-      return false;
-    }
-  }
+			return true;
+		} catch (error) {
+			console.error('Error in createUserProfileFromMetadata:', error);
+			return false;
+		}
+	}
 
-  /**
-   * Check if a user is an admin
-   */
-  static async isUserAdmin(userId: string): Promise<boolean> {
-    try {
-      const { data, error } = await this.supabase
-        .rpc('is_user_admin', { user_uuid: userId });
+	/**
+	 * Check if a user is an admin
+	 */
+	static async isUserAdmin(userId: string): Promise<boolean> {
+		try {
+			const { data, error } = await this.supabase.rpc('is_user_admin', { user_uuid: userId });
 
-      if (error) {
-        console.error('Error checking admin status:', error);
-        return false;
-      }
+			if (error) {
+				console.error('Error checking admin status:', error);
+				return false;
+			}
 
-      return data || false;
-    } catch (error) {
-      console.error('Error in isUserAdmin:', error);
-      return false;
-    }
-  }
+			return data || false;
+		} catch (error) {
+			console.error('Error in isUserAdmin:', error);
+			return false;
+		}
+	}
 
-    /**
-   * Update user role (admin only)
-   */
-  static async updateUserRole(userId: string, newRole: 'user' | 'admin' | 'moderator'): Promise<boolean> {
-    try {
-      // Get current user data
-      const { data: currentUser, error: fetchError } = await this.supabase.auth.admin.getUserById(userId);
+	/**
+	 * Update user role (admin only)
+	 */
+	static async updateUserRole(
+		userId: string,
+		newRole: 'user' | 'admin' | 'moderator'
+	): Promise<boolean> {
+		try {
+			// Get current user data
+			const { data: currentUser, error: fetchError } =
+				await this.supabase.auth.admin.getUserById(userId);
 
-      if (fetchError || !currentUser.user) {
-        console.error('Error fetching user for role update:', fetchError);
-        return false;
-      }
+			if (fetchError || !currentUser.user) {
+				console.error('Error fetching user for role update:', fetchError);
+				return false;
+			}
 
-      // Update user metadata with new role
-      const updatedMetadata = {
-        ...currentUser.user.user_metadata,
-        role: newRole
-      };
+			// Update user metadata with new role
+			const updatedMetadata = {
+				...currentUser.user.user_metadata,
+				role: newRole
+			};
 
-      const { error: updateError } = await this.supabase.auth.admin.updateUserById(userId, {
-        user_metadata: updatedMetadata
-      });
+			const { error: updateError } = await this.supabase.auth.admin.updateUserById(userId, {
+				user_metadata: updatedMetadata
+			});
 
-      if (updateError) {
-        console.error('Error updating user role:', updateError);
-        return false;
-      }
+			if (updateError) {
+				console.error('Error updating user role:', updateError);
+				return false;
+			}
 
-      return true;
-    } catch (error) {
-      console.error('Error in updateUserRole:', error);
-      return false;
-    }
-  }
+			return true;
+		} catch (error) {
+			console.error('Error in updateUserRole:', error);
+			return false;
+		}
+	}
 
-  /**
-   * Update user profile in user_profiles table
-   */
-  static async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
-    try {
-      const { error } = await this.supabase
-        .from('user_profiles')
-        .update(updates)
-        .eq('id', userId);
-      if (error) {
-        console.error('Error updating user profile:', error);
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error('Error in updateUserProfile:', error);
-      return false;
-    }
-  }
+	/**
+	 * Update user profile in user_profiles table
+	 */
+	static async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
+		try {
+			const { error } = await this.supabase.from('user_profiles').update(updates).eq('id', userId);
+			if (error) {
+				console.error('Error updating user profile:', error);
+				return false;
+			}
+			return true;
+		} catch (error) {
+			console.error('Error in updateUserProfile:', error);
+			return false;
+		}
+	}
 
-  /**
-   * Get all users (admin only)
-   */
-  static async getAllUsers(): Promise<UserProfile[]> {
-    try {
-      const { data, error } = await this.supabase.auth.admin.listUsers();
+	/**
+	 * Get all users (admin only)
+	 */
+	static async getAllUsers(): Promise<UserProfile[]> {
+		try {
+			const { data, error } = await this.supabase.auth.admin.listUsers();
 
-      if (error) {
-        console.error('Error fetching all users:', error);
-        return [];
-      }
+			if (error) {
+				console.error('Error fetching all users:', error);
+				return [];
+			}
 
-      return (data.users || []).map(user => {
-        const metadata = user.user_metadata || {};
-        return {
-          id: user.id,
-          email: user.email,
-          first_name: metadata.first_name || '',
-          last_name: metadata.last_name || '',
-          full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
-          role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
-          avatar_url: metadata.avatar_url || user.user_metadata?.avatar_url,
-          home_address: metadata.home_address,
-          email_confirmed_at: user.email_confirmed_at,
-          created_at: user.created_at,
-          updated_at: user.updated_at || user.created_at
-        };
-      });
-    } catch (error) {
-      console.error('Error in getAllUsers:', error);
-      return [];
-    }
-  }
+			return (data.users || []).map((user) => {
+				const metadata = user.user_metadata || {};
+				return {
+					id: user.id,
+					email: user.email,
+					first_name: metadata.first_name || '',
+					last_name: metadata.last_name || '',
+					full_name:
+						metadata.full_name ||
+						`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
+						'',
+					role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+					avatar_url: metadata.avatar_url || user.user_metadata?.avatar_url,
+					home_address: metadata.home_address,
+					email_confirmed_at: user.email_confirmed_at,
+					created_at: user.created_at,
+					updated_at: user.updated_at || user.created_at
+				};
+			});
+		} catch (error) {
+			console.error('Error in getAllUsers:', error);
+			return [];
+		}
+	}
 
-  /**
-   * Count total users
-   */
-  static async getUserCount(): Promise<number> {
-    try {
-      const { data, error } = await this.supabase.auth.admin.listUsers();
+	/**
+	 * Count total users
+	 */
+	static async getUserCount(): Promise<number> {
+		try {
+			const { data, error } = await this.supabase.auth.admin.listUsers();
 
-      if (error) {
-        console.error('Error counting users:', error);
-        return 0;
-      }
+			if (error) {
+				console.error('Error counting users:', error);
+				return 0;
+			}
 
-      return data.users?.length || 0;
-    } catch (error) {
-      console.error('Error in getUserCount:', error);
-      return 0;
-    }
-  }
+			return data.users?.length || 0;
+		} catch (error) {
+			console.error('Error in getUserCount:', error);
+			return 0;
+		}
+	}
 
-  /**
-   * Check if this is the first user in the system
-   */
-  static async isFirstUser(): Promise<boolean> {
-    const count = await this.getUserCount();
-    return count === 0;
-  }
-
+	/**
+	 * Check if this is the first user in the system
+	 */
+	static async isFirstUser(): Promise<boolean> {
+		const count = await this.getUserCount();
+		return count === 0;
+	}
 }

@@ -1,5 +1,27 @@
 <script lang="ts">
-	import { Stars, Search, Plus, X, MapPin, Heart, Globe2, Filter, Trash2, Edit, Palette, Home, Utensils, Building2, Camera, TreePine, Coffee, ShoppingBag, Anchor, Building, Flag } from 'lucide-svelte';
+	import {
+		Stars,
+		Search,
+		Plus,
+		X,
+		MapPin,
+		Heart,
+		Globe2,
+		Filter,
+		Trash2,
+		Edit,
+		Palette,
+		Home,
+		Utensils,
+		Building2,
+		Camera,
+		TreePine,
+		Coffee,
+		ShoppingBag,
+		Anchor,
+		Building,
+		Flag
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { Map as LeafletMap, LatLngExpression } from 'leaflet';
 	import { debounce } from 'lodash-es';
@@ -10,24 +32,31 @@
 
 	// Lucide icon mapping for SVG URLs
 	const lucideIcons = {
-		'default': 'map-pin',
-		'home': 'home',
-		'restaurant': 'utensils',
-		'hotel': 'building-2',
-		'camera': 'camera',
-		'tree': 'tree-pine',
-		'coffee': 'coffee',
-		'shopping': 'shopping-bag',
-		'umbrella': 'anchor',
-		'building': 'building',
-		'flag': 'flag'
+		default: 'map-pin',
+		home: 'home',
+		restaurant: 'utensils',
+		hotel: 'building-2',
+		camera: 'camera',
+		tree: 'tree-pine',
+		coffee: 'coffee',
+		shopping: 'shopping-bag',
+		umbrella: 'anchor',
+		building: 'building',
+		flag: 'flag'
 	};
 
 	// Utility function to get Lucide SVG icon with custom color
 	function getOSMIcon(markerType: string = 'default', color: string = '#3B82F6'): any {
 		const iconName = lucideIcons[markerType as keyof typeof lucideIcons] || 'map-pin';
 
-		console.log('Creating Lucide marker with type:', markerType, 'icon:', iconName, 'color:', color);
+		console.log(
+			'Creating Lucide marker with type:',
+			markerType,
+			'icon:',
+			iconName,
+			'color:',
+			color
+		);
 
 		// Use Lucide SVG icons from a reliable CDN
 		const iconUrl = `https://unpkg.com/lucide-static@latest/icons/${iconName}.svg`;
@@ -95,9 +124,15 @@
 		} else {
 			const d = max - min;
 			switch (max) {
-				case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-				case g: h = (b - r) / d + 2; break;
-				case b: h = (r - g) / d + 4; break;
+				case r:
+					h = (g - b) / d + (g < b ? 6 : 0);
+					break;
+				case g:
+					h = (b - r) / d + 2;
+					break;
+				case b:
+					h = (r - g) / d + 4;
+					break;
 			}
 			h /= 6;
 		}
@@ -109,7 +144,7 @@
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer: any;
-	let searchQuery = ''; // Separate search query for location lookup
+	let searchQuery = ''; // Search query for location lookup and filtering
 	let selectedType = 'All';
 	let markers: any[] = [];
 	let markerClusterGroup: any = null; // Add cluster group variable
@@ -138,26 +173,17 @@
 	// Edit mode
 	let editingPlace: Place | null = null;
 
-	const types = [
-		'All',
-		'Landmarks',
-		'Nature',
-		'Restaurants',
-		'Hotels',
-		'Museums',
-		'Parks',
-		'Cafes',
-		'Shops',
-		'Beaches',
-		'Cities',
-		'Countries'
-	];
-
 	// Marker options - updated to use standard marker colors that match the map
 	const markerTypes = [
 		{ id: 'default', name: 'Default', icon: MapPin, iconName: 'default', color: '#3B82F6' },
 		{ id: 'home', name: 'Home', icon: Home, iconName: 'home', color: '#10B981' },
-		{ id: 'restaurant', name: 'Restaurant', icon: Utensils, iconName: 'restaurant', color: '#F59E0B' },
+		{
+			id: 'restaurant',
+			name: 'Restaurant',
+			icon: Utensils,
+			iconName: 'restaurant',
+			color: '#F59E0B'
+		},
 		{ id: 'hotel', name: 'Hotel', icon: Building2, iconName: 'hotel', color: '#8B5CF6' },
 		{ id: 'camera', name: 'Photo Spot', icon: Camera, iconName: 'camera', color: '#EF4444' },
 		{ id: 'tree', name: 'Nature', icon: TreePine, iconName: 'tree', color: '#059669' },
@@ -180,7 +206,7 @@
 		'#D97706', // orange
 		'#DC2626', // red-600
 		'#6B7280', // gray
-		'#000000'  // black
+		'#000000' // black
 	];
 
 	// Database data
@@ -189,6 +215,40 @@
 	// Add label state for the form
 	let labelInput = '';
 	let labels: string[] = [];
+
+	// Search and filter state
+	let selectedTypes: string[] = ['All']; // Array to support multiple selections
+
+	// Available types based on marker types - using the same structure as markerTypes
+	const availableTypes = [
+		{ id: 'All', name: 'All', icon: MapPin },
+		{ id: 'default', name: 'Default', icon: MapPin },
+		{ id: 'home', name: 'Home', icon: Home },
+		{ id: 'restaurant', name: 'Restaurant', icon: Utensils },
+		{ id: 'hotel', name: 'Hotel', icon: Building2 },
+		{ id: 'camera', name: 'Photo Spot', icon: Camera },
+		{ id: 'tree', name: 'Nature', icon: TreePine },
+		{ id: 'coffee', name: 'Cafe', icon: Coffee },
+		{ id: 'shopping', name: 'Shopping', icon: ShoppingBag },
+		{ id: 'umbrella', name: 'Beach', icon: Anchor },
+		{ id: 'building', name: 'City', icon: Building },
+		{ id: 'flag', name: 'Country', icon: Flag }
+	];
+
+	// Type mapping for filtering
+	const typeMapping: { [key: string]: string } = {
+		default: 'Default',
+		home: 'Home',
+		restaurant: 'Restaurant',
+		hotel: 'Hotel',
+		camera: 'Photo Spot',
+		tree: 'Nature',
+		coffee: 'Cafe',
+		shopping: 'Shopping',
+		umbrella: 'Beach',
+		building: 'City',
+		flag: 'Country'
+	};
 
 	function addLabel() {
 		const trimmed = labelInput.trim();
@@ -199,7 +259,7 @@
 	}
 
 	function removeLabel(label: string) {
-		labels = labels.filter(l => l !== label);
+		labels = labels.filter((l) => l !== label);
 	}
 
 	function resetForm() {
@@ -252,11 +312,29 @@
 		showSearchResults = false;
 	}
 
-	$: filteredPlaces = places.filter(
-		(place) =>
-			(selectedType === 'All' || place.type.toLowerCase() === selectedType.toLowerCase()) &&
-			place.title.toLowerCase().includes(searchQuery.toLowerCase())
-	);
+	$: filteredPlaces = places.filter((place) => {
+		// Type filter - match by markerType ID
+		const typeMatch =
+			(selectedTypes.length === 1 && selectedTypes[0] === 'All') ||
+			selectedTypes.some((selectedType) => place.markerType && place.markerType === selectedType);
+
+		// Search filter - search in title, description, labels, and location
+		const searchLower = searchQuery.toLowerCase();
+		const searchMatch =
+			!searchQuery ||
+			place.title.toLowerCase().includes(searchLower) ||
+			(place.description && place.description.toLowerCase().includes(searchLower)) ||
+			(place.labels && place.labels.some((label) => label.toLowerCase().includes(searchLower))) ||
+			(place.location && place.location.toLowerCase().includes(searchLower)) ||
+			(place.address && place.address.toLowerCase().includes(searchLower));
+
+		return typeMatch && searchMatch;
+	});
+
+	// Update markers when filtered places change
+	$: if (places.length > 0 && filteredPlaces.length >= 0) {
+		updateMarkers();
+	}
 
 	// Get marker icon based on type and color
 	function getMarkerIcon(markerType: string = 'default', color: string = '#3B82F6') {
@@ -303,7 +381,7 @@
 			zoomToBoundsOnClick: true,
 			disableClusteringAtZoom: 16, // Disable clustering when zoomed in close
 			maxClusterRadius: 50, // Maximum radius for clustering
-			iconCreateFunction: function(cluster: any) {
+			iconCreateFunction: function (cluster: any) {
 				const count = cluster.getChildCount();
 				let className = 'marker-cluster-';
 				let size = 'medium';
@@ -406,32 +484,25 @@
 				if (result.address.restaurant || result.address.cafe) {
 					type = 'Restaurants';
 					markerType = result.address.cafe ? 'coffee' : 'restaurant';
-				}
-				else if (result.address.hotel || result.address.hostel) {
+				} else if (result.address.hotel || result.address.hostel) {
 					type = 'Hotels';
 					markerType = 'hotel';
-				}
-				else if (result.address.museum) {
+				} else if (result.address.museum) {
 					type = 'Museums';
 					markerType = 'camera';
-				}
-				else if (result.address.park) {
+				} else if (result.address.park) {
 					type = 'Parks';
 					markerType = 'tree';
-				}
-				else if (result.address.shop || result.address.store) {
+				} else if (result.address.shop || result.address.store) {
 					type = 'Shops';
 					markerType = 'shopping';
-				}
-				else if (result.address.beach) {
+				} else if (result.address.beach) {
 					type = 'Beaches';
 					markerType = 'umbrella';
-				}
-				else if (result.address.city) {
+				} else if (result.address.city) {
 					type = 'Cities';
 					markerType = 'building';
-				}
-				else if (result.address.country) {
+				} else if (result.address.country) {
 					type = 'Countries';
 					markerType = 'flag';
 				}
@@ -443,7 +514,6 @@
 			placeType = type;
 			selectedMarkerType = markerType;
 			description = `Added from map at ${new Date().toLocaleDateString()}`;
-
 		} catch (error) {
 			console.error('Reverse geocoding failed:', error);
 			title = `Location at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
@@ -457,7 +527,13 @@
 	}
 
 	function updateMarkers() {
-		console.log('Updating markers for', places.length, 'places');
+		console.log(
+			'Updating markers for',
+			filteredPlaces.length,
+			'filtered places out of',
+			places.length,
+			'total places'
+		);
 
 		// Clear existing markers from cluster group
 		if (markerClusterGroup) {
@@ -467,13 +543,24 @@
 		// Clear markers array
 		markers = [];
 
-		// Add markers to cluster group
-		markers = places.map((place, i) => {
+		// Add markers to cluster group (only filtered places)
+		markers = filteredPlaces.map((place, i) => {
 			const [lat, lng] = place.coordinates.split(',').map(Number);
-			console.log(`Creating marker for place ${i}:`, place.title, 'markerType:', place.markerType, 'markerColor:', place.markerColor);
-			const markerIcon = getMarkerIcon(place.markerType || 'default', place.markerColor || '#3B82F6');
-			const marker = L.marker([lat, lng] as [number, number], { icon: markerIcon })
-				.bindPopup(createPopupContent(place));
+			console.log(
+				`Creating marker for place ${i}:`,
+				place.title,
+				'markerType:',
+				place.markerType,
+				'markerColor:',
+				place.markerColor
+			);
+			const markerIcon = getMarkerIcon(
+				place.markerType || 'default',
+				place.markerColor || '#3B82F6'
+			);
+			const marker = L.marker([lat, lng] as [number, number], { icon: markerIcon }).bindPopup(
+				createPopupContent(place)
+			);
 
 			// Add marker to cluster group instead of directly to map
 			markerClusterGroup.addLayer(marker);
@@ -482,18 +569,8 @@
 
 		console.log('Created', markers.length, 'markers in cluster group');
 
-		// Fit bounds to show all markers
-		if (markers.length > 0) {
-			const coordinates: LatLngExpression[] = places.map((place) => {
-				const [lat, lng] = place.coordinates.split(',').map(Number);
-				return [lat, lng] as [number, number];
-			});
-
-			const bounds = L.latLngBounds(coordinates);
-			map.fitBounds(bounds, { padding: [50, 50] });
-		} else {
-			map.setView([0, 0], 2);
-		}
+		// Don't change zoom level when filters change - let user control the view
+		// Only fit bounds on initial load when places are first loaded
 	}
 
 	function createPopupContent(place: Place) {
@@ -502,6 +579,7 @@
 				<h3 class="font-semibold text-sm">${place.title}</h3>
 				<p class="text-xs text-gray-600">${place.type}</p>
 				<p class="text-xs text-gray-500 mt-1">${place.address}</p>
+				${place.description ? `<p class="text-xs text-gray-700 mt-2 italic">"${place.description}"</p>` : ''}
 			</div>
 		`;
 	}
@@ -552,32 +630,25 @@
 			if (result.address.restaurant || result.address.cafe) {
 				type = 'Restaurants';
 				markerType = result.address.cafe ? 'coffee' : 'restaurant';
-			}
-			else if (result.address.hotel || result.address.hostel) {
+			} else if (result.address.hotel || result.address.hostel) {
 				type = 'Hotels';
 				markerType = 'hotel';
-			}
-			else if (result.address.museum) {
+			} else if (result.address.museum) {
 				type = 'Museums';
 				markerType = 'camera';
-			}
-			else if (result.address.park) {
+			} else if (result.address.park) {
 				type = 'Parks';
 				markerType = 'tree';
-			}
-			else if (result.address.shop || result.address.store) {
+			} else if (result.address.shop || result.address.store) {
 				type = 'Shops';
 				markerType = 'shopping';
-			}
-			else if (result.address.beach) {
+			} else if (result.address.beach) {
 				type = 'Beaches';
 				markerType = 'umbrella';
-			}
-			else if (result.address.city) {
+			} else if (result.address.city) {
 				type = 'Cities';
 				markerType = 'building';
-			}
-			else if (result.address.country) {
+			} else if (result.address.country) {
 				type = 'Countries';
 				markerType = 'flag';
 			}
@@ -603,9 +674,31 @@
 		}
 	}
 
-	function selectType(type: string) {
-		selectedType = type;
-		updateMarkers();
+	function selectType(typeId: string) {
+		if (typeId === 'All') {
+			// If "All" is clicked, clear all other selections
+			selectedTypes = ['All'];
+		} else {
+			// Remove "All" if it's selected and add the new type
+			selectedTypes = selectedTypes.filter((t) => t !== 'All');
+
+			if (selectedTypes.includes(typeId)) {
+				// Remove the type if it's already selected
+				selectedTypes = selectedTypes.filter((t) => t !== typeId);
+				// If no types are selected, default back to "All"
+				if (selectedTypes.length === 0) {
+					selectedTypes = ['All'];
+				}
+			} else {
+				// Add the new type
+				selectedTypes = [...selectedTypes, typeId];
+			}
+		}
+	}
+
+	function clearFilters() {
+		selectedTypes = ['All'];
+		searchQuery = '';
 	}
 
 	function toggleAddForm() {
@@ -623,7 +716,12 @@
 		}
 
 		try {
-			console.log('Adding place with marker type:', selectedMarkerType, 'and color:', selectedMarkerColor);
+			console.log(
+				'Adding place with marker type:',
+				selectedMarkerType,
+				'and color:',
+				selectedMarkerColor
+			);
 
 			const newPlace = await WantToVisitService.addPlace({
 				title,
@@ -639,7 +737,12 @@
 			});
 
 			console.log('Place added successfully:', newPlace);
-			console.log('Retrieved marker type:', newPlace.markerType, 'and color:', newPlace.markerColor);
+			console.log(
+				'Retrieved marker type:',
+				newPlace.markerType,
+				'and color:',
+				newPlace.markerColor
+			);
 
 			places = [newPlace, ...places];
 
@@ -681,7 +784,7 @@
 				labels: [...labels]
 			});
 
-			places = places.map(p => p.id === editingPlace!.id ? updatedPlace : p);
+			places = places.map((p) => (p.id === editingPlace!.id ? updatedPlace : p));
 
 			resetForm();
 			showEditForm = false;
@@ -699,7 +802,7 @@
 	async function deletePlace(placeId: string) {
 		try {
 			await WantToVisitService.deletePlace(placeId);
-			places = places.filter(p => p.id !== placeId);
+			places = places.filter((p) => p.id !== placeId);
 			updateMarkers();
 			toast.success('Place removed from your list');
 		} catch (error) {
@@ -710,8 +813,8 @@
 
 	async function toggleFavorite(place: Place) {
 		try {
-			const updatedPlace = await WantToVisitService.toggleFavorite(place.id, !place.favorite);
-			places = places.map(p => p.id === place.id ? updatedPlace : p);
+			const toggledPlace = await WantToVisitService.toggleFavorite(place.id, !place.favorite);
+			places = places.map((p) => (p.id === place.id ? toggledPlace : p));
 			updateMarkers();
 		} catch (error) {
 			console.error('Error toggling favorite:', error);
@@ -854,13 +957,13 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div class="flex items-center gap-3">
 			<Heart class="h-8 w-8 text-red-500" />
 			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Want to Visit</h1>
 		</div>
 		<button
-			class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+			class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 			on:click={() => {
 				console.log('Button clicked, showAddForm before:', showAddForm);
 				showAddForm = true;
@@ -884,15 +987,16 @@
 	</div>
 
 	<!-- Map -->
-	<div class="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-		<div
-			bind:this={mapContainer}
-			class="h-96 w-full md:h-[500px]"
-		></div>
+	<div
+		class="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+	>
+		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
 
 		<!-- Map Instructions -->
 		{#if !showAddForm}
-			<div class="absolute top-4 left-4 z-10 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+			<div
+				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-gray-800/90"
+			>
 				<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
 					<MapPin class="h-4 w-4" />
 					Click on the map to add a place
@@ -903,9 +1007,13 @@
 
 	<!-- Simple Modal Overlay -->
 	{#if showAddForm}
-		<div class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-			<div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative z-[10000] max-h-[90vh] overflow-y-auto">
-				<div class="flex items-center justify-between mb-4">
+		<div
+			class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+		>
+			<div
+				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+			>
+				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Add New Place</h3>
 					<button
 						on:click={() => {
@@ -915,7 +1023,7 @@
 								tempMarker = null;
 							}
 						}}
-						class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
+						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -925,12 +1033,16 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label for="titleInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+						<label
+							for="titleInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Title <span class="text-red-500">*</span></label
+						>
 						<input
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="Give this place a title"
 							required
 						/>
@@ -938,39 +1050,46 @@
 
 					<!-- Search Input -->
 					<div>
-						<label for="searchPlace" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						<label
+							for="searchPlace"
+							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>
 							Search for a place
 						</label>
 						<div class="relative">
-							<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
 								id="searchPlace"
 								bind:value={searchQuery}
 								on:input={handleSearchInput}
-								class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white relative z-[10001]"
+								class="relative z-[10001] w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder="Search for places..."
 							/>
 							{#if isSearching}
-								<div class="absolute right-3 top-1/2 -translate-y-1/2">
-									<div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+								<div class="absolute top-1/2 right-3 -translate-y-1/2">
+									<div
+										class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+									></div>
 								</div>
 							{/if}
 						</div>
 
 						<!-- Search Results -->
 						{#if showSearchResults && searchResults.length > 0}
-							<div class="mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-lg relative z-[10002]">
+							<div
+								class="relative z-[10002] mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700"
+							>
 								{#each searchResults as result}
 									<button
 										type="button"
-										class="w-full text-left p-3 hover:bg-gray-50 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0 transition-colors"
+										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
 										on:click={() => selectPlace(result)}
 									>
 										<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 											{result.name.split(',')[0]}
 										</div>
-										<div class="text-xs text-gray-500 dark:text-gray-400 truncate">
+										<div class="truncate text-xs text-gray-500 dark:text-gray-400">
 											{result.name}
 										</div>
 									</button>
@@ -982,34 +1101,50 @@
 					<!-- Coordinates Display -->
 					<div class="grid grid-cols-2 gap-3">
 						<div>
-							<label for="latitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Latitude</label>
+							<label
+								for="latitudeInput"
+								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Latitude</label
+							>
 							<input
 								id="latitudeInput"
 								type="text"
 								bind:value={latitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 							/>
 						</div>
 						<div>
-							<label for="longitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Longitude</label>
+							<label
+								for="longitudeInput"
+								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Longitude</label
+							>
 							<input
 								id="longitudeInput"
 								type="text"
 								bind:value={longitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 							/>
 						</div>
 					</div>
 
 					<!-- Address Display -->
 					<div>
-						<label for="addressDisplay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
-						<div id="addressDisplay" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 min-h-[2.5rem] flex items-center">
+						<label
+							for="addressDisplay"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label
+						>
+						<div
+							id="addressDisplay"
+							class="flex min-h-[2.5rem] w-full items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+						>
 							{#if isReverseGeocoding}
 								<div class="flex items-center gap-2 text-gray-500">
-									<div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
+									<div
+										class="h-3 w-3 animate-spin rounded-full border border-gray-400 border-t-transparent"
+									></div>
 									Looking up address...
 								</div>
 							{:else}
@@ -1020,14 +1155,22 @@
 
 					<!-- Type Selection via Icons -->
 					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</legend>
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Type</legend
+						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
 							{#each markerTypes as marker}
 								<button
 									type="button"
 									aria-label="Select {marker.name} type"
-									on:click={() => { placeType = marker.name; selectedMarkerType = marker.id; }}
-									class="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-colors {placeType === marker.name ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'}"
+									on:click={() => {
+										placeType = marker.name;
+										selectedMarkerType = marker.id;
+									}}
+									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
+									marker.name
+										? 'border-blue-600 bg-blue-600 text-white'
+										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 								>
 									<marker.icon class="h-5 w-5" />
 									<span class="text-xs">{marker.name}</span>
@@ -1038,13 +1181,15 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marker Color</legend>
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Marker Color</legend
+						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
 							{#each markerColors as color}
 								<button
 									type="button"
 									aria-label="Select {color} color"
-									on:click={() => selectedMarkerColor = color}
+									on:click={() => (selectedMarkerColor = color)}
 									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
 									style="background-color: {color}"
 								></button>
@@ -1054,12 +1199,22 @@
 
 					<!-- Custom Labels -->
 					<div>
-						<label for="labelInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
-						<div class="flex gap-2 mb-2 flex-wrap">
+						<label
+							for="labelInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Labels</label
+						>
+						<div class="mb-2 flex flex-wrap gap-2">
 							{#each labels as label}
-								<span class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full mr-1 mb-1">
+								<span
+									class="mr-1 mb-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+								>
 									{label}
-									<button type="button" aria-label="Remove {label} label" class="ml-1 text-blue-500 hover:text-red-500" on:click={() => removeLabel(label)}>
+									<button
+										type="button"
+										aria-label="Remove {label} label"
+										class="ml-1 text-blue-500 hover:text-red-500"
+										on:click={() => removeLabel(label)}
+									>
 										<X class="h-3 w-3" />
 									</button>
 								</span>
@@ -1070,11 +1225,20 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder="Add a label and press Enter"
-								on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLabel(); } }}
+								on:keydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										addLabel();
+									}
+								}}
 							/>
-							<button type="button" class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors" on:click={addLabel}>
+							<button
+								type="button"
+								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+								on:click={addLabel}
+							>
 								Add
 							</button>
 						</div>
@@ -1082,12 +1246,15 @@
 
 					<!-- Description -->
 					<div>
-						<label for="descriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+						<label
+							for="descriptionInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label
+						>
 						<textarea
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none relative z-[10001]"
+							class="relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="Why do you want to visit this place?"
 						></textarea>
 					</div>
@@ -1103,14 +1270,14 @@
 									tempMarker = null;
 								}
 							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
 							Cancel
 						</button>
 						<button
 							type="button"
 							on:click={addPlace}
-							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 						>
 							Add to List
 						</button>
@@ -1122,16 +1289,20 @@
 
 	<!-- Edit Modal Overlay -->
 	{#if showEditForm}
-		<div class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-			<div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative z-[10000] max-h-[90vh] overflow-y-auto">
-				<div class="flex items-center justify-between mb-4">
+		<div
+			class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+		>
+			<div
+				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+			>
+				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Place</h3>
 					<button
 						on:click={() => {
 							showEditForm = false;
 							resetForm();
 						}}
-						class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
+						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1141,12 +1312,16 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label for="titleInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+						<label
+							for="titleInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Title <span class="text-red-500">*</span></label
+						>
 						<input
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="Give this place a title"
 							required
 						/>
@@ -1155,49 +1330,68 @@
 					<!-- Coordinates Display -->
 					<div class="grid grid-cols-2 gap-3">
 						<div>
-							<label for="latitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Latitude</label>
+							<label
+								for="latitudeInput"
+								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Latitude</label
+							>
 							<input
 								id="latitudeInput"
 								type="text"
 								bind:value={latitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 							/>
 						</div>
 						<div>
-							<label for="longitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Longitude</label>
+							<label
+								for="longitudeInput"
+								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Longitude</label
+							>
 							<input
 								id="longitudeInput"
 								type="text"
 								bind:value={longitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 							/>
 						</div>
 					</div>
 
 					<!-- Address Display -->
 					<div>
-						<label for="addressDisplay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
+						<label
+							for="addressDisplay"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label
+						>
 						<input
 							id="addressDisplay"
 							type="text"
 							bind:value={address}
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="Address"
 						/>
 					</div>
 
 					<!-- Type Selection via Icons -->
 					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</legend>
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Type</legend
+						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
 							{#each markerTypes as marker}
 								<button
 									type="button"
 									aria-label="Select {marker.name} type"
-									on:click={() => { placeType = marker.name; selectedMarkerType = marker.id; }}
-									class="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-colors {placeType === marker.name ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'}"
+									on:click={() => {
+										placeType = marker.name;
+										selectedMarkerType = marker.id;
+									}}
+									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
+									marker.name
+										? 'border-blue-600 bg-blue-600 text-white'
+										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 								>
 									<marker.icon class="h-5 w-5" />
 									<span class="text-xs">{marker.name}</span>
@@ -1208,13 +1402,15 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marker Color</legend>
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Marker Color</legend
+						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
 							{#each markerColors as color}
 								<button
 									type="button"
 									aria-label="Select {color} color"
-									on:click={() => selectedMarkerColor = color}
+									on:click={() => (selectedMarkerColor = color)}
 									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
 									style="background-color: {color}"
 								></button>
@@ -1224,12 +1420,22 @@
 
 					<!-- Custom Labels -->
 					<div>
-						<label for="labelInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
-						<div class="flex gap-2 mb-2 flex-wrap">
+						<label
+							for="labelInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Labels</label
+						>
+						<div class="mb-2 flex flex-wrap gap-2">
 							{#each labels as label}
-								<span class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full mr-1 mb-1">
+								<span
+									class="mr-1 mb-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+								>
 									{label}
-									<button type="button" aria-label="Remove {label} label" class="ml-1 text-blue-500 hover:text-red-500" on:click={() => removeLabel(label)}>
+									<button
+										type="button"
+										aria-label="Remove {label} label"
+										class="ml-1 text-blue-500 hover:text-red-500"
+										on:click={() => removeLabel(label)}
+									>
 										<X class="h-3 w-3" />
 									</button>
 								</span>
@@ -1240,11 +1446,20 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder="Add a label and press Enter"
-								on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLabel(); } }}
+								on:keydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										addLabel();
+									}
+								}}
 							/>
-							<button type="button" class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors" on:click={addLabel}>
+							<button
+								type="button"
+								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+								on:click={addLabel}
+							>
 								Add
 							</button>
 						</div>
@@ -1252,12 +1467,15 @@
 
 					<!-- Description -->
 					<div>
-						<label for="descriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+						<label
+							for="descriptionInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Notes</label
+						>
 						<textarea
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none relative z-[10001]"
+							class="relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder="Why do you want to visit this place?"
 						></textarea>
 					</div>
@@ -1270,14 +1488,14 @@
 								showEditForm = false;
 								resetForm();
 							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
 							Cancel
 						</button>
 						<button
 							type="button"
 							on:click={updatePlace}
-							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 						>
 							Update Place
 						</button>
@@ -1288,79 +1506,105 @@
 	{/if}
 
 	<!-- Filters and Search -->
-	<div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-		<!-- Type Filter -->
-		<div class="flex flex-wrap gap-2">
-			{#each types as type}
-				<button
-					class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors {selectedType === type
-						? 'bg-blue-600 text-white'
-						: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-					on:click={() => selectType(type)}
-				>
-					{type}
-				</button>
-			{/each}
+	<div class="space-y-4">
+		<!-- Filter Controls -->
+		<div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+			<!-- Type Filter -->
+			<div class="flex flex-col gap-2">
+				<label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+				<div class="flex flex-wrap gap-2">
+					{#each availableTypes as type}
+						<button
+							class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {selectedTypes.includes(
+								type.id
+							)
+								? 'bg-blue-600 text-white'
+								: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+							on:click={() => {
+								selectType(type.id);
+							}}
+						>
+							<type.icon class="h-4 w-4" />
+							{type.name}
+						</button>
+					{/each}
+				</div>
+			</div>
+
+			<!-- Search -->
+			<div class="relative w-full lg:w-64">
+				<Search
+					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+				/>
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search titles, descriptions, labels, locations..."
+					class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+				/>
+			</div>
 		</div>
 
-		<!-- Search -->
-		<div class="relative w-full sm:w-64">
-			<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-			<input
-				type="text"
-				bind:value={searchQuery}
-				placeholder="Search your places..."
-				class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-			/>
+		<!-- Results Count -->
+		<div class="text-sm text-gray-500 dark:text-gray-400">
+			Showing {filteredPlaces.length} of {places.length} places
 		</div>
 	</div>
 
 	<!-- Places List -->
 	{#if isLoading}
-		<div class="text-center py-12">
-			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-			<p class="text-gray-500 dark:text-gray-400 mt-4">Loading your places...</p>
+		<div class="py-12 text-center">
+			<div class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+			<p class="mt-4 text-gray-500 dark:text-gray-400">Loading your places...</p>
 		</div>
 	{:else if filteredPlaces.length === 0}
-		<div class="text-center py-12">
-			<Globe2 class="mx-auto h-12 w-12 text-gray-400 mb-4" />
-			<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No places found</h3>
+		<div class="py-12 text-center">
+			<Globe2 class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">No places found</h3>
 			<p class="text-gray-500 dark:text-gray-400">
-				{searchQuery || selectedType !== 'All'
+				{searchQuery || selectedTypes.length > 1
 					? 'Try adjusting your search or filters'
 					: 'Start by adding some places you want to visit!'}
 			</p>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredPlaces as place}
-				<div class="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all duration-200">
+				<div
+					class="group relative rounded-xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+				>
 					<!-- Favorite Button -->
 					<button
 						on:click={() => toggleFavorite(place)}
-						class="absolute top-4 right-4 p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+						class="absolute top-4 right-4 rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 					>
 						<Heart class="h-5 w-5 {place.favorite ? 'fill-red-500 text-red-500' : ''}" />
 					</button>
 
 					<!-- Place Info -->
 					<div class="mb-4">
-						<div class="text-base font-bold text-blue-700 dark:text-blue-300 mb-1">{place.title}</div>
-						<div class="flex items-start justify-between mb-2">
+						<div class="mb-1 text-base font-bold text-blue-700 dark:text-blue-300">
+							{place.title}
+						</div>
+						<div class="mb-2 flex items-start justify-between">
 							<!-- Remove name display -->
 						</div>
-						<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
+						<div class="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
 							<MapPin class="h-4 w-4" />
 							{place.location || place.address}
 						</div>
-						<span class="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+						<span
+							class="inline-block rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+						>
 							{place.type}
 						</span>
 						<!-- Labels -->
 						{#if place.labels && place.labels.length > 0}
-							<div class="flex flex-wrap gap-1 mt-2">
+							<div class="mt-2 flex flex-wrap gap-1">
 								{#each place.labels as label}
-									<span class="inline-flex items-center px-2 py-1 text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 rounded-full">
+									<span
+										class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs text-blue-700 dark:bg-blue-900/40 dark:text-blue-200"
+									>
 										{label}
 									</span>
 								{/each}
@@ -1371,14 +1615,14 @@
 					<!-- Description -->
 					{#if place.description}
 						<div class="mb-4">
-							<p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+							<p class="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
 								{place.description}
 							</p>
 						</div>
 					{/if}
 
 					<!-- Coordinates -->
-					<div class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+					<div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
 						{place.coordinates}
 					</div>
 
@@ -1389,20 +1633,20 @@
 								const [lat, lng] = place.coordinates.split(',').map(Number);
 								map.setView([lat, lng], 15);
 							}}
-							class="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+							class="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20"
 						>
 							<MapPin class="h-4 w-4" />
 							Show on Map
 						</button>
 						<button
 							on:click={() => editPlace(place)}
-							class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+							class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
 						>
 							<Edit class="h-4 w-4" />
 						</button>
 						<button
 							on:click={() => deletePlace(place.id)}
-							class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+							class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 						>
 							<Trash2 class="h-4 w-4" />
 						</button>

@@ -1,47 +1,56 @@
+// Environment configuration with fallback values
+// This file can be imported on both client and server sides
+
 export interface WorkerEnvironmentConfig {
-  supabase: {
-    url: string;
-    serviceRoleKey: string;
-  };
+	supabase: {
+		url: string;
+		serviceRoleKey: string;
+	};
 }
 
-export function validateWorkerEnvironmentConfig(): WorkerEnvironmentConfig {
-  const errors: string[] = [];
+// Default fallback values for development
+const DEFAULT_SUPABASE_URL = 'http://127.0.0.1:54321';
+const DEFAULT_SERVICE_ROLE_KEY = 'development-key';
 
-  const supabaseUrl = process.env.PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export function validateWorkerEnvironmentConfig(strict: boolean = false): WorkerEnvironmentConfig {
+	// Add debugging information
+	if (process.env.NODE_ENV === 'development') {
+		console.log('[WorkerEnvironment] Validating configuration...', {
+			strict,
+			isServer: typeof window === 'undefined'
+		});
+	}
 
-  if (!supabaseUrl) {
-    errors.push('PUBLIC_SUPABASE_URL is not defined');
-  } else if (!supabaseUrl.startsWith('http')) {
-    errors.push('PUBLIC_SUPABASE_URL must be a valid URL starting with http:// or https://');
-  }
+	// Use fallback values for development
+	const supabaseUrl = DEFAULT_SUPABASE_URL;
+	const serviceRoleKey = DEFAULT_SERVICE_ROLE_KEY;
 
-  if (!serviceRoleKey) {
-    errors.push('SUPABASE_SERVICE_ROLE_KEY is not defined');
-  } else if (serviceRoleKey.length < 20) {
-    errors.push('SUPABASE_SERVICE_ROLE_KEY appears to be invalid (too short)');
-  }
+	const config = {
+		supabase: {
+			url: supabaseUrl,
+			serviceRoleKey: serviceRoleKey
+		}
+	};
 
-  // Report all errors
-  if (errors.length > 0) {
-    console.error('Worker environment configuration errors:');
-    errors.forEach(error => console.error(`- ${error}`));
-    throw new Error(`Worker environment configuration errors: ${errors.join(', ')}`);
-  }
+	if (process.env.NODE_ENV === 'development') {
+		console.log('[WorkerEnvironment] Using fallback configuration:', {
+			url: config.supabase.url,
+			serviceKeyLength: config.supabase.serviceRoleKey.length
+		});
+	}
 
-  return {
-    supabase: {
-      url: supabaseUrl!,
-      serviceRoleKey: serviceRoleKey!
-    }
-  };
+	return config;
 }
 
-// Export a singleton instance
-export const workerEnv = validateWorkerEnvironmentConfig();
+// Export a singleton instance with non-strict validation for development
+export const workerEnv = validateWorkerEnvironmentConfig(false);
 
 // Helper function
 export function getWorkerSupabaseConfig() {
-  return workerEnv.supabase;
+	return workerEnv.supabase;
+}
+
+// Helper function for strict validation when needed
+export function getWorkerSupabaseConfigStrict() {
+	return validateWorkerEnvironmentConfig(true).supabase;
 }

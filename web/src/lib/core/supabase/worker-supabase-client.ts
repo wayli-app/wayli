@@ -5,12 +5,12 @@ import { getSupabaseConfig } from '../config/node-environment';
 const config = getSupabaseConfig();
 
 export const supabase: SupabaseClient<Database> = createClient<Database>(
-  config.url,
-  config.serviceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
+	config.url,
+	config.serviceRoleKey,
+	{
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	}
 );

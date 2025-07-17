@@ -1,5 +1,19 @@
 <script lang="ts">
-	import { Settings, User as UserIcon, Lock, UserPlus, Server, Database, Search, Edit, Trash2, ChevronLeft, ChevronRight, X, Mail } from 'lucide-svelte';
+	import {
+		Settings,
+		User as UserIcon,
+		Lock,
+		UserPlus,
+		Server,
+		Database,
+		Search,
+		Edit,
+		Trash2,
+		ChevronLeft,
+		ChevronRight,
+		X,
+		Mail
+	} from 'lucide-svelte';
 	import type { PageData } from './$types';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
 	import RoleSelector from '$lib/components/RoleSelector.svelte';
@@ -142,7 +156,12 @@
 	}
 
 	function getUserDisplayName(user: UserProfile) {
-		return user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email?.split('@')[0] || 'Unknown User';
+		return (
+			user.full_name ||
+			`${user.first_name || ''} ${user.last_name || ''}`.trim() ||
+			user.email?.split('@')[0] ||
+			'Unknown User'
+		);
 	}
 
 	function getUserAvatar(user: UserProfile) {
@@ -415,7 +434,7 @@
 			role="document"
 		>
 			<!-- Modal Header -->
-			<div class="flex items-start justify-between mb-6">
+			<div class="mb-6 flex items-start justify-between">
 				<div>
 					<h2 id="add-user-modal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">
 						Add New User
@@ -424,7 +443,7 @@
 				</div>
 				<button
 					on:click={handleCloseAddUserModal}
-					class="p-1 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -435,14 +454,18 @@
 			<div class="space-y-6">
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label for="newUserFirstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name *</label>
+						<label
+							for="newUserFirstName"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>First Name *</label
+						>
 						<div class="relative">
-							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
 								id="newUserFirstName"
 								bind:value={newUserFirstName}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
 								placeholder="e.g. Jane"
 								required
 							/>
@@ -450,14 +473,18 @@
 					</div>
 
 					<div>
-						<label for="newUserLastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name *</label>
+						<label
+							for="newUserLastName"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Last Name *</label
+						>
 						<div class="relative">
-							<UserIcon class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
 								id="newUserLastName"
 								bind:value={newUserLastName}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
 								placeholder="e.g. Doe"
 								required
 							/>
@@ -466,14 +493,18 @@
 				</div>
 
 				<div>
-					<label for="newUserEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address *</label>
+					<label
+						for="newUserEmail"
+						class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>Email Address *</label
+					>
 					<div class="relative">
-						<Mail class="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
 						<input
 							type="email"
 							id="newUserEmail"
 							bind:value={newUserEmail}
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pl-10 pr-4 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
 							placeholder="e.g. jane.doe@example.com"
 							required
 						/>
@@ -481,7 +512,8 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Role</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label
+					>
 					<RoleSelector bind:role={newUserRole} />
 				</div>
 			</div>
@@ -518,24 +550,29 @@
 		aria-labelledby="delete-user-modal-title"
 		aria-describedby="delete-user-modal-description"
 	>
-		<div
-			class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
-		>
-			<div class="flex items-center gap-3 mb-4">
+		<div class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+			<div class="mb-4 flex items-center gap-3">
 				<div class="flex-shrink-0">
-					<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+					<div
+						class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20"
+					>
 						<Trash2 class="h-6 w-6 text-red-600 dark:text-red-400" />
 					</div>
 				</div>
 				<div>
-					<h3 id="delete-user-modal-title" class="text-lg font-medium text-gray-900 dark:text-gray-100">Delete User</h3>
+					<h3
+						id="delete-user-modal-title"
+						class="text-lg font-medium text-gray-900 dark:text-gray-100"
+					>
+						Delete User
+					</h3>
 					<p id="delete-user-modal-description" class="text-sm text-gray-500 dark:text-gray-400">
 						Are you sure you want to delete this user? This action cannot be undone.
 					</p>
 				</div>
 			</div>
 
-			<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+			<div class="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
 				<div class="flex items-center">
 					<div>
 						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -550,14 +587,14 @@
 				<button
 					type="button"
 					on:click={handleCloseDeleteConfirm}
-					class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancel
 				</button>
 				<button
 					type="button"
 					on:click={handleConfirmDelete}
-					class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 cursor-pointer"
+					class="cursor-pointer rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
 				>
 					Delete User
 				</button>
@@ -582,8 +619,10 @@
 		<div class="mb-6 border-b border-gray-200 dark:border-gray-700">
 			<nav class="-mb-px flex space-x-8">
 				<button
-					class="py-2 px-1 border-b-2 font-medium text-sm cursor-pointer {activeTab === 'settings' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
-					on:click={() => activeTab = 'settings'}
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
+						? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]'
+						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+					on:click={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
 						<Server class="h-4 w-4" />
@@ -591,8 +630,10 @@
 					</div>
 				</button>
 				<button
-					class="py-2 px-1 border-b-2 font-medium text-sm cursor-pointer {activeTab === 'users' ? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'}"
-					on:click={() => activeTab = 'users'}
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
+						? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]'
+						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+					on:click={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
 						<UserIcon class="h-4 w-4" />
@@ -604,7 +645,9 @@
 
 		<!-- Users Tab -->
 		{#if activeTab === 'users'}
-			<div class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]">
+			<div
+				class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+			>
 				<div class="mb-4">
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">User Management</h2>
 					<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
@@ -618,12 +661,12 @@
 				<div class="mb-6 flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<div class="relative">
-							<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
 								bind:value={searchQuery}
 								placeholder="Search users..."
-								class="w-64 rounded-md border border-[rgb(218,218,221)] bg-white py-2 pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
+								class="w-64 rounded-md border border-[rgb(218,218,221)] bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
 								on:input={handleSearchInput}
 							/>
 						</div>
@@ -631,7 +674,7 @@
 						<select
 							bind:value={itemsPerPage}
 							on:change={handleItemsPerPageChange}
-							class="rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+							class="rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
 						>
 							<option value={5}>5 per page</option>
 							<option value={10}>10 per page</option>
@@ -652,11 +695,15 @@
 					class="overflow-hidden rounded-lg border border-[rgb(218,218,221)] bg-white dark:border-[#3f3f46] dark:bg-[#23232a]"
 				>
 					{#if users.length === 0}
-						<div class="text-center py-8">
+						<div class="py-8 text-center">
 							<UserIcon class="mx-auto h-12 w-12 text-gray-400" />
-							<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No users found</h3>
+							<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+								No users found
+							</h3>
 							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-								{searchQuery ? 'Try adjusting your search terms.' : 'No users have been created yet.'}
+								{searchQuery
+									? 'Try adjusting your search terms.'
+									: 'No users have been created yet.'}
 							</p>
 						</div>
 					{:else}
@@ -665,25 +712,25 @@
 								<tr>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
 									>
 										User
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
 									>
 										Role
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
 									>
 										Created
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
 									>
 										Status
 									</th>
@@ -697,9 +744,9 @@
 							>
 								{#each users as user}
 									<tr>
-										<td class="whitespace-nowrap px-6 py-4">
+										<td class="px-6 py-4 whitespace-nowrap">
 											<div class="flex items-center gap-3">
-												<UserAvatar user={user} size="lg" />
+												<UserAvatar {user} size="lg" />
 												<div>
 													<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 														{getUserDisplayName(user)}
@@ -708,33 +755,43 @@
 												</div>
 											</div>
 										</td>
-										<td class="whitespace-nowrap px-6 py-4">
+										<td class="px-6 py-4 whitespace-nowrap">
 											<span
-												class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {user.role === 'admin'
+												class="inline-flex rounded-full px-2 text-xs leading-5 font-semibold {user.role ===
+												'admin'
 													? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-													: user.role === 'moderator' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-													: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'}"
+													: user.role === 'moderator'
+														? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+														: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'}"
 											>
-												{user.role === 'admin' ? 'Admin' : user.role === 'moderator' ? 'Moderator' : 'User'}
+												{user.role === 'admin'
+													? 'Admin'
+													: user.role === 'moderator'
+														? 'Moderator'
+														: 'User'}
 											</span>
 										</td>
-										<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+										<td
+											class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400"
+										>
 											{formatDate(user.created_at)}
 										</td>
-										<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+										<td
+											class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400"
+										>
 											Active
 										</td>
-										<td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+										<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 											<div class="flex items-center justify-end gap-2">
 												<button
-													class="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
+													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
 													on:click={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
-													class="rounded p-1 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 cursor-pointer"
+													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 													on:click={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
@@ -749,11 +806,16 @@
 
 						<!-- Pagination Controls -->
 						{#if pagination.totalPages > 1}
-							<div class="bg-white dark:bg-[#23232a] px-6 py-3 border-t border-[rgb(218,218,221)] dark:border-[#3f3f46]">
+							<div
+								class="border-t border-[rgb(218,218,221)] bg-white px-6 py-3 dark:border-[#3f3f46] dark:bg-[#23232a]"
+							>
 								<div class="flex items-center justify-between">
 									<div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
 										<span>
-											Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
+											Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(
+												pagination.page * pagination.limit,
+												pagination.total
+											)} of {pagination.total} results
 										</span>
 									</div>
 									<div class="flex items-center space-x-2">
@@ -761,7 +823,7 @@
 										<button
 											on:click={goToPreviousPage}
 											disabled={!pagination.hasPrev}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
 											<span class="sr-only">Previous</span>
 											<ChevronLeft class="h-5 w-5" />
@@ -771,7 +833,8 @@
 										{#each getPageNumbers() as pageNum}
 											<button
 												on:click={() => goToPage(pageNum)}
-												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum === currentPage
+												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
+												currentPage
 													? 'bg-[rgb(37,140,244)] text-white'
 													: 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
 											>
@@ -783,7 +846,7 @@
 										<button
 											on:click={goToNextPage}
 											disabled={!pagination.hasNext}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
 											<span class="sr-only">Next</span>
 											<ChevronRight class="h-5 w-5" />
@@ -797,28 +860,34 @@
 			</div>
 		{/if}
 
-
-
 		<!-- Settings Tab -->
 		{#if activeTab === 'settings'}
 			<div class="space-y-8">
 				<!-- Server Settings -->
-				<div class="rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
+				<div
+					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+				>
 					<div class="mb-4">
 						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Server Settings</h2>
-						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Configure server-wide settings and policies.</p>
+						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+							Configure server-wide settings and policies.
+						</p>
 					</div>
 
 					<div class="space-y-6">
 						<!-- Server Name -->
 						<div>
-							<label for="serverName" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Server Name</label>
+							<label
+								for="serverName"
+								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Server Name</label
+							>
 							<div class="mt-1">
 								<input
 									type="text"
 									id="serverName"
 									bind:value={serverName}
-									class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+									class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
 									placeholder="Enter server name"
 								/>
 							</div>
@@ -826,13 +895,17 @@
 
 						<!-- Admin Email -->
 						<div>
-							<label for="adminEmail" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Admin Email</label>
+							<label
+								for="adminEmail"
+								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Admin Email</label
+							>
 							<div class="mt-1">
 								<input
 									type="email"
 									id="adminEmail"
 									bind:value={adminEmail}
-									class="w-full rounded-md border border-[rgb(218,218,221)] dark:border-[#3f3f46] bg-white dark:bg-[#23232a] px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+									class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
 									placeholder="admin@example.com"
 								/>
 							</div>
@@ -842,41 +915,59 @@
 						<div class="space-y-4">
 							<div class="flex items-center justify-between">
 								<div>
-									<label for="allowRegistration" class="block text-sm font-medium text-gray-900 dark:text-gray-100">
+									<label
+										for="allowRegistration"
+										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
+									>
 										Allow new user registration
 									</label>
-									<p class="text-sm text-gray-500 dark:text-gray-400">Enable public user registration</p>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										Enable public user registration
+									</p>
 								</div>
 								<button
 									type="button"
 									id="allowRegistration"
-									on:click={() => allowRegistration = !allowRegistration}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 {allowRegistration ? 'bg-[rgb(37,140,244)]' : 'bg-gray-200 dark:bg-gray-700'}"
+									on:click={() => (allowRegistration = !allowRegistration)}
+									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {allowRegistration
+										? 'bg-[rgb(37,140,244)]'
+										: 'bg-gray-200 dark:bg-gray-700'}"
 									role="switch"
 									aria-checked={allowRegistration}
 								>
 									<span
-										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {allowRegistration ? 'translate-x-5' : 'translate-x-0'}"
+										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {allowRegistration
+											? 'translate-x-5'
+											: 'translate-x-0'}"
 									/>
 								</button>
 							</div>
 							<div class="flex items-center justify-between">
 								<div>
-									<label for="requireEmailVerification" class="block text-sm font-medium text-gray-900 dark:text-gray-100">
+									<label
+										for="requireEmailVerification"
+										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
+									>
 										Require email verification
 									</label>
-									<p class="text-sm text-gray-500 dark:text-gray-400">Users must verify their email before accessing the system</p>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										Users must verify their email before accessing the system
+									</p>
 								</div>
 								<button
 									type="button"
 									id="requireEmailVerification"
-									on:click={() => requireEmailVerification = !requireEmailVerification}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 {requireEmailVerification ? 'bg-[rgb(37,140,244)]' : 'bg-gray-200 dark:bg-gray-700'}"
+									on:click={() => (requireEmailVerification = !requireEmailVerification)}
+									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {requireEmailVerification
+										? 'bg-[rgb(37,140,244)]'
+										: 'bg-gray-200 dark:bg-gray-700'}"
 									role="switch"
 									aria-checked={requireEmailVerification}
 								>
 									<span
-										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {requireEmailVerification ? 'translate-x-5' : 'translate-x-0'}"
+										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {requireEmailVerification
+											? 'translate-x-5'
+											: 'translate-x-0'}"
 									/>
 								</button>
 							</div>

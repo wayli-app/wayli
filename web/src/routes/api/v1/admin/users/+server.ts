@@ -1,5 +1,10 @@
 import type { RequestHandler } from './$types';
-import { successResponse, errorResponse, validationErrorResponse, notFoundResponse } from '$lib/utils/api/response';
+import {
+	successResponse,
+	errorResponse,
+	validationErrorResponse,
+	notFoundResponse
+} from '$lib/utils/api/response';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
@@ -33,9 +38,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Fetch all users (we'll need to get all to implement proper search)
 		// Note: Supabase Auth listUsers doesn't support server-side filtering
-		const { data: { users: authUsers }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers({
+		const {
+			data: { users: authUsers },
+			error: authUsersError
+		} = await supabaseAdmin.auth.admin.listUsers({
 			page: 1,
-			perPage: 1000, // Get a large number to implement proper search
+			perPage: 1000 // Get a large number to implement proper search
 		});
 
 		if (authUsersError) {
@@ -47,14 +55,17 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		}
 
 		// Map auth users to the UserProfile format
-		const combinedUsers = authUsers.map(authUser => {
+		const combinedUsers = authUsers.map((authUser) => {
 			const metadata = authUser.user_metadata || {};
 			return {
 				id: authUser.id,
 				email: authUser.email,
 				first_name: metadata.first_name || '',
 				last_name: metadata.last_name || '',
-				full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
+				full_name:
+					metadata.full_name ||
+					`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
+					'',
 				role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
 				avatar_url: metadata.avatar_url,
 				home_address: metadata.home_address,
@@ -66,11 +77,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Apply search filter
 		const filteredUsers = search
-			? combinedUsers.filter(u =>
-					u.email?.toLowerCase().includes(search.toLowerCase()) ||
-					u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-					u.first_name?.toLowerCase().includes(search.toLowerCase()) ||
-					u.last_name?.toLowerCase().includes(search.toLowerCase())
+			? combinedUsers.filter(
+					(u) =>
+						u.email?.toLowerCase().includes(search.toLowerCase()) ||
+						u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+						u.first_name?.toLowerCase().includes(search.toLowerCase()) ||
+						u.last_name?.toLowerCase().includes(search.toLowerCase())
 				)
 			: combinedUsers;
 
@@ -96,49 +108,65 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				hasPrev: page > 1
 			}
 		});
-
 	} catch (error) {
 		console.error('Error in users API:', error);
 		return errorResponse(error);
 	}
 };
 
-export const PUT: RequestHandler = async ({ request }) => {
-  try {
-    const { userId, email, fullName, role } = await request.json();
+export const PUT: RequestHandler = async ({ request, locals }) => {
+	try {
+		// Get the user from the session
+		const session = await locals.getSession();
 
-    if (!userId || !email || !fullName || !role) {
-      return validationErrorResponse('Missing required fields');
-    }
+		if (!session?.user) {
+			return errorResponse('Unauthorized', 401);
+		}
 
-    // Create Supabase admin client
-    const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		// Check if the current user is an admin
+		const isAdmin = session.user.user_metadata?.role === 'admin';
 
-    // Get the user to preserve existing metadata
-    const { data: { user }, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (getUserError || !user) {
-      return notFoundResponse('User not found');
-    }
+		if (!isAdmin) {
+			return errorResponse('Forbidden: Admin access required', 403);
+		}
 
-    // Update the user
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      email,
-      user_metadata: {
-        ...user.user_metadata,
-        role,
-        full_name: fullName
-      }
-    });
+		const { userId, email, fullName, role } = await request.json();
 
-    if (updateError) {
-      return errorResponse(updateError.message, 500);
-    }
+		if (!userId || !email || !fullName || !role) {
+			return validationErrorResponse('Missing required fields');
+		}
 
-    return successResponse({
-      message: 'User updated successfully'
-    });
-  } catch (error) {
-    console.error('Admin user update error:', error);
-    return errorResponse(error);
-  }
+		// Create Supabase admin client
+		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+		// Get the user to preserve existing metadata
+		const {
+			data: { user },
+			error: getUserError
+		} = await supabaseAdmin.auth.admin.getUserById(userId);
+		if (getUserError || !user) {
+			return notFoundResponse('User not found');
+		}
+
+		// Update the user
+		const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+			email,
+			user_metadata: {
+				...user.user_metadata,
+				role,
+				full_name: fullName
+			}
+		});
+
+		if (updateError) {
+			return errorResponse(updateError.message, 500);
+		}
+
+		return successResponse({
+			message: 'User updated successfully'
+		});
+	} catch (error) {
+		console.error('Admin user update error:', error);
+		return errorResponse(error);
+	}
 };

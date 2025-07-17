@@ -23,6 +23,7 @@
 	import { sessionStore } from '$lib/stores/auth';
 	import { get } from 'svelte/store';
 	import type { Job } from '$lib/types/job-queue.types';
+	import ExportJobs from '$lib/components/ExportJobs.svelte';
 
 	let importFormat: string | null = null;
 	let exportFormat = 'GeoJSON';
@@ -30,7 +31,8 @@
 	let selectedFile: File | null = null;
 	let includeLocationData = true;
 	let includeTripInfo = true;
-	let includeStatistics = false;
+	let includeWantToVisit = true;
+	let includeTrips = true;
 	const isImporting = writable(false);
 	let importStatus = '';
 	let importProgress = 0;
@@ -43,6 +45,10 @@
 	// Active import job tracking
 	let activeImportJob: Job | null = null;
 	let importJobPollingInterval: ReturnType<typeof setInterval> | null = null;
+
+	// Active export job tracking
+	let activeExportJob: Job | null = null;
+	let exportJobPollingInterval: ReturnType<typeof setInterval> | null = null;
 
 	const importFormats = [
 		{
@@ -269,11 +275,67 @@
 	}
 
 	async function handleExport() {
-		toast.promise(new Promise((resolve) => setTimeout(resolve, 2000)), {
-			loading: 'Exporting data...',
-			success: 'Data exported successfully',
-			error: 'Failed to export data'
-		});
+		if (!includeLocationData && !includeTripInfo && !includeWantToVisit && !includeTrips) {
+			toast.error('Please select at least one data type to export');
+			return;
+		}
+
+		try {
+			const response = await fetch('/api/v1/export', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					format: exportFormat,
+					includeLocationData,
+					includeTripInfo,
+					includeWantToVisit,
+					includeTrips
+				})
+			});
+
+			const result = await response.json();
+
+			if (result.success && result.data?.jobId) {
+				const jobId = result.data.jobId;
+
+				// Create a job object for tracking
+				activeExportJob = {
+					id: jobId,
+					type: 'data_export',
+					status: 'queued',
+					data: {
+						format: exportFormat,
+						includeLocationData,
+						includeTripInfo,
+						includeWantToVisit,
+						includeTrips
+					},
+					progress: 0,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+					created_by: '',
+					priority: 'normal'
+				};
+
+				// Start polling for job updates
+				startExportJobPolling(jobId);
+
+				toast.success('Export job created successfully!', {
+					description: 'Your export is being processed. You can track progress below.'
+				});
+			} else {
+				toast.error('Failed to create export job', {
+					description: result.message || 'Unknown error occurred'
+				});
+			}
+		} catch (error) {
+			console.error('Export error:', error);
+			toast.error('Failed to create export job', {
+				description: error instanceof Error ? error.message : 'Unknown error occurred'
+			});
+		}
 	}
 
 	async function handleQuickAction(action: string) {
@@ -284,14 +346,18 @@
 		});
 	}
 
-	// On mount, always check for active import job and set UI accordingly
+	// On mount, always check for active import and export jobs and set UI accordingly
 	onMount(() => {
 		checkForActiveImportJob();
+		checkForActiveExportJob();
 	});
 
 	onDestroy(() => {
 		if (importJobPollingInterval) {
 			clearInterval(importJobPollingInterval);
+		}
+		if (exportJobPollingInterval) {
+			clearInterval(exportJobPollingInterval);
 		}
 	});
 
@@ -424,6 +490,92 @@
 			eta = null;
 		}
 	}
+
+	async function checkForActiveExportJob() {
+		try {
+			const session = get(sessionStore);
+			const headers: Record<string, string> = {};
+			if (session?.access_token) {
+				headers['Authorization'] = `Bearer ${session.access_token}`;
+			}
+
+			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
+			const data = await response.json();
+
+			if (data.success && Array.isArray(data.data)) {
+				const activeJobs = data.data.filter(
+					(job: Job) =>
+						job.type === 'data_export' && (job.status === 'queued' || job.status === 'running')
+				);
+
+				if (activeJobs.length > 0) {
+					activeExportJob = activeJobs[0]; // Get the most recent active job
+					console.log('Found active export job:', activeExportJob);
+					// Start polling for job updates
+					if (activeExportJob) {
+						startExportJobPolling(activeExportJob.id);
+					}
+				}
+			}
+		} catch (error) {
+			console.error('Error checking for active export jobs:', error);
+		}
+	}
+
+	function startExportJobPolling(jobId: string) {
+		if (!jobId) return;
+		if (exportJobPollingInterval) {
+			clearInterval(exportJobPollingInterval);
+		}
+
+		exportJobPollingInterval = setInterval(async () => {
+			if (!activeExportJob) return;
+
+			try {
+				const session = get(sessionStore);
+				const headers: Record<string, string> = {};
+				if (session?.access_token) {
+					headers['Authorization'] = `Bearer ${session.access_token}`;
+				}
+
+				const response = await fetch(`/api/v1/jobs/${jobId}`, { headers });
+				const data = await response.json();
+
+				if (data.success && data.data?.job) {
+					const job = data.data.job;
+					activeExportJob = job;
+
+					// Stop polling if job is finished
+					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+						stopExportJobPolling();
+
+						if (job.status === 'completed') {
+							toast.success('Export completed successfully!', {
+								description: 'Your export is ready for download.'
+							});
+						} else if (job.status === 'failed') {
+							toast.error('Export failed', {
+								description: job.error || 'Unknown error occurred'
+							});
+						}
+					}
+				} else {
+					// If job is not found, stop polling and reset
+					activeExportJob = null;
+					stopExportJobPolling();
+				}
+			} catch (error) {
+				console.error('Error polling export job status:', error);
+			}
+		}, 2000);
+	}
+
+	function stopExportJobPolling() {
+		if (exportJobPollingInterval) {
+			clearInterval(exportJobPollingInterval);
+			exportJobPollingInterval = null;
+		}
+	}
 </script>
 
 <div>
@@ -440,11 +592,13 @@
 	<!-- Active Import Job Progress Display -->
 	{#if activeImportJob}
 		<div class="mb-8">
-			<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Active Import Job</h2>
-			<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
-				<div class="flex items-center justify-between mb-3">
+			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Active Import Job</h2>
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+			>
+				<div class="mb-3 flex items-center justify-between">
 					<div class="flex items-center gap-3">
-						<div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+						<div class="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
 							<Upload class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 						</div>
 						<div>
@@ -468,12 +622,12 @@
 
 				<!-- Progress Bar -->
 				<div class="mb-3">
-					<div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+					<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
 						<span>Progress</span>
 					</div>
-					<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+					<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
 						<div
-							class="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+							class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
 							style="width: {importProgress}%"
 						></div>
 					</div>
@@ -481,7 +635,7 @@
 
 				<!-- Status Message -->
 				{#if importStatus}
-					<div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+					<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
 						{importStatus}
 					</div>
 				{/if}
@@ -494,6 +648,86 @@
 							<span>Size: {(activeImportJob.data.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
 						{/if}
 					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Active Export Job Progress Display -->
+	{#if activeExportJob}
+		<div class="mb-8">
+			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Active Export Job</h2>
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+			>
+				<div class="mb-3 flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="rounded-lg bg-green-50 p-2 dark:bg-green-900/20">
+							<FileDown class="h-5 w-5 text-green-600 dark:text-green-400" />
+						</div>
+						<div>
+							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+								Export to {activeExportJob.data?.format || 'Unknown'} format
+							</h3>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Job ID: {activeExportJob.id} | Status: {activeExportJob.status}
+							</p>
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-2xl font-bold text-green-600 dark:text-green-400">
+							{activeExportJob.progress || 0}%
+						</div>
+					</div>
+				</div>
+
+				<!-- Progress Bar -->
+				<div class="mb-3">
+					<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+						<span>Progress</span>
+					</div>
+					<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+						<div
+							class="h-3 rounded-full bg-green-600 transition-all duration-300 ease-out"
+							style="width: {activeExportJob.progress || 0}%"
+						></div>
+					</div>
+				</div>
+
+				<!-- Status Message -->
+				{#if activeExportJob.result?.message}
+					<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+						{activeExportJob.result.message}
+					</div>
+				{/if}
+
+				<!-- Export Options -->
+				<div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+					<span>Format: {activeExportJob.data?.format || 'Unknown'}</span>
+					{#if activeExportJob.data?.includeLocationData}
+						<span
+							class="rounded bg-blue-100 px-2 py-1 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200"
+							>Location Data</span
+						>
+					{/if}
+					{#if activeExportJob.data?.includeTripInfo}
+						<span
+							class="rounded bg-purple-100 px-2 py-1 text-purple-800 dark:bg-purple-900/20 dark:text-purple-200"
+							>Trip Info</span
+						>
+					{/if}
+					{#if activeExportJob.data?.includeWantToVisit}
+						<span
+							class="rounded bg-orange-100 px-2 py-1 text-orange-800 dark:bg-orange-900/20 dark:text-orange-200"
+							>Want to Visit</span
+						>
+					{/if}
+					{#if activeExportJob.data?.includeTrips}
+						<span
+							class="rounded bg-green-100 px-2 py-1 text-green-800 dark:bg-green-900/20 dark:text-green-200"
+							>Trips</span
+						>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -597,7 +831,7 @@
 					<select
 						id="exportFormat"
 						bind:value={exportFormat}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:border-[#23232a] dark:bg-[#23232a] dark:text-gray-100"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#23232a] dark:bg-[#23232a] dark:text-gray-100"
 					>
 						{#each exportFormats as format}
 							<option value={format}>{format}</option>
@@ -630,10 +864,18 @@
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
-								bind:checked={includeStatistics}
+								bind:checked={includeWantToVisit}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Statistics</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Want to visit</span>
+						</label>
+						<label class="flex items-center gap-2">
+							<input
+								type="checkbox"
+								bind:checked={includeTrips}
+								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
+							/>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Trips</span>
 						</label>
 					</div>
 				</div>
@@ -641,11 +883,22 @@
 
 			<button
 				on:click={handleExport}
-				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
+				disabled={activeExportJob !== null}
+				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				<FileDown class="h-4 w-4" />
-				Export Data
+				{#if activeExportJob}
+					<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+					Export in Progress...
+				{:else}
+					<FileDown class="h-4 w-4" />
+					Export Data
+				{/if}
 			</button>
 		</div>
+	</div>
+
+	<!-- Export Jobs Section -->
+	<div class="mt-8">
+		<ExportJobs />
 	</div>
 </div>

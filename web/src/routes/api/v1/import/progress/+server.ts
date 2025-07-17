@@ -2,8 +2,14 @@ import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { supabase } from '$lib/core/supabase/server';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
+		// Get current user from session - this ensures authentication
+		const session = await locals.getSession();
+		if (!session) {
+			return errorResponse('User not authenticated', 401);
+		}
+
 		const jobId = url.searchParams.get('id');
 		if (!jobId) {
 			return successResponse({
@@ -14,11 +20,12 @@ export const GET: RequestHandler = async ({ url }) => {
 			});
 		}
 
-		// Get job progress from database
+		// Get job progress from database - only for the authenticated user
 		const { data: job, error } = await supabase
 			.from('jobs')
 			.select('*')
 			.eq('id', jobId)
+			.eq('user_id', session.user.id) // Security: Only allow access to user's own jobs
 			.single();
 
 		if (error || !job) {
@@ -31,7 +38,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 
 		// Extract progress information from job result
-		const result = job.result as Record<string, unknown> || {};
+		const result = (job.result as Record<string, unknown>) || {};
 		const progress = job.progress || 0;
 		const status = result.message || job.status;
 		const current = result.totalProcessed || 0;
@@ -45,7 +52,6 @@ export const GET: RequestHandler = async ({ url }) => {
 			jobStatus: job.status,
 			result
 		});
-
 	} catch (error) {
 		console.error('Error fetching job progress:', error);
 		return errorResponse('Failed to fetch job progress');

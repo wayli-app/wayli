@@ -1,25 +1,25 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+	auth: {
+		autoRefreshToken: false,
+		persistSession: false
+	}
+});
 
 export function createAuthenticatedClient(authToken: string) {
-  return createClient(supabaseUrl, supabaseServiceKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${authToken}`
-      }
-    },
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
+	return createClient(supabaseUrl, supabaseServiceKey, {
+		global: {
+			headers: {
+				Authorization: `Bearer ${authToken}`
+			}
+		},
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	});
 }

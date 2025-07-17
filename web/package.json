@@ -16,6 +16,11 @@
 		"test": "npm run test:unit -- --run",
 		"test:accessibility": "vitest --run tests/accessibility/",
 		"test:accessibility:watch": "vitest tests/accessibility/",
+		"test:integration": "vitest --run tests/integration/",
+		"test:integration:watch": "vitest tests/integration/",
+		"test:coverage": "vitest --run --coverage",
+		"test:performance": "vitest --run tests/performance/",
+		"test:security": "vitest --run tests/security/",
 		"test:realtime": "bun run src/scripts/test-realtime.ts",
 		"test:jobs": "bun run src/scripts/test-job-creation.ts",
 		"test:live-updates": "bun run src/scripts/test-live-updates.ts",
@@ -28,7 +33,8 @@
 		"worker:dev": "bun --watch src/scripts/worker.ts",
 		"workers": "bun run src/scripts/worker-manager.ts",
 		"workers:start": "bun run src/scripts/worker-manager.ts",
-		"workers:dev": "bun --watch src/scripts/worker-manager.ts"
+		"workers:dev": "bun --watch src/scripts/worker-manager.ts",
+		"check:separation": "node scripts/check-client-server-separation.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -66,6 +72,7 @@
 		"@supabase/supabase-js": "^2.50.0",
 		"@svelte-plugins/datepicker": "^1.0.11",
 		"@turf/turf": "^7.2.0",
+		"@types/jszip": "^3.4.0",
 		"@types/leaflet": "^1.9.18",
 		"@types/lodash-es": "^4.17.12",
 		"@types/pg": "^8.15.4",
@@ -75,6 +82,7 @@
 		"dotenv": "^16.5.0",
 		"express-rate-limit": "^7.5.1",
 		"fast-xml-parser": "^5.2.5",
+		"jszip": "^3.10.1",
 		"leaflet": "^1.9.4",
 		"leaflet.markercluster": "^1.5.3",
 		"lodash-es": "^4.17.21",

@@ -17,7 +17,7 @@ export class WantToVisitService {
 		}
 
 		// Map database column names to frontend property names
-		return (data || []).map(place => ({
+		return (data || []).map((place) => ({
 			...place,
 			markerType: place.marker_type,
 			markerColor: place.marker_color
@@ -29,7 +29,9 @@ export class WantToVisitService {
 	 */
 	static async addPlace(place: Omit<Place, 'id' | 'created_at' | 'updated_at'>): Promise<Place> {
 		// Get current user ID
-		const { data: { user } } = await supabase.auth.getUser();
+		const {
+			data: { user }
+		} = await supabase.auth.getUser();
 		if (!user) {
 			throw new Error('User not authenticated');
 		}
@@ -104,10 +106,7 @@ export class WantToVisitService {
 	 * Delete a want-to-visit place
 	 */
 	static async deletePlace(id: string): Promise<void> {
-		const { error } = await supabase
-			.from('want_to_visit_places')
-			.delete()
-			.eq('id', id);
+		const { error } = await supabase.from('want_to_visit_places').delete().eq('id', id);
 
 		if (error) {
 			console.error('Error deleting want-to-visit place:', error);

@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
-import { getWorkerSupabaseConfig } from '../config/worker-environment';
+import { getServerSupabaseConfig } from '../config/server-environment';
 
 export function createWorkerClient() {
-  const config = getWorkerSupabaseConfig();
+	const config = getServerSupabaseConfig();
 
-  return createClient(config.url, config.serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
+	return createClient(config.url, config.serviceRoleKey, {
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	});
 }

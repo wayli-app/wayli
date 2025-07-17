@@ -20,7 +20,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		console.log(`Processing import: ${file.name}, format: ${format}, size: ${file.size}`);
 
 		// Get user ID using secure authentication
-		const { data: { user }, error: userError } = await locals.supabase.auth.getUser();
+		const {
+			data: { user },
+			error: userError
+		} = await locals.supabase.auth.getUser();
 
 		if (userError) {
 			console.error('Authentication error:', userError);
@@ -38,7 +41,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Check file size limit (1GB)
 		const maxFileSize = 1024 * 1024 * 1024; // 1GB
 		if (file.size > maxFileSize) {
-			return errorResponse(`File too large. Maximum size is ${(maxFileSize / 1024 / 1024).toFixed(0)}MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.`);
+			return errorResponse(
+				`File too large. Maximum size is ${(maxFileSize / 1024 / 1024).toFixed(0)}MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.`
+			);
 		}
 
 		// Generate a unique file path for storage
@@ -73,23 +78,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		console.log('Creating import job...');
 		let job;
 		try {
-			job = await JobQueueService.createJob(
-				'data_import',
-				jobData,
-				'normal',
-				userId
-			);
+			job = await JobQueueService.createJob('data_import', jobData, 'normal', userId);
 		} catch (jobError) {
 			console.error('Error creating job:', jobError);
 			// Clean up storage file if job creation fails
 			try {
-				await locals.supabase.storage
-					.from('temp-files')
-					.remove([filePath]);
+				await locals.supabase.storage.from('temp-files').remove([filePath]);
 			} catch (cleanupError) {
 				console.error('Failed to cleanup storage file after job creation error:', cleanupError);
 			}
-			return errorResponse(`Failed to create import job: ${jobError instanceof Error ? jobError.message : 'Unknown error'}`);
+			return errorResponse(
+				`Failed to create import job: ${jobError instanceof Error ? jobError.message : 'Unknown error'}`
+			);
 		}
 
 		console.log(`📝 Created import job: ${job.id}`);
@@ -101,7 +101,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			fileName: file.name,
 			format: format
 		});
-
 	} catch (error) {
 		console.error('Import error:', error);
 		console.error('Error details:', {
@@ -109,6 +108,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: error instanceof Error ? error.message : 'Unknown error',
 			stack: error instanceof Error ? error.stack : undefined
 		});
-		return errorResponse(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		return errorResponse(
+			`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
 	}
 };

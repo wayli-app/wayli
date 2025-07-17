@@ -1,7 +1,28 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
-	import { MapPin, Calendar, BarChart, Import, Edit, Landmark, Star, ListTodo, Link, Settings, User, LogOut, Navigation, Sun, Moon, Monitor, Menu, X, Crown, Map } from 'lucide-svelte';
+	import {
+		MapPin,
+		Calendar,
+		BarChart,
+		Import,
+		Edit,
+		Landmark,
+		Star,
+		ListTodo,
+		Link,
+		Settings,
+		User,
+		LogOut,
+		Navigation,
+		Sun,
+		Moon,
+		Monitor,
+		Menu,
+		X,
+		Crown,
+		Map
+	} from 'lucide-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
 	import { onMount } from 'svelte';
@@ -24,7 +45,15 @@
 	// Dynamic user navigation based on admin status
 	$: navUser = [
 		{ href: '/dashboard/account-settings', label: 'Account Settings', icon: User },
-		...(isAdmin ? [{ href: '/dashboard/server-admin-settings', label: 'Server Admin Settings', icon: Settings }] : [])
+		...(isAdmin
+			? [
+					{
+						href: '/dashboard/server-admin-settings',
+						label: 'Server Admin Settings',
+						icon: Settings
+					}
+				]
+			: [])
 	];
 
 	// Force reactive update after navigation
@@ -39,7 +68,8 @@
 
 	// Handle window resize to properly manage sidebar state
 	function handleResize() {
-		if (window.innerWidth >= 768) { // md breakpoint
+		if (window.innerWidth >= 768) {
+			// md breakpoint
 			closeSidebar();
 		}
 	}
@@ -60,34 +90,39 @@
 <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
 	<!-- Sidebar -->
 	<aside
-		class="fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 md:static md:translate-x-0 {state.isSidebarOpen
+		class="fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 dark:border-gray-700 dark:bg-gray-800 {state.isSidebarOpen
 			? 'translate-x-0'
 			: '-translate-x-full'}"
 	>
 		<!-- Sidebar Header - Fixed at top -->
-		<div class="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-			<a href="/dashboard/statistics" class="flex items-center cursor-pointer">
-				<Navigation class="h-8 w-8 text-[rgb(37,140,244)] mr-2" />
+		<div
+			class="flex flex-shrink-0 items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700"
+		>
+			<a href="/dashboard/statistics" class="flex cursor-pointer items-center">
+				<Navigation class="mr-2 h-8 w-8 text-[rgb(37,140,244)]" />
 				<span class="text-xl font-bold text-gray-900 dark:text-gray-100">Wayli</span>
 			</a>
 			<button
 				onclick={closeSidebar}
-				class="md:hidden p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+				class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 md:hidden dark:hover:text-gray-300"
 			>
 				<X class="h-5 w-5" />
 			</button>
 		</div>
 
 		<!-- Scrollable Navigation - Takes remaining space -->
-		<nav class="flex-1 min-h-0 overflow-y-auto">
-			<div class="p-4 space-y-1">
+		<nav class="min-h-0 flex-1 overflow-y-auto">
+			<div class="space-y-1 p-4">
 				{#each navMain as item}
 					<a
 						href={item.href}
-						class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {$page.url.pathname === item.href ? 'bg-[rgb(37,140,244)] text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+						class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
+							.url.pathname === item.href
+							? 'bg-[rgb(37,140,244)] text-white'
+							: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 						onclick={closeSidebar}
 					>
-						<svelte:component this={item.icon} class="h-5 w-5 mr-3" />
+						<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
 						{item.label}
 					</a>
 				{/each}
@@ -95,23 +130,24 @@
 		</nav>
 
 		<!-- Fixed Footer - Always visible at bottom -->
-		<div class="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-4">
+		<div class="flex-shrink-0 border-t border-gray-200 p-4 dark:border-gray-700">
 			<!-- Theme Toggle -->
 			<div class="mb-4 flex justify-start gap-2">
 				<button
 					onclick={() => setTheme('light')}
-					class="p-2 rounded-lg font-medium transition-colors cursor-pointer {state.theme === 'light'
+					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme ===
+					'light'
 						? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
-						: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 					title="Light Mode"
 				>
 					<Sun class="h-5 w-5" />
 				</button>
 				<button
 					onclick={() => setTheme('dark')}
-					class="p-2 rounded-lg font-medium transition-colors cursor-pointer {state.theme === 'dark'
+					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'dark'
 						? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
-						: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 					title="Dark Mode"
 				>
 					<Moon class="h-5 w-5" />
@@ -124,14 +160,17 @@
 					{#each navUser as item}
 						<a
 							href={item.href}
-							class="flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer {$page.url.pathname === item.href ? 'bg-[rgb(37,140,244)] text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+							class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
+								.url.pathname === item.href
+								? 'bg-[rgb(37,140,244)] text-white'
+								: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 							onclick={closeSidebar}
 						>
-							<svelte:component this={item.icon} class="h-5 w-5 mr-3" />
+							<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
 								{#if isAdmin && item.label === 'Account Settings'}
-									<Crown class="h-4 w-4 ml-2 text-yellow-500" />
+									<Crown class="ml-2 h-4 w-4 text-yellow-500" />
 								{/if}
 							</span>
 						</a>
@@ -145,9 +184,9 @@
 					handleSignOut();
 					closeSidebar();
 				}}
-				class="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors cursor-pointer"
+				class="flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
 			>
-				<LogOut class="h-5 w-5 mr-3" />
+				<LogOut class="mr-3 h-5 w-5" />
 				Sign Out
 			</button>
 		</div>
@@ -165,18 +204,20 @@
 	{/if}
 
 	<!-- Main Content -->
-	<div class="flex-1 flex flex-col overflow-hidden">
+	<div class="flex flex-1 flex-col overflow-hidden">
 		<!-- Top bar for mobile -->
-		<div class="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+		<div
+			class="border-b border-gray-200 bg-white p-4 md:hidden dark:border-gray-700 dark:bg-gray-800"
+		>
 			<div class="flex items-center justify-between">
 				<button
 					onclick={toggleSidebar}
-					class="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 				>
 					<Menu class="h-6 w-6" />
 				</button>
-				<a href="/dashboard/trips" class="flex items-center cursor-pointer">
-					<Navigation class="h-6 w-6 text-[rgb(37,140,244)] mr-2" />
+				<a href="/dashboard/trips" class="flex cursor-pointer items-center">
+					<Navigation class="mr-2 h-6 w-6 text-[rgb(37,140,244)]" />
 					<span class="text-lg font-bold text-gray-900 dark:text-gray-100">Wayli</span>
 				</a>
 				<div class="w-6"></div>

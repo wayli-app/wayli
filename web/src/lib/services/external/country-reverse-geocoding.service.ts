@@ -20,8 +20,8 @@ function loadCountriesGeoJSON(): FeatureCollection<Polygon | MultiPolygon> {
 			const props = feature.properties || {};
 			props.ADMIN = props.ADMIN || props.name || null;
 			props.NAME = props.NAME || props.name || null;
-			props.ISO_A2 = props.ISO_A2 || props["ISO3166-1-Alpha-2"] || null;
-			props.ISO_A3 = props.ISO_A3 || props["ISO3166-1-Alpha-3"] || null;
+			props.ISO_A2 = props.ISO_A2 || props['ISO3166-1-Alpha-2'] || null;
+			props.ISO_A3 = props.ISO_A3 || props['ISO3166-1-Alpha-3'] || null;
 			feature.properties = props;
 		}
 		countriesGeoJSON = rawGeoJSON;
@@ -37,7 +37,9 @@ export function getCountryForPoint(lat: number, lng: number): string | null {
 	const pt = point([lng, lat]);
 	for (const feature of geojson.features) {
 		if (booleanPointInPolygon(pt, feature as Feature<Polygon | MultiPolygon>)) {
-			return feature.properties?.ISO_A2 || feature.properties?.ADMIN || feature.properties?.NAME || null;
+			return (
+				feature.properties?.ISO_A2 || feature.properties?.ADMIN || feature.properties?.NAME || null
+			);
 		}
 	}
 	return null;
@@ -58,9 +60,7 @@ export function getCountryCodeFromName(countryName: string): string | null {
 		const name = props.NAME?.toLowerCase();
 		const altName = props.ALTNAME?.toLowerCase();
 
-		if (adminName === normalizedName ||
-			name === normalizedName ||
-			altName === normalizedName) {
+		if (adminName === normalizedName || name === normalizedName || altName === normalizedName) {
 			return props.ISO_A2 || null;
 		}
 	}

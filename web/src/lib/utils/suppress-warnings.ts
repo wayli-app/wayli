@@ -9,7 +9,7 @@ export function suppressDeprecationWarnings() {
 	const originalWarn = console.warn;
 
 	// Override console.warn to filter out specific deprecation warnings
-	console.warn = function(...args: unknown[]) {
+	console.warn = function (...args: unknown[]) {
 		const message = args[0];
 
 		// Check if this is one of the deprecation warnings we want to suppress

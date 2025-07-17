@@ -37,7 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Generate recovery codes
 		const recoveryCodes = TOTPService.generateRecoveryCodes();
-		const hashedCodes = recoveryCodes.map(rc => rc.hashed);
+		const hashedCodes = recoveryCodes.map((rc) => rc.hashed);
 
 		// Create admin client with service role key
 		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -59,7 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return successResponse({
 			message: 'Two-factor authentication enabled successfully',
-			recoveryCodes: recoveryCodes.map(rc => rc.code)
+			recoveryCodes: recoveryCodes.map((rc) => rc.code)
 		});
 	} catch (error) {
 		console.error('2FA verification error:', error);

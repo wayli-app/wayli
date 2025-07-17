@@ -1,5 +1,10 @@
 import type { RequestHandler } from './$types';
-import { successResponse, errorResponse, validationErrorResponse, notFoundResponse } from '$lib/utils/api/response';
+import {
+	successResponse,
+	errorResponse,
+	validationErrorResponse,
+	notFoundResponse
+} from '$lib/utils/api/response';
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
@@ -23,13 +28,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 		// Get user by email
-		const { data: { users }, error: userError } = await supabaseAdmin.auth.admin.listUsers();
+		const {
+			data: { users },
+			error: userError
+		} = await supabaseAdmin.auth.admin.listUsers();
 
 		if (userError) {
 			return errorResponse('Failed to retrieve user', 500);
 		}
 
-		const user = users.find(u => u.email === email);
+		const user = users.find((u) => u.email === email);
 		if (!user) {
 			return notFoundResponse('User not found');
 		}
@@ -47,7 +55,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Verify the recovery code using the service
-		const { isValid, remainingCodes } = TOTPService.verifyRecoveryCode(recoveryCode, storedRecoveryCodes);
+		const { isValid, remainingCodes } = TOTPService.verifyRecoveryCode(
+			recoveryCode,
+			storedRecoveryCodes
+		);
 
 		if (!isValid) {
 			return validationErrorResponse('Invalid recovery code');

@@ -62,7 +62,10 @@
 		} catch (error) {
 			console.error('Error generating 2FA secret:', error);
 			qrCodeError = true;
-			toast.error('Failed to generate 2FA setup: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			toast.error(
+				'Failed to generate 2FA setup: ' +
+					(error instanceof Error ? error.message : 'Unknown error')
+			);
 		} finally {
 			isGenerating = false;
 		}
@@ -100,7 +103,10 @@
 			}
 		} catch (error) {
 			console.error('Error enabling 2FA:', error);
-			toast.error('Failed to enable two-factor authentication: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			toast.error(
+				'Failed to enable two-factor authentication: ' +
+					(error instanceof Error ? error.message : 'Unknown error')
+			);
 		} finally {
 			isVerifying = false;
 		}
@@ -157,7 +163,7 @@
 {#if open}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
 		on:click={closeModal}
 		on:keydown={(event) => event.key === 'Escape' && closeModal()}
 		role="presentation"
@@ -165,7 +171,7 @@
 	>
 		<!-- Modal -->
 		<div
-			class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+			class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-xl dark:bg-gray-800"
 			on:click|stopPropagation
 			on:keydown={(event) => event.key === 'Escape' && closeModal()}
 			role="dialog"
@@ -175,7 +181,9 @@
 			tabindex="-1"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+			<div
+				class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700"
+			>
 				<div class="flex items-center gap-3">
 					<Shield class="h-6 w-6 text-[rgb(37,140,244)]" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -184,7 +192,7 @@
 				</div>
 				<button
 					on:click={closeModal}
-					class="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
+					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 				>
 					<X class="h-5 w-5" />
 				</button>
@@ -196,19 +204,20 @@
 					<!-- Step 1: QR Code Setup -->
 					<div class="text-center">
 						<div class="mb-6">
-							<QrCode class="h-12 w-12 text-[rgb(37,140,244)] mx-auto mb-4" />
-							<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+							<QrCode class="mx-auto mb-4 h-12 w-12 text-[rgb(37,140,244)]" />
+							<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
 								Set Up Two-Factor Authentication
 							</h3>
-							<p class="text-gray-600 dark:text-gray-400">
-								Enter your password to begin 2FA setup
-							</p>
+							<p class="text-gray-600 dark:text-gray-400">Enter your password to begin 2FA setup</p>
 						</div>
 
 						{#if !qrCodeUrl && !isGenerating}
 							<!-- Password input -->
 							<div class="mb-6">
-								<label for="setupPassword" class="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+								<label
+									for="setupPassword"
+									class="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-100"
+								>
 									Enter Your Password
 								</label>
 								<input
@@ -216,61 +225,68 @@
 									type="password"
 									bind:value={password}
 									placeholder="Enter your password"
-									class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+									class="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
 								/>
 							</div>
 
 							<button
 								on:click={generateSecret}
 								disabled={!password}
-								class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+								class="mb-6 w-full cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								Generate QR Code
 							</button>
 						{:else if isGenerating}
 							<div class="flex items-center justify-center py-8">
 								<div class="text-center">
-									<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[rgb(37,140,244)] mx-auto mb-4"></div>
+									<div
+										class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-[rgb(37,140,244)]"
+									></div>
 									<p class="text-sm text-gray-600 dark:text-gray-400">Generating QR code...</p>
 								</div>
 							</div>
 						{:else if qrCodeUrl}
 							<div class="mb-6">
-								<h4 class="font-medium text-gray-900 dark:text-gray-100 mb-2">
-									Scan QR Code
-								</h4>
-								<p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+								<h4 class="mb-2 font-medium text-gray-900 dark:text-gray-100">Scan QR Code</h4>
+								<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
 									Use your authenticator app to scan this QR code
 								</p>
 								<img
 									src={qrCodeUrl}
 									alt="2FA QR Code"
-									class="mx-auto border border-gray-200 dark:border-gray-700 rounded-lg"
+									class="mx-auto rounded-lg border border-gray-200 dark:border-gray-700"
 								/>
 							</div>
 						{:else if qrCodeError && secret}
-							<div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-								<h4 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+							<div
+								class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
+							>
+								<h4 class="mb-2 font-medium text-yellow-800 dark:text-yellow-200">
 									Manual Setup Required
 								</h4>
-								<p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-									QR code generation failed. Please manually add this secret to your authenticator app:
+								<p class="mb-3 text-sm text-yellow-700 dark:text-yellow-300">
+									QR code generation failed. Please manually add this secret to your authenticator
+									app:
 								</p>
-								<div class="bg-white dark:bg-gray-800 p-3 rounded border border-yellow-200 dark:border-yellow-800">
-									<code class="text-sm font-mono text-gray-900 dark:text-gray-100 break-all">{secret}</code>
+								<div
+									class="rounded border border-yellow-200 bg-white p-3 dark:border-yellow-800 dark:bg-gray-800"
+								>
+									<code class="font-mono text-sm break-all text-gray-900 dark:text-gray-100"
+										>{secret}</code
+									>
 								</div>
-								<p class="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+								<p class="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
 									Account: {email} | Issuer: Wayli
 								</p>
 							</div>
 						{/if}
 
 						{#if qrCodeUrl || (qrCodeError && secret)}
-							<div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
-								<h4 class="font-medium text-gray-900 dark:text-gray-100 mb-2">
+							<div class="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
+								<h4 class="mb-2 font-medium text-gray-900 dark:text-gray-100">
 									Popular Authenticator Apps:
 								</h4>
-								<ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+								<ul class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
 									<li>• Aegis</li>
 									<li>• Authy</li>
 									<li>• Bitwarden</li>
@@ -282,7 +298,7 @@
 
 							<button
 								on:click={nextStep}
-								class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer"
+								class="w-full cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 							>
 								Next: Verify Code
 							</button>
@@ -292,8 +308,8 @@
 					<!-- Step 2: Verification -->
 					<div class="text-center">
 						<div class="mb-6">
-							<Smartphone class="h-12 w-12 text-[rgb(37,140,244)] mx-auto mb-4" />
-							<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+							<Smartphone class="mx-auto mb-4 h-12 w-12 text-[rgb(37,140,244)]" />
+							<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
 								Enter Verification Code
 							</h3>
 							<p class="text-gray-600 dark:text-gray-400">
@@ -307,21 +323,21 @@
 								bind:value={verificationCode}
 								placeholder="000000"
 								maxlength="6"
-								class="w-full text-center text-2xl font-mono tracking-widest px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+								class="w-full rounded-md border border-gray-300 bg-white px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
 							/>
 						</div>
 
 						<div class="flex gap-3">
 							<button
 								on:click={prevStep}
-								class="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md font-medium hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer"
+								class="flex-1 cursor-pointer rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 							>
 								Back
 							</button>
 							<button
 								on:click={verifyAndEnable}
 								disabled={isVerifying || verificationCode.length !== 6}
-								class="flex-1 bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+								class="flex-1 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{isVerifying ? 'Verifying...' : 'Enable 2FA'}
 							</button>
@@ -331,27 +347,36 @@
 					<!-- Step 3: Recovery Codes -->
 					<div class="text-center">
 						<div class="mb-6">
-							<CheckCircle class="h-12 w-12 text-green-500 mx-auto mb-4" />
-							<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+							<CheckCircle class="mx-auto mb-4 h-12 w-12 text-green-500" />
+							<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
 								2FA Enabled! Save Your Recovery Codes
 							</h3>
 							<p class="text-sm text-gray-600 dark:text-gray-400">
-								Store these codes in a safe place. They can be used to access your account if you lose your device.
+								Store these codes in a safe place. They can be used to access your account if you
+								lose your device.
 							</p>
 						</div>
 
-						<div class="grid grid-cols-2 gap-4 mb-6 text-center font-mono text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg">
+						<div
+							class="mb-6 grid grid-cols-2 gap-4 rounded-lg bg-gray-100 p-4 text-center font-mono text-gray-800 dark:bg-gray-900/50 dark:text-gray-200"
+						>
 							{#each recoveryCodes as code}
 								<p>{code}</p>
 							{/each}
 						</div>
 
-						<div class="flex gap-3 mb-4">
-							<button on:click={copyCodes} class="flex-1 inline-flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md font-medium hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
+						<div class="mb-4 flex gap-3">
+							<button
+								on:click={copyCodes}
+								class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+							>
 								<Copy class="h-4 w-4" />
 								Copy
 							</button>
-							<button on:click={downloadCodes} class="flex-1 inline-flex items-center justify-center gap-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md font-medium hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer">
+							<button
+								on:click={downloadCodes}
+								class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+							>
 								<Download class="h-4 w-4" />
 								Download
 							</button>
@@ -359,7 +384,7 @@
 
 						<button
 							on:click={finishSetup}
-							class="w-full bg-[rgb(37,140,244)] text-white px-4 py-2 rounded-md font-medium hover:bg-[rgb(37,140,244)]/90 cursor-pointer"
+							class="w-full cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 						>
 							Finish Setup
 						</button>

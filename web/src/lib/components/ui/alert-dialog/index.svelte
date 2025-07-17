@@ -1,3 +1,13 @@
+<script context="module">
+	export { default as Content } from './Content.svelte';
+	export { default as Header } from './Header.svelte';
+	export { default as Footer } from './Footer.svelte';
+	export { default as Title } from './Title.svelte';
+	export { default as Description } from './Description.svelte';
+	export { default as Action } from './Action.svelte';
+	export { default as Cancel } from './Cancel.svelte';
+</script>
+
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { fade } from 'svelte/transition';
@@ -18,13 +28,3 @@
 		</div>
 	</div>
 {/if}
-
-<script context="module">
-	export { default as Content } from './Content.svelte';
-	export { default as Header } from './Header.svelte';
-	export { default as Footer } from './Footer.svelte';
-	export { default as Title } from './Title.svelte';
-	export { default as Description } from './Description.svelte';
-	export { default as Action } from './Action.svelte';
-	export { default as Cancel } from './Cancel.svelte';
-</script>

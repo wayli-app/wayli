@@ -11,26 +11,26 @@ The system uses a **two-step atomic process** to prevent multiple workers from c
 ```typescript
 // Step 1: Find next available job
 const job = await supabase
-  .from('jobs')
-  .select('*')
-  .in('status', ['queued'])
-  .order('priority', { ascending: false })
-  .order('created_at', { ascending: true })
-  .limit(1)
-  .single();
+	.from('jobs')
+	.select('*')
+	.in('status', ['queued'])
+	.order('priority', { ascending: false })
+	.order('created_at', { ascending: true })
+	.limit(1)
+	.single();
 
 // Step 2: Claim job atomically
 const updatedJob = await supabase
-  .from('jobs')
-  .update({
-    status: 'running',
-    worker_id: workerId,
-    started_at: new Date().toISOString()
-  })
-  .eq('id', job.id)
-  .eq('status', 'queued') // ⚡ CRITICAL: Only claim if still queued
-  .select()
-  .single();
+	.from('jobs')
+	.update({
+		status: 'running',
+		worker_id: workerId,
+		started_at: new Date().toISOString()
+	})
+	.eq('id', job.id)
+	.eq('status', 'queued') // ⚡ CRITICAL: Only claim if still queued
+	.select()
+	.single();
 ```
 
 ### Database-Level Protection
@@ -54,8 +54,8 @@ Workers report progress continuously during job execution:
 ```typescript
 // Example: Reverse geocoding job
 for (let i = 0; i <= totalSteps; i++) {
-  await processLocation(i);
-  await JobQueueService.updateJobProgress(job.id, (i / totalSteps) * 100);
+	await processLocation(i);
+	await JobQueueService.updateJobProgress(job.id, (i / totalSteps) * 100);
 }
 ```
 
@@ -75,9 +75,9 @@ Workers send heartbeats every few seconds:
 
 ```typescript
 await JobQueueService.updateWorkerHeartbeat(
-  this.workerId,
-  this.currentJob ? 'busy' : 'idle',
-  this.currentJob?.id
+	this.workerId,
+	this.currentJob ? 'busy' : 'idle',
+	this.currentJob?.id
 );
 ```
 
@@ -87,18 +87,18 @@ Failed jobs are automatically retried:
 
 ```typescript
 // Job fails with error
-await JobQueueService.failJob(jobId, "Network timeout");
+await JobQueueService.failJob(jobId, 'Network timeout');
 
 // System checks retry count
 if (currentRetries < maxRetries) {
-  // Reset job to queued for retry
-  status: 'queued'
-  retry_count: currentRetries + 1
-  last_error: "Network timeout"
+	// Reset job to queued for retry
+	status: 'queued';
+	retry_count: currentRetries + 1;
+	last_error: 'Network timeout';
 } else {
-  // Mark as permanently failed
-  status: 'failed'
-  error: "Failed after 3 attempts"
+	// Mark as permanently failed
+	status: 'failed';
+	error: 'Failed after 3 attempts';
 }
 ```
 
@@ -111,18 +111,18 @@ The cleanup process handles jobs where workers died:
 ```typescript
 // Find jobs running too long
 const staleJobs = await supabase
-  .from('jobs')
-  .select('*')
-  .eq('status', 'running')
-  .lt('started_at', timeoutThreshold);
+	.from('jobs')
+	.select('*')
+	.eq('status', 'running')
+	.lt('started_at', timeoutThreshold);
 
 // Retry or fail based on retry count
 for (const job of staleJobs) {
-  if (job.retry_count < maxRetries) {
-    await failJob(job.id, "Worker timeout");
-  } else {
-    await markPermanentlyFailed(job.id, "Max retries exceeded");
-  }
+	if (job.retry_count < maxRetries) {
+		await failJob(job.id, 'Worker timeout');
+	} else {
+		await markPermanentlyFailed(job.id, 'Max retries exceeded');
+	}
 }
 ```
 
@@ -178,16 +178,19 @@ const stats = await JobQueueService.getJobStats();
 ## 🚀 Performance Characteristics
 
 ### Job Assignment
+
 - **Latency**: < 100ms with realtime, 1-5s with polling
 - **Throughput**: Limited only by database performance
 - **Concurrency**: Multiple workers can claim jobs simultaneously
 
 ### Status Updates
+
 - **Progress Updates**: Every few seconds during job execution
 - **Heartbeats**: Every 5-10 seconds per worker
 - **Cleanup**: Every 60 seconds for stale jobs
 
 ### Scalability
+
 - **Horizontal**: Add more workers to increase throughput
 - **Vertical**: Increase worker count on same machine
 - **Database**: Optimized queries with proper indexing
@@ -195,19 +198,21 @@ const stats = await JobQueueService.getJobStats();
 ## 🛠️ Configuration
 
 ### Job Timeouts
+
 ```typescript
 const config = {
-  jobTimeout: 300000, // 5 minutes
-  retryAttempts: 3,
-  retryDelay: 60000, // 1 minute between retries
+	jobTimeout: 300000, // 5 minutes
+	retryAttempts: 3,
+	retryDelay: 60000 // 1 minute between retries
 };
 ```
 
 ### Worker Settings
+
 ```typescript
 const config = {
-  maxWorkers: 4,
-  pollInterval: 5000, // 5 seconds (fallback only)
+	maxWorkers: 4,
+	pollInterval: 5000 // 5 seconds (fallback only)
 };
 ```
 

@@ -65,7 +65,7 @@ export const themeStore = createThemeStore();
 // Helper function to get current theme
 export function getTheme(): Theme {
 	let currentTheme: Theme = 'system';
-	themeStore.subscribe(theme => {
+	themeStore.subscribe((theme) => {
 		currentTheme = theme;
 	})();
 	return currentTheme;

@@ -1,101 +1,107 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
-  import { cn } from '$lib/utils';
-  import { touchTargets, motionPreferences } from '$lib/accessibility/accessibility-utils';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import { cn } from '$lib/utils';
+	import { touchTargets, motionPreferences } from '$lib/accessibility/accessibility-utils';
 
-  type ButtonVariants = {
-    variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-    size?: 'default' | 'sm' | 'lg' | 'icon';
-  };
+	type ButtonVariants = {
+		variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+		size?: 'default' | 'sm' | 'lg' | 'icon';
+	};
 
-  const buttonVariants = {
-    variant: {
-      default: 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus-visible:ring-blue-500',
-      destructive: 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 focus-visible:ring-red-500',
-      outline: 'border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 focus-visible:ring-gray-500',
-      secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 focus-visible:ring-gray-500',
-      ghost: 'hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:ring-gray-500',
-      link: 'text-blue-600 underline-offset-4 hover:underline dark:text-blue-400 focus-visible:ring-blue-500'
-    },
-    size: {
-      default: 'h-10 px-4 py-2',
-      sm: 'h-9 rounded-md px-3 text-sm',
-      lg: 'h-11 rounded-md px-8',
-      icon: 'h-10 w-10'
-    }
-  };
+	const buttonVariants = {
+		variant: {
+			default:
+				'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 focus-visible:ring-blue-500',
+			destructive:
+				'bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-700 focus-visible:ring-red-500',
+			outline:
+				'border border-gray-300 bg-white hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700 focus-visible:ring-gray-500',
+			secondary:
+				'bg-gray-100 text-gray-900 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 focus-visible:ring-gray-500',
+			ghost: 'hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:ring-gray-500',
+			link: 'text-blue-600 underline-offset-4 hover:underline dark:text-blue-400 focus-visible:ring-blue-500'
+		},
+		size: {
+			default: 'h-10 px-4 py-2',
+			sm: 'h-9 rounded-md px-3 text-sm',
+			lg: 'h-11 rounded-md px-8',
+			icon: 'h-10 w-10'
+		}
+	};
 
-  export let variant: ButtonVariants['variant'] = 'default';
-  export let size: ButtonVariants['size'] = 'default';
-  export let className: string = '';
-  export let disabled = false;
-  export let type: 'button' | 'submit' | 'reset' = 'button';
-  export let loading = false;
-  export let pressed = false;
-  export let expanded = false;
-  export let controls: string | undefined = undefined;
-  export let describedBy: string | undefined = undefined;
-  export let label: string | undefined = undefined;
+	export let variant: ButtonVariants['variant'] = 'default';
+	export let size: ButtonVariants['size'] = 'default';
+	export let className: string = '';
+	export let disabled = false;
+	export let type: 'button' | 'submit' | 'reset' = 'button';
+	export let loading = false;
+	export let pressed = false;
+	export let expanded = false;
+	export let controls: string | undefined = undefined;
+	export let describedBy: string | undefined = undefined;
+	export let label: string | undefined = undefined;
 
-  const dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher();
 
-  let buttonElement: HTMLButtonElement;
+	let buttonElement: HTMLButtonElement;
 
-  // Ensure variant and size have valid values
-  $: buttonVariant = variant || 'default';
-  $: buttonSize = size || 'default';
+	// Ensure variant and size have valid values
+	$: buttonVariant = variant || 'default';
+	$: buttonSize = size || 'default';
 
-  onMount(() => {
-    if (buttonElement) {
-      // Ensure minimum touch target size
-      touchTargets.ensureMinSize(buttonElement);
+	onMount(() => {
+		if (buttonElement) {
+			// Ensure minimum touch target size
+			touchTargets.ensureMinSize(buttonElement);
 
-      // Apply reduced motion preferences
-      motionPreferences.applyReducedMotion(buttonElement);
-    }
-  });
+			// Apply reduced motion preferences
+			motionPreferences.applyReducedMotion(buttonElement);
+		}
+	});
 
-  function handleClick(event: MouseEvent) {
-    if (disabled || loading) {
-      event.preventDefault();
-      return;
-    }
-    dispatch('click', event);
-  }
+	function handleClick(event: MouseEvent) {
+		if (disabled || loading) {
+			event.preventDefault();
+			return;
+		}
+		dispatch('click', event);
+	}
 
-  function handleKeydown(event: KeyboardEvent) {
-    if (disabled || loading) return;
+	function handleKeydown(event: KeyboardEvent) {
+		if (disabled || loading) return;
 
-    // Handle space and enter for activation
-    if (event.key === ' ' || event.key === 'Enter') {
-      event.preventDefault();
-      dispatch('click', event);
-    }
-  }
+		// Handle space and enter for activation
+		if (event.key === ' ' || event.key === 'Enter') {
+			event.preventDefault();
+			dispatch('click', event);
+		}
+	}
 </script>
 
 <button
-  bind:this={buttonElement}
-  {type}
-  {disabled}
-  {loading}
-  aria-pressed={pressed ? 'true' : undefined}
-  aria-expanded={expanded ? 'true' : undefined}
-  aria-controls={controls}
-  aria-describedby={describedBy}
-  aria-label={label}
-  on:click={handleClick}
-  on:keydown={handleKeydown}
-  class={cn(
-    'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 min-h-[44px] min-w-[44px]',
-    buttonVariants.variant[buttonVariant],
-    buttonVariants.size[buttonSize],
-    className
-  )}
-  {...$$restProps}
+	bind:this={buttonElement}
+	{type}
+	{disabled}
+	{loading}
+	aria-pressed={pressed ? 'true' : undefined}
+	aria-expanded={expanded ? 'true' : undefined}
+	aria-controls={controls}
+	aria-describedby={describedBy}
+	aria-label={label}
+	on:click={handleClick}
+	on:keydown={handleKeydown}
+	class={cn(
+		'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+		buttonVariants.variant[buttonVariant],
+		buttonVariants.size[buttonSize],
+		className
+	)}
+	{...$$restProps}
 >
-  {#if loading}
-    <div class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-  {/if}
-  <slot />
+	{#if loading}
+		<div
+			class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+		/>
+	{/if}
+	<slot />
 </button>

@@ -103,6 +103,13 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
+# Configure export bucket for user data exports
+[storage.buckets.exports]
+public = false
+file_size_limit = "100MiB"
+allowed_mime_types = ["application/zip", "application/json", "application/gpx+xml", "text/plain"]
+objects_path = "./exports"
+
 [auth]
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used

@@ -24,7 +24,11 @@ function createAuthStore() {
 	}
 
 	function handleAuthStateChange(event: AuthChangeEvent, session: Session | null) {
-		console.log('[AuthStore] Auth state change:', event, session ? 'session present' : 'no session');
+		console.log(
+			'[AuthStore] Auth state change:',
+			event,
+			session ? 'session present' : 'no session'
+		);
 
 		// Update session store
 		sessionStore.set(session);
@@ -51,7 +55,10 @@ function createAuthStore() {
 		try {
 			const userResponse = await supabase.auth.getUser();
 			const verifiedUser = userResponse?.data.user ?? null;
-			console.log('[AuthStore] getUser verification result:', verifiedUser ? 'user verified' : 'verification failed');
+			console.log(
+				'[AuthStore] getUser verification result:',
+				verifiedUser ? 'user verified' : 'verification failed'
+			);
 			if (verifiedUser) {
 				console.log('[AuthStore] Verified user email:', verifiedUser.email);
 				set(verifiedUser as AuthStore | null);
@@ -84,7 +91,10 @@ export const sessionStoreReady = writable<boolean>(false);
 async function initializeSessionStore() {
 	try {
 		console.log('[SessionStore] Initializing...');
-		const { data: { session }, error } = await supabase.auth.getSession();
+		const {
+			data: { session },
+			error
+		} = await supabase.auth.getSession();
 		if (error) {
 			console.error('[SessionStore] Error getting initial session:', error);
 			sessionStore.set(null);

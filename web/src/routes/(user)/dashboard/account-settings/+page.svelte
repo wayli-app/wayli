@@ -1,5 +1,25 @@
 <script lang="ts">
-	import { User, Settings, Bell, Globe, Shield, Key, QrCode, Download, Upload, Trash2, Save, X, Check, AlertCircle, Info, Lock, MapPin, Plus, Pencil } from 'lucide-svelte';
+	import {
+		User,
+		Settings,
+		Bell,
+		Globe,
+		Shield,
+		Key,
+		QrCode,
+		Download,
+		Upload,
+		Trash2,
+		Save,
+		X,
+		Check,
+		AlertCircle,
+		Info,
+		Lock,
+		MapPin,
+		Plus,
+		Pencil
+	} from 'lucide-svelte';
 	import { supabase } from '$lib/supabase';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
@@ -136,15 +156,15 @@
 			const response = await fetch(`${config.url}/auth/v1/user`, {
 				method: 'GET',
 				headers: {
-					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
-					'Authorization': `Bearer ${accessToken}`
+					apikey:
+						'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
+					Authorization: `Bearer ${accessToken}`
 				}
 			});
 
 			console.log('Response status:', response.status);
 			const data = await response.text();
 			console.log('Response data:', data);
-
 		} catch (error) {
 			console.error('Real token test failed:', error);
 		}
@@ -175,13 +195,12 @@
 			// Check cookies for tokens
 			console.log('Checking cookies...');
 			const cookies = document.cookie.split(';');
-			const authCookies = cookies.filter(cookie => cookie.includes('sb-'));
+			const authCookies = cookies.filter((cookie) => cookie.includes('sb-'));
 			console.log('Auth cookies found:', authCookies.length);
-			authCookies.forEach(cookie => {
+			authCookies.forEach((cookie) => {
 				const [name, value] = cookie.trim().split('=');
 				console.log(`Cookie: ${name} = ${value ? 'Present' : 'Missing'}`);
 			});
-
 		} catch (error) {
 			console.error('Token test failed:', error);
 		}
@@ -200,15 +219,16 @@
 			const response = await fetch(`${config.url}/auth/v1/user`, {
 				method: 'GET',
 				headers: {
-					'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
-					'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs'
+					apikey:
+						'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
+					Authorization:
+						'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs'
 				}
 			});
 
 			console.log('Response status:', response.status);
 			const data = await response.text();
 			console.log('Response data:', data);
-
 		} catch (error) {
 			console.error('Direct fetch test failed:', error);
 		}
@@ -219,7 +239,10 @@
 		try {
 			// Test 1: Check current user using secure authentication
 			console.log('Test 1: Getting current user...');
-			const { data: { user }, error: userError } = await supabase.auth.getUser();
+			const {
+				data: { user },
+				error: userError
+			} = await supabase.auth.getUser();
 			console.log('User result:', { user: user?.id, error: userError });
 
 			if (user) {
@@ -231,7 +254,6 @@
 			} else {
 				console.log('No user found - user needs to sign in');
 			}
-
 		} catch (error) {
 			console.error('User test failed:', error);
 		}
@@ -247,7 +269,6 @@
 			const { getSupabaseConfig } = await import('$lib/core/config/environment');
 			const config = getSupabaseConfig();
 			console.log('Supabase config validation passed:', config);
-
 		} catch (error) {
 			console.error('Config test failed:', error);
 		}
@@ -272,7 +293,10 @@
 				setTimeout(() => reject(new Error('getUser timed out after 5 seconds')), 5000);
 			});
 
-			const { data: { user }, error } = await Promise.race([getUserPromise, timeoutPromise]) as any;
+			const {
+				data: { user },
+				error
+			} = (await Promise.race([getUserPromise, timeoutPromise])) as any;
 			console.log('Test 3 complete: getUser() completed');
 			console.log('getUser result:', { user: user?.id, error });
 
@@ -330,17 +354,20 @@
 				if (profile.home_address) {
 					if (typeof profile.home_address === 'string') {
 						homeAddressInput = profile.home_address;
-					} else if (typeof profile.home_address === 'object' && profile.home_address.display_name) {
+					} else if (
+						typeof profile.home_address === 'object' &&
+						profile.home_address.display_name
+					) {
 						homeAddressInput = profile.home_address.display_name;
 						selectedHomeAddress = profile.home_address;
 					}
 				}
 			}
-				if (preferences) {
-		preferredLanguageInput = preferences.language || 'en';
-		timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
-		pexelsApiKeyInput = preferences.pexels_api_key || '';
-	}
+			if (preferences) {
+				preferredLanguageInput = preferences.language || 'en';
+				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
+				pexelsApiKeyInput = preferences.pexels_api_key || '';
+			}
 		} catch (error) {
 			console.error('Error loading user data:', error);
 			error = error instanceof Error ? error.message : 'Failed to load user data';
@@ -432,7 +459,7 @@
 				throw new Error(errorData.message || 'Failed to delete exclusion');
 			}
 
-			tripExclusions = tripExclusions.filter(ex => ex.id !== exclusionId);
+			tripExclusions = tripExclusions.filter((ex) => ex.id !== exclusionId);
 			toast.success('Trip exclusion deleted successfully');
 		} catch (error) {
 			console.error('Error deleting exclusion:', error);
@@ -443,7 +470,11 @@
 	}
 
 	async function handleSaveProfile() {
-		console.log('handleSaveProfile called with:', { firstNameInput, lastNameInput, selectedHomeAddress });
+		console.log('handleSaveProfile called with:', {
+			firstNameInput,
+			lastNameInput,
+			selectedHomeAddress
+		});
 		isUpdatingProfile = true;
 		try {
 			console.log('Step 1: Calling server API directly...');
@@ -457,7 +488,7 @@
 			const response = await fetch('/api/v1/auth/profile', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json',
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify(body)
 			});
@@ -490,14 +521,18 @@
 	}
 
 	async function handleSavePreferences() {
-		console.log('handleSavePreferences called with:', { preferredLanguageInput, timezoneInput, pexelsApiKeyInput });
+		console.log('handleSavePreferences called with:', {
+			preferredLanguageInput,
+			timezoneInput,
+			pexelsApiKeyInput
+		});
 		isUpdatingPreferences = true;
 		try {
 			console.log('Step 1: Calling server API directly...');
 			const response = await fetch('/api/v1/auth/preferences', {
 				method: 'PUT',
 				headers: {
-					'Content-Type': 'application/json',
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
 					language: preferredLanguageInput,
@@ -553,7 +588,7 @@
 			const response = await fetch('/api/v1/auth/password', {
 				method: 'PUT',
 				headers: {
-					'Content-Type': 'application/json',
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
 					currentPassword,
@@ -614,7 +649,10 @@
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				selectedHomeAddressIndex = Math.min(selectedHomeAddressIndex + 1, homeAddressSuggestions.length - 1);
+				selectedHomeAddressIndex = Math.min(
+					selectedHomeAddressIndex + 1,
+					homeAddressSuggestions.length - 1
+				);
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
@@ -622,7 +660,10 @@
 				break;
 			case 'Enter':
 				event.preventDefault();
-				if (selectedHomeAddressIndex >= 0 && selectedHomeAddressIndex < homeAddressSuggestions.length) {
+				if (
+					selectedHomeAddressIndex >= 0 &&
+					selectedHomeAddressIndex < homeAddressSuggestions.length
+				) {
 					selectHomeAddress(homeAddressSuggestions[selectedHomeAddressIndex]);
 				}
 				break;
@@ -645,7 +686,9 @@
 		showHomeAddressSuggestions = true;
 		homeAddressSearchError = null;
 		try {
-			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(homeAddressInput.trim())}`);
+			const response = await fetch(
+				`/api/v1/geocode/search?q=${encodeURIComponent(homeAddressInput.trim())}`
+			);
 			const data = await response.json();
 			const results = data.data?.results;
 			if (response.ok && data.success && Array.isArray(results)) {
@@ -705,7 +748,10 @@
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				selectedExclusionAddressIndex = Math.min(selectedExclusionAddressIndex + 1, exclusionAddressSuggestions.length - 1);
+				selectedExclusionAddressIndex = Math.min(
+					selectedExclusionAddressIndex + 1,
+					exclusionAddressSuggestions.length - 1
+				);
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
@@ -713,7 +759,10 @@
 				break;
 			case 'Enter':
 				event.preventDefault();
-				if (selectedExclusionAddressIndex >= 0 && selectedExclusionAddressIndex < exclusionAddressSuggestions.length) {
+				if (
+					selectedExclusionAddressIndex >= 0 &&
+					selectedExclusionAddressIndex < exclusionAddressSuggestions.length
+				) {
 					selectExclusionAddress(exclusionAddressSuggestions[selectedExclusionAddressIndex]);
 				}
 				break;
@@ -736,7 +785,9 @@
 		showExclusionAddressSuggestions = true;
 		exclusionAddressSearchError = null;
 		try {
-			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(exclusionAddressInput.trim())}`);
+			const response = await fetch(
+				`/api/v1/geocode/search?q=${encodeURIComponent(exclusionAddressInput.trim())}`
+			);
 			const data = await response.json();
 			const results = data.data?.results;
 			if (response.ok && data.success && Array.isArray(results)) {
@@ -816,7 +867,7 @@
 			const result = await response.json();
 			if (result.success) {
 				// Update the exclusion in the local array
-				const index = tripExclusions.findIndex(ex => ex.id === editingExclusion.id);
+				const index = tripExclusions.findIndex((ex) => ex.id === editingExclusion.id);
 				if (index !== -1) {
 					tripExclusions[index] = result.data.exclusion;
 				}
@@ -848,16 +899,23 @@
 			showEditExclusionAddressSuggestions = false;
 			return;
 		}
-		editExclusionAddressSearchTimeout = setTimeout(() => searchEditExclusionAddressSuggestions(), 300);
+		editExclusionAddressSearchTimeout = setTimeout(
+			() => searchEditExclusionAddressSuggestions(),
+			300
+		);
 	}
 
 	function handleEditExclusionAddressKeydown(event: KeyboardEvent) {
-		if (!showEditExclusionAddressSuggestions || editExclusionAddressSuggestions.length === 0) return;
+		if (!showEditExclusionAddressSuggestions || editExclusionAddressSuggestions.length === 0)
+			return;
 
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				selectedEditExclusionAddressIndex = Math.min(selectedEditExclusionAddressIndex + 1, editExclusionAddressSuggestions.length - 1);
+				selectedEditExclusionAddressIndex = Math.min(
+					selectedEditExclusionAddressIndex + 1,
+					editExclusionAddressSuggestions.length - 1
+				);
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
@@ -865,8 +923,13 @@
 				break;
 			case 'Enter':
 				event.preventDefault();
-				if (selectedEditExclusionAddressIndex >= 0 && selectedEditExclusionAddressIndex < editExclusionAddressSuggestions.length) {
-					selectEditExclusionAddress(editExclusionAddressSuggestions[selectedEditExclusionAddressIndex]);
+				if (
+					selectedEditExclusionAddressIndex >= 0 &&
+					selectedEditExclusionAddressIndex < editExclusionAddressSuggestions.length
+				) {
+					selectEditExclusionAddress(
+						editExclusionAddressSuggestions[selectedEditExclusionAddressIndex]
+					);
 				}
 				break;
 			case 'Escape':
@@ -888,7 +951,9 @@
 		showEditExclusionAddressSuggestions = true;
 		editExclusionAddressSearchError = null;
 		try {
-			const response = await fetch(`/api/v1/geocode/search?q=${encodeURIComponent(editExclusionAddressInput.trim())}`);
+			const response = await fetch(
+				`/api/v1/geocode/search?q=${encodeURIComponent(editExclusionAddressInput.trim())}`
+			);
 			const data = await response.json();
 			const results = data.data?.results;
 			if (response.ok && data.success && Array.isArray(results)) {
@@ -934,7 +999,9 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<User class="h-8 w-8 text-blue-600 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Account Settings</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+				Account Settings
+			</h1>
 		</div>
 	</div>
 
@@ -947,32 +1014,46 @@
 		</div>
 	{:else}
 		<!-- Profile Settings -->
-		<div class="mb-8 rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
+		<div
+			class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+		>
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<User class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Profile Settings</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">Manage your personal information and account details</p>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
+					Manage your personal information and account details
+				</p>
 			</div>
 
 			<div class="space-y-6">
 				<!-- Email Address Field (restored) -->
 				<div class="mb-4">
-					<label for="email" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Email Address</label>
+					<label
+						for="email"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						>Email Address</label
+					>
 					<input
 						id="email"
 						type="email"
 						value={profile?.email}
 						disabled
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
 					/>
-					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Email address cannot be changed yet.</p>
+					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+						Email address cannot be changed yet.
+					</p>
 				</div>
 
 				<!-- Home Address Autocomplete Field -->
 				<div class="mb-4">
-					<label for="homeAddress" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Home Address</label>
+					<label
+						for="homeAddress"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						>Home Address</label
+					>
 					<div class="relative">
 						<input
 							id="homeAddress"
@@ -982,85 +1063,110 @@
 							on:input={handleHomeAddressInput}
 							on:keydown={handleHomeAddressKeydown}
 							placeholder="Start typing your home address..."
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 						{#if isHomeAddressSearching}
-							<div class="absolute right-3 top-1/2 -translate-y-1/2">
-								<div class="animate-spin h-4 w-4 border-2 border-[rgb(37,140,244)] border-t-transparent rounded-full"></div>
+							<div class="absolute top-1/2 right-3 -translate-y-1/2">
+								<div
+									class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(37,140,244)] border-t-transparent"
+								></div>
 							</div>
 						{/if}
 					</div>
 					{#if homeAddressSuggestions.length > 0 && showHomeAddressSuggestions}
-						<div class="mt-1 border border-[rgb(218,218,221)] dark:border-[#3f3f46] rounded-md bg-white dark:bg-[#23232a] shadow-lg max-h-48 overflow-y-auto">
+						<div
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-[rgb(218,218,221)] bg-white shadow-lg dark:border-[#3f3f46] dark:bg-[#23232a]"
+						>
 							{#each homeAddressSuggestions as suggestion, index}
 								<button
 									type="button"
-									class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-[#2d2d35] focus:bg-gray-50 dark:focus:bg-[#2d2d35] focus:outline-none {selectedHomeAddressIndex === index ? 'bg-[rgb(37,140,244)]/10 dark:bg-[rgb(37,140,244)]/20' : ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-[#2d2d35] dark:focus:bg-[#2d2d35] {selectedHomeAddressIndex ===
+									index
+										? 'bg-[rgb(37,140,244)]/10 dark:bg-[rgb(37,140,244)]/20'
+										: ''}"
 									on:click={() => selectHomeAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
 										<div class="text-xs text-gray-500 dark:text-gray-400">
-											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(6)}
+											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
+												6
+											)}
 										</div>
 									{/if}
 								</button>
 							{/each}
 							{#if homeAddressSearchError}
-								<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+								<div
+									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								>
 									{homeAddressSearchError}
 								</div>
 							{/if}
 						</div>
 					{:else if showHomeAddressSuggestions && homeAddressSearchError}
-						<div class="mt-1 border border-[rgb(218,218,221)] dark:border-[#3f3f46] rounded-md bg-white dark:bg-[#23232a] shadow-lg max-h-48 overflow-y-auto">
-							<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+						<div
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-[rgb(218,218,221)] bg-white shadow-lg dark:border-[#3f3f46] dark:bg-[#23232a]"
+						>
+							<div
+								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+							>
 								{homeAddressSearchError}
 							</div>
 						</div>
 					{/if}
 					{#if selectedHomeAddress && selectedHomeAddress.coordinates}
-						<div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+						<div
+							class="mt-2 rounded-md border border-green-200 bg-green-50 p-2 dark:border-green-800 dark:bg-green-900/20"
+						>
 							<div class="text-sm text-green-800 dark:text-green-200">
-								📍 Coordinates: {selectedHomeAddress.coordinates.lat.toFixed(6)}, {selectedHomeAddress.coordinates.lng.toFixed(6)}
+								📍 Coordinates: {selectedHomeAddress.coordinates.lat.toFixed(6)}, {selectedHomeAddress.coordinates.lng.toFixed(
+									6
+								)}
 							</div>
-							<div class="text-xs text-green-600 dark:text-green-300 mt-1">
+							<div class="mt-1 text-xs text-green-600 dark:text-green-300">
 								{selectedHomeAddress.display_name}
 							</div>
 						</div>
 					{/if}
-					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-						Used for trip generation.
-					</p>
+					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Used for trip generation.</p>
 				</div>
 
 				<div class="grid gap-6 md:grid-cols-2">
 					<div>
-						<label for="firstName" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">First Name</label>
+						<label
+							for="firstName"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							>First Name</label
+						>
 						<input
 							id="firstName"
 							type="text"
 							bind:value={firstNameInput}
 							placeholder="Enter your first name"
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 
 					<div>
-						<label for="lastName" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Last Name</label>
+						<label
+							for="lastName"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							>Last Name</label
+						>
 						<input
 							id="lastName"
 							type="text"
 							bind:value={lastNameInput}
 							placeholder="Enter your last name"
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 				</div>
 			</div>
 
 			<button
-				class="mt-6 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+				class="mt-6 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 				on:click={handleSaveProfile}
 				disabled={isUpdatingProfile}
 			>
@@ -1069,50 +1175,66 @@
 		</div>
 
 		<!-- Security Settings -->
-		<div class="mb-8 rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
+		<div
+			class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+		>
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Lock class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Security Settings</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">Manage your password and security preferences</p>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
+					Manage your password and security preferences
+				</p>
 			</div>
 
 			<div class="space-y-4">
 				<div>
-					<label for="currentPassword" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Current Password</label>
+					<label
+						for="currentPassword"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						>Current Password</label
+					>
 					<input
 						id="currentPassword"
 						type="password"
 						bind:value={currentPassword}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 					/>
 				</div>
 
 				<div class="grid gap-4 md:grid-cols-2">
 					<div>
-						<label for="newPassword" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">New Password</label>
+						<label
+							for="newPassword"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							>New Password</label
+						>
 						<input
 							id="newPassword"
 							type="password"
 							bind:value={newPassword}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 
 					<div>
-						<label for="confirmPassword" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Confirm Password</label>
+						<label
+							for="confirmPassword"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							>Confirm Password</label
+						>
 						<input
 							id="confirmPassword"
 							type="password"
 							bind:value={confirmPassword}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 				</div>
 
 				<button
-					class="rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+					class="cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					on:click={handleUpdatePassword}
 					disabled={isUpdatingPassword}
 				>
@@ -1120,12 +1242,14 @@
 				</button>
 
 				<!-- Two-Factor Authentication Section -->
-				<div class="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+				<div class="mt-6 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
 							<Shield class="h-5 w-5 text-gray-400" />
 							<div>
-								<h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Two-Factor Authentication</h3>
+								<h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+									Two-Factor Authentication
+								</h3>
 								<p class="text-sm text-gray-600 dark:text-gray-400">
 									{#if twoFactorEnabled}
 										Your account is protected with 2FA
@@ -1138,11 +1262,13 @@
 
 						{#if twoFactorEnabled}
 							<div class="flex items-center gap-2">
-								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+								<span
+									class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/20 dark:text-green-400"
+								>
 									Enabled
 								</span>
 								<button
-									class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 cursor-pointer"
+									class="cursor-pointer text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
 									on:click={handleTwoFactorDisable}
 								>
 									Disable
@@ -1150,7 +1276,7 @@
 							</div>
 						{:else}
 							<button
-								class="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[rgb(37,140,244)] bg-[rgb(37,140,244)]/10 rounded-md hover:bg-[rgb(37,140,244)]/20 cursor-pointer"
+								class="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)]/10 px-3 py-1.5 text-sm font-medium text-[rgb(37,140,244)] hover:bg-[rgb(37,140,244)]/20"
 								on:click={handleTwoFactorEnabled}
 							>
 								<Shield class="h-4 w-4" />
@@ -1163,22 +1289,30 @@
 		</div>
 
 		<!-- Preferences -->
-		<div class="rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
+		<div
+			class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+		>
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Globe class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Preferences</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">Configure your language, units, and display preferences</p>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
+					Configure your language, units, and display preferences
+				</p>
 			</div>
 
 			<div class="grid gap-6 md:grid-cols-2">
 				<div>
-					<label for="language" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Preferred Language</label>
+					<label
+						for="language"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						>Preferred Language</label
+					>
 					<select
 						id="language"
 						bind:value={preferredLanguageInput}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100"
 					>
 						{#each languages as language}
 							<option value={language}>{language}</option>
@@ -1187,11 +1321,15 @@
 				</div>
 
 				<div>
-					<label for="timezone" class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100">Timezone</label>
+					<label
+						for="timezone"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						>Timezone</label
+					>
 					<select
 						id="timezone"
 						bind:value={timezoneInput}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white dark:bg-[#23232a] text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)]"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100"
 					>
 						{#each timezones as tz}
 							<option value={tz}>{tz}</option>
@@ -1201,27 +1339,44 @@
 			</div>
 
 			<!-- Pexels API Key Section -->
-			<div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+			<div
+				class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+			>
 				<div class="flex items-start gap-3">
-					<Info class="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+					<Info class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
 					<div class="flex-1">
-						<h3 class="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Trip Image Suggestions</h3>
-						<p class="text-sm text-blue-700 dark:text-blue-300 mb-3">
-							Configure a Pexels API key to enable automatic trip image suggestions based on your travel destinations.
-							<a href="https://www.pexels.com/api/" target="_blank" rel="noopener noreferrer" class="underline hover:text-blue-800 dark:hover:text-blue-200">Get your free API key here</a>.
+						<h3 class="mb-1 text-sm font-medium text-blue-900 dark:text-blue-100">
+							Trip Image Suggestions
+						</h3>
+						<p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+							Configure a Pexels API key to enable automatic trip image suggestions based on your
+							travel destinations.
+							<a
+								href="https://www.pexels.com/api/"
+								target="_blank"
+								rel="noopener noreferrer"
+								class="underline hover:text-blue-800 dark:hover:text-blue-200"
+								>Get your free API key here</a
+							>.
 						</p>
 
 						<div>
-							<label for="pexels-api-key" class="block text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Pexels API Key</label>
+							<label
+								for="pexels-api-key"
+								class="mb-1 block text-sm font-medium text-blue-900 dark:text-blue-100"
+								>Pexels API Key</label
+							>
 							<input
 								type="text"
 								id="pexels-api-key"
 								bind:value={pexelsApiKeyInput}
 								placeholder="Enter your Pexels API key (optional)"
-								class="w-full rounded-md border border-blue-300 dark:border-blue-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-2 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
 							/>
-							<p class="text-xs text-blue-600 dark:text-blue-400 mt-1">
-								{pexelsApiKeyInput ? '✅ API key configured - trip image suggestions enabled' : '⚠️ No API key - trip image suggestions disabled'}
+							<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+								{pexelsApiKeyInput
+									? '✅ API key configured - trip image suggestions enabled'
+									: '⚠️ No API key - trip image suggestions disabled'}
 							</p>
 						</div>
 					</div>
@@ -1229,7 +1384,7 @@
 			</div>
 
 			<button
-				class="mt-6 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+				class="mt-6 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 				on:click={handleSavePreferences}
 				disabled={isUpdatingPreferences}
 			>
@@ -1238,7 +1393,9 @@
 		</div>
 
 		<!-- Trip Exclusions -->
-		<div class="mt-8 rounded-xl border border-[rgb(218,218,221)] dark:border-[#23232a] bg-white dark:bg-[#23232a] p-6">
+		<div
+			class="mt-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+		>
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<MapPin class="h-5 w-5 text-gray-400" />
@@ -1253,52 +1410,60 @@
 				{#if tripExclusions.length > 0}
 					<div class="space-y-3">
 						{#each tripExclusions as exclusion}
-							<div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+							<div
+								class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+							>
 								<div class="flex-1">
 									<div class="font-medium text-gray-900 dark:text-gray-100">{exclusion.name}</div>
-									<div class="text-sm text-gray-600 dark:text-gray-400">{exclusion.location.display_name}</div>
+									<div class="text-sm text-gray-600 dark:text-gray-400">
+										{exclusion.location.display_name}
+									</div>
 									{#if exclusion.location.coordinates}
 										<div class="text-xs text-gray-500 dark:text-gray-500">
-											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(6)}
+											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(
+												6
+											)}
 										</div>
 									{/if}
 								</div>
 								<div class="flex items-center gap-2">
 									<button
 										on:click={() => handleEditExclusion(exclusion)}
-										class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+										class="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20"
 									>
-										<Pencil class="w-4 h-4" />
+										<Pencil class="h-4 w-4" />
 									</button>
 									<button
 										on:click={() => handleDeleteExclusion(exclusion.id)}
 										disabled={isDeletingExclusion}
-										class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+										class="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:hover:bg-red-900/20"
 									>
-										<Trash2 class="w-4 h-4" />
+										<Trash2 class="h-4 w-4" />
 									</button>
 								</div>
 							</div>
 						{/each}
 					</div>
 				{:else}
-					<div class="text-center py-8 text-gray-500 dark:text-gray-400">
-						<MapPin class="w-12 h-12 mx-auto mb-4 opacity-50" />
+					<div class="py-8 text-center text-gray-500 dark:text-gray-400">
+						<MapPin class="mx-auto mb-4 h-12 w-12 opacity-50" />
 						<p>No trip exclusions configured</p>
-						<p class="text-sm">Add exclusions to prevent certain places from being considered as trips</p>
+						<p class="text-sm">
+							Add exclusions to prevent certain places from being considered as trips
+						</p>
 					</div>
 				{/if}
 
 				{#if tripExclusions.length < 10}
 					<button
-						on:click={() => showAddExclusionModal = true}
-						class="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+						on:click={() => (showAddExclusionModal = true)}
+						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-300"
 					>
-						<Plus class="w-4 h-4" />
+						<Plus class="h-4 w-4" />
 						Add Trip Exclusion
 					</button>
 				{:else}
-					<div class="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+					<div class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
 						Maximum of 10 trip exclusions reached
 					</div>
 				{/if}
@@ -1324,24 +1489,33 @@
 <!-- Add Trip Exclusion Modal -->
 {#if showAddExclusionModal}
 	<!-- Modal Overlay -->
-	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
-		on:click={() => showAddExclusionModal = false}>
+	<div
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		on:click={() => (showAddExclusionModal = false)}
+	>
 		<!-- Modal Box -->
-		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
-			on:click|stopPropagation>
-			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Add Trip Exclusion</h3>
+		<div
+			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			on:click|stopPropagation
+		>
+			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+				Add Trip Exclusion
+			</h3>
 			<div class="space-y-6">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label
+					>
 					<input
 						type="text"
 						bind:value={newExclusion.name}
 						placeholder="e.g., Work Office"
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>Address</label
+					>
 					<div class="relative">
 						<input
 							type="text"
@@ -1350,65 +1524,84 @@
 							on:input={handleExclusionAddressInput}
 							on:keydown={handleExclusionAddressKeydown}
 							placeholder="Start typing an address..."
-							class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 						/>
 						{#if isExclusionAddressSearching}
-							<div class="absolute right-3 top-1/2 -translate-y-1/2">
-								<div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+							<div class="absolute top-1/2 right-3 -translate-y-1/2">
+								<div
+									class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+								></div>
 							</div>
 						{/if}
 					</div>
 					{#if exclusionAddressSuggestions.length > 0 && showExclusionAddressSuggestions}
-						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
+						<div
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						>
 							{#each exclusionAddressSuggestions as suggestion, index}
 								<button
 									type="button"
-									class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-50 dark:focus:bg-gray-700 focus:outline-none {selectedExclusionAddressIndex === index ? 'bg-blue-500/10 dark:bg-blue-500/20' : ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedExclusionAddressIndex ===
+									index
+										? 'bg-blue-500/10 dark:bg-blue-500/20'
+										: ''}"
 									on:click={() => selectExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
 										<div class="text-xs text-gray-500 dark:text-gray-400">
-											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(6)}
+											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
+												6
+											)}
 										</div>
 									{/if}
 								</button>
 							{/each}
 							{#if exclusionAddressSearchError}
-								<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+								<div
+									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								>
 									{exclusionAddressSearchError}
 								</div>
 							{/if}
 						</div>
 					{:else if showExclusionAddressSuggestions && exclusionAddressSearchError}
-						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
-							<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+						<div
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						>
+							<div
+								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+							>
 								{exclusionAddressSearchError}
 							</div>
 						</div>
 					{/if}
 					{#if selectedExclusionAddress && selectedExclusionAddress.coordinates}
-						<div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+						<div
+							class="mt-2 rounded-md border border-green-200 bg-green-50 p-2 dark:border-green-800 dark:bg-green-900/20"
+						>
 							<div class="text-sm text-green-800 dark:text-green-200">
-								📍 Coordinates: {selectedExclusionAddress.coordinates.lat.toFixed(6)}, {selectedExclusionAddress.coordinates.lng.toFixed(6)}
+								📍 Coordinates: {selectedExclusionAddress.coordinates.lat.toFixed(6)}, {selectedExclusionAddress.coordinates.lng.toFixed(
+									6
+								)}
 							</div>
-							<div class="text-xs text-green-600 dark:text-green-300 mt-1">
+							<div class="mt-1 text-xs text-green-600 dark:text-green-300">
 								{selectedExclusionAddress.display_name}
 							</div>
 						</div>
 					{/if}
 				</div>
-				<div class="flex gap-3 mt-4">
+				<div class="mt-4 flex gap-3">
 					<button
 						on:click={handleAddExclusion}
 						disabled={isAddingExclusion || !newExclusion.name || !newExclusion.location}
-						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						class="flex-1 cursor-pointer rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isAddingExclusion ? 'Adding...' : 'Add Exclusion'}
 					</button>
 					<button
-						on:click={() => showAddExclusionModal = false}
-						class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer"
+						on:click={() => (showAddExclusionModal = false)}
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
 					>
 						Cancel
 					</button>
@@ -1421,24 +1614,33 @@
 <!-- Edit Trip Exclusion Modal -->
 {#if showEditExclusionModal}
 	<!-- Modal Overlay -->
-	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
-		on:click={() => showEditExclusionModal = false}>
+	<div
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		on:click={() => (showEditExclusionModal = false)}
+	>
 		<!-- Modal Box -->
-		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
-			on:click|stopPropagation>
-			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Edit Trip Exclusion</h3>
+		<div
+			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			on:click|stopPropagation
+		>
+			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+				Edit Trip Exclusion
+			</h3>
 			<div class="space-y-6">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label
+					>
 					<input
 						type="text"
 						bind:value={editingExclusion.name}
 						placeholder="e.g., Work Office"
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>Address</label
+					>
 					<div class="relative">
 						<input
 							type="text"
@@ -1447,65 +1649,84 @@
 							on:input={handleEditExclusionAddressInput}
 							on:keydown={handleEditExclusionAddressKeydown}
 							placeholder="Start typing an address..."
-							class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 						/>
 						{#if isEditExclusionAddressSearching}
-							<div class="absolute right-3 top-1/2 -translate-y-1/2">
-								<div class="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+							<div class="absolute top-1/2 right-3 -translate-y-1/2">
+								<div
+									class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+								></div>
 							</div>
 						{/if}
 					</div>
 					{#if editExclusionAddressSuggestions.length > 0 && showEditExclusionAddressSuggestions}
-						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
+						<div
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						>
 							{#each editExclusionAddressSuggestions as suggestion, index}
 								<button
 									type="button"
-									class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 focus:bg-gray-50 dark:focus:bg-gray-700 focus:outline-none {selectedEditExclusionAddressIndex === index ? 'bg-blue-500/10 dark:bg-blue-500/20' : ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedEditExclusionAddressIndex ===
+									index
+										? 'bg-blue-500/10 dark:bg-blue-500/20'
+										: ''}"
 									on:click={() => selectEditExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
 										<div class="text-xs text-gray-500 dark:text-gray-400">
-											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(6)}
+											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
+												6
+											)}
 										</div>
 									{/if}
 								</button>
 							{/each}
 							{#if editExclusionAddressSearchError}
-								<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+								<div
+									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								>
 									{editExclusionAddressSearchError}
 								</div>
 							{/if}
 						</div>
 					{:else if showEditExclusionAddressSuggestions && editExclusionAddressSearchError}
-						<div class="mt-1 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg max-h-48 overflow-y-auto">
-							<div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center select-none cursor-default">
+						<div
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						>
+							<div
+								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+							>
 								{editExclusionAddressSearchError}
 							</div>
 						</div>
 					{/if}
 					{#if selectedEditExclusionAddress && selectedEditExclusionAddress.coordinates}
-						<div class="mt-2 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+						<div
+							class="mt-2 rounded-md border border-green-200 bg-green-50 p-2 dark:border-green-800 dark:bg-green-900/20"
+						>
 							<div class="text-sm text-green-800 dark:text-green-200">
-								📍 Coordinates: {selectedEditExclusionAddress.coordinates.lat.toFixed(6)}, {selectedEditExclusionAddress.coordinates.lng.toFixed(6)}
+								📍 Coordinates: {selectedEditExclusionAddress.coordinates.lat.toFixed(6)}, {selectedEditExclusionAddress.coordinates.lng.toFixed(
+									6
+								)}
 							</div>
-							<div class="text-xs text-green-600 dark:text-green-300 mt-1">
+							<div class="mt-1 text-xs text-green-600 dark:text-green-300">
 								{selectedEditExclusionAddress.display_name}
 							</div>
 						</div>
 					{/if}
 				</div>
-				<div class="flex gap-3 mt-4">
+				<div class="mt-4 flex gap-3">
 					<button
 						on:click={handleUpdateExclusion}
 						disabled={isEditingExclusion || !editingExclusion.name || !editingExclusion.location}
-						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+						class="flex-1 cursor-pointer rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isEditingExclusion ? 'Updating...' : 'Update Exclusion'}
 					</button>
 					<button
-						on:click={() => showEditExclusionModal = false}
-						class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer"
+						on:click={() => (showEditExclusionModal = false)}
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
 					>
 						Cancel
 					</button>

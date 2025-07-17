@@ -4,7 +4,18 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import { userStore } from '$lib/stores/auth';
-	import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowLeft, User, Check, X } from 'lucide-svelte';
+	import {
+		Mail,
+		Lock,
+		Eye,
+		EyeOff,
+		Github,
+		Chrome,
+		ArrowLeft,
+		User,
+		Check,
+		X
+	} from 'lucide-svelte';
 	import { page } from '$app/stores';
 
 	let email = '';
@@ -41,7 +52,9 @@
 		console.log('🔐 [SIGNUP] Page mounted');
 		// Check if user is already authenticated
 		(async () => {
-			const { data: { user } } = await supabase.auth.getUser();
+			const {
+				data: { user }
+			} = await supabase.auth.getUser();
 			console.log('🔐 [SIGNUP] User check:', user ? `Found - ${user.email}` : 'None');
 
 			if (user) {
@@ -54,7 +67,7 @@
 		})();
 
 		// Subscribe to auth changes for future registrations
-		const unsubscribe = userStore.subscribe(user => {
+		const unsubscribe = userStore.subscribe((user) => {
 			console.log('🔐 [SIGNUP] User store updated:', user ? `User: ${user.email}` : 'No user');
 			if (user) {
 				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
@@ -144,40 +157,42 @@
 	}
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
 	<div class="w-full max-w-md">
 		<!-- Back to home -->
 		<div class="mb-8">
 			<a
 				href="/"
-				class="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
 			>
-				<ArrowLeft class="h-4 w-4 mr-2" />
+				<ArrowLeft class="mr-2 h-4 w-4" />
 				Back to home
 			</a>
 		</div>
 
 		<!-- Sign Up Form -->
-		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-			<div class="text-center mb-8">
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+		<div
+			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+		>
+			<div class="mb-8 text-center">
+				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
 					Create your account
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
-					Join Wayli and start your journey
-				</p>
+				<p class="text-gray-600 dark:text-gray-400">Join Wayli and start your journey</p>
 			</div>
 
 			{#if isEmailSent}
 				<div class="text-center">
-					<div class="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-						<p class="text-green-800 dark:text-green-200 text-sm">
+					<div
+						class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20"
+					>
+						<p class="text-sm text-green-800 dark:text-green-200">
 							Check your email for a confirmation link to complete your registration.
 						</p>
 					</div>
 					<button
-						onclick={() => isEmailSent = false}
-						class="text-sm text-[rgb(37,140,244)] hover:text-[rgb(37,140,244)]/80 transition-colors cursor-pointer"
+						onclick={() => (isEmailSent = false)}
+						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 					>
 						Try a different method
 					</button>
@@ -187,23 +202,31 @@
 					<!-- Name Fields -->
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label for="firstName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+							<label
+								for="firstName"
+								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>
 								First name
 							</label>
 							<div class="relative">
-								<User class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+								<User
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								/>
 								<input
 									id="firstName"
 									type="text"
 									bind:value={firstName}
 									required
-									class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors"
+									class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
 									placeholder="First name"
 								/>
 							</div>
 						</div>
 						<div>
-							<label for="lastName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+							<label
+								for="lastName"
+								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>
 								Last name
 							</label>
 							<input
@@ -211,7 +234,7 @@
 								type="text"
 								bind:value={lastName}
 								required
-								class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors"
+								class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
 								placeholder="Last name"
 							/>
 						</div>
@@ -219,17 +242,22 @@
 
 					<!-- Email Field -->
 					<div>
-						<label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						<label
+							for="email"
+							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>
 							Email address
 						</label>
 						<div class="relative">
-							<Mail class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+							<Mail
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+							/>
 							<input
 								id="email"
 								type="email"
 								bind:value={email}
 								required
-								class="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors"
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
 								placeholder="Enter your email"
 							/>
 						</div>
@@ -237,23 +265,28 @@
 
 					<!-- Password Field -->
 					<div>
-						<label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						<label
+							for="password"
+							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>
 							Password
 						</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+							<Lock
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+							/>
 							<input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
 								bind:value={password}
 								required
-								class="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors"
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
 								placeholder="Create a password"
 							/>
 							<button
 								type="button"
 								onclick={togglePassword}
-								class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -266,55 +299,77 @@
 						<!-- Password Requirements -->
 						{#if password.length > 0}
 							<div class="mt-3 space-y-2">
-								<p class="text-xs font-medium text-gray-700 dark:text-gray-300">Password requirements:</p>
+								<p class="text-xs font-medium text-gray-700 dark:text-gray-300">
+									Password requirements:
+								</p>
 								<div class="space-y-1">
 									<div class="flex items-center text-xs">
 										{#if passwordValidation.minLength}
-											<Check class="h-3 w-3 text-green-500 mr-2" />
+											<Check class="mr-2 h-3 w-3 text-green-500" />
 										{:else}
-											<X class="h-3 w-3 text-red-500 mr-2" />
+											<X class="mr-2 h-3 w-3 text-red-500" />
 										{/if}
-										<span class="{passwordValidation.minLength ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+										<span
+											class={passwordValidation.minLength
+												? 'text-green-600 dark:text-green-400'
+												: 'text-red-600 dark:text-red-400'}
+										>
 											At least 8 characters
 										</span>
 									</div>
 									<div class="flex items-center text-xs">
 										{#if passwordValidation.hasUppercase}
-											<Check class="h-3 w-3 text-green-500 mr-2" />
+											<Check class="mr-2 h-3 w-3 text-green-500" />
 										{:else}
-											<X class="h-3 w-3 text-red-500 mr-2" />
+											<X class="mr-2 h-3 w-3 text-red-500" />
 										{/if}
-										<span class="{passwordValidation.hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+										<span
+											class={passwordValidation.hasUppercase
+												? 'text-green-600 dark:text-green-400'
+												: 'text-red-600 dark:text-red-400'}
+										>
 											One uppercase letter
 										</span>
 									</div>
 									<div class="flex items-center text-xs">
 										{#if passwordValidation.hasLowercase}
-											<Check class="h-3 w-3 text-green-500 mr-2" />
+											<Check class="mr-2 h-3 w-3 text-green-500" />
 										{:else}
-											<X class="h-3 w-3 text-red-500 mr-2" />
+											<X class="mr-2 h-3 w-3 text-red-500" />
 										{/if}
-										<span class="{passwordValidation.hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+										<span
+											class={passwordValidation.hasLowercase
+												? 'text-green-600 dark:text-green-400'
+												: 'text-red-600 dark:text-red-400'}
+										>
 											One lowercase letter
 										</span>
 									</div>
 									<div class="flex items-center text-xs">
 										{#if passwordValidation.hasNumber}
-											<Check class="h-3 w-3 text-green-500 mr-2" />
+											<Check class="mr-2 h-3 w-3 text-green-500" />
 										{:else}
-											<X class="h-3 w-3 text-red-500 mr-2" />
+											<X class="mr-2 h-3 w-3 text-red-500" />
 										{/if}
-										<span class="{passwordValidation.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+										<span
+											class={passwordValidation.hasNumber
+												? 'text-green-600 dark:text-green-400'
+												: 'text-red-600 dark:text-red-400'}
+										>
 											One number
 										</span>
 									</div>
 									<div class="flex items-center text-xs">
 										{#if passwordValidation.hasSpecial}
-											<Check class="h-3 w-3 text-green-500 mr-2" />
+											<Check class="mr-2 h-3 w-3 text-green-500" />
 										{:else}
-											<X class="h-3 w-3 text-red-500 mr-2" />
+											<X class="mr-2 h-3 w-3 text-red-500" />
 										{/if}
-										<span class="{passwordValidation.hasSpecial ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+										<span
+											class={passwordValidation.hasSpecial
+												? 'text-green-600 dark:text-green-400'
+												: 'text-red-600 dark:text-red-400'}
+										>
 											One special character
 										</span>
 									</div>
@@ -325,23 +380,31 @@
 
 					<!-- Confirm Password Field -->
 					<div>
-						<label for="confirmPassword" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						<label
+							for="confirmPassword"
+							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>
 							Confirm password
 						</label>
 						<div class="relative">
-							<Lock class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+							<Lock
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+							/>
 							<input
 								id="confirmPassword"
 								type={showConfirmPassword ? 'text' : 'password'}
 								bind:value={confirmPassword}
 								required
-								class="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-[rgb(37,140,244)] focus:border-transparent transition-colors {!doPasswordsMatch && confirmPassword.length > 0 ? 'border-red-500' : ''}"
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 {!doPasswordsMatch &&
+								confirmPassword.length > 0
+									? 'border-red-500'
+									: ''}"
 								placeholder="Confirm your password"
 							/>
 							<button
 								type="button"
 								onclick={toggleConfirmPassword}
-								class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -359,16 +422,19 @@
 					<button
 						type="submit"
 						disabled={loading || !isPasswordValid || !doPasswordsMatch}
-						class="w-full bg-[rgb(37,140,244)] hover:bg-[rgb(37,140,244)]/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors cursor-pointer"
+						class="w-full cursor-pointer rounded-lg bg-[rgb(37,140,244)] px-4 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loading ? 'Creating account...' : 'Create account'}
 					</button>
 				</form>
 
-				<div class="text-center mt-6">
+				<div class="mt-6 text-center">
 					<p class="text-sm text-gray-600 dark:text-gray-400">
 						Already have an account?
-						<a href="/auth/signin" class="font-medium text-[rgb(37,140,244)] hover:text-[rgb(37,140,244)]/80 transition-colors cursor-pointer">
+						<a
+							href="/auth/signin"
+							class="cursor-pointer font-medium text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
+						>
 							Sign in
 						</a>
 					</p>

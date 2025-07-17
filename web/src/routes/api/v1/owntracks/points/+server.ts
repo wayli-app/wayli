@@ -138,12 +138,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		};
 
 		// Insert tracking data using upsert to handle duplicates
-		const { error } = await supabaseAdmin
-			.from('tracker_data')
-			.upsert(trackingData, {
-				onConflict: 'user_id,location,recorded_at',
-				ignoreDuplicates: false
-			});
+		const { error } = await supabaseAdmin.from('tracker_data').upsert(trackingData, {
+			onConflict: 'user_id,location,recorded_at',
+			ignoreDuplicates: false
+		});
 
 		if (error) {
 			console.error('Error inserting tracking data:', error);
@@ -153,7 +151,6 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		// Return simple success response that OwnTracks expects
 		return successResponse({ message: 'Location received' });
-
 	} catch (error) {
 		console.error('POST tracking data error:', error);
 		// Return success anyway to prevent OwnTracks from retrying indefinitely
@@ -161,13 +158,24 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	}
 };
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, locals }) => {
 	try {
+		// Get current user from session - this ensures authentication
+		const session = await locals.getSession();
+		if (!session) {
+			return errorResponse('User not authenticated', 401);
+		}
+
 		const user_id = url.searchParams.get('user_id');
 
 		// Validate user_id format
 		if (!user_id || !isValidUUID(user_id)) {
 			return errorResponse('Invalid user_id format', 403);
+		}
+
+		// Security: Ensure user can only access their own data
+		if (user_id !== session.user.id) {
+			return errorResponse('Forbidden: Cannot access other user data', 403);
 		}
 
 		// Create Supabase admin client
@@ -190,7 +198,6 @@ export const GET: RequestHandler = async ({ url }) => {
 		return successResponse({
 			data: trackingData || []
 		});
-
 	} catch (error) {
 		console.error('GET tracking data error:', error);
 		return errorResponse('An unexpected error occurred', 500);
@@ -224,16 +231,14 @@ export const PUT: RequestHandler = async ({ request }) => {
 		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 		// Test insert
-		const { error } = await supabaseAdmin
-			.from('tracker_data')
-			.insert({
-				user_id,
-				tracker_type: 'test',
-				device_id: 'test-device',
-				recorded_at: new Date().toISOString(),
-				location,
-				raw_data: { lat, lon }
-			});
+		const { error } = await supabaseAdmin.from('tracker_data').insert({
+			user_id,
+			tracker_type: 'test',
+			device_id: 'test-device',
+			recorded_at: new Date().toISOString(),
+			location,
+			raw_data: { lat, lon }
+		});
 
 		if (error) {
 			console.error('Error testing PostGIS point creation:', error);
@@ -246,7 +251,6 @@ export const PUT: RequestHandler = async ({ request }) => {
 			lat,
 			lon
 		});
-
 	} catch (error) {
 		console.error('PUT test endpoint error:', error);
 		return errorResponse('An unexpected error occurred', 500);

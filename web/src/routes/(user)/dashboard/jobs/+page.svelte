@@ -95,7 +95,8 @@
 		{
 			type: 'trip_generation',
 			title: 'Generate trips automatically',
-			description: 'Analyze GPS data to automatically detect and create trips based on overnight stays away from home.',
+			description:
+				'Analyze GPS data to automatically detect and create trips based on overnight stays away from home.',
 			icon: Route,
 			estimatedTime: '5-15 minutes',
 			fields: [
@@ -143,7 +144,7 @@
 			console.log('[Jobs] Session store updated:', session ? 'session present' : 'no session');
 		});
 
-				// Always try to get session and load jobs immediately
+		// Always try to get session and load jobs immediately
 		const loadJobsWithSession = async () => {
 			try {
 				console.log('[Jobs] Using session from store instead of fetching from Supabase...');
@@ -252,7 +253,9 @@
 				connectionRetries++;
 
 				if (connectionRetries <= MAX_RETRIES) {
-					console.log(`[Jobs] Attempting to reconnect SSE (${connectionRetries}/${MAX_RETRIES})...`);
+					console.log(
+						`[Jobs] Attempting to reconnect SSE (${connectionRetries}/${MAX_RETRIES})...`
+					);
 					// Exponential backoff: 1s, 2s, 4s, 8s, 16s
 					const delay = Math.min(1000 * Math.pow(2, connectionRetries - 1), 10000);
 					setTimeout(() => {
@@ -300,7 +303,10 @@
 		const jobIndex = jobs.findIndex((job) => job.id === update.job_id);
 
 		// Always prefer update.job_type, then update.job?.type, then fallback
-		const resolvedType = update.job_type || update.job?.type || (typeof update.type === 'string' ? update.type : 'unknown');
+		const resolvedType =
+			update.job_type ||
+			update.job?.type ||
+			(typeof update.type === 'string' ? update.type : 'unknown');
 
 		if (jobIndex !== -1) {
 			const prevStatus = jobs[jobIndex].status;
@@ -309,7 +315,9 @@
 			jobs[jobIndex] = { ...jobs[jobIndex], ...update, type: resolvedType };
 			jobs = [...jobs]; // Trigger reactivity
 
-			console.log(`[Jobs] [updateJobStatus] Updated job ${update.job_id}: status=${update.status}, progress=${update.progress}`);
+			console.log(
+				`[Jobs] [updateJobStatus] Updated job ${update.job_id}: status=${update.status}, progress=${update.progress}`
+			);
 
 			// Toast notification for status change
 			if (update.status && update.status !== prevStatus) {
@@ -318,13 +326,19 @@
 			previousJobStatuses[update.job_id] = update.status;
 
 			// Handle final job updates - add a delay before removing from active list
-			if (update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled') {
+			if (
+				update.status === 'completed' ||
+				update.status === 'failed' ||
+				update.status === 'cancelled'
+			) {
 				// Keep the job in the list for a short time so users can see the final progress
 				setTimeout(() => {
 					// Remove the job from the active list after showing final progress
 					const currentJobIndex = jobs.findIndex((job) => job.id === update.job_id);
 					if (currentJobIndex !== -1) {
-						console.log(`[Jobs] [updateJobStatus] Removing finished job ${update.job_id} from active list after delay`);
+						console.log(
+							`[Jobs] [updateJobStatus] Removing finished job ${update.job_id} from active list after delay`
+						);
 						jobs.splice(currentJobIndex, 1);
 						jobs = [...jobs]; // Trigger reactivity
 					}
@@ -364,11 +378,17 @@
 			}
 
 			// Handle final job updates for newly added jobs
-			if (update.status === 'completed' || update.status === 'failed' || update.status === 'cancelled') {
+			if (
+				update.status === 'completed' ||
+				update.status === 'failed' ||
+				update.status === 'cancelled'
+			) {
 				setTimeout(() => {
 					const currentJobIndex = jobs.findIndex((job) => job.id === update.job_id);
 					if (currentJobIndex !== -1) {
-						console.log(`[Jobs] [updateJobStatus] Removing finished job ${update.job_id} from active list after delay`);
+						console.log(
+							`[Jobs] [updateJobStatus] Removing finished job ${update.job_id} from active list after delay`
+						);
 						jobs.splice(currentJobIndex, 1);
 						jobs = [...jobs]; // Trigger reactivity
 					}
@@ -405,14 +425,19 @@
 
 			const session = get(sessionStore);
 			console.log('[Jobs] [loadJobs] Session from store:', session ? 'present' : 'not present');
-			console.log('[Jobs] [loadJobs] Session details:', session ? {
-				hasAccessToken: !!session.access_token,
-				userId: session.user?.id,
-				email: session.user?.email
-			} : 'no session');
+			console.log(
+				'[Jobs] [loadJobs] Session details:',
+				session
+					? {
+							hasAccessToken: !!session.access_token,
+							userId: session.user?.id,
+							email: session.user?.email
+						}
+					: 'no session'
+			);
 			const headers: Record<string, string> = {};
 			// Removed: if (session?.access_token) { ... }
-				console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
+			console.log('[Jobs] [loadJobs] No session available, making unauthenticated request');
 
 			console.log('[Jobs] [loadJobs] Making API request to /api/v1/jobs...');
 			const apiStartTime = Date.now();
@@ -434,7 +459,11 @@
 			console.log(`[Jobs] [loadJobs] API request took ${apiTime}ms, status: ${response.status}`);
 
 			if (!response.ok) {
-				console.error('[Jobs] [loadJobs] API request failed:', response.status, response.statusText);
+				console.error(
+					'[Jobs] [loadJobs] API request failed:',
+					response.status,
+					response.statusText
+				);
 				if (response.status === 401) {
 					// Authentication error - this is expected if session is not ready
 					console.log('[Jobs] [loadJobs] Authentication required, this is expected');
@@ -465,7 +494,7 @@
 			if (initialLoadComplete) {
 				// Merge server data with existing data, preserving any local updates
 				const mergedJobs = serverJobs.map((serverJob: Job) => {
-					const existingJob = jobs.find(job => job.id === serverJob.id);
+					const existingJob = jobs.find((job) => job.id === serverJob.id);
 					if (existingJob) {
 						// Preserve existing job data but update with server changes
 						return { ...existingJob, ...serverJob };
@@ -488,7 +517,6 @@
 			// Sort jobs by creation date (newest first)
 			jobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 			error = null; // Clear any previous errors
-
 		} catch (err) {
 			console.error('[Jobs] [loadJobs] Failed to load jobs:', err);
 			if (err instanceof Error && err.name === 'AbortError') {
@@ -607,7 +635,11 @@
 		return new Date(dateString).toLocaleString();
 	}
 
-	async function createJob(type: string, data: Record<string, unknown> = {}, priority: 'low' | 'normal' | 'high' = 'normal') {
+	async function createJob(
+		type: string,
+		data: Record<string, unknown> = {},
+		priority: 'low' | 'normal' | 'high' = 'normal'
+	) {
 		try {
 			console.log('[Jobs] [createJob] Creating job:', { type, data, priority });
 
@@ -643,7 +675,9 @@
 			return result.data?.job;
 		} catch (error) {
 			console.error('[Jobs] [createJob] Error creating job:', error);
-			toast.error('Failed to create job', { description: error instanceof Error ? error.message : 'Unknown error' });
+			toast.error('Failed to create job', {
+				description: error instanceof Error ? error.message : 'Unknown error'
+			});
 			throw error;
 		}
 	}
@@ -738,37 +772,47 @@
 	function getLastJob(type: string): Job | undefined {
 		const jobArr = Array.isArray(jobs) ? jobs : [];
 		const jobsOfType = jobArr.filter(
-				(job) =>
-					job &&
-					typeof job.type === 'string' &&
-					job.type === type
+			(job) => job && typeof job.type === 'string' && job.type === type
 		);
 
 		console.log(`[Jobs] [getLastJob] Looking for jobs of type: ${type}`);
 		console.log(`[Jobs] [getLastJob] Total jobs available: ${jobArr.length}`);
-		console.log(`[Jobs] [getLastJob] Jobs of type ${type}:`, jobsOfType.map(j => ({ id: j.id, status: j.status, completed_at: j.completed_at })));
+		console.log(
+			`[Jobs] [getLastJob] Jobs of type ${type}:`,
+			jobsOfType.map((j) => ({ id: j.id, status: j.status, completed_at: j.completed_at }))
+		);
 
 		if (jobsOfType.length === 0) return undefined;
 
 		// First try to find the most recent completed job
-		const completedJobs = jobsOfType.filter(job => job.status === 'completed');
+		const completedJobs = jobsOfType.filter((job) => job.status === 'completed');
 		console.log(`[Jobs] [getLastJob] Completed jobs of type ${type}:`, completedJobs.length);
 
 		if (completedJobs.length > 0) {
-			const lastCompleted = completedJobs.sort((a, b) =>
-				new Date(b.completed_at || b.updated_at || b.created_at).getTime() -
-				new Date(a.completed_at || a.updated_at || a.created_at).getTime()
+			const lastCompleted = completedJobs.sort(
+				(a, b) =>
+					new Date(b.completed_at || b.updated_at || b.created_at).getTime() -
+					new Date(a.completed_at || a.updated_at || a.created_at).getTime()
 			)[0];
-			console.log(`[Jobs] [getLastJob] Returning last completed job:`, { id: lastCompleted.id, status: lastCompleted.status, completed_at: lastCompleted.completed_at });
+			console.log(`[Jobs] [getLastJob] Returning last completed job:`, {
+				id: lastCompleted.id,
+				status: lastCompleted.status,
+				completed_at: lastCompleted.completed_at
+			});
 			return lastCompleted;
 		}
 
 		// If no completed jobs, return the most recent job of any status
-		const lastJob = jobsOfType.sort((a, b) =>
-			new Date(b.completed_at || b.updated_at || b.created_at).getTime() -
-			new Date(a.completed_at || a.updated_at || a.created_at).getTime()
+		const lastJob = jobsOfType.sort(
+			(a, b) =>
+				new Date(b.completed_at || b.updated_at || b.created_at).getTime() -
+				new Date(a.completed_at || a.updated_at || a.created_at).getTime()
 		)[0];
-		console.log(`[Jobs] [getLastJob] Returning last job (any status):`, { id: lastJob.id, status: lastJob.status, completed_at: lastJob.completed_at });
+		console.log(`[Jobs] [getLastJob] Returning last job (any status):`, {
+			id: lastJob.id,
+			status: lastJob.status,
+			completed_at: lastJob.completed_at
+		});
 		return lastJob;
 	}
 
@@ -801,7 +845,9 @@
 			toast.success('Job cancelled successfully');
 		} catch (error) {
 			console.error('[Jobs] [killJob] Error killing job:', error);
-			toast.error('Failed to cancel job', { description: error instanceof Error ? error.message : 'Unknown error' });
+			toast.error('Failed to cancel job', {
+				description: error instanceof Error ? error.message : 'Unknown error'
+			});
 		}
 	}
 
@@ -826,15 +872,19 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<ListTodo class="h-8 w-8 text-blue-600 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Background jobs</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+				Background jobs
+			</h1>
 		</div>
 	</div>
 
 	<!-- Connection Status -->
 	<div class="mb-6">
-		<div class="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-xl border border-gray-200">
+		<div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2">
 			<div class="flex items-center gap-2">
-				<div class="w-3 h-3 rounded-full {isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}"></div>
+				<div
+					class="h-3 w-3 rounded-full {isConnected ? 'animate-pulse bg-green-500' : 'bg-red-500'}"
+				></div>
 				<span class="text-sm font-medium text-gray-700">
 					{isConnected ? 'Connected to real-time updates' : 'Using polling fallback'}
 				</span>
@@ -849,36 +899,40 @@
 
 	<!-- Error Display -->
 	{#if error}
-		<div class="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg shadow-sm">
+		<div
+			class="mb-6 rounded-lg border border-red-200 bg-gradient-to-r from-red-50 to-pink-50 p-4 shadow-sm"
+		>
 			<div class="flex items-center gap-3">
-				<div class="p-2 bg-red-100 rounded-full">
-					<AlertCircle class="w-5 h-5 text-red-600" />
+				<div class="rounded-full bg-red-100 p-2">
+					<AlertCircle class="h-5 w-5 text-red-600" />
 				</div>
 				<div>
-					<span class="text-red-800 font-medium">{error}</span>
+					<span class="font-medium text-red-800">{error}</span>
 				</div>
 			</div>
 		</div>
 	{/if}
 
 	<!-- Active Jobs Progress Display -->
-	{#if jobs.filter(job => job.status === 'running' || job.status === 'queued').length > 0}
+	{#if jobs.filter((job) => job.status === 'running' || job.status === 'queued').length > 0}
 		<div class="mb-8">
-			<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Active Jobs</h2>
+			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Active Jobs</h2>
 			<div class="space-y-4">
-				{#each jobs.filter(job => job.status === 'running' || job.status === 'queued') as job (job.id)}
-					<div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
-						<div class="flex items-center justify-between mb-3">
+				{#each jobs.filter((job) => job.status === 'running' || job.status === 'queued') as job (job.id)}
+					<div
+						class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+					>
+						<div class="mb-3 flex items-center justify-between">
 							<div class="flex items-center gap-3">
-								<div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+								<div class="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
 									{#if job.type === 'reverse_geocoding_missing'}
-										<MapPin class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+										<MapPin class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 									{:else if job.type === 'data_import'}
-										<Upload class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+										<Upload class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 									{:else if job.type === 'trip_generation'}
-										<Route class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+										<Route class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 									{:else}
-										<Database class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+										<Database class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 									{/if}
 								</div>
 								<div>
@@ -893,17 +947,17 @@
 							<div class="flex items-center gap-2">
 								<button
 									on:click={() => killJob(job.id)}
-									class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+									class="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-900/20"
 									title="Cancel job"
 								>
-									<X class="w-4 h-4" />
+									<X class="h-4 w-4" />
 								</button>
 							</div>
 						</div>
 
 						<!-- Progress Bar -->
 						<div class="mb-3">
-							<div class="flex justify-between items-center mb-1">
+							<div class="mb-1 flex items-center justify-between">
 								<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
 									Progress: {job.progress}%
 								</span>
@@ -911,9 +965,9 @@
 									{job.status === 'running' ? 'Running' : 'Queued'}
 								</span>
 							</div>
-							<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
 								<div
-									class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+									class="h-2 rounded-full bg-blue-600 transition-all duration-300"
 									style="width: {job.progress}%"
 								></div>
 							</div>
@@ -932,21 +986,23 @@
 								<!-- For reverse geocoding jobs -->
 								{#if job.type === 'reverse_geocoding_missing' && result.processedCount !== undefined}
 									<div class="grid grid-cols-3 gap-4 text-xs">
-										<div class="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+										<div class="rounded bg-green-50 p-2 dark:bg-green-900/20">
 											<div class="font-semibold text-green-700 dark:text-green-300">
 												{(result.successCount as number)?.toLocaleString() || 0}
 											</div>
 											<div class="text-green-600 dark:text-green-400">Successful</div>
 										</div>
-										<div class="bg-red-50 dark:bg-red-900/20 p-2 rounded">
+										<div class="rounded bg-red-50 p-2 dark:bg-red-900/20">
 											<div class="font-semibold text-red-700 dark:text-red-300">
 												{(result.errorCount as number)?.toLocaleString() || 0}
 											</div>
 											<div class="text-red-600 dark:text-red-400">Errors</div>
 										</div>
-										<div class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+										<div class="rounded bg-blue-50 p-2 dark:bg-blue-900/20">
 											<div class="font-semibold text-blue-700 dark:text-blue-300">
-												{(result.processedCount as number)?.toLocaleString() || 0} / {(result.totalCount as number)?.toLocaleString() || 0}
+												{(result.processedCount as number)?.toLocaleString() || 0} / {(
+													result.totalCount as number
+												)?.toLocaleString() || 0}
 											</div>
 											<div class="text-blue-600 dark:text-blue-400">Processed</div>
 										</div>
@@ -956,13 +1012,13 @@
 								<!-- For import jobs -->
 								{#if job.type === 'data_import' && result.importedCount !== undefined}
 									<div class="grid grid-cols-2 gap-4 text-xs">
-										<div class="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+										<div class="rounded bg-green-50 p-2 dark:bg-green-900/20">
 											<div class="font-semibold text-green-700 dark:text-green-300">
 												{(result.importedCount as number)?.toLocaleString() || 0}
 											</div>
 											<div class="text-green-600 dark:text-green-400">Imported</div>
 										</div>
-										<div class="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+										<div class="rounded bg-blue-50 p-2 dark:bg-blue-900/20">
 											<div class="font-semibold text-blue-700 dark:text-blue-300">
 												{(result.totalItems as number)?.toLocaleString() || 0}
 											</div>
@@ -985,82 +1041,120 @@
 	{/if}
 
 	<!-- Job Templates -->
-	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+	<div class="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 		{#each jobTemplates as template (template.type)}
 			{#key jobs}
 				{@const lastJob = getLastJob(template.type)}
-				<Card class="relative flex flex-col h-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+				<Card
+					class="relative flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow duration-200 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+				>
 					<!-- Header: Icon + Title/Description -->
-					<div class="flex flex-row items-start gap-4 h-[112px] overflow-hidden">
-						<div class="p-3 bg-blue-50 rounded-xl flex items-center justify-center h-12 w-12">
-							<svelte:component this={template.icon} class="w-7 h-7 text-blue-600" />
+					<div class="flex h-[112px] flex-row items-start gap-4 overflow-hidden">
+						<div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 p-3">
+							<svelte:component this={template.icon} class="h-7 w-7 text-blue-600" />
 						</div>
-						<div class="flex flex-col justify-center flex-1">
-							<h3 class="font-bold text-lg text-gray-900 dark:text-gray-100 leading-tight">{template.title}</h3>
-							<p class="text-gray-500 dark:text-gray-400 text-sm mt-1 leading-relaxed line-clamp-2">{template.description}</p>
+						<div class="flex flex-1 flex-col justify-center">
+							<h3 class="text-lg leading-tight font-bold text-gray-900 dark:text-gray-100">
+								{template.title}
+							</h3>
+							<p class="mt-1 line-clamp-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+								{template.description}
+							</p>
 						</div>
 					</div>
 					<!-- Divider -->
-					<div class="my-4 border-t border-gray-200 dark:border-gray-700 w-full"></div>
+					<div class="my-4 w-full border-t border-gray-200 dark:border-gray-700"></div>
 					<!-- Status Section -->
-					<div class="flex flex-col min-h-[48px] justify-center">
+					<div class="flex min-h-[48px] flex-col justify-center">
 						{#if lastJob}
-							<div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs w-full">
+							<div
+								class="flex w-full items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs dark:border-gray-600 dark:bg-gray-700"
+							>
 								<span class="font-medium text-gray-700 dark:text-gray-300">Last run:</span>
-								<span class="text-gray-800 dark:text-gray-200">{lastJob.completed_at ? formatDate(lastJob.completed_at) : lastJob.updated_at ? formatDate(lastJob.updated_at) : formatDate(lastJob.created_at)}</span>
-								<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold {lastJob.status === 'completed' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : lastJob.status === 'failed' ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300' : lastJob.status === 'cancelled' ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300' : lastJob.status === 'running' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'}">
+								<span class="text-gray-800 dark:text-gray-200"
+									>{lastJob.completed_at
+										? formatDate(lastJob.completed_at)
+										: lastJob.updated_at
+											? formatDate(lastJob.updated_at)
+											: formatDate(lastJob.created_at)}</span
+								>
+								<span
+									class="ml-2 rounded-full px-2 py-0.5 text-xs font-semibold {lastJob.status ===
+									'completed'
+										? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+										: lastJob.status === 'failed'
+											? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+											: lastJob.status === 'cancelled'
+												? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+												: lastJob.status === 'running'
+													? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+													: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'}"
+								>
 									{getStatusText(lastJob.status)}
 								</span>
 							</div>
 						{:else}
-							<div class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-xs text-gray-400 dark:text-gray-500 w-full">Never run</div>
+							<div
+								class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-500"
+							>
+								Never run
+							</div>
 						{/if}
 					</div>
 					<!-- Spacer to push button to bottom -->
 					<div class="flex-1"></div>
 					<!-- Action Button -->
-					<div class="flex justify-center mt-6">
+					<div class="mt-6 flex justify-center">
 						{#if hasActiveJob(template.type)}
 							{@const activeJob = getActiveJob(template.type)}
-							{@const isFinished = activeJob?.status === 'completed' || activeJob?.status === 'failed' || activeJob?.status === 'cancelled'}
+							{@const isFinished =
+								activeJob?.status === 'completed' ||
+								activeJob?.status === 'failed' ||
+								activeJob?.status === 'cancelled'}
 							{#if isFinished}
 								<Button
 									disabled
-									class="px-6 py-3 w-full md:w-auto {activeJob?.status === 'completed' ? 'bg-green-300' : activeJob?.status === 'failed' ? 'bg-red-300' : 'bg-gray-300'} text-white font-semibold rounded-lg shadow cursor-not-allowed"
+									class="w-full px-6 py-3 md:w-auto {activeJob?.status === 'completed'
+										? 'bg-green-300'
+										: activeJob?.status === 'failed'
+											? 'bg-red-300'
+											: 'bg-gray-300'} cursor-not-allowed rounded-lg font-semibold text-white shadow"
 									size="lg"
 								>
 									<div class="flex items-center justify-center gap-2">
 										{#if activeJob?.status === 'completed'}
-											<div class="w-4 h-4">✅</div>
+											<div class="h-4 w-4">✅</div>
 											<span class="font-medium">Completed</span>
 										{:else if activeJob?.status === 'failed'}
-											<div class="w-4 h-4">❌</div>
+											<div class="h-4 w-4">❌</div>
 											<span class="font-medium">Failed</span>
 										{:else}
-											<div class="w-4 h-4">⏹️</div>
+											<div class="h-4 w-4">⏹️</div>
 											<span class="font-medium">Cancelled</span>
 										{/if}
 									</div>
 								</Button>
 							{:else}
-								<div class="flex flex-col md:flex-row gap-3 w-full justify-center items-center">
+								<div class="flex w-full flex-col items-center justify-center gap-3 md:flex-row">
 									<Button
 										disabled
-										class="px-6 py-3 w-full md:w-auto bg-blue-300 text-white font-semibold rounded-lg shadow cursor-not-allowed"
+										class="w-full cursor-not-allowed rounded-lg bg-blue-300 px-6 py-3 font-semibold text-white shadow md:w-auto"
 										size="lg"
 									>
 										<div class="flex items-center justify-center gap-2">
-											<div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+											<div
+												class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+											></div>
 											<span class="font-medium">Running...</span>
 										</div>
 									</Button>
 									<Button
 										on:click={() => killJob(activeJob!.id)}
-										class="px-4 py-3 w-full md:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow transition-all duration-200 cursor-pointer"
+										class="w-full cursor-pointer rounded-lg bg-red-600 px-4 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-red-700 md:w-auto"
 										size="lg"
 									>
 										<div class="flex items-center justify-center gap-2">
-											<X class="w-4 h-4" />
+											<X class="h-4 w-4" />
 											<span class="font-medium">Kill Job</span>
 										</div>
 									</Button>
@@ -1068,12 +1162,15 @@
 							{/if}
 						{:else}
 							<Button
-								on:click={() => template.type === 'trip_generation' ? openTripGenerationModal() : handleJobTemplateClick(template)}
-								class="px-6 py-3 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 cursor-pointer"
+								on:click={() =>
+									template.type === 'trip_generation'
+										? openTripGenerationModal()
+										: handleJobTemplateClick(template)}
+								class="w-full cursor-pointer rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-blue-700 md:w-auto"
 								size="lg"
 							>
 								<div class="flex items-center justify-center gap-2">
-									<Play class="w-4 h-4" />
+									<Play class="h-4 w-4" />
 									<span class="font-medium">Start Job</span>
 								</div>
 							</Button>
@@ -1083,40 +1180,54 @@
 			{/key}
 		{/each}
 	</div>
-
-
 </div>
 
 <!-- Import Modal -->
 {#if showImportModal}
 	<!-- Modal Overlay -->
-	<div class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 transition-all cursor-pointer"
-		on:click={() => showImportModal = false}>
+	<div
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		on:click={() => (showImportModal = false)}
+	>
 		<!-- Modal Box -->
-		<div class="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md border border-gray-200 dark:border-gray-700 relative animate-fade-in cursor-default"
-			on:click|stopPropagation>
-			<h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100 text-center">Import Data</h3>
+		<div
+			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			on:click|stopPropagation
+		>
+			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+				Import Data
+			</h3>
 			<div class="space-y-6">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select File</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>Select File</label
+					>
 					<input
 						type="file"
 						accept=".json,.gpx,.geojson"
 						bind:this={fileInputEl}
 						on:change={handleFileSelect}
-						class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 				</div>
-				<div class="flex gap-3 mt-4">
-					<Button on:click={handleFileImport} disabled={!selectedFile} class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
-						<span class="flex items-center justify-center gap-2 w-full">
-							<Upload class="w-4 h-4 text-white" />
+				<div class="mt-4 flex gap-3">
+					<Button
+						on:click={handleFileImport}
+						disabled={!selectedFile}
+						class="flex-1 cursor-pointer rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-blue-700"
+					>
+						<span class="flex w-full items-center justify-center gap-2">
+							<Upload class="h-4 w-4 text-white" />
 							Import
 						</span>
 					</Button>
-					<Button variant="outline" on:click={() => showImportModal = false} class="flex-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 font-semibold rounded-lg shadow transition-all duration-200 py-3 px-6 cursor-pointer">
-						<span class="flex items-center justify-center gap-2 w-full">
-							<X class="w-4 h-4 text-gray-700 dark:text-gray-200" />
+					<Button
+						variant="outline"
+						on:click={() => (showImportModal = false)}
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+					>
+						<span class="flex w-full items-center justify-center gap-2">
+							<X class="h-4 w-4 text-gray-700 dark:text-gray-200" />
 							Cancel
 						</span>
 					</Button>

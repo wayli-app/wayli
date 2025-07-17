@@ -89,7 +89,7 @@ export class ServiceFactory {
 		ServiceClass: new (...args: unknown[]) => T,
 		dependencies: string[] = []
 	): T {
-		const resolvedDependencies = dependencies.map(dep => serviceContainer.get(dep));
+		const resolvedDependencies = dependencies.map((dep) => serviceContainer.get(dep));
 		return new ServiceClass(...resolvedDependencies);
 	}
 }
@@ -97,11 +97,11 @@ export class ServiceFactory {
 // Base service class with common functionality
 export abstract class BaseService implements IService {
 	protected logger: ILoggerService | null = null;
-	protected cache: ICacheService | null = null;
+	protected cacheService: ICacheService | null = null;
 
 	constructor() {
 		this.logger = serviceContainer.get<ILoggerService>('logger');
-		this.cache = serviceContainer.get<ICacheService>('cache');
+		this.cacheService = serviceContainer.get<ICacheService>('cache');
 	}
 
 	async initialize(): Promise<void> {
@@ -157,7 +157,8 @@ export class EnhancedCacheService extends BaseService implements ICacheService {
 		return item.value as T;
 	}
 
-	set<T>(key: string, value: T, ttl = 300000): void { // Default 5 minutes
+	set<T>(key: string, value: T, ttl = 300000): void {
+		// Default 5 minutes
 		// Check cache size
 		if (this.cache.size >= this.maxSize) {
 			this.evictOldest();
@@ -214,7 +215,8 @@ export class EnhancedCacheService extends BaseService implements ICacheService {
 // Enhanced logger service with structured logging
 export class EnhancedLoggerService extends BaseService implements ILoggerService {
 	private logLevel: 'debug' | 'info' | 'warn' | 'error' = 'info';
-	private logBuffer: Array<{ level: string; message: string; data?: unknown; timestamp: number }> = [];
+	private logBuffer: Array<{ level: string; message: string; data?: unknown; timestamp: number }> =
+		[];
 	private maxBufferSize = 100;
 
 	async initialize(): Promise<void> {
@@ -281,7 +283,9 @@ export class EnhancedLoggerService extends BaseService implements ILoggerService
 	}
 
 	// Get recent logs
-	getRecentLogs(count = 10): Array<{ level: string; message: string; data?: unknown; timestamp: number }> {
+	getRecentLogs(
+		count = 10
+	): Array<{ level: string; message: string; data?: unknown; timestamp: number }> {
 		return this.logBuffer.slice(-count);
 	}
 
@@ -325,6 +329,17 @@ export class ServiceManager {
 
 	getService<T extends IService>(name: string): T | null {
 		return serviceContainer.get<T>(name);
+	}
+
+	/**
+	 * Get a service with proper typing
+	 */
+	getTypedService<T extends IService>(name: string): T {
+		const service = this.getService<T>(name);
+		if (!service) {
+			throw new Error(`Service ${name} not found`);
+		}
+		return service;
 	}
 }
 

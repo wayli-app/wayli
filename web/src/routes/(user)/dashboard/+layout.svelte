@@ -69,7 +69,7 @@
 
 <AppNav isAdmin={data.isAdmin} on:signout={handleSignOut}>
 	<!-- Main content area -->
-	<div class="bg-gray-50 dark:bg-gray-900 min-h-screen p-6">
+	<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
 		<slot />
 	</div>
 </AppNav>

@@ -41,22 +41,19 @@
 	}
 </script>
 
-<Modal
-	{open}
-	title=""
-	size="sm"
-	showCloseButton={false}
-	on:close={handleCancel}
->
-	<div class="text-center space-y-4">
+<Modal {open} title="" size="sm" showCloseButton={false} on:close={handleCancel}>
+	<div class="space-y-4 text-center">
 		<!-- Icon -->
-		<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full {variantConfig[variant].bgClass}">
+		<div
+			class="mx-auto flex h-12 w-12 items-center justify-center rounded-full {variantConfig[variant]
+				.bgClass}"
+		>
 			<svelte:component this={icon} class="h-6 w-6 {variantConfig[variant].iconClass}" />
 		</div>
 
 		<!-- Content -->
 		<div>
-			<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
 				{title}
 			</h3>
 			<p class="text-sm text-gray-500 dark:text-gray-400">

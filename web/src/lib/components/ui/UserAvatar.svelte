@@ -53,12 +53,14 @@
 		src={user.avatar_url}
 		alt="User avatar"
 		class="rounded-full object-cover {sizeClasses[size]}"
-		on:error={() => showFallback = false}
+		on:error={() => (showFallback = false)}
 	/>
 {:else}
 	<!-- Generate initials avatar -->
 	<div
-		class="flex items-center justify-center rounded-full bg-red-500 text-white font-semibold {sizeClasses[size]}"
+		class="flex items-center justify-center rounded-full bg-red-500 font-semibold text-white {sizeClasses[
+			size
+		]}"
 		title={user?.full_name || user?.email || 'User'}
 	>
 		{initials}

@@ -15,7 +15,9 @@
 	}
 </script>
 
-<div class="group relative overflow-hidden rounded-xl border border-gray-200 dark:border-[#23232a] bg-white dark:bg-[#23232a] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+<div
+	class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
+>
 	<div class="relative aspect-[4/3] overflow-hidden">
 		<img
 			src={image}
@@ -36,12 +38,19 @@
 				<h3 class="text-lg font-semibold text-white">{title}</h3>
 				<div class="mt-2 flex flex-wrap gap-1">
 					{#each labels as label}
-						<span class="rounded-full px-2 py-0.5 text-xs font-medium
-							{label === 'Adventure' ? 'bg-red-100 text-red-700' :
-							 label === 'Nature' ? 'bg-emerald-100 text-emerald-700' :
-							 label === 'Roadtrip' ? 'bg-green-100 text-green-700' :
-							 label === 'Vacation' ? 'bg-blue-100 text-blue-700' :
-							 label === 'auto-generated' ? 'bg-gray-100 text-gray-700' : ''}"
+						<span
+							class="rounded-full px-2 py-0.5 text-xs font-medium
+							{label === 'Adventure'
+								? 'bg-red-100 text-red-700'
+								: label === 'Nature'
+									? 'bg-emerald-100 text-emerald-700'
+									: label === 'Roadtrip'
+										? 'bg-green-100 text-green-700'
+										: label === 'Vacation'
+											? 'bg-blue-100 text-blue-700'
+											: label === 'auto-generated'
+												? 'bg-gray-100 text-gray-700'
+												: ''}"
 						>
 							{label}
 						</span>
@@ -59,17 +68,17 @@
 			<span>{duration}</span>
 		</div>
 		<div class="flex gap-2">
-			<button class="rounded p-1 hover:bg-gray-100 cursor-pointer" aria-label="Edit">
+			<button class="cursor-pointer rounded p-1 hover:bg-gray-100" aria-label="Edit">
 				<Edit class="h-4 w-4 text-gray-500" />
 			</button>
-			<button class="rounded p-1 hover:bg-gray-100 cursor-pointer" aria-label="View map">
+			<button class="cursor-pointer rounded p-1 hover:bg-gray-100" aria-label="View map">
 				<Map class="h-4 w-4 text-gray-500" />
 			</button>
-			<button class="rounded p-1 hover:bg-gray-100 cursor-pointer" aria-label="View statistics">
+			<button class="cursor-pointer rounded p-1 hover:bg-gray-100" aria-label="View statistics">
 				<BarChart2 class="h-4 w-4 text-gray-500" />
 			</button>
 			<button
-				class="rounded p-1 hover:bg-red-50 text-red-600 cursor-pointer"
+				class="cursor-pointer rounded p-1 text-red-600 hover:bg-red-50"
 				aria-label="Delete"
 				on:click={handleDelete}
 			>

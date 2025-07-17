@@ -35,9 +35,8 @@
 		clearFilters
 	} from '$lib/stores/app-state.svelte';
 	import { toast } from 'svelte-sonner';
-	import { LocationCacheService } from '$lib/services/location-cache.service';
-	import { StatisticsService } from '$lib/services/statistics.service';
-	import { TripLocationsService } from '$lib/services/trip-locations.service';
+	import { getStatisticsService } from '$lib/services/service-layer-adapter';
+import { LocationCacheService } from '$lib/services/location-cache.service';
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
 
@@ -55,7 +54,8 @@
 	let locationData: any[] = [];
 	let hasMoreData = false;
 	let currentOffset = 0;
-	const BATCH_SIZE = 10000;
+	const BATCH_SIZE = 2500; // Show 2500 points by default
+	let totalPoints = 0;
 
 	// Add minimum loading time to ensure loading indicator is visible
 	let loadingStartTime = 0;
@@ -160,9 +160,7 @@
 		clearMapInitialState();
 	}
 
-	// Add loaded/total GPS points state
-	let totalGpsPoints = 0;
-	let loadedGpsPoints = 0;
+
 
 	async function loadLocationData(reset = true) {
 		if (isLoading) return;
@@ -176,17 +174,17 @@
 		}
 
 		try {
-			// Create cache key
+			// Create cache key (only for initial load, not for load more)
 			const cacheKey = {
 				startDate: getDateObject(state.filtersStartDate)?.toISOString().split('T')[0] || '',
 				endDate: getDateObject(state.filtersEndDate)?.toISOString().split('T')[0] || '',
-				offset: currentOffset,
+				offset: reset ? 0 : currentOffset,
 				limit: BATCH_SIZE
 			};
 
 			console.log('Cache key:', cacheKey);
 
-			// Try to get cached data first
+			// Try to get cached data first (only for initial load)
 			const cachedData = LocationCacheService.getCachedData(cacheKey);
 
 			if (cachedData && reset) {
@@ -198,10 +196,10 @@
 
 				locationData = cachedData.data;
 				hasMoreData = cachedData.hasMore;
-				currentOffset += cachedData.data.length;
+				currentOffset = cachedData.data.length;
 
 				// Add markers to map
-				addMarkersToMap(cachedData.data);
+				addMarkersToMap(cachedData.data, reset);
 
 				// Fit map to show all markers if this is the first load
 				if (reset && cachedData.data.length > 0) {
@@ -224,7 +222,7 @@
 				return;
 			}
 
-			// Try to get data from day-specific cache if we have date filters
+			// Try to get data from day-specific cache if we have date filters (only for initial load)
 			if (state.filtersStartDate && state.filtersEndDate && reset) {
 				const startDateStr =
 					getDateObject(state.filtersStartDate)?.toISOString().split('T')[0] || '';
@@ -249,10 +247,10 @@
 
 					locationData = paginatedData;
 					hasMoreData = endIndex < dayCachedData.length;
-					currentOffset += paginatedData.length;
+					currentOffset = paginatedData.length;
 
 					// Add markers to map
-					addMarkersToMap(paginatedData);
+					addMarkersToMap(paginatedData, reset);
 
 					// Fit map to show all markers if this is the first load
 					if (reset && paginatedData.length > 0) {
@@ -286,8 +284,8 @@
 				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
 				: undefined;
 
-			const tripLocationsService = new TripLocationsService();
-			const result = await tripLocationsService.getLocationsByDateRange(
+			const statisticsService = getStatisticsService();
+			const result = await statisticsService.getLocationsByDateRange(
 				startDate,
 				endDate,
 				BATCH_SIZE,
@@ -305,15 +303,17 @@
 
 			if (reset) {
 				locationData = newData;
+				totalPoints = result.total;
+				currentOffset = newData.length;
 			} else {
 				locationData = [...locationData, ...newData];
+				currentOffset += newData.length;
 			}
 
 			hasMoreData = result.hasMore;
-			currentOffset += newData.length;
 
 			// Transform TripLocation data to LocationData format for caching
-			const transformedData = newData.map(item => ({
+			const transformedData = newData.map((item) => ({
 				id: item.id,
 				name: item.name,
 				description: item.description,
@@ -329,14 +329,16 @@
 				speed: item.speed
 			}));
 
-			// Cache the data (this will also cache by individual days)
-			LocationCacheService.setCachedData(cacheKey, transformedData, result.total, result.hasMore);
+			// Cache the data (only for initial load, not for load more)
+			if (reset) {
+				LocationCacheService.setCachedData(cacheKey, transformedData, result.total, result.hasMore);
+			}
 
 			// Update cache statistics display
 			cacheUpdateTrigger++;
 
 			// Add markers to map
-			addMarkersToMap(newData);
+			addMarkersToMap(newData, reset);
 
 			// Fit map to show all markers if this is the first load
 			if (reset && newData.length > 0) {
@@ -347,9 +349,7 @@
 				`Loaded ${newData.length} locations from service (total: ${locationData.length}, hasMore: ${hasMoreData})`
 			);
 
-			// Update loaded/total GPS points state
-			loadedGpsPoints = locationData.length;
-			totalGpsPoints = result.total || loadedGpsPoints;
+
 		} catch (error) {
 			console.error('Error loading location data:', error);
 			toast.error('Failed to load location data');
@@ -365,14 +365,20 @@
 		}
 	}
 
-	function addMarkersToMap(data: any[]) {
+	function addMarkersToMap(data: any[], reset = true) {
 		if (!map || !L) return;
 
-		// Clear existing polylines and markers
-		polylines.forEach((polyline) => { if (map) map.removeLayer(polyline); });
-		polylines = [];
-		markers.forEach((marker) => { if (map) map.removeLayer(marker); });
-		markers = [];
+		// Clear existing polylines and markers only if resetting
+		if (reset) {
+			polylines.forEach((polyline) => {
+				if (map) map.removeLayer(polyline);
+			});
+			polylines = [];
+			markers.forEach((marker) => {
+				if (map) map.removeLayer(marker);
+			});
+			markers = [];
+		}
 
 		// Color map for transport modes
 		const modeColors: Record<string, string> = {
@@ -391,10 +397,18 @@
 				const points = segment.points;
 				if (!points || points.length < 2) continue;
 				// Filter out points with invalid coordinates
-				const validPoints = points.filter((p: any) => p?.location?.coordinates && typeof p.location.coordinates.lat === 'number' && typeof p.location.coordinates.lng === 'number');
+				const validPoints = points.filter(
+					(p: any) =>
+						p?.location?.coordinates &&
+						typeof p.location.coordinates.lat === 'number' &&
+						typeof p.location.coordinates.lng === 'number'
+				);
 
 				if (validPoints.length < 2) continue;
-				const lineCoordinates = validPoints.map((p: any) => [p.location.coordinates.lat, p.location.coordinates.lng]);
+				const lineCoordinates = validPoints.map((p: any) => [
+					p.location.coordinates.lat,
+					p.location.coordinates.lng
+				]);
 				const mode = segment.mode || 'unknown';
 				const polyline = L.polyline(lineCoordinates, {
 					color: modeColors[mode] || '#6b7280',
@@ -412,7 +426,11 @@
 
 				// Add start marker (green)
 				const startPoint = validPoints[0];
-				if (startPoint?.location?.coordinates && typeof startPoint.location.coordinates.lat === 'number' && typeof startPoint.location.coordinates.lng === 'number') {
+				if (
+					startPoint?.location?.coordinates &&
+					typeof startPoint.location.coordinates.lat === 'number' &&
+					typeof startPoint.location.coordinates.lng === 'number'
+				) {
 					const startMarker = L.circleMarker(
 						[startPoint.location.coordinates.lat, startPoint.location.coordinates.lng],
 						{
@@ -431,7 +449,11 @@
 
 				// Add end marker (red)
 				const endPoint = validPoints[validPoints.length - 1];
-				if (endPoint?.location?.coordinates && typeof endPoint.location.coordinates.lat === 'number' && typeof endPoint.location.coordinates.lng === 'number') {
+				if (
+					endPoint?.location?.coordinates &&
+					typeof endPoint.location.coordinates.lat === 'number' &&
+					typeof endPoint.location.coordinates.lng === 'number'
+				) {
 					const endMarker = L.circleMarker(
 						[endPoint.location.coordinates.lat, endPoint.location.coordinates.lng],
 						{
@@ -450,8 +472,14 @@
 
 				// Collect unique tracker points for markers
 				for (const p of validPoints) {
-					if (p.location?.coordinates && typeof p.location.coordinates.lat === 'number' && typeof p.location.coordinates.lng === 'number') {
-						const id = p.id || `${p.location.coordinates.lat},${p.location.coordinates.lng},${p.recorded_at || p.created_at}`;
+					if (
+						p.location?.coordinates &&
+						typeof p.location.coordinates.lat === 'number' &&
+						typeof p.location.coordinates.lng === 'number'
+					) {
+						const id =
+							p.id ||
+							`${p.location.coordinates.lat},${p.location.coordinates.lng},${p.recorded_at || p.created_at}`;
 						if (!uniqueTrackerPoints[id]) {
 							uniqueTrackerPoints[id] = { ...p, transport_mode: segment.mode };
 						}
@@ -630,9 +658,15 @@
 				['Postcode', props.postcode],
 				['State', props.state],
 				['Country', props.country],
-				['Type', props.type],
+				['Type', props.type]
 			];
-			const rows = fields.filter(([, v]) => v).map(([k, v]) => `<tr><td class='pr-2 text-gray-500 align-top py-1'>${k}:</td><td class='font-semibold text-gray-900 py-1'>${v}</td></tr>`).join('');
+			const rows = fields
+				.filter(([, v]) => v)
+				.map(
+					([k, v]) =>
+						`<tr><td class='pr-2 text-gray-500 align-top py-1'>${k}:</td><td class='font-semibold text-gray-900 py-1'>${v}</td></tr>`
+				)
+				.join('');
 			if (rows) {
 				return `<table class='bg-gray-50 rounded p-3 text-sm my-1 w-full' style='margin-top:2px; margin-bottom:2px;'><tbody>${rows}</tbody></table>`;
 			}
@@ -661,11 +695,17 @@
 						<span class="font-semibold text-gray-900">${item.location?.coordinates?.lat?.toFixed(6) || ''}, ${item.location?.coordinates?.lng?.toFixed(6) || ''}</span>
 					</div>
 					${item.country_code ? `<div class=\"flex justify-between items-center\"><span class=\"text-gray-500\">Country Code:</span><span class=\"font-semibold text-gray-900\">${item.country_code}</span></div>` : ''}
-					${item.speed !== undefined ? `<div class="flex justify-between items-center">
+					${
+						item.speed !== undefined
+							? `<div class="flex justify-between items-center">
 						<span class="text-gray-500">Speed (GPS):</span>
 						<span class="font-semibold text-gray-900">${(item.speed * 3.6).toFixed(2)} km/h</span>
-					</div>` : ''}
-					${velocityData.velocity !== null ? `<div class="flex justify-between items-center">
+					</div>`
+							: ''
+					}
+					${
+						velocityData.velocity !== null
+							? `<div class="flex justify-between items-center">
 						<span class="text-gray-500">Velocity (calc):</span>
 						<span class="font-semibold text-gray-900">${(velocityData.velocity * 3.6).toFixed(2)} km/h</span>
 					</div>
@@ -676,7 +716,9 @@
 					<div class="flex justify-between items-center">
 						<span class="text-gray-500">Distance:</span>
 						<span class="font-semibold text-gray-900">${velocityData.distance ? velocityData.distance.toFixed(1) + 'm' : 'N/A'}</span>
-					</div>` : ''}
+					</div>`
+							: ''
+					}
 					${item.geocode ? `<div class='mt-2'><span class='block text-gray-500 mb-1'>Geocode:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
 				</div>
 			</div>
@@ -895,21 +937,29 @@
 	}
 
 	// Calculate velocity based on time difference and distance between current and previous point
-	function calculateVelocity(currentPoint: any, allPoints: any[]): { velocity: number | null; timeDiff: number | null; distance: number | null } {
+	function calculateVelocity(
+		currentPoint: any,
+		allPoints: any[]
+	): { velocity: number | null; timeDiff: number | null; distance: number | null } {
 		if (!currentPoint || !allPoints || allPoints.length < 2) {
 			return { velocity: null, timeDiff: null, distance: null };
 		}
 
 		// Find the current point's index in the sorted array
 		const sortedPoints = allPoints
-			.filter(item => item.type === 'tracker' && item.coordinates)
-			.sort((a, b) => new Date(a.recorded_at || a.created_at).getTime() - new Date(b.recorded_at || b.created_at).getTime());
+			.filter((item) => item.type === 'tracker' && item.coordinates)
+			.sort(
+				(a, b) =>
+					new Date(a.recorded_at || a.created_at).getTime() -
+					new Date(b.recorded_at || b.created_at).getTime()
+			);
 
-		const currentIndex = sortedPoints.findIndex(point =>
-			point.id === currentPoint.id ||
-			(point.recorded_at === currentPoint.recorded_at &&
-			 point.coordinates?.lat === currentPoint.coordinates?.lat &&
-			 point.coordinates?.lng === currentPoint.coordinates?.lng)
+		const currentIndex = sortedPoints.findIndex(
+			(point) =>
+				point.id === currentPoint.id ||
+				(point.recorded_at === currentPoint.recorded_at &&
+					point.coordinates?.lat === currentPoint.coordinates?.lat &&
+					point.coordinates?.lng === currentPoint.coordinates?.lng)
 		);
 
 		if (currentIndex <= 0) {
@@ -1129,13 +1179,16 @@
 		}
 
 		// Convert to array and calculate percentages
-		return Array.from(modeStats.entries()).map(([mode, stats]) => ({
-			mode,
-			distance: Math.round(stats.distance / 1000 * 10) / 10, // Convert to km
-			time: stats.time,
-			percentage: totalDistance > 0 ? Math.round((stats.distance / totalDistance) * 1000) / 10 : 0,
-			count: stats.count
-		})).sort((a, b) => b.distance - a.distance);
+		return Array.from(modeStats.entries())
+			.map(([mode, stats]) => ({
+				mode,
+				distance: Math.round((stats.distance / 1000) * 10) / 10, // Convert to km
+				time: stats.time,
+				percentage:
+					totalDistance > 0 ? Math.round((stats.distance / totalDistance) * 1000) / 10 : 0,
+				count: stats.count
+			}))
+			.sort((a, b) => b.distance - a.distance);
 	}
 
 	// Function to format segment duration
@@ -1221,7 +1274,8 @@
 		if (!legend) {
 			legend = document.createElement('div');
 			legend.id = legendId;
-			legend.className = 'leaflet-control leaflet-bar bg-white dark:bg-gray-800 p-3 rounded shadow text-gray-900 dark:text-gray-100';
+			legend.className =
+				'leaflet-control leaflet-bar bg-white dark:bg-gray-800 p-3 rounded shadow text-gray-900 dark:text-gray-100';
 			legend.style.position = 'absolute';
 			legend.style.top = '90px';
 			legend.style.left = '10px';
@@ -1246,7 +1300,7 @@
 		if (map) return;
 
 		// Small delay to ensure container is ready
-		await new Promise(resolve => setTimeout(resolve, 100));
+		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		map = L.map(mapContainer, {
 			center: [20, 0], // Default center of the world
@@ -1438,29 +1492,40 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
-		<div class="flex items-center gap-2 min-w-0">
+	<div class="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+		<div class="flex min-w-0 items-center gap-2">
 			<BarChart class="h-8 w-8 flex-shrink-0 text-blue-600 dark:text-gray-400" />
-			<h1 class="whitespace-nowrap text-3xl font-bold text-gray-900 dark:text-gray-100">Statistics</h1>
+			<h1 class="text-3xl font-bold whitespace-nowrap text-gray-900 dark:text-gray-100">
+				Statistics
+			</h1>
 		</div>
-		<div class="flex items-center gap-6 flex-1 justify-end">
-			<div class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900 rounded px-4 py-2 text-sm text-gray-500 dark:text-gray-400 shadow-sm">
-				<span>Location cache: {cacheStats.entries} entries, {(cacheStats.size / (1024 * 1024)).toFixed(1)}MB</span>
+		<div class="flex flex-1 items-center justify-end gap-6">
+			<div
+				class="flex items-center gap-3 rounded bg-gray-50 px-4 py-2 text-sm text-gray-500 shadow-sm dark:bg-gray-900 dark:text-gray-400"
+			>
+				<span
+					>Location cache: {cacheStats.entries} entries, {(cacheStats.size / (1024 * 1024)).toFixed(
+						1
+					)}MB</span
+				>
 				<span>•</span>
 				<span>Statistics cache: {statisticsCache.size} periods</span>
-					<button
-					onclick={() => { clearCache(); clearStatisticsCache(); }}
-					class="cursor-pointer text-xs text-red-500 underline hover:text-red-700 dark:hover:text-red-400 ml-2"
+				<button
+					onclick={() => {
+						clearCache();
+						clearStatisticsCache();
+					}}
+					class="ml-2 cursor-pointer text-xs text-red-500 underline hover:text-red-700 dark:hover:text-red-400"
 					title="Clear all caches"
 				>
 					Clear all
-					</button>
+				</button>
 			</div>
-			<div class="relative flex items-center h-full self-stretch" style="z-index:2001;">
-			<button
+			<div class="relative flex h-full items-center self-stretch" style="z-index:2001;">
+				<button
 					type="button"
-					class="date-field w-[250px] max-w-full px-2 py-0.5 text-base text-left rounded-lg shadow bg-white dark:bg-gray-800 flex items-center gap-2 cursor-pointer"
-				onclick={toggleDatePicker}
+					class="date-field flex w-[250px] max-w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-2 py-0.5 text-left text-base shadow dark:bg-gray-800"
+					onclick={toggleDatePicker}
 					onkeydown={(e) => e.key === 'Enter' && toggleDatePicker()}
 					class:open={isOpen}
 					aria-label="Select date range"
@@ -1473,7 +1538,7 @@
 						{:else}
 							Pick a date
 						{/if}
-		</div>
+					</div>
 				</button>
 				{#if isOpen}
 					<div class="date-picker-container absolute right-0 mt-2" style="z-index:2001;">
@@ -1490,44 +1555,56 @@
 									loadStatistics();
 								}
 							}}
-					/>
-				</div>
+						/>
+					</div>
 				{/if}
-				</div>
 			</div>
 		</div>
+	</div>
 
 	<!-- Map -->
 	<div
-		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode ? 'ring-4 ring-blue-400 cursor-pointer' : ''}"
+		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode
+			? 'cursor-pointer ring-4 ring-blue-400'
+			: ''}"
 		style={isEditMode ? 'cursor: pointer;' : ''}
 	>
 		{#if isEditMode}
 			<div
-				class="absolute left-0 top-0 z-[1100] w-full bg-blue-500 py-2 text-center font-semibold text-white shadow-lg">
+				class="absolute top-0 left-0 z-[1100] w-full bg-blue-500 py-2 text-center font-semibold text-white shadow-lg"
+			>
 				Edit mode: Click points to select. Use the buttons to delete or create a trip.
 			</div>
 		{/if}
 		<div
 			bind:this={mapContainer}
-			class="h-full w-full map-container"
+			class="map-container h-full w-full"
 			style="pointer-events: auto; touch-action: manipulation;"
 		></div>
 
 		<!-- No Data Message -->
 		{#if !isLoading && !isInitialLoad && locationData.length === 0}
-			<div class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80" style="pointer-events: none;">
+			<div
+				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
+				style="pointer-events: none;"
+			>
 				<div class="text-center" style="pointer-events: none;">
-					<MapPin class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" style="pointer-events: none;" />
-					<h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2" style="pointer-events: none;">
+					<MapPin
+						class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500"
+						style="pointer-events: none;"
+					/>
+					<h3
+						class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300"
+						style="pointer-events: none;"
+					>
 						No location data found
 					</h3>
-					<p class="text-sm text-gray-500 dark:text-gray-400 mb-4" style="pointer-events: none;">
+					<p class="mb-4 text-sm text-gray-500 dark:text-gray-400" style="pointer-events: none;">
 						Import your travel data to see your locations on the map
 					</p>
 					<a
 						href="/dashboard/import-export"
-						class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+						class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 						style="pointer-events: auto;"
 					>
 						<Import class="h-4 w-4" style="pointer-events: none;" />
@@ -1538,7 +1615,7 @@
 		{/if}
 
 		<!-- Edit Controls -->
-		<div class="absolute right-4 top-4 z-[1001] flex flex-col gap-2">
+		<div class="absolute top-4 right-4 z-[1001] flex flex-col gap-2">
 			<button
 				onclick={toggleEditMode}
 				class="rounded bg-white p-2 shadow transition-colors hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
@@ -1568,31 +1645,38 @@
 					</button>
 				{/if}
 			{/if}
-						</div>
+		</div>
 
 		<!-- Selection Info -->
 		{#if isEditMode && selectedMarkers.length > 0}
 			<div class="absolute bottom-4 left-4 z-[1001] rounded bg-white p-3 shadow dark:bg-gray-800">
 				<div class="text-sm text-gray-700 dark:text-gray-300">
 					{selectedMarkers.length} point{selectedMarkers.length !== 1 ? 's' : ''} selected
-						</div>
-					</div>
-	{/if}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Points Count Display -->
+		{#if locationData.length > 0}
+			<div class="absolute left-4 bottom-4 z-[1001] rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow dark:bg-gray-800 dark:text-gray-300">
+				{locationData.length} of {totalPoints} points loaded
+			</div>
+		{/if}
 
 		<!-- Load More Button -->
-		{#if hasMoreData && loadedGpsPoints < totalGpsPoints}
+		{#if hasMoreData && locationData.length < totalPoints}
 			<button
 				onclick={() => loadLocationData(false)}
 				disabled={isLoading}
-				class="absolute bottom-4 right-4 z-[1001] rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				class="absolute right-4 bottom-4 z-[1001] rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				{#if isLoading}
 					<Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
 				{/if}
-				Load More ({loadedGpsPoints}/{totalGpsPoints})
+				Load More ({locationData.length}/{totalPoints})
 			</button>
 		{/if}
-			</div>
+	</div>
 
 	<!-- Stats -->
 	<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -1608,29 +1692,29 @@
 					<div class="flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-							</div>
+					</div>
 					<div class="mt-1 h-6 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-						</div>
-					{/each}
+				</div>
+			{/each}
 		{:else if getStatistics().length === 0}
 			<div class="col-span-4 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
 				No statistics available for this period.
-				</div>
+			</div>
 		{:else}
 			{#each getStatistics() as stat}
 				{@const IconComponent = stat.icon}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 				>
-								<div class="flex items-center gap-2">
+					<div class="flex items-center gap-2">
 						<IconComponent class="h-5 w-5 text-{stat.color}-500" />
 						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
-								</div>
+					</div>
 					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
 						{stat.value}
-							</div>
-						</div>
-					{/each}
+					</div>
+				</div>
+			{/each}
 		{/if}
 	</div>
 
@@ -1645,7 +1729,7 @@
 					<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
 						>Time Distribution per Country</span
 					>
-			</div>
+				</div>
 				<div class="space-y-4">
 					{#each statisticsData.countryTimeDistribution as country}
 						<div>
@@ -1654,7 +1738,7 @@
 								<span class="text-base text-gray-700 dark:text-gray-300"
 									>{getCountryName(country.country_code)}</span
 								>
-								</div>
+							</div>
 							<div class="relative w-full">
 								<div class="flex h-4 items-center rounded bg-gray-200 dark:bg-gray-700">
 									<div
@@ -1662,8 +1746,8 @@
 										style="width: {country.percent}%; min-width: 2.5rem;"
 									>
 										<span class="w-full text-center">{country.percent}%</span>
+									</div>
 								</div>
-							</div>
 							</div>
 						</div>
 					{/each}
@@ -1681,28 +1765,28 @@
 					<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
 						>Modes of Transport (Segments)</span
 					>
-			</div>
+				</div>
 				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
 					<thead>
 						<tr>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Mode</th
 							>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Distance (km)</th
 							>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Time</th
 							>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>% of Total</th
 							>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 								>Segments</th
 							>
 						</tr>
@@ -1711,30 +1795,32 @@
 						{#each getTransportFromSegments() as mode}
 							<tr>
 								<td
-									class="whitespace-nowrap px-4 py-2 text-sm capitalize text-gray-900 dark:text-gray-100"
+									class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 capitalize dark:text-gray-100"
 									>{mode.mode}</td
 								>
 								<td
-									class="whitespace-nowrap px-4 py-2 text-sm font-bold text-blue-700 dark:text-blue-300"
+									class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
 									>{mode.distance}</td
 								>
-								<td class="whitespace-nowrap px-4 py-2 text-sm text-gray-700 dark:text-gray-300"
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
 									>{formatSegmentDuration(mode.time)}</td
 								>
-								<td class="whitespace-nowrap px-4 py-2 text-sm text-gray-700 dark:text-gray-300"
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
 									>{mode.percentage}%</td
 								>
-								<td class="whitespace-nowrap px-4 py-2 text-sm text-gray-700 dark:text-gray-300"
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
 									>{mode.count}</td
 								>
 							</tr>
-					{/each}
+						{/each}
 					</tbody>
 				</table>
-				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">based on enhanced segment detection with speed brackets and continuity</div>
+				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+					based on enhanced segment detection with speed brackets and continuity
 				</div>
-							{/if}
-						</div>
+			</div>
+		{/if}
+	</div>
 
 	<!-- Train Station Visits Table -->
 	{#if statisticsData && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
@@ -1746,16 +1832,16 @@
 				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
 					>Train Station Visits</span
 				>
-							</div>
+			</div>
 			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
 				<thead>
 					<tr>
 						<th
-							class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 							>Station</th
 						>
 						<th
-							class="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
+							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 							>Visits</th
 						>
 					</tr>
@@ -1765,15 +1851,15 @@
 						.slice()
 						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station}
 						<tr>
-							<td class="whitespace-nowrap px-4 py-2 text-sm text-gray-900 dark:text-gray-100"
+							<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
 								>{station.name}</td
 							>
 							<td
-								class="whitespace-nowrap px-4 py-2 text-sm font-bold text-blue-700 dark:text-blue-300"
+								class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
 								>{station.count}</td
 							>
 						</tr>
-				{/each}
+					{/each}
 				</tbody>
 			</table>
 			<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
@@ -1781,5 +1867,4 @@
 			</div>
 		</div>
 	{/if}
-
 </div>

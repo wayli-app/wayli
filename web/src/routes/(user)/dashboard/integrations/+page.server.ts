@@ -19,7 +19,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 	// Get user data to access raw_user_metadata
-	const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
+	const {
+		data: { user },
+		error: userError
+	} = await supabaseAdmin.auth.admin.getUserById(session.user.id);
 
 	if (userError || !user) {
 		console.log('❌ [INTEGRATIONS] Failed to get user data:', userError);
@@ -49,12 +52,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions = {
-	generateApiKey: async ({ locals }) => {
+	generateApiKey: async ({ locals }: { locals: App.Locals }) => {
 		console.log('🔄 [INTEGRATIONS] generateApiKey action called');
 
 		try {
 			const session = await locals.getSession();
-			console.log('🔄 [INTEGRATIONS] Session check:', session ? `Found - ${session.user.email}` : 'None');
+			console.log(
+				'🔄 [INTEGRATIONS] Session check:',
+				session ? `Found - ${session.user.email}` : 'None'
+			);
 
 			if (!session?.user) {
 				console.log('❌ [INTEGRATIONS] No session found');
@@ -80,12 +86,15 @@ export const actions = {
 			console.log('🔄 [INTEGRATIONS] Current user_metadata:', session.user.user_metadata);
 
 			// Update the user's user_metadata with the new API key
-			const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(session.user.id, {
-				user_metadata: {
-					...session.user.user_metadata,
-					owntracks_api_key: apiKey
+			const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+				session.user.id,
+				{
+					user_metadata: {
+						...session.user.user_metadata,
+						owntracks_api_key: apiKey
+					}
 				}
-			});
+			);
 
 			if (updateError) {
 				console.error('❌ [INTEGRATIONS] Error updating user metadata:', updateError);
@@ -93,7 +102,10 @@ export const actions = {
 			}
 
 			// Verify the update worked by reading the user data again
-			const { data: { user: updatedUser }, error: verifyError } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
+			const {
+				data: { user: updatedUser },
+				error: verifyError
+			} = await supabaseAdmin.auth.admin.getUserById(session.user.id);
 			if (verifyError || !updatedUser) {
 				console.error('❌ [INTEGRATIONS] Failed to verify update:', verifyError);
 			}
@@ -104,10 +116,11 @@ export const actions = {
 			const response = { success: true, apiKey };
 			console.log('✅ [INTEGRATIONS] Response:', response);
 			return response;
-
 		} catch (error) {
 			console.error('❌ [INTEGRATIONS] Unexpected error in generateApiKey:', error);
-			return fail(500, { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` });
+			return fail(500, {
+				error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`
+			});
 		}
 	}
 };

@@ -32,9 +32,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Fetch all users (we'll need to get all to implement proper search)
 	// Note: Supabase Auth listUsers doesn't support server-side filtering
-	const { data: { users: authUsers }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers({
+	const {
+		data: { users: authUsers },
+		error: authUsersError
+	} = await supabaseAdmin.auth.admin.listUsers({
 		page: 1,
-		perPage: 1000, // Get a large number to implement proper search
+		perPage: 1000 // Get a large number to implement proper search
 	});
 
 	if (authUsersError) {
@@ -48,14 +51,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	// Map auth users to the UserProfile format
-	const combinedUsers = authUsers.map(authUser => {
+	const combinedUsers = authUsers.map((authUser) => {
 		const metadata = authUser.user_metadata || {};
 		return {
 			id: authUser.id,
 			email: authUser.email,
 			first_name: metadata.first_name || '',
 			last_name: metadata.last_name || '',
-			full_name: metadata.full_name || `${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() || '',
+			full_name:
+				metadata.full_name ||
+				`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
+				'',
 			role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
 			avatar_url: metadata.avatar_url,
 			home_address: metadata.home_address,
@@ -67,11 +73,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// Apply search filter
 	const filteredUsers = search
-		? combinedUsers.filter(u =>
-				u.email?.toLowerCase().includes(search.toLowerCase()) ||
-				u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-				u.first_name?.toLowerCase().includes(search.toLowerCase()) ||
-				u.last_name?.toLowerCase().includes(search.toLowerCase())
+		? combinedUsers.filter(
+				(u) =>
+					u.email?.toLowerCase().includes(search.toLowerCase()) ||
+					u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+					u.first_name?.toLowerCase().includes(search.toLowerCase()) ||
+					u.last_name?.toLowerCase().includes(search.toLowerCase())
 			)
 		: combinedUsers;
 
@@ -102,7 +109,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions = {
-	addUser: async ({ request, locals: { getSession } }) => {
+	addUser: async ({ request, locals: { getSession } }: { request: Request; locals: App.Locals }) => {
 		try {
 			const session = await getSession();
 			if (!session) {
@@ -128,7 +135,10 @@ export const actions = {
 			const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 			// Create a new user with a temporary password
-			const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).toUpperCase().slice(-2) + '1!';
+			const tempPassword =
+				Math.random().toString(36).slice(-10) +
+				Math.random().toString(36).toUpperCase().slice(-2) +
+				'1!';
 
 			const { error } = await supabaseAdmin.auth.admin.createUser({
 				email,
@@ -155,7 +165,7 @@ export const actions = {
 		}
 	},
 
-	updateUser: async ({ request, locals: { getSession } }) => {
+	updateUser: async ({ request, locals: { getSession } }: { request: Request; locals: App.Locals }) => {
 		try {
 			const session = await getSession();
 			if (!session) {
@@ -216,7 +226,7 @@ export const actions = {
 		}
 	},
 
-	deleteUser: async ({ request, locals: { getSession } }) => {
+	deleteUser: async ({ request, locals: { getSession } }: { request: Request; locals: App.Locals }) => {
 		try {
 			const session = await getSession();
 			if (!session) {

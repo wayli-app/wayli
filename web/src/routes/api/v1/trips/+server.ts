@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { successResponse, errorResponse } from '$lib/utils/api/response';
 import { requireAuth } from '$lib/middleware/auth.middleware';
+import { getTripsService } from '$lib/services/service-layer-adapter';
 import { supabase } from '$lib/core/supabase/server';
 
 export const GET: RequestHandler = async (event) => {
@@ -8,51 +9,13 @@ export const GET: RequestHandler = async (event) => {
 		// Authenticate user
 		const { user } = await requireAuth(event);
 
-		// Get query parameters
-		const url = new URL(event.request.url);
-		const status = url.searchParams.get('status') || 'active';
-
-		// Build query
-		let query = supabase
-			.from('trips')
-			.select(`
-				id,
-				title,
-				description,
-				start_date,
-				end_date,
-				status,
-				image_url,
-				labels,
-				metadata,
-				created_at,
-				updated_at
-			`)
-			.eq('user_id', user.id);
-
-		// Filter by status if specified
-		if (status !== 'all') {
-			query = query.eq('status', status);
-		}
-
-		const { data: trips, error } = await query.order('start_date', { ascending: false });
-
-		if (error) {
-			console.error('Database error fetching trips:', error);
-			throw new Error('Failed to fetch trips from database');
-		}
-
-		// Transform the data to include computed fields
-		const transformedTrips = trips?.map(trip => ({
-			...trip,
-			// Add placeholder values for fields that might not exist in the current schema
-			total_distance: 0, // This would be calculated from tracker data
-			point_count: 0, // This would be calculated from tracker data
-		})) || [];
+		// Use service layer for business logic
+		const tripsService = getTripsService();
+		const trips = await tripsService.getTrips(user.id);
 
 		return successResponse({
-			trips: transformedTrips,
-			total: transformedTrips.length
+			trips: trips,
+			total: trips.length
 		});
 	} catch (error) {
 		console.error('Error fetching trips:', error);

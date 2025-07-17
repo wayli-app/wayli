@@ -76,7 +76,10 @@ export class TOTPService {
 	/**
 	 * Verify a recovery code
 	 */
-	static verifyRecoveryCode(code: string, hashedCodes: string[]): { isValid: boolean; remainingCodes: string[] } {
+	static verifyRecoveryCode(
+		code: string,
+		hashedCodes: string[]
+	): { isValid: boolean; remainingCodes: string[] } {
 		const hashedCode = createHash('sha256').update(code).digest('hex');
 		const codeIndex = hashedCodes.indexOf(hashedCode);
 
