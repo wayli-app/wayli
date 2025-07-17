@@ -1,21 +1,123 @@
 <script lang="ts">
-	import { Star, Search, Plus, X, MapPin, Heart, Globe, Filter, Trash2, Edit, Palette, Home, Utensils, Hotel, Camera, TreePine, Coffee, ShoppingBag, Umbrella, Building, Flag } from 'lucide-svelte';
+	import { Stars, Search, Plus, X, MapPin, Heart, Globe2, Filter, Trash2, Edit, Palette, Home, Utensils, Building2, Camera, TreePine, Coffee, ShoppingBag, Anchor, Building, Flag } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import type { Map as LeafletMap, LatLngExpression } from 'leaflet';
 	import { debounce } from 'lodash-es';
 	import { reverseGeocode } from '$lib/services/external/nominatim.service';
 	import { toast } from 'svelte-sonner';
+	import { WantToVisitService } from '$lib/services/want-to-visit.service';
+	import type { Place } from '$lib/types/want-to-visit.types';
+
+	// Lucide icon mapping for SVG URLs
+	const lucideIcons = {
+		'default': 'map-pin',
+		'home': 'home',
+		'restaurant': 'utensils',
+		'hotel': 'building-2',
+		'camera': 'camera',
+		'tree': 'tree-pine',
+		'coffee': 'coffee',
+		'shopping': 'shopping-bag',
+		'umbrella': 'anchor',
+		'building': 'building',
+		'flag': 'flag'
+	};
+
+	// Utility function to get Lucide SVG icon with custom color
+	function getOSMIcon(markerType: string = 'default', color: string = '#3B82F6'): any {
+		const iconName = lucideIcons[markerType as keyof typeof lucideIcons] || 'map-pin';
+
+		console.log('Creating Lucide marker with type:', markerType, 'icon:', iconName, 'color:', color);
+
+		// Use Lucide SVG icons from a reliable CDN
+		const iconUrl = `https://unpkg.com/lucide-static@latest/icons/${iconName}.svg`;
+
+		// Create a custom div icon that displays the Lucide SVG with the user's color
+		const isDark = document.documentElement.classList.contains('dark');
+		const bgColor = isDark ? '#374151' : '#ffffff';
+		const borderColor = isDark ? '#6B7280' : '#E5E7EB';
+
+		return L.divIcon({
+			className: 'custom-lucide-marker',
+			html: `<div style="
+				width: 32px;
+				height: 32px;
+				background: ${bgColor};
+				border: 2px solid ${borderColor};
+				border-radius: 6px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+				position: relative;
+			">
+				<div style="width: 24px; height: 24px; background-size: fit; background-color: ${color}; mask: url('${iconUrl}'); -webkit-mask: url('${iconUrl}');" />
+			</div>`,
+			iconSize: [32, 32],
+			iconAnchor: [16, 32]
+		});
+	}
+
+	// Helper function to convert hex color to color name for marker icons
+	function getColorName(hexColor: string): string {
+		const colorMap: { [key: string]: string } = {
+			'#3B82F6': 'blue',
+			'#10B981': 'green',
+			'#F59E0B': 'orange',
+			'#EF4444': 'red',
+			'#8B5CF6': 'purple',
+			'#EC4899': 'pink',
+			'#06B6D4': 'cyan',
+			'#059669': 'green',
+			'#D97706': 'orange',
+			'#DC2626': 'red',
+			'#6B7280': 'gray',
+			'#000000': 'black'
+		};
+
+		return colorMap[hexColor] || 'blue';
+	}
+
+	// Utility function to convert hex color to hue for CSS filter
+	function getHueFromColor(hexColor: string): number {
+		// Convert hex to RGB
+		const r = parseInt(hexColor.slice(1, 3), 16);
+		const g = parseInt(hexColor.slice(3, 5), 16);
+		const b = parseInt(hexColor.slice(5, 7), 16);
+
+		// Convert RGB to HSL to get hue
+		const max = Math.max(r, g, b);
+		const min = Math.min(r, g, b);
+		let h = 0;
+
+		if (max === min) {
+			h = 0; // achromatic
+		} else {
+			const d = max - min;
+			switch (max) {
+				case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+				case g: h = (b - r) / d + 2; break;
+				case b: h = (r - g) / d + 4; break;
+			}
+			h /= 6;
+		}
+
+		return Math.round(h * 360);
+	}
 
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer: any;
-	let searchQuery = '';
+	let searchQuery = ''; // Separate search query for location lookup
 	let selectedType = 'All';
 	let markers: any[] = [];
+	let markerClusterGroup: any = null; // Add cluster group variable
 	let showAddForm = false;
+	let showEditForm = false;
 	let tempMarker: any = null;
 	let isReverseGeocoding = false;
+	let isLoading = true;
 
 	// Form fields
 	let title = '';
@@ -33,6 +135,9 @@
 	let selectedMarkerColor = '#3B82F6'; // blue-500
 	let showMarkerOptions = false;
 
+	// Edit mode
+	let editingPlace: Place | null = null;
+
 	const types = [
 		'All',
 		'Landmarks',
@@ -48,19 +153,19 @@
 		'Countries'
 	];
 
-	// Marker options
+	// Marker options - updated to use standard marker colors that match the map
 	const markerTypes = [
-		{ id: 'default', name: 'Default', icon: MapPin, color: '#3B82F6' },
-		{ id: 'home', name: 'Home', icon: Home, color: '#10B981' },
-		{ id: 'restaurant', name: 'Restaurant', icon: Utensils, color: '#F59E0B' },
-		{ id: 'hotel', name: 'Hotel', icon: Hotel, color: '#8B5CF6' },
-		{ id: 'camera', name: 'Photo Spot', icon: Camera, color: '#EF4444' },
-		{ id: 'tree', name: 'Nature', icon: TreePine, color: '#059669' },
-		{ id: 'coffee', name: 'Cafe', icon: Coffee, color: '#D97706' },
-		{ id: 'shopping', name: 'Shopping', icon: ShoppingBag, color: '#EC4899' },
-		{ id: 'umbrella', name: 'Beach', icon: Umbrella, color: '#06B6D4' },
-		{ id: 'building', name: 'City', icon: Building, color: '#6B7280' },
-		{ id: 'flag', name: 'Country', icon: Flag, color: '#DC2626' }
+		{ id: 'default', name: 'Default', icon: MapPin, iconName: 'default', color: '#3B82F6' },
+		{ id: 'home', name: 'Home', icon: Home, iconName: 'home', color: '#10B981' },
+		{ id: 'restaurant', name: 'Restaurant', icon: Utensils, iconName: 'restaurant', color: '#F59E0B' },
+		{ id: 'hotel', name: 'Hotel', icon: Building2, iconName: 'hotel', color: '#8B5CF6' },
+		{ id: 'camera', name: 'Photo Spot', icon: Camera, iconName: 'camera', color: '#EF4444' },
+		{ id: 'tree', name: 'Nature', icon: TreePine, iconName: 'tree', color: '#059669' },
+		{ id: 'coffee', name: 'Cafe', icon: Coffee, iconName: 'coffee', color: '#D97706' },
+		{ id: 'shopping', name: 'Shopping', icon: ShoppingBag, iconName: 'shopping', color: '#EC4899' },
+		{ id: 'umbrella', name: 'Beach', icon: Anchor, iconName: 'umbrella', color: '#06B6D4' },
+		{ id: 'building', name: 'City', icon: Building, iconName: 'building', color: '#6B7280' },
+		{ id: 'flag', name: 'Country', icon: Flag, iconName: 'flag', color: '#DC2626' }
 	];
 
 	const markerColors = [
@@ -78,51 +183,8 @@
 		'#000000'  // black
 	];
 
-	interface Place {
-		id: string;
-		title: string;
-		type: string;
-		coordinates: string;
-		description: string;
-		address: string;
-		isSelected?: boolean;
-		favorite?: boolean;
-		location?: string;
-		created_at?: string;
-		markerType?: string;
-		markerColor?: string;
-		labels?: string[];
-	}
-
-	// Mock data - replace with actual database integration
-	let places: Place[] = [
-		{
-			id: '1',
-			title: 'Colosseum',
-			type: 'Landmarks',
-			coordinates: '41.8902, 12.4922',
-			description: 'Ancient Roman gladiatorial arena. Should book tickets in advance.',
-			address: 'Piazza del Colosseo, 1, 00184 Roma RM, Italy',
-			location: 'Rome, Italy',
-			created_at: '2024-01-01',
-			markerType: 'camera',
-			markerColor: '#EF4444',
-			labels: ['history', 'must-see']
-		},
-		{
-			id: '2',
-			title: 'Machu Picchu',
-			type: 'Landmarks',
-			coordinates: '-13.1631, -72.5450',
-			description: 'Inca citadel set high in the Andes Mountains in Peru.',
-			address: 'Machu Picchu, Peru',
-			location: 'Machu Picchu, Peru',
-			created_at: '2024-01-02',
-			markerType: 'camera',
-			markerColor: '#10B981',
-			labels: ['adventure', 'bucket-list']
-		}
-	];
+	// Database data
+	let places: Place[] = [];
 
 	// Add label state for the form
 	let labelInput = '';
@@ -150,6 +212,44 @@
 		selectedMarkerType = 'default';
 		selectedMarkerColor = '#3B82F6';
 		labels = [];
+		editingPlace = null;
+		searchQuery = '';
+		searchResults = [];
+		showSearchResults = false;
+	}
+
+	function loadPlaces() {
+		WantToVisitService.getPlaces()
+			.then((data) => {
+				places = data;
+				updateMarkers();
+			})
+			.catch((error) => {
+				console.error('Error loading places:', error);
+				toast.error('Failed to load places');
+			})
+			.finally(() => {
+				isLoading = false;
+			});
+	}
+
+	function editPlace(place: Place) {
+		editingPlace = place;
+		title = place.title;
+		const [lat, lng] = place.coordinates.split(',').map(Number);
+		latitude = lat.toString();
+		longitude = lng.toString();
+		description = place.description || '';
+		address = place.address || '';
+		placeType = place.type;
+		selectedMarkerType = place.markerType || 'default';
+		selectedMarkerColor = place.markerColor || '#3B82F6';
+		labels = place.labels || [];
+		showEditForm = true;
+		// Reset search fields for edit mode
+		searchQuery = '';
+		searchResults = [];
+		showSearchResults = false;
 	}
 
 	$: filteredPlaces = places.filter(
@@ -162,59 +262,73 @@
 	function getMarkerIcon(markerType: string = 'default', color: string = '#3B82F6') {
 		if (!L) return null;
 
-		const markerTypeData = markerTypes.find(m => m.id === markerType) || markerTypes[0];
-		const IconComponent = markerTypeData.icon;
-
-		return L.divIcon({
-			className: 'custom-marker',
-			html: `<div class="marker-content" style="color: ${color}">
-				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					${getMarkerSVG(markerType)}
-				</svg>
-			</div>`,
-			iconSize: [24, 24],
-			iconAnchor: [12, 24]
-		});
-	}
-
-	function getMarkerSVG(markerType: string) {
-		switch (markerType) {
-			case 'home':
-				return '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/>';
-			case 'restaurant':
-				return '<path d="M16 6h2a2 2 0 0 1 2 2v7h-4V6a2 2 0 0 1 2-2h2"/><rect x="2" y="6" width="20" height="8" rx="1"/><path d="M6 14v7"/><path d="M10 14v7"/><path d="M14 14v7"/><path d="M18 14v7"/>';
-			case 'hotel':
-				return '<path d="M18 8V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2"/><path d="M6 8v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>';
-			case 'camera':
-				return '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>';
-			case 'tree':
-				return '<path d="M17 18a2 2 0 0 0-2 2c0 1.1-.9 2-2 2s-2-.9-2-2 2-4 2-4 2 2.9 2 4Z"/><path d="M12 2v20"/><path d="M2 12h20"/>';
-			case 'coffee':
-				return '<path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/>';
-			case 'shopping':
-				return '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>';
-			case 'umbrella':
-				return '<path d="M22 12a10.06 10.06 1 0 0 0-20 0Z"/><path d="M12 12v6a2 2 0 0 0 4 0v-6"/>';
-			case 'building':
-				return '<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><rect x="9" y="9" width="1" height="1"/><rect x="14" y="9" width="1" height="1"/><rect x="9" y="14" width="1" height="1"/><rect x="14" y="14" width="1" height="1"/><rect x="9" y="19" width="1" height="1"/><rect x="14" y="19" width="1" height="1"/>';
-			case 'flag':
-				return '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>';
-			default:
-				return '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>';
-		}
+		// Use standard Leaflet marker icons - much simpler and more reliable
+		return getOSMIcon(markerType, color);
 	}
 
 	onMount(async () => {
 		L = (await import('leaflet')).default;
+		// Import markercluster plugin
+		await import('leaflet.markercluster');
 		if (map) return;
 
 		map = L.map(mapContainer, {
 			center: [20, 0],
 			zoom: 2,
+			minZoom: 1,
+			maxZoom: 18,
 			zoomControl: true,
 			attributionControl: false,
-			doubleClickZoom: false
+			doubleClickZoom: true,
+			tap: true,
+			tapTolerance: 15,
+			touchZoom: true,
+			bounceAtZoomLimits: false,
+			scrollWheelZoom: true,
+			keyboard: true,
+			dragging: true,
+			inertia: true,
+			inertiaDeceleration: 3000,
+			inertiaMaxSpeed: 3000,
+			worldCopyJump: false,
+			maxBounds: null,
+			maxBoundsViscosity: 0.0
 		});
+
+		// Initialize marker cluster group
+		markerClusterGroup = L.markerClusterGroup({
+			chunkedLoading: true,
+			spiderfyOnMaxZoom: true,
+			showCoverageOnHover: false,
+			zoomToBoundsOnClick: true,
+			disableClusteringAtZoom: 16, // Disable clustering when zoomed in close
+			maxClusterRadius: 50, // Maximum radius for clustering
+			iconCreateFunction: function(cluster: any) {
+				const count = cluster.getChildCount();
+				let className = 'marker-cluster-';
+				let size = 'medium';
+
+				if (count < 5) {
+					className += 'small';
+					size = 'small';
+				} else if (count < 10) {
+					className += 'medium';
+					size = 'medium';
+				} else {
+					className += 'large';
+					size = 'large';
+				}
+
+				return L.divIcon({
+					html: `<div><span>${count}</span></div>`,
+					className: className,
+					iconSize: L.point(40, 40)
+				});
+			}
+		});
+
+		// Add cluster group to map
+		map.addLayer(markerClusterGroup);
 
 		function getTileLayerUrl() {
 			const isDark = document.documentElement.classList.contains('dark');
@@ -234,11 +348,11 @@
 			attribution: getAttribution()
 		}).addTo(map);
 
-		// Add markers for existing places
-		updateMarkers();
+		// Load places from database
+		loadPlaces();
 
-		// Add click handler to map
-		map.on('click', async (e: L.LeafletMouseEvent) => {
+		// Add double-click handler to map
+		map.on('dblclick', async (e: L.LeafletMouseEvent) => {
 			const { lat, lng } = e.latlng;
 
 			// Remove previous temporary marker
@@ -323,6 +437,7 @@
 				}
 			}
 
+			// Set title to primary name from reverse geocoding
 			title = primaryName;
 			address = displayName;
 			placeType = type;
@@ -342,25 +457,38 @@
 	}
 
 	function updateMarkers() {
-		// Clear existing markers
-		markers.forEach((marker) => marker.remove());
+		console.log('Updating markers for', places.length, 'places');
+
+		// Clear existing markers from cluster group
+		if (markerClusterGroup) {
+			markerClusterGroup.clearLayers();
+		}
+
+		// Clear markers array
 		markers = [];
 
-		// Add markers for filtered places
-		const coordinates: LatLngExpression[] = filteredPlaces.map((place) => {
+		// Add markers to cluster group
+		markers = places.map((place, i) => {
 			const [lat, lng] = place.coordinates.split(',').map(Number);
-			return [lat, lng] as [number, number];
-		});
-
-		markers = filteredPlaces.map((place, i) => {
-			const [lat, lng] = place.coordinates.split(',').map(Number);
+			console.log(`Creating marker for place ${i}:`, place.title, 'markerType:', place.markerType, 'markerColor:', place.markerColor);
 			const markerIcon = getMarkerIcon(place.markerType || 'default', place.markerColor || '#3B82F6');
-			return L.marker([lat, lng] as [number, number], { icon: markerIcon })
-				.bindPopup(createPopupContent(place))
-				.addTo(map);
+			const marker = L.marker([lat, lng] as [number, number], { icon: markerIcon })
+				.bindPopup(createPopupContent(place));
+
+			// Add marker to cluster group instead of directly to map
+			markerClusterGroup.addLayer(marker);
+			return marker;
 		});
 
-		if (coordinates.length > 0) {
+		console.log('Created', markers.length, 'markers in cluster group');
+
+		// Fit bounds to show all markers
+		if (markers.length > 0) {
+			const coordinates: LatLngExpression[] = places.map((place) => {
+				const [lat, lng] = place.coordinates.split(',').map(Number);
+				return [lat, lng] as [number, number];
+			});
+
 			const bounds = L.latLngBounds(coordinates);
 			map.fitBounds(bounds, { padding: [50, 50] });
 		} else {
@@ -379,7 +507,7 @@
 	}
 
 	const searchPlaces = debounce(async () => {
-		if (!title || title.length < 3) {
+		if (!searchQuery || searchQuery.length < 3) {
 			searchResults = [];
 			showSearchResults = false;
 			return;
@@ -388,7 +516,7 @@
 		isSearching = true;
 		try {
 			const response = await fetch(
-				`https://nominatim.int.hazen.nu/search?format=json&q=${encodeURIComponent(title)}&limit=5&addressdetails=1`
+				`https://nominatim.int.hazen.nu/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`
 			);
 			const data = await response.json();
 			searchResults = data.map((result: any) => ({
@@ -407,12 +535,12 @@
 		}
 	}, 300);
 
-	function handleNameInput() {
+	function handleSearchInput() {
 		searchPlaces();
 	}
 
 	function selectPlace(result: any) {
-		title = result.name.split(',')[0];
+		// Don't set the title from search - let user edit it separately
 		latitude = result.lat;
 		longitude = result.lon;
 		address = result.name;
@@ -457,6 +585,11 @@
 		placeType = type;
 		selectedMarkerType = markerType;
 
+		// Set a default title based on the search result, but user can edit it
+		if (!title) {
+			title = result.name.split(',')[0];
+		}
+
 		description = `Added via search on ${new Date().toLocaleDateString()}`;
 		showSearchResults = false;
 
@@ -483,52 +616,107 @@
 		}
 	}
 
-	function addPlace() {
+	async function addPlace() {
 		if (!title || !latitude || !longitude) {
 			toast.error('Please fill in all required fields');
 			return;
 		}
 
-		const newPlace: Place = {
-			id: Date.now().toString(),
-			title,
-			type: placeType,
-			coordinates: `${latitude}, ${longitude}`,
-			description,
-			address,
-			location: address.split(',').slice(-2).join(',').trim(),
-			created_at: new Date().toISOString(),
-			markerType: selectedMarkerType,
-			markerColor: selectedMarkerColor,
-			labels: [...labels]
-		};
+		try {
+			console.log('Adding place with marker type:', selectedMarkerType, 'and color:', selectedMarkerColor);
 
-		places = [...places, newPlace];
+			const newPlace = await WantToVisitService.addPlace({
+				title,
+				type: placeType,
+				coordinates: `${latitude}, ${longitude}`,
+				description,
+				address,
+				location: address.split(',').slice(-2).join(',').trim(),
+				markerType: selectedMarkerType,
+				markerColor: selectedMarkerColor,
+				labels: [...labels],
+				favorite: false
+			});
 
-		resetForm();
+			console.log('Place added successfully:', newPlace);
+			console.log('Retrieved marker type:', newPlace.markerType, 'and color:', newPlace.markerColor);
 
-		// Remove temp marker and close form
-		if (tempMarker) {
-			tempMarker.remove();
-			tempMarker = null;
+			places = [newPlace, ...places];
+
+			resetForm();
+
+			// Remove temp marker and close form
+			if (tempMarker) {
+				tempMarker.remove();
+				tempMarker = null;
+			}
+			showAddForm = false;
+
+			// Update markers
+			updateMarkers();
+
+			toast.success('Place added to your list!');
+		} catch (error) {
+			console.error('Error adding place:', error);
+			toast.error('Failed to add place');
 		}
-		showAddForm = false;
-
-		// Update markers
-		updateMarkers();
-
-		toast.success('Place added to your list!');
 	}
 
-	function deletePlace(placeId: string) {
-		places = places.filter(p => p.id !== placeId);
-		updateMarkers();
-		toast.success('Place removed from your list');
+	async function updatePlace() {
+		if (!editingPlace || !title || !latitude || !longitude) {
+			toast.error('Please fill in all required fields');
+			return;
+		}
+
+		try {
+			const updatedPlace = await WantToVisitService.updatePlace(editingPlace.id, {
+				title,
+				type: placeType,
+				coordinates: `${latitude}, ${longitude}`,
+				description,
+				address,
+				location: address.split(',').slice(-2).join(',').trim(),
+				markerType: selectedMarkerType,
+				markerColor: selectedMarkerColor,
+				labels: [...labels]
+			});
+
+			places = places.map(p => p.id === editingPlace!.id ? updatedPlace : p);
+
+			resetForm();
+			showEditForm = false;
+
+			// Update markers
+			updateMarkers();
+
+			toast.success('Place updated successfully!');
+		} catch (error) {
+			console.error('Error updating place:', error);
+			toast.error('Failed to update place');
+		}
 	}
 
-	function toggleFavorite(place: Place) {
-		place.favorite = !place.favorite;
-		updateMarkers();
+	async function deletePlace(placeId: string) {
+		try {
+			await WantToVisitService.deletePlace(placeId);
+			places = places.filter(p => p.id !== placeId);
+			updateMarkers();
+			toast.success('Place removed from your list');
+		} catch (error) {
+			console.error('Error deleting place:', error);
+			toast.error('Failed to delete place');
+		}
+	}
+
+	async function toggleFavorite(place: Place) {
+		try {
+			const updatedPlace = await WantToVisitService.toggleFavorite(place.id, !place.favorite);
+			places = places.map(p => p.id === place.id ? updatedPlace : p);
+			updateMarkers();
+		} catch (error) {
+			console.error('Error toggling favorite:', error);
+			toast.error('Failed to update favorite status');
+		}
 	}
 </script>
 
@@ -548,10 +736,6 @@
 		.custom-marker {
 			background: transparent !important;
 			border: none !important;
-		}
-
-		.marker-content {
-			filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 		}
 
 		.marker-preview {
@@ -582,6 +766,88 @@
 		.color-option.selected {
 			border-color: #000;
 			transform: scale(1.2);
+		}
+
+		/* Marker Cluster Styles */
+		.marker-cluster-small {
+			background-color: rgba(59, 130, 246, 0.8);
+			border: 2px solid rgba(59, 130, 246, 0.9);
+			border-radius: 50% !important;
+		}
+
+		.marker-cluster-small div {
+			background-color: rgba(59, 130, 246, 0.9);
+			border-radius: 50% !important;
+		}
+
+		.marker-cluster-medium {
+			background-color: rgba(245, 158, 11, 0.8);
+			border: 2px solid rgba(245, 158, 11, 0.9);
+			border-radius: 50% !important;
+		}
+
+		.marker-cluster-medium div {
+			background-color: rgba(245, 158, 11, 0.9);
+			border-radius: 50% !important;
+		}
+
+		.marker-cluster-large {
+			background-color: rgba(239, 68, 68, 0.8);
+			border: 2px solid rgba(239, 68, 68, 0.9);
+			border-radius: 50% !important;
+		}
+
+		.marker-cluster-large div {
+			background-color: rgba(239, 68, 68, 0.9);
+			border-radius: 50% !important;
+		}
+
+		/* Dark mode cluster styles */
+		:global(.dark) .marker-cluster-small {
+			background-color: rgba(59, 130, 246, 0.9);
+			border: 2px solid rgba(59, 130, 246, 1);
+			border-radius: 50% !important;
+		}
+
+		:global(.dark) .marker-cluster-small div {
+			background-color: rgba(59, 130, 246, 1);
+			border-radius: 50% !important;
+		}
+
+		:global(.dark) .marker-cluster-medium {
+			background-color: rgba(245, 158, 11, 0.9);
+			border: 2px solid rgba(245, 158, 11, 1);
+			border-radius: 50% !important;
+		}
+
+		:global(.dark) .marker-cluster-medium div {
+			background-color: rgba(245, 158, 11, 1);
+			border-radius: 50% !important;
+		}
+
+		:global(.dark) .marker-cluster-large {
+			background-color: rgba(239, 68, 68, 0.9);
+			border: 2px solid rgba(239, 68, 68, 1);
+			border-radius: 50% !important;
+		}
+
+		:global(.dark) .marker-cluster-large div {
+			background-color: rgba(239, 68, 68, 1);
+			border-radius: 50% !important;
+		}
+
+		/* Cluster text styling */
+		.marker-cluster-small div,
+		.marker-cluster-medium div,
+		.marker-cluster-large div {
+			color: white;
+			font-weight: bold;
+			font-size: 12px;
+			text-align: center;
+			line-height: 36px;
+			border-radius: 50% !important;
+			width: 36px;
+			height: 36px;
 		}
 	</style>
 </svelte:head>
@@ -659,8 +925,9 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+						<label for="titleInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
 						<input
+							id="titleInput"
 							type="text"
 							bind:value={title}
 							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -669,19 +936,18 @@
 						/>
 					</div>
 
-					<!-- Remove name/search input -->
 					<!-- Search Input -->
 					<div>
-						<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						<label for="searchPlace" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 							Search for a place
 						</label>
 						<div class="relative">
 							<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 							<input
 								type="text"
-								id="name"
-								bind:value={title}
-								on:input={handleNameInput}
+								id="searchPlace"
+								bind:value={searchQuery}
+								on:input={handleSearchInput}
 								class="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-3 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white relative z-[10001]"
 								placeholder="Search for places..."
 							/>
@@ -716,8 +982,9 @@
 					<!-- Coordinates Display -->
 					<div class="grid grid-cols-2 gap-3">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Latitude</label>
+							<label for="latitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Latitude</label>
 							<input
+								id="latitudeInput"
 								type="text"
 								bind:value={latitude}
 								readonly
@@ -725,8 +992,9 @@
 							/>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Longitude</label>
+							<label for="longitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Longitude</label>
 							<input
+								id="longitudeInput"
 								type="text"
 								bind:value={longitude}
 								readonly
@@ -737,8 +1005,8 @@
 
 					<!-- Address Display -->
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
-						<div class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 min-h-[2.5rem] flex items-center">
+						<label for="addressDisplay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
+						<div id="addressDisplay" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 min-h-[2.5rem] flex items-center">
 							{#if isReverseGeocoding}
 								<div class="flex items-center gap-2 text-gray-500">
 									<div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
@@ -751,12 +1019,13 @@
 					</div>
 
 					<!-- Type Selection via Icons -->
-					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
-						<div class="flex flex-wrap gap-2">
+					<fieldset>
+						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</legend>
+						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
 							{#each markerTypes as marker}
 								<button
 									type="button"
+									aria-label="Select {marker.name} type"
 									on:click={() => { placeType = marker.name; selectedMarkerType = marker.id; }}
 									class="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-colors {placeType === marker.name ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'}"
 								>
@@ -765,31 +1034,32 @@
 								</button>
 							{/each}
 						</div>
-					</div>
+					</fieldset>
 
 					<!-- Marker Color -->
-					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marker Color</label>
-						<div class="flex flex-wrap gap-1">
+					<fieldset>
+						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marker Color</legend>
+						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
 							{#each markerColors as color}
 								<button
 									type="button"
+									aria-label="Select {color} color"
 									on:click={() => selectedMarkerColor = color}
 									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
 									style="background-color: {color}"
 								></button>
 							{/each}
 						</div>
-					</div>
+					</fieldset>
 
 					<!-- Custom Labels -->
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
+						<label for="labelInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
 						<div class="flex gap-2 mb-2 flex-wrap">
 							{#each labels as label}
 								<span class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full mr-1 mb-1">
 									{label}
-									<button type="button" class="ml-1 text-blue-500 hover:text-red-500" on:click={() => removeLabel(label)}>
+									<button type="button" aria-label="Remove {label} label" class="ml-1 text-blue-500 hover:text-red-500" on:click={() => removeLabel(label)}>
 										<X class="h-3 w-3" />
 									</button>
 								</span>
@@ -797,6 +1067,7 @@
 						</div>
 						<div class="flex gap-2">
 							<input
+								id="labelInput"
 								type="text"
 								bind:value={labelInput}
 								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -811,8 +1082,9 @@
 
 					<!-- Description -->
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+						<label for="descriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
 						<textarea
+							id="descriptionInput"
 							bind:value={description}
 							rows="3"
 							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none relative z-[10001]"
@@ -841,6 +1113,173 @@
 							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
 						>
 							Add to List
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Edit Modal Overlay -->
+	{#if showEditForm}
+		<div class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+			<div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md relative z-[10000] max-h-[90vh] overflow-y-auto">
+				<div class="flex items-center justify-between mb-4">
+					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Place</h3>
+					<button
+						on:click={() => {
+							showEditForm = false;
+							resetForm();
+						}}
+						class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 transition-colors"
+					>
+						<X class="h-5 w-5" />
+					</button>
+				</div>
+
+				<!-- Edit form with same fields as add form -->
+				<div class="space-y-4">
+					<!-- Title Input (required) -->
+					<div>
+						<label for="titleInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+						<input
+							id="titleInput"
+							type="text"
+							bind:value={title}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							placeholder="Give this place a title"
+							required
+						/>
+					</div>
+
+					<!-- Coordinates Display -->
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<label for="latitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Latitude</label>
+							<input
+								id="latitudeInput"
+								type="text"
+								bind:value={latitude}
+								readonly
+								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+							/>
+						</div>
+						<div>
+							<label for="longitudeInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Longitude</label>
+							<input
+								id="longitudeInput"
+								type="text"
+								bind:value={longitude}
+								readonly
+								class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300"
+							/>
+						</div>
+					</div>
+
+					<!-- Address Display -->
+					<div>
+						<label for="addressDisplay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
+						<input
+							id="addressDisplay"
+							type="text"
+							bind:value={address}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+							placeholder="Address"
+						/>
+					</div>
+
+					<!-- Type Selection via Icons -->
+					<fieldset>
+						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</legend>
+						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
+							{#each markerTypes as marker}
+								<button
+									type="button"
+									aria-label="Select {marker.name} type"
+									on:click={() => { placeType = marker.name; selectedMarkerType = marker.id; }}
+									class="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg border transition-colors {placeType === marker.name ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600'}"
+								>
+									<marker.icon class="h-5 w-5" />
+									<span class="text-xs">{marker.name}</span>
+								</button>
+							{/each}
+						</div>
+					</fieldset>
+
+					<!-- Marker Color -->
+					<fieldset>
+						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Marker Color</legend>
+						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
+							{#each markerColors as color}
+								<button
+									type="button"
+									aria-label="Select {color} color"
+									on:click={() => selectedMarkerColor = color}
+									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
+									style="background-color: {color}"
+								></button>
+							{/each}
+						</div>
+					</fieldset>
+
+					<!-- Custom Labels -->
+					<div>
+						<label for="labelInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Labels</label>
+						<div class="flex gap-2 mb-2 flex-wrap">
+							{#each labels as label}
+								<span class="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full mr-1 mb-1">
+									{label}
+									<button type="button" aria-label="Remove {label} label" class="ml-1 text-blue-500 hover:text-red-500" on:click={() => removeLabel(label)}>
+										<X class="h-3 w-3" />
+									</button>
+								</span>
+							{/each}
+						</div>
+						<div class="flex gap-2">
+							<input
+								id="labelInput"
+								type="text"
+								bind:value={labelInput}
+								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+								placeholder="Add a label and press Enter"
+								on:keydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLabel(); } }}
+							/>
+							<button type="button" class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors" on:click={addLabel}>
+								Add
+							</button>
+						</div>
+					</div>
+
+					<!-- Description -->
+					<div>
+						<label for="descriptionInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+						<textarea
+							id="descriptionInput"
+							bind:value={description}
+							rows="3"
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-none relative z-[10001]"
+							placeholder="Why do you want to visit this place?"
+						></textarea>
+					</div>
+
+					<!-- Action Buttons -->
+					<div class="flex gap-3 pt-2">
+						<button
+							type="button"
+							on:click={() => {
+								showEditForm = false;
+								resetForm();
+							}}
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
+						>
+							Cancel
+						</button>
+						<button
+							type="button"
+							on:click={updatePlace}
+							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+						>
+							Update Place
 						</button>
 					</div>
 				</div>
@@ -877,9 +1316,14 @@
 	</div>
 
 	<!-- Places List -->
-	{#if filteredPlaces.length === 0}
+	{#if isLoading}
 		<div class="text-center py-12">
-			<Globe class="mx-auto h-12 w-12 text-gray-400 mb-4" />
+			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+			<p class="text-gray-500 dark:text-gray-400 mt-4">Loading your places...</p>
+		</div>
+	{:else if filteredPlaces.length === 0}
+		<div class="text-center py-12">
+			<Globe2 class="mx-auto h-12 w-12 text-gray-400 mb-4" />
 			<h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No places found</h3>
 			<p class="text-gray-500 dark:text-gray-400">
 				{searchQuery || selectedType !== 'All'
@@ -949,6 +1393,12 @@
 						>
 							<MapPin class="h-4 w-4" />
 							Show on Map
+						</button>
+						<button
+							on:click={() => editPlace(place)}
+							class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+						>
+							<Edit class="h-4 w-4" />
 						</button>
 						<button
 							on:click={() => deletePlace(place.id)}

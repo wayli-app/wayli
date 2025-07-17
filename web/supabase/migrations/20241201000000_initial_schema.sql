@@ -935,3 +935,58 @@ CREATE POLICY "Users can delete their own trip-images" ON storage.objects
 -- Service role can access all trip-images (for background processing)
 CREATE POLICY "Service role can access trip-images" ON storage.objects
     FOR ALL USING (auth.role() = 'service_role');
+
+-- Create want_to_visit_places table
+CREATE TABLE IF NOT EXISTS public.want_to_visit_places (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    type TEXT NOT NULL,
+    coordinates TEXT NOT NULL, -- Store as "lat, lng" string
+    description TEXT,
+    address TEXT,
+    location TEXT, -- City, Country
+    marker_type TEXT DEFAULT 'default',
+    marker_color TEXT DEFAULT '#3B82F6',
+    labels TEXT[] DEFAULT '{}',
+    favorite BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for want_to_visit_places
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_places_user_id ON public.want_to_visit_places(user_id);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_places_type ON public.want_to_visit_places(type);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_places_favorite ON public.want_to_visit_places(favorite);
+CREATE INDEX IF NOT EXISTS idx_want_to_visit_places_created_at ON public.want_to_visit_places(created_at);
+
+-- Enable RLS on want_to_visit_places
+ALTER TABLE public.want_to_visit_places ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policies for want_to_visit_places
+CREATE POLICY "Users can view their own want to visit places" ON public.want_to_visit_places
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own want to visit places" ON public.want_to_visit_places
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own want to visit places" ON public.want_to_visit_places
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own want to visit places" ON public.want_to_visit_places
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Create function to update want_to_visit_places updated_at timestamp
+CREATE OR REPLACE FUNCTION update_want_to_visit_places_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically update updated_at
+CREATE TRIGGER trigger_update_want_to_visit_places_updated_at
+    BEFORE UPDATE ON public.want_to_visit_places
+    FOR EACH ROW
+    EXECUTE FUNCTION update_want_to_visit_places_updated_at();

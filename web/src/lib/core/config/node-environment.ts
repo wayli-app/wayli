@@ -79,7 +79,7 @@ export function validateNodeEnvironmentConfig(): NodeEnvironmentConfig {
   }
 
   // Validate Nominatim configuration
-  const nominatimEndpoint = process.env.NOMINATIM_ENDPOINT || 'https://nominatim.openstreetmap.org';
+  const nominatimEndpoint = process.env.NOMINATIM_ENDPOINT || 'https://nominatim.int.hazen.nu';
   if (!nominatimEndpoint.startsWith('http')) {
     errors.push('NOMINATIM_ENDPOINT must be a valid URL starting with http:// or https://');
   }

@@ -58,6 +58,56 @@ export interface Database {
           worker_id?: string | null;
         };
       };
+      want_to_visit_places: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          type: string;
+          coordinates: string;
+          description: string | null;
+          address: string | null;
+          location: string | null;
+          marker_type: string;
+          marker_color: string;
+          labels: string[];
+          favorite: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          type: string;
+          coordinates: string;
+          description?: string | null;
+          address?: string | null;
+          location?: string | null;
+          marker_type?: string;
+          marker_color?: string;
+          labels?: string[];
+          favorite?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          type?: string;
+          coordinates?: string;
+          description?: string | null;
+          address?: string | null;
+          location?: string | null;
+          marker_type?: string;
+          marker_color?: string;
+          labels?: string[];
+          favorite?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       geocoded_points: {
         Row: {
           id: string;
