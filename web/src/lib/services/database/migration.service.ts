@@ -1,5 +1,5 @@
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
-import { getServerSupabaseConfig } from '$lib/core/config/server-environment';
+import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -177,10 +177,10 @@ export class DatabaseMigrationService {
 			console.log('🔍 Starting database health check...');
 
 			// Log the Supabase configuration (without sensitive data)
-			const serverConfig = getServerSupabaseConfig();
+			const workerConfig = getWorkerSupabaseConfig();
 			console.log('📋 Supabase config:', {
-				url: serverConfig.url,
-				serviceRoleKeyLength: serverConfig.serviceRoleKey?.length || 0
+				url: workerConfig.url,
+				serviceRoleKeyLength: workerConfig.serviceRoleKey?.length || 0
 			});
 
 			// Check if wayli schema exists by trying to query the jobs table (core application table)

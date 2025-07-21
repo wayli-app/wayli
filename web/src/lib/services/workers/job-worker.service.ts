@@ -5,6 +5,7 @@
 import { randomUUID } from 'crypto';
 import { JobQueueService } from '../queue/job-queue.service.worker';
 import { JobProcessorService } from '../queue/job-processor.service';
+import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
 import type { Job } from '$lib/types/job-queue.types';
 
 export class JobWorker {
@@ -52,38 +53,41 @@ export class JobWorker {
 	private async checkEnvironmentVariables(): Promise<void> {
 		console.log('🔍 Checking worker environment variables...');
 
-		const supabaseUrl = 'http://127.0.0.1:54321';
-		const serviceRoleKey =
-			'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+		try {
+			const config = getWorkerSupabaseConfig();
 
-		if (!supabaseUrl) {
-			console.error('❌ PUBLIC_SUPABASE_URL is not set! Worker cannot connect to Supabase.');
-		}
-
-		if (!serviceRoleKey) {
-			console.error('❌ SUPABASE_SERVICE_ROLE_KEY is not set! Worker cannot access jobs table.');
-		}
-
-		if (!supabaseUrl || !serviceRoleKey) {
-			console.error(
-				'🚨 Worker will not be able to retrieve jobs due to missing environment variables!'
-			);
-			console.error(
-				'   Please set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
-			);
-		} else {
-			// Test the connection by trying to get job stats
-			try {
-				const stats = await JobQueueService.getJobStats();
-				console.log('✅ Supabase connection successful! Job stats:', stats);
-			} catch (error) {
-				console.error('❌ Failed to connect to Supabase:', error);
-				console.error('   This could be due to:');
-				console.error('   - Invalid SUPABASE_SERVICE_ROLE_KEY');
-				console.error('   - Invalid PUBLIC_SUPABASE_URL');
-				console.error('   - Network connectivity issues');
-				console.error('   - Database permissions issues');
+			if (!config.url) {
+				console.error('❌ PUBLIC_SUPABASE_URL is not set! Worker cannot connect to Supabase.');
 			}
+
+			if (!config.serviceRoleKey) {
+				console.error('❌ SUPABASE_SERVICE_ROLE_KEY is not set! Worker cannot access jobs table.');
+			}
+
+			if (!config.url || !config.serviceRoleKey) {
+				console.error(
+					'🚨 Worker will not be able to retrieve jobs due to missing environment variables!'
+				);
+				console.error(
+					'   Please set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
+				);
+			} else {
+				// Test the connection by trying to get job stats
+				try {
+					const stats = await JobQueueService.getJobStats();
+					console.log('✅ Supabase connection successful! Job stats:', stats);
+				} catch (error) {
+					console.error('❌ Failed to connect to Supabase:', error);
+					console.error('   This could be due to:');
+					console.error('   - Invalid SUPABASE_SERVICE_ROLE_KEY');
+					console.error('   - Invalid PUBLIC_SUPABASE_URL');
+					console.error('   - Network connectivity issues');
+					console.error('   - Database permissions issues');
+				}
+			}
+		} catch (error) {
+			console.error('❌ Failed to load worker environment configuration:', error);
+			console.error('   This could be due to missing or invalid environment variables.');
 		}
 	}
 

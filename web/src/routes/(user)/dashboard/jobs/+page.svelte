@@ -982,7 +982,6 @@
 										{result.message as string}
 									</p>
 								{/if}
-
 								<!-- For reverse geocoding jobs -->
 								{#if job.type === 'reverse_geocoding_missing' && result.processedCount !== undefined}
 									<div class="grid grid-cols-3 gap-4 text-xs">
@@ -1188,21 +1187,29 @@
 	<div
 		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
 		on:click={() => (showImportModal = false)}
+		on:keydown={(e) => e.key === 'Escape' && (showImportModal = false)}
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="import-modal-title"
+		tabindex="-1"
 	>
 		<!-- Modal Box -->
 		<div
 			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
 			on:click|stopPropagation
+			role="document"
+			tabindex="-1"
 		>
-			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+			<h3 id="import-modal-title" class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
 				Import Data
 			</h3>
 			<div class="space-y-6">
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					<label for="file-input" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 						>Select File</label
 					>
 					<input
+						id="file-input"
 						type="file"
 						accept=".json,.gpx,.geojson"
 						bind:this={fileInputEl}

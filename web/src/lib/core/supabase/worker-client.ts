@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
-import { getServerSupabaseConfig } from '../config/server-environment';
+import { getWorkerSupabaseConfig } from '../config/worker-environment';
 
 export function createWorkerClient() {
-	const config = getServerSupabaseConfig();
+	const config = getWorkerSupabaseConfig();
 
 	return createClient(config.url, config.serviceRoleKey, {
 		auth: {
