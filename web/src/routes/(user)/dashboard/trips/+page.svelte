@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { get } from 'svelte/store';
 	import {
 		MapPin,
 		Calendar,
@@ -38,6 +39,12 @@
 		metadata?: {
 			distance_traveled?: number;
 			visited_places_count?: number;
+			image_attribution?: {
+				source: 'pexels' | 'picsum' | 'placeholder';
+				photographer?: string;
+				photographerUrl?: string;
+				pexelsUrl?: string;
+			};
 			[key: string]: unknown;
 		};
 		created_at: string;
@@ -96,6 +103,14 @@
 	let suggestedImageUrl: string | null = null;
 	let tripAnalysis: any = null;
 	let userPreferences: any = null;
+	let serverPexelsApiKeyAvailable = false;
+	let imageAttribution: any = null;
+
+	// Trip generation job progress tracking
+	let activeTripGenerationJob: any = null;
+	let tripGenerationProgress = 0;
+	let tripGenerationStatus = '';
+	let tripGenerationPollingInterval: ReturnType<typeof setInterval> | null = null;
 
 	const filters = [
 		{ value: 'all', label: 'All Trips' },
@@ -193,14 +208,13 @@
 
 		isLoading = true;
 		try {
-			const tripsService = getTripsService();
+			const tripsService = await getTripsService();
 			trips = await tripsService.getTrips(userId);
 			// Sort trips by end_date descending
 			trips = trips.sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
-			console.log('[TripsPage] Trips loaded:', trips);
 			filterTrips();
 		} catch (error) {
-			console.error('Error loading trips:', error);
+			console.error('❌ [TripsPage] Error loading trips:', error);
 			// Only show error if trips is empty after the error
 			if (!trips || trips.length === 0) {
 				toast.error('Failed to load trips');
@@ -219,12 +233,15 @@
 			});
 			if (response.ok) {
 				const result = await response.json();
-				userPreferences = result.preferences || null;
+				userPreferences = result.data?.preferences || result.preferences || null;
+				serverPexelsApiKeyAvailable = result.data?.server_pexels_api_key_available || false;
 			} else {
 				userPreferences = null;
+				serverPexelsApiKeyAvailable = false;
 			}
 		} catch (e) {
 			userPreferences = null;
+			serverPexelsApiKeyAvailable = false;
 		}
 	}
 
@@ -249,7 +266,6 @@
 	}
 
 	$: if (browser && $sessionStoreReady && $sessionStore) {
-		console.log('[TripsPage] Session ready, loading trips. Session:', $sessionStore);
 		loadTrips($sessionStore?.user?.id);
 	}
 
@@ -291,15 +307,17 @@
 		customHomeAddressSearchError = null;
 	}
 
-	async function generateNewTripSuggestions() {
+		async function generateNewTripSuggestions() {
 		try {
 			const jobData: Record<string, unknown> = {
 				useCustomHomeAddress: tripGenerationData.useCustomHomeAddress
 			};
 
-			// Only include dates if they are provided
-			if (tripGenerationData.startDate && tripGenerationData.endDate) {
+			// Include dates if they are provided (individually)
+			if (tripGenerationData.startDate) {
 				jobData.startDate = tripGenerationData.startDate;
+			}
+			if (tripGenerationData.endDate) {
 				jobData.endDate = tripGenerationData.endDate;
 			}
 
@@ -318,15 +336,29 @@
 
 			if (response.ok) {
 				const result = await response.json();
-				const message =
-					tripGenerationData.startDate && tripGenerationData.endDate
-						? `Trip generation job started for ${tripGenerationData.startDate} to ${tripGenerationData.endDate}!`
-						: 'Trip generation job started! The system will automatically find available date ranges and generate suggestions.';
-				toast.success(message);
-				// Close modals and refresh suggested trips
+				let message = 'Trip generation job started!';
+
+				if (tripGenerationData.startDate && tripGenerationData.endDate) {
+					message = `Trip generation job started for ${tripGenerationData.startDate} to ${tripGenerationData.endDate}!`;
+				} else if (tripGenerationData.startDate) {
+					message = `Trip generation job started from ${tripGenerationData.startDate} onwards!`;
+				} else if (tripGenerationData.endDate) {
+					message = `Trip generation job started until ${tripGenerationData.endDate}!`;
+				} else {
+					message = 'Trip generation job started! The system will automatically find available date ranges and generate suggestions.';
+				}
+
+								toast.success(message);
+
+				// Start tracking the job progress
+				if (result.data?.job?.id) {
+					activeTripGenerationJob = result.data.job;
+					startTripGenerationPolling(result.data.job.id);
+				}
+
+				// Close modals when starting a new job
 				showTripGenerationModal = false;
 				showSuggestedTripsModal = false;
-				await openSuggestedTripsModal();
 			} else {
 				toast.error('Failed to start trip generation job');
 			}
@@ -334,6 +366,101 @@
 			console.error('Error generating new trip suggestions:', error);
 			toast.error('Failed to generate new trip suggestions');
 		}
+	}
+
+	// Check for active trip generation job on page load
+	async function checkForActiveTripGenerationJob() {
+		try {
+			const session = get(sessionStore);
+			const headers: Record<string, string> = {};
+			if (session?.access_token) {
+				headers['Authorization'] = `Bearer ${session.access_token}`;
+			}
+
+			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
+			const data = await response.json();
+
+			if (data.success && Array.isArray(data.data)) {
+				const activeJobs = data.data.filter(
+					(job: any) =>
+						job.type === 'trip_generation' && (job.status === 'queued' || job.status === 'running')
+				);
+
+				if (activeJobs.length > 0) {
+					activeTripGenerationJob = activeJobs[0]; // Get the most recent active job
+					console.log('Found active trip generation job:', activeTripGenerationJob);
+					startTripGenerationPolling(activeTripGenerationJob.id);
+					updateTripGenerationProgressFromJob(activeTripGenerationJob);
+				}
+			}
+		} catch (error) {
+			console.error('Error checking for active trip generation jobs:', error);
+		}
+	}
+
+	function startTripGenerationPolling(jobId: string) {
+		if (!jobId) return;
+		if (tripGenerationPollingInterval) {
+			clearInterval(tripGenerationPollingInterval);
+		}
+
+		tripGenerationPollingInterval = setInterval(async () => {
+			if (!activeTripGenerationJob) return;
+
+			try {
+				const session = get(sessionStore);
+				const headers: Record<string, string> = {};
+				if (session?.access_token) {
+					headers['Authorization'] = `Bearer ${session.access_token}`;
+				}
+
+				const response = await fetch(`/api/v1/jobs/${jobId}`, { headers });
+				const data = await response.json();
+
+				if (data.success && data.data?.job) {
+					const job = data.data.job;
+					activeTripGenerationJob = job;
+					updateTripGenerationProgressFromJob(job);
+
+					// Stop polling if job is finished
+					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+						stopTripGenerationPolling();
+
+						// Show completion message
+						if (job.status === 'completed') {
+							toast.success('Trip generation completed successfully!');
+						} else if (job.status === 'failed') {
+							toast.error('Trip generation failed');
+						}
+
+						// Refresh suggested trips after a short delay
+						setTimeout(() => {
+							activeTripGenerationJob = null;
+							openSuggestedTripsModal();
+						}, 2000);
+					}
+				} else {
+					// If job is not found, stop polling and reset
+					activeTripGenerationJob = null;
+					stopTripGenerationPolling();
+				}
+			} catch (error) {
+				console.error('Error polling trip generation job status:', error);
+			}
+		}, 2000);
+	}
+
+	function stopTripGenerationPolling() {
+		if (tripGenerationPollingInterval) {
+			clearInterval(tripGenerationPollingInterval);
+			tripGenerationPollingInterval = null;
+		}
+	}
+
+	function updateTripGenerationProgressFromJob(job: any) {
+		tripGenerationProgress = job.progress || 0;
+		const result = (job.result as Record<string, unknown>) || {};
+		tripGenerationStatus = (result.message as string) || job.status;
 	}
 
 	function openAddTripModal() {
@@ -372,9 +499,20 @@
 		isSuggestingImage = false;
 		suggestedImageUrl = null;
 		tripAnalysis = null;
+		imageAttribution = null;
 		if (trip.image_url) {
 			imagePreview = trip.image_url;
 			uploadedImageUrl = trip.image_url;
+			// Load existing attribution if available
+			if (trip.metadata?.image_attribution) {
+				imageAttribution = trip.metadata.image_attribution;
+				// If there's attribution, treat it as a suggested image
+				if (imageAttribution.source === 'pexels') {
+					suggestedImageUrl = trip.image_url;
+				}
+			} else {
+				console.log('🔍 [EditModal] No attribution found in metadata');
+			}
 		} else {
 			imagePreview = null;
 			uploadedImageUrl = null;
@@ -398,11 +536,11 @@
 		isSuggestingImage = false;
 		suggestedImageUrl = null;
 		tripAnalysis = null;
+		imageAttribution = null;
 		formError = '';
 	}
 
 	async function submitTrip(event?: Event) {
-		console.log('submitTrip called!', { event, isSubmitting });
 		if (isSubmitting) return;
 
 		formError = '';
@@ -421,7 +559,6 @@
 		}
 
 		isSubmitting = true;
-		console.log('Starting trip submission...', { isEditing, editingTrip });
 
 		try {
 			// Use the pre-uploaded image URL if available
@@ -429,14 +566,35 @@
 				uploadedImageUrl ||
 				(isEditing && editingTrip?.image_url ? editingTrip.image_url : undefined);
 
-			const tripsService = getTripsService();
+			// Prepare metadata with attribution if available
+			const metadata: {
+				image_attribution?: {
+					source: 'pexels' | 'picsum' | 'placeholder';
+					photographer?: string;
+					photographerUrl?: string;
+					pexelsUrl?: string;
+				};
+			} = {};
+
+			// Preserve existing metadata if editing
+			if (isEditing && editingTrip?.metadata) {
+				Object.assign(metadata, editingTrip.metadata);
+			}
+
+			// Add or update attribution if available
+			if (imageAttribution && imageAttribution.source === 'pexels') {
+				metadata.image_attribution = imageAttribution;
+			}
+
+			const tripsService = await getTripsService();
 			const tripData = {
 				title: tripForm.title.trim(),
 				description: tripForm.description?.trim() || '',
 				start_date: tripForm.start_date,
 				end_date: tripForm.end_date,
 				labels: tripForm.labels,
-				image_url: imageUrl
+				image_url: imageUrl,
+				metadata: Object.keys(metadata).length > 0 ? metadata : undefined
 			};
 
 			if (isEditing && editingTrip) {
@@ -452,8 +610,10 @@
 				});
 			}
 
+			// Store the editing state before closing the modal
+			const wasEditing = isEditing;
 			closeTripModal();
-			toast.success(`Trip ${isEditing ? 'updated' : 'created'} successfully!`);
+			toast.success(`Trip ${wasEditing ? 'updated' : 'created'} successfully!`);
 
 			// Reload trips to show the changes
 			await loadTrips();
@@ -468,7 +628,6 @@
 						: `Failed to ${isEditing ? 'update' : 'create'} trip`;
 			}
 		} finally {
-			console.log('Setting isSubmitting to false');
 			isSubmitting = false;
 		}
 	}
@@ -495,7 +654,7 @@
 	async function deleteTrip() {
 		if (tripToDelete) {
 			try {
-				const tripsService = getTripsService();
+				const tripsService = await getTripsService();
 				await tripsService.deleteTrip(tripToDelete.id);
 				trips = trips.filter((t) => t.id !== tripToDelete?.id);
 				filterTrips();
@@ -537,6 +696,7 @@
 			if (result.success && result.data) {
 				suggestedImageUrl = result.data.suggestedImageUrl;
 				tripAnalysis = result.data.analysis;
+				imageAttribution = result.data.attribution;
 
 				if (suggestedImageUrl) {
 					imagePreview = suggestedImageUrl;
@@ -562,6 +722,7 @@
 		isUploadingImage = false;
 		suggestedImageUrl = null;
 		tripAnalysis = null;
+		imageAttribution = null;
 
 		if (file) {
 			// Validate file
@@ -584,11 +745,6 @@
 
 			// Upload image immediately
 			isUploadingImage = true;
-			console.log('🚀 [UPLOAD] Starting immediate image upload...', {
-				fileName: file.name,
-				fileSize: file.size,
-				timestamp: new Date().toISOString()
-			});
 
 			try {
 				const uploadedUrl = await uploadTripImage(file);
@@ -613,7 +769,7 @@
 	// Add refreshTripMetadata function
 	async function refreshTripMetadata(trip: Trip) {
 		try {
-			const tripsService = getTripsService();
+			const tripsService = await getTripsService();
 			await tripsService.updateTripMetadata(trip.id);
 			toast.success('Trip metadata refreshed!');
 			await loadTrips();
@@ -810,11 +966,16 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		if (browser) {
-			loadTrips();
-			loadUserPreferences();
+			await loadTrips();
+			await loadUserPreferences();
+			await checkForActiveTripGenerationJob();
 		}
+	});
+
+	onDestroy(() => {
+		stopTripGenerationPolling();
 	});
 </script>
 
@@ -846,6 +1007,72 @@
 			</button>
 		</div>
 	</div>
+
+	<!-- Active Trip Generation Job Progress Display -->
+	{#if activeTripGenerationJob}
+		<div class="mb-8">
+			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Trip Generation in Progress</h2>
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+			>
+				<div class="mb-3 flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div class="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
+							<Route class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+						</div>
+						<div>
+							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+								Trip Generation
+							</h3>
+							<p class="text-sm text-gray-500 dark:text-gray-400">
+								Job ID: {activeTripGenerationJob.id} | Status: {activeTripGenerationJob.status}
+							</p>
+						</div>
+					</div>
+					<div class="text-right">
+						<div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+							{tripGenerationProgress}%
+						</div>
+					</div>
+				</div>
+
+				<!-- Progress Bar -->
+				<div class="mb-3">
+					<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+						<span>Progress</span>
+					</div>
+					<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+						<div
+							class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
+							style="width: {tripGenerationProgress}%"
+						></div>
+					</div>
+				</div>
+
+				<!-- Status Message -->
+				{#if tripGenerationStatus}
+					<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+						{tripGenerationStatus}
+					</div>
+				{/if}
+
+				<!-- Job Details -->
+				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+					<div class="flex items-center gap-4">
+						<span>Started: {format(new Date(activeTripGenerationJob.created_at), 'MMM d, yyyy HH:mm')}</span>
+						{#if activeTripGenerationJob.data?.startDate || activeTripGenerationJob.data?.endDate}
+							<span>
+								Date range:
+								{activeTripGenerationJob.data?.startDate || 'any'}
+								to
+								{activeTripGenerationJob.data?.endDate || 'any'}
+							</span>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Search and Filters -->
 	<div class="flex flex-col gap-4 md:flex-row">
@@ -1043,16 +1270,40 @@
 							</div>
 						{/if}
 
-						{#if isEditing && userPreferences?.pexels_api_key && tripForm.start_date && tripForm.end_date && !uploadedImageUrl && !imageFile}
+						{#if isEditing && tripForm.start_date && tripForm.end_date && !uploadedImageUrl && !imageFile}
 							<div class="mb-3">
-								<button
-									type="button"
-									class="text-sm font-medium text-blue-600 underline hover:text-blue-700"
-									on:click={suggestTripImage}
-									disabled={isSuggestingImage}
-								>
-									{isSuggestingImage ? 'Suggesting...' : 'Auto-suggest image'}
-								</button>
+								{#if serverPexelsApiKeyAvailable || userPreferences?.pexels_api_key}
+									<button
+										type="button"
+										class="text-sm font-medium text-blue-600 underline hover:text-blue-700"
+										on:click={suggestTripImage}
+										disabled={isSuggestingImage}
+									>
+										{isSuggestingImage ? 'Suggesting...' : 'Auto-suggest image'}
+									</button>
+									{#if serverPexelsApiKeyAvailable}
+										<p class="mt-1 text-xs text-green-600 dark:text-green-400">
+											✅ Using server API key for high-quality suggestions
+										</p>
+									{/if}
+								{:else}
+									<div class="flex items-center gap-2">
+										<button
+											type="button"
+											class="text-sm font-medium text-blue-600 underline hover:text-blue-700"
+											on:click={suggestTripImage}
+											disabled={isSuggestingImage}
+										>
+											{isSuggestingImage ? 'Suggesting...' : 'Auto-suggest image'}
+										</button>
+										<span class="text-xs text-gray-500 dark:text-gray-400">
+											(Using fallback image service)
+										</span>
+									</div>
+								{/if}
+								<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+									Analyzes your travel data to suggest relevant images for this trip
+								</p>
 							</div>
 						{/if}
 
@@ -1122,7 +1373,50 @@
 										Suggested
 									</div>
 								{/if}
+
+								<!-- Auto-suggest new image button when editing -->
+								{#if isEditing && tripForm.start_date && tripForm.end_date}
+									<div class="absolute top-2 left-2">
+										<button
+											type="button"
+											class="rounded bg-white/95 px-3 py-1.5 text-xs font-medium text-blue-600 shadow-lg hover:bg-white hover:text-blue-700 transition-all duration-200 dark:bg-gray-800/95 dark:text-blue-400 dark:hover:bg-gray-800"
+											on:click={suggestTripImage}
+											disabled={isSuggestingImage}
+											title="Get a new suggested image based on your travel data"
+										>
+											{isSuggestingImage ? 'Suggesting...' : '🔄 New suggestion'}
+										</button>
+									</div>
+								{/if}
 							</div>
+
+							<!-- Attribution for suggested images -->
+							{#if imageAttribution && imageAttribution.source === 'pexels' && imageAttribution.photographer}
+								<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+									Photo by
+									{#if imageAttribution.photographerUrl}
+										<a
+											href={imageAttribution.photographerUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-blue-600 hover:text-blue-700 underline"
+										>
+											{imageAttribution.photographer}
+										</a>
+									{:else}
+										{imageAttribution.photographer}
+									{/if}
+									on
+									<a
+										href="https://www.pexels.com"
+										target="_blank"
+										rel="noopener noreferrer"
+										class="text-blue-600 hover:text-blue-700 underline"
+									>
+										Pexels
+									</a>
+								</div>
+							{/if}
 						{/if}
 					</div>
 					{#if formError}
@@ -1231,6 +1525,8 @@
 								Auto-generated
 							</div>
 						{/if}
+
+
 					</div>
 					<!-- Trip Details and Footer -->
 					<div class="flex min-h-0 flex-1 flex-col p-4">
@@ -1261,6 +1557,37 @@
 								<MapPin class="h-4 w-4" />
 								<span>{trip.metadata?.point_count ?? 0} points</span>
 							</div>
+
+																												<!-- Pexels attribution -->
+							{#if trip.metadata?.image_attribution?.source === 'pexels' && trip.metadata?.image_attribution?.photographer}
+								<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+									<span class="text-xs">📸</span>
+									<span class="text-xs">
+										Photo by
+										{#if trip.metadata?.image_attribution?.photographerUrl}
+											<a
+												href={trip.metadata.image_attribution.photographerUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="text-blue-600 hover:text-blue-700 underline dark:text-blue-400 dark:hover:text-blue-300"
+											>
+												{trip.metadata.image_attribution.photographer}
+											</a>
+										{:else}
+											{trip.metadata.image_attribution.photographer}
+										{/if}
+										on
+										<a
+											href="https://www.pexels.com"
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-blue-600 hover:text-blue-700 underline dark:text-blue-400 dark:hover:text-blue-300"
+										>
+											Pexels
+										</a>
+									</span>
+								</div>
+							{/if}
 							<!-- Labels -->
 							{#if trip.labels && trip.labels.length > 0}
 								<div class="flex flex-wrap gap-1">
@@ -1318,7 +1645,9 @@
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="suggested-trips-modal-title"
+			tabindex="0"
 			on:click={() => (showSuggestedTripsModal = false)}
+			on:keydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') showSuggestedTripsModal = false; }}
 		>
 			<div
 				class="relative mx-4 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
@@ -1352,13 +1681,17 @@
 						<span class="ml-2 text-gray-600 dark:text-gray-400">Loading suggested trips...</span>
 					</div>
 				{:else if suggestedTrips.length === 0}
-					<div class="py-12 text-center">
+					<button type="button"
+						class="py-12 text-center w-full bg-transparent border-0 cursor-pointer"
+						on:click={() => (showSuggestedTripsModal = false)}
+						on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') showSuggestedTripsModal = false; }}
+					>
 						<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
 						<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
 							No suggested trips
 						</h3>
 						<p class="text-gray-600 dark:text-gray-400">No pending trip suggestions found.</p>
-					</div>
+					</button>
 				{:else}
 					<div class="space-y-4">
 						<div class="flex items-center justify-between">
@@ -1403,9 +1736,12 @@
 										/>
 										<div class="flex-1">
 											<div class="mb-2 flex items-center justify-between">
-												<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+												<label
+													for={`trip-${trip.id}`}
+													class="text-lg font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600"
+												>
 													{trip.title}
-												</h3>
+												</label>
 												<div class="flex items-center gap-2">
 													<span class="text-sm text-gray-500 dark:text-gray-400">
 														{Math.round(trip.confidence * 100)}% confidence
@@ -1533,6 +1869,22 @@
 			</div>
 		</div>
 	{/if}
+
+	<!-- Powered by Pexels Footer -->
+	<div class="mt-12 text-center">
+		<div class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+			<span>Powered by</span>
+			<a
+				href="https://www.pexels.com"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+			>
+				Pexels
+			</a>
+			<span>for high-quality trip images</span>
+		</div>
+	</div>
 </div>
 
 <style>

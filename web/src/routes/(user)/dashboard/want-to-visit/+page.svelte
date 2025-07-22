@@ -463,6 +463,8 @@
 				map.removeLayer(currentTileLayer);
 				currentTileLayer = L.tileLayer(newUrl, { attribution: newAttribution }).addTo(map);
 			}
+			// Also update all marker icons to match the new theme
+			updateMarkers();
 		});
 		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 	});
@@ -1511,8 +1513,8 @@
 		<div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
 			<!-- Type Filter -->
 			<div class="flex flex-col gap-2">
-				<label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-				<div class="flex flex-wrap gap-2">
+				<label for="type-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+				<div id="type-filter" class="flex flex-wrap gap-2">
 					{#each availableTypes as type}
 						<button
 							class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {selectedTypes.includes(

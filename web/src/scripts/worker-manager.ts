@@ -17,8 +17,7 @@ for (let i = 0; i < numWorkers; i++) {
 	console.log(`Starting worker ${i + 1}/${numWorkers} with ID: ${workerId}`);
 
 	const worker = spawn('bun', ['run', 'src/scripts/worker.ts', workerId], {
-		stdio: 'inherit',
-		cwd: process.cwd()
+		stdio: 'inherit'
 	});
 
 	worker.on('error', (error) => {

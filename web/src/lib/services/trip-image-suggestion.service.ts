@@ -1,5 +1,5 @@
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
-import { getTripBannerImage } from './external/pexels.service';
+import { getTripBannerImageWithAttribution } from './external/pexels.service';
 
 export interface TripLocationAnalysis {
 	primaryCountry: string;
@@ -8,6 +8,16 @@ export interface TripLocationAnalysis {
 	allCities: string[];
 	countryStats: Record<string, number>;
 	cityStats: Record<string, number>;
+}
+
+export interface TripImageSuggestion {
+	imageUrl: string;
+	attribution?: {
+		source: 'pexels' | 'picsum' | 'placeholder';
+		photographer?: string;
+		photographerUrl?: string;
+		pexelsUrl?: string;
+	};
 }
 
 export class TripImageSuggestionService {
@@ -123,7 +133,7 @@ export class TripImageSuggestionService {
 		startDate: string,
 		endDate: string,
 		userApiKey?: string
-	): Promise<string | null> {
+	): Promise<TripImageSuggestion | null> {
 		try {
 			// Analyze the trip locations
 			const analysis = await this.analyzeTripLocations(userId, startDate, endDate);
@@ -138,9 +148,9 @@ export class TripImageSuggestionService {
 			// Try to get an image based on the primary city first
 			if (analysis.primaryCity) {
 				console.log(`Suggesting image for primary city: ${analysis.primaryCity}`);
-				const cityImage = await getTripBannerImage(analysis.primaryCity, userApiKey);
+				const cityImage = await getTripBannerImageWithAttribution(analysis.primaryCity, userApiKey);
 				if (cityImage) {
-					console.log(`Successfully got city image: ${cityImage}`);
+					console.log(`Successfully got city image: ${cityImage.imageUrl}`);
 					return cityImage;
 				}
 				console.log('City image suggestion failed, trying country...');
@@ -148,17 +158,17 @@ export class TripImageSuggestionService {
 
 			// Fallback to country-based image
 			console.log(`Suggesting image for primary country: ${analysis.primaryCountry}`);
-			const countryImage = await getTripBannerImage(analysis.primaryCountry, userApiKey);
+			const countryImage = await getTripBannerImageWithAttribution(analysis.primaryCountry, userApiKey);
 			if (countryImage) {
-				console.log(`Successfully got country image: ${countryImage}`);
+				console.log(`Successfully got country image: ${countryImage.imageUrl}`);
 				return countryImage;
 			}
 
 			// Final fallback to generic travel image
 			console.log('Using generic travel image as fallback');
-			const travelImage = await getTripBannerImage('travel', userApiKey);
+			const travelImage = await getTripBannerImageWithAttribution('travel', userApiKey);
 			if (travelImage) {
-				console.log(`Successfully got travel image: ${travelImage}`);
+				console.log(`Successfully got travel image: ${travelImage.imageUrl}`);
 				return travelImage;
 			}
 

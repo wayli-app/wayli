@@ -815,33 +815,47 @@ export class EnhancedTripDetectionService {
 		return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 	}
 
-	private getCityNameFromGeocodeData(dataPoints: TrackerDataPoint[]): string {
+		private getCityNameFromGeocodeData(dataPoints: TrackerDataPoint[]): string {
+		// Debug: Log the first few geocode structures to understand the data format
+		console.log('🔍 Debug: Analyzing geocode data structure...');
+		for (let i = 0; i < Math.min(3, dataPoints.length); i++) {
+			const point = dataPoints[i];
+			console.log(`🔍 Point ${i} geocode:`, JSON.stringify(point.geocode, null, 2));
+		}
+
+		// Extract city names from geocode data
 		const cityNames = dataPoints
-			.map((point) => point.geocode?.address?.city)
+			.map((point) => {
+				// Handle geocode data that might be a string or object
+				const geocode = typeof point.geocode === 'string'
+					? JSON.parse(point.geocode)
+					: point.geocode;
+
+				// Try to extract city name from various possible locations in the geocode data
+				return geocode?.address?.city ||
+					   geocode?.city ||
+					   geocode?.address?.town ||
+					   geocode?.town ||
+					   geocode?.address?.village ||
+					   geocode?.village ||
+					   geocode?.address?.municipality ||
+					   geocode?.municipality ||
+					   geocode?.address?.suburb ||
+					   geocode?.suburb ||
+					   geocode?.name ||
+					   null;
+			})
 			.filter((city) => city) as string[];
 
+		console.log('🔍 Found city names:', cityNames);
+
 		if (cityNames.length > 0) {
-			return this.getMostCommonValue(cityNames) || 'Unknown City';
+			const mostCommon = this.getMostCommonValue(cityNames);
+			console.log('🔍 Most common city name:', mostCommon);
+			return mostCommon || 'Unknown City';
 		}
 
-		// Fallback to town if no city found
-		const townNames = dataPoints
-			.map((point) => point.geocode?.address?.town)
-			.filter((town) => town) as string[];
-
-		if (townNames.length > 0) {
-			return this.getMostCommonValue(townNames) || 'Unknown Town';
-		}
-
-		// Fallback to village if no town found
-		const villageNames = dataPoints
-			.map((point) => point.geocode?.address?.village)
-			.filter((village) => village) as string[];
-
-		if (villageNames.length > 0) {
-			return this.getMostCommonValue(villageNames) || 'Unknown Village';
-		}
-
+		console.log('🔍 No city/town/village found, returning Unknown Location');
 		return 'Unknown Location';
 	}
 }

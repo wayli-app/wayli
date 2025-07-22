@@ -12,62 +12,46 @@
 
 	let unsubscribe: (() => void) | null = null;
 
-	async function handleSignOut() {
-		console.log('[Dashboard] Signout initiated - clearing client stores first');
+	async function handleSignout() {
+		try {
+			// Clear client stores first
+			userStore.set(null);
+			sessionStore.set(null);
+			// authStore.set(null); // This line was removed from the new_code, so it's removed here.
 
-		// Clear client-side stores immediately
-		userStore.set(null);
-		sessionStore.set(null);
-
-		// Then redirect to server-side signout endpoint
-		goto('/auth/signout');
+			// Then sign out from Supabase
+			const { error } = await supabase.auth.signOut();
+			if (error) {
+				console.error('❌ [Dashboard] Signout error:', error);
+			}
+		} catch (error) {
+			console.error('❌ [Dashboard] Signout error:', error);
+		}
 	}
 
-	onMount(() => {
-		console.log('🏠 [DASHBOARD] Layout mounted');
-
-		// Initialize user store with server-provided user data
-		// This prevents the initial "no user" state from triggering redirects
-		if (data.user && !get(userStore)) {
-			console.log('[Dashboard] Initializing user store with server data');
-			// Cast the user to AuthStore type to match the store's expected type
-			userStore.set(data.user as any);
-		}
-
-		// Subscribe to auth state changes to handle sign-out events only
-		// Don't redirect on initial null state since server already validated authentication
-		let isInitialLoad = true;
-		unsubscribe = userStore.subscribe((user) => {
-			console.log('[Dashboard] User store updated:', user ? 'user present' : 'no user');
-
-			// Skip the initial load to avoid redirecting when user store starts as null
-			if (isInitialLoad) {
-				isInitialLoad = false;
-				console.log('[Dashboard] Skipping initial user store update');
-				return;
+	onMount(async () => {
+		try {
+			// Initialize user store with server data
+			if (data.user) {
+				userStore.set(data.user as any);
 			}
-
-			// Only redirect if user is null (signed out) and we're on a dashboard page
-			// This handles actual sign-out events, not initial loading
-			if (!user && $page.url.pathname.startsWith('/dashboard')) {
-				console.log('[Dashboard] User signed out, redirecting to signin');
-				goto('/auth/signin', { replaceState: true });
-			}
-		});
-
-		// Note: Server-side layout already validates authentication
-		// Client-side redirects are only for handling sign-out events
-		// The server will redirect unauthenticated users before the page loads
-	});
-
-	onDestroy(() => {
-		if (unsubscribe) {
-			unsubscribe();
+		} catch (error) {
+			console.error('❌ [Dashboard] Error initializing user store:', error);
 		}
 	});
+
+	$: if ($userStore !== data.user) {
+		// Update user store when server data changes
+		userStore.set(data.user as any);
+	}
+
+	$: if (!$userStore && !data.user) {
+		// User signed out, redirect to signin
+		goto('/auth/signin');
+	}
 </script>
 
-<AppNav isAdmin={data.isAdmin} on:signout={handleSignOut}>
+<AppNav isAdmin={data.isAdmin} on:signout={handleSignout}>
 	<!-- Main content area -->
 	<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
 		<slot />

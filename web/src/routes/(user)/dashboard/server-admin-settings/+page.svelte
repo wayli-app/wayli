@@ -423,10 +423,14 @@
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
 		on:click={handleCloseAddUserModal}
-		on:keydown={(e) => e.key === 'Escape' && handleCloseAddUserModal()}
-		role="dialog"
-		aria-modal="true"
-		aria-labelledby="add-user-modal-title"
+		on:keydown={(e) => {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+				handleCloseAddUserModal();
+			}
+		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal"
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
@@ -512,8 +516,7 @@
 				</div>
 
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label
-					>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
 					<RoleSelector bind:role={newUserRole} />
 				</div>
 			</div>
@@ -542,13 +545,14 @@
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
 		on:click={handleCloseDeleteConfirm}
-		on:keydown={handleModalKeydown}
-		tabindex="-1"
-		role="dialog"
-		aria-label="Delete User Modal"
-		aria-modal="true"
-		aria-labelledby="delete-user-modal-title"
-		aria-describedby="delete-user-modal-description"
+		on:keydown={(e) => {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+				handleCloseDeleteConfirm();
+			}
+		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal"
 	>
 		<div class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
 			<div class="mb-4 flex items-center gap-3">
@@ -934,12 +938,13 @@
 										: 'bg-gray-200 dark:bg-gray-700'}"
 									role="switch"
 									aria-checked={allowRegistration}
+									aria-label="Allow new user registration"
 								>
 									<span
 										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {allowRegistration
 											? 'translate-x-5'
 											: 'translate-x-0'}"
-									/>
+									></span>
 								</button>
 							</div>
 							<div class="flex items-center justify-between">
@@ -963,12 +968,13 @@
 										: 'bg-gray-200 dark:bg-gray-700'}"
 									role="switch"
 									aria-checked={requireEmailVerification}
+									aria-label="Require email verification"
 								>
 									<span
 										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {requireEmailVerification
 											? 'translate-x-5'
 											: 'translate-x-0'}"
-									/>
+									></span>
 								</button>
 							</div>
 						</div>

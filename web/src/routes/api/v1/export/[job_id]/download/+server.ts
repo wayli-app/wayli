@@ -4,40 +4,47 @@ import { ExportService } from '$lib/services/export.service';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
+		const jobId = params.job_id;
+		if (!jobId) {
+			return json({ success: false, message: 'Missing job ID' }, { status: 400 });
+		}
+
 		const {
 			data: { user },
 			error: userError
 		} = await locals.supabase.auth.getUser();
 
-		if (userError) {
+		if (userError || !user?.id) {
 			return json({ success: false, message: 'Authentication error' }, { status: 401 });
 		}
 
-		if (!user?.id) {
-			return json({ success: false, message: 'No authenticated user found' }, { status: 401 });
+		const job = await ExportService.getExportJob(jobId, user.id);
+		if (!job || job.status !== 'completed') {
+			return json({ success: false, message: 'Export not found or not completed' }, { status: 404 });
 		}
 
-		const { job_id } = params;
-
-		if (!job_id) {
-			return json({ success: false, message: 'Export job ID is required' }, { status: 400 });
+		// Check for file path in job.result
+		const filePath = (job.result as Record<string, unknown>)?.file_path as string;
+		if (!filePath) {
+			return json({ success: false, message: 'Export file not found' }, { status: 404 });
 		}
 
-		// Get the download URL for the export
-		const downloadUrl = await ExportService.getExportDownloadUrl(job_id, user.id);
+		console.log('About to call getExportDownloadUrl with:', { jobId, userId: user.id, filePath });
+		const signedUrl = await ExportService.getExportDownloadUrl(jobId, user.id);
+		console.log('getExportDownloadUrl returned:', signedUrl);
 
-		if (!downloadUrl) {
-			return json({ success: false, message: 'Export file not found or expired' }, { status: 404 });
+		if (!signedUrl) {
+			return json({ success: false, message: 'Could not generate download link' }, { status: 500 });
 		}
 
 		// Redirect to the signed URL
-		throw redirect(302, downloadUrl);
+		return redirect(302, signedUrl);
 	} catch (error) {
-		if (error instanceof Response) {
-			throw error; // Re-throw redirect responses
+		// Re-throw SvelteKit redirects so they are handled properly
+		if ((error as any)?.status === 302 && (error as any)?.location) {
+			throw error;
 		}
-
-		console.error('Export download failed:', error);
-		return json({ success: false, message: 'Failed to get download URL' }, { status: 500 });
+		console.error('Error generating export download link:', error);
+		return json({ success: false, message: 'Internal server error' }, { status: 500 });
 	}
 };

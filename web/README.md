@@ -313,7 +313,7 @@ The application includes a robust job queue system for handling background tasks
 
 ### Live Updates
 
-The jobs page provides real-time status updates through:
+The system provides real-time status updates through:
 
 1. **Server-Sent Events (SSE)**: Primary real-time communication
 2. **Fallback Polling**: Automatic fallback if SSE connection fails

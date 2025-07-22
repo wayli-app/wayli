@@ -26,7 +26,7 @@
 	import ExportJobs from '$lib/components/ExportJobs.svelte';
 
 	let importFormat: string | null = null;
-	let exportFormat = 'GeoJSON';
+	let exportFormat = 'JSON'; // Fixed format - not used by user anymore
 	let dateRange = 'All Time';
 	let selectedFile: File | null = null;
 	let includeLocationData = true;
@@ -50,6 +50,9 @@
 	let activeExportJob: Job | null = null;
 	let exportJobPollingInterval: ReturnType<typeof setInterval> | null = null;
 
+	let exportStartDate: string | null = null;
+	let exportEndDate: string | null = null;
+
 	const importFormats = [
 		{
 			value: 'GeoJSON',
@@ -65,8 +68,6 @@
 			description: 'OwnTracks recording files'
 		}
 	];
-
-	const exportFormats = ['GeoJSON', 'GPX', 'OwnTracks'];
 
 	function getAcceptedFileTypes(format: string): string {
 		switch (format) {
@@ -200,7 +201,7 @@
 				startImportJobPolling(jobId!);
 
 				toast.success(`Import job created successfully!`, {
-					description: `Job ID: ${jobId}. Check the Background jobs page for detailed progress.`
+					description: `Job ID: ${jobId}. Progress will be shown on this page.`
 				});
 
 				// Continue polling until job is completed or failed
@@ -291,7 +292,9 @@
 					includeLocationData,
 					includeTripInfo,
 					includeWantToVisit,
-					includeTrips
+					includeTrips,
+					startDate: exportStartDate,
+					endDate: exportEndDate
 				})
 			});
 
@@ -667,7 +670,7 @@
 						</div>
 						<div>
 							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
-								Export to {activeExportJob.data?.format || 'Unknown'} format
+								Export
 							</h3>
 							<p class="text-sm text-gray-500 dark:text-gray-400">
 								Job ID: {activeExportJob.id} | Status: {activeExportJob.status}
@@ -700,35 +703,6 @@
 						{activeExportJob.result.message}
 					</div>
 				{/if}
-
-				<!-- Export Options -->
-				<div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-					<span>Format: {activeExportJob.data?.format || 'Unknown'}</span>
-					{#if activeExportJob.data?.includeLocationData}
-						<span
-							class="rounded bg-blue-100 px-2 py-1 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200"
-							>Location Data</span
-						>
-					{/if}
-					{#if activeExportJob.data?.includeTripInfo}
-						<span
-							class="rounded bg-purple-100 px-2 py-1 text-purple-800 dark:bg-purple-900/20 dark:text-purple-200"
-							>Trip Info</span
-						>
-					{/if}
-					{#if activeExportJob.data?.includeWantToVisit}
-						<span
-							class="rounded bg-orange-100 px-2 py-1 text-orange-800 dark:bg-orange-900/20 dark:text-orange-200"
-							>Want to Visit</span
-						>
-					{/if}
-					{#if activeExportJob.data?.includeTrips}
-						<span
-							class="rounded bg-green-100 px-2 py-1 text-green-800 dark:bg-green-900/20 dark:text-green-200"
-							>Trips</span
-						>
-					{/if}
-				</div>
 			</div>
 		</div>
 	{/if}
@@ -744,7 +718,7 @@
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
 				Import your travel data from various sources. Imports are processed in the background by
-				workers and you can track progress on the Background jobs page.
+				workers and progress will be shown on this page.
 			</p>
 
 			{#if !activeImportJob}
@@ -824,23 +798,6 @@
 			<div class="flex-1 space-y-4">
 				<div>
 					<label
-						for="exportFormat"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
-						>Export Format</label
-					>
-					<select
-						id="exportFormat"
-						bind:value={exportFormat}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#23232a] dark:bg-[#23232a] dark:text-gray-100"
-					>
-						{#each exportFormats as format}
-							<option value={format}>{format}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
 						for="includeLocationData">Include</label
 					>
@@ -851,7 +808,7 @@
 								bind:checked={includeLocationData}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Location data</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Location data (GeoJSON)</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -859,7 +816,7 @@
 								bind:checked={includeTripInfo}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Trip information</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Trip information (JSON)</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -867,7 +824,7 @@
 								bind:checked={includeWantToVisit}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Want to visit</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Want to visit (JSON)</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -875,18 +832,29 @@
 								bind:checked={includeTrips}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Trips</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Trips (JSON)</span>
 						</label>
+					</div>
+				</div>
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-6 mt-4">
+					<div>
+						<label for="exportStartDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start date</label>
+						<input type="date" id="exportStartDate" bind:value={exportStartDate} class="rounded border px-2 py-1 text-sm dark:bg-[#23232a] dark:text-gray-100" />
+					</div>
+					<div>
+						<label for="exportEndDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End date</label>
+						<input type="date" id="exportEndDate" bind:value={exportEndDate} class="rounded border px-2 py-1 text-sm dark:bg-[#23232a] dark:text-gray-100" />
 					</div>
 				</div>
 			</div>
 
+			<!-- Only disable if there is an active export job that is not completed/failed/cancelled -->
 			<button
 				on:click={handleExport}
-				disabled={activeExportJob !== null}
+				disabled={activeExportJob && !['completed','failed','cancelled'].includes(activeExportJob.status)}
 				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 			>
-				{#if activeExportJob}
+				{#if activeExportJob && !['completed','failed','cancelled'].includes(activeExportJob.status)}
 					<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 					Export in Progress...
 				{:else}

@@ -9,7 +9,6 @@
 		Edit,
 		Landmark,
 		Star,
-		ListTodo,
 		Link,
 		Settings,
 		User,
@@ -38,8 +37,7 @@
 		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
 		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
 		{ href: '/dashboard/want-to-visit', label: 'Want to Visit', icon: Star },
-		{ href: '/dashboard/jobs', label: 'Background jobs', icon: ListTodo },
-		{ href: '/dashboard/integrations', label: 'Integrations', icon: Link }
+		{ href: '/dashboard/connections', label: 'Connections', icon: Link }
 	];
 
 	// Dynamic user navigation based on admin status
@@ -59,7 +57,6 @@
 	// Force reactive update after navigation
 	afterNavigate(() => {
 		// This will trigger a reactive update of the page store
-		console.log('[AppNav] Navigation completed, current path:', $page.url.pathname);
 	});
 
 	function handleSignOut() {

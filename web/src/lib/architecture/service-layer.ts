@@ -130,8 +130,6 @@ export class EnhancedCacheService extends BaseService implements ICacheService {
 		this.cleanupInterval = setInterval(() => {
 			this.cleanup();
 		}, 60000); // Clean up every minute
-
-		this.log('info', 'Enhanced cache service initialized');
 	}
 
 	async destroy(): Promise<void> {
@@ -222,13 +220,8 @@ export class EnhancedLoggerService extends BaseService implements ILoggerService
 	async initialize(): Promise<void> {
 		await super.initialize();
 
-		// Set log level from environment
-		const envLevel = process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error';
-		if (envLevel) {
-			this.logLevel = envLevel;
-		}
-
-		this.log('info', 'Enhanced logger service initialized', { level: this.logLevel });
+		// Set log level - use default for client-side
+		this.logLevel = 'info';
 	}
 
 	log(level: 'debug' | 'info' | 'warn' | 'error', message: string, data?: unknown): void {

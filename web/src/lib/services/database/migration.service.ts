@@ -21,7 +21,7 @@ export interface MigrationResult {
 
 export class DatabaseMigrationService {
 	private static supabase = createWorkerClient();
-	private static migrationsPath = path.resolve(process.cwd(), 'sql');
+	private static migrationsPath = path.resolve(__dirname, '../../../supabase/migrations');
 
 	/**
 	 * Get all available migrations from the migrations directory

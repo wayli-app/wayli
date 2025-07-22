@@ -32,15 +32,22 @@ export const POST: RequestHandler = async (event) => {
 			return validationErrorResponse('End date must be after start date');
 		}
 
-		// Get user's Pexels API key from user_preferences table
-		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-		const { data: preferences } = await supabaseAdmin
-			.from('user_preferences')
-			.select('pexels_api_key')
-			.eq('id', user.id)
-			.single();
+		// Check if server has Pexels API key configured
+		const { getPexelsConfig } = await import('$lib/core/config/node-environment');
+		const serverApiKey = getPexelsConfig().apiKey;
 
-		const userApiKey = preferences?.pexels_api_key;
+		// Only get user's API key if server key is not available
+		let userApiKey: string | undefined;
+		if (!serverApiKey) {
+			const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+			const { data: preferences } = await supabaseAdmin
+				.from('user_preferences')
+				.select('pexels_api_key')
+				.eq('id', user.id)
+				.single();
+
+			userApiKey = preferences?.pexels_api_key;
+		}
 
 		// Create service instance
 		const suggestionService = getTripImageSuggestionService();
@@ -49,7 +56,7 @@ export const POST: RequestHandler = async (event) => {
 		const analysis = await suggestionService.getTripAnalysis(user.id, startDate, endDate);
 
 		// Suggest image
-		const suggestedImageUrl = await suggestionService.suggestTripImage(
+		const imageSuggestion = await suggestionService.suggestTripImage(
 			user.id,
 			startDate,
 			endDate,
@@ -57,7 +64,8 @@ export const POST: RequestHandler = async (event) => {
 		);
 
 		return successResponse({
-			suggestedImageUrl,
+			suggestedImageUrl: imageSuggestion?.imageUrl || null,
+			attribution: imageSuggestion?.attribution || null,
 			analysis: {
 				primaryCountry: analysis.primaryCountry,
 				primaryCity: analysis.primaryCity,

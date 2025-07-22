@@ -20,48 +20,16 @@
 	let unsubscribeFromUserStore: (() => void) | null = null;
 
 	onMount(() => {
-		console.log('🔐 [SIGNIN] Page mounted');
-
-		// Only subscribe to auth changes if we're actually on the signin page
-		if ($page.url.pathname.startsWith('/auth/signin')) {
-			console.log('🔐 [SIGNIN] On signin page, subscribing to user store');
-
-			// Subscribe to auth changes for future logins
-			unsubscribeFromUserStore = userStore.subscribe((user) => {
-				console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
-				console.log('🔐 [SIGNIN] Current pathname:', $page.url.pathname);
-
-				// Get current 2FA flow state
-				let currentTwoFactorState = false;
-				isInTwoFactorFlow.subscribe((state) => {
-					currentTwoFactorState = state;
-				})();
-
-				console.log('🔐 [SIGNIN] 2FA flow state:', currentTwoFactorState);
-
-				// Only redirect if user is authenticated, not in 2FA flow, and we're on the signin page
-				// (This handles the case where user logs in successfully)
-				if (user && !currentTwoFactorState && $page.url.pathname.startsWith('/auth/signin')) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-					console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
-					// Redirect immediately without delay since the user is already authenticated
-					goto(redirectTo, { replaceState: true });
-				} else {
-					console.log('🔐 [SIGNIN] Not redirecting because:', {
-						hasUser: !!user,
-						twoFactorState: currentTwoFactorState,
-						pathname: $page.url.pathname,
-						startsWithSignin: $page.url.pathname.startsWith('/auth/signin')
-					});
-				}
-			});
-		} else {
-			console.log('🔐 [SIGNIN] Not on signin page, not subscribing to user store');
-		}
+		// Subscribe to user store for authentication state changes
+		unsubscribeFromUserStore = userStore.subscribe((user) => {
+			if (user && $page.url.pathname === '/auth/signin') {
+				// User is authenticated and on signin page, redirect to dashboard
+				goto('/dashboard');
+			}
+		});
 	});
 
 	onDestroy(() => {
-		console.log('🔐 [SIGNIN] Page destroyed, cleaning up subscriptions');
 		if (unsubscribeFromUserStore) {
 			unsubscribeFromUserStore();
 			unsubscribeFromUserStore = null;
@@ -74,8 +42,6 @@
 		// Only subscribe if we're on the signin page
 		if ($page.url.pathname.startsWith('/auth/signin')) {
 			unsubscribeFromUserStore = userStore.subscribe((user) => {
-				console.log('🔐 [SIGNIN] User store updated:', user ? `User: ${user.email}` : 'No user');
-
 				// Get current 2FA flow state
 				let currentTwoFactorState = false;
 				isInTwoFactorFlow.subscribe((state) => {
@@ -86,13 +52,10 @@
 					// Only redirect if we're on the signin page and not in 2FA flow
 					if ($page.url.pathname.startsWith('/auth/signin')) {
 						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-						console.log('🔄 [SIGNIN] REDIRECTING: User authenticated, going to', redirectTo);
 						goto(redirectTo);
 					}
 				}
 			});
-		} else {
-			console.log('🔐 [SIGNIN] Not on signin page, not resubscribing to user store');
 		}
 	}
 
@@ -129,8 +92,6 @@
 				// Show 2FA verification modal
 				showTwoFactorVerification = true;
 
-				console.log('🔐 [SIGNIN] 2FA flow started, unsubscribing from userStore');
-
 				// Unsubscribe from userStore to prevent automatic redirects
 				if (unsubscribeFromUserStore) {
 					unsubscribeFromUserStore();
@@ -150,7 +111,6 @@
 				if (data.session) {
 					toast.success('Signed in successfully');
 					// The auth state change will handle the redirect automatically
-					console.log('🔐 [SIGNIN] Login successful, waiting for auth state change');
 
 					// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
 					setTimeout(() => {
@@ -158,10 +118,6 @@
 						if (currentUser && $page.url.pathname.startsWith('/auth/signin')) {
 							const redirectTo =
 								$page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-							console.log(
-								'🔄 [SIGNIN] FALLBACK REDIRECT: User authenticated, going to',
-								redirectTo
-							);
 							goto(redirectTo, { replaceState: true });
 						}
 					}, 1000);

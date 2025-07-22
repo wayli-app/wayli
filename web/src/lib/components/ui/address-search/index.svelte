@@ -130,7 +130,7 @@
 </script>
 
 <div class="relative">
-	<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+	<label for="address-input" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
 		{label}
 		{#if required}
 			<span class="text-red-500">*</span>
@@ -138,6 +138,7 @@
 	</label>
 
 	<input
+		id="address-input"
 		type="text"
 		bind:this={inputElement}
 		bind:value={inputValue}

@@ -5,15 +5,6 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-// Browser-compatible UUID generation
-export function generateUUID(): string {
-	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-		const r = (Math.random() * 16) | 0;
-		const v = c === 'x' ? r : (r & 0x3) | 0x8;
-		return v.toString(16);
-	});
-}
-
 // Haversine distance in meters between two lat/lng points
 export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
 	const R = 6371000; // meters

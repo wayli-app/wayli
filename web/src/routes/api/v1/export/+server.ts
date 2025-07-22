@@ -18,26 +18,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const body = await request.json();
-		const { format, includeLocationData, includeTripInfo, includeWantToVisit, includeTrips } = body;
+		const { format, includeLocationData, includeTripInfo, includeWantToVisit, includeTrips, startDate, endDate } = body;
 
 		// Validate required fields
-		if (!format || !['GeoJSON', 'GPX', 'OwnTracks'].includes(format)) {
-			return json({ success: false, message: 'Invalid format specified' }, { status: 400 });
+		if (!format) {
+			return json({ success: false, message: 'Missing format' }, { status: 400 });
 		}
 
-		// Create export job
-		const exportJob = await ExportService.createExportJob(user.id, {
-			format,
-			includeLocationData: includeLocationData ?? true,
-			includeTripInfo: includeTripInfo ?? true,
-			includeWantToVisit: includeWantToVisit ?? true,
-			includeTrips: includeTrips ?? true
+		// Validate boolean fields
+		if (typeof includeLocationData !== 'boolean') {
+			return json({ success: false, message: 'includeLocationData must be a boolean' }, { status: 400 });
+		}
+
+		// Create the export job
+		const job = await ExportService.createExportJob(user.id, {
+			includeLocationData,
+			includeTripInfo,
+			includeWantToVisit,
+			includeTrips,
+			startDate,
+			endDate
 		});
 
 		return json({
 			success: true,
 			data: {
-				jobId: exportJob.id,
+				jobId: job.id,
 				message: 'Export job created successfully. Your export is being processed.'
 			}
 		});

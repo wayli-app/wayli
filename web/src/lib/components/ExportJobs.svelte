@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Download, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-svelte';
+	import { Download, Clock, CheckCircle, XCircle, AlertCircle, Check } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { supabase } from '$lib/core/supabase/client';
 
 	interface ExportJob {
 		id: string;
@@ -24,18 +25,21 @@
 	}
 
 	let exportJobs: ExportJob[] = [];
+	let filteredExportJobs: ExportJob[] = [];
 	let loading = true;
-	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+	let refreshInterval: ReturnType<typeof setInterval>;
 
 	onMount(() => {
 		loadExportJobs();
-		startPolling();
-	});
 
-	onMount(() => {
+		// Auto-refresh every 5 seconds to check for completed exports
+		refreshInterval = setInterval(() => {
+			loadExportJobs();
+		}, 5000);
+
 		return () => {
-			if (pollingInterval) {
-				clearInterval(pollingInterval);
+			if (refreshInterval) {
+				clearInterval(refreshInterval);
 			}
 		};
 	});
@@ -47,6 +51,15 @@
 
 			if (result.success) {
 				exportJobs = result.data;
+				// Filter: only last 7 days, then take 5 most recent
+				const now = new Date();
+				filteredExportJobs = exportJobs
+					.filter(job => {
+						const created = new Date(job.created_at);
+						return (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
+					})
+					.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+					.slice(0, 5);
 			} else {
 				console.error('Failed to load export jobs:', result.message);
 			}
@@ -57,26 +70,12 @@
 		}
 	}
 
-	function startPolling() {
-		pollingInterval = setInterval(() => {
-			// Only poll if there are active jobs
-			const hasActiveJobs = exportJobs.some(
-				(job) => job.status === 'queued' || job.status === 'running'
-			);
-			if (hasActiveJobs) {
-				loadExportJobs();
-			}
-		}, 5000); // Poll every 5 seconds
-	}
-
 	async function downloadExport(jobId: string) {
 		try {
 			window.open(`/api/v1/export/${jobId}/download`, '_blank');
 		} catch (error) {
-			console.error('Download error:', error);
-			toast.error('Failed to download export', {
-				description: error instanceof Error ? error.message : 'Unknown error occurred'
-			});
+			console.error('Error downloading export:', error);
+			toast.error('Failed to download export');
 		}
 	}
 
@@ -84,15 +83,14 @@
 		switch (status) {
 			case 'completed':
 				return CheckCircle;
+			case 'running':
+				return Clock;
 			case 'failed':
 				return XCircle;
 			case 'cancelled':
-				return AlertCircle;
-			case 'running':
-			case 'queued':
-				return Clock;
+				return XCircle;
 			default:
-				return Clock;
+				return AlertCircle;
 		}
 	}
 
@@ -137,59 +135,70 @@
 		if (days > 0) return `${days}d ${hours}h remaining`;
 		return `${hours}h remaining`;
 	}
+
+	function getFormatLabel(format: string): string {
+		if (format === 'GeoJSON' || format === 'GPX' || format === 'OwnTracks') return format;
+		return 'JSON';
+	}
+
+	function getExpiryDate(job: ExportJob): Date {
+		return new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000);
+	}
 </script>
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
 		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Export History</h3>
-		<button
-			on:click={loadExportJobs}
-			disabled={loading}
-			class="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
-		>
-			Refresh
-		</button>
 	</div>
 
 	{#if loading}
 		<div class="flex items-center justify-center py-8">
 			<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-600"></div>
 		</div>
-	{:else if exportJobs.length === 0}
+	{:else if filteredExportJobs.length === 0}
 		<div class="py-8 text-center text-gray-500 dark:text-gray-400">
 			<p>No export jobs found</p>
 		</div>
 	{:else}
 		<div class="space-y-3">
-			{#each exportJobs as job}
+			{#each filteredExportJobs as job}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-3">
-							<svelte:component
-								this={getStatusIcon(job.status)}
-								class="h-5 w-5 {getStatusColor(job.status)}"
-							/>
-							<div>
+							<!-- Status icon -->
+							<div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
+								<Check class="h-4 w-4 text-green-600 dark:text-green-400" />
+							</div>
+
+							<!-- Job info -->
+							<div class="flex-1">
 								<h4 class="font-medium text-gray-900 dark:text-gray-100">
-									Export ({job.format})
-								</h4>
-								<p class="text-sm text-gray-500 dark:text-gray-400">
 									Created: {formatDate(job.created_at)}
-								</p>
+								</h4>
+								{#if job.status === 'completed'}
+									<div class="text-xs text-gray-500 dark:text-gray-400">
+										{#if getExpiryDate(job) > new Date()}
+											Link valid until: {formatDate(getExpiryDate(job).toISOString())}
+										{:else}
+											Link expired
+										{/if}
+									</div>
+								{/if}
 							</div>
 						</div>
-						<div class="text-right">
-							<div class="text-sm font-medium text-gray-900 capitalize dark:text-gray-100">
-								{job.status}
-							</div>
-							{#if job.status === 'completed' && job.expires_at}
-								<div class="text-xs text-gray-500 dark:text-gray-400">
-									{getTimeUntilExpiry(job.expires_at)}
-								</div>
-							{/if}
-						</div>
+
+						<!-- Download button -->
+						{#if job.status === 'completed' && getExpiryDate(job) > new Date()}
+							<button
+								on:click={() => downloadExport(job.id)}
+								class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+							>
+								<Download class="h-4 w-4" />
+								Download
+							</button>
+						{/if}
 					</div>
 
 					<!-- Progress bar for running jobs -->
@@ -210,7 +219,6 @@
 
 					<!-- Export options -->
 					<div class="mb-3">
-						<div class="mb-1 text-sm text-gray-600 dark:text-gray-400">Included data:</div>
 						<div class="flex flex-wrap gap-2">
 							{#if job.include_location_data}
 								<span
@@ -264,19 +272,6 @@
 							{#if job.result.exportedAt}
 								<span>Exported: {formatDate(job.result.exportedAt as string)}</span>
 							{/if}
-						</div>
-					{/if}
-
-					<!-- Download button -->
-					{#if job.status === 'completed' && job.file_path}
-						<div class="flex justify-end">
-							<button
-								on:click={() => downloadExport(job.id)}
-								class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-							>
-								<Download class="h-4 w-4" />
-								Download
-							</button>
 						</div>
 					{/if}
 				</div>

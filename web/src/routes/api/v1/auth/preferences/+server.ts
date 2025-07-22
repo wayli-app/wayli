@@ -30,6 +30,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 			return errorResponse('Failed to fetch preferences', 500);
 		}
 
+		// Check if server has Pexels API key configured
+		const { getPexelsConfig } = await import('$lib/core/config/node-environment');
+		const pexelsConfig = getPexelsConfig();
+		const serverPexelsApiKeyAvailable = !!pexelsConfig.apiKey;
+
 		// If preferences don't exist, create them with defaults
 		if (!preferences) {
 			const { data: newPreferences, error: createError } = await supabaseAdmin
@@ -50,12 +55,14 @@ export const GET: RequestHandler = async ({ locals }) => {
 			}
 
 			return successResponse({
-				preferences: newPreferences
+				preferences: newPreferences,
+				server_pexels_api_key_available: serverPexelsApiKeyAvailable
 			});
 		}
 
 		return successResponse({
-			preferences
+			preferences,
+			server_pexels_api_key_available: serverPexelsApiKeyAvailable
 		});
 	} catch (error) {
 		console.error('Preferences fetch error:', error);

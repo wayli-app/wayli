@@ -1,5 +1,4 @@
 import { supabase } from '$lib/core/supabase/worker';
-import { getSupabaseConfig } from '$lib/core/config/node-environment';
 
 interface TripLocation {
 	id: string;
@@ -46,7 +45,6 @@ export class TripLocationsService {
 	private supabase: typeof supabase;
 
 	constructor() {
-		console.log('[TripLocationsService] Initializing with authenticated client');
 		// Use the authenticated client from the auth store
 		this.supabase = supabase;
 	}
@@ -54,27 +52,19 @@ export class TripLocationsService {
 	// Allow override for test/worker/Node.js
 	static setSupabaseClient() {
 		// TODO: Implement static client override
-		console.log('[TripLocationsService] Static client override not yet implemented');
+		console.log('🔧 [TripLocationsService] Static client override not yet implemented');
 	}
 
 	// Allow override for Node/worker: call this at startup in worker context
 	static useWorkerClient() {
 		// TODO: Implement static worker client override
-		console.log('[TripLocationsService] Static worker client override not yet implemented');
+		console.log('🔧 [TripLocationsService] Static worker client override not yet implemented');
 	}
 
 	// Instance method to switch to worker client
 	useWorkerClient() {
 		this.supabase = supabase;
-		console.log('[TripLocationsService] Switched to worker Supabase client');
-	}
-
-	// Instance method to switch to node environment config
-	async useNodeEnvironmentConfig() {
-		const config = getSupabaseConfig();
-		const { createClient } = await import('@supabase/supabase-js');
-		this.supabase = createClient(config.url, config.serviceRoleKey);
-		console.log('[TripLocationsService] Switched to Node environment Supabase client');
+		console.log('🔧 [TripLocationsService] Switched to worker Supabase client');
 	}
 
 	async getTripLocations(tripId: string, userId?: string): Promise<TripLocation[]> {
@@ -87,7 +77,7 @@ export class TripLocationsService {
 				.single();
 
 			if (tripError || !trip) {
-				console.error('Error fetching trip:', tripError);
+				console.error('❌ Error fetching trip:', tripError);
 				throw tripError || new Error('Trip not found');
 			}
 
@@ -106,11 +96,19 @@ export class TripLocationsService {
 			if (error) throw error;
 
 			console.log(
-				`[getTripLocations] Found ${locations?.length || 0} points for trip ${tripId} (${trip.start_date} to ${trip.end_date})`
+				'🗺️ [TripLocationsService] Found',
+				locations?.length || 0,
+				'points for trip',
+				tripId,
+				'(',
+				trip.start_date,
+				'to',
+				trip.end_date,
+				')'
 			);
 			return this.transformLocations(locations || []);
 		} catch (error) {
-			console.error('Error fetching trip locations:', error);
+			console.error('❌ Error fetching trip locations:', error);
 			throw error;
 		}
 	}
@@ -152,7 +150,7 @@ export class TripLocationsService {
 				hasMore
 			};
 		} catch (error) {
-			console.error('Error fetching locations by date range:', error);
+			console.error('❌ Error fetching locations by date range:', error);
 			throw error;
 		}
 	}

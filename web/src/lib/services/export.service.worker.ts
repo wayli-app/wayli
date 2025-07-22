@@ -98,8 +98,8 @@ export class ExportService {
 			include_trip_info: options.includeTripInfo as boolean,
 			include_want_to_visit: options.includeWantToVisit as boolean,
 			include_trips: options.includeTrips as boolean,
-			file_path: options.file_path as string | undefined,
-			file_size: options.file_size as number | undefined,
+			file_path: (options.file_path as string) || ((job.result as Record<string, unknown>)?.file_path as string) || undefined,
+			file_size: (options.file_size as number) || ((job.result as Record<string, unknown>)?.file_size as number) || undefined,
 			expires_at: options.expires_at as string,
 			progress: job.progress,
 			result: job.result,
@@ -135,8 +135,8 @@ export class ExportService {
 				include_trip_info: options.includeTripInfo as boolean,
 				include_want_to_visit: options.includeWantToVisit as boolean,
 				include_trips: options.includeTrips as boolean,
-				file_path: options.file_path as string,
-				file_size: options.file_size as number,
+				file_path: (options.file_path as string) || ((job.result as Record<string, unknown>)?.file_path as string) || undefined,
+				file_size: (options.file_size as number) || ((job.result as Record<string, unknown>)?.file_size as number) || undefined,
 				expires_at: options.expires_at as string,
 				progress: job.progress,
 				result: job.result,
@@ -183,7 +183,13 @@ export class ExportService {
 	static async getExportDownloadUrl(jobId: string, userId: string): Promise<string | null> {
 		const exportJob = await this.getExportJob(jobId, userId);
 
-		if (!exportJob || !exportJob.file_path || exportJob.status !== 'completed') {
+		if (!exportJob || exportJob.status !== 'completed') {
+			return null;
+		}
+
+		// Check for file path in job.result
+		const filePath = (exportJob.result as Record<string, unknown>)?.file_path as string;
+		if (!filePath) {
 			return null;
 		}
 
@@ -194,7 +200,7 @@ export class ExportService {
 
 		const { data } = await this.supabase.storage
 			.from('exports')
-			.createSignedUrl(exportJob.file_path, 3600); // 1 hour expiry
+			.createSignedUrl(filePath, 3600); // 1 hour expiry
 
 		return data?.signedUrl || null;
 	}

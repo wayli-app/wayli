@@ -187,7 +187,12 @@ export class JobWorker {
 				return;
 			}
 
-			await this.completeJob(job.id, { processed: true });
+			// The job processor should handle its own completion
+			// Only set processed: true for jobs that don't handle their own completion
+			// For export jobs, the ExportService.completeExportJob handles completion
+			if (job.type !== 'data_export') {
+				await this.completeJob(job.id, { processed: true });
+			}
 		} catch (error: unknown) {
 			console.error(`❌ Worker ${this.workerId} error processing job ${job.id}:`, error);
 

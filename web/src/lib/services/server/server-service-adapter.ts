@@ -16,14 +16,13 @@ import { EnhancedTripDetectionService } from '../enhanced-trip-detection.service
 import { TOTPService } from '../totp.service';
 import { UserProfileService } from '../user-profile.service';
 import { TripLocationsService } from '../trip-locations.service';
-import { ServerStatisticsService } from '../server-statistics.service';
 
 /**
  * Server-Only Service Layer Adapter for managing server-side services
  */
 export class ServerServiceAdapter {
 	private static instance: ServerServiceAdapter;
-	private services = new Map<string, any>();
+	private services = new Map<string, unknown>();
 	private initialized = false;
 
 	static getInstance(): ServerServiceAdapter {
@@ -44,9 +43,8 @@ export class ServerServiceAdapter {
 			this.registerServerServices();
 
 			this.initialized = true;
-			console.log('[ServerServiceAdapter] Server-only services initialized');
 		} catch (error) {
-			console.error('[ServerServiceAdapter] Failed to initialize server services:', error);
+			console.error('❌ [ServerServiceAdapter] Failed to initialize server services:', error);
 			throw error;
 		}
 	}
@@ -63,12 +61,6 @@ export class ServerServiceAdapter {
 		this.services.set('totp', new TOTPService());
 		this.services.set('userProfile', new UserProfileService());
 		this.services.set('tripLocations', new TripLocationsService());
-		this.services.set('statistics', new ServerStatisticsService());
-
-		console.log('[ServerServiceAdapter] Server-only services registered', {
-			serviceCount: this.services.size,
-			services: Array.from(this.services.keys())
-		});
 	}
 
 	/**
@@ -110,9 +102,9 @@ export class ServerServiceAdapter {
 		try {
 			this.services.clear();
 			this.initialized = false;
-			console.log('[ServerServiceAdapter] Server services destroyed');
+			console.log('✅ [ServerServiceAdapter] Server services destroyed');
 		} catch (error) {
-			console.error('[ServerServiceAdapter] Failed to destroy server services:', error);
+			console.error('❌ [ServerServiceAdapter] Failed to destroy server services:', error);
 			throw error;
 		}
 	}
@@ -174,9 +166,3 @@ export function getTripLocationsService() {
 	return serverServiceAdapter.getService<TripLocationsService>('tripLocations');
 }
 
-/**
- * Get the statistics service
- */
-export function getStatisticsService() {
-	return serverServiceAdapter.getService<ServerStatisticsService>('statistics');
-}

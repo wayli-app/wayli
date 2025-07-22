@@ -25,14 +25,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	} = await supabaseAdmin.auth.admin.getUserById(session.user.id);
 
 	if (userError || !user) {
-		console.log('❌ [INTEGRATIONS] Failed to get user data:', userError);
+		console.log('❌ [CONNECTIONS] Failed to get user data:', userError);
 		return {
 			owntracksApiKey: null,
 			owntracksEndpoint: null
 		};
 	}
 
-	console.log('🔄 [INTEGRATIONS] User data retrieved successfully');
+			console.log('🔄 [CONNECTIONS] User data retrieved successfully');
 
 	// Get the user's current API key from user_metadata (since raw_user_metadata is undefined)
 	const owntracksApiKey = user.user_metadata?.owntracks_api_key || null;
@@ -53,37 +53,37 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions = {
 	generateApiKey: async ({ locals }: { locals: App.Locals }) => {
-		console.log('🔄 [INTEGRATIONS] generateApiKey action called');
+		console.log('🔄 [CONNECTIONS] generateApiKey action called');
 
 		try {
 			const session = await locals.getSession();
 			console.log(
-				'🔄 [INTEGRATIONS] Session check:',
+				'🔄 [CONNECTIONS] Session check:',
 				session ? `Found - ${session.user.email}` : 'None'
 			);
 
 			if (!session?.user) {
-				console.log('❌ [INTEGRATIONS] No session found');
+				console.log('❌ [CONNECTIONS] No session found');
 				return fail(401, { error: 'Unauthorized' });
 			}
 
-			console.log('🔄 [INTEGRATIONS] Generating new API key...');
+			console.log('🔄 [CONNECTIONS] Generating new API key...');
 
 			// Check if crypto is available
 			if (typeof createHash === 'undefined') {
-				console.error('❌ [INTEGRATIONS] Crypto module not available');
+				console.error('❌ [CONNECTIONS] Crypto module not available');
 				return fail(500, { error: 'Crypto module not available' });
 			}
 
 			// Generate a new MD5 hash as API key
 			const apiKey = createHash('md5').update(randomBytes(32)).digest('hex');
-			console.log('🔄 [INTEGRATIONS] Generated API key:', apiKey.substring(0, 8) + '...');
+			console.log('🔄 [CONNECTIONS] Generated API key:', apiKey.substring(0, 8) + '...');
 
 			// Create Supabase admin client to update user metadata
 			const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-			console.log('🔄 [INTEGRATIONS] Updating user metadata...');
-			console.log('🔄 [INTEGRATIONS] Current user_metadata:', session.user.user_metadata);
+			console.log('🔄 [CONNECTIONS] Updating user metadata...');
+			console.log('🔄 [CONNECTIONS] Current user_metadata:', session.user.user_metadata);
 
 			// Update the user's user_metadata with the new API key
 			const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
@@ -97,7 +97,7 @@ export const actions = {
 			);
 
 			if (updateError) {
-				console.error('❌ [INTEGRATIONS] Error updating user metadata:', updateError);
+				console.error('❌ [CONNECTIONS] Error updating user metadata:', updateError);
 				return fail(500, { error: `Failed to generate API key: ${updateError.message}` });
 			}
 
@@ -107,17 +107,17 @@ export const actions = {
 				error: verifyError
 			} = await supabaseAdmin.auth.admin.getUserById(session.user.id);
 			if (verifyError || !updatedUser) {
-				console.error('❌ [INTEGRATIONS] Failed to verify update:', verifyError);
+				console.error('❌ [CONNECTIONS] Failed to verify update:', verifyError);
 			}
 
-			console.log('✅ [INTEGRATIONS] API key generated and stored successfully');
-			console.log('✅ [INTEGRATIONS] Stored API key:', apiKey);
-			console.log('✅ [INTEGRATIONS] Returning success response...');
+			console.log('✅ [CONNECTIONS] API key generated and stored successfully');
+			console.log('✅ [CONNECTIONS] Stored API key:', apiKey);
+			console.log('✅ [CONNECTIONS] Returning success response...');
 			const response = { success: true, apiKey };
-			console.log('✅ [INTEGRATIONS] Response:', response);
+			console.log('✅ [CONNECTIONS] Response:', response);
 			return response;
 		} catch (error) {
-			console.error('❌ [INTEGRATIONS] Unexpected error in generateApiKey:', error);
+			console.error('❌ [CONNECTIONS] Unexpected error in generateApiKey:', error);
 			return fail(500, {
 				error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`
 			});

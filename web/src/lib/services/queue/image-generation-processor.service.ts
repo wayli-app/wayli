@@ -22,16 +22,16 @@ export class ImageGenerationProcessorService {
 				.limit(10); // Process in batches
 
 			if (error) {
-				console.error('Error fetching pending image generation jobs:', error);
+				console.error('❌ Error fetching pending image generation jobs:', error);
 				return;
 			}
 
 			if (!pendingJobs || pendingJobs.length === 0) {
-				console.log('No pending image generation jobs found');
+				console.log('📷 No pending image generation jobs found');
 				return;
 			}
 
-			console.log(`Processing ${pendingJobs.length} image generation jobs`);
+			console.log(`🖼️ Processing ${pendingJobs.length} image generation jobs`);
 
 			// Process jobs sequentially with rate limiting
 			for (const job of pendingJobs) {
@@ -41,7 +41,7 @@ export class ImageGenerationProcessorService {
 				await this.delay(ImageGenerationProcessorService.RATE_LIMIT_DELAY);
 			}
 		} catch (error) {
-			console.error('Error processing image generation jobs:', error);
+			console.error('❌ Error processing image generation jobs:', error);
 		}
 	}
 
@@ -74,7 +74,7 @@ export class ImageGenerationProcessorService {
 				console.log(`❌ Failed to generate image for ${job.cityName}`);
 			}
 		} catch (error) {
-			console.error(`Error processing image generation job ${job.id}:`, error);
+			console.error(`❌ Error processing image generation job ${job.id}:`, error);
 
 			// Increment attempt count
 			const newAttempts = job.attempts + 1;
@@ -99,6 +99,16 @@ export class ImageGenerationProcessorService {
 	 */
 	private async getUserPexelsApiKey(userId: string): Promise<string | undefined> {
 		try {
+			// Check if server has Pexels API key configured
+			const { getPexelsConfig } = await import('$lib/core/config/node-environment');
+			const serverApiKey = getPexelsConfig().apiKey;
+
+			// Prioritize server API key
+			if (serverApiKey) {
+				return serverApiKey;
+			}
+
+			// Fall back to user's API key if server key is not available
 			const { data: preferences, error } = await this.supabase
 				.from('user_preferences')
 				.select('pexels_api_key')
@@ -111,7 +121,7 @@ export class ImageGenerationProcessorService {
 
 			return preferences.pexels_api_key;
 		} catch (error) {
-			console.error('Error fetching user Pexels API key:', error);
+			console.error('❌ Error fetching user Pexels API key:', error);
 			return undefined;
 		}
 	}
@@ -148,7 +158,7 @@ export class ImageGenerationProcessorService {
 			.eq('id', jobId);
 
 		if (updateError) {
-			console.error('Error updating job status:', updateError);
+			console.error('❌ Error updating job status:', updateError);
 		}
 	}
 
@@ -162,7 +172,7 @@ export class ImageGenerationProcessorService {
 			.eq('id', suggestedTripId);
 
 		if (error) {
-			console.error('Error updating suggested trip with image URL:', error);
+			console.error('❌ Error updating suggested trip with image URL:', error);
 		}
 	}
 
@@ -181,12 +191,12 @@ export class ImageGenerationProcessorService {
 				.lt('created_at', thirtyDaysAgo.toISOString());
 
 			if (error) {
-				console.error('Error cleaning up old image generation jobs:', error);
+				console.error('❌ Error cleaning up old image generation jobs:', error);
 			} else {
-				console.log('Cleaned up old image generation jobs');
+				console.log('🧹 Cleaned up old image generation jobs');
 			}
 		} catch (error) {
-			console.error('Error in cleanup:', error);
+			console.error('❌ Error in cleanup:', error);
 		}
 	}
 
@@ -205,7 +215,7 @@ export class ImageGenerationProcessorService {
 				.select('status');
 
 			if (error) {
-				console.error('Error fetching job stats:', error);
+				console.error('❌ Error fetching job stats:', error);
 				return { queued: 0, processing: 0, completed: 0, failed: 0 };
 			}
 
@@ -222,7 +232,7 @@ export class ImageGenerationProcessorService {
 
 			return counts;
 		} catch (error) {
-			console.error('Error getting job stats:', error);
+			console.error('❌ Error getting job stats:', error);
 			return { queued: 0, processing: 0, completed: 0, failed: 0 };
 		}
 	}

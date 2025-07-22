@@ -35,10 +35,10 @@
 		clearFilters
 	} from '$lib/stores/app-state.svelte';
 	import { toast } from 'svelte-sonner';
-	import { getStatisticsService } from '$lib/services/service-layer-adapter';
-import { LocationCacheService } from '$lib/services/location-cache.service';
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
+	import GeocodingProgress from '$lib/components/GeocodingProgress.svelte';
 
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
@@ -47,15 +47,20 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 	let markers: any[] = [];
 	let polylines: any[] = [];
 	let selectedMarkers: any[] = [];
+	let currentPopup: any = null;
 	let isEditMode = false;
 	let isLoading = false;
 	let isInitialLoad = true;
-	let isCacheLoading = false;
 	let locationData: any[] = [];
 	let hasMoreData = false;
 	let currentOffset = 0;
-	const BATCH_SIZE = 2500; // Show 2500 points by default
+	const BATCH_SIZE = 5000; // Show 5000 points by default
 	let totalPoints = 0;
+
+	// Progress tracking
+	let loadingProgress = 0; // 0-100
+	let loadingStage = ''; // Current loading stage description
+	let isCountingRecords = false; // Whether we're currently counting records
 
 	// Add minimum loading time to ensure loading indicator is visible
 	let loadingStartTime = 0;
@@ -70,10 +75,6 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 	let statisticsData: any = null;
 	let statisticsLoading = false;
 	let statisticsError = '';
-
-	// Add statistics caching
-	let statisticsCache: Map<string, { data: any; timestamp: number }> = new Map();
-	const STATISTICS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 	const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 	const today = new Date();
@@ -91,21 +92,6 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 	// Use reactive statements to format dates from global state
 	$: formattedStartDate = state.filtersStartDate ? format(state.filtersStartDate, dateFormat) : '';
 	$: formattedEndDate = state.filtersEndDate ? format(state.filtersEndDate, dateFormat) : '';
-
-	// Reactive cache stats
-	$: cacheStats = browser
-		? (() => {
-				cacheUpdateTrigger; // Make this reactive
-				return LocationCacheService.getCacheStats();
-			})()
-		: { entries: 0, size: 0, maxSize: 0, days: [] };
-
-	// Listen for storage events to update cache status live (in case another tab changes it)
-	if (browser) {
-		window.addEventListener('storage', () => {
-			cacheUpdateTrigger++;
-		});
-	}
 
 	// Helper to ensure a value is a Date object
 	function getDateObject(val: any) {
@@ -174,182 +160,8 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 		}
 
 		try {
-			// Create cache key (only for initial load, not for load more)
-			const cacheKey = {
-				startDate: getDateObject(state.filtersStartDate)?.toISOString().split('T')[0] || '',
-				endDate: getDateObject(state.filtersEndDate)?.toISOString().split('T')[0] || '',
-				offset: reset ? 0 : currentOffset,
-				limit: BATCH_SIZE
-			};
-
-			console.log('Cache key:', cacheKey);
-
-			// Try to get cached data first (only for initial load)
-			const cachedData = LocationCacheService.getCachedData(cacheKey);
-
-			if (cachedData && reset) {
-				console.log('Using cached data');
-				isCacheLoading = true;
-
-				// Simulate a small delay to show cache loading
-				await new Promise((resolve) => setTimeout(resolve, 300));
-
-				locationData = cachedData.data;
-				hasMoreData = cachedData.hasMore;
-				currentOffset = cachedData.data.length;
-
-				// Add markers to map
-				addMarkersToMap(cachedData.data, reset);
-
-				// Fit map to show all markers if this is the first load
-				if (reset && cachedData.data.length > 0) {
-					fitMapToMarkers();
-				}
-
-				console.log(
-					`Loaded ${cachedData.data.length} locations from cache (total: ${locationData.length})`
-				);
-				isCacheLoading = false;
-
-				// Ensure minimum loading time
-				const elapsed = Date.now() - loadingStartTime;
-				if (elapsed < MIN_LOADING_TIME) {
-					await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
-				}
-
-				// Update cache statistics display
-				cacheUpdateTrigger++;
-				return;
-			}
-
-			// Try to get data from day-specific cache if we have date filters (only for initial load)
-			if (state.filtersStartDate && state.filtersEndDate && reset) {
-				const startDateStr =
-					getDateObject(state.filtersStartDate)?.toISOString().split('T')[0] || '';
-				const endDateStr = getDateObject(state.filtersEndDate)?.toISOString().split('T')[0] || '';
-
-				const dayCachedData = LocationCacheService.getCachedDataForDateRange(
-					startDateStr,
-					endDateStr
-				);
-
-				if (dayCachedData && dayCachedData.length > 0) {
-					console.log('Using day-specific cached data');
-					isCacheLoading = true;
-
-					// Simulate a small delay to show cache loading
-					await new Promise((resolve) => setTimeout(resolve, 300));
-
-					// Apply pagination to the cached data
-					const startIndex = currentOffset;
-					const endIndex = startIndex + BATCH_SIZE;
-					const paginatedData = dayCachedData.slice(startIndex, endIndex);
-
-					locationData = paginatedData;
-					hasMoreData = endIndex < dayCachedData.length;
-					currentOffset = paginatedData.length;
-
-					// Add markers to map
-					addMarkersToMap(paginatedData, reset);
-
-					// Fit map to show all markers if this is the first load
-					if (reset && paginatedData.length > 0) {
-						fitMapToMarkers();
-					}
-
-					console.log(
-						`Loaded ${paginatedData.length} locations from day cache (total: ${locationData.length})`
-					);
-					isCacheLoading = false;
-
-					// Ensure minimum loading time
-					const elapsed = Date.now() - loadingStartTime;
-					if (elapsed < MIN_LOADING_TIME) {
-						await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
-					}
-
-					// Update cache statistics display
-					cacheUpdateTrigger++;
-					return;
-				}
-			}
-
-			// If we reach here, cache is empty or no cache found - use frontend service
-			console.log('Cache is empty or no cache found - using frontend service');
-
-			const startDate = state.filtersStartDate
-				? getDateObject(state.filtersStartDate)?.toISOString().split('T')[0]
-				: undefined;
-			const endDate = state.filtersEndDate
-				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
-				: undefined;
-
-			const statisticsService = getStatisticsService();
-			const result = await statisticsService.getLocationsByDateRange(
-				startDate,
-				endDate,
-				BATCH_SIZE,
-				currentOffset
-			);
-
-			const newData = result.locations;
-
-			console.log('Service response:', {
-				total: result.total,
-				count: result.locations.length,
-				hasMore: result.hasMore,
-				locationsReceived: newData.length
-			});
-
-			if (reset) {
-				locationData = newData;
-				totalPoints = result.total;
-				currentOffset = newData.length;
-			} else {
-				locationData = [...locationData, ...newData];
-				currentOffset += newData.length;
-			}
-
-			hasMoreData = result.hasMore;
-
-			// Transform TripLocation data to LocationData format for caching
-			const transformedData = newData.map((item) => ({
-				id: item.id,
-				name: item.name,
-				description: item.description,
-				location: JSON.stringify(item.coordinates), // Convert coordinates to string
-				address: item.city,
-				created_at: item.created_at,
-				updated_at: item.updated_at,
-				type: item.type || 'tracker', // Provide default value
-				coordinates: item.coordinates || null, // Convert undefined to null
-				recorded_at: item.recorded_at,
-				altitude: item.altitude,
-				accuracy: item.accuracy,
-				speed: item.speed
-			}));
-
-			// Cache the data (only for initial load, not for load more)
-			if (reset) {
-				LocationCacheService.setCachedData(cacheKey, transformedData, result.total, result.hasMore);
-			}
-
-			// Update cache statistics display
-			cacheUpdateTrigger++;
-
-			// Add markers to map
-			addMarkersToMap(newData, reset);
-
-			// Fit map to show all markers if this is the first load
-			if (reset && newData.length > 0) {
-				fitMapToMarkers();
-			}
-
-			console.log(
-				`Loaded ${newData.length} locations from service (total: ${locationData.length}, hasMore: ${hasMoreData})`
-			);
-
-
+			// Use the combined function that fetches both map data and statistics
+			await fetchMapDataAndStatistics(false, 0);
 		} catch (error) {
 			console.error('Error loading location data:', error);
 			toast.error('Failed to load location data');
@@ -359,7 +171,6 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 			if (elapsed < MIN_LOADING_TIME) {
 				await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
 			}
-
 			isLoading = false;
 			isInitialLoad = false;
 		}
@@ -390,146 +201,20 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 			unknown: '#6b7280' // gray
 		};
 
-		// Use segments from statisticsData if available
-		if (statisticsData && statisticsData.segments && statisticsData.segments.length > 0) {
-			const uniqueTrackerPoints: Record<string, any> = {};
-			for (const segment of statisticsData.segments) {
-				const points = segment.points;
-				if (!points || points.length < 2) continue;
-				// Filter out points with invalid coordinates
-				const validPoints = points.filter(
-					(p: any) =>
-						p?.location?.coordinates &&
-						typeof p.location.coordinates.lat === 'number' &&
-						typeof p.location.coordinates.lng === 'number'
-				);
-
-				if (validPoints.length < 2) continue;
-				const lineCoordinates = validPoints.map((p: any) => [
-					p.location.coordinates.lat,
-					p.location.coordinates.lng
-				]);
-				const mode = segment.mode || 'unknown';
-				const polyline = L.polyline(lineCoordinates, {
-					color: modeColors[mode] || '#6b7280',
-					weight: 3,
-					opacity: 0.8
-				}).addTo(map);
-				// Highlight on hover
-				polyline.on('mouseover', function (this: any) {
-					this.setStyle({ weight: 8, opacity: 1 });
-				});
-				polyline.on('mouseout', function (this: any) {
-					this.setStyle({ weight: 3, opacity: 0.8 });
-				});
-				polylines.push(polyline);
-
-				// Add start marker (green)
-				const startPoint = validPoints[0];
-				if (
-					startPoint?.location?.coordinates &&
-					typeof startPoint.location.coordinates.lat === 'number' &&
-					typeof startPoint.location.coordinates.lng === 'number'
-				) {
-					const startMarker = L.circleMarker(
-						[startPoint.location.coordinates.lat, startPoint.location.coordinates.lng],
-						{
-							radius: 4,
-							fillColor: '#10b981',
-							color: 'transparent',
-							weight: 0,
-							opacity: 1,
-							fillOpacity: 0.8
-						}
-					)
-						.bindPopup(`Segment start: ${segment.mode}`)
-						.addTo(map);
-					markers.push(startMarker);
-				}
-
-				// Add end marker (red)
-				const endPoint = validPoints[validPoints.length - 1];
-				if (
-					endPoint?.location?.coordinates &&
-					typeof endPoint.location.coordinates.lat === 'number' &&
-					typeof endPoint.location.coordinates.lng === 'number'
-				) {
-					const endMarker = L.circleMarker(
-						[endPoint.location.coordinates.lat, endPoint.location.coordinates.lng],
-						{
-							radius: 4,
-							fillColor: '#ef4444',
-							color: 'transparent',
-							weight: 0,
-							opacity: 1,
-							fillOpacity: 0.8
-						}
-					)
-						.bindPopup(`Segment end: ${segment.mode}`)
-						.addTo(map);
-					markers.push(endMarker);
-				}
-
-				// Collect unique tracker points for markers
-				for (const p of validPoints) {
-					if (
-						p.location?.coordinates &&
-						typeof p.location.coordinates.lat === 'number' &&
-						typeof p.location.coordinates.lng === 'number'
-					) {
-						const id =
-							p.id ||
-							`${p.location.coordinates.lat},${p.location.coordinates.lng},${p.recorded_at || p.created_at}`;
-						if (!uniqueTrackerPoints[id]) {
-							uniqueTrackerPoints[id] = { ...p, transport_mode: segment.mode };
-						}
-					}
-				}
-			}
-			// Force Leaflet to re-render in case of container resize
-			if (map && map.invalidateSize) {
-				setTimeout(() => map.invalidateSize(), 100);
-			}
-			// Render all unique tracker points as clickable markers
-			const trackerMarkerCount = Object.values(uniqueTrackerPoints).length;
-
-			Object.values(uniqueTrackerPoints).forEach((item: any) => {
-				const transportMode = item.transport_mode || 'unknown';
-				const markerColor = modeColors[transportMode] || '#6b7280';
-				const coords = item.location.coordinates;
-				const marker = L.circleMarker([coords.lat, coords.lng], {
-					radius: 5,
-					fillColor: markerColor,
-					color: 'transparent',
-					weight: 0,
-					opacity: 1,
-					fillOpacity: 0.95
-				})
-					.bindPopup(createPopupContent(item))
-					.on('click', () => selectMarker(marker, item))
-					.addTo(map);
-				markers.push(marker);
-			});
-			return;
-		}
-
-		// Fallback: old logic if no segments
-		// Separate tracker data and location data
-		const trackerPoints = data.filter((item) => item.type === 'tracker' && item.coordinates);
-		const locationPoints = data.filter((item) => item.type === 'location' && item.coordinates);
-
-		// Draw lines between tracker points, colored by the mode of the NEXT point
-		if (trackerPoints.length > 1) {
-			// Sort tracker points by recorded_at timestamp
-			const sortedTrackerPoints = trackerPoints.sort((a, b) => {
+		// Sort data by recorded_at timestamp for sequential rendering
+		const sortedData = data
+			.filter(item => item.coordinates && typeof item.coordinates.lat === 'number' && typeof item.coordinates.lng === 'number')
+			.sort((a, b) => {
 				const dateA = new Date(a.recorded_at || a.created_at).getTime();
 				const dateB = new Date(b.recorded_at || b.created_at).getTime();
 				return dateA - dateB;
 			});
 
-			for (let i = 0; i < sortedTrackerPoints.length - 1; i++) {
-				const curr = sortedTrackerPoints[i];
-				const next = sortedTrackerPoints[i + 1];
+		// Draw lines between consecutive points
+		if (sortedData.length > 1) {
+			for (let i = 0; i < sortedData.length - 1; i++) {
+				const curr = sortedData[i];
+				const next = sortedData[i + 1];
 				const lineCoordinates = [
 					[curr.coordinates.lat, curr.coordinates.lng],
 					[next.coordinates.lat, next.coordinates.lng]
@@ -537,193 +222,184 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 				const mode = next.transport_mode || 'unknown';
 				const polyline = L.polyline(lineCoordinates, {
 					color: modeColors[mode] || '#6b7280',
-					weight: 3,
+					weight: 2,
 					opacity: 0.8
 				}).addTo(map);
 				polylines.push(polyline);
-
-				// Add start and end markers for the path
-				if (sortedTrackerPoints.length > 0) {
-					const startPoint = sortedTrackerPoints[0];
-					const endPoint = sortedTrackerPoints[sortedTrackerPoints.length - 1];
-
-					// Start marker (green)
-					const startMarker = L.circleMarker(
-						[startPoint.coordinates.lat, startPoint.coordinates.lng],
-						{
-							radius: 4,
-							fillColor: '#10b981',
-							color: 'transparent',
-							weight: 0,
-							opacity: 1,
-							fillOpacity: 0.8
-						}
-					)
-						.bindPopup(createPopupContent(startPoint))
-						.addTo(map);
-
-					// End marker (red)
-					const endMarker = L.circleMarker([endPoint.coordinates.lat, endPoint.coordinates.lng], {
-						radius: 4,
-						fillColor: '#ef4444',
-						color: 'transparent',
-						weight: 0,
-						opacity: 1,
-						fillOpacity: 0.8
-					})
-						.bindPopup(createPopupContent(endPoint))
-						.addTo(map);
-
-					markers.push(startMarker, endMarker);
-				}
 			}
+		}
 
-			// Add markers for all tracker points (not just start/end)
-			trackerPoints.forEach((item) => {
-				const transportMode = item.transport_mode || 'unknown';
-				const markerColor = modeColors[transportMode] || '#6b7280';
-				const marker = L.circleMarker([item.coordinates.lat, item.coordinates.lng], {
-					radius: 6,
-					fillColor: markerColor,
-					color: 'white',
-					weight: 2,
-					opacity: 1,
-					fillOpacity: 0.8
+		// Add markers for location data points with transport mode colors
+		for (const item of sortedData) {
+			const transportMode = item.transport_mode || 'unknown';
+			const markerColor = modeColors[transportMode] || '#6b7280';
+			const marker = L.circleMarker([item.coordinates.lat, item.coordinates.lng], {
+				radius: 3,
+				fillColor: markerColor,
+				color: 'transparent',
+				weight: 0,
+				opacity: 1,
+				fillOpacity: 0.8
+			})
+				.bindPopup(createPopupContent(item))
+				.on('click', () => {
+					selectMarker(marker, item);
+					handleMarkerClick(item);
+					currentPopup = marker.getPopup();
 				})
-					.bindPopup(createPopupContent(item))
-					.on('click', () => selectMarker(marker, item))
-					.addTo(map);
-				markers.push(marker);
-			});
-
-			// Add markers for location points
-			locationPoints.forEach((item) => {
-				const marker = L.circleMarker([item.coordinates.lat, item.coordinates.lng], {
-					radius: 4,
-					fillColor: '#f59e0b',
-					color: 'transparent',
-					weight: 0,
-					opacity: 1,
-					fillOpacity: 0.8
-				})
-					.bindPopup(createPopupContent(item))
-					.addTo(map);
-
-				markers.push(marker);
-			});
+				.addTo(map);
+			markers.push(marker);
 		}
 	}
 
-	function createPopupContent(item: any): string {
-		const date = item.recorded_at || item.created_at;
-		const formattedDate = date ? format(new Date(date), 'MMM d, yyyy HH:mm') : 'Unknown date';
-		const updatedDate = item.updated_at
-			? format(new Date(item.updated_at), 'MMM d, yyyy HH:mm')
-			: null;
+	// --- Geocode fetching function ---
+	async function fetchGeocodeForPoint(item: any) {
+		try {
+			const { data, error } = await supabase
+				.from('tracker_data')
+				.select('geocode')
+				.eq('user_id', item.id.split('_')[0]) // Extract user_id from item.id
+				.eq('recorded_at', item.recorded_at)
+				.single();
 
-		// Always use transport_mode from backend
-		const transportMode = item.transport_mode || 'unknown';
+			if (error) throw error;
+			return data?.geocode || null;
+		} catch (error) {
+			console.error('Error fetching geocode:', error);
+			return null;
+		}
+	}
 
-		// Calculate velocity based on previous point
-		const velocityData = calculateVelocity(item, locationData);
+	// --- Marker click handler ---
+	async function handleMarkerClick(item: any) {
+		if (!item.geocode) {
+			item.geocode = 'loading';
+			// Re-render tooltip with loading state
+			if (currentPopup) {
+				currentPopup.setContent(createPopupContent(item));
+			}
 
-		// Format reverse geocode nicely if present
-		function formatReverseGeocode(rg: any): string {
-			let data = rg;
-			if (typeof rg === 'string') {
-				try {
-					data = JSON.parse(rg);
-				} catch {
-					return `<pre class='bg-gray-100 rounded p-2 text-xs overflow-x-auto'>${rg}</pre>`;
+			try {
+				const geocode = await fetchGeocodeForPoint(item);
+				item.geocode = geocode;
+				// Re-render tooltip with geocode data
+				if (currentPopup) {
+					currentPopup.setContent(createPopupContent(item));
+				}
+			} catch (error) {
+				console.error('Failed to fetch geocode:', error);
+				item.geocode = { error: true };
+				if (currentPopup) {
+					currentPopup.setContent(createPopupContent(item));
 				}
 			}
+		}
+	}
 
-			// Handle error format
-			if (data && typeof data === 'object' && 'error' in data) {
-				return `<div class='bg-red-50 border border-red-200 rounded p-3 text-sm'>
-					<div class='text-red-800 font-semibold mb-1'>Geocoding Error</div>
-					<div class='text-red-700 text-xs'>${data.error_message || 'Unknown error occurred during geocoding'}</div>
-					<div class='text-red-600 text-xs mt-1'>Timestamp: ${data.timestamp || 'Unknown'}</div>
-				</div>`;
+	// --- Format reverse geocode function ---
+	function formatReverseGeocode(rg: any): string {
+		let data = rg;
+		if (typeof rg === 'string') {
+			try {
+				data = JSON.parse(rg);
+			} catch {
+				return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${rg}</pre>`;
 			}
-
-			const props = data.properties || data.address || data;
-			if (!props || typeof props !== 'object') {
-				return `<pre class='bg-gray-100 rounded p-2 text-xs overflow-x-auto'>${JSON.stringify(rg, null, 2)}</pre>`;
-			}
-			const fields = [
-				['City', props.city],
-				['Street', props.street],
-				['House Number', props.housenumber],
-				['Postcode', props.postcode],
-				['State', props.state],
-				['Country', props.country],
-				['Type', props.type]
-			];
-			const rows = fields
-				.filter(([, v]) => v)
-				.map(
-					([k, v]) =>
-						`<tr><td class='pr-2 text-gray-500 align-top py-1'>${k}:</td><td class='font-semibold text-gray-900 py-1'>${v}</td></tr>`
-				)
-				.join('');
-			if (rows) {
-				return `<table class='bg-gray-50 rounded p-3 text-sm my-1 w-full' style='margin-top:2px; margin-bottom:2px;'><tbody>${rows}</tbody></table>`;
-			}
-			// fallback: show all properties
-			return `<pre class='bg-gray-100 rounded p-2 text-xs overflow-x-auto'>${JSON.stringify(props, null, 2)}</pre>`;
 		}
 
-		let content = `
-			<div class="p-3 max-w-sm">
-				<div class="flex items-center gap-2 mb-3">
-					<div class="w-3 h-3 rounded-full ${getTypeColor(item.type)}"></div>
-					<h3 class="font-semibold text-base text-gray-900">${item.name || 'Data Point'}</h3>
-				</div>
+		if (data && typeof data === 'object' && 'error' in data) {
+			return `<div class='bg-red-50 border border-red-200 rounded-lg p-2 text-xs'>
+				<div class='text-red-800 font-semibold mb-1 text-xs'>Geocoding Error</div>
+				<div class='text-red-700 text-xs'>${data.error_message || 'Unknown error occurred during geocoding'}</div>
+				<div class='text-red-600 text-xs mt-1'>Timestamp: ${data.timestamp || 'Unknown'}</div>
+			</div>`;
+		}
 
-				<div class="space-y-3 text-sm">
-					<div class="flex justify-between items-center">
-						<span class="text-gray-500">Mode:</span>
-						<span class="font-semibold capitalize text-gray-900">${transportMode || 'Unknown'}</span>
-					</div>
-					<div class="flex justify-between items-center">
-						<span class="text-gray-500">Date:</span>
-						<span class="font-semibold text-gray-900">${formattedDate}</span>
-					</div>
-					<div class="flex justify-between items-center">
-						<span class="text-gray-500">Coordinates:</span>
-						<span class="font-semibold text-gray-900">${item.location?.coordinates?.lat?.toFixed(6) || ''}, ${item.location?.coordinates?.lng?.toFixed(6) || ''}</span>
-					</div>
-					${item.country_code ? `<div class=\"flex justify-between items-center\"><span class=\"text-gray-500\">Country Code:</span><span class=\"font-semibold text-gray-900\">${item.country_code}</span></div>` : ''}
-					${
-						item.speed !== undefined
-							? `<div class="flex justify-between items-center">
-						<span class="text-gray-500">Speed (GPS):</span>
-						<span class="font-semibold text-gray-900">${(item.speed * 3.6).toFixed(2)} km/h</span>
-					</div>`
-							: ''
-					}
-					${
-						velocityData.velocity !== null
-							? `<div class="flex justify-between items-center">
-						<span class="text-gray-500">Velocity (calc):</span>
-						<span class="font-semibold text-gray-900">${(velocityData.velocity * 3.6).toFixed(2)} km/h</span>
-					</div>
-					<div class="flex justify-between items-center">
-						<span class="text-gray-500">Time diff:</span>
-						<span class="font-semibold text-gray-900">${velocityData.timeDiff ? velocityData.timeDiff.toFixed(1) + 's' : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center">
-						<span class="text-gray-500">Distance:</span>
-						<span class="font-semibold text-gray-900">${velocityData.distance ? velocityData.distance.toFixed(1) + 'm' : 'N/A'}</span>
-					</div>`
-							: ''
-					}
-					${item.geocode ? `<div class='mt-2'><span class='block text-gray-500 mb-1'>Geocode:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
+		const props = data.properties || data.address || data;
+		if (!props || typeof props !== 'object') {
+			return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${JSON.stringify(rg, null, 2)}</pre>`;
+		}
+
+		const allFields = Object.entries(props)
+			.filter(([, value]) => value !== null && value !== undefined && value !== '')
+			.map(([key, value]) => {
+				const formattedKey = key
+					.replace(/([A-Z])/g, ' $1')
+					.replace(/^./, str => str.toUpperCase())
+					.replace(/_/g, ' ')
+					.trim();
+				return [formattedKey, value];
+			})
+			.sort(([a], [b]) => (a as string).localeCompare(b as string));
+
+		// Always append class and type if present on the geocode object itself
+		const extraRows: string[] = [];
+		if (data.class) {
+			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Class:</td><td class='text-gray-900 py-0.5 text-xs'>${data.class}</td></tr>`);
+		}
+		if (data.type) {
+			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Type:</td><td class='text-gray-900 py-0.5 text-xs'>${data.type}</td></tr>`);
+		}
+
+		const rows = allFields
+			.map(
+				([k, v]) =>
+					`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>${k}:</td><td class='text-gray-900 py-0.5 text-xs'>${v}</td></tr>`
+			)
+			.join('') + extraRows.join('');
+
+		if (rows) {
+			return `<table class='bg-gray-50 rounded-lg p-2 w-full border border-gray-200'><tbody>${rows}</tbody></table>`;
+		}
+
+		return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${JSON.stringify(props, null, 2)}</pre>`;
+	}
+
+	// --- Updated tooltip content ---
+	function createPopupContent(item: any) {
+		const date = item.recorded_at || item.created_at;
+		const formattedDate = date ? format(new Date(date), 'MMM d, yyyy HH:mm') : 'Unknown date';
+		const transportMode = item.transport_mode || 'unknown';
+
+		let content = `
+			<div class="p-2 max-w-lg">
+				<!-- Header with location name -->
+				<div class="mb-2">
+					<h3 class="font-bold text-sm text-gray-900 leading-tight">${item.name || 'Data Point'}</h3>
 				</div>
+				<!-- Point details in a more compact layout -->
+				<div class="space-y-1 mb-2">
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Date:</span>
+						<span class="font-medium text-gray-900 text-xs">${formattedDate}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Mode:</span>
+						<span class="font-medium capitalize text-gray-900 text-xs">${transportMode}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Reason:</span>
+						<span class="font-medium text-gray-900 text-xs">${item.detectionReason || 'N/A'}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Coordinates:</span>
+						<span class="font-medium text-gray-900 text-xs">${typeof item.coordinates?.lat === 'number' && typeof item.coordinates?.lng === 'number' ? `${item.coordinates.lat.toFixed(6)}, ${item.coordinates.lng.toFixed(6)}` : 'N/A'}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Velocity:</span>
+						<span class="font-medium text-gray-900 text-xs">${item.velocity !== null && item.velocity !== undefined ? (typeof item.velocity === 'number' ? item.velocity.toFixed(2) + ' km/h' : item.velocity + ' km/h') : 'N/A'}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Distance from prev:</span>
+						<span class="font-medium text-gray-900 text-xs">${typeof item.distance_from_prev === 'number' ? item.distance_from_prev.toFixed(1) + ' m' : 'N/A'}</span>
+					</div>
+				</div>
+				<!-- Geocode section -->
+				${item.geocode === 'loading' ? `<div class='mt-1 p-1 bg-blue-50 rounded text-blue-700 text-xs'>Loading geocode...</div>` : ''}
+				${item.geocode && item.geocode !== 'loading' && !item.geocode.error ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
+				${item.geocode && item.geocode.error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
 			</div>
 		`;
-
 		return content;
 	}
 
@@ -908,18 +584,7 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 		}
 	}
 
-	// Add function to clear cache
-	async function clearCache() {
-		try {
-			LocationCacheService.clearCache();
-			toast.success('Cache cleared successfully');
-			// Trigger reactive update
-			cacheUpdateTrigger++;
-		} catch (error) {
-			console.error('Error clearing cache:', error);
-			toast.error('Failed to clear cache');
-		}
-	}
+
 
 	// Haversine formula to calculate distance between two lat/lng points
 	function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -1006,43 +671,14 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 	// Helper to determine if loading more (not initial load)
 	$: isLoadingMore = isLoading && !isInitialLoad;
 
-	// Function to get cache key for statistics
-	function getStatisticsCacheKey(): string {
-		const startDate = state.filtersStartDate
-			? getDateObject(state.filtersStartDate)?.toISOString().split('T')[0]
-			: '';
-		const endDate = state.filtersEndDate
-			? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
-			: '';
-		return `statistics_${startDate}_${endDate}`;
-	}
 
-	// Function to get cached statistics
-	function getCachedStatistics(): any | null {
-		const cacheKey = getStatisticsCacheKey();
-		const cached = statisticsCache.get(cacheKey);
-		if (cached && Date.now() - cached.timestamp < STATISTICS_CACHE_DURATION) {
-			return cached.data;
-		}
-		return null;
-	}
 
-	// Function to set cached statistics
-	function setCachedStatistics(data: any): void {
-		const cacheKey = getStatisticsCacheKey();
-		statisticsCache.set(cacheKey, { data, timestamp: Date.now() });
-	}
-
-	// Function to clear statistics cache
-	function clearStatisticsCache(): void {
-		statisticsCache.clear();
-	}
-
-	// Function to fetch statistics data from backend API
-	async function fetchStatisticsData(forceRefresh = false) {
+	// Function to get total count of records
+	async function getTotalCount(): Promise<number> {
 		try {
-			statisticsLoading = true;
-			statisticsError = '';
+			isCountingRecords = true;
+			loadingStage = 'Counting records...';
+			loadingProgress = 10;
 
 			const startDate = state.filtersStartDate
 				? getDateObject(state.filtersStartDate)?.toISOString().split('T')[0]
@@ -1051,26 +687,213 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
 				: '';
 
-			const params = new URLSearchParams();
-			if (startDate) params.append('startDate', startDate);
-			if (endDate) params.append('endDate', endDate);
+			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			if (sessionError || !session) {
+				throw new Error('User not authenticated');
+			}
 
-			const response = await fetch(`/api/v1/statistics?${params.toString()}`);
+			// Call the edge function with count only
+			const params = new URLSearchParams({
+				include_statistics: 'false',
+				limit: '1', // Just get 1 record to get the count
+				offset: '0'
+			});
+
+			if (startDate) {
+				params.append('start_date', startDate);
+			}
+			if (endDate) {
+				params.append('end_date', endDate);
+			}
+
+			const response = await fetch(`${(supabase as any).supabaseUrl}/functions/v1/tracker-data-with-mode?${params}`, {
+				headers: {
+					'Authorization': `Bearer ${session.access_token}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
 			if (!response.ok) {
-				throw new Error(`Failed to fetch statistics: ${response.statusText}`);
+				const errorText = await response.text();
+				throw new Error(`Edge function error: ${response.status} - ${errorText}`);
 			}
-			const result = await response.json();
-			if (result && result.success && result.data) {
-				statisticsData = result.data;
-			} else {
-				throw new Error(result?.message || 'Unknown error');
-			}
+
+			const result = await response.json() as any;
+			const total = result.total || 0;
+
+			loadingProgress = 20;
+			loadingStage = `Found ${total.toLocaleString()} records`;
+
+			return total;
 		} catch (err) {
-			console.error('Statistics calculation error:', err);
+			console.error('Error getting total count:', err);
+			throw err;
+		} finally {
+			isCountingRecords = false;
+		}
+	}
+
+	// Function to fetch both map data and statistics from the edge function
+	async function fetchMapDataAndStatistics(forceRefresh = false, loadMoreOffset = 0) {
+		try {
+			statisticsLoading = true;
+			statisticsError = '';
+
+			// If this is the initial load, get the total count first
+			if (loadMoreOffset === 0) {
+				loadingStage = 'Getting record count...';
+				loadingProgress = 5;
+				totalPoints = await getTotalCount();
+			}
+
+			const startDate = state.filtersStartDate
+				? getDateObject(state.filtersStartDate)?.toISOString().split('T')[0]
+				: '';
+			const endDate = state.filtersEndDate
+				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
+				: '';
+
+			// Get current user's session
+			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			if (sessionError || !session) {
+				throw new Error('User not authenticated');
+			}
+
+			// Update progress for data fetching
+			loadingStage = loadMoreOffset === 0 ? 'Loading initial data...' : 'Loading more data...';
+			loadingProgress = loadMoreOffset === 0 ? 30 : 60;
+
+			// Call the edge function with both map data and statistics
+			const params = new URLSearchParams({
+				include_statistics: loadMoreOffset === 0 ? 'true' : 'false', // Only include statistics for initial load
+				limit: '5000', // Get more data for comprehensive statistics
+				offset: loadMoreOffset.toString()
+			});
+
+			if (startDate) {
+				params.append('start_date', startDate);
+			}
+			if (endDate) {
+				params.append('end_date', endDate);
+			}
+
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const response = await fetch(`${(supabase as any).supabaseUrl}/functions/v1/tracker-data-with-mode?${params}`, {
+				headers: {
+					'Authorization': `Bearer ${session.access_token}`,
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Edge function error: ${response.status} - ${errorText}`);
+			}
+
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = await response.json() as any;
+
+			// Update progress for data processing
+			loadingStage = 'Processing data...';
+			loadingProgress = loadMoreOffset === 0 ? 70 : 80;
+
+			// Set statistics data (only for initial load)
+			if (result.statistics && loadMoreOffset === 0) {
+				statisticsData = result.statistics;
+			}
+
+			// Transform and set location data for map
+			if (result.locations) {
+				loadingStage = 'Transforming data...';
+				loadingProgress = loadMoreOffset === 0 ? 85 : 90;
+
+				const transformedLocations = result.locations.map((location: any, index: number) => {
+					return {
+						id: `${location.user_id}_${location.recorded_at}_${loadMoreOffset + index}`,
+						name: location.geocode?.display_name || 'Unknown Location',
+						description: location.geocode?.name || '',
+						type: 'tracker',
+						coordinates: location.location?.coordinates
+							? {
+								lat: location.location.coordinates[1] || 0,
+								lng: location.location.coordinates[0] || 0
+							}
+							: { lat: 0, lng: 0 },
+						city: location.geocode?.city || '',
+						created_at: location.created_at,
+						updated_at: location.updated_at,
+						recorded_at: location.recorded_at,
+						altitude: location.altitude,
+						accuracy: location.accuracy,
+						speed: location.speed,
+						transport_mode: location.transport_mode || 'unknown',
+						detectionReason: location.detectionReason || undefined,
+						velocity: location.velocity || undefined,
+						distance_from_prev: location.distance_from_prev || undefined
+					};
+				});
+
+
+
+				if (loadMoreOffset === 0) {
+					// Initial load - replace all data
+					locationData = transformedLocations;
+					addMarkersToMap(transformedLocations, true);
+					if (transformedLocations.length > 0) {
+						fitMapToMarkers();
+					}
+				} else {
+					// Load more - append to existing data
+					locationData = [...locationData, ...transformedLocations];
+					addMarkersToMap(transformedLocations, false);
+				}
+
+				totalPoints = result.total || 0;
+				hasMoreData = result.hasMore || false;
+				currentOffset = locationData.length;
+			}
+
+			// Complete loading
+			loadingStage = 'Complete!';
+			loadingProgress = 100;
+
+		} catch (err) {
+			console.error('Error fetching map data and statistics:', err);
 			statisticsError = err instanceof Error ? err.message : String(err);
-			statisticsData = null;
+			if (loadMoreOffset === 0) {
+				statisticsData = null;
+			}
+			loadingStage = 'Error occurred';
+			loadingProgress = 0;
 		} finally {
 			statisticsLoading = false;
+			// Reset progress after a short delay
+			setTimeout(() => {
+				loadingProgress = 0;
+				loadingStage = '';
+			}, 1000);
+		}
+	}
+
+	// Function to fetch statistics data from backend API (kept for backward compatibility)
+	async function fetchStatisticsData(forceRefresh = false) {
+		// Redirect to the new combined function
+		await fetchMapDataAndStatistics(forceRefresh, 0);
+	}
+
+	// Function to load more data points
+	async function loadMoreData() {
+		if (isLoading) return;
+
+		isLoading = true;
+		try {
+			console.log(`Loading more data from offset ${currentOffset}`);
+			await fetchMapDataAndStatistics(false, currentOffset);
+		} catch (error) {
+			console.error('Error loading more data:', error);
+			toast.error('Failed to load more data');
+		} finally {
+			isLoading = false;
 		}
 	}
 
@@ -1091,6 +914,18 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 	// Function to get statistics for display
 	function getStatistics() {
 		if (!statisticsData) return [];
+
+		// Helper to sum green distances
+		function getGreenDistance() {
+			if (!statisticsData.transport) return 0;
+			const greenModes = ['walking', 'cycling', 'train'];
+			return statisticsData.transport
+				.filter((t: { mode: string }) => greenModes.includes(t.mode))
+				.reduce((sum: number, t: { distance: number }) => sum + (typeof t.distance === 'number' ? t.distance : 0), 0);
+		}
+
+		const greenDistance = getGreenDistance();
+
 		return [
 			{
 				id: 1,
@@ -1098,6 +933,13 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 				value: statisticsData.totalDistance ?? '',
 				icon: Navigation,
 				color: 'blue'
+			},
+			{
+				id: 'green',
+				title: 'Distance Travelled Green',
+				value: greenDistance > 0 ? `${greenDistance.toLocaleString(undefined, { maximumFractionDigits: 1 })} km` : '0 km',
+				icon: Activity, // You can change to Train or another icon if preferred
+				color: 'green'
 			},
 			{
 				id: 2,
@@ -1134,15 +976,8 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 				icon: Globe2,
 				color: 'blue'
 			},
-			{
+						{
 				id: 7,
-				title: 'Visited Places',
-				value: statisticsData.visitedPlaces?.toLocaleString() ?? '',
-				icon: MapPin,
-				color: 'blue'
-			},
-			{
-				id: 8,
 				title: 'Approximate Steps',
 				value: statisticsData.steps?.toLocaleString() ?? '',
 				icon: Footprints,
@@ -1151,45 +986,7 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 		];
 	}
 
-	// Function to get transport statistics from segments
-	function getTransportFromSegments() {
-		if (!statisticsData?.segments) return [];
 
-		const modeStats = new Map<string, { distance: number; time: number; count: number }>();
-		let totalDistance = 0;
-		let totalTime = 0;
-
-		// Calculate totals from segments
-		for (const segment of statisticsData.segments) {
-			const mode = segment.mode;
-			const distance = segment.distance || 0;
-			const duration = segment.duration || 0;
-
-			if (!modeStats.has(mode)) {
-				modeStats.set(mode, { distance: 0, time: 0, count: 0 });
-			}
-
-			const stats = modeStats.get(mode)!;
-			stats.distance += distance;
-			stats.time += duration;
-			stats.count += 1;
-
-			totalDistance += distance;
-			totalTime += duration;
-		}
-
-		// Convert to array and calculate percentages
-		return Array.from(modeStats.entries())
-			.map(([mode, stats]) => ({
-				mode,
-				distance: Math.round((stats.distance / 1000) * 10) / 10, // Convert to km
-				time: stats.time,
-				percentage:
-					totalDistance > 0 ? Math.round((stats.distance / totalDistance) * 1000) / 10 : 0,
-				count: stats.count
-			}))
-			.sort((a, b) => b.distance - a.distance);
-	}
 
 	// Function to format segment duration
 	function formatSegmentDuration(seconds: number): string {
@@ -1220,7 +1017,7 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 	$: if (state.filtersStartDate || state.filtersEndDate) {
 		if (map) {
 			// Only reload if map is initialized
-			fetchStatisticsData(true); // Force refresh when date changes
+			fetchMapDataAndStatistics(true, 0); // Force refresh when date changes
 		}
 	}
 
@@ -1266,32 +1063,22 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 		return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 	}
 
-	// Add a legend for transport mode colors to the map
-	// Place it in the top left corner
-	$: if (map && L) {
-		const legendId = 'transport-mode-legend';
-		let legend = document.getElementById(legendId);
-		if (!legend) {
-			legend = document.createElement('div');
-			legend.id = legendId;
-			legend.className =
-				'leaflet-control leaflet-bar bg-white dark:bg-gray-800 p-3 rounded shadow text-gray-900 dark:text-gray-100';
-			legend.style.position = 'absolute';
-			legend.style.top = '90px';
-			legend.style.left = '10px';
-			legend.style.zIndex = '1000';
-			legend.innerHTML = `
-				<div class="font-semibold mb-2 text-xs text-gray-900 dark:text-gray-100">Mode Colors</div>
-				<div class="flex flex-col gap-1">
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#ef4444;"></span>Car</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#a21caf;"></span>Train</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#000000;"></span>Airplane</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#f59e42;"></span>Cycling</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#10b981;"></span>Walking</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#6b7280;"></span>Unknown</div>
-				</div>
-			`;
-			map.getContainer().appendChild(legend);
+
+
+
+
+	onDestroy(() => {
+		clearMapMarkers();
+	});
+
+	// Add a function to update statistics only when both dates are set
+	function loadStatistics() {
+		// Your existing logic to update statistics, e.g. reload data, etc.
+		// This should be the same logic that previously ran on date change
+		// Example:
+		if (state.filtersStartDate && state.filtersEndDate) {
+			// ... trigger statistics update logic here ...
+			// e.g. fetchStatistics(state.filtersStartDate, state.filtersEndDate);
 		}
 	}
 
@@ -1365,6 +1152,32 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 		// Initial theme sync
 		updateMapTheme();
 
+		// Add transport mode legend to the map
+		const legendId = 'transport-mode-legend';
+		let legend = document.getElementById(legendId);
+		if (!legend) {
+			legend = document.createElement('div');
+			legend.id = legendId;
+			legend.className =
+				'leaflet-control leaflet-bar bg-white dark:bg-gray-800 p-3 rounded shadow text-gray-900 dark:text-gray-100';
+			legend.style.position = 'absolute';
+			legend.style.top = '90px';
+			legend.style.left = '10px';
+			legend.style.zIndex = '1000';
+			legend.innerHTML = `
+				<div class="font-semibold mb-2 text-xs text-gray-900 dark:text-gray-100">Mode Colors</div>
+				<div class="flex flex-col gap-1">
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#ef4444;"></span>Car</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#a21caf;"></span>Train</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#000000;"></span>Airplane</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#f59e42;"></span>Cycling</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#10b981;"></span>Walking</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#6b7280;"></span>Unknown</div>
+				</div>
+			`;
+			map.getContainer().appendChild(legend);
+		}
+
 		// Set default date range to last 7 days if not already set
 		if (!state.filtersStartDate || !state.filtersEndDate) {
 			const today = new Date();
@@ -1376,23 +1189,8 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 
 		// Load initial data
 		// await loadLocationData(); // <-- Remove this line
-		await fetchStatisticsData(false); // Allow cache for initial load
+		await fetchMapDataAndStatistics(false, 0); // Allow cache for initial load
 	});
-
-	onDestroy(() => {
-		clearMapMarkers();
-	});
-
-	// Add a function to update statistics only when both dates are set
-	function loadStatistics() {
-		// Your existing logic to update statistics, e.g. reload data, etc.
-		// This should be the same logic that previously ran on date change
-		// Example:
-		if (state.filtersStartDate && state.filtersEndDate) {
-			// ... trigger statistics update logic here ...
-			// e.g. fetchStatistics(state.filtersStartDate, state.filtersEndDate);
-		}
-	}
 </script>
 
 <svelte:head>
@@ -1500,27 +1298,6 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 			</h1>
 		</div>
 		<div class="flex flex-1 items-center justify-end gap-6">
-			<div
-				class="flex items-center gap-3 rounded bg-gray-50 px-4 py-2 text-sm text-gray-500 shadow-sm dark:bg-gray-900 dark:text-gray-400"
-			>
-				<span
-					>Location cache: {cacheStats.entries} entries, {(cacheStats.size / (1024 * 1024)).toFixed(
-						1
-					)}MB</span
-				>
-				<span>•</span>
-				<span>Statistics cache: {statisticsCache.size} periods</span>
-				<button
-					onclick={() => {
-						clearCache();
-						clearStatisticsCache();
-					}}
-					class="ml-2 cursor-pointer text-xs text-red-500 underline hover:text-red-700 dark:hover:text-red-400"
-					title="Clear all caches"
-				>
-					Clear all
-				</button>
-			</div>
 			<div class="relative flex h-full items-center self-stretch" style="z-index:2001;">
 				<button
 					type="button"
@@ -1564,11 +1341,35 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 
 	<!-- Map -->
 	<div
-		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode
-			? 'cursor-pointer ring-4 ring-blue-400'
-			: ''}"
+		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode ? 'cursor-pointer ring-4 ring-blue-400' : ''}"
 		style={isEditMode ? 'cursor: pointer;' : ''}
 	>
+		{#if isLoading}
+			<div class="absolute inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70">
+				<Loader2 class="h-16 w-16 animate-spin text-blue-500 dark:text-blue-300" />
+				<div class="mt-4 text-center">
+					<div class="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">
+						{loadingStage || 'Loading...'}
+					</div>
+					{#if loadingProgress > 0}
+						<div class="w-64 bg-gray-200 rounded-full h-2 mb-2 dark:bg-gray-700">
+							<div
+								class="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+								style="width: {loadingProgress}%"
+							></div>
+						</div>
+						<div class="text-sm text-gray-600 dark:text-gray-400">
+							{loadingProgress}% complete
+						</div>
+					{/if}
+					{#if totalPoints > 0}
+						<div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+							{locationData.length} of {totalPoints.toLocaleString()} points loaded
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
 		{#if isEditMode}
 			<div
 				class="absolute top-0 left-0 z-[1100] w-full bg-blue-500 py-2 text-center font-semibold text-white shadow-lg"
@@ -1664,31 +1465,35 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 		{/if}
 
 		<!-- Load More Button -->
-		{#if hasMoreData && locationData.length < totalPoints}
+		{#if locationData.length < totalPoints}
 			<button
-				onclick={() => loadLocationData(false)}
+				onclick={() => loadMoreData()}
 				disabled={isLoading}
 				class="absolute right-4 bottom-4 z-[1001] rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				{#if isLoading}
 					<Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
+					{#if loadingStage}
+						<span class="text-xs text-gray-500">{loadingStage}</span>
+					{/if}
+				{:else}
+					Load More ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
 				{/if}
-				Load More ({locationData.length}/{totalPoints})
 			</button>
 		{/if}
 	</div>
 
 	<!-- Stats -->
-	<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-		{#if statisticsError}
-			<div class="col-span-4 py-8 text-center font-semibold text-red-600 dark:text-red-400">
-				Error loading statistics: {statisticsError}
-			</div>
-		{:else if statisticsLoading}
+	{#if statisticsError}
+		<div class="mb-8 py-8 text-center font-semibold text-red-600 dark:text-red-400">
+			Error loading statistics: {statisticsError}
+		</div>
+	{:else if statisticsLoading}
+		<!-- Loading Placeholders -->
+		<!-- Top section: 4 tiles that span 25% width on larger screens -->
+		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each Array(8) as _, i}
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-				>
+				<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
 					<div class="flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1696,12 +1501,36 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 					<div class="mt-1 h-6 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 				</div>
 			{/each}
-		{:else if getStatistics().length === 0}
-			<div class="col-span-4 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
-				No statistics available for this period.
-			</div>
-		{:else}
-			{#each getStatistics() as stat}
+		</div>
+
+		<!-- Bottom section: 2 tiles that span 50% width -->
+		<div class="mb-8 flex flex-col gap-6 md:flex-row">
+			{#each Array(2) as _, i}
+				<div class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800">
+					<div class="mb-3 flex items-center gap-2">
+						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+					</div>
+					<div class="space-y-3">
+						{#each Array(3) as _, j}
+							<div class="flex items-center gap-4">
+								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+								<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else if getStatistics().length === 0}
+		<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
+			No statistics available for this period.
+		</div>
+	{:else}
+		<!-- Actual Statistics Content -->
+		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+			{#each getStatistics() as stat, index}
 				{@const IconComponent = stat.icon}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
@@ -1715,55 +1544,65 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 					</div>
 				</div>
 			{/each}
-		{/if}
-	</div>
+		</div>
+	{/if}
 
-	<!-- Country Time Distribution and Modes of Transport: Side by Side -->
-	<div class="mb-8 flex flex-col gap-6 md:flex-row">
-		{#if statisticsData && statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
-			<div
-				class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-3 flex items-center gap-2">
-					<Globe2 class="h-5 w-5 text-blue-500" />
-					<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-						>Time Distribution per Country</span
-					>
-				</div>
-				<div class="space-y-4">
-					{#each statisticsData.countryTimeDistribution as country}
-						<div>
-							<div class="mb-1 flex items-center gap-2">
-								<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
-								<span class="text-base text-gray-700 dark:text-gray-300"
-									>{getCountryName(country.country_code)}</span
-								>
-							</div>
-							<div class="relative w-full">
-								<div class="flex h-4 items-center rounded bg-gray-200 dark:bg-gray-700">
-									<div
-										class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
-										style="width: {country.percent}%; min-width: 2.5rem;"
+		<!-- Country Time Distribution and Geocoding Progress: Side by Side -->
+	{#if statisticsData && !statisticsLoading && !statisticsError}
+		<div class="mb-8 flex flex-col gap-6 md:flex-row">
+			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
+				<div
+					class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
+				>
+					<div class="mb-3 flex items-center gap-2">
+						<Globe2 class="h-5 w-5 text-blue-500" />
+						<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
+							>Time Distribution per Country</span
+						>
+					</div>
+					<div class="space-y-4">
+						{#each statisticsData.countryTimeDistribution as country}
+							<div>
+								<div class="mb-1 flex items-center gap-2">
+									<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
+									<span class="text-base text-gray-700 dark:text-gray-300"
+										>{getCountryName(country.country_code)}</span
 									>
-										<span class="w-full text-center">{country.percent}%</span>
+								</div>
+								<div class="relative w-full">
+									<div class="flex h-4 items-center rounded bg-gray-200 dark:bg-gray-700">
+										<div
+											class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
+											style="width: {country.percent}%; min-width: 2.5rem;"
+										>
+											<span class="w-full text-center">{country.percent}%</span>
+										</div>
 									</div>
 								</div>
 							</div>
-						</div>
-					{/each}
+						{/each}
+					</div>
+					<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">of selected period</div>
 				</div>
-				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">of selected period</div>
-			</div>
-		{/if}
+			{/if}
 
-		{#if statisticsData && getTransportFromSegments().length > 0}
+			<!-- Geocoding Progress Component -->
+			<div class="w-full md:w-1/2">
+				<GeocodingProgress />
+			</div>
+		</div>
+	{/if}
+
+	<!-- Modes of Transport: Full Width -->
+	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.transportModes && statisticsData.transportModes.length > 0}
+		<div class="mb-8">
 			<div
-				class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
+				class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 			>
 				<div class="mb-3 flex items-center gap-2">
 					<Route class="h-5 w-5 text-blue-500" />
 					<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-						>Modes of Transport (Segments)</span
+						>Modes of Transport</span
 					>
 				</div>
 				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -1787,12 +1626,14 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 							>
 							<th
 								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-								>Segments</th
+								>Points</th
 							>
 						</tr>
 					</thead>
 					<tbody>
-						{#each getTransportFromSegments() as mode}
+						{#each statisticsData.transportModes
+							.slice()
+							.sort((a: { distance: number }, b: { distance: number }) => b.distance - a.distance) as mode}
 							<tr>
 								<td
 									class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 capitalize dark:text-gray-100"
@@ -1816,14 +1657,14 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 					</tbody>
 				</table>
 				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-					based on enhanced segment detection with speed brackets and continuity
+					based on backend transport mode detection
 				</div>
 			</div>
-		{/if}
-	</div>
+		</div>
+	{/if}
 
 	<!-- Train Station Visits Table -->
-	{#if statisticsData && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
+	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
 		<div
 			class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
 		>
@@ -1867,4 +1708,5 @@ import { LocationCacheService } from '$lib/services/location-cache.service';
 			</div>
 		</div>
 	{/if}
+
 </div>

@@ -1,4 +1,5 @@
 import { SPEED_BRACKETS } from './transport-mode.config';
+import { TransportDetectionReason } from '../types/transport-mode.types';
 // Haversine distance in meters
 export function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
 	const toRad = (x: number) => (x * Math.PI) / 180;
@@ -166,11 +167,27 @@ export function detectEnhancedMode(
 		context.lastTrainStation = stationInfo;
 	}
 
+	// --- NEW LOGIC: Plane detection ---
+	if (speedKmh > 400) {
+		// If speed > 400, mark all contiguous > 100 as plane (handled in segment logic, here just return plane)
+		return {
+			mode: 'airplane',
+			confidence: 1,
+			reason: TransportDetectionReason.HIGH_VELOCITY_PLANE
+		};
+	}
+	if (speedKmh > 350) {
+		return {
+			mode: 'airplane',
+			confidence: 0.95,
+			reason: TransportDetectionReason.PLANE_SPEED_ONLY
+		};
+	}
+
 	// Get speed bracket for current speed
 	let speedBracket = getSpeedBracket(speedKmh);
 
 	// --- Fallback: Always assign a mode based on speed if no context is available ---
-	// If speedBracket is 'unknown' but speed is a valid number, assign 'car' as a default fallback
 	if (
 		(speedBracket === 'unknown' || !speedBracket) &&
 		typeof speedKmh === 'number' &&
@@ -182,59 +199,49 @@ export function detectEnhancedMode(
 	// Special handling for train detection
 	let detectedMode = speedBracket;
 	let confidence = 0.5;
-	let reason = `Speed bracket: ${speedBracket}`;
+	let reason = TransportDetectionReason.DEFAULT;
 
-	// Train detection logic
 	if (speedBracket === 'train' || (context.isInTrainJourney && speedKmh >= 30)) {
-		// Check if we should start a train journey
 		if (!context.isInTrainJourney && atTrainStation) {
 			context.isInTrainJourney = true;
 			context.trainJourneyStartTime = Date.now();
 			context.trainJourneyStartStation = stationName || 'Unknown';
 			detectedMode = 'train';
 			confidence = 0.8;
-			reason = 'Started train journey at station';
-		}
-		// Continue train journey if already in one
-		else if (context.isInTrainJourney) {
+			reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
+		} else if (context.isInTrainJourney) {
 			detectedMode = 'train';
 			confidence = 0.7;
-			reason = 'Continuing train journey';
-
-			// End train journey if we reach another station
+			reason = TransportDetectionReason.TRAIN_SPEED_ONLY;
 			if (atTrainStation && context.trainJourneyStartStation !== stationName) {
 				context.isInTrainJourney = false;
 				context.trainJourneyStartTime = undefined;
 				context.trainJourneyStartStation = undefined;
-				reason = 'Ended train journey at destination station';
+				reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
 			}
-		}
-		// Infer train journey if we have a recent train station and high speed
-		else if (
+		} else if (
 			context.lastTrainStation &&
-			Date.now() - context.lastTrainStation.timestamp < 3600000 && // Within 1 hour
+			Date.now() - context.lastTrainStation.timestamp < 3600000 &&
 			speedKmh >= 50
 		) {
-			// High speed
 			context.isInTrainJourney = true;
 			context.trainJourneyStartTime = context.lastTrainStation.timestamp;
 			context.trainJourneyStartStation = context.lastTrainStation.name;
 			detectedMode = 'train';
 			confidence = 0.6;
-			reason = 'Inferred train journey from recent station visit';
+			reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
 		}
 	}
 
-	// End train journey if speed drops significantly
 	if (context.isInTrainJourney && speedKmh < 20) {
 		context.isInTrainJourney = false;
 		context.trainJourneyStartTime = undefined;
 		context.trainJourneyStartStation = undefined;
 		detectedMode = speedBracket;
-		reason = 'Ended train journey due to low speed';
+		reason = TransportDetectionReason.MIN_DURATION_NOT_MET;
 	}
 
-	// Mode continuity: if speed is in same bracket and no significant stop, maintain mode
+	// --- CONTINUITY LOGIC ---
 	if (
 		context.currentMode &&
 		context.currentMode !== 'stationary' &&
@@ -243,15 +250,20 @@ export function detectEnhancedMode(
 		speedBracket === getSpeedBracket(context.lastSpeed) &&
 		dt < MIN_STOP_DURATION
 	) {
-		// Check if mode switch is possible
-		if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
-			detectedMode = context.currentMode;
-			confidence = 0.9;
-			reason = 'Mode continuity maintained';
+		// Prevent direct car->plane switch
+		if (context.currentMode === 'car' && detectedMode === 'airplane') {
+			detectedMode = 'car';
+			confidence = 0.5;
+			reason = TransportDetectionReason.KEEP_CONTINUITY;
+		} else {
+			if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
+				detectedMode = context.currentMode;
+				confidence = 0.9;
+				reason = TransportDetectionReason.KEEP_CONTINUITY;
+			}
 		}
 	}
 
-	// Update context
 	context.currentMode = detectedMode;
 	context.modeStartTime = Date.now();
 

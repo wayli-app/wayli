@@ -37,8 +37,19 @@ export interface TrackerDataPoint {
 			city?: string;
 			town?: string;
 			village?: string;
+			municipality?: string;
+			suburb?: string;
+			[key: string]: string | undefined;
 		};
-	};
+		city?: string;
+		town?: string;
+		village?: string;
+		municipality?: string;
+		suburb?: string;
+		name?: string;
+		display_name?: string;
+		[key: string]: unknown;
+	} | string; // Allow for both object and string (JSON) formats
 }
 
 export interface DetectedTrip {

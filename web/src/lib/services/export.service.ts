@@ -2,11 +2,13 @@ import { supabase } from '$lib/core/supabase/server';
 import { JobQueueService } from './queue/job-queue.service.server';
 
 export interface ExportOptions {
-	format: 'GeoJSON' | 'GPX' | 'OwnTracks';
+	format?: string;
 	includeLocationData: boolean;
 	includeTripInfo: boolean;
 	includeWantToVisit: boolean;
 	includeTrips: boolean;
+	startDate?: string | null;
+	endDate?: string | null;
 }
 
 export interface ExportJob {
@@ -34,6 +36,18 @@ export class ExportService {
 	private static supabase = supabase;
 
 	static async createExportJob(userId: string, options: ExportOptions): Promise<ExportJob> {
+		// Check for existing queued or running export job
+		const { data: existingJobs, error: existingError } = await this.supabase
+			.from('jobs')
+			.select('id, status')
+			.eq('created_by', userId)
+			.eq('type', 'data_export')
+			.in('status', ['queued', 'running']);
+		if (existingError) throw existingError;
+		if (existingJobs && existingJobs.length > 0) {
+			throw new Error('You already have an export job in progress. Please wait for it to complete before starting a new one.');
+		}
+
 		// Set TTL to 1 week from now
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7);
@@ -55,7 +69,7 @@ export class ExportService {
 			id: job.id,
 			user_id: job.created_by,
 			status: job.status,
-			format: options.format,
+			format: options.format as string,
 			include_location_data: options.includeLocationData,
 			include_trip_info: options.includeTripInfo,
 			include_want_to_visit: options.includeWantToVisit,
@@ -87,20 +101,22 @@ export class ExportService {
 
 		if (!job) return null;
 
-		// Convert job to ExportJob format
-		const options = job.data as Record<string, unknown>;
+		const options = ((job.data as Record<string, unknown>)?.options || (job.data as Record<string, unknown>)) as Record<string, unknown>;
+		function safe<T>(key: string, fallback: T): T {
+			return options && Object.prototype.hasOwnProperty.call(options, key) ? (options[key] as T) : fallback;
+		}
 		return {
 			id: job.id,
 			user_id: job.created_by,
 			status: job.status,
-			format: options.format as string,
-			include_location_data: options.includeLocationData as boolean,
-			include_trip_info: options.includeTripInfo as boolean,
-			include_want_to_visit: options.includeWantToVisit as boolean,
-			include_trips: options.includeTrips as boolean,
-			file_path: options.file_path as string | undefined,
-			file_size: options.file_size as number | undefined,
-			expires_at: options.expires_at as string,
+			format: safe<string>('format', ''),
+			include_location_data: safe<boolean>('includeLocationData', false),
+			include_trip_info: safe<boolean>('includeTripInfo', false),
+			include_want_to_visit: safe<boolean>('includeWantToVisit', false),
+			include_trips: safe<boolean>('includeTrips', false),
+			file_path: safe<string>('file_path', '') || ((job.result as Record<string, unknown>)?.file_path as string) || '',
+			file_size: safe<number>('file_size', 0) || ((job.result as Record<string, unknown>)?.file_size as number) || 0,
+			expires_at: safe<string>('expires_at', ''),
 			progress: job.progress,
 			result: job.result,
 			error: job.error,
@@ -123,21 +139,23 @@ export class ExportService {
 
 		if (!jobs) return [];
 
-		// Convert jobs to ExportJob format
 		return jobs.map((job) => {
-			const options = job.data as Record<string, unknown>;
+			const options = ((job.data as Record<string, unknown>)?.options || (job.data as Record<string, unknown>)) as Record<string, unknown>;
+			function safe<T>(key: string, fallback: T): T {
+				return options && Object.prototype.hasOwnProperty.call(options, key) ? (options[key] as T) : fallback;
+			}
 			return {
 				id: job.id,
 				user_id: job.created_by,
 				status: job.status,
-				format: options.format as string,
-				include_location_data: options.includeLocationData as boolean,
-				include_trip_info: options.includeTripInfo as boolean,
-				include_want_to_visit: options.includeWantToVisit as boolean,
-				include_trips: options.includeTrips as boolean,
-				file_path: options.file_path as string,
-				file_size: options.file_size as number,
-				expires_at: options.expires_at as string,
+				format: safe<string>('format', ''),
+				include_location_data: safe<boolean>('includeLocationData', false),
+				include_trip_info: safe<boolean>('includeTripInfo', false),
+				include_want_to_visit: safe<boolean>('includeWantToVisit', false),
+				include_trips: safe<boolean>('includeTrips', false),
+				file_path: safe<string>('file_path', '') || ((job.result as Record<string, unknown>)?.file_path as string) || '',
+				file_size: safe<number>('file_size', 0) || ((job.result as Record<string, unknown>)?.file_size as number) || 0,
+				expires_at: safe<string>('expires_at', ''),
 				progress: job.progress,
 				result: job.result,
 				error: job.error,
@@ -183,7 +201,13 @@ export class ExportService {
 	static async getExportDownloadUrl(jobId: string, userId: string): Promise<string | null> {
 		const exportJob = await this.getExportJob(jobId, userId);
 
-		if (!exportJob || !exportJob.file_path || exportJob.status !== 'completed') {
+		if (!exportJob || exportJob.status !== 'completed') {
+			return null;
+		}
+
+		// Check for file path in job.result
+		const filePath = (exportJob.result as Record<string, unknown>)?.file_path as string;
+		if (!filePath) {
 			return null;
 		}
 
@@ -194,7 +218,7 @@ export class ExportService {
 
 		const { data } = await this.supabase.storage
 			.from('exports')
-			.createSignedUrl(exportJob.file_path, 3600); // 1 hour expiry
+			.createSignedUrl(filePath, 3600); // 1 hour expiry
 
 		return data?.signedUrl || null;
 	}

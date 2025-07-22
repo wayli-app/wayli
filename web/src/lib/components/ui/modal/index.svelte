@@ -40,19 +40,21 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		class="fixed inset-0 z-50 flex cursor-pointer items-start justify-center bg-black/40 backdrop-blur-sm transition-all p-4"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="modal-title"
+		tabindex="0"
 		on:click={handleBackdropClick}
+		on:keydown={(e) => {
+			if (e.key === 'Escape') handleBackdropClick();
+			if (e.key === 'Enter' || e.key === ' ') handleBackdropClick();
+		}}
 		transition:fade={{ duration: 200 }}
 	>
 		<div
-			class="relative mx-4 w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[
-				size
-			]} max-h-[90vh] overflow-y-auto"
+			class="relative w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto my-4"
 			role="document"
-			on:click|stopPropagation
 			transition:fade={{ duration: 200, delay: 100 }}
 		>
 			<!-- Header -->
@@ -65,8 +67,10 @@
 					{/if}
 					{#if showCloseButton}
 						<button
+							type="button"
 							class="absolute top-4 right-4 cursor-pointer p-1 text-gray-400 transition-colors hover:text-red-500"
 							on:click={closeModal}
+							on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') closeModal(); }}
 							aria-label="Close modal"
 						>
 							<X class="h-5 w-5" />

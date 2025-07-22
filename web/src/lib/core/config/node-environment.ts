@@ -1,3 +1,23 @@
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+const result = dotenv.config();
+
+if (result.error) {
+	console.warn('⚠️ [dotenv] Error loading .env file:', result.error);
+}
+
+// Merge dotenv variables with process.env, handling variable substitution
+const env = { ...process.env, ...result.parsed };
+
+// Handle variable substitution manually
+if (env.PUBLIC_SUPABASE_URL === '${SUPABASE_URL}' && env.SUPABASE_URL) {
+	env.PUBLIC_SUPABASE_URL = env.SUPABASE_URL;
+}
+if (env.PUBLIC_SUPABASE_ANON_KEY === '${SUPABASE_ANON_KEY}' && env.SUPABASE_ANON_KEY) {
+	env.PUBLIC_SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
+}
+
 export interface NodeEnvironmentConfig {
 	// Supabase Configuration
 	supabase: {
@@ -22,100 +42,194 @@ export interface NodeEnvironmentConfig {
 	};
 
 	pexels: {
-		accessKey: string;
+		apiKey: string;
 	};
 
 	// Application Configuration
 	app: {
 		nodeEnv: string;
-		isDevelopment: boolean;
-		isProduction: boolean;
+		port: number;
+		host: string;
+		logLevel: string;
+		corsOrigin: string;
+		rateLimitWindow: number;
+		rateLimitMax: number;
+	};
+
+	// Database Configuration
+	database: {
+		url: string;
+		poolSize: number;
+		ssl: boolean;
+	};
+
+	// Security Configuration
+	security: {
+		jwtSecret: string;
+		sessionSecret: string;
+		cookieSecret: string;
+		bcryptRounds: number;
+	};
+
+	// Cache Configuration
+	cache: {
+		redisUrl: string;
+		ttl: number;
+		maxSize: number;
+	};
+
+	// File Upload Configuration
+	uploads: {
+		maxSize: number;
+		allowedTypes: string[];
+		storagePath: string;
+	};
+
+	// Email Configuration
+	email: {
+		provider: string;
+		apiKey: string;
+		fromAddress: string;
+		templatePath: string;
+	};
+
+	// Monitoring Configuration
+	monitoring: {
+		enabled: boolean;
+		endpoint: string;
+		apiKey: string;
 	};
 }
 
-export function validateNodeEnvironmentConfig(): NodeEnvironmentConfig {
+/**
+ * Validates the Node.js environment configuration
+ * @param config - The configuration object to validate
+ * @returns The validated configuration
+ */
+export function validateNodeEnvironmentConfig(config: NodeEnvironmentConfig): NodeEnvironmentConfig {
+	const isDev = config.app.nodeEnv === 'development';
 	const errors: string[] = [];
 
 	// Validate Supabase configuration
-	const supabaseUrl = process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
-	if (!supabaseUrl.startsWith('http')) {
-		errors.push('PUBLIC_SUPABASE_URL must be a valid URL starting with http:// or https://');
+	if (!config.supabase.url) {
+		errors.push('SUPABASE_URL is required');
+	}
+	if (!config.supabase.anonKey) {
+		errors.push('SUPABASE_ANON_KEY is required');
+	}
+	if (!config.supabase.serviceRoleKey) {
+		errors.push('SUPABASE_SERVICE_ROLE_KEY is required');
 	}
 
-	const supabaseAnonKey =
-		process.env.PUBLIC_SUPABASE_ANON_KEY ||
-		'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-	if (supabaseAnonKey.length < 20) {
-		errors.push('PUBLIC_SUPABASE_ANON_KEY appears to be invalid (too short)');
+	// Validate application configuration
+	if (!config.app.nodeEnv) {
+		errors.push('NODE_ENV is required');
 	}
 
-	const supabaseServiceRoleKey =
-		process.env.SUPABASE_SERVICE_ROLE_KEY ||
-		'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
-	if (supabaseServiceRoleKey.length < 20) {
-		errors.push('SUPABASE_SERVICE_ROLE_KEY appears to be invalid (too short)');
+	// Validate security configuration (more lenient in development)
+	if (!config.security.jwtSecret) {
+		errors.push('JWT_SECRET is required');
+	}
+	if (!config.security.sessionSecret && !isDev) {
+		errors.push('SESSION_SECRET is required');
+	}
+	if (!config.security.cookieSecret && !isDev) {
+		errors.push('COOKIE_SECRET is required');
 	}
 
-	// Validate worker configuration
-	const maxWorkers = parseInt(process.env.MAX_WORKERS || '2');
-	if (isNaN(maxWorkers) || maxWorkers < 1 || maxWorkers > 10) {
-		errors.push('MAX_WORKERS must be a number between 1 and 10');
-	}
-
-	const pollInterval = parseInt(process.env.WORKER_POLL_INTERVAL || '5000');
-	if (isNaN(pollInterval) || pollInterval < 1000 || pollInterval > 30000) {
-		errors.push('WORKER_POLL_INTERVAL must be a number between 1000 and 30000');
-	}
-
-	const jobTimeout = parseInt(process.env.JOB_TIMEOUT || '300000');
-	if (isNaN(jobTimeout) || jobTimeout < 60000 || jobTimeout > 3600000) {
-		errors.push('JOB_TIMEOUT must be a number between 60000 and 3600000');
-	}
-
-	const retryAttempts = parseInt(process.env.RETRY_ATTEMPTS || '3');
-	if (isNaN(retryAttempts) || retryAttempts < 0 || retryAttempts > 10) {
-		errors.push('RETRY_ATTEMPTS must be a number between 0 and 10');
-	}
-
-	const retryDelay = parseInt(process.env.RETRY_DELAY || '60000');
-	if (isNaN(retryDelay) || retryDelay < 1000 || retryDelay > 300000) {
-		errors.push('RETRY_DELAY must be a number between 1000 and 300000');
-	}
-
-	// Validate Nominatim configuration
-	const nominatimEndpoint = process.env.NOMINATIM_ENDPOINT || 'https://nominatim.int.hazen.nu';
-	if (!nominatimEndpoint.startsWith('http')) {
-		errors.push('NOMINATIM_ENDPOINT must be a valid URL starting with http:// or https://');
-	}
-
-	const nominatimRateLimit = parseFloat(process.env.NOMINATIM_RATE_LIMIT || '1');
-	if (isNaN(nominatimRateLimit) || nominatimRateLimit < 0.1 || nominatimRateLimit > 10) {
-		errors.push('NOMINATIM_RATE_LIMIT must be a number between 0.1 and 10');
-	}
-
-	// Note: Pexels access key is optional, so we don't validate it
-	const pexelsAccessKey = process.env.PEXELS_ACCESS_KEY || '';
-
-	// Report all errors
+	// Report errors
 	if (errors.length > 0) {
-		console.error('Node environment configuration errors:');
-		errors.forEach((error) => console.error(`- ${error}`));
-
-		// In development, don't throw errors, just log warnings
-		if (process.env.NODE_ENV === 'development') {
-			console.warn(
-				'⚠️  Running in development mode with default values. Some features may not work correctly.'
-			);
+		if (isDev) {
+			console.warn('⚠️  Development mode - some environment variables are missing:', errors);
 		} else {
-			throw new Error(`Node environment configuration errors: ${errors.join(', ')}`);
+			throw new Error(`Configuration errors: ${errors.join(', ')}`);
 		}
 	}
 
-	return {
+	return config;
+}
+
+/**
+ * Gets the Node.js environment configuration
+ * @returns The Node.js environment configuration
+ */
+export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
+	// Use the merged environment variables
+	const mergedEnv = { ...process.env, ...result.parsed };
+
+	// Handle variable substitution manually
+	if (mergedEnv.PUBLIC_SUPABASE_URL === '${SUPABASE_URL}' && mergedEnv.SUPABASE_URL) {
+		mergedEnv.PUBLIC_SUPABASE_URL = mergedEnv.SUPABASE_URL;
+	}
+	if (mergedEnv.PUBLIC_SUPABASE_ANON_KEY === '${SUPABASE_ANON_KEY}' && mergedEnv.SUPABASE_ANON_KEY) {
+		mergedEnv.PUBLIC_SUPABASE_ANON_KEY = mergedEnv.SUPABASE_ANON_KEY;
+	}
+
+	// Supabase Configuration
+	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';
+	const supabaseAnonKey = mergedEnv.SUPABASE_ANON_KEY || mergedEnv.PUBLIC_SUPABASE_ANON_KEY || '';
+	const supabaseServiceRoleKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || '';
+
+	// Worker Configuration
+	const maxWorkers = parseInt(mergedEnv.MAX_WORKERS || '2', 10);
+	const pollInterval = parseInt(mergedEnv.WORKER_POLL_INTERVAL || '5000', 10);
+	const jobTimeout = parseInt(mergedEnv.JOB_TIMEOUT || '300000', 10);
+	const retryAttempts = parseInt(mergedEnv.RETRY_ATTEMPTS || '3', 10);
+	const retryDelay = parseInt(mergedEnv.RETRY_DELAY || '1000', 10);
+
+	// External Services
+	const nominatimEndpoint = mergedEnv.NOMINATIM_ENDPOINT || 'https://nominatim.openstreetmap.org';
+	const nominatimRateLimit = parseInt(mergedEnv.NOMINATIM_RATE_LIMIT || '1000', 10);
+
+	// Pexels API Key
+	const pexelsApiKey = mergedEnv.PEXELS_API_KEY || '';
+
+	// Application Configuration
+	const nodeEnv = mergedEnv.NODE_ENV || 'development';
+	const port = parseInt(mergedEnv.PORT || '3000', 10);
+	const host = mergedEnv.HOST || 'localhost';
+	const logLevel = mergedEnv.LOG_LEVEL || 'info';
+	const corsOrigin = mergedEnv.CORS_ORIGIN || '*';
+	const rateLimitWindow = parseInt(mergedEnv.RATE_LIMIT_WINDOW || '900000', 10);
+	const rateLimitMax = parseInt(mergedEnv.RATE_LIMIT_MAX || '100', 10);
+
+	// Database Configuration
+	const databaseUrl = mergedEnv.DATABASE_URL || '';
+	const poolSize = parseInt(mergedEnv.DB_POOL_SIZE || '10', 10);
+	const ssl = mergedEnv.DB_SSL === 'true';
+
+	// Security Configuration
+	const jwtSecret = mergedEnv.JWT_SECRET || '';
+	const sessionSecret = mergedEnv.SESSION_SECRET || (nodeEnv === 'development' ? 'dev-session-secret' : '');
+	const cookieSecret = mergedEnv.COOKIE_SECRET || (nodeEnv === 'development' ? 'dev-cookie-secret' : '');
+	const bcryptRounds = parseInt(mergedEnv.BCRYPT_ROUNDS || '12', 10);
+
+	// Cache Configuration
+	const redisUrl = mergedEnv.REDIS_URL || '';
+	const cacheTtl = parseInt(mergedEnv.CACHE_TTL || '3600', 10);
+	const cacheMaxSize = parseInt(mergedEnv.CACHE_MAX_SIZE || '1000', 10);
+
+	// File Upload Configuration
+	const uploadMaxSize = parseInt(mergedEnv.UPLOAD_MAX_SIZE || '5242880', 10);
+	const uploadAllowedTypes = mergedEnv.UPLOAD_ALLOWED_TYPES?.split(',') || ['image/jpeg', 'image/png'];
+	const uploadStoragePath = mergedEnv.UPLOAD_STORAGE_PATH || './uploads';
+
+	// Email Configuration
+	const emailProvider = mergedEnv.EMAIL_PROVIDER || 'sendgrid';
+	const emailApiKey = mergedEnv.EMAIL_API_KEY || '';
+	const emailFromAddress = mergedEnv.EMAIL_FROM_ADDRESS || '';
+	const emailTemplatePath = mergedEnv.EMAIL_TEMPLATE_PATH || './templates';
+
+	// Monitoring Configuration
+	const monitoringEnabled = mergedEnv.MONITORING_ENABLED === 'true';
+	const monitoringEndpoint = mergedEnv.MONITORING_ENDPOINT || '';
+	const monitoringApiKey = mergedEnv.MONITORING_API_KEY || '';
+
+	const config: NodeEnvironmentConfig = {
 		supabase: {
-			url: supabaseUrl!,
-			anonKey: supabaseAnonKey!,
-			serviceRoleKey: supabaseServiceRoleKey!
+			url: supabaseUrl,
+			anonKey: supabaseAnonKey,
+			serviceRoleKey: supabaseServiceRoleKey
 		},
 		workers: {
 			maxWorkers,
@@ -129,40 +243,105 @@ export function validateNodeEnvironmentConfig(): NodeEnvironmentConfig {
 			rateLimit: nominatimRateLimit
 		},
 		pexels: {
-			accessKey: pexelsAccessKey
+			apiKey: pexelsApiKey
 		},
 		app: {
-			nodeEnv: process.env.NODE_ENV || 'development',
-			isDevelopment: (process.env.NODE_ENV || 'development') === 'development',
-			isProduction: (process.env.NODE_ENV || 'development') === 'production'
+			nodeEnv,
+			port,
+			host,
+			logLevel,
+			corsOrigin,
+			rateLimitWindow,
+			rateLimitMax
+		},
+		database: {
+			url: databaseUrl,
+			poolSize,
+			ssl
+		},
+		security: {
+			jwtSecret,
+			sessionSecret,
+			cookieSecret,
+			bcryptRounds
+		},
+		cache: {
+			redisUrl,
+			ttl: cacheTtl,
+			maxSize: cacheMaxSize
+		},
+		uploads: {
+			maxSize: uploadMaxSize,
+			allowedTypes: uploadAllowedTypes,
+			storagePath: uploadStoragePath
+		},
+		email: {
+			provider: emailProvider,
+			apiKey: emailApiKey,
+			fromAddress: emailFromAddress,
+			templatePath: emailTemplatePath
+		},
+		monitoring: {
+			enabled: monitoringEnabled,
+			endpoint: monitoringEndpoint,
+			apiKey: monitoringApiKey
 		}
 	};
+
+	return validateNodeEnvironmentConfig(config);
 }
 
-// Export a singleton instance
-export const nodeEnv = validateNodeEnvironmentConfig();
-
-// Helper functions for common environment checks
-export function isDevelopment(): boolean {
-	return nodeEnv.app.isDevelopment;
-}
-
-export function isProduction(): boolean {
-	return nodeEnv.app.isProduction;
-}
-
+/**
+ * Gets the Supabase configuration
+ * @returns The Supabase configuration
+ */
 export function getSupabaseConfig() {
-	return nodeEnv.supabase;
+	return getNodeEnvironmentConfig().supabase;
 }
 
+/**
+ * Gets the worker configuration
+ * @returns The worker configuration
+ */
 export function getWorkerConfig() {
-	return nodeEnv.workers;
+	return getNodeEnvironmentConfig().workers;
 }
 
+/**
+ * Gets the Nominatim configuration
+ * @returns The Nominatim configuration
+ */
 export function getNominatimConfig() {
-	return nodeEnv.nominatim;
+	return getNodeEnvironmentConfig().nominatim;
 }
 
+/**
+ * Checks if the application is running in development mode
+ * @returns True if in development mode
+ */
+export function isDevelopment(): boolean {
+	return getNodeEnvironmentConfig().app.nodeEnv === 'development';
+}
+
+/**
+ * Checks if the application is running in production mode
+ * @returns True if in production mode
+ */
+export function isProduction(): boolean {
+	return getNodeEnvironmentConfig().app.nodeEnv === 'production';
+}
+
+/**
+ * Gets the Pexels configuration for the Node.js environment
+ * @returns The Pexels configuration
+ */
 export function getPexelsConfig() {
-	return nodeEnv.pexels;
+	const mergedEnv = { ...process.env, ...result.parsed };
+	const pexelsApiKey = mergedEnv.PEXELS_API_KEY || '';
+
+	return {
+		apiKey: pexelsApiKey || 'NOT SET',
+		apiKeyLength: pexelsApiKey.length,
+		serverPexelsApiKeyAvailable: pexelsApiKey.length > 0
+	};
 }

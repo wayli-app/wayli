@@ -9,7 +9,6 @@
 	import { serviceAdapter } from '$lib/services/service-layer-adapter';
 
 	onMount(async () => {
-		console.log('🌐 [ROOT] Layout mounted');
 		// Initialize theme
 		initializeTheme();
 		// Suppress deprecation warnings from third-party libraries
@@ -18,30 +17,18 @@
 		// Initialize client-side service layer
 		try {
 			await serviceAdapter.initialize();
-			console.log('🌐 [ROOT] Client service layer initialized');
 		} catch (error) {
-			console.error('🌐 [ROOT] Failed to initialize client service layer:', error);
+			console.error('❌ [ROOT] Failed to initialize client service layer:', error);
 		}
 	});
 
-	// Track page changes using modern navigation lifecycle
+	// Track page changes using modern navigation lifecycle (without debug logging)
 	beforeNavigate(({ from, to }) => {
-		if (from && to) {
-			console.log('🌐 [ROOT] Page navigation:', {
-				from: from.url.pathname,
-				to: to.url.pathname,
-				searchParams: to.url.searchParams.toString()
-			});
-		}
+		// Navigation started
 	});
 
 	afterNavigate(({ from, to }) => {
-		if (from && to) {
-			console.log('🌐 [ROOT] Navigation completed:', {
-				from: from.url.pathname,
-				to: to.url.pathname
-			});
-		}
+		// Navigation completed
 	});
 </script>
 

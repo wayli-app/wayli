@@ -1002,6 +1002,16 @@ export class JobProcessorService {
 			console.log(
 				`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`
 			);
+
+			// Automatically start reverse geocoding job for newly imported data
+			try {
+				console.log('🔄 Starting automatic reverse geocoding job for imported data...');
+				await JobQueueService.createJob('reverse_geocoding_missing', {}, 'normal', userId);
+				console.log('✅ Reverse geocoding job created successfully');
+			} catch (geocodeJobError) {
+				console.error('❌ Failed to create reverse geocoding job:', geocodeJobError);
+				// Don't fail the import job if geocoding job creation fails
+			}
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {

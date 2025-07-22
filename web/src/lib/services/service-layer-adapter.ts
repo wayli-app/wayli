@@ -52,9 +52,7 @@ export class ServiceLayerAdapter {
 			this.registerClientSafeServices();
 
 			this.initialized = true;
-			logger.info('Service layer adapter initialized (client-safe services only)');
 		} catch (error) {
-			logger.error('Failed to initialize service layer adapter', { error });
 			throw error;
 		}
 	}
@@ -72,11 +70,6 @@ export class ServiceLayerAdapter {
 		this.services.set('trips', new TripsService());
 		this.services.set('statistics', new StatisticsService());
 		this.services.set('wantToVisit', new WantToVisitService());
-
-		logger.info('Client-safe services registered', {
-			serviceCount: this.services.size,
-			services: Array.from(this.services.keys())
-		});
 	}
 
 	/**
@@ -160,7 +153,8 @@ export function getLogger() {
 /**
  * Get the trips service
  */
-export function getTripsService() {
+export async function getTripsService() {
+	await serviceAdapter.initialize();
 	return serviceAdapter.getService<TripsService>('trips');
 }
 

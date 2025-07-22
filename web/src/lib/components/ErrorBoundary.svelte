@@ -5,7 +5,7 @@
 	import { loggingService } from '$lib/services/logging.service';
 	import { createEventDispatcher } from 'svelte';
 
-	export let fallback: any = undefined;
+	export const fallback = undefined;
 	export let showDetails = false;
 	export let errorMessage = 'Something went wrong';
 	export let autoRetry = false;

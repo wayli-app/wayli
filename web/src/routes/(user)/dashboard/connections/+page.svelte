@@ -62,13 +62,13 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<Link class="h-8 w-8 text-blue-600 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-				Integrations
-			</h1>
+					<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+			Connections
+		</h1>
 		</div>
 	</div>
 
-	<!-- Integrations -->
+	<!-- Connections -->
 	<div class="space-y-6">
 		<!-- OwnTracks Integration -->
 		<div

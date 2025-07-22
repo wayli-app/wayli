@@ -35,10 +35,14 @@
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
 		on:click={closeModal}
-		on:keydown={(e) => e.key === 'Escape' && closeModal()}
-		role="dialog"
-		aria-modal="true"
-		aria-labelledby="user-edit-modal-title"
+		on:keydown={(e) => {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+				closeModal();
+			}
+		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal"
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
@@ -135,8 +139,7 @@
 				</div>
 
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label
-					>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
 					<RoleSelector bind:role />
 				</div>
 			</div>

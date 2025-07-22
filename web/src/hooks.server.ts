@@ -9,9 +9,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	try {
 		await serviceAdapter.initialize();
 		await serverServiceAdapter.initialize();
-		console.log('[Hooks] Service layer initialized');
+		// Service layer initialization is already logged by the service layer itself
 	} catch (error) {
-		console.error('[Hooks] Failed to initialize service layer:', error);
+		console.error('❌ [Hooks] Failed to initialize service layer:', error);
 	}
 
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
@@ -43,12 +43,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			} = await event.locals.supabase.auth.getSession();
 
 			if (sessionError) {
-				console.error('[Hooks] Error getting session:', sessionError);
+				console.error('❌ [Hooks] Error getting session:', sessionError);
 				return null;
 			}
 
 			if (!session) {
-				console.log('[Hooks] No session found');
 				return null;
 			}
 
@@ -59,12 +58,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			} = await event.locals.supabase.auth.getUser();
 
 			if (userError) {
-				console.error('[Hooks] Error getting user:', userError);
+				console.error('❌ [Hooks] Error getting user:', userError);
 				return null;
 			}
 
 			if (!user) {
-				console.log('[Hooks] No user found after verification');
 				return null;
 			}
 
@@ -78,7 +76,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				expires_at: session.expires_at
 			};
 		} catch (error) {
-			console.error('[Hooks] Unexpected error in getSession:', error);
+			console.error('❌ [Hooks] Unexpected error in getSession:', error);
 			return null;
 		}
 	};

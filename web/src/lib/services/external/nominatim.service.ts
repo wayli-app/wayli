@@ -1,4 +1,4 @@
-import { getNominatimConfig } from '$lib/core/config/node-environment';
+import { getNominatimConfig } from '$lib/core/config/environment';
 
 const config = getNominatimConfig();
 const MIN_INTERVAL = 1000 / config.rateLimit;

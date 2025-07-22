@@ -166,10 +166,11 @@
 
 		<!-- Start Date -->
 		<div>
-			<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			<label for="start-date" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 				>Start Date (optional)</label
 			>
 			<input
+				id="start-date"
 				type="date"
 				bind:value={startDate}
 				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -181,10 +182,11 @@
 
 		<!-- End Date -->
 		<div>
-			<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			<label for="end-date" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 				>End Date (optional)</label
 			>
 			<input
+				id="end-date"
 				type="date"
 				bind:value={endDate}
 				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -197,8 +199,8 @@
 		<!-- Custom Home Address Toggle -->
 		<div class="flex items-center gap-3">
 			<input
-				type="checkbox"
 				id="useCustomHomeAddress"
+				type="checkbox"
 				bind:checked={useCustomHomeAddress}
 				on:change={handleCustomHomeAddressToggle}
 				class="h-4 w-4 rounded border-gray-300 bg-gray-100 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
@@ -214,10 +216,11 @@
 		<!-- Custom Home Address Input -->
 		{#if useCustomHomeAddress}
 			<div class="relative">
-				<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				<label for="custom-home-address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 					>Custom Home Address</label
 				>
 				<input
+					id="custom-home-address"
 					type="text"
 					bind:value={customHomeAddressInput}
 					on:input={handleCustomHomeAddressInput}

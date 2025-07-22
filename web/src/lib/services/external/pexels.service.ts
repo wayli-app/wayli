@@ -1,5 +1,7 @@
 import { getPexelsConfig } from '$lib/core/config/node-environment';
-import { createWorkerClient } from '$lib/core/supabase/worker-client';
+import { createClient } from '@supabase/supabase-js';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
 /**
  * Pexels Image Service
@@ -39,6 +41,16 @@ export interface PexelsSearchResponse {
 	next_page?: string;
 }
 
+export interface TripImageResult {
+	imageUrl: string;
+	attribution?: {
+		source: 'pexels' | 'picsum' | 'placeholder';
+		photographer?: string;
+		photographerUrl?: string;
+		pexelsUrl?: string;
+	};
+}
+
 /**
  * Search for images on Pexels
  */
@@ -49,10 +61,11 @@ export async function searchPexelsImages(
 	userApiKey?: string
 ): Promise<PexelsSearchResponse | null> {
 	try {
-		// Use user's API key if provided, otherwise fall back to environment variable
-		const apiKey = userApiKey || getPexelsConfig().accessKey;
+		// Prioritize server-set API key, fall back to user's API key if server key is not available
+		const serverApiKey = getPexelsConfig().apiKey;
+		const apiKey = serverApiKey || userApiKey;
 		if (!apiKey) {
-			console.warn('Pexels access key not configured');
+			console.warn('⚠️ Pexels API key not configured (neither server nor user key available)');
 			return null;
 		}
 
@@ -70,14 +83,14 @@ export async function searchPexelsImages(
 		});
 
 		if (!response.ok) {
-			console.error('Pexels API error:', response.status, response.statusText);
+			console.error('❌ Pexels API error:', response.status, response.statusText);
 			return null;
 		}
 
 		const data = await response.json();
 		return data;
 	} catch (error) {
-		console.error('Error searching Pexels images:', error);
+		console.error('❌ Error searching Pexels images:', error);
 		return null;
 	}
 }
@@ -91,7 +104,8 @@ export async function downloadAndUploadImage(
 	bucketName: string = 'trip-images'
 ): Promise<string | null> {
 	try {
-		const supabase = createWorkerClient();
+		// Create server-side Supabase client with service role key
+		const supabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 		// Download the image with timeout
 		const controller = new AbortController();
@@ -107,7 +121,7 @@ export async function downloadAndUploadImage(
 		clearTimeout(timeoutId);
 
 		if (!response.ok) {
-			console.error('Failed to download image:', response.status, response.statusText);
+			console.error('❌ Failed to download image:', response.status, response.statusText);
 			return null;
 		}
 
@@ -115,7 +129,7 @@ export async function downloadAndUploadImage(
 
 		// Check if we actually got an image (not an error page)
 		if (imageBuffer.byteLength < 1000) {
-			console.error('Downloaded file is too small, likely not an image');
+			console.error('❌ Downloaded file is too small, likely not an image');
 			return null;
 		}
 
@@ -141,7 +155,7 @@ export async function downloadAndUploadImage(
 		});
 
 		if (error) {
-			console.error('Failed to upload image to Supabase Storage:', error);
+			console.error('❌ Failed to upload image to Supabase Storage:', error);
 			return null;
 		}
 
@@ -151,9 +165,9 @@ export async function downloadAndUploadImage(
 		return urlData.publicUrl;
 	} catch (error) {
 		if (error instanceof Error && error.name === 'AbortError') {
-			console.error('Image download timed out');
+			console.error('❌ Image download timed out');
 		} else {
-			console.error('Error downloading and uploading image:', error);
+			console.error('❌ Error downloading and uploading image:', error);
 		}
 		return null;
 	}
@@ -166,70 +180,167 @@ export async function getTripBannerImage(
 	cityName: string,
 	userApiKey?: string
 ): Promise<string | null> {
-	const imageSources: Array<(() => Promise<string | null>) | (() => string)> = [
+	const result = await getTripBannerImageWithAttribution(cityName, userApiKey);
+	return result?.imageUrl || null;
+}
+
+/**
+ * Get a random image for a specific location/city with attribution information
+ */
+export async function getTripBannerImageWithAttribution(
+	cityName: string,
+	userApiKey?: string
+): Promise<TripImageResult | null> {
+	const imageSources: Array<{
+		getter: () => Promise<string | null>;
+		source: 'pexels' | 'picsum' | 'placeholder';
+		getAttribution?: () => Promise<{
+			photographer: string;
+			photographerUrl: string;
+			pexelsUrl: string;
+		} | null>;
+	}> = [
 		// Primary: Pexels API search
-		async () => {
-			const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 1, userApiKey);
-			if (searchResult && searchResult.photos.length > 0) {
-				return searchResult.photos[0].src.large;
+		{
+			getter: async () => {
+				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					return searchResult.photos[0].src.large;
+				}
+				return null;
+			},
+			source: 'pexels',
+			getAttribution: async () => {
+				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					const photo = searchResult.photos[0];
+					return {
+						photographer: photo.photographer,
+						photographerUrl: photo.photographer_url,
+						pexelsUrl: photo.url
+					};
+				}
+				return null;
 			}
-			return null;
 		},
 		// Fallback 1: Generic city landscape
-		async () => {
-			const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 1, userApiKey);
-			if (searchResult && searchResult.photos.length > 0) {
-				return searchResult.photos[0].src.large;
+		{
+			getter: async () => {
+				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					return searchResult.photos[0].src.large;
+				}
+				return null;
+			},
+			source: 'pexels',
+			getAttribution: async () => {
+				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					const photo = searchResult.photos[0];
+					return {
+						photographer: photo.photographer,
+						photographerUrl: photo.photographer_url,
+						pexelsUrl: photo.url
+					};
+				}
+				return null;
 			}
-			return null;
 		},
 		// Fallback 2: Country-based search
-		async () => {
-			const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 1, userApiKey);
-			if (searchResult && searchResult.photos.length > 0) {
-				return searchResult.photos[0].src.large;
+		{
+			getter: async () => {
+				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					return searchResult.photos[0].src.large;
+				}
+				return null;
+			},
+			source: 'pexels',
+			getAttribution: async () => {
+				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					const photo = searchResult.photos[0];
+					return {
+						photographer: photo.photographer,
+						photographerUrl: photo.photographer_url,
+						pexelsUrl: photo.url
+					};
+				}
+				return null;
 			}
-			return null;
 		},
 		// Fallback 3: Generic travel image
-		async () => {
-			const searchResult = await searchPexelsImages('travel landscape', 1, 1, userApiKey);
-			if (searchResult && searchResult.photos.length > 0) {
-				return searchResult.photos[0].src.large;
+		{
+			getter: async () => {
+				const searchResult = await searchPexelsImages('travel landscape', 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					return searchResult.photos[0].src.large;
+				}
+				return null;
+			},
+			source: 'pexels',
+			getAttribution: async () => {
+				const searchResult = await searchPexelsImages('travel landscape', 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					const photo = searchResult.photos[0];
+					return {
+						photographer: photo.photographer,
+						photographerUrl: photo.photographer_url,
+						pexelsUrl: photo.url
+					};
+				}
+				return null;
 			}
-			return null;
 		},
 		// Fallback 4: Generic city image
-		async () => {
-			const searchResult = await searchPexelsImages('city landscape', 1, 1, userApiKey);
-			if (searchResult && searchResult.photos.length > 0) {
-				return searchResult.photos[0].src.large;
+		{
+			getter: async () => {
+				const searchResult = await searchPexelsImages('city landscape', 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					return searchResult.photos[0].src.large;
+				}
+				return null;
+			},
+			source: 'pexels',
+			getAttribution: async () => {
+				const searchResult = await searchPexelsImages('city landscape', 1, 1, userApiKey);
+				if (searchResult && searchResult.photos.length > 0) {
+					const photo = searchResult.photos[0];
+					return {
+						photographer: photo.photographer,
+						photographerUrl: photo.photographer_url,
+						pexelsUrl: photo.url
+					};
+				}
+				return null;
 			}
-			return null;
 		},
 		// Fallback 5: Picsum with proper MIME type
-		() => `https://picsum.photos/800/400.jpg?random=${Date.now()}`,
+		{
+			getter: () => Promise.resolve(`https://picsum.photos/800/400.jpg?random=${Date.now()}`),
+			source: 'picsum'
+		},
 		// Fallback 6: Alternative placeholder service
-		() => `https://placehold.co/800x400/3b82f6/ffffff?text=${encodeURIComponent(cityName)}`,
+		{
+			getter: () => Promise.resolve(`https://placehold.co/800x400/3b82f6/ffffff?text=${encodeURIComponent(cityName)}`),
+			source: 'placeholder'
+		},
 		// Fallback 7: Another placeholder service
-		() => `https://dummyimage.com/800x400/3b82f6/ffffff&text=${encodeURIComponent(cityName)}`
+		{
+			getter: () => Promise.resolve(`https://dummyimage.com/800x400/3b82f6/ffffff&text=${encodeURIComponent(cityName)}`),
+			source: 'placeholder'
+		}
 	];
 
 	for (let i = 0; i < imageSources.length; i++) {
 		try {
-			console.log(`Trying image source ${i + 1}/${imageSources.length}`);
+			console.log(`🖼️ Trying image source ${i + 1}/${imageSources.length}`);
 
-			let imageUrl: string | null;
 			const source = imageSources[i];
-			if (typeof source === 'function') {
-				const result = await source();
-				imageUrl = result;
-			} else {
-				imageUrl = source as string;
-			}
+			const imageUrl = await source.getter();
 
 			if (!imageUrl) {
-				console.log(`Source ${i + 1} returned no image URL`);
+				console.log(`🖼️ Source ${i + 1} returned no image URL`);
 				continue;
 			}
 
@@ -237,11 +348,30 @@ export async function getTripBannerImage(
 
 			const result = await downloadAndUploadImage(imageUrl, fileName);
 			if (result) {
-				console.log(`Successfully got image from source ${i + 1}`);
-				return result;
+				console.log(`✅ Successfully got image from source ${i + 1}`);
+
+				// Get attribution if available
+				let attribution = null;
+				if (source.getAttribution) {
+					try {
+						attribution = await source.getAttribution();
+					} catch (error) {
+						console.warn('⚠️ Failed to get attribution:', error);
+					}
+				}
+
+				return {
+					imageUrl: result,
+					attribution: attribution ? {
+						source: source.source,
+						...attribution
+					} : {
+						source: source.source
+					}
+				};
 			}
 		} catch (error) {
-			console.error(`Failed to get image from source ${i + 1}:`, error);
+			console.error(`❌ Failed to get image from source ${i + 1}:`, error);
 			// Continue to next source
 		}
 
@@ -251,7 +381,7 @@ export async function getTripBannerImage(
 		}
 	}
 
-	console.log('All image sources failed');
+	console.log('❌ All image sources failed');
 	return null;
 }
 
@@ -274,7 +404,7 @@ export async function getMultipleTripBannerImages(
 			// Add a small delay between requests
 			await new Promise((resolve) => setTimeout(resolve, 200));
 		} catch (error) {
-			console.error(`Error getting image for ${city}:`, error);
+			console.error(`❌ Error getting image for ${city}:`, error);
 		}
 	}
 

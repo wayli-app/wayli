@@ -48,6 +48,7 @@
 
 	let timezoneInput = 'UTC+00:00 (London, Dublin)';
 	let pexelsApiKeyInput = '';
+	let serverPexelsApiKeyAvailable = false;
 	let error: string | null = null;
 	let homeAddressInput = '';
 	let homeAddressInputElement: HTMLInputElement | undefined;
@@ -313,69 +314,60 @@
 		}
 	}
 
-	async function loadUserData() {
+	async function checkPexelsApiKey() {
 		try {
-			error = null;
-
-			// Get user data from our server API
-			const response = await fetch('/api/v1/auth/profile', {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to get user data');
-			}
-
+			const response = await fetch('/api/v1/auth/preferences');
 			const result = await response.json();
 
-			if (!result.success) {
-				throw new Error(result.error?.message || 'Failed to load user data');
-			}
-
-			console.log('User data loaded from API:', result);
-
-			// Set profile and preferences from API response
-			profile = result.data.profile;
-			preferences = result.data.preferences;
-			twoFactorEnabled = result.data.two_factor_enabled;
-
-			console.log('Profile data loaded:', profile);
-			console.log('Preferences data loaded:', preferences);
-
-			// Initialize input fields with loaded data
-			if (profile) {
-				firstNameInput = profile.first_name || '';
-				lastNameInput = profile.last_name || '';
-
-				// Initialize home address if it exists
-				if (profile.home_address) {
-					if (typeof profile.home_address === 'string') {
-						homeAddressInput = profile.home_address;
-					} else if (
-						typeof profile.home_address === 'object' &&
-						profile.home_address.display_name
-					) {
-						homeAddressInput = profile.home_address.display_name;
-						selectedHomeAddress = profile.home_address;
-					}
-				}
-			}
-			if (preferences) {
-				preferredLanguageInput = preferences.language || 'en';
-				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
-				pexelsApiKeyInput = preferences.pexels_api_key || '';
+			if (result.success && result.data?.server_pexels_api_key_available) {
+				serverPexelsApiKeyAvailable = true;
 			}
 		} catch (error) {
-			console.error('Error loading user data:', error);
-			error = error instanceof Error ? error.message : 'Failed to load user data';
-			toast.error('Failed to load user data');
+			console.error('❌ [AccountSettings] Error checking Pexels API key:', error);
+		}
+	}
+
+	async function loadUserData() {
+		try {
+			const response = await fetch('/api/v1/auth/profile');
+			const result = await response.json();
+
+			if (result.success && result.data) {
+				profile = result.data.profile;
+				preferences = result.data.preferences;
+				twoFactorEnabled = result.data.two_factor_enabled;
+
+				// Initialize input fields with loaded data
+				if (profile) {
+					firstNameInput = profile.first_name || '';
+					lastNameInput = profile.last_name || '';
+
+					// Initialize home address if it exists
+					if (profile.home_address) {
+						if (typeof profile.home_address === 'string') {
+							homeAddressInput = profile.home_address;
+						} else if (
+							typeof profile.home_address === 'object' &&
+							profile.home_address.display_name
+						) {
+							homeAddressInput = profile.home_address.display_name;
+							selectedHomeAddress = profile.home_address;
+						}
+					}
+				}
+				if (preferences) {
+					preferredLanguageInput = preferences.language || 'en';
+					timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
+					pexelsApiKeyInput = preferences.pexels_api_key || '';
+				}
+			}
+		} catch (error) {
+			console.error('❌ [AccountSettings] Error loading user data:', error);
 		}
 	}
 
 	onMount(async () => {
+		await checkPexelsApiKey();
 		await loadUserData();
 		await loadTripExclusions();
 	});
@@ -398,7 +390,7 @@
 				tripExclusions = result.data.exclusions || [];
 			}
 		} catch (error) {
-			console.error('Error loading trip exclusions:', error);
+			console.error('❌ [AccountSettings] Error loading trip exclusions:', error);
 		}
 	}
 
@@ -992,6 +984,13 @@
 		showEditExclusionAddressSuggestions = false;
 		selectedEditExclusionAddressIndex = -1;
 	}
+
+	function handleModalKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			showAddExclusionModal = false;
+			showEditExclusionModal = false;
+		}
+	}
 </script>
 
 <div>
@@ -1338,50 +1337,52 @@
 				</div>
 			</div>
 
-			<!-- Pexels API Key Section -->
-			<div
-				class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
-			>
-				<div class="flex items-start gap-3">
-					<Info class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-					<div class="flex-1">
-						<h3 class="mb-1 text-sm font-medium text-blue-900 dark:text-blue-100">
-							Trip Image Suggestions
-						</h3>
-						<p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
-							Configure a Pexels API key to enable automatic trip image suggestions based on your
-							travel destinations.
-							<a
-								href="https://www.pexels.com/api/"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="underline hover:text-blue-800 dark:hover:text-blue-200"
-								>Get your free API key here</a
-							>.
-						</p>
-
-						<div>
-							<label
-								for="pexels-api-key"
-								class="mb-1 block text-sm font-medium text-blue-900 dark:text-blue-100"
-								>Pexels API Key</label
-							>
-							<input
-								type="text"
-								id="pexels-api-key"
-								bind:value={pexelsApiKeyInput}
-								placeholder="Enter your Pexels API key (optional)"
-								class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
-							/>
-							<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
-								{pexelsApiKeyInput
-									? '✅ API key configured - trip image suggestions enabled'
-									: '⚠️ No API key - trip image suggestions disabled'}
+			<!-- Pexels API Key Section - Only show if server key is not available -->
+			{#if !serverPexelsApiKeyAvailable}
+				<div
+					class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+				>
+					<div class="flex items-start gap-3">
+						<Info class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+						<div class="flex-1">
+							<h3 class="mb-1 text-sm font-medium text-blue-900 dark:text-blue-100">
+								Trip Image Suggestions
+							</h3>
+							<p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+								Configure a Pexels API key to get better quality trip image suggestions based on your
+								travel destinations. Without an API key, the system will use fallback image services.
+								<a
+									href="https://www.pexels.com/api/"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="underline hover:text-blue-800 dark:hover:text-blue-200"
+									>Get your free API key here</a
+								>.
 							</p>
+
+							<div>
+								<label
+									for="pexels-api-key"
+									class="mb-1 block text-sm font-medium text-blue-900 dark:text-blue-100"
+									>Pexels API Key</label
+								>
+								<input
+									type="text"
+									id="pexels-api-key"
+									bind:value={pexelsApiKeyInput}
+									placeholder="Enter your Pexels API key (optional)"
+									class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
+								/>
+								<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+									{pexelsApiKeyInput
+										? '✅ API key configured - high-quality trip image suggestions enabled'
+										: 'ℹ️ No API key - trip image suggestions will use fallback services'}
+								</p>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
+			{/if}
 
 			<button
 				class="mt-6 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1490,22 +1491,38 @@
 {#if showAddExclusionModal}
 	<!-- Modal Overlay -->
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+		tabindex="0"
+		role="button"
+		aria-label="Close modal"
 		on:click={() => (showAddExclusionModal = false)}
+		on:keydown={(e) => {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				showAddExclusionModal = false;
+			}
+		}}
 	>
 		<!-- Modal Box -->
 		<div
 			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
 			on:click|stopPropagation
+			role="dialog"
+			tabindex="0"
+			on:keydown={(e) => {
+				if (e.key === 'Escape') {
+					showAddExclusionModal = false;
+				}
+			}}
 		>
 			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
 				Add Trip Exclusion
 			</h3>
 			<div class="space-y-6">
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label
-					>
+					<label for="add-exclusion-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
 					<input
+						id="add-exclusion-name"
 						type="text"
 						bind:value={newExclusion.name}
 						placeholder="e.g., Work Office"
@@ -1513,11 +1530,10 @@
 					/>
 				</div>
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>Address</label
-					>
+					<label for="add-exclusion-address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
 					<div class="relative">
 						<input
+							id="add-exclusion-address"
 							type="text"
 							bind:value={exclusionAddressInput}
 							bind:this={exclusionAddressInputElement}
@@ -1615,22 +1631,38 @@
 {#if showEditExclusionModal}
 	<!-- Modal Overlay -->
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+		tabindex="0"
+		role="button"
+		aria-label="Close modal"
 		on:click={() => (showEditExclusionModal = false)}
+		on:keydown={(e) => {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				showEditExclusionModal = false;
+			}
+		}}
 	>
 		<!-- Modal Box -->
 		<div
 			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
 			on:click|stopPropagation
+			role="dialog"
+			tabindex="0"
+			on:keydown={(e) => {
+				if (e.key === 'Escape') {
+					showEditExclusionModal = false;
+				}
+			}}
 		>
 			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
 				Edit Trip Exclusion
 			</h3>
 			<div class="space-y-6">
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label
-					>
+					<label for="edit-exclusion-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
 					<input
+						id="edit-exclusion-name"
 						type="text"
 						bind:value={editingExclusion.name}
 						placeholder="e.g., Work Office"
@@ -1638,11 +1670,10 @@
 					/>
 				</div>
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>Address</label
-					>
+					<label for="edit-exclusion-address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
 					<div class="relative">
 						<input
+							id="edit-exclusion-address"
 							type="text"
 							bind:value={editExclusionAddressInput}
 							bind:this={editExclusionAddressInputElement}
