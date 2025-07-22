@@ -4,6 +4,7 @@
 	import { sessionStore } from '$lib/stores/auth';
 	import { toast } from 'svelte-sonner';
 	import { MapPin, RefreshCw } from 'lucide-svelte';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	// Props
 	export let showProgress = true;
@@ -21,18 +22,21 @@
 	async function checkForActiveReverseGeocodingJob() {
 		try {
 			const session = get(sessionStore);
-			const headers: Record<string, string> = {};
-			if (session?.access_token) {
-				headers['Authorization'] = `Bearer ${session.access_token}`;
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const jobs = await serviceAdapter.getJobs({ type: 'reverse_geocoding_missing' }) as any;
+
+			// Handle both array and paginated response formats
+			let jobsData: any[] = [];
+			if (Array.isArray(jobs)) {
+				jobsData = jobs;
+			} else if (jobs.jobs) {
+				jobsData = jobs.jobs;
 			}
 
-			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
-			const data = await response.json();
-
-			if (data.success && Array.isArray(data.data)) {
-				const activeJobs = data.data.filter(
-					(job: any) =>
-						job.type === 'reverse_geocoding_missing' && (job.status === 'queued' || job.status === 'running')
+			const activeJobs = jobsData.filter(
+				(job: any) => job.status === 'queued' || job.status === 'running'
 				);
 
 				if (activeJobs.length > 0) {
@@ -40,7 +44,6 @@
 					console.log('Found active reverse geocoding job:', activeReverseGeocodingJob);
 					startReverseGeocodingPolling(activeReverseGeocodingJob.id);
 					updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
-				}
 			}
 		} catch (error) {
 			console.error('Error checking for active reverse geocoding jobs:', error);
@@ -58,16 +61,12 @@
 
 			try {
 				const session = get(sessionStore);
-				const headers: Record<string, string> = {};
-				if (session?.access_token) {
-					headers['Authorization'] = `Bearer ${session.access_token}`;
-				}
+			if (!session) return;
 
-				const response = await fetch(`/api/v1/jobs/${jobId}`, { headers });
-				const data = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const job = await serviceAdapter.getJobProgress(jobId) as any;
 
-				if (data.success && data.data?.job) {
-					const job = data.data.job;
+			if (job) {
 					activeReverseGeocodingJob = job;
 					updateReverseGeocodingProgressFromJob(job);
 
@@ -116,16 +115,18 @@
 	async function loadGeocodingStats() {
 		try {
 			const session = get(sessionStore);
-			const headers: Record<string, string> = {};
-			if (session?.access_token) {
-				headers['Authorization'] = `Bearer ${session.access_token}`;
-			}
+			if (!session) return;
 
-			const totalResponse = await fetch('/api/v1/statistics/geocoding-stats', { headers });
-			const totalData = await totalResponse.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const stats = await serviceAdapter.getGeocodingStats() as any;
 
-			if (totalData.success) {
-				geocodingStats = totalData.data;
+			if (stats) {
+				geocodingStats = {
+					total: stats.total_points || 0,
+					geocoded: stats.geocoded_count || 0,
+					percentage: stats.success_rate || 0,
+					missing: stats.failed_count || 0
+				};
 			}
 		} catch (error) {
 			console.error('Error loading geocoding stats:', error);
@@ -138,26 +139,24 @@
 
 		isLoading = true;
 		try {
-			const response = await fetch('/api/v1/jobs', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+			const session = get(sessionStore);
+			if (!session) {
+				toast.error('Not authenticated');
+				return;
+			}
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.createJob({
 					type: 'reverse_geocoding_missing',
 					data: {}
-				})
-			});
+			}) as any;
 
-			if (response.ok) {
-				const result = await response.json();
 				toast.success('Reverse geocoding job started!');
 
 				// Start tracking the job progress
-				if (result.data?.job?.id) {
-					activeReverseGeocodingJob = result.data.job;
-					startReverseGeocodingPolling(result.data.job.id);
-				}
-			} else {
-				toast.error('Failed to start reverse geocoding job');
+			if (result.job?.id) {
+				activeReverseGeocodingJob = result.job;
+				startReverseGeocodingPolling(result.job.id);
 			}
 		} catch (error) {
 			console.error('Error starting reverse geocoding job:', error);

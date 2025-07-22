@@ -1,70 +1,74 @@
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { createAuthenticatedClient } from '../_shared/supabase.ts';
+import {
+  setupRequest,
+  authenticateRequest,
+  successResponse,
+  errorResponse,
+  parseJsonBody,
+  logError,
+  logInfo,
+  logSuccess
+} from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
 	// Handle CORS
-	const corsResponse = handleCors(req);
+	const corsResponse = setupRequest(req);
 	if (corsResponse) return corsResponse;
 
 	try {
-		// Get auth token
-		const authHeader = req.headers.get('Authorization');
-		if (!authHeader) {
-			return new Response(JSON.stringify({ error: 'No authorization header' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+		const { user, supabase } = await authenticateRequest(req);
 
-		const token = authHeader.replace('Bearer ', '');
-		const supabase = createAuthenticatedClient(token);
-
-		// Verify user is authenticated
-		const {
-			data: { user },
-			error: authError
-		} = await supabase.auth.getUser();
-		if (authError || !user) {
-			return new Response(JSON.stringify({ error: 'Invalid token' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
-
-		// Handle different HTTP methods
+				// Handle different HTTP methods
 		if (req.method === 'GET') {
-			// Get all jobs for the user
-			const { data: jobs, error: jobsError } = await supabase
+			logInfo('Fetching jobs', 'JOBS', { userId: user.id });
+
+			// Parse query parameters
+			const url = new URL(req.url);
+			const type = url.searchParams.get('type');
+			const limit = parseInt(url.searchParams.get('limit') || '100');
+			const offset = parseInt(url.searchParams.get('offset') || '0');
+
+			// Build query
+			let query = supabase
 				.from('jobs')
 				.select('*')
-				.eq('user_id', user.id)
-				.order('created_at', { ascending: false });
+				.eq('created_by', user.id)
+				.order('created_at', { ascending: false })
+				.range(offset, offset + limit - 1);
 
-			if (jobsError) {
-				throw jobsError;
+			// Add type filter if specified
+			if (type) {
+				query = query.eq('type', type);
 			}
 
-			return new Response(JSON.stringify(jobs || []), {
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			const { data: jobs, error: jobsError } = await query;
+
+			if (jobsError) {
+				logError(jobsError, 'JOBS');
+				return errorResponse('Failed to fetch jobs', 500);
+			}
+
+			logSuccess('Jobs fetched successfully', 'JOBS', {
+				userId: user.id,
+				count: jobs?.length || 0,
+				type: type || 'all'
 			});
+			return successResponse(jobs || []);
 		}
 
 		if (req.method === 'POST') {
-			// Create a new job
-			const body = await req.json();
+			logInfo('Creating job', 'JOBS', { userId: user.id });
+
+			const body = await parseJsonBody<Record<string, unknown>>(req);
 			const { type, data } = body;
 
 			if (!type) {
-				return new Response(JSON.stringify({ error: 'Job type is required' }), {
-					status: 400,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				});
+				return errorResponse('Job type is required', 400);
 			}
 
 			const { data: job, error: jobError } = await supabase
 				.from('jobs')
 				.insert({
-					user_id: user.id,
+					created_by: user.id,
 					type,
 					status: 'pending',
 					data: data || {}
@@ -73,24 +77,20 @@ Deno.serve(async (req) => {
 				.single();
 
 			if (jobError) {
-				throw jobError;
+				logError(jobError, 'JOBS');
+				return errorResponse('Failed to create job', 500);
 			}
 
-			return new Response(JSON.stringify(job), {
-				status: 201,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			logSuccess('Job created successfully', 'JOBS', {
+				userId: user.id,
+				jobType: type as string
 			});
+			return successResponse(job);
 		}
 
-		return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-			status: 405,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		return errorResponse('Method not allowed', 405);
 	} catch (error) {
-		console.error('Jobs error:', error);
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		logError(error, 'JOBS');
+		return errorResponse('Internal server error', 500);
 	}
 });

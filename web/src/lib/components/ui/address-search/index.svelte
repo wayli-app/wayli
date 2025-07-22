@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { MapPin } from 'lucide-svelte';
+	import { get } from 'svelte/store';
+	import { sessionStore } from '$lib/stores/auth';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	export let value = '';
 	export let placeholder = 'Enter address...';
@@ -43,6 +45,7 @@
 		}
 
 		searchTimeout = setTimeout(() => searchAddresses(), 300);
+		dispatch('input', event);
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -78,23 +81,18 @@
 			showSuggestions = true;
 			searchError = null;
 
-			const response = await fetch(
-				`/api/v1/geocode/search?q=${encodeURIComponent(inputValue.trim())}`
-			);
+			const session = get(sessionStore);
+			if (!session) return;
 
-			if (response.ok) {
-				const data = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.searchGeocode(inputValue.trim()) as any;
+
 				// Handle both old format (data.data as array) and new format (data.data.results as array)
 				suggestions = data.data?.results || data.data || [];
 				showSuggestions = true;
 
 				if (suggestions.length === 0) {
 					searchError = 'No addresses found';
-				}
-			} else {
-				suggestions = [];
-				searchError = 'No addresses found';
-				showSuggestions = true;
 			}
 		} catch (error) {
 			console.error('Error searching for address:', error);
@@ -107,12 +105,11 @@
 	}
 
 	function selectAddress(address: any) {
+		selectedAddress = address;
 		inputValue = address.display_name;
 		value = address.display_name;
-		selectedAddress = address;
 		showSuggestions = false;
 		selectedIndex = -1;
-
 		dispatch('select', { address, displayName: address.display_name });
 	}
 
@@ -125,7 +122,7 @@
 		searchError = null;
 		selectedIndex = -1;
 
-		dispatch('clear');
+		dispatch('clear', undefined);
 	}
 </script>
 

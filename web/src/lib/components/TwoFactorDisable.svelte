@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { X, Shield, AlertTriangle, Lock } from 'lucide-svelte';
+	import { AlertTriangle, X, Lock } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { supabase } from '$lib/supabase';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	export let open = false;
 
@@ -18,17 +20,15 @@
 
 		isDisabling = true;
 		try {
-			const response = await fetch('/api/v1/auth/2fa/disable', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ password })
-			});
-			const responseData = await response.json();
-			if (!response.ok || !responseData.success) {
-				throw new Error(responseData.message || 'Disable failed');
-			}
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session) throw new Error('No session found');
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.disable2FA(password);
+
 			toast.success('Two-factor authentication disabled successfully');
-			dispatch('disabled');
+			// Disable 2FA
+			dispatch('disabled', undefined);
 			closeModal();
 		} catch (error) {
 			console.error('Error disabling 2FA:', error);
@@ -43,7 +43,7 @@
 	function closeModal() {
 		open = false;
 		password = '';
-		dispatch('close');
+		dispatch('close', undefined);
 	}
 </script>
 
@@ -53,11 +53,8 @@
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
 		on:click={closeModal}
 		on:keydown={(e) => e.key === 'Escape' && closeModal()}
-		aria-modal="true"
-		role="dialog"
-		aria-labelledby="two-factor-disable-modal-title"
-		aria-describedby="two-factor-disable-modal-description"
-		tabindex="-1"
+		role="presentation"
+		aria-hidden="true"
 	>
 		<!-- Modal -->
 		<div
@@ -68,7 +65,6 @@
 			role="dialog"
 			aria-labelledby="two-factor-disable-modal-title"
 			aria-describedby="two-factor-disable-modal-description"
-			tabindex="-1"
 		>
 			<!-- Header -->
 			<div

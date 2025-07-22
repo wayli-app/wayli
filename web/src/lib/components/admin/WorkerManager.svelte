@@ -4,6 +4,9 @@
 	import Button from '$lib/components/ui/button/index.svelte';
 	import Input from '$lib/components/ui/input/index.svelte';
 	import Card from '$lib/components/ui/card/index.svelte';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { get } from 'svelte/store';
+	import { sessionStore } from '$lib/stores/auth';
 
 	interface WorkerStatus {
 		isRunning: boolean;
@@ -57,11 +60,12 @@
 
 	async function loadStatus() {
 		try {
-			const response = await fetch('/api/v1/admin/workers');
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-			const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.getAdminWorkers() as any;
+
 			status = data.data.status;
 			activeWorkers = data.data.activeWorkers;
 			if (status) {
@@ -81,15 +85,11 @@
 
 	async function loadRealtimeConfig() {
 		try {
-			const response = await fetch('/api/v1/admin/workers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'getRealtimeConfig' })
-			});
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-			const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.manageWorkers({ action: 'getRealtimeConfig' }) as any;
 			realtimeConfig = data.data.realtimeConfig;
 		} catch (err) {
 			console.error('Failed to load realtime config:', err);
@@ -100,15 +100,12 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await fetch('/api/v1/admin/workers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'testRealtime' })
-			});
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
-			const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.manageWorkers({ action: 'testRealtime' }) as any;
+
 			realtimeTestResult = data.data.realtimeTest;
 			if (realtimeTestResult) {
 				error = '';
@@ -128,14 +125,11 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await fetch('/api/v1/admin/workers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'start' })
-			});
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.manageWorkers({ action: 'start' });
 			await loadStatus();
 		} catch (err) {
 			error = 'Failed to start workers';
@@ -149,14 +143,11 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await fetch('/api/v1/admin/workers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action: 'stop' })
-			});
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.manageWorkers({ action: 'stop' });
 			await loadStatus();
 		} catch (err) {
 			error = 'Failed to stop workers';
@@ -170,17 +161,14 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await fetch('/api/v1/admin/workers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'updateWorkers',
-					workerCount: parseInt(newWorkerCount)
-				})
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.manageWorkers({
+				action: 'updateWorkers',
+				workerCount: parseInt(newWorkerCount)
 			});
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
 			await loadStatus();
 		} catch (err) {
 			error = 'Failed to update worker count';
@@ -194,6 +182,10 @@
 		loading = true;
 		error = '';
 		try {
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
 			const numericConfig = {
 				maxWorkers: parseInt(config.maxWorkers),
 				pollInterval: parseInt(config.pollInterval),
@@ -201,17 +193,10 @@
 				retryAttempts: parseInt(config.retryAttempts),
 				retryDelay: parseInt(config.retryDelay)
 			};
-			const response = await fetch('/api/v1/admin/workers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'updateConfig',
-					config: numericConfig
-				})
+			await serviceAdapter.manageWorkers({
+				action: 'updateConfig',
+				config: numericConfig
 			});
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-			}
 			await loadStatus();
 			showConfigModal = false;
 		} catch (err) {

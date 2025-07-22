@@ -53,15 +53,22 @@
 		}
 	}
 
+	function handleRecoveryCodeSubmit() {
+		if (!recoveryCode.trim()) return;
+		dispatch('verify', { recoveryCode });
+	}
+
+	function handleCodeSubmit() {
+		if (!verificationCode.trim()) return;
+		dispatch('verify', { code: verificationCode });
+	}
+
 	function handleBack() {
-		dispatch('back');
+		dispatch('back', undefined);
 	}
 
 	function handleCancel() {
-		verificationCode = '';
-		recoveryCode = '';
-		useRecoveryCode = false;
-		dispatch('cancel');
+		dispatch('cancel', undefined);
 	}
 
 	function toggleMode() {
@@ -77,11 +84,8 @@
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
 		on:click={handleCancel}
 		on:keydown={(e) => e.key === 'Escape' && handleCancel()}
-		aria-modal="true"
-		role="dialog"
-		aria-labelledby="two-factor-modal-title"
-		aria-describedby="two-factor-modal-description"
-		tabindex="-1"
+		role="presentation"
+		aria-hidden="true"
 	>
 		<!-- Modal -->
 		<div
@@ -92,7 +96,6 @@
 			role="dialog"
 			aria-labelledby="two-factor-modal-title"
 			aria-describedby="two-factor-modal-description"
-			tabindex="-1"
 		>
 			<!-- Header -->
 			<div

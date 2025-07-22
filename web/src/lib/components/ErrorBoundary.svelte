@@ -1,6 +1,6 @@
 <!-- src/lib/components/ErrorBoundary.svelte -->
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { errorHandler, ErrorCode } from '$lib/services/error-handler.service';
 	import { loggingService } from '$lib/services/logging.service';
 	import { createEventDispatcher } from 'svelte';
@@ -68,13 +68,14 @@
 			clearTimeout(retryTimeout);
 			retryTimeout = null;
 		}
-		dispatch('reset');
+		dispatch('reset', undefined);
 	}
 
 	// Manual retry
 	function retry() {
-		reset();
-		dispatch('retry');
+		error = null;
+		errorInfo = null;
+		dispatch('retry', undefined);
 	}
 
 	// Cleanup on destroy

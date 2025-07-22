@@ -20,8 +20,16 @@ export default defineConfig({
 				'**/*.config.*',
 				'**/coverage/**',
 				'**/dist/**',
-				'**/.svelte-kit/**'
+				'**/.svelte-kit/**',
+				'**/*.server.ts',
+				'**/*.worker.ts'
 			]
+		},
+		// Separate configuration for component tests
+		environmentOptions: {
+			jsdom: {
+				resources: 'usable'
+			}
 		}
 	},
 	resolve: {

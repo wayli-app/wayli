@@ -2,32 +2,22 @@
 	import {
 		Import,
 		FileDown,
-		Database,
-		Image,
-		FileText,
 		MapPin,
 		Route,
 		Upload,
-		Clock
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { supabase } from '$lib/supabase';
 	import { onMount, onDestroy } from 'svelte';
-	import { Upload as UploadIcon } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { tick } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { createClient } from '@supabase/supabase-js';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import { sessionStore } from '$lib/stores/auth';
 	import { get } from 'svelte/store';
 	import type { Job } from '$lib/types/job-queue.types';
 	import ExportJobs from '$lib/components/ExportJobs.svelte';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	let importFormat: string | null = null;
 	let exportFormat = 'JSON'; // Fixed format - not used by user anymore
-	let dateRange = 'All Time';
 	let selectedFile: File | null = null;
 	let includeLocationData = true;
 	let includeTripInfo = true;
@@ -160,21 +150,17 @@
 			importStatus = 'Uploading file and creating job...';
 			importProgress = 0;
 
-			const response = await fetch('/api/v1/import', {
-				method: 'POST',
-				body: formData,
-				signal: controller.signal
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.createImportJob(formData as any) as any;
 
 			clearTimeout(timeoutId);
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+			if (!result.success) {
+				throw new Error(result.message || 'Failed to create import job');
 			}
-
-			const result = await response.json();
-			console.log('✅ Import job created successfully:', result);
 
 			if (result.success && result.data?.jobId) {
 				jobId = result.data.jobId;
@@ -209,49 +195,48 @@
 					const checkInterval = setInterval(async () => {
 						try {
 							const session = get(sessionStore);
+							if (!session) return;
 							const headers: Record<string, string> = {};
 							if (session?.access_token) {
 								headers['Authorization'] = `Bearer ${session.access_token}`;
 							}
 
-							const jobResponse = await fetch(`/api/v1/jobs/${jobId}`, { headers });
-							if (jobResponse.ok) {
-								const jobData = await jobResponse.json();
-								const job = jobData.data?.job || jobData.job;
+							const serviceAdapter = new ServiceAdapter({ session });
+							const jobData = await serviceAdapter.getJobProgress(jobId!) as any;
+							const job = jobData.data?.job || jobData.job;
 
-								if (
-									job &&
-									(job.status === 'completed' ||
-										job.status === 'failed' ||
-										job.status === 'cancelled')
-								) {
-									clearInterval(checkInterval);
+							if (
+								job &&
+								(job.status === 'completed' ||
+									job.status === 'failed' ||
+									job.status === 'cancelled')
+							) {
+								clearInterval(checkInterval);
 
-									if (job.status === 'completed') {
-										const result = (job.result as Record<string, unknown>) || {};
-										importedCount = (result.importedCount as number) || 0;
-										totalCount = (result.totalItems as number) || importedCount;
-										importStatus = 'Import completed successfully!';
+								if (job.status === 'completed') {
+									const result = (job.result as Record<string, unknown>) || {};
+									importedCount = (result.importedCount as number) || 0;
+									totalCount = (result.totalItems as number) || importedCount;
+									importStatus = 'Import completed successfully!';
 
-										toast.success(`Import completed successfully!`, {
-											description: `Imported ${importedCount} items`
-										});
-									} else if (job.status === 'failed') {
-										importStatus = 'Import failed';
-										toast.error('Import failed', {
-											description: job.error || 'Unknown error occurred'
-										});
-									} else {
-										importStatus = 'Import cancelled';
-										toast.info('Import was cancelled');
-									}
-
-									// Clear the active job
-									activeImportJob = null;
-									stopImportJobPolling();
-
-									resolve();
+									toast.success(`Import completed successfully!`, {
+										description: `Imported ${importedCount} items`
+									});
+								} else if (job.status === 'failed') {
+									importStatus = 'Import failed';
+									toast.error('Import failed', {
+										description: job.error || 'Unknown error occurred'
+									});
+								} else {
+									importStatus = 'Import cancelled';
+									toast.info('Import was cancelled');
 								}
+
+								// Clear the active job
+								activeImportJob = null;
+								stopImportJobPolling();
+
+								resolve();
 							}
 						} catch (error) {
 							console.error('Error checking job status:', error);
@@ -282,23 +267,19 @@
 		}
 
 		try {
-			const response = await fetch('/api/v1/export', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					format: exportFormat,
-					includeLocationData,
-					includeTripInfo,
-					includeWantToVisit,
-					includeTrips,
-					startDate: exportStartDate,
-					endDate: exportEndDate
-				})
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			const result = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.createExportJob({
+				format: exportFormat,
+				includeLocationData,
+				includeTripInfo,
+				includeWantToVisit,
+				includeTrips,
+				startDate: exportStartDate,
+				endDate: exportEndDate
+			}) as any;
 
 			if (result.success && result.data?.jobId) {
 				const jobId = result.data.jobId;
@@ -367,13 +348,10 @@
 	async function checkForActiveImportJob() {
 		try {
 			const session = get(sessionStore);
-			const headers: Record<string, string> = {};
-			if (session?.access_token) {
-				headers['Authorization'] = `Bearer ${session.access_token}`;
-			}
+			if (!session) return;
 
-			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
-			const data = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.getJobs({ type: 'data_import' }) as any;
 
 			if (data.success && Array.isArray(data.data)) {
 				const activeJobs = data.data.filter(
@@ -415,45 +393,20 @@
 
 			try {
 				const session = get(sessionStore);
+				if (!session) return;
 				const headers: Record<string, string> = {};
 				if (session?.access_token) {
 					headers['Authorization'] = `Bearer ${session.access_token}`;
 				}
 
-				const response = await fetch(`/api/v1/jobs/${jobId}`, { headers });
-				const data = await response.json();
+				const serviceAdapter = new ServiceAdapter({ session });
+				const jobData = await serviceAdapter.getJobProgress(jobId) as any;
+				const job = jobData.data?.job || jobData.job;
 
-				if (data.success && data.data?.job) {
-					const job = data.data.job;
-					activeImportJob = job;
-					// Update all progress variables
-					importProgress = job.progress || 0;
-					const result = (job.result as Record<string, unknown>) || {};
-					importedCount = (result.importedCount as number) || 0;
-					totalCount = (result.totalItems as number) || 0;
-					importStatus = (result.message as string) || job.status;
-					// ETA calculation
-					if (importProgress > 0 && importProgress < 100 && job.started_at) {
-						const elapsed = (Date.now() - new Date(job.started_at).getTime()) / 1000;
-						const estimatedTotal = elapsed / (importProgress / 100);
-						const remaining = estimatedTotal - elapsed;
-						if (remaining > 0) {
-							const mins = Math.floor(remaining / 60);
-							const secs = Math.round(remaining % 60);
-							eta = `${mins > 0 ? mins + 'm ' : ''}${secs}s remaining`;
-						} else {
-							eta = null;
-						}
-					} else {
-						eta = null;
-					}
-					// Stop polling if job is finished
-					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-						stopImportJobPolling();
-					}
-				} else {
-					// If job is not found, stop polling and reset
-					activeImportJob = null;
+				if (
+					job &&
+					(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled')
+				) {
 					stopImportJobPolling();
 				}
 			} catch (error) {
@@ -497,13 +450,10 @@
 	async function checkForActiveExportJob() {
 		try {
 			const session = get(sessionStore);
-			const headers: Record<string, string> = {};
-			if (session?.access_token) {
-				headers['Authorization'] = `Bearer ${session.access_token}`;
-			}
+			if (!session) return;
 
-			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
-			const data = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.getJobs({ type: 'data_export' }) as any;
 
 			if (data.success && Array.isArray(data.data)) {
 				const activeJobs = data.data.filter(
@@ -536,13 +486,14 @@
 
 			try {
 				const session = get(sessionStore);
+				if (!session) return;
 				const headers: Record<string, string> = {};
 				if (session?.access_token) {
 					headers['Authorization'] = `Bearer ${session.access_token}`;
 				}
 
-				const response = await fetch(`/api/v1/jobs/${jobId}`, { headers });
-				const data = await response.json();
+				const serviceAdapter = new ServiceAdapter({ session });
+				const data = await serviceAdapter.getJobProgress(jobId) as any;
 
 				if (data.success && data.data?.job) {
 					const job = data.data.job;

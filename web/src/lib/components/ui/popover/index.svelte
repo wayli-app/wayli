@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import { useAriaButton } from '$lib/accessibility/aria-button';
 
 	export let open = false;
 	export let align: 'start' | 'center' | 'end' = 'center';
@@ -10,19 +11,12 @@
 
 	function handleTriggerClick() {
 		open = !open;
-		dispatch(open ? 'open' : 'close');
-	}
-
-	function handleTriggerKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			handleTriggerClick();
-		}
+		dispatch(open ? 'open' : 'close', undefined);
 	}
 
 	function handleClickOutside() {
 		open = false;
-		dispatch('close');
+		dispatch('close', undefined);
 	}
 
 	function handleBackdropKeydown(event: KeyboardEvent) {
@@ -35,10 +29,8 @@
 <div class="relative">
 	<!-- Trigger -->
 	<div
-		role="button"
-		tabindex="0"
+		use:useAriaButton={{ label: 'Toggle popover menu' }}
 		on:click={handleTriggerClick}
-		on:keydown={handleTriggerKeydown}
 		aria-expanded={open}
 		aria-haspopup="true"
 		class="cursor-pointer"

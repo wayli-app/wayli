@@ -73,18 +73,19 @@
 
 		// Announce modal closing
 		screenReader.announceComplete('Modal closed');
+		dispatch('close', undefined);
 	}
 
 	function handleBackdropClick() {
 		if (closeOnBackdropClick) {
-			dispatch('close');
+			dispatch('close', undefined);
 		}
 	}
 
 	function handleEscapeKey(event: KeyboardEvent) {
 		if (closeOnEscape) {
 			keyboardNavigation.handleEscape(event, () => {
-				dispatch('close');
+				dispatch('close', undefined);
 			});
 		}
 	}
@@ -141,7 +142,7 @@
 					{#if showCloseButton}
 						<button
 							class="absolute top-4 right-4 cursor-pointer rounded-md p-2 text-gray-400 transition-colors hover:text-red-500 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							on:click={() => dispatch('close')}
+							on:click={() => dispatch('close', undefined)}
 							aria-label="Close modal"
 						>
 							<X class="h-5 w-5" />

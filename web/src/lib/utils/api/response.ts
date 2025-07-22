@@ -1,3 +1,4 @@
+import { json } from '@sveltejs/kit';
 import type { AppError } from '$lib/utils/errors/error-handler';
 
 export interface ApiResponse<T = unknown> {
@@ -14,6 +15,13 @@ export interface ApiResponse<T = unknown> {
 	};
 }
 
+/**
+ * Create a successful API response
+ * @param data - The response data
+ * @param status - HTTP status code (default: 200)
+ * @param meta - Additional metadata
+ * @returns Response object
+ */
 export function successResponse<T>(
 	data: T,
 	status: number = 200,
@@ -41,6 +49,13 @@ function isAppError(error: unknown): error is AppError {
 	);
 }
 
+/**
+ * Create an error API response
+ * @param error - The error object, string, or AppError
+ * @param status - HTTP status code (optional, will use error.statusCode if available)
+ * @param meta - Additional metadata
+ * @returns Response object
+ */
 export function errorResponse(
 	error: unknown,
 	status?: number,
@@ -74,6 +89,12 @@ export function errorResponse(
 	return json(response, { status: statusCode });
 }
 
+/**
+ * Create a validation error response
+ * @param message - Error message
+ * @param details - Validation details
+ * @returns Response object
+ */
 export function validationErrorResponse(
 	message: string,
 	details?: Record<string, unknown>
@@ -90,6 +111,11 @@ export function validationErrorResponse(
 	);
 }
 
+/**
+ * Create a not found error response
+ * @param message - Error message (default: 'Resource not found')
+ * @returns Response object
+ */
 export function notFoundResponse(message: string = 'Resource not found'): Response {
 	return errorResponse(
 		{
@@ -102,6 +128,12 @@ export function notFoundResponse(message: string = 'Resource not found'): Respon
 	);
 }
 
+/**
+ * Create a conflict error response
+ * @param message - Error message
+ * @param details - Conflict details
+ * @returns Response object
+ */
 export function conflictResponse(message: string, details?: Record<string, unknown>): Response {
 	return errorResponse(
 		{
@@ -115,6 +147,12 @@ export function conflictResponse(message: string, details?: Record<string, unkno
 	);
 }
 
+/**
+ * Create a server error response
+ * @param message - Error message (default: 'Internal server error')
+ * @param details - Error details
+ * @returns Response object
+ */
 export function serverErrorResponse(
 	message: string = 'Internal server error',
 	details?: Record<string, unknown>
@@ -130,5 +168,3 @@ export function serverErrorResponse(
 		500
 	);
 }
-
-import { json } from '@sveltejs/kit';

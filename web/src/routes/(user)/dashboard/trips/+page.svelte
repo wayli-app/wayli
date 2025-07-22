@@ -11,7 +11,6 @@
 		Loader2,
 		Plus,
 		Search,
-		Filter,
 		Trash2,
 		Edit,
 		X,
@@ -25,6 +24,8 @@
 	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
 	import { setDateRange } from '$lib/stores/app-state.svelte';
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { supabase } from '$lib/supabase';
 
 	interface Trip {
 		id: string;
@@ -208,8 +209,23 @@
 
 		isLoading = true;
 		try {
-			const tripsService = await getTripsService();
-			trips = await tripsService.getTrips(userId);
+			const session = await supabase.auth.getSession();
+			if (!session.data.session) {
+				throw new Error('No session found');
+			}
+
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const tripsData = await serviceAdapter.getTrips();
+
+			// Handle both array and paginated response formats
+			if (Array.isArray(tripsData)) {
+				trips = tripsData;
+			} else if ((tripsData as any).trips) {
+				trips = (tripsData as any).trips;
+			} else {
+				trips = [];
+			}
+
 			// Sort trips by end_date descending
 			trips = trips.sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
 			filterTrips();
@@ -227,19 +243,18 @@
 
 	async function loadUserPreferences() {
 		try {
-			const response = await fetch('/api/v1/auth/preferences', {
-				method: 'GET',
-				headers: { 'Content-Type': 'application/json' }
-			});
-			if (response.ok) {
-				const result = await response.json();
-				userPreferences = result.data?.preferences || result.preferences || null;
-				serverPexelsApiKeyAvailable = result.data?.server_pexels_api_key_available || false;
-			} else {
-				userPreferences = null;
-				serverPexelsApiKeyAvailable = false;
+			const session = await supabase.auth.getSession();
+			if (!session.data.session) {
+				throw new Error('No session found');
 			}
+
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const preferencesData = await serviceAdapter.getPreferences();
+
+			userPreferences = preferencesData;
+			serverPexelsApiKeyAvailable = (preferencesData as any)?.server_pexels_api_key_available || false;
 		} catch (e) {
+			console.error('Error loading user preferences:', e);
 			userPreferences = null;
 			serverPexelsApiKeyAvailable = false;
 		}
@@ -275,13 +290,12 @@
 		selectedSuggestedTrips = [];
 
 		try {
-			const response = await fetch('/api/v1/trips/suggested?status=pending');
-			if (response.ok) {
-				const result = await response.json();
-				suggestedTrips = result.data.suggestedTrips || [];
-			} else {
-				toast.error('Failed to load suggested trips');
-			}
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getSuggestedTrips() as any; // Remove status parameter for now
+			suggestedTrips = result.suggestedTrips || [];
 		} catch (error) {
 			console.error('Error loading suggested trips:', error);
 			toast.error('Failed to load suggested trips');
@@ -325,17 +339,15 @@
 				jobData.customHomeAddress = tripGenerationData.customHomeAddress;
 			}
 
-			const response = await fetch('/api/v1/jobs', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.createJob({
 					type: 'trip_generation',
 					data: jobData
-				})
-			});
+			}) as any;
 
-			if (response.ok) {
-				const result = await response.json();
 				let message = 'Trip generation job started!';
 
 				if (tripGenerationData.startDate && tripGenerationData.endDate) {
@@ -359,9 +371,6 @@
 				// Close modals when starting a new job
 				showTripGenerationModal = false;
 				showSuggestedTripsModal = false;
-			} else {
-				toast.error('Failed to start trip generation job');
-			}
 		} catch (error) {
 			console.error('Error generating new trip suggestions:', error);
 			toast.error('Failed to generate new trip suggestions');
@@ -372,13 +381,15 @@
 	async function checkForActiveTripGenerationJob() {
 		try {
 			const session = get(sessionStore);
+			if (!session) return; // Early return if no session
+
 			const headers: Record<string, string> = {};
 			if (session?.access_token) {
 				headers['Authorization'] = `Bearer ${session.access_token}`;
 			}
 
-			const response = await fetch('/api/v1/jobs?status=queued&status=running', { headers });
-			const data = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.getJobs({ type: 'trip_generation' }) as any;
 
 			if (data.success && Array.isArray(data.data)) {
 				const activeJobs = data.data.filter(
@@ -414,8 +425,9 @@
 					headers['Authorization'] = `Bearer ${session.access_token}`;
 				}
 
-				const response = await fetch(`/api/v1/jobs/${jobId}`, { headers });
-				const data = await response.json();
+				if (!session) return;
+				const serviceAdapter = new ServiceAdapter({ session });
+				const data = await serviceAdapter.getJobProgress(jobId) as any;
 
 				if (data.success && data.data?.job) {
 					const job = data.data.job;
@@ -605,8 +617,7 @@
 			} else {
 				// Include user_id for new trip creation
 				await tripsService.createTrip({
-					...tripData,
-					user_id: $sessionStore?.user?.id || ''
+					...tripData
 				});
 			}
 
@@ -677,26 +688,16 @@
 		imageError = '';
 
 		try {
-			const response = await fetch('/api/v1/trips/suggest-image', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					startDate: tripForm.start_date,
-					endDate: tripForm.end_date
-				})
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			if (!response.ok) {
-				throw new Error('Failed to suggest image');
-			}
+			const serviceAdapter = new ServiceAdapter({ session });
+			const suggestResult = await serviceAdapter.suggestTripImages('temp') as any; // Only tripId parameter
 
-			const result = await response.json();
-			if (result.success && result.data) {
-				suggestedImageUrl = result.data.suggestedImageUrl;
-				tripAnalysis = result.data.analysis;
-				imageAttribution = result.data.attribution;
+			if (suggestResult.success && suggestResult.data) {
+				suggestedImageUrl = suggestResult.data.suggestedImageUrl;
+				tripAnalysis = suggestResult.data.analysis;
+				imageAttribution = suggestResult.data.attribution;
 
 				if (suggestedImageUrl) {
 					imagePreview = suggestedImageUrl;
@@ -784,37 +785,23 @@
 
 		try {
 			// First approve the trips
-			const approveResponse = await fetch('/api/v1/trips/suggested', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'approve',
-					tripIds: selectedSuggestedTrips
-				})
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			if (approveResponse.ok) {
-				const approveResult = await approveResponse.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const approveResult = await serviceAdapter.approveSuggestedTrips(selectedSuggestedTrips) as any;
+
 				toast.success(approveResult.data.message);
 
 				// Then automatically generate images for the approved trips
 				try {
-					const imageResponse = await fetch('/api/v1/trips/generate-images', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
+				const imageResult = await serviceAdapter.generateTripImages('batch', {
 							tripIds: selectedSuggestedTrips
-						})
-					});
+				} as any) as any;
 
-					if (imageResponse.ok) {
-						const imageResult = await imageResponse.json();
 						toast.success(
 							`Trips approved and images queued for generation: ${imageResult.data.message}`
 						);
-					} else {
-						toast.warning('Trips approved but failed to queue image generation');
-					}
 				} catch (imageError) {
 					console.error('Error generating images:', imageError);
 					toast.warning('Trips approved but failed to queue image generation');
@@ -822,9 +809,6 @@
 
 				showSuggestedTripsModal = false;
 				await loadTrips(); // Reload trips to show new ones
-			} else {
-				toast.error('Failed to approve trips');
-			}
 		} catch (error) {
 			console.error('Error approving trips:', error);
 			toast.error('Failed to approve trips');
@@ -835,24 +819,16 @@
 		if (selectedSuggestedTrips.length === 0) return;
 
 		try {
-			const response = await fetch('/api/v1/trips/suggested', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'reject',
-					tripIds: selectedSuggestedTrips
-				})
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			if (response.ok) {
-				const result = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.rejectSuggestedTrips(selectedSuggestedTrips) as any;
+
 				toast.success(result.data.message);
 				// Remove rejected trips from the list
 				suggestedTrips = suggestedTrips.filter((trip) => !selectedSuggestedTrips.includes(trip.id));
 				selectedSuggestedTrips = [];
-			} else {
-				toast.error('Failed to reject trips');
-			}
 		} catch (error) {
 			console.error('Error rejecting trips:', error);
 			toast.error('Failed to reject trips');
@@ -918,21 +894,16 @@
 		showCustomHomeAddressSuggestions = true;
 		customHomeAddressSearchError = null;
 		try {
-			const response = await fetch(
-				`/api/v1/geocode/search?q=${encodeURIComponent(customHomeAddressInput.trim())}`
-			);
-			if (response.ok) {
-				const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.searchGeocode(customHomeAddressInput.trim()) as any;
 				// Handle both old format (data.data as array) and new format (data.data.results as array)
 				customHomeAddressSuggestions = data.data?.results || data.data || [];
 				showCustomHomeAddressSuggestions = true;
 				if (customHomeAddressSuggestions.length === 0) {
 					customHomeAddressSearchError = 'No addresses found';
-				}
-			} else {
-				customHomeAddressSuggestions = [];
-				customHomeAddressSearchError = 'No addresses found';
-				showCustomHomeAddressSuggestions = true;
 			}
 		} catch (error) {
 			console.error('Error searching for custom home address:', error);

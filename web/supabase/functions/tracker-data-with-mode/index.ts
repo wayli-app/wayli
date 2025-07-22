@@ -1,5 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  setupRequest,
+  authenticateRequest,
+  successResponse,
+  errorResponse,
+  logError,
+  logInfo,
+  logSuccess
+} from '../_shared/utils.ts';
 
 // Transport detection reasons enum
 enum TransportDetectionReason {
@@ -21,49 +28,24 @@ enum TransportDetectionReason {
   DEFAULT = 'Default mode assignment'
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      }
-    })
-  }
-
-  // Get the authorization header from the request
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'No authorization header' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    })
-  }
-
-  // Create Supabase client with the user's JWT token
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    {
-      global: {
-        headers: {
-          Authorization: authHeader
-        }
-      }
-    }
-  )
-
-  // Parse query parameters
-  const url = new URL(req.url)
-  const startDate = url.searchParams.get('start_date')
-  const endDate = url.searchParams.get('end_date')
-  const limit = parseInt(url.searchParams.get('limit') || '1000')
-  const offset = parseInt(url.searchParams.get('offset') || '0')
-  const includeStatistics = url.searchParams.get('include_statistics') === 'true'
+  const corsResponse = setupRequest(req);
+  if (corsResponse) return corsResponse;
 
   try {
+    const { user, supabase } = await authenticateRequest(req);
+
+    logInfo('Fetching tracker data with mode', 'TRACKER-DATA-WITH-MODE', { userId: user.id });
+
+    // Parse query parameters
+    const url = new URL(req.url)
+    const startDate = url.searchParams.get('start_date')
+    const endDate = url.searchParams.get('end_date')
+    const limit = parseInt(url.searchParams.get('limit') || '1000')
+    const offset = parseInt(url.searchParams.get('offset') || '0')
+    const includeStatistics = url.searchParams.get('include_statistics') === 'true'
+
     // Build base query with date filters
     let baseQuery = supabase
       .from('tracker_data')
@@ -85,10 +67,8 @@ serve(async (req) => {
     const { count, error: countError } = await baseQuery.select('*', { count: 'exact', head: true })
 
     if (countError) {
-      return new Response(JSON.stringify({ error: countError.message }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      })
+      logError(countError, 'TRACKER-DATA-WITH-MODE');
+      return errorResponse('Failed to get count', 400);
     }
 
     // Implement proper pagination with date filters
@@ -125,10 +105,8 @@ serve(async (req) => {
       const { data: pageData, error: pageError } = await query
 
       if (pageError) {
-        return new Response(JSON.stringify({ error: pageError.message }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        })
+        logError(pageError, 'TRACKER-DATA-WITH-MODE');
+        return errorResponse('Failed to fetch page data', 400);
       }
 
       if (!pageData || pageData.length === 0) {
@@ -174,7 +152,12 @@ serve(async (req) => {
       statistics = calculateStatistics(enhancedData)
     }
 
-    return new Response(JSON.stringify({
+    logSuccess('Tracker data fetched successfully', 'TRACKER-DATA-WITH-MODE', {
+      userId: user.id,
+      count: enhancedData.length
+    });
+
+    return successResponse({
       locations: enhancedData,
       total: count || 0,
       hasMore: count ? offset + limit < count : false,
@@ -194,17 +177,10 @@ serve(async (req) => {
         }
       },
       statistics
-    }), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    })
+    });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    logError(error, 'TRACKER-DATA-WITH-MODE');
+    return errorResponse('Internal server error', 500);
   }
 })
 

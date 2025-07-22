@@ -1,3 +1,7 @@
+// src/lib/core/supabase/client.ts
+// Client-side Supabase client. Only uses public env vars from $env/static/public.
+// Never import secrets or private env vars here.
+
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from './types';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
@@ -15,6 +19,9 @@ if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
 	);
 }
 
+/**
+ * The client-side Supabase instance for browser use.
+ */
 export const supabase = createBrowserClient<Database>(
 	PUBLIC_SUPABASE_URL,
 	PUBLIC_SUPABASE_ANON_KEY

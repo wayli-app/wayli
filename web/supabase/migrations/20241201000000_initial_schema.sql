@@ -364,11 +364,8 @@ CREATE POLICY "Service role can delete audit logs" ON public.audit_logs
 -- Create policy to allow admins to read and update server settings
 CREATE POLICY "Admins can manage server settings" ON public.server_settings
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM auth.users
-            WHERE auth.users.id = auth.uid()
-            AND auth.users.raw_user_meta_data->>'role' = 'admin'
-        )
+        auth.role() = 'service_role' OR
+        (auth.jwt() ->> 'user_metadata')::jsonb ->> 'role' = 'admin'
     );
 
 -- RLS policies for suggested_trips

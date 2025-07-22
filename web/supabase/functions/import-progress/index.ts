@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 			.from('jobs')
 			.select('*')
 			.eq('id', jobId)
-			.eq('user_id', user.id)
+			.eq('created_by', user.id)
 			.single();
 
 		if (jobError) {

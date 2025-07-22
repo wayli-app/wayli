@@ -155,7 +155,8 @@ export const actions = {
 				return fail(500, { error: error.message });
 			}
 
-			// TODO: Send email to user with their temporary password
+			// Note: Email notification functionality to be implemented in future version
+			// User will need to reset their password on first login
 			console.log('New user created with temporary password:', tempPassword);
 
 			return { success: true };

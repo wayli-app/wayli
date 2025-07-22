@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { User as UserIcon, Mail, Shield, X } from 'lucide-svelte';
+	import { User as UserIcon, Mail, X } from 'lucide-svelte';
 	import RoleSelector from './RoleSelector.svelte';
 	import UserAvatar from './ui/UserAvatar.svelte';
 	import type { UserProfile } from '$lib/types/user.types';
@@ -19,14 +19,10 @@
 	$: role = localUser?.role || 'user';
 
 	function closeModal() {
-		dispatch('close');
+		dispatch('close', undefined);
 	}
 
-	function handleSave() {
-		// Update the role in the local user
-		if (localUser) {
-			localUser.role = role;
-		}
+	function saveUser() {
 		dispatch('save', localUser);
 	}
 </script>
@@ -35,14 +31,8 @@
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
 		on:click={closeModal}
-		on:keydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-				closeModal();
-			}
-		}}
-		role="button"
-		tabindex="0"
-		aria-label="Close modal"
+		role="presentation"
+		aria-hidden="true"
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
@@ -153,7 +143,7 @@
 					Cancel
 				</button>
 				<button
-					on:click={handleSave}
+					on:click={saveUser}
 					class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
 				>
 					Save Changes

@@ -1,16 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import type { Map as LeafletMap, LatLngExpression, Marker, Icon } from 'leaflet';
+	import type { Map as LeafletMap } from 'leaflet';
 	import {
-		BookOpen,
-		Calendar,
 		MapPin,
-		Star,
 		Activity,
 		Loader2,
-		Database,
-		RefreshCw,
 		Trash2,
 		Route,
 		Navigation,
@@ -39,6 +34,51 @@
 	import { sessionStore, sessionStoreReady } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
 	import GeocodingProgress from '$lib/components/GeocodingProgress.svelte';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+
+	// Add these interfaces at the top of the file
+	interface TrackerLocation {
+		id: string;
+		name: string;
+		description: string;
+		type: 'tracker';
+		coordinates: { lat: number; lng: number };
+		city: string;
+		created_at: string;
+		updated_at: string;
+		recorded_at: string;
+		altitude?: number;
+		accuracy?: number;
+		speed?: number;
+		transport_mode: string;
+		detectionReason?: string;
+		velocity?: number;
+		distance_from_prev?: number;
+		geocode?: GeocodeData | string | null;
+	}
+
+	interface GeocodeData {
+		display_name?: string;
+		name?: string;
+		amenity?: string;
+		city?: string;
+		error?: boolean;
+		[key: string]: unknown;
+	}
+
+	interface StatisticsData {
+		totalDistance?: number;
+		earthCircumferences?: number;
+		geopoints?: number;
+		timeSpentMoving?: string;
+		uniquePlaces?: number;
+		countriesVisited?: number | string;
+		steps?: number;
+		transport?: Array<{ mode: string; distance: number }>;
+		countryTimeDistribution?: Array<{ country_code: string; percent: number }>;
+		transportModes?: Array<{ mode: string; distance: number; time: number; percentage: number; count: number }>;
+		trainStationVisits?: Array<{ name: string; count: number }>;
+	}
 
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
@@ -51,7 +91,7 @@
 	let isEditMode = false;
 	let isLoading = false;
 	let isInitialLoad = true;
-	let locationData: any[] = [];
+	let locationData: TrackerLocation[] = [];
 	let hasMoreData = false;
 	let currentOffset = 0;
 	const BATCH_SIZE = 5000; // Show 5000 points by default
@@ -72,7 +112,7 @@
 	let trackerIcon: any;
 
 	// Add statistics state
-	let statisticsData: any = null;
+	let statisticsData: StatisticsData | null = null;
 	let statisticsLoading = false;
 	let statisticsError = '';
 
@@ -176,8 +216,11 @@
 		}
 	}
 
-	function addMarkersToMap(data: any[], reset = true) {
-		if (!map || !L) return;
+	function addMarkersToMap(data: TrackerLocation[], reset = true) {
+		if (!map || !L) {
+			console.log('❌ [Statistics] Map or L not available');
+			return;
+		}
 
 		// Clear existing polylines and markers only if resetting
 		if (reset) {
@@ -203,24 +246,32 @@
 
 		// Sort data by recorded_at timestamp for sequential rendering
 		const sortedData = data
-			.filter(item => item.coordinates && typeof item.coordinates.lat === 'number' && typeof item.coordinates.lng === 'number')
+			.filter(item => {
+				const hasValidCoords = item.coordinates && typeof item.coordinates.lat === 'number' && typeof item.coordinates.lng === 'number';
+				if (!hasValidCoords) {
+					console.log('❌ [Statistics] Filtered out item with invalid coordinates:', item.coordinates);
+				}
+				return hasValidCoords;
+			})
 			.sort((a, b) => {
 				const dateA = new Date(a.recorded_at || a.created_at).getTime();
 				const dateB = new Date(b.recorded_at || b.created_at).getTime();
 				return dateA - dateB;
 			});
 
+		console.log('🗺️ [Statistics] After filtering, sortedData has:', sortedData.length, 'items');
+
 		// Draw lines between consecutive points
 		if (sortedData.length > 1) {
 			for (let i = 0; i < sortedData.length - 1; i++) {
 				const curr = sortedData[i];
 				const next = sortedData[i + 1];
-				const lineCoordinates = [
+				const lineCoordinates: [number, number][] = [
 					[curr.coordinates.lat, curr.coordinates.lng],
 					[next.coordinates.lat, next.coordinates.lng]
 				];
 				const mode = next.transport_mode || 'unknown';
-				const polyline = L.polyline(lineCoordinates, {
+				const polyline = L.polyline(lineCoordinates as [number, number][], {
 					color: modeColors[mode] || '#6b7280',
 					weight: 2,
 					opacity: 0.8
@@ -230,6 +281,7 @@
 		}
 
 		// Add markers for location data points with transport mode colors
+		console.log('🗺️ [Statistics] Adding markers for', sortedData.length, 'items');
 		for (const item of sortedData) {
 			const transportMode = item.transport_mode || 'unknown';
 			const markerColor = modeColors[transportMode] || '#6b7280';
@@ -250,20 +302,37 @@
 				.addTo(map);
 			markers.push(marker);
 		}
+		console.log('🗺️ [Statistics] Total markers added:', markers.length);
 	}
 
 	// --- Geocode fetching function ---
-	async function fetchGeocodeForPoint(item: any) {
+	async function fetchGeocodeForPoint(item: TrackerLocation) {
 		try {
-			const { data, error } = await supabase
-				.from('tracker_data')
-				.select('geocode')
-				.eq('user_id', item.id.split('_')[0]) // Extract user_id from item.id
-				.eq('recorded_at', item.recorded_at)
-				.single();
+			// Get current session
+			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			if (sessionError || !session) {
+				throw new Error('User not authenticated');
+			}
 
-			if (error) throw error;
-			return data?.geocode || null;
+			const serviceAdapter = new ServiceAdapter({ session });
+
+			// Use the tracker-data-with-mode endpoint to get geocode data for this specific point
+			const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+				startDate: item.recorded_at.split('T')[0],
+				endDate: item.recorded_at.split('T')[0],
+				limit: 1,
+				offset: 0,
+				includeStatistics: false
+			}) as any;
+
+			// Find the matching point
+			const matchingPoint = result.locations?.find((loc: any) =>
+				loc.recorded_at === item.recorded_at &&
+				loc.location?.coordinates?.[1] === item.coordinates.lat &&
+				loc.location?.coordinates?.[0] === item.coordinates.lng
+			);
+
+			return matchingPoint?.geocode || null;
 		} catch (error) {
 			console.error('Error fetching geocode:', error);
 			return null;
@@ -271,7 +340,7 @@
 	}
 
 	// --- Marker click handler ---
-	async function handleMarkerClick(item: any) {
+	async function handleMarkerClick(item: TrackerLocation) {
 		if (!item.geocode) {
 			item.geocode = 'loading';
 			// Re-render tooltip with loading state
@@ -297,7 +366,7 @@
 	}
 
 	// --- Format reverse geocode function ---
-	function formatReverseGeocode(rg: any): string {
+	function formatReverseGeocode(rg: GeocodeData | string | null): string {
 		let data = rg;
 		if (typeof rg === 'string') {
 			try {
@@ -307,15 +376,15 @@
 			}
 		}
 
-		if (data && typeof data === 'object' && 'error' in data) {
+		if (data && typeof data === 'object' && 'error' in data && typeof data.error !== 'undefined') {
 			return `<div class='bg-red-50 border border-red-200 rounded-lg p-2 text-xs'>
 				<div class='text-red-800 font-semibold mb-1 text-xs'>Geocoding Error</div>
-				<div class='text-red-700 text-xs'>${data.error_message || 'Unknown error occurred during geocoding'}</div>
-				<div class='text-red-600 text-xs mt-1'>Timestamp: ${data.timestamp || 'Unknown'}</div>
+				<div class='text-red-700 text-xs'>${(data as GeocodeData).error_message || 'Unknown error occurred during geocoding'}</div>
+				<div class='text-red-600 text-xs mt-1'>Timestamp: ${(data as GeocodeData).timestamp || 'Unknown'}</div>
 			</div>`;
 		}
 
-		const props = data.properties || data.address || data;
+		const props = (data as GeocodeData).properties || (data as GeocodeData).address || data;
 		if (!props || typeof props !== 'object') {
 			return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${JSON.stringify(rg, null, 2)}</pre>`;
 		}
@@ -334,11 +403,11 @@
 
 		// Always append class and type if present on the geocode object itself
 		const extraRows: string[] = [];
-		if (data.class) {
-			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Class:</td><td class='text-gray-900 py-0.5 text-xs'>${data.class}</td></tr>`);
+		if ((data as GeocodeData).class) {
+			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Class:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).class}</td></tr>`);
 		}
-		if (data.type) {
-			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Type:</td><td class='text-gray-900 py-0.5 text-xs'>${data.type}</td></tr>`);
+		if ((data as GeocodeData).type) {
+			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Type:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).type}</td></tr>`);
 		}
 
 		const rows = allFields
@@ -356,7 +425,7 @@
 	}
 
 	// --- Updated tooltip content ---
-	function createPopupContent(item: any) {
+	function createPopupContent(item: TrackerLocation) {
 		const date = item.recorded_at || item.created_at;
 		const formattedDate = date ? format(new Date(date), 'MMM d, yyyy HH:mm') : 'Unknown date';
 		const transportMode = item.transport_mode || 'unknown';
@@ -396,8 +465,8 @@
 				</div>
 				<!-- Geocode section -->
 				${item.geocode === 'loading' ? `<div class='mt-1 p-1 bg-blue-50 rounded text-blue-700 text-xs'>Loading geocode...</div>` : ''}
-				${item.geocode && item.geocode !== 'loading' && !item.geocode.error ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
-				${item.geocode && item.geocode.error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
+				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && !(item.geocode as GeocodeData).error ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
+				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && (item.geocode as GeocodeData).error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
 			</div>
 		`;
 		return content;
@@ -438,14 +507,13 @@
 
 	function toggleEditMode() {
 		isEditMode = !isEditMode;
-		console.log('Edit mode:', isEditMode);
 		if (!isEditMode) {
 			// Clear selections when exiting edit mode
 			deselectAllMarkers();
 		}
 	}
 
-	function selectMarker(marker: any, item: any) {
+	function selectMarker(marker: any, item: TrackerLocation) {
 		if (!isEditMode) return;
 
 		if (selectedMarkers.includes(marker)) {
@@ -546,11 +614,9 @@
 					selectedItems[selectedItems.length - 1].created_at
 			};
 
-			console.log('Trip data:', tripData);
 			toast.success(`Created trip with ${selectedItems.length} points`);
 
-			// TODO: Implement actual trip creation/saving
-			// This could involve calling an API endpoint to save the trip
+			// Note: Trip creation functionality to be implemented in future version
 		} catch (error) {
 			console.error('Error creating trip:', error);
 			toast.error('Failed to create trip');
@@ -603,8 +669,8 @@
 
 	// Calculate velocity based on time difference and distance between current and previous point
 	function calculateVelocity(
-		currentPoint: any,
-		allPoints: any[]
+		currentPoint: TrackerLocation,
+		allPoints: TrackerLocation[]
 	): { velocity: number | null; timeDiff: number | null; distance: number | null } {
 		if (!currentPoint || !allPoints || allPoints.length < 2) {
 			return { velocity: null, timeDiff: null, distance: null };
@@ -692,33 +758,18 @@
 				throw new Error('User not authenticated');
 			}
 
-			// Call the edge function with count only
-			const params = new URLSearchParams({
-				include_statistics: 'false',
-				limit: '1', // Just get 1 record to get the count
-				offset: '0'
-			});
+			const serviceAdapter = new ServiceAdapter({ session });
 
-			if (startDate) {
-				params.append('start_date', startDate);
-			}
-			if (endDate) {
-				params.append('end_date', endDate);
-			}
 
-			const response = await fetch(`${(supabase as any).supabaseUrl}/functions/v1/tracker-data-with-mode?${params}`, {
-				headers: {
-					'Authorization': `Bearer ${session.access_token}`,
-					'Content-Type': 'application/json'
-				}
-			});
 
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`Edge function error: ${response.status} - ${errorText}`);
-			}
+			const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+				startDate,
+				endDate,
+				limit: 1,
+				offset: 0,
+				includeStatistics: false
+			}) as { total?: number };
 
-			const result = await response.json() as any;
 			const total = result.total || 0;
 
 			loadingProgress = 20;
@@ -734,7 +785,7 @@
 	}
 
 	// Function to fetch both map data and statistics from the edge function
-	async function fetchMapDataAndStatistics(forceRefresh = false, loadMoreOffset = 0) {
+	async function fetchMapDataAndStatistics(forceRefresh = false, loadMoreOffset = 0): Promise<void> {
 		try {
 			statisticsLoading = true;
 			statisticsError = '';
@@ -756,42 +807,33 @@
 			// Get current user's session
 			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 			if (sessionError || !session) {
+				console.error('Session error:', sessionError);
+				console.error('Session data:', session);
 				throw new Error('User not authenticated');
 			}
+
+			console.log('Session valid:', !!session?.access_token);
+			console.log('Session expires at:', session?.expires_at);
 
 			// Update progress for data fetching
 			loadingStage = loadMoreOffset === 0 ? 'Loading initial data...' : 'Loading more data...';
 			loadingProgress = loadMoreOffset === 0 ? 30 : 60;
 
-			// Call the edge function with both map data and statistics
-			const params = new URLSearchParams({
-				include_statistics: loadMoreOffset === 0 ? 'true' : 'false', // Only include statistics for initial load
-				limit: '5000', // Get more data for comprehensive statistics
-				offset: loadMoreOffset.toString()
-			});
+			const serviceAdapter = new ServiceAdapter({ session });
 
-			if (startDate) {
-				params.append('start_date', startDate);
-			}
-			if (endDate) {
-				params.append('end_date', endDate);
-			}
-
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const response = await fetch(`${(supabase as any).supabaseUrl}/functions/v1/tracker-data-with-mode?${params}`, {
-				headers: {
-					'Authorization': `Bearer ${session.access_token}`,
-					'Content-Type': 'application/json'
-				}
-			});
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`Edge function error: ${response.status} - ${errorText}`);
-			}
-
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const result = await response.json() as any;
+			type TrackerApiResponse = {
+				total?: number;
+				locations?: TrackerLocation[];
+				hasMore?: boolean;
+				statistics?: StatisticsData;
+			};
+			const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+				startDate,
+				endDate,
+				limit: 5000,
+				offset: loadMoreOffset,
+				includeStatistics: loadMoreOffset === 0
+			}) as TrackerApiResponse;
 
 			// Update progress for data processing
 			loadingStage = 'Processing data...';
@@ -807,29 +849,44 @@
 				loadingStage = 'Transforming data...';
 				loadingProgress = loadMoreOffset === 0 ? 85 : 90;
 
-				const transformedLocations = result.locations.map((location: any, index: number) => {
+				const transformedLocations: TrackerLocation[] = (result.locations as unknown[]).map((location, index) => {
+					const loc = location as Record<string, unknown>;
+
 					return {
-						id: `${location.user_id}_${location.recorded_at}_${loadMoreOffset + index}`,
-						name: location.geocode?.display_name || 'Unknown Location',
-						description: location.geocode?.name || '',
+						id: `${loc.user_id}_${loc.recorded_at}_${loadMoreOffset + index}`,
+						name: (loc.geocode && typeof loc.geocode === 'object' && 'display_name' in loc.geocode)
+							? (loc.geocode as GeocodeData).display_name || 'Unknown Location'
+							: 'Unknown Location',
+						description: (loc.geocode && typeof loc.geocode === 'object' && 'name' in loc.geocode)
+							? (loc.geocode as GeocodeData).name || ''
+							: '',
 						type: 'tracker',
-						coordinates: location.location?.coordinates
-							? {
-								lat: location.location.coordinates[1] || 0,
-								lng: location.location.coordinates[0] || 0
+						coordinates: (() => {
+							const coords = (loc.location as { coordinates?: number[] })?.coordinates;
+							if (coords && coords.length >= 2) {
+								const result = {
+									lat: coords[1] || 0,
+									lng: coords[0] || 0
+								};
+								return result;
+							} else {
+								return { lat: 0, lng: 0 };
 							}
-							: { lat: 0, lng: 0 },
-						city: location.geocode?.city || '',
-						created_at: location.created_at,
-						updated_at: location.updated_at,
-						recorded_at: location.recorded_at,
-						altitude: location.altitude,
-						accuracy: location.accuracy,
-						speed: location.speed,
-						transport_mode: location.transport_mode || 'unknown',
-						detectionReason: location.detectionReason || undefined,
-						velocity: location.velocity || undefined,
-						distance_from_prev: location.distance_from_prev || undefined
+						})(),
+						city: (loc.geocode && typeof loc.geocode === 'object' && 'city' in loc.geocode)
+							? (loc.geocode as GeocodeData).city || ''
+							: '',
+						created_at: String(loc.created_at),
+						updated_at: String(loc.updated_at),
+						recorded_at: String(loc.recorded_at),
+						altitude: loc.altitude as number | undefined,
+						accuracy: loc.accuracy as number | undefined,
+						speed: loc.speed as number | undefined,
+						transport_mode: String(loc.transport_mode || 'unknown'),
+						detectionReason: loc.detectionReason as string | undefined,
+						velocity: loc.velocity as number | undefined,
+						distance_from_prev: loc.distance_from_prev as number | undefined,
+						geocode: loc.geocode as GeocodeData | string | null
 					};
 				});
 
@@ -898,18 +955,20 @@
 	}
 
 	// Move this to the top-level scope, outside of getStatistics
-	function formatEarthCircumferences(value: number): string {
+	function formatEarthCircumferences(value: number | undefined): string {
 		if (value == null) return '';
-		console.log('Earth Circumferences value:', value, typeof value);
 		if (typeof value === 'string') value = parseFloat(value);
 		if (value > 0 && value < 0.001) {
-			return value.toExponential(2) + 'x'; // Scientific notation for very small values
+			return value.toExponential(2) + 'x';
 		} else if (value < 1 && value > 0) {
-			return value.toFixed(4) + 'x'; // Show 4 decimal places for small values
+			return value.toFixed(4) + 'x';
 		} else {
-			return value.toFixed(3) + 'x'; // Show 3 decimal places for zero or larger values
+			return value.toFixed(3) + 'x';
 		}
 	}
+
+	// Move greenModes to a higher scope
+	const greenModes = ['walking', 'cycling', 'train'];
 
 	// Function to get statistics for display
 	function getStatistics() {
@@ -917,8 +976,7 @@
 
 		// Helper to sum green distances
 		function getGreenDistance() {
-			if (!statisticsData.transport) return 0;
-			const greenModes = ['walking', 'cycling', 'train'];
+			if (!statisticsData || !statisticsData.transport) return 0;
 			return statisticsData.transport
 				.filter((t: { mode: string }) => greenModes.includes(t.mode))
 				.reduce((sum: number, t: { distance: number }) => sum + (typeof t.distance === 'number' ? t.distance : 0), 0);
@@ -1055,7 +1113,7 @@
 	}
 
 	// Add a helper to format seconds as hh:mm:ss
-	function formatTime(seconds: number): string {
+	function formatTime(seconds: number | undefined): string {
 		if (!seconds || isNaN(seconds)) return '0:00:00';
 		const h = Math.floor(seconds / 3600);
 		const m = Math.floor((seconds % 3600) / 60);

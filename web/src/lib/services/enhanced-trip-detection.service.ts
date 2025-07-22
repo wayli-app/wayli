@@ -816,13 +816,6 @@ export class EnhancedTripDetectionService {
 	}
 
 		private getCityNameFromGeocodeData(dataPoints: TrackerDataPoint[]): string {
-		// Debug: Log the first few geocode structures to understand the data format
-		console.log('🔍 Debug: Analyzing geocode data structure...');
-		for (let i = 0; i < Math.min(3, dataPoints.length); i++) {
-			const point = dataPoints[i];
-			console.log(`🔍 Point ${i} geocode:`, JSON.stringify(point.geocode, null, 2));
-		}
-
 		// Extract city names from geocode data
 		const cityNames = dataPoints
 			.map((point) => {
@@ -847,15 +840,11 @@ export class EnhancedTripDetectionService {
 			})
 			.filter((city) => city) as string[];
 
-		console.log('🔍 Found city names:', cityNames);
-
 		if (cityNames.length > 0) {
 			const mostCommon = this.getMostCommonValue(cityNames);
-			console.log('🔍 Most common city name:', mostCommon);
 			return mostCommon || 'Unknown City';
 		}
 
-		console.log('🔍 No city/town/village found, returning Unknown Location');
 		return 'Unknown Location';
 	}
 }

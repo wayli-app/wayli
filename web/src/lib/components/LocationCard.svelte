@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { useAriaButton } from '$lib/accessibility/aria-button';
 	const dispatch = createEventDispatcher();
 
 	export let image: string;
@@ -13,9 +14,7 @@
 	class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
 	on:mouseenter={() => dispatch('mouseenter', { lat, lng })}
 	on:mouseleave={() => dispatch('mouseleave')}
-	role="button"
-	tabindex="0"
-	aria-label={title}
+	use:useAriaButton={{ label: title }}
 >
 	<div class="aspect-[4/3] overflow-hidden">
 		<img

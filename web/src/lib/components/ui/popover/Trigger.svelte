@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { getContext } from 'svelte';
 	import type { Writable } from 'svelte/store';
+	import { useAriaButton } from '$lib/accessibility/aria-button';
 
 	const toggleOpen = () => {
 		const open = getContext<Writable<boolean>>('popover:open');
@@ -9,10 +10,8 @@
 </script>
 
 <div
-	on:click={toggleOpen}
-	role="button"
-	tabindex="0"
-	on:keydown={(e) => e.key === 'Enter' && toggleOpen()}
+  use:useAriaButton={{ label: 'Toggle popover' }}
+  on:click={toggleOpen}
 >
-	<slot />
+  <slot />
 </div>

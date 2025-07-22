@@ -1,10 +1,23 @@
-# Wayli - Location Tracking App
+# Wayli - Privacy-First Location Tracking App
 
-A SvelteKit + Supabase application for location tracking and trip management.
+A modern, privacy-first location tracking and trip management application built with SvelteKit and Supabase. Wayli helps you track your travels, discover new places, and manage your trips with full control over your data.
 
-## Architecture Overview
+## ✨ Features
 
-The application uses a layered service architecture that separates client-side and server-side concerns for security and maintainability.
+- **🔒 Privacy-First**: Your data stays yours - no tracking, no ads, no data sharing
+- **🗺️ Location Tracking**: Track your movements with customizable privacy settings
+- **✈️ Trip Management**: Organize and plan your travels with rich metadata
+- **📊 Statistics & Analytics**: Visualize your travel patterns and insights
+- **🌍 Geocoding**: Automatic location detection and reverse geocoding
+- **📱 Responsive Design**: Works seamlessly on desktop and mobile
+- **♿ Accessibility**: WCAG 2.1 AA compliant with full keyboard navigation
+- **🌙 Dark Mode**: Beautiful light and dark themes
+- **🔐 Two-Factor Authentication**: Enhanced security for your account
+- **📤 Data Export**: Export your data in multiple formats (JSON, GeoJSON, CSV)
+
+## 🏗️ Architecture
+
+Wayli uses a modern, layered architecture with clear separation of concerns:
 
 ```mermaid
 graph TB
@@ -13,6 +26,13 @@ graph TB
         UI[UI Components]
         Pages[Svelte Pages]
         Stores[Svelte Stores]
+    end
+
+    %% API Layer
+    subgraph "API Layer"
+        BH[Base API Handler]
+        RU[Response Utilities]
+        VS[Validation Schemas]
     end
 
     %% Service Layer
@@ -75,9 +95,13 @@ graph TB
     end
 
     %% Connections
-    UI --> CSA
-    Pages --> CSA
-    Stores --> CSA
+    UI --> BH
+    Pages --> BH
+    Stores --> BH
+
+    BH --> RU
+    BH --> VS
+    BH --> CSA
 
     CSA --> US
     CSA --> TS
@@ -97,356 +121,228 @@ graph TB
     SM --> SC
     SC --> ES
     SC --> ELS
-
-    US --> BC
-    TS --> BC
-    SS --> BC
-    LCS --> BC
-    TOTP --> BC
-    WTVS --> BC
-    TLS --> BC
-
-    ALS --> SC2
-    TISS --> SC2
-    EPDS --> SC2
-    ETDS --> SC2
-
-    EPDS --> WC
-    ETDS --> WC
-    TISS --> WC
-
-    BC --> CEC
-    SC2 --> SEC
-    WC --> WEC
-
-    CEC --> DB
-    SEC --> DB
-    WEC --> DB
-
-    TISS --> PS
-    EPDS --> NS
-    ETDS --> CRGS
-    TISS --> IUS
-
-    DB --> RLS
-    DB --> RT
-
-    %% Styling
-    classDef clientLayer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef serviceLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef coreLayer fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
-    classDef infraLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef dbLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-
-    class UI,Pages,Stores clientLayer
-    class CSA,US,TS,SS,LCS,TOTP,WTVS,TLS,SSA,ALS,TISS,EPDS,ETDS serviceLayer
-    class SM,SC,ES,ELS coreLayer
-    class BC,SC2,WC,CEC,SEC,WEC,NS,CRGS,IUS,PS infraLayer
-    class DB,RLS,RT dbLayer
 ```
 
-### Architecture Principles
+## 🚀 Quick Start
 
-1. **Security First**: Server-only services are never exposed to the client
-2. **Separation of Concerns**: Clear boundaries between client and server code
-3. **Dependency Injection**: Services are managed through a service container
-4. **Environment Isolation**: Different environment configs for different contexts
-5. **Type Safety**: Full TypeScript support throughout the architecture
+### Prerequisites
 
-### Service Categories
+- Node.js 18+
+- npm or yarn
+- Supabase account and project
 
-#### Client-Safe Services
-- **User Profile Service**: User data management
-- **Trips Service**: Trip CRUD operations
-- **Statistics Service**: Travel analytics
-- **Location Cache Service**: Geographic data caching
-- **TOTP Service**: Two-factor authentication
-- **Want to Visit Service**: Location wishlist
-- **Trip Locations Service**: Location management
+### Installation
 
-#### Server-Only Services
-- **Audit Logger Service**: Security event logging
-- **Trip Image Suggestion Service**: AI-powered image suggestions
-- **Enhanced POI Detection Service**: Points of interest detection
-- **Enhanced Trip Detection Service**: Intelligent trip analysis
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/wayli.git
+   cd wayli/web
+   ```
 
-#### Core Services
-- **Service Manager**: Lifecycle management
-- **Service Container**: Dependency injection
-- **Enhanced Cache Service**: Memory management
-- **Enhanced Logger Service**: Structured logging
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-## Features
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   ```
 
-- User authentication and authorization
-- Location tracking with OwnTracks integration
-- Trip management and planning
-- Points of interest
-- Background job processing with configurable workers
-- Admin dashboard for user and system management
+   Edit `.env` with your Supabase credentials:
+   ```env
+   PUBLIC_SUPABASE_URL=your_supabase_url
+   PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   ```
 
-## Background Job System
+4. **Run database migrations**
+   ```bash
+   npx supabase db reset
+   ```
 
-The application includes a configurable background job processing system that can handle various tasks:
+5. **Start the development server**
+   ```bash
+   npm run dev
+   ```
 
-### Job Types
+6. **Open your browser**
+   Navigate to `http://localhost:5173`
 
-- **Reverse Geocoding**: Convert coordinates to human-readable addresses
-- **Trip Cover Generation**: Generate cover photos for trips using AI
-- **Statistics Update**: Calculate travel summaries and reports
-- **Photo Import**: Import and process photo data
-- **Data Cleanup**: Clean up old or invalid data
-- **User Analysis**: Analyze user behavior and patterns
+## 🧪 Testing
 
-### Real-time Job Notifications
-
-The system uses **Supabase Realtime** for immediate job detection:
-
-- **Instant Processing**: Jobs are picked up within milliseconds of creation
-- **Reduced Latency**: No more waiting for polling intervals
-- **Lower Database Load**: Eliminates constant polling queries
-- **Better Scalability**: More workers don't increase database load
-- **Fallback Protection**: Polling continues as backup if real-time fails
-- **Automatic Setup**: Realtime channels are automatically created and configured
-- **Connection Management**: Automatic reconnection with exponential backoff
-
-#### Channel Setup
-
-Realtime channels are automatically initialized during:
-
-- **First User Setup**: When creating the initial admin account
-- **Worker Manager Startup**: When starting the worker system
-- **Individual Worker Startup**: When each worker connects
-
-The system includes a `RealtimeSetupService` that:
-
-- Tests realtime connectivity during initialization
-- Creates unique channels for each worker
-- Handles connection failures gracefully
-- Provides realtime status monitoring
-
-#### Monitoring and Testing
-
-The admin interface provides:
-
-- **Realtime Status**: Connection health and availability
-- **Configuration Info**: Supabase URL and realtime support status
-- **Test Functionality**: Verify realtime is working correctly
-- **Latency Metrics**: Compare realtime vs polling performance
-
-#### Troubleshooting
-
-If realtime is not working:
-
-1. Check Supabase project settings for realtime enablement
-2. Verify network connectivity to Supabase
-3. Check browser console for connection errors
-4. Use the "Test Realtime" button in admin interface
-5. Workers will automatically fall back to polling mode
-
-### Worker Configuration
-
-The number of workers and their behavior can be configured using environment variables:
+Wayli has comprehensive test coverage across all layers:
 
 ```bash
-# Number of concurrent workers (default: 2)
-MAX_WORKERS=4
+# Run all tests
+npm test
 
-# How often workers poll for new jobs in milliseconds (default: 5000)
-# Note: With real-time enabled, this is used as fallback only
-WORKER_POLL_INTERVAL=3000
+# Run tests with coverage
+npm run test:coverage
 
-# Maximum time a job can run before timeout in milliseconds (default: 300000)
-JOB_TIMEOUT=600000
-
-# Number of retry attempts for failed jobs (default: 3)
-RETRY_ATTEMPTS=5
-
-# Delay between retry attempts in milliseconds (default: 60000)
-RETRY_DELAY=30000
+# Run specific test categories
+npm test -- tests/unit/          # Unit tests
+npm test -- tests/components/    # Component tests
+npm test -- tests/accessibility/ # Accessibility tests
+npm test -- tests/integration/   # Integration tests
 ```
 
-### Worker Management
+### Test Coverage Goals
 
-Admins can manage workers through the Server Admin Settings page:
+- **Total Coverage**: 85%+
+- **Business Logic**: 90%+
+- **API Layer**: 85%+
+- **Components**: 80%+
+- **Accessibility**: 100%
 
-1. **Start/Stop Workers**: Control the worker system
-2. **Configure Worker Count**: Dynamically adjust the number of workers
-3. **Real-time Configuration**: Update polling intervals, timeouts, and retry settings
-4. **Monitor Status**: View active workers and their current jobs
-5. **Real-time Progress**: Track job progress in real-time
-6. **Worker Health**: Monitor worker heartbeats and connection status
+## 🔧 Development
 
-### Job Queue Features
-
-- **Priority System**: Jobs can have low, normal, high, or urgent priority
-- **Progress Tracking**: Real-time progress updates for running jobs
-- **Error Handling**: Failed jobs are marked with error details
-- **Job Cancellation**: Running or queued jobs can be cancelled
-- **Timeout Protection**: Jobs that exceed the timeout are automatically failed
-- **Worker Health Monitoring**: Workers send heartbeats to track their status
-- **Real-time Notifications**: Immediate job pickup via Supabase Realtime
-- **Graceful Degradation**: Falls back to polling if real-time fails
-
-## Job Queue System
-
-The application includes a robust job queue system for handling background tasks with real-time updates and duplicate prevention.
-
-### Features
-
-- **Real-time Status Updates**: Jobs show live progress and status changes via Server-Sent Events
-- **Duplicate Prevention**: Users cannot create multiple jobs of the same type simultaneously
-- **Configurable Workers**: Dynamic worker count adjustment with start/stop controls
-- **Retry Logic**: Automatic retry with configurable attempts and delays
-- **Priority System**: Jobs can be queued with different priority levels
-- **Progress Tracking**: Real-time progress updates with percentage completion
-- **Error Handling**: Comprehensive error reporting and recovery
-
-### Job Types
-
-- **Reverse Geocoding**: Full refresh or missing points only
-- **Trip Cover Generation**: AI-powered cover photo generation
-- **Statistics Update**: Travel summaries and chart generation
-- **Photo Import**: Import from various sources
-- **Data Cleanup**: Database optimization and duplicate removal
-- **User Analysis**: Behavior pattern analysis
-
-### Live Updates
-
-The system provides real-time status updates through:
-
-1. **Server-Sent Events (SSE)**: Primary real-time communication
-2. **Fallback Polling**: Automatic fallback if SSE connection fails
-3. **Visual Indicators**: Live progress bars and status icons
-4. **Connection Status**: Shows whether live updates are active
-
-### Duplicate Prevention
-
-The system prevents users from creating multiple jobs of the same type:
-
-- **Active Job Detection**: Checks for queued or running jobs of the same type
-- **UI Feedback**: Disables buttons and shows active job status
-- **API Protection**: Server-side validation prevents duplicate creation
-- **Status Display**: Shows current job progress and estimated completion
-
-### Testing
-
-```bash
-# Test job creation and execution
-npm run test:jobs
-
-# Test realtime notifications
-npm run test:realtime
-
-# Test live updates functionality
-npm run test:live-updates
-```
-
-## Setup
-
-1. Clone the repository
-2. Install dependencies: `bun install`
-3. Set up your environment variables
-4. Run the database setup script
-5. Start the development server: `bun run dev`
-
-## Environment Variables
-
-Create a `.env` file with the following variables:
-
-```bash
-PUBLIC_SUPABASE_URL=your_supabase_url
-PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# Optional: Worker configuration
-MAX_WORKERS=2
-WORKER_POLL_INTERVAL=5000
-JOB_TIMEOUT=300000
-RETRY_ATTEMPTS=3
-RETRY_DELAY=60000
-```
-
-## Database Setup
-
-Run the database setup script to create all necessary tables and policies:
-
-```sql
--- Run sql/setup-database.sql in your Supabase SQL editor
-```
-
-## Development
-
-- **Frontend**: SvelteKit with TypeScript
-- **Backend**: Supabase (PostgreSQL + Auth + Storage)
-- **Styling**: Tailwind CSS
-- **UI Components**: Custom components with Melt UI
-- **Job Processing**: Custom worker system with configurable concurrency
-
-## Deployment
-
-The application can be deployed to any platform that supports Node.js. The worker system will automatically start with the configured number of workers.
-
-For production deployments, consider:
-
-- Setting appropriate worker counts based on your server resources
-- Configuring job timeouts based on your job complexity
-- Monitoring worker health and job completion rates
-- Setting up alerts for failed jobs or worker issues
-
-## Initial Setup
-
-For detailed setup instructions, see [SETUP.md](./SETUP.md).
-
-The first time you run Wayli, you'll need to:
-
-1. Create the database tables using the provided SQL script
-2. Create your first admin account through the setup flow
-3. Configure any additional settings
-
-## Development
-
-```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Run tests
-npm run test
-```
-
-## Project Structure
+### Project Structure
 
 ```
 web/
 ├── src/
 │   ├── lib/
-│   │   ├── components/     # Reusable UI components
-│   │   ├── services/       # API and business logic
-│   │   ├── stores/         # Svelte stores
-│   │   └── types/          # TypeScript type definitions
+│   │   ├── accessibility/       # Accessibility utilities
+│   │   ├── components/          # Reusable UI components
+│   │   ├── core/
+│   │   │   ├── config/          # Environment configuration
+│   │   │   └── supabase/        # Supabase clients
+│   │   ├── services/           # Business logic services
+│   │   ├── stores/             # Svelte stores
+│   │   ├── types/              # TypeScript types
+│   │   ├── utils/
+│   │   │   ├── api/            # API utilities and patterns
+│   │   │   └── ...             # Other utilities
+│   │   ├── validation/         # Zod validation schemas
+│   │   └── middleware/         # Request middleware
 │   ├── routes/
-│   │   ├── (user)/         # Protected user routes
-│   │   ├── api/            # API endpoints
-│   │   └── setup/          # Initial setup flow
-│   └── static/             # Static assets
-├── sql/setup-database.sql      # Database initialization script
-└── SETUP.md               # Detailed setup guide
+│   │   ├── (user)/             # Protected user routes
+│   │   ├── api/                # API endpoints
+│   │   └── setup/              # Initial setup flow
+│   └── static/                 # Static assets
+├── tests/                      # Test suite
+│   ├── unit/                   # Unit tests
+│   ├── components/             # Component tests
+│   ├── integration/            # Integration tests
+│   └── accessibility/          # Accessibility tests
+└── docs/                       # Documentation
 ```
 
-## Contributing
+### Key Technologies
+
+- **Frontend**: SvelteKit, TypeScript, Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **Testing**: Vitest, Testing Library
+- **Validation**: Zod
+- **Deployment**: Vercel
+
+### Development Guidelines
+
+- **TypeScript**: Strict mode enabled, no `any` types
+- **Accessibility**: WCAG 2.1 AA compliance required
+- **Testing**: Comprehensive test coverage for all features
+- **API Design**: RESTful endpoints with consistent response formats
+- **Security**: Row-level security, input validation, authentication
+
+## 🔒 Security & Privacy
+
+### Privacy Features
+
+- **Local Processing**: Location data processed locally when possible
+- **Data Ownership**: You own your data - no sharing with third parties
+- **Transparent**: Open source code for full transparency
+- **Minimal Collection**: Only collect data necessary for functionality
+
+### Security Features
+
+- **Authentication**: Supabase Auth with 2FA support
+- **Authorization**: Row-level security policies
+- **Input Validation**: Comprehensive Zod schema validation
+- **Error Handling**: Secure error responses without data leakage
+- **HTTPS**: All communications encrypted
+
+## ♿ Accessibility
+
+Wayli is built with accessibility as a core principle:
+
+- **WCAG 2.1 AA Compliant**: Meets international accessibility standards
+- **Keyboard Navigation**: Full keyboard support for all features
+- **Screen Reader Support**: Semantic HTML and ARIA attributes
+- **High Contrast**: Support for high contrast mode
+- **Focus Management**: Proper focus indicators and management
+
+## 🌍 Environment Configuration
+
+Wayli uses a secure, layered environment configuration:
+
+### Client-Safe Configuration
+```typescript
+// src/lib/core/config/environment.ts
+// Only public, client-safe variables
+export function getNominatimConfig() {
+  return {
+    endpoint: 'https://nominatim.openstreetmap.org',
+    rateLimit: 1
+  };
+}
+```
+
+### Server-Only Configuration
+```typescript
+// src/lib/core/config/server-environment.ts
+// Server-only variables from $env/static/private
+export function validateServerEnvironment() {
+  // Validate required environment variables
+}
+```
+
+## 📚 Documentation
+
+- **[AI.MD](AI.MD)**: Comprehensive development guidelines
+- **[API Documentation](src/lib/utils/api/README.md)**: API patterns and usage
+- **[Testing Guide](tests/README.md)**: Testing strategy and patterns
+- **[Contributing Guide](CONTRIBUTING.md)**: How to contribute to the project
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
 
-## License
+### Code Standards
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+- Follow TypeScript strict mode
+- Write comprehensive tests
+- Ensure accessibility compliance
+- Follow the established API patterns
+- Update documentation as needed
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [SvelteKit](https://kit.svelte.dev/) for the amazing framework
+- [Supabase](https://supabase.com/) for the backend infrastructure
+- [Tailwind CSS](https://tailwindcss.com/) for the styling system
+- [Vitest](https://vitest.dev/) for the testing framework
+- [Zod](https://zod.dev/) for runtime validation
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/your-username/wayli/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-username/wayli/discussions)
+- **Documentation**: [Project Wiki](https://github.com/your-username/wayli/wiki)
+
+---
+
+**Made with ❤️ for travelers who value privacy and control over their data.**

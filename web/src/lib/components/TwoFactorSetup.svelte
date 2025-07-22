@@ -5,6 +5,7 @@
 	import { supabase } from '$lib/supabase';
 	import QRCode from 'qrcode';
 	import { onMount } from 'svelte';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	export let open = false;
 
@@ -41,24 +42,16 @@
 		isGenerating = true;
 		qrCodeError = false;
 		try {
-			// Call the API endpoint directly
-			const response = await fetch('/api/v1/auth/2fa/setup', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ password })
-			});
+			// Get current session and use ServiceAdapter
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session) throw new Error('No session found');
 
-			const responseData = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const responseData = await serviceAdapter.setup2FA('', password) as any; // Empty secret, password as token
 
-			if (!response.ok || !responseData.success) {
-				throw new Error(responseData.error?.message || 'Setup failed');
-			}
-
-			secret = responseData.data.secret;
-			qrCodeUrl = responseData.data.qrCodeUrl;
-			email = responseData.data.email || '';
+			secret = responseData.secret;
+			qrCodeUrl = responseData.qrCodeUrl;
+			email = responseData.email || '';
 		} catch (error) {
 			console.error('Error generating 2FA secret:', error);
 			qrCodeError = true;
@@ -78,27 +71,19 @@
 		}
 		isVerifying = true;
 		try {
-			// Call the API endpoint directly
-			const response = await fetch('/api/v1/auth/2fa/verify', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ code: verificationCode })
-			});
+			// Get current session and use ServiceAdapter
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session) throw new Error('No session found');
 
-			const responseData = await response.json();
+			const serviceAdapter = new ServiceAdapter({ session });
+			const responseData = await serviceAdapter.verify2FA(verificationCode) as any; // Code as token
 
-			if (!response.ok || !responseData.success) {
-				throw new Error(responseData.error?.message || 'Verification failed');
-			}
-
-			recoveryCodes = responseData.data.recoveryCodes || [];
+			recoveryCodes = responseData.recoveryCodes || [];
 			if (recoveryCodes.length > 0) {
 				nextStep();
 			} else {
 				toast.success('Two-factor authentication enabled successfully!');
-				dispatch('enabled');
+				dispatch('enabled', undefined);
 				closeModal();
 			}
 		} catch (error) {
@@ -133,7 +118,7 @@
 
 	function finishSetup() {
 		toast.success('Two-factor authentication enabled successfully!');
-		dispatch('enabled');
+		dispatch('enabled', undefined);
 		closeModal();
 	}
 
@@ -146,7 +131,7 @@
 		secret = '';
 		qrCodeError = false;
 		recoveryCodes = [];
-		dispatch('close');
+		dispatch('close', undefined);
 	}
 
 	function nextStep() {
@@ -167,7 +152,7 @@
 		on:click={closeModal}
 		on:keydown={(event) => event.key === 'Escape' && closeModal()}
 		role="presentation"
-		tabindex="-1"
+		aria-hidden="true"
 	>
 		<!-- Modal -->
 		<div
@@ -178,7 +163,6 @@
 			aria-modal="true"
 			aria-labelledby="two-factor-setup-modal-title"
 			aria-describedby="two-factor-setup-modal-description"
-			tabindex="-1"
 		>
 			<!-- Header -->
 			<div

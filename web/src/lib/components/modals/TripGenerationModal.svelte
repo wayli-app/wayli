@@ -4,6 +4,9 @@
 	import Modal from '$lib/components/ui/modal/index.svelte';
 	import AddressSearch from '$lib/components/ui/address-search/index.svelte';
 	import Button from '$lib/components/ui/button/index.svelte';
+	import { get } from 'svelte/store';
+	import { sessionStore } from '$lib/stores/auth';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	export let open = false;
 	export let startDate = '';
@@ -20,21 +23,20 @@
 
 	const dispatch = createEventDispatcher();
 
-	function handleClose() {
-		dispatch('close');
+	function closeModal() {
+		dispatch('close', undefined);
 	}
 
-	function handleGenerate() {
+	function generateTrip() {
 		dispatch('generate', {
 			startDate,
 			endDate,
 			useCustomHomeAddress,
-			customHomeAddress
+			customHomeAddress: useCustomHomeAddress ? customHomeAddressInput : null
 		});
 	}
 
 	function handleAddressSelect(event: CustomEvent) {
-		customHomeAddress = event.detail.displayName;
 		dispatch('addressSelect', event.detail);
 	}
 
@@ -45,22 +47,6 @@
 	function handleCustomHomeAddressInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		customHomeAddressInput = target.value;
-		customHomeAddress = target.value;
-		selectedCustomHomeAddressIndex = -1;
-		selectedCustomHomeAddress = null;
-
-		// Clear existing timeout
-		if (customHomeAddressSearchTimeout) clearTimeout(customHomeAddressSearchTimeout);
-
-		if (!customHomeAddressInput.trim()) {
-			customHomeAddressSuggestions = [];
-			showCustomHomeAddressSuggestions = false;
-			return;
-		}
-
-		// Debounce search
-		customHomeAddressSearchTimeout = setTimeout(() => searchCustomHomeAddressSuggestions(), 300);
-
 		dispatch('customHomeAddressInput', { value: customHomeAddressInput });
 	}
 
@@ -111,21 +97,16 @@
 		customHomeAddressSearchError = null;
 
 		try {
-			const response = await fetch(
-				`/api/v1/geocode/search?q=${encodeURIComponent(customHomeAddressInput.trim())}`
-			);
-			if (response.ok) {
-				const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.searchGeocode(customHomeAddressInput.trim()) as any;
 				// Handle both old format (data.data as array) and new format (data.data.results as array)
 				customHomeAddressSuggestions = data.data?.results || data.data || [];
 				showCustomHomeAddressSuggestions = true;
 				if (customHomeAddressSuggestions.length === 0) {
 					customHomeAddressSearchError = 'No addresses found';
-				}
-			} else {
-				customHomeAddressSuggestions = [];
-				customHomeAddressSearchError = 'No addresses found';
-				showCustomHomeAddressSuggestions = true;
 			}
 		} catch (error) {
 			console.error('Error searching for custom home address:', error);

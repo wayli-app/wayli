@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 		const { data: job, error: jobError } = await supabase
 			.from('jobs')
 			.insert({
-				user_id: user.id,
+				created_by: user.id,
 				type: 'import',
 				status: 'pending',
 				data: {

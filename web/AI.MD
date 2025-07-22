@@ -13,6 +13,26 @@ Wayli is a privacy-first, open-source location tracking and trip management appl
 - **Usage**: All business logic should be in service classes
 - **Benefits**: Testability, reusability, separation of concerns
 
+### API Layer Architecture
+
+- **Location**: `src/lib/utils/api/`
+- **Pattern**: Standardized API handlers with consistent error handling and validation
+- **Components**:
+  - `base-handler.ts`: Abstract base class for API endpoints
+  - `response.ts`: Standardized response utilities
+  - `schemas.ts`: Zod validation schemas for API inputs
+- **Usage**: Use `createGetHandler`, `createPostHandler`, or extend `BaseApiHandler`
+- **Benefits**: Consistent API responses, automatic validation, error handling
+
+### Environment Configuration
+
+- **Client-safe**: `src/lib/core/config/environment.ts` (public variables only)
+- **Server-only**: `src/lib/core/config/server-environment.ts` (private variables)
+- **Worker**: `src/lib/core/config/worker-environment.ts` (process.env)
+- **Node.js**: `src/lib/core/config/node-environment.ts` (dotenv + process.env)
+- **Pattern**: Clear separation between client and server environments
+- **Benefits**: Security, type safety, clear dependency boundaries
+
 ### Error Handling
 
 - **Location**: `src/lib/services/error-handler.service.ts`
@@ -22,10 +42,20 @@ Wayli is a privacy-first, open-source location tracking and trip management appl
 
 ### Validation
 
-- **Location**: `src/lib/validation/schemas.ts`
+- **Location**: `src/lib/validation/schemas.ts` and `src/lib/utils/api/schemas.ts`
 - **Pattern**: Zod schemas for all data validation
 - **Usage**: Use `validateWithSchema()` for API input validation
 - **Benefits**: Type safety, clear error messages, API documentation
+
+### Accessibility (A11y)
+
+- **Location**: `src/lib/accessibility/`
+- **Pattern**: Reusable accessibility utilities and actions
+- **Components**:
+  - `aria-button.ts`: `useAriaButton` action for accessible interactive elements
+  - UI components with built-in accessibility features
+- **Usage**: Use `useAriaButton` for custom interactive elements
+- **Benefits**: WCAG 2.1 AA compliance, keyboard navigation, screen reader support
 
 ## 🔧 Development Guidelines
 
@@ -34,18 +64,29 @@ Wayli is a privacy-first, open-source location tracking and trip management appl
 ```
 src/
 ├── lib/
+│   ├── accessibility/       # Accessibility utilities and actions
 │   ├── components/          # Reusable UI components
+│   ├── core/
+│   │   ├── config/          # Environment configuration
+│   │   └── supabase/        # Supabase clients
 │   ├── services/           # Business logic services
 │   ├── stores/             # Svelte stores
 │   ├── types/              # TypeScript type definitions
-│   ├── utils/              # Utility functions
+│   ├── utils/
+│   │   ├── api/            # API utilities and patterns
+│   │   └── ...             # Other utilities
 │   ├── validation/         # Zod validation schemas
 │   ├── middleware/         # Request middleware
-│   └── core/               # Core configuration
+│   └── ...                 # Other modules
 ├── routes/
 │   ├── (user)/             # Protected user routes
 │   ├── api/                # API endpoints
 │   └── setup/              # Initial setup flow
+├── tests/                  # Test suite
+│   ├── unit/               # Unit tests
+│   ├── components/         # Component tests
+│   ├── integration/        # Integration tests
+│   └── accessibility/      # Accessibility tests
 └── static/                 # Static assets
 ```
 
@@ -56,6 +97,7 @@ src/
 - **Services**: PascalCase with Service suffix (e.g., `UserProfileService`)
 - **Types**: PascalCase (e.g., `UserProfile`)
 - **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRY_ATTEMPTS`)
+- **API Endpoints**: RESTful naming (e.g., `/api/v1/users`)
 
 ### Code Style
 
@@ -65,6 +107,7 @@ src/
 - Handle errors gracefully with try/catch blocks
 - Add JSDoc comments for complex functions
 - Use descriptive variable and function names
+- Follow accessibility best practices
 
 ## 🛡️ Security Practices
 
@@ -74,6 +117,7 @@ src/
 - Use RLS policies for database access control
 - Implement proper session management
 - Use environment variables for sensitive configuration
+- Use the new API base handler for consistent auth patterns
 
 ### Input Validation
 
@@ -81,6 +125,7 @@ src/
 - Sanitize data before database operations
 - Use parameterized queries to prevent SQL injection
 - Implement rate limiting for API endpoints
+- Use the new API validation schemas for consistency
 
 ### Error Handling
 
@@ -88,6 +133,14 @@ src/
 - Log errors with appropriate context
 - Use structured error codes for consistent handling
 - Implement graceful degradation for failures
+- Use the new API response utilities for consistent error responses
+
+### Environment Security
+
+- **NEVER** import `$env/static/private` in client-side code
+- **NEVER** import server-only config in client components
+- Use the appropriate environment config for each context
+- Validate environment variables at startup
 
 ## 🚀 Performance Guidelines
 
@@ -98,244 +151,278 @@ src/
 - Use query batching for multiple operations
 - Monitor query performance and optimize slow queries
 
-### Frontend Optimization
+### Bundle Optimization
 
-- Implement code splitting and lazy loading
-- Use proper caching strategies
-- Optimize bundle size with tree shaking
-- Implement proper loading states
+- Use lazy loading for heavy components
+- Implement code splitting for routes
+- Optimize imports to reduce bundle size
+- Use the bundle optimizer utilities for dynamic imports
 
-### Caching Strategy
+### API Performance
 
-- **Location**: `src/lib/architecture/service-layer.ts` (EnhancedCacheService)
-- **Pattern**: In-memory caching with TTL and LRU eviction
-- **Usage**: Use service container to access cache service
-- **Benefits**: Reduced database load, faster responses
+- Use the new API response utilities for consistent performance
+- Implement proper pagination for large datasets
+- Use caching headers appropriately
+- Monitor API response times
 
 ## 🧪 Testing Strategy
 
-### Test Structure
+### Test Categories
 
-```
-tests/
-├── unit/                   # Unit tests for services and utilities
-├── integration/            # Integration tests for API endpoints
-├── accessibility/          # Accessibility tests
-└── setup.ts               # Test setup and utilities
-```
+- **Unit Tests**: Business logic, utilities, services (90%+ coverage)
+- **Component Tests**: UI components, user interactions (80%+ coverage)
+- **Accessibility Tests**: ARIA attributes, keyboard navigation (100% coverage)
+- **Integration Tests**: API endpoints, service integration (85%+ coverage)
 
-### Testing Guidelines
+### Testing Patterns
 
-- Write tests for critical functionality
+- Use Vitest as the testing framework
+- Follow AAA (Arrange-Act-Assert) pattern
 - Use descriptive test names
 - Test both success and error scenarios
 - Mock external dependencies appropriately
-- Aim for 80%+ code coverage
 
-### Test Utilities
+### Accessibility Testing
 
-- **Location**: `tests/setup.ts`
-- **Features**: Mock data generators, service mocks, cleanup utilities
-- **Usage**: Import and use in test files
-- **Benefits**: Consistent test setup, reusable test utilities
+- Test ARIA attributes and roles
+- Verify keyboard navigation
+- Test screen reader compatibility
+- Validate focus management
+- Check color contrast ratios
 
-## 📊 Monitoring & Logging
+## 🔄 API Development Patterns
 
-### Logging Service
+### Creating New API Endpoints
 
-- **Location**: `src/lib/services/logging.service.ts`
-- **Pattern**: Structured logging with multiple outputs
-- **Usage**: Use `loggingService.log()` for all application logging
-- **Benefits**: Centralized logging, multiple output formats, structured data
-
-### Error Tracking
-
-- **Location**: `src/lib/services/error-handler.service.ts`
-- **Pattern**: Centralized error handling with database logging
-- **Usage**: Use `errorHandler.handleApiError()` for API error handling
-- **Benefits**: Consistent error responses, proper logging, debugging
-
-## 🔄 Background Job Processing
-
-### Job Queue System
-
-- **Location**: `src/lib/services/queue/`
-- **Pattern**: Configurable worker system with real-time notifications
-- **Usage**: Use `JobQueueService` for all background tasks
-- **Benefits**: Scalable job processing, real-time updates, error handling
-
-### Worker Management
-
-- **Location**: `src/scripts/worker-manager.ts`
-- **Pattern**: Dynamic worker scaling with health monitoring
-- **Usage**: Configure workers via environment variables
-- **Benefits**: Automatic scaling, health monitoring, graceful shutdown
-
-## 🌐 API Design
-
-### RESTful Conventions
-
-- Use proper HTTP status codes
-- Implement consistent response formats
-- Use proper HTTP methods (GET, POST, PUT, DELETE)
-- Implement proper error handling
-
-### Response Format
-
+1. **Use the base handler pattern**:
 ```typescript
-interface ApiResponse<T> {
-	success: boolean;
-	data?: T;
-	error?: {
-		message: string;
-		code: string;
-		details?: unknown;
-	};
-	meta?: {
-		timestamp: string;
-		pagination?: {
-			page: number;
-			limit: number;
-			total: number;
-			totalPages: number;
-			hasNext: boolean;
-			hasPrev: boolean;
-		};
-	};
+export const GET: RequestHandler = createGetHandler(
+  async (context) => {
+    // Business logic here
+    return { data: result };
+  },
+  {
+    requireAuthentication: true,
+    validateQuery: paginationSchema
+  }
+);
+```
+
+2. **Use validation schemas**:
+```typescript
+import { createTripSchema } from '$lib/utils/api/schemas';
+
+export const POST: RequestHandler = createPostHandler(
+  async (context) => {
+    const { body } = context;
+    // body is already validated
+    return { trip: result };
+  },
+  {
+    validateBody: createTripSchema
+  }
+);
+```
+
+3. **Use response utilities**:
+```typescript
+import { successResponse, errorResponse } from '$lib/utils/api/response';
+
+// Success
+return successResponse(data, 201);
+
+// Error
+throw new Error('Resource not found');
+// Base handler will convert to appropriate response
+```
+
+### API Response Format
+
+All API responses follow this structure:
+```typescript
+{
+  success: boolean;
+  data?: T;
+  error?: {
+    message: string;
+    code: string;
+    details?: unknown;
+  };
+  meta?: {
+    timestamp: string;
+    requestId?: string;
+  };
 }
 ```
 
-## 🎨 UI/UX Guidelines
+## ♿ Accessibility Guidelines
 
-### Component Architecture
+### Interactive Elements
 
-- Use composition over inheritance
-- Implement proper loading states
-- Use consistent design tokens
-- Support both light and dark themes
-
-### Accessibility
-
-- Follow WCAG 2.1 AA guidelines
-- Use semantic HTML elements
-- Implement proper ARIA labels
-- Ensure keyboard navigation
+- Use `useAriaButton` action for custom interactive elements
+- Ensure all interactive elements are keyboard accessible
+- Provide proper ARIA labels and descriptions
 - Test with screen readers
 
-### Responsive Design
+### Form Accessibility
 
-- Mobile-first approach
-- Use Tailwind CSS responsive utilities
-- Test on multiple screen sizes
-- Optimize for touch interactions
+- Associate labels with form controls using `for` and `id`
+- Provide error messages with proper ARIA attributes
+- Use semantic HTML elements
+- Ensure proper focus management
 
-## 🔧 Environment Configuration
+### Keyboard Navigation
 
-### Supabase Clients
+- Support Tab navigation
+- Handle Enter and Space keys for activation
+- Provide visible focus indicators
+- Implement logical tab order
 
-- **Client**: `src/lib/core/supabase/client.ts` - Browser/client-side
-- **Server**: `src/lib/core/supabase/server.ts` - SvelteKit server-side
-- **Worker**: `src/lib/core/supabase/worker.ts` - Background workers
+### Screen Reader Support
 
-### Environment Variables
+- Use semantic HTML structure
+- Provide alternative text for images
+- Use proper heading hierarchy
+- Test with actual screen readers
 
-- **Public**: `$env/static/public` - Client-side public variables
-- **Private**: `$env/static/private` - Server-side private variables
-- **Node.js**: `process.env` - Node.js/worker environments
+## 🌍 Environment Configuration
+
+### Client-Side Configuration
+
+```typescript
+// src/lib/core/config/environment.ts
+// ONLY public, client-safe variables
+export function getNominatimConfig() {
+  return {
+    endpoint: 'https://nominatim.openstreetmap.org',
+    rateLimit: 1
+  };
+}
+```
+
+### Server-Side Configuration
+
+```typescript
+// src/lib/core/config/server-environment.ts
+// Server-only variables from $env/static/private
+export function validateServerEnvironment() {
+  // Validate required environment variables
+}
+```
+
+### Worker Configuration
+
+```typescript
+// src/lib/core/config/worker-environment.ts
+// Worker-specific variables using process.env
+export function validateWorkerEnvironment() {
+  // Validate worker environment
+}
+```
 
 ## 📚 Documentation Standards
 
-### Code Documentation
+### Code Comments
 
 - Add JSDoc comments for all public functions
+- Include parameter and return type documentation
 - Document complex business logic
-- Include usage examples in comments
-- Keep documentation up to date
+- Add examples for non-obvious usage
 
 ### API Documentation
 
 - Document all API endpoints
 - Include request/response examples
 - Document error codes and messages
-- Keep API documentation current
+- Keep documentation up to date with code changes
+- Use the API documentation in `src/lib/utils/api/README.md`
+
+### Component Documentation
+
+- Document component props and events
+- Include usage examples
+- Document accessibility features
+- Add performance considerations
 
 ### Project Documentation
 
-- Keep README.md updated
-- Maintain CHANGELOG.md for significant changes
-- Document setup and deployment procedures
-- Include troubleshooting guides
+- **AI.MD**: Comprehensive development guidelines (this file)
+- **README.md**: Project overview and quick start guide
+- **CONTRIBUTING.md**: Detailed contribution guidelines
+- **CODE_OF_CONDUCT.md**: Community behavior standards
+- **CHANGELOG.md**: Version history and changes
+- **API Documentation**: `src/lib/utils/api/README.md`
+- **Environment Guide**: `src/lib/core/config/README.md`
+- **Testing Guide**: `tests/README.md`
 
-## 🚀 Deployment Guidelines
+## 🔄 Migration Guidelines
 
-### Production Checklist
+### API Endpoint Migration
 
-- [ ] All tests passing
-- [ ] Environment variables configured
-- [ ] Database migrations applied
-- [ ] Security headers configured
-- [ ] Rate limiting enabled
-- [ ] Error tracking configured
-- [ ] Performance monitoring enabled
+When migrating existing API endpoints to the new patterns:
 
-### Environment-Specific Configuration
+1. Replace manual authentication with base handler
+2. Add Zod validation schemas
+3. Use response utility functions
+4. Extract business logic to service layer
+5. Update error handling
+6. Add comprehensive tests
 
-- Use environment-specific configuration files
-- Validate configuration on startup
-- Use proper secrets management
-- Implement health checks
+### Component Migration
 
-## 🔍 Code Review Guidelines
+When migrating components for accessibility:
 
-### Review Checklist
+1. Add proper ARIA attributes
+2. Implement keyboard navigation
+3. Use `useAriaButton` for custom interactive elements
+4. Test with screen readers
+5. Add accessibility tests
 
-- [ ] Code follows project conventions
-- [ ] Tests are included and passing
-- [ ] Documentation is updated
-- [ ] Security considerations addressed
-- [ ] Performance impact considered
-- [ ] Accessibility requirements met
+### Environment Migration
 
-### Review Process
+When updating environment configuration:
 
-- All changes require code review
-- Address feedback promptly
-- Ensure CI/CD pipeline passes
-- Update documentation as needed
+1. Identify client vs server usage
+2. Move to appropriate config file
+3. Add validation for required variables
+4. Update imports across the codebase
+5. Test in different environments
 
-## 📈 Performance Monitoring
+## 🚨 Common Pitfalls
 
-### Key Metrics
+### Security Issues
 
-- Database query performance
-- API response times
-- Bundle size and loading times
-- Error rates and types
-- User engagement metrics
+- ❌ Importing server config in client code
+- ❌ Exposing sensitive data in error messages
+- ❌ Not validating user input
+- ❌ Missing authentication checks
 
-### Monitoring Tools
+### Performance Issues
 
-- Application performance monitoring
-- Error tracking and alerting
-- Database performance monitoring
-- User analytics and feedback
+- ❌ Not using lazy loading for heavy components
+- ❌ Missing database indexes
+- ❌ Not implementing proper caching
+- ❌ Large bundle sizes
 
-## 🔄 Continuous Improvement
+### Accessibility Issues
 
-### Regular Reviews
+- ❌ Missing ARIA attributes
+- ❌ Not supporting keyboard navigation
+- ❌ Poor color contrast
+- ❌ Missing alternative text
 
-- Monthly architecture reviews
-- Quarterly performance audits
-- Security vulnerability assessments
-- Accessibility compliance checks
+### Testing Issues
 
-### Feedback Integration
+- ❌ Not testing error scenarios
+- ❌ Missing accessibility tests
+- ❌ Not mocking external dependencies
+- ❌ Incomplete test coverage
 
-- User feedback collection
-- Performance monitoring data
-- Error tracking insights
-- Team development velocity
+## 📖 Resources
 
----
-
-_This document should be updated regularly to reflect current project practices and guidelines._
+- [SvelteKit Documentation](https://kit.svelte.dev/)
+- [Supabase Documentation](https://supabase.com/docs)
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
+- [Vitest Testing Framework](https://vitest.dev/)
+- [Zod Validation](https://zod.dev/)
+- [Testing Library](https://testing-library.com/)

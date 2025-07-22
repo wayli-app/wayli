@@ -8,6 +8,8 @@
 	import { page } from '$app/stores';
 	import TwoFactorVerification from '$lib/components/TwoFactorVerification.svelte';
 	import { get } from 'svelte/store';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { EdgeFunctionsApiService } from '$lib/services/api/edge-functions-api.service';
 
 	let email = '';
 	let password = '';
@@ -65,21 +67,9 @@
 
 		try {
 			// First, check if the user has 2FA enabled
-			const checkResponse = await fetch('/api/v1/auth/check-2fa', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ email })
-			});
-
-			const checkResult = await checkResponse.json();
-
-			if (!checkResponse.ok) {
-				throw new Error(checkResult.error || 'Failed to check 2FA status');
-			}
-
-			const has2FA = checkResult.has2FA;
+			const edgeService = new EdgeFunctionsApiService();
+			const checkResult = await edgeService.check2FA({} as any) as any; // Minimal session for pre-auth
+			const has2FA = checkResult?.enabled === true;
 
 			if (has2FA) {
 				// Set 2FA flow state IMMEDIATELY to prevent redirects
@@ -190,34 +180,12 @@
 
 			if (recoveryCode) {
 				// Handle recovery code verification
-				response = await fetch('/api/v1/auth/2fa/recovery', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						email: pendingUserEmail,
-						recoveryCode: recoveryCode
-					})
-				});
+				const edgeService = new EdgeFunctionsApiService();
+				await edgeService.recover2FA({} as any, recoveryCode);
 			} else {
 				// Handle 2FA code verification
-				response = await fetch('/api/v1/auth/verify-2fa', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						email: pendingUserEmail,
-						code: code
-					})
-				});
-			}
-
-			const result = await response.json();
-
-			if (!response.ok) {
-				throw new Error(result.error || 'Verification failed');
+				const edgeService = new EdgeFunctionsApiService();
+				await edgeService.verify2FA({} as any, code);
 			}
 
 			// Verification successful, now sign in with stored credentials

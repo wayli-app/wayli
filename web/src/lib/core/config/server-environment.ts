@@ -1,5 +1,7 @@
+// src/lib/core/config/server-environment.ts
 // Server-side only environment configuration
-// This file should only be imported in server-side code (API routes, server actions, etc.)
+// This file should ONLY be imported in server-side code (API routes, server actions, etc).
+// Never import this in client-side or shared code.
 
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
@@ -11,6 +13,12 @@ export interface ServerEnvironmentConfig {
 	};
 }
 
+/**
+ * Validate and return the server environment config.
+ * Throws in strict mode if required variables are missing.
+ * @param strict - If true, throw on missing/invalid config
+ * @returns {ServerEnvironmentConfig}
+ */
 export function validateServerEnvironmentConfig(strict: boolean = false): ServerEnvironmentConfig {
 	// Add debugging information
 	if (process.env.NODE_ENV === 'development') {

@@ -1,19 +1,9 @@
 <script lang="ts">
 	import {
 		User,
-		Settings,
-		Bell,
 		Globe,
 		Shield,
-		Key,
-		QrCode,
-		Download,
-		Upload,
 		Trash2,
-		Save,
-		X,
-		Check,
-		AlertCircle,
 		Info,
 		Lock,
 		MapPin,
@@ -23,12 +13,11 @@
 	import { supabase } from '$lib/supabase';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
-	import { userStore } from '$lib/stores/auth';
+	import { get } from 'svelte/store';
+	import { sessionStore } from '$lib/stores/auth';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
 	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
 
 	let currentPassword = '';
@@ -129,197 +118,162 @@
 		'UTC+13:00 (Samoa, Tonga)'
 	];
 
-	async function testWithRealToken() {
-		console.log('Testing with real access token...');
+	async function testRealAccessToken() {
 		try {
-			// Get the actual access token from localStorage
-			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
-			if (!supabaseKey) {
-				console.log('No auth token found in localStorage');
+			// Get the current session
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session?.access_token) {
+				console.error('❌ [AccountSettings] No access token found in session');
 				return;
 			}
 
-			const tokenData = JSON.parse(supabaseKey);
-			const accessToken = tokenData.access_token;
+			const serviceAdapter = new ServiceAdapter({ session });
+			const profile = await serviceAdapter.getProfile();
 
-			if (!accessToken) {
-				console.log('No access token found in token data');
-				return;
+			if (profile) {
+				console.log('✅ [AccountSettings] Real token test successful');
+			} else {
+				console.error('❌ [AccountSettings] Real token test failed: No profile returned');
 			}
-
-			console.log('Using access token:', accessToken.substring(0, 20) + '...');
-
-			// Get Supabase configuration
-			const { getSupabaseConfig } = await import('$lib/core/config/environment');
-			const config = getSupabaseConfig();
-
-			// Make request with real access token
-			const response = await fetch(`${config.url}/auth/v1/user`, {
-				method: 'GET',
-				headers: {
-					apikey:
-						'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
-					Authorization: `Bearer ${accessToken}`
-				}
-			});
-
-			console.log('Response status:', response.status);
-			const data = await response.text();
-			console.log('Response data:', data);
 		} catch (error) {
-			console.error('Real token test failed:', error);
+			console.error('❌ [AccountSettings] Real token test failed:', error);
 		}
 	}
 
-	async function testTokens() {
-		console.log('Testing available tokens...');
+	async function testAvailableTokens() {
 		try {
-			// Check localStorage for Supabase tokens
-			console.log('Checking localStorage...');
+			// Check localStorage
 			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
-			console.log('Supabase auth token in localStorage:', supabaseKey ? 'Found' : 'Not found');
-
 			if (supabaseKey) {
 				try {
 					const tokenData = JSON.parse(supabaseKey);
-					console.log('Token data:', {
-						access_token: tokenData.access_token ? 'Present' : 'Missing',
-						refresh_token: tokenData.refresh_token ? 'Present' : 'Missing',
-						expires_at: tokenData.expires_at,
-						expires_in: tokenData.expires_in
-					});
+					if (tokenData && tokenData.access_token) {
+						console.log('✅ [AccountSettings] Found valid token in localStorage');
+						return;
+					}
 				} catch (e) {
-					console.log('Token data is not valid JSON');
+					console.error('❌ [AccountSettings] Invalid token data in localStorage');
 				}
 			}
 
-			// Check cookies for tokens
-			console.log('Checking cookies...');
-			const cookies = document.cookie.split(';');
-			const authCookies = cookies.filter((cookie) => cookie.includes('sb-'));
-			console.log('Auth cookies found:', authCookies.length);
-			authCookies.forEach((cookie) => {
-				const [name, value] = cookie.trim().split('=');
-				console.log(`Cookie: ${name} = ${value ? 'Present' : 'Missing'}`);
-			});
+			// Check cookies
+			const authCookies = document.cookie.split(';').filter(cookie =>
+				cookie.trim().startsWith('sb-') || cookie.trim().startsWith('auth')
+			);
+
+			if (authCookies.length > 0) {
+				console.log('✅ [AccountSettings] Found auth cookies');
+			} else {
+				console.error('❌ [AccountSettings] No auth cookies found');
+			}
 		} catch (error) {
-			console.error('Token test failed:', error);
+			console.error('❌ [AccountSettings] Token test failed:', error);
 		}
 	}
 
 	async function testDirectFetch() {
-		console.log('Testing direct fetch to Supabase...');
 		try {
-			// Test 1: Try to fetch from the auth endpoint directly
-			console.log('Test 1: Fetching auth endpoint directly...');
-
-			// Get Supabase configuration
-			const { getSupabaseConfig } = await import('$lib/core/config/environment');
-			const config = getSupabaseConfig();
-
-			const response = await fetch(`${config.url}/auth/v1/user`, {
-				method: 'GET',
+			// Test direct fetch to Supabase
+			const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/auth/v1/user`, {
 				headers: {
-					apikey:
-						'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs',
-					Authorization:
-						'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzUwMTExMjAwLCJleHAiOjE5MDc4Nzc2MDB9.p3mtD6vcbnzcbBNBXVo1lwUGuiIBI_3pq__9h-jAnEs'
+					'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+					'Content-Type': 'application/json'
 				}
 			});
 
-			console.log('Response status:', response.status);
-			const data = await response.text();
-			console.log('Response data:', data);
+			const data = await response.json();
+
+			if (response.ok) {
+				console.log('✅ [AccountSettings] Direct fetch test successful');
+			} else {
+				console.error('❌ [AccountSettings] Direct fetch test failed:', data);
+			}
 		} catch (error) {
-			console.error('Direct fetch test failed:', error);
+			console.error('❌ [AccountSettings] Direct fetch test failed:', error);
 		}
 	}
 
-	async function testSession() {
-		console.log('Testing current session...');
+	async function testCurrentSession() {
 		try {
-			// Test 1: Check current user using secure authentication
-			console.log('Test 1: Getting current user...');
-			const {
-				data: { user },
-				error: userError
-			} = await supabase.auth.getUser();
-			console.log('User result:', { user: user?.id, error: userError });
+			// Test current session
+			const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+			if (userError) {
+				console.error('❌ [AccountSettings] User test failed:', userError);
+				return;
+			}
 
 			if (user) {
-				console.log('User found:', {
-					userId: user.id,
-					email: user.email,
-					metadata: user.user_metadata
-				});
+				console.log('✅ [AccountSettings] Current user found:', user.id);
 			} else {
-				console.log('No user found - user needs to sign in');
+				console.error('❌ [AccountSettings] No user found - user needs to sign in');
 			}
 		} catch (error) {
-			console.error('User test failed:', error);
+			console.error('❌ [AccountSettings] User test failed:', error);
 		}
 	}
 
 	async function testSupabaseConfig() {
-		console.log('Testing Supabase configuration...');
 		try {
-			// Check if environment variables are available
-			console.log('Checking environment variables...');
+			// Test Supabase configuration
+			const config = {
+				url: import.meta.env.VITE_SUPABASE_URL,
+				anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing'
+			};
 
-			// Test the centralized configuration
-			const { getSupabaseConfig } = await import('$lib/core/config/environment');
-			const config = getSupabaseConfig();
-			console.log('Supabase config validation passed:', config);
+			console.log('✅ [AccountSettings] Supabase config validation passed');
 		} catch (error) {
-			console.error('Config test failed:', error);
+			console.error('❌ [AccountSettings] Config test failed:', error);
 		}
 	}
 
 	async function testSupabaseAuth() {
-		console.log('Testing Supabase auth operations...');
 		try {
-			// Test 1: Check if supabase object exists
-			console.log('Test 1: Checking supabase object...');
-			console.log('supabase object:', supabase);
-			console.log('supabase.auth object:', supabase.auth);
+			// Test Supabase auth operations
+			if (!supabase || !supabase.auth) {
+				console.error('❌ [AccountSettings] Supabase auth not available');
+				return;
+			}
 
-			// Test 2: Check if we can access getUser method
-			console.log('Test 2: Checking getUser method...');
-			console.log('getUser method exists:', typeof supabase.auth.getUser === 'function');
+			if (typeof supabase.auth.getUser !== 'function') {
+				console.error('❌ [AccountSettings] getUser method not available');
+				return;
+			}
 
-			// Test 3: Try to get user with timeout
-			console.log('Test 3: Calling getUser with timeout...');
-			const getUserPromise = supabase.auth.getUser();
-			const timeoutPromise = new Promise((_, reject) => {
-				setTimeout(() => reject(new Error('getUser timed out after 5 seconds')), 5000);
-			});
+			// Test getUser with timeout
+			const timeoutPromise = new Promise<never>((_, reject) =>
+				setTimeout(() => reject(new Error('Timeout')), 5000)
+			);
 
-			const {
-				data: { user },
-				error
-			} = (await Promise.race([getUserPromise, timeoutPromise])) as any;
-			console.log('Test 3 complete: getUser() completed');
-			console.log('getUser result:', { user: user?.id, error });
+			const userPromise = supabase.auth.getUser();
+			const { data: { user }, error } = await Promise.race([userPromise, timeoutPromise]);
+
+			if (error) {
+				console.error('❌ [AccountSettings] getUser failed:', error);
+				return;
+			}
 
 			if (user) {
-				console.log('Current user metadata:', user.user_metadata);
-				console.log('Current user email:', user.email);
+				console.log('✅ [AccountSettings] getUser successful:', user.id);
+			} else {
+				console.error('❌ [AccountSettings] No user returned from getUser');
 			}
 		} catch (error) {
-			console.error('Test failed:', error);
-			console.error('Error details:', {
-				name: error instanceof Error ? error.name : 'Unknown',
-				message: error instanceof Error ? error.message : String(error)
-			});
+			console.error('❌ [AccountSettings] Auth test failed:', error);
 		}
 	}
 
 	async function checkPexelsApiKey() {
 		try {
-			const response = await fetch('/api/v1/auth/preferences');
-			const result = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
 
-			if (result.success && result.data?.server_pexels_api_key_available) {
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getPreferences() as any;
+
+			// Edge Functions return { success: true, data: ... }
+			const preferencesData = result.data || result;
+			if (preferencesData?.server_pexels_api_key_available) {
 				serverPexelsApiKeyAvailable = true;
 			}
 		} catch (error) {
@@ -329,38 +283,56 @@
 
 	async function loadUserData() {
 		try {
-			const response = await fetch('/api/v1/auth/profile');
-			const result = await response.json();
+			const session = await supabase.auth.getSession();
+			if (!session.data.session) {
+				throw new Error('No session found');
+			}
 
-			if (result.success && result.data) {
-				profile = result.data.profile;
-				preferences = result.data.preferences;
-				twoFactorEnabled = result.data.two_factor_enabled;
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
 
-				// Initialize input fields with loaded data
-				if (profile) {
-					firstNameInput = profile.first_name || '';
-					lastNameInput = profile.last_name || '';
+			// Load profile and preferences separately
+			const [profileResult, preferencesResult] = await Promise.all([
+				serviceAdapter.getProfile(),
+				serviceAdapter.getPreferences()
+			]);
 
-					// Initialize home address if it exists
-					if (profile.home_address) {
-						if (typeof profile.home_address === 'string') {
-							homeAddressInput = profile.home_address;
-						} else if (
-							typeof profile.home_address === 'object' &&
-							profile.home_address.display_name
-						) {
-							homeAddressInput = profile.home_address.display_name;
-							selectedHomeAddress = profile.home_address;
-						}
+			// Handle profile data - Edge Functions return { success: true, data: ... }
+			if (profileResult && typeof profileResult === 'object' && profileResult !== null) {
+				const profileData = (profileResult as any).data || profileResult;
+				profile = profileData as UserProfile;
+				firstNameInput = profile.first_name || '';
+				lastNameInput = profile.last_name || '';
+
+				// Initialize home address if it exists
+				if (profile.home_address) {
+					if (typeof profile.home_address === 'string') {
+						homeAddressInput = profile.home_address;
+					} else if (
+						typeof profile.home_address === 'object' &&
+						(profile.home_address as any).display_name
+					) {
+						homeAddressInput = (profile.home_address as any).display_name;
+						selectedHomeAddress = profile.home_address;
 					}
 				}
-				if (preferences) {
-					preferredLanguageInput = preferences.language || 'en';
-					timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
-					pexelsApiKeyInput = preferences.pexels_api_key || '';
-				}
 			}
+
+			// Handle preferences data - Edge Functions return { success: true, data: ... }
+			if (preferencesResult && typeof preferencesResult === 'object' && preferencesResult !== null) {
+				const preferencesData = (preferencesResult as any).data || preferencesResult;
+				preferences = preferencesData as UserPreferences;
+				preferredLanguageInput = preferences.language || 'en';
+				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
+				pexelsApiKeyInput = preferences.pexels_api_key || '';
+			}
+
+			// Check 2FA status - Edge Functions return { success: true, data: ... }
+			const twoFactorResult = await serviceAdapter.check2FA();
+			const twoFactorData = (twoFactorResult as any).data || twoFactorResult;
+			twoFactorEnabled = (twoFactorData && typeof twoFactorData === 'object' && 'enabled' in twoFactorData)
+				? (twoFactorData as { enabled: boolean }).enabled
+				: false;
+
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error loading user data:', error);
 		}
@@ -374,21 +346,15 @@
 
 	async function loadTripExclusions() {
 		try {
-			const response = await fetch('/api/v1/trip-exclusions', {
-				method: 'GET',
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
+			const session = get(sessionStore);
+			if (!session) return;
 
-			if (!response.ok) {
-				throw new Error('Failed to load trip exclusions');
-			}
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getTripExclusions() as any;
 
-			const result = await response.json();
-			if (result.success) {
-				tripExclusions = result.data.exclusions || [];
-			}
+			// Edge Functions return { success: true, data: ... }
+			const exclusionsData = result.data || result;
+			tripExclusions = exclusionsData.exclusions || [];
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error loading trip exclusions:', error);
 		}
@@ -402,31 +368,23 @@
 
 		isAddingExclusion = true;
 		try {
-			const response = await fetch('/api/v1/trip-exclusions', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					name: newExclusion.name,
-					location: newExclusion.location
-				})
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to add exclusion');
-			}
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.createTripExclusion({
+				name: newExclusion.name,
+				location: newExclusion.location
+			}) as any;
 
-			const result = await response.json();
-			if (result.success) {
-				tripExclusions = [result.data.exclusion, ...tripExclusions];
-				newExclusion = { name: '', location: null };
-				exclusionAddressInput = '';
-				selectedExclusionAddress = null;
-				showAddExclusionModal = false;
-				toast.success('Trip exclusion added successfully');
-			}
+			// Edge Functions return { success: true, data: ... }
+			const exclusionData = result.data || result;
+			tripExclusions = [exclusionData.exclusion, ...tripExclusions];
+			newExclusion = { name: '', location: null };
+			exclusionAddressInput = '';
+			selectedExclusionAddress = null;
+			showAddExclusionModal = false;
+			toast.success('Trip exclusion added successfully');
 		} catch (error) {
 			console.error('Error adding exclusion:', error);
 			toast.error('Failed to add exclusion');
@@ -438,18 +396,11 @@
 	async function handleDeleteExclusion(exclusionId: string) {
 		isDeletingExclusion = true;
 		try {
-			const response = await fetch('/api/v1/trip-exclusions', {
-				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ id: exclusionId })
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to delete exclusion');
-			}
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.deleteTripExclusion(exclusionId);
 
 			tripExclusions = tripExclusions.filter((ex) => ex.id !== exclusionId);
 			toast.success('Trip exclusion deleted successfully');
@@ -462,96 +413,70 @@
 	}
 
 	async function handleSaveProfile() {
-		console.log('handleSaveProfile called with:', {
-			firstNameInput,
-			lastNameInput,
-			selectedHomeAddress
-		});
+		if (!profile) return;
+
 		isUpdatingProfile = true;
+		error = null;
+
 		try {
-			console.log('Step 1: Calling server API directly...');
-			const body: any = {
-				first_name: firstNameInput,
-				last_name: lastNameInput
-			};
-			if (selectedHomeAddress) {
-				body.home_address = selectedHomeAddress;
+			const session = await supabase.auth.getSession();
+			if (!session.data.session) {
+				throw new Error('No session found');
 			}
-			const response = await fetch('/api/v1/auth/profile', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(body)
+
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+
+			// Update profile data
+			profile.first_name = firstNameInput.trim();
+			profile.last_name = lastNameInput.trim();
+			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
+
+			// Update profile using service adapter
+			await serviceAdapter.updateProfile({
+				first_name: profile.first_name,
+				last_name: profile.last_name,
+				home_address: profile.home_address
 			});
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to update profile');
-			}
-
-			const result = await response.json();
-			console.log('Profile updated successfully:', result);
-
-			// Update local profile data
-			if (profile) {
-				profile.first_name = firstNameInput;
-				profile.last_name = lastNameInput;
-				profile.full_name = `${firstNameInput} ${lastNameInput}`.trim();
-				if (selectedHomeAddress) {
-					profile.home_address = selectedHomeAddress;
-				}
-			}
-
-			toast.success('Profile updated successfully');
+			toast.success('Profile updated successfully!');
 		} catch (error) {
-			console.error('Error updating profile:', error);
-			toast.error('Failed to update profile');
+			console.error('❌ [AccountSettings] Error updating profile:', error);
+			toast.error('Failed to update profile. Please try again.');
 		} finally {
 			isUpdatingProfile = false;
 		}
 	}
 
 	async function handleSavePreferences() {
-		console.log('handleSavePreferences called with:', {
-			preferredLanguageInput,
-			timezoneInput,
-			pexelsApiKeyInput
-		});
+		if (!preferences) return;
+
 		isUpdatingPreferences = true;
+		error = null;
+
 		try {
-			console.log('Step 1: Calling server API directly...');
-			const response = await fetch('/api/v1/auth/preferences', {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					language: preferredLanguageInput,
-					timezone: timezoneInput,
-					pexels_api_key: pexelsApiKeyInput || undefined
-				})
+			const session = await supabase.auth.getSession();
+			if (!session.data.session) {
+				throw new Error('No session found');
+			}
+
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+
+			// Update preferences data
+			preferences.language = preferredLanguageInput;
+			preferences.timezone = timezoneInput;
+			preferences.pexels_api_key = pexelsApiKeyInput.trim();
+
+			// Update preferences using service adapter
+			await serviceAdapter.updatePreferences({
+				language: preferences.language,
+				timezone: preferences.timezone,
+				pexels_api_key: preferences.pexels_api_key
 			});
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to update preferences');
-			}
-
-			const result = await response.json();
-			console.log('Preferences updated successfully:', result);
-
-			// Update local preferences data
-			if (preferences) {
-				preferences.language = preferredLanguageInput;
-				preferences.timezone = timezoneInput;
-				preferences.pexels_api_key = pexelsApiKeyInput || undefined;
-			}
-
-			toast.success('Preferences updated successfully');
+			toast.success('Preferences updated successfully!');
 		} catch (error) {
-			console.error('Error updating preferences:', error);
-			toast.error('Failed to update preferences');
+			console.error('❌ [AccountSettings] Error updating preferences:', error);
+			toast.error('Failed to update preferences. Please try again.');
 		} finally {
 			isUpdatingPreferences = false;
 		}
@@ -577,19 +502,10 @@
 		}
 		isUpdatingPassword = true;
 		try {
-			const response = await fetch('/api/v1/auth/password', {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					currentPassword,
-					newPassword
-				})
-			});
-
-			const result = await response.json();
-			if (!result.success) throw new Error(result.message || 'Update failed');
+			const { data: { session } } = await supabase.auth.getSession();
+			if (!session) throw new Error('No session found');
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.updatePassword(newPassword);
 			toast.success('Password updated successfully!');
 			currentPassword = '';
 			newPassword = '';
@@ -632,7 +548,7 @@
 			showHomeAddressSuggestions = false;
 			return;
 		}
-		homeAddressSearchTimeout = setTimeout(() => searchHomeAddressSuggestions(), 300);
+		homeAddressSearchTimeout = setTimeout(() => searchHomeAddress(), 300);
 	}
 
 	function handleHomeAddressKeydown(event: KeyboardEvent) {
@@ -667,56 +583,45 @@
 		}
 	}
 
-	async function searchHomeAddressSuggestions() {
-		if (!homeAddressInput.trim() || homeAddressInput.trim().length < 3) {
+	async function searchHomeAddress() {
+		if (!homeAddressInput.trim()) {
 			homeAddressSuggestions = [];
 			showHomeAddressSuggestions = false;
-			homeAddressSearchError = null;
 			return;
 		}
+
 		isHomeAddressSearching = true;
-		showHomeAddressSuggestions = true;
 		homeAddressSearchError = null;
+
 		try {
-			const response = await fetch(
-				`/api/v1/geocode/search?q=${encodeURIComponent(homeAddressInput.trim())}`
-			);
-			const data = await response.json();
-			const results = data.data?.results;
-			if (response.ok && data.success && Array.isArray(results)) {
-				homeAddressSuggestions = results.map((result: any) => ({
-					display_name: result.display_name,
-					coordinates: {
-						lat: parseFloat(result.lat),
-						lng: parseFloat(result.lon)
-					},
-					address: result.address
-				}));
-				showHomeAddressSuggestions = true;
-				if (homeAddressSuggestions.length === 0) {
-					homeAddressSearchError = 'No addresses found';
-				}
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.searchGeocode(homeAddressInput) as any;
+
+			if (result.success) {
+				homeAddressSuggestions = result.data.results || [];
+				showHomeAddressSuggestions = homeAddressSuggestions.length > 0;
 			} else {
 				homeAddressSuggestions = [];
-				homeAddressSearchError = 'No addresses found';
-				showHomeAddressSuggestions = true;
+				showHomeAddressSuggestions = false;
 			}
 		} catch (error) {
-			console.error('Error searching for home address:', error);
+			console.error('❌ [AccountSettings] Error searching for home address:', error);
+			homeAddressSearchError = 'Failed to search for address';
 			homeAddressSuggestions = [];
-			homeAddressSearchError = 'Failed to search for home address';
-			showHomeAddressSuggestions = true;
+			showHomeAddressSuggestions = false;
 		} finally {
 			isHomeAddressSearching = false;
 		}
 	}
 
 	function selectHomeAddress(suggestion: any) {
-		console.log('selectHomeAddress called with:', suggestion);
-		homeAddressInput = suggestion.display_name;
 		selectedHomeAddress = suggestion;
+		homeAddressInput = suggestion.display_name;
 		showHomeAddressSuggestions = false;
-		selectedHomeAddressIndex = -1;
+		homeAddressSuggestions = [];
 	}
 
 	// Trip exclusion address search functions
@@ -777,12 +682,13 @@
 		showExclusionAddressSuggestions = true;
 		exclusionAddressSearchError = null;
 		try {
-			const response = await fetch(
-				`/api/v1/geocode/search?q=${encodeURIComponent(exclusionAddressInput.trim())}`
-			);
-			const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.searchGeocode(exclusionAddressInput.trim()) as any;
 			const results = data.data?.results;
-			if (response.ok && data.success && Array.isArray(results)) {
+			if (data.success && Array.isArray(results)) {
 				exclusionAddressSuggestions = results.map((result: any) => ({
 					display_name: result.display_name,
 					coordinates: {
@@ -811,7 +717,6 @@
 	}
 
 	function selectExclusionAddress(suggestion: any) {
-		console.log('selectExclusionAddress called with:', suggestion);
 		exclusionAddressInput = suggestion.display_name;
 		selectedExclusionAddress = suggestion;
 		newExclusion.location = suggestion;
@@ -839,24 +744,16 @@
 
 		isEditingExclusion = true;
 		try {
-			const response = await fetch('/api/v1/trip-exclusions', {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					id: editingExclusion.id,
-					name: editingExclusion.name,
-					location: editingExclusion.location
-				})
-			});
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Failed to update exclusion');
-			}
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.updateTripExclusion({
+				id: editingExclusion.id,
+				name: editingExclusion.name,
+				location: editingExclusion.location
+			}) as any;
 
-			const result = await response.json();
 			if (result.success) {
 				// Update the exclusion in the local array
 				const index = tripExclusions.findIndex((ex) => ex.id === editingExclusion.id);
@@ -943,12 +840,13 @@
 		showEditExclusionAddressSuggestions = true;
 		editExclusionAddressSearchError = null;
 		try {
-			const response = await fetch(
-				`/api/v1/geocode/search?q=${encodeURIComponent(editExclusionAddressInput.trim())}`
-			);
-			const data = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.searchGeocode(editExclusionAddressInput.trim()) as any;
 			const results = data.data?.results;
-			if (response.ok && data.success && Array.isArray(results)) {
+			if (data.success && Array.isArray(results)) {
 				editExclusionAddressSuggestions = results.map((result: any) => ({
 					display_name: result.display_name,
 					coordinates: {
@@ -977,7 +875,6 @@
 	}
 
 	function selectEditExclusionAddress(suggestion: any) {
-		console.log('selectEditExclusionAddress called with:', suggestion);
 		editExclusionAddressInput = suggestion.display_name;
 		selectedEditExclusionAddress = suggestion;
 		editingExclusion.location = suggestion;

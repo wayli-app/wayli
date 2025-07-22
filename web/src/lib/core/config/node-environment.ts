@@ -1,3 +1,8 @@
+// src/lib/core/config/node-environment.ts
+// Node.js/worker/server environment configuration using dotenv and process.env
+// This file should ONLY be imported in Node.js/worker/server code (not in client-side/browser code).
+// Never import this in client-side or SvelteKit load functions.
+
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
@@ -150,8 +155,9 @@ export function validateNodeEnvironmentConfig(config: NodeEnvironmentConfig): No
 }
 
 /**
- * Gets the Node.js environment configuration
- * @returns The Node.js environment configuration
+ * Get the Node.js environment configuration (dotenv + process.env).
+ * Throws if required variables are missing in production.
+ * @returns {NodeEnvironmentConfig}
  */
 export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	// Use the merged environment variables

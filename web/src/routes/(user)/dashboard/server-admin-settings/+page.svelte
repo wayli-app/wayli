@@ -2,10 +2,8 @@
 	import {
 		Settings,
 		User as UserIcon,
-		Lock,
 		UserPlus,
 		Server,
-		Database,
 		Search,
 		Edit,
 		Trash2,
@@ -24,6 +22,9 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
 	import type { UserProfile } from '$lib/types/user.types';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { get } from 'svelte/store';
+	import { sessionStore } from '$lib/stores/auth';
 
 	export let data: PageData;
 
@@ -98,23 +99,26 @@
 		if (itemsPerPage !== 10) params.set('limit', itemsPerPage.toString());
 
 		try {
-			const response = await fetch(`/api/v1/admin/users?${params.toString()}`);
-			if (response.ok) {
-				const result = await response.json();
-				// Handle the wrapped response format
-				const data = result.data || result;
-				users = data.users || [];
-				pagination = data.pagination || {
-					page: 1,
-					limit: 10,
-					total: 0,
-					totalPages: 0,
-					hasNext: false,
-					hasPrev: false
-				};
-			} else {
-				console.error('Error response:', response.status, response.statusText);
-			}
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getAdminUsers({
+				page: currentPage,
+				limit: itemsPerPage
+			}) as any;
+
+			// Edge Functions return { success: true, data: ... }
+			const data = result.data || result;
+			users = data.users || [];
+			pagination = data.pagination || {
+				page: 1,
+				limit: 10,
+				total: 0,
+				totalPages: 0,
+				hasNext: false,
+				hasPrev: false
+			};
 		} catch (error) {
 			console.error('Error fetching filtered users:', error);
 		}
@@ -173,7 +177,7 @@
 	}
 
 	function handleUpdateServerName() {
-		// TODO: Implement server name update
+		// Note: Server name update functionality to be implemented in future version
 	}
 
 	function resetForm() {
@@ -185,31 +189,18 @@
 
 	async function saveSettings() {
 		try {
-			const response = await fetch('/api/v1/admin/server-settings', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					server_name: serverName,
-					admin_email: adminEmail,
-					allow_registration: allowRegistration,
-					require_email_verification: requireEmailVerification
-				})
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.updateServerSettings({
+				server_name: serverName,
+				admin_email: adminEmail,
+				allow_registration: allowRegistration,
+				require_email_verification: requireEmailVerification
 			});
 
-			if (response.ok) {
-				toast.success('Settings saved successfully');
-			} else {
-				let errorDescription = 'An unknown error occurred while saving settings.';
-				try {
-					const result = await response.json();
-					errorDescription = result.error || errorDescription;
-				} catch (e) {
-					// The response was not JSON.
-				}
-				toast.error('Failed to save settings', { description: errorDescription });
-			}
+			toast.success('Settings saved successfully');
 		} catch (error) {
 			console.error('Error saving settings:', error);
 			toast.error('Failed to save settings', { description: 'An unexpected error occurred.' });
@@ -334,16 +325,19 @@
 
 	async function loadServerSettings() {
 		try {
-			const response = await fetch('/api/v1/admin/server-settings');
-			if (response.ok) {
-				const settings = await response.json();
-				serverName = settings.server_name || '';
-				adminEmail = settings.admin_email || '';
-				allowRegistration = settings.allow_registration ?? true;
-				requireEmailVerification = settings.require_email_verification ?? false;
-			} else {
-				console.error('Failed to load server settings');
-			}
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getServerSettings() as any;
+
+			// Edge Functions return { success: true, data: ... }
+			const settings = result.data || result;
+
+			serverName = settings.server_name || '';
+			adminEmail = settings.admin_email || '';
+			allowRegistration = settings.allow_registration ?? true;
+			requireEmailVerification = settings.require_email_verification ?? false;
 		} catch (error) {
 			console.error('Error loading server settings:', error);
 		}

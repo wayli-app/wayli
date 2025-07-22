@@ -3,6 +3,9 @@
 	import { Download, Clock, CheckCircle, XCircle, AlertCircle, Check } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { supabase } from '$lib/core/supabase/client';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { sessionStore } from '$lib/stores/auth';
+	import { get } from 'svelte/store';
 
 	interface ExportJob {
 		id: string;
@@ -46,8 +49,11 @@
 
 	async function loadExportJobs() {
 		try {
-			const response = await fetch('/api/v1/export');
-			const result = await response.json();
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getExportJobs() as any;
 
 			if (result.success) {
 				exportJobs = result.data;
@@ -72,7 +78,17 @@
 
 	async function downloadExport(jobId: string) {
 		try {
-			window.open(`/api/v1/export/${jobId}/download`, '_blank');
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const downloadUrl = await serviceAdapter.getExportDownloadUrl(jobId) as any;
+
+			if (downloadUrl?.url) {
+				window.open(downloadUrl.url, '_blank');
+			} else {
+				toast.error('Download URL not available');
+			}
 		} catch (error) {
 			console.error('Error downloading export:', error);
 			toast.error('Failed to download export');

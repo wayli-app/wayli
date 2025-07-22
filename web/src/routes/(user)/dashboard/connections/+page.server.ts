@@ -39,10 +39,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Construct the endpoint URL using the current domain
 	const baseUrl = PUBLIC_SUPABASE_URL.includes('localhost')
-		? 'http://localhost:5173'
-		: 'https://wayli.app'; // Replace with your actual domain
+		? 'http://localhost:54321'
+		: PUBLIC_SUPABASE_URL; // Use Supabase URL for Edge Functions
 	const owntracksEndpoint = owntracksApiKey
-		? `${baseUrl}/api/v1/owntracks/points?api_key=${owntracksApiKey}&user_id=${session.user.id}`
+		? `${baseUrl}/functions/v1/owntracks-points?api_key=${owntracksApiKey}&user_id=${session.user.id}`
 		: null;
 
 	return {

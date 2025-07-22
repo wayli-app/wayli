@@ -32,7 +32,7 @@
 	}
 
 	function closeModal() {
-		dispatch('close');
+		dispatch('close', undefined);
 	}
 </script>
 

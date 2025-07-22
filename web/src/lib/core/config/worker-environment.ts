@@ -1,5 +1,7 @@
+// src/lib/core/config/worker-environment.ts
 // Worker environment configuration using process.env
 // This file is specifically for Node.js workers and uses process.env instead of SvelteKit imports
+// Never import this in client-side or SvelteKit server code.
 
 export interface WorkerEnvironmentConfig {
 	supabase: {
@@ -12,6 +14,12 @@ export interface WorkerEnvironmentConfig {
 const DEFAULT_SUPABASE_URL = 'http://127.0.0.1:54321';
 const DEFAULT_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
+/**
+ * Validate and return the worker environment config.
+ * Throws in strict mode if required variables are missing.
+ * @param strict - If true, throw on missing/invalid config
+ * @returns {WorkerEnvironmentConfig}
+ */
 export function validateWorkerEnvironmentConfig(strict: boolean = false): WorkerEnvironmentConfig {
 	// Add debugging information
 	if (process.env.NODE_ENV === 'development') {

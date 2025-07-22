@@ -33,11 +33,11 @@
 	};
 
 	function handleConfirm() {
-		dispatch('confirm');
+		dispatch('confirm', undefined);
 	}
 
 	function handleCancel() {
-		dispatch('cancel');
+		dispatch('cancel', undefined);
 	}
 </script>
 

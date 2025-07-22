@@ -43,7 +43,7 @@
 	function closeMenu() {
 		isOpen = false;
 		activeDropdown = null;
-		dispatch('close');
+		dispatch('close', undefined);
 	}
 
 	function toggleDropdown(index: number) {

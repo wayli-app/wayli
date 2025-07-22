@@ -2,25 +2,20 @@
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
 	import {
-		MapPin,
-		Calendar,
 		BarChart,
 		Import,
-		Edit,
-		Landmark,
 		Star,
 		Link,
 		Settings,
 		User,
-		LogOut,
 		Navigation,
+		Map,
+		X,
 		Sun,
 		Moon,
-		Monitor,
-		Menu,
-		X,
 		Crown,
-		Map
+		LogOut,
+		Menu
 	} from 'lucide-svelte';
 	import { createEventDispatcher } from 'svelte';
 	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
@@ -60,7 +55,7 @@
 	});
 
 	function handleSignOut() {
-		dispatch('signout');
+		dispatch('signout', undefined);
 	}
 
 	// Handle window resize to properly manage sidebar state

@@ -1,17 +1,12 @@
 import { supabase } from '$lib/core/supabase/worker';
 
-interface TripLocation {
+export interface TripLocation {
 	id: string;
 	user_id: string;
 	tracker_type: string;
-	device_id?: string;
+	device_id: string;
 	recorded_at: string;
-	location: {
-		coordinates: {
-			lat: number;
-			lng: number;
-		};
-	};
+	location: { coordinates: [number, number] };
 	country_code?: string;
 	altitude?: number;
 	accuracy?: number;
@@ -21,24 +16,25 @@ interface TripLocation {
 	is_charging?: boolean;
 	activity_type?: string;
 	raw_data?: Record<string, unknown>;
-	geocode?: {
-		city?: string;
-		display_name?: string;
-		amenity?: string;
-		name?: string;
-	};
+	geocode?: GeocodeData | string | null;
 	created_at: string;
 	updated_at: string;
 	// Additional fields for compatibility with statistics page
+	name: string;
+	description: string;
+	type: 'tracker';
+	transport_mode: string;
+	coordinates: { lat: number; lng: number };
+	city: string;
+}
+
+export interface GeocodeData {
+	display_name?: string;
 	name?: string;
-	description?: string;
-	type?: 'tracker' | 'location' | 'poi';
-	transport_mode?: string;
-	coordinates?: {
-		lat: number;
-		lng: number;
-	};
+	amenity?: string;
 	city?: string;
+	error?: boolean;
+	[key: string]: unknown;
 }
 
 export class TripLocationsService {
@@ -49,17 +45,11 @@ export class TripLocationsService {
 		this.supabase = supabase;
 	}
 
-	// Allow override for test/worker/Node.js
-	static setSupabaseClient() {
-		// TODO: Implement static client override
-		console.log('🔧 [TripLocationsService] Static client override not yet implemented');
-	}
+	// Note: Static client override functionality to be implemented in future version
+	// For now, using dynamic client creation
 
-	// Allow override for Node/worker: call this at startup in worker context
-	static useWorkerClient() {
-		// TODO: Implement static worker client override
-		console.log('🔧 [TripLocationsService] Static worker client override not yet implemented');
-	}
+	// Note: Static worker client override functionality to be implemented in future version
+	// For now, using dynamic client creation
 
 	// Instance method to switch to worker client
 	useWorkerClient() {
@@ -156,64 +146,54 @@ export class TripLocationsService {
 	}
 
 	private transformLocations(locations: unknown[]): TripLocation[] {
-		return locations.map((location: unknown, index) => {
-			const loc = location as Record<string, unknown>;
-
-			// Extract coordinates from PostGIS geometry
-			const locationData = loc.location as { coordinates?: number[] } | null;
+		return locations.map((loc, index) => {
+			const locationObj = loc as Record<string, unknown>;
+			const locationData = locationObj.location as { coordinates?: number[] } | null;
 			const coordinates = locationData?.coordinates
 				? {
-						lat: locationData.coordinates[1] || 0,
-						lng: locationData.coordinates[0] || 0
-					}
+					lat: locationData.coordinates[1] || 0,
+					lng: locationData.coordinates[0] || 0
+				}
 				: { lat: 0, lng: 0 };
 
-			// Determine transport mode from activity_type or speed
 			let transportMode = 'unknown';
-			if (loc.activity_type) {
-				transportMode = loc.activity_type as string;
-			} else if (loc.speed) {
-				const speedKmh = (loc.speed as number) * 3.6; // Convert m/s to km/h
+			if (locationObj.activity_type) {
+				transportMode = String(locationObj.activity_type);
+			} else if (locationObj.speed) {
+				const speedKmh = Number(locationObj.speed) * 3.6;
 				if (speedKmh < 5) transportMode = 'walking';
 				else if (speedKmh < 20) transportMode = 'cycling';
 				else if (speedKmh < 100) transportMode = 'car';
 				else transportMode = 'airplane';
 			}
 
-			const geocode = loc.geocode as {
-				display_name?: string;
-				name?: string;
-				amenity?: string;
-				city?: string;
-				error?: boolean;
-			} | null;
+			const geocode = locationObj.geocode as GeocodeData | null;
 
 			return {
-				id: `${loc.user_id}_${loc.recorded_at}_${index}`, // Generate unique ID
-				user_id: loc.user_id as string,
-				tracker_type: loc.tracker_type as string,
-				device_id: loc.device_id as string | undefined,
-				recorded_at: loc.recorded_at as string,
-				location: { coordinates },
-				country_code: loc.country_code as string | undefined,
-				altitude: loc.altitude as number | undefined,
-				accuracy: loc.accuracy as number | undefined,
-				speed: loc.speed as number | undefined,
-				heading: loc.heading as number | undefined,
-				battery_level: loc.battery_level as number | undefined,
-				is_charging: loc.is_charging as boolean | undefined,
-				activity_type: loc.activity_type as string | undefined,
-				raw_data: loc.raw_data as Record<string, unknown> | undefined,
+				id: `${locationObj.user_id}_${locationObj.recorded_at}_${index}`,
+				user_id: String(locationObj.user_id),
+				tracker_type: String(locationObj.tracker_type),
+				device_id: String(locationObj.device_id),
+				recorded_at: String(locationObj.recorded_at),
+				location: { coordinates: locationData?.coordinates as [number, number] },
+				country_code: locationObj.country_code ? String(locationObj.country_code) : undefined,
+				altitude: locationObj.altitude !== undefined ? Number(locationObj.altitude) : undefined,
+				accuracy: locationObj.accuracy !== undefined ? Number(locationObj.accuracy) : undefined,
+				speed: locationObj.speed !== undefined ? Number(locationObj.speed) : undefined,
+				heading: locationObj.heading !== undefined ? Number(locationObj.heading) : undefined,
+				battery_level: locationObj.battery_level !== undefined ? Number(locationObj.battery_level) : undefined,
+				is_charging: locationObj.is_charging !== undefined ? Boolean(locationObj.is_charging) : undefined,
+				activity_type: locationObj.activity_type ? String(locationObj.activity_type) : undefined,
+				raw_data: locationObj.raw_data as Record<string, unknown> | undefined,
 				geocode: geocode || undefined,
-				created_at: loc.created_at as string,
-				updated_at: loc.updated_at as string,
-				// Additional fields for compatibility
+				created_at: String(locationObj.created_at),
+				updated_at: String(locationObj.updated_at),
 				name:
 					geocode && typeof geocode === 'object' && 'error' in geocode
 						? 'Error occurred during geocoding'
 						: geocode?.display_name || geocode?.name || 'Unknown Location',
 				description: geocode?.amenity || '',
-				type: 'tracker' as const,
+				type: 'tracker',
 				transport_mode: transportMode,
 				coordinates,
 				city:
