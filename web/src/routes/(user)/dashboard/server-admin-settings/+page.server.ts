@@ -1,8 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '$lib/core/supabase/server';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Get the user from the session
@@ -12,11 +10,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		throw redirect(302, '/auth/signin');
 	}
 
-	// Create a Supabase client with service role key for admin operations
-	const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+	// Check if the current user is an admin by checking their profile
+	const { data: profile, error } = await supabase
+		.from('user_profiles')
+		.select('role')
+		.eq('id', session.user.id)
+		.single();
 
-	// Check if the current user is an admin by checking their user metadata
-	const isAdmin = session.user.user_metadata?.role === 'admin';
+	if (error) {
+		console.error('Error fetching user profile:', error);
+		throw redirect(302, '/dashboard/statistics');
+	}
+
+	const isAdmin = profile?.role === 'admin';
 
 	if (!isAdmin) {
 		throw redirect(302, '/dashboard/statistics');
@@ -35,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const {
 		data: { users: authUsers },
 		error: authUsersError
-	} = await supabaseAdmin.auth.admin.listUsers({
+	} = await supabase.auth.admin.listUsers({
 		page: 1,
 		perPage: 1000 // Get a large number to implement proper search
 	});
@@ -116,9 +122,14 @@ export const actions = {
 				return fail(401, { error: 'Unauthorized' });
 			}
 
-			// Check if the current user is an admin
-			const isAdmin = session.user.user_metadata?.role === 'admin';
-			if (!isAdmin) {
+			// Check if the current user is an admin by checking their profile
+			const { data: profile, error: profileError } = await supabase
+				.from('user_profiles')
+				.select('role')
+				.eq('id', session.user.id)
+				.single();
+
+			if (profileError || profile?.role !== 'admin') {
 				return fail(403, { error: 'Forbidden' });
 			}
 
@@ -132,15 +143,13 @@ export const actions = {
 				return fail(400, { error: 'Missing required fields' });
 			}
 
-			const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
 			// Create a new user with a temporary password
 			const tempPassword =
 				Math.random().toString(36).slice(-10) +
 				Math.random().toString(36).toUpperCase().slice(-2) +
 				'1!';
 
-			const { error } = await supabaseAdmin.auth.admin.createUser({
+			const { error } = await supabase.auth.admin.createUser({
 				email,
 				password: tempPassword,
 				email_confirm: true, // Auto-confirm email
@@ -173,9 +182,14 @@ export const actions = {
 				return fail(401, { error: 'Unauthorized' });
 			}
 
-			// Check if the current user is an admin
-			const isAdmin = session.user.user_metadata?.role === 'admin';
-			if (!isAdmin) {
+			// Check if the current user is an admin by checking their profile
+			const { data: profile, error: profileError } = await supabase
+				.from('user_profiles')
+				.select('role')
+				.eq('id', session.user.id)
+				.single();
+
+			if (profileError || profile?.role !== 'admin') {
 				return fail(403, { error: 'Forbidden' });
 			}
 
@@ -190,23 +204,15 @@ export const actions = {
 				return fail(400, { error: 'Missing required fields' });
 			}
 
-			const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-			// TEMPORARILY DISABLED: Ensure the current user is an admin before proceeding
-			// const { data: { user: adminUser }, error: adminUserError } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
-			// if (adminUserError || adminUser?.user_metadata?.role !== 'admin') {
-			// 	return fail(403, { error: 'Forbidden' });
-			// }
-
 			// Get the user to update to preserve their existing metadata
-			const { data, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+			const { data, error: getUserError } = await supabase.auth.admin.getUserById(userId);
 			if (getUserError || !data?.user) {
 				return fail(404, { error: 'User not found' });
 			}
 			const userToUpdate = data.user;
 
 			// Update the user directly in auth.users
-			const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+			const { error: updateAuthError } = await supabase.auth.admin.updateUserById(userId, {
 				email,
 				user_metadata: {
 					...userToUpdate.user_metadata, // Preserve existing metadata
@@ -234,9 +240,14 @@ export const actions = {
 				return fail(401, { error: 'Unauthorized' });
 			}
 
-			// Check if the current user is an admin
-			const isAdmin = session.user.user_metadata?.role === 'admin';
-			if (!isAdmin) {
+			// Check if the current user is an admin by checking their profile
+			const { data: profile, error: profileError } = await supabase
+				.from('user_profiles')
+				.select('role')
+				.eq('id', session.user.id)
+				.single();
+
+			if (profileError || profile?.role !== 'admin') {
 				return fail(403, { error: 'Forbidden' });
 			}
 
@@ -252,16 +263,8 @@ export const actions = {
 				return fail(400, { error: 'Cannot delete your own account' });
 			}
 
-			const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-			// TEMPORARILY DISABLED: Ensure the current user is an admin before proceeding
-			// const { data: { user: adminUser }, error: adminUserError } = await supabaseAdmin.auth.admin.getUserById(session.user.id);
-			// if (adminUserError || adminUser?.user_metadata?.role !== 'admin') {
-			// 	return fail(403, { error: 'Forbidden' });
-			// }
-
 			// Delete the user from auth.users
-			const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+			const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
 
 			if (deleteAuthError) {
 				return fail(500, { error: deleteAuthError.message });

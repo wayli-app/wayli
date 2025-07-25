@@ -10,16 +10,22 @@
 	interface ExportJob {
 		id: string;
 		status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-		format: string;
-		include_location_data: boolean;
-		include_trip_info: boolean;
-		include_want_to_visit: boolean;
-		include_trips: boolean;
-		file_path?: string;
-		file_size?: number;
-		expires_at: string;
+		type: string;
 		progress: number;
-		result?: Record<string, unknown>;
+		data?: {
+			format: string;
+			includeLocationData: boolean;
+			includeTripInfo: boolean;
+			includeWantToVisit: boolean;
+			includeTrips: boolean;
+			dateRange?: string;
+			startDate?: string;
+			endDate?: string;
+		};
+		result?: {
+			file_path?: string;
+			file_size?: number;
+		};
 		error?: string;
 		created_at: string;
 		updated_at: string;
@@ -33,7 +39,10 @@
 	let refreshInterval: ReturnType<typeof setInterval>;
 
 	onMount(() => {
-		loadExportJobs();
+		// Small delay to ensure session is available
+		setTimeout(() => {
+			loadExportJobs();
+		}, 100);
 
 		// Auto-refresh every 5 seconds to check for completed exports
 		refreshInterval = setInterval(() => {
@@ -50,13 +59,17 @@
 	async function loadExportJobs() {
 		try {
 			const session = get(sessionStore);
-			if (!session) return;
+			if (!session) {
+				console.warn('No session available for loading export jobs');
+				return;
+			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = await serviceAdapter.getExportJobs() as any;
 
-			if (result.success) {
-				exportJobs = result.data;
+			// The service adapter returns the data directly, not wrapped in a success object
+			if (Array.isArray(result)) {
+				exportJobs = result;
 				// Filter: only last 7 days, then take 5 most recent
 				const now = new Date();
 				filteredExportJobs = exportJobs
@@ -67,7 +80,7 @@
 					.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 					.slice(0, 5);
 			} else {
-				console.error('Failed to load export jobs:', result.message);
+				console.error('Failed to load export jobs: Invalid response format', result);
 			}
 		} catch (error) {
 			console.error('Error loading export jobs:', error);
@@ -79,14 +92,19 @@
 	async function downloadExport(jobId: string) {
 		try {
 			const session = get(sessionStore);
-			if (!session) return;
+			if (!session) {
+				toast.error('No session available');
+				return;
+			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const downloadUrl = await serviceAdapter.getExportDownloadUrl(jobId) as any;
+			const result = await serviceAdapter.getExportDownloadUrl(jobId) as any;
 
-			if (downloadUrl?.url) {
-				window.open(downloadUrl.url, '_blank');
+			// The service adapter returns the data directly, not wrapped in a success object
+			if (result && result.downloadUrl) {
+				window.open(result.downloadUrl, '_blank');
 			} else {
+				console.error('Download URL not available:', result);
 				toast.error('Download URL not available');
 			}
 		} catch (error) {
@@ -234,38 +252,47 @@
 					{/if}
 
 					<!-- Export options -->
-					<div class="mb-3">
-						<div class="flex flex-wrap gap-2">
-							{#if job.include_location_data}
-								<span
-									class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-								>
-									Location data
-								</span>
-							{/if}
-							{#if job.include_trip_info}
-								<span
-									class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
-								>
-									Trip info
-								</span>
-							{/if}
-							{#if job.include_want_to_visit}
-								<span
-									class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-								>
-									Want to visit
-								</span>
-							{/if}
-							{#if job.include_trips}
-								<span
-									class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-								>
-									Trips
-								</span>
-							{/if}
+					{#if job.data}
+						<div class="mb-3">
+							<div class="flex flex-wrap gap-2">
+								{#if job.data.includeLocationData}
+									<span
+										class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+									>
+										Location data
+									</span>
+								{/if}
+								{#if job.data.includeTripInfo}
+									<span
+										class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
+									>
+										Trip info
+									</span>
+								{/if}
+								{#if job.data.includeWantToVisit}
+									<span
+										class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+									>
+										Want to visit
+									</span>
+								{/if}
+								{#if job.data.includeTrips}
+									<span
+										class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+									>
+										Trips
+									</span>
+								{/if}
+								{#if job.data.format}
+									<span
+										class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+									>
+										{getFormatLabel(job.data.format)}
+									</span>
+								{/if}
+							</div>
 						</div>
-					</div>
+					{/if}
 
 					<!-- Error message -->
 					{#if job.error}
@@ -279,14 +306,11 @@
 					<!-- Result info -->
 					{#if job.result && job.status === 'completed'}
 						<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
-							{#if job.result.totalFiles}
-								<span class="mr-4">Files: {job.result.totalFiles}</span>
+							{#if job.result.file_size}
+								<span class="mr-4">Size: {formatFileSize(job.result.file_size)}</span>
 							{/if}
-							{#if job.file_size}
-								<span class="mr-4">Size: {formatFileSize(job.file_size)}</span>
-							{/if}
-							{#if job.result.exportedAt}
-								<span>Exported: {formatDate(job.result.exportedAt as string)}</span>
+							{#if job.completed_at}
+								<span>Completed: {formatDate(job.completed_at)}</span>
 							{/if}
 						</div>
 					{/if}

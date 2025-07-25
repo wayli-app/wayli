@@ -33,11 +33,6 @@
 	});
 
 	async function generateSecret() {
-		if (!password) {
-			toast.error('Please enter your password');
-			return;
-		}
-
 		console.log('Generating 2FA secret...');
 		isGenerating = true;
 		qrCodeError = false;
@@ -47,10 +42,11 @@
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const responseData = await serviceAdapter.setup2FA('', password) as any; // Empty secret, password as token
+			const responseData = await serviceAdapter.setup2FA('generate', '') as any; // Action: generate, no token needed
 
 			secret = responseData.secret;
-			qrCodeUrl = responseData.qrCodeUrl;
+			// Generate QR code image from the otpauth URL
+			qrCodeUrl = await QRCode.toDataURL(responseData.qrCodeUrl);
 			email = responseData.email || '';
 		} catch (error) {
 			console.error('Error generating 2FA secret:', error);
@@ -76,7 +72,7 @@
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const responseData = await serviceAdapter.verify2FA(verificationCode) as any; // Code as token
+			const responseData = await serviceAdapter.setup2FA('verify', verificationCode) as any; // Action: verify, token as verification code
 
 			recoveryCodes = responseData.recoveryCodes || [];
 			if (recoveryCodes.length > 0) {
@@ -241,26 +237,20 @@
 									class="mx-auto rounded-lg border border-gray-200 dark:border-gray-700"
 								/>
 							</div>
-						{:else if qrCodeError && secret}
-							<div
-								class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
-							>
-								<h4 class="mb-2 font-medium text-yellow-800 dark:text-yellow-200">
-									Manual Setup Required
+
+							<!-- Manual Entry Section -->
+							<div class="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700">
+								<h4 class="mb-2 font-medium text-gray-900 dark:text-gray-100">
+									Manual Entry (Alternative)
 								</h4>
-								<p class="mb-3 text-sm text-yellow-700 dark:text-yellow-300">
-									QR code generation failed. Please manually add this secret to your authenticator
-									app:
+								<p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+									If you can't scan the QR code, manually add this secret to your authenticator app:
 								</p>
-								<div
-									class="rounded border border-yellow-200 bg-white p-3 dark:border-yellow-800 dark:bg-gray-800"
-								>
-									<code class="font-mono text-sm break-all text-gray-900 dark:text-gray-100"
-										>{secret}</code
-									>
+								<div class="rounded border border-gray-300 bg-white p-3 dark:border-gray-600 dark:bg-gray-800">
+									<code class="font-mono text-sm break-all text-gray-900 dark:text-gray-100">{secret}</code>
 								</div>
-								<p class="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
-									Account: {email} | Issuer: Wayli
+								<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+									Account: {email} | Issuer: Wayli | Algorithm: SHA1 | Digits: 6 | Period: 30s
 								</p>
 							</div>
 						{/if}

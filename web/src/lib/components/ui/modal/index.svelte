@@ -48,7 +48,6 @@
 		on:click={handleBackdropClick}
 		on:keydown={(e) => {
 			if (e.key === 'Escape') handleBackdropClick();
-			if (e.key === 'Enter' || e.key === ' ') handleBackdropClick();
 		}}
 		transition:fade={{ duration: 200 }}
 	>
@@ -70,7 +69,7 @@
 							type="button"
 							class="absolute top-4 right-4 cursor-pointer p-1 text-gray-400 transition-colors hover:text-red-500"
 							on:click={closeModal}
-							on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') closeModal(); }}
+							on:keydown={(e) => { if (e.key === 'Enter') closeModal(); }}
 							aria-label="Close modal"
 						>
 							<X class="h-5 w-5" />

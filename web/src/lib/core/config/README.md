@@ -100,7 +100,7 @@ import { getNodeEnvironmentConfig } from '$lib/core/config/node-environment';
 import { getNominatimConfig } from '$lib/core/config/environment';
 
 const config = getNominatimConfig();
-// config.endpoint = 'https://nominatim.openstreetmap.org'
+// config.endpoint = 'https://nominatim.wayli.app'
 // config.rateLimit = 1
 ```
 

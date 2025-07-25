@@ -18,8 +18,15 @@ Deno.serve(async (req) => {
   try {
     const { user, supabase } = await authenticateRequest(req);
 
-    // Check if user is admin
-    if (user.user_metadata?.role !== 'admin') {
+    // Check if user is admin by querying user_profiles table
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError || userProfile?.role !== 'admin') {
+      logError(profileError || 'User is not admin', 'ADMIN-SERVER-SETTINGS');
       return errorResponse('Forbidden', 403);
     }
 

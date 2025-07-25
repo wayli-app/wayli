@@ -8,16 +8,15 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Return a simple health check response with CORS headers
+  // Return a simple response with CORS headers
   const response = {
     success: true,
-    message: 'Health check successful',
-		timestamp: new Date().toISOString(),
-    status: 'healthy'
-	};
+    message: 'CORS test successful',
+    timestamp: new Date().toISOString()
+  };
 
   return new Response(JSON.stringify(response), {
-		status: 200,
+    status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-	});
+  });
 });

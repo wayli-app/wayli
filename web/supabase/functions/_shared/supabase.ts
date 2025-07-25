@@ -23,3 +23,18 @@ export function createAuthenticatedClient(authToken: string) {
 		}
 	});
 }
+
+// Create a client that uses the user's token for database access
+export function createUserClient(authToken: string) {
+	return createClient(supabaseUrl, supabaseServiceKey, {
+		global: {
+			headers: {
+				Authorization: `Bearer ${authToken}`
+			}
+		},
+		auth: {
+			autoRefreshToken: false,
+			persistSession: false
+		}
+	});
+}

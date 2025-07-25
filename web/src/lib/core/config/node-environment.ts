@@ -184,7 +184,7 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	const retryDelay = parseInt(mergedEnv.RETRY_DELAY || '1000', 10);
 
 	// External Services
-	const nominatimEndpoint = mergedEnv.NOMINATIM_ENDPOINT || 'https://nominatim.openstreetmap.org';
+	const nominatimEndpoint = mergedEnv.NOMINATIM_ENDPOINT || 'https://nominatim.wayli.app';
 	const nominatimRateLimit = parseInt(mergedEnv.NOMINATIM_RATE_LIMIT || '1000', 10);
 
 	// Pexels API Key

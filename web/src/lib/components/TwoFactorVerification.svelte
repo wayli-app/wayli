@@ -6,6 +6,8 @@
 	export let open = false;
 	export let userEmail = '';
 
+
+
 	const dispatch = createEventDispatcher();
 
 	let verificationCode = '';
@@ -81,7 +83,7 @@
 {#if open}
 	<!-- Backdrop -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+		class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
 		on:click={handleCancel}
 		on:keydown={(e) => e.key === 'Escape' && handleCancel()}
 		role="presentation"

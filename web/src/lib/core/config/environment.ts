@@ -9,7 +9,7 @@
  */
 export function getNominatimConfig() {
   return {
-    endpoint: 'https://nominatim.openstreetmap.org',
+    endpoint: 'https://nominatim.wayli.app',
     rateLimit: 1 // 1 request per second
   };
 }

@@ -39,9 +39,10 @@ export class EdgeFunctionsApiService {
       body?: unknown;
       session: Session;
       params?: Record<string, string>;
+      timeout?: number;
     }
   ): Promise<T> {
-    const { method = 'GET', body, session, params } = options;
+    const { method = 'GET', body, session, params, timeout } = options;
 
     const url = new URL(`${this.baseUrl}/${functionName}`);
 
@@ -52,29 +53,42 @@ export class EdgeFunctionsApiService {
       });
     }
 
-    const requestOptions: RequestInit = {
-      method,
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json'
-      }
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${session.access_token}`
     };
 
-    if (body && method !== 'GET') {
-      requestOptions.body = JSON.stringify(body);
+    const requestOptions: RequestInit = {
+      method,
+      headers
+    };
+
+    // Add timeout if specified
+    if (timeout) {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), timeout);
+      requestOptions.signal = controller.signal;
     }
 
-    console.log('Making request to:', url.toString());
-    console.log('Request headers:', requestOptions.headers);
+    if (body && method !== 'GET') {
+      // Check if body is FormData
+      if (body instanceof FormData) {
+        // Don't set Content-Type for FormData - browser will set it with boundary
+        requestOptions.body = body;
+      } else {
+        // For JSON data
+        headers['Content-Type'] = 'application/json';
+      requestOptions.body = JSON.stringify(body);
+      }
+    }
+
+
 
     const response = await fetch(url.toString(), requestOptions);
 
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Response error text:', errorText);
       throw new Error(`Edge Function error: ${response.status} - ${errorText}`);
     }
 
@@ -120,10 +134,10 @@ export class EdgeFunctionsApiService {
     });
   }
 
-  async setup2FA(session: Session, secret: string, token: string) {
+  async setup2FA(session: Session, action: string, token: string) {
     return this.makeRequest('auth-2fa-setup', {
       method: 'POST',
-      body: { secret, token },
+      body: { action, token },
       session
     });
   }

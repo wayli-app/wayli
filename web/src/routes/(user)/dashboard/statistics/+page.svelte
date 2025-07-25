@@ -1,4 +1,6 @@
 <script lang="ts">
+	console.log('🚀 Statistics page script loaded');
+
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import type { Map as LeafletMap } from 'leaflet';
@@ -67,16 +69,15 @@
 	}
 
 	interface StatisticsData {
-		totalDistance?: number;
+		totalDistance?: string;
 		earthCircumferences?: number;
 		geopoints?: number;
 		timeSpentMoving?: string;
 		uniquePlaces?: number;
-		countriesVisited?: number | string;
+		countriesVisited?: number;
 		steps?: number;
-		transport?: Array<{ mode: string; distance: number }>;
+		transport?: Array<{ mode: string; distance: number; time: number; percentage: number }>;
 		countryTimeDistribution?: Array<{ country_code: string; percent: number }>;
-		transportModes?: Array<{ mode: string; distance: number; time: number; percentage: number; count: number }>;
 		trainStationVisits?: Array<{ name: string; count: number }>;
 	}
 
@@ -91,6 +92,7 @@
 	let isEditMode = false;
 	let isLoading = false;
 	let isInitialLoad = true;
+	let isInitializing = true; // Flag to prevent reactive statement during initial setup
 	let locationData: TrackerLocation[] = [];
 	let hasMoreData = false;
 	let currentOffset = 0;
@@ -217,6 +219,8 @@
 	}
 
 	function addMarkersToMap(data: TrackerLocation[], reset = true) {
+		console.log('🗺️ addMarkersToMap called with:', data.length, 'items');
+
 		if (!map || !L) {
 			console.log('❌ [Statistics] Map or L not available');
 			return;
@@ -260,6 +264,10 @@
 			});
 
 		console.log('🗺️ [Statistics] After filtering, sortedData has:', sortedData.length, 'items');
+		if (sortedData.length > 0) {
+			console.log('🗺️ [Statistics] First item coordinates:', sortedData[0].coordinates);
+			console.log('🗺️ [Statistics] Last item coordinates:', sortedData[sortedData.length - 1].coordinates);
+		}
 
 		// Draw lines between consecutive points
 		if (sortedData.length > 1) {
@@ -739,7 +747,7 @@
 
 
 
-	// Function to get total count of records
+	// Function to get total count of records for progress indication
 	async function getTotalCount(): Promise<number> {
 		try {
 			isCountingRecords = true;
@@ -760,17 +768,22 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 
-
-
+			// Use a separate count-only call to avoid affecting data loading
 			const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate,
 				endDate,
-				limit: 1,
+				limit: 1, // Just get 1 record to get the total count
 				offset: 0,
 				includeStatistics: false
-			}) as { total?: number };
+			}) as { data?: { total?: number } };
 
-			const total = result.total || 0;
+			// Check if the result indicates an error
+			if (result && typeof result === 'object' && 'success' in result && !result.success) {
+				console.warn('Edge Function returned error for count:', (result as any).error);
+				return 0;
+			}
+
+			const total = result.data?.total || 0;
 
 			loadingProgress = 20;
 			loadingStage = `Found ${total.toLocaleString()} records`;
@@ -778,7 +791,8 @@
 			return total;
 		} catch (err) {
 			console.error('Error getting total count:', err);
-			throw err;
+			// Return 0 for new users or when there's an error, don't throw
+			return 0;
 		} finally {
 			isCountingRecords = false;
 		}
@@ -786,15 +800,22 @@
 
 	// Function to fetch both map data and statistics from the edge function
 	async function fetchMapDataAndStatistics(forceRefresh = false, loadMoreOffset = 0): Promise<void> {
+		console.log('🔍 fetchMapDataAndStatistics called with:', { forceRefresh, loadMoreOffset });
+
 		try {
 			statisticsLoading = true;
 			statisticsError = '';
 
-			// If this is the initial load, get the total count first
+			// If this is the initial load, get the total count first for progress indication
 			if (loadMoreOffset === 0) {
 				loadingStage = 'Getting record count...';
 				loadingProgress = 5;
 				totalPoints = await getTotalCount();
+
+										// If no data found, we'll try without date filters in the main data loading
+				if (totalPoints === 0) {
+				console.log('📊 No data found with date filters, will try without date filters in main data loading');
+				}
 			}
 
 			const startDate = state.filtersStartDate
@@ -803,6 +824,12 @@
 			const endDate = state.filtersEndDate
 				? getDateObject(state.filtersEndDate)?.toISOString().split('T')[0]
 				: '';
+
+			console.log('📅 Date range being sent to API:', { startDate, endDate });
+			console.log('📅 Raw state dates:', {
+				startDate: state.filtersStartDate,
+				endDate: state.filtersEndDate
+			});
 
 			// Get current user's session
 			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -822,12 +849,19 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 
 			type TrackerApiResponse = {
+				data?: {
+					total?: number;
+					locations?: TrackerLocation[];
+					hasMore?: boolean;
+					statistics?: StatisticsData;
+				};
 				total?: number;
 				locations?: TrackerLocation[];
 				hasMore?: boolean;
 				statistics?: StatisticsData;
 			};
-			const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+			// Try with date filters first, then without if no data
+			let result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate,
 				endDate,
 				limit: 5000,
@@ -835,17 +869,50 @@
 				includeStatistics: loadMoreOffset === 0
 			}) as TrackerApiResponse;
 
+			// If no data with date filters, try without date filters
+			if ((!result.locations || result.locations.length === 0) && loadMoreOffset === 0) {
+				console.log('📊 No data with date filters, trying without date filters for main data...');
+				result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+					startDate: '',
+					endDate: '',
+					limit: 5000,
+					offset: loadMoreOffset,
+					includeStatistics: loadMoreOffset === 0
+				}) as TrackerApiResponse;
+			}
+
+			console.log('📊 Full API Response:', result);
+			console.log('📊 Response keys:', Object.keys(result || {}));
+			console.log('📊 Total count:', result.total);
+			console.log('📊 Has locations:', !!result.locations);
+			console.log('📊 Locations count:', result.locations?.length || 0);
+
+			// Check if the result indicates an error
+			if (result && typeof result === 'object' && 'success' in result && !result.success) {
+				throw new Error((result as any).error || 'Failed to fetch data');
+			}
+
+						// Note: totalPoints is already set from getTotalCount() for progress indication
+			// The actual data loading is independent of the count
+
 			// Update progress for data processing
 			loadingStage = 'Processing data...';
 			loadingProgress = loadMoreOffset === 0 ? 70 : 80;
 
 			// Set statistics data (only for initial load)
 			if (result.statistics && loadMoreOffset === 0) {
+				console.log('📊 Setting statistics data:', result.statistics);
 				statisticsData = result.statistics;
+			} else {
+				console.log('📊 No statistics in result. Result keys:', Object.keys(result || {}));
+				console.log('📊 Statistics field:', result.statistics);
 			}
 
 			// Transform and set location data for map
 			if (result.locations) {
+				console.log('🗺️ Raw locations data:', result.locations);
+				console.log('🗺️ Number of locations:', result.locations.length);
+
 				loadingStage = 'Transforming data...';
 				loadingProgress = loadMoreOffset === 0 ? 85 : 90;
 
@@ -895,6 +962,7 @@
 				if (loadMoreOffset === 0) {
 					// Initial load - replace all data
 					locationData = transformedLocations;
+					console.log('🗺️ Set locationData to:', transformedLocations.length, 'items');
 					addMarkersToMap(transformedLocations, true);
 					if (transformedLocations.length > 0) {
 						fitMapToMarkers();
@@ -902,11 +970,12 @@
 				} else {
 					// Load more - append to existing data
 					locationData = [...locationData, ...transformedLocations];
+					console.log('🗺️ Appended to locationData, total:', locationData.length, 'items');
 					addMarkersToMap(transformedLocations, false);
 				}
 
-				totalPoints = result.total || 0;
-				hasMoreData = result.hasMore || false;
+				totalPoints = result.data?.total || 0;
+				hasMoreData = result.data?.hasMore || false;
 				currentOffset = locationData.length;
 			}
 
@@ -988,7 +1057,7 @@
 			{
 				id: 1,
 				title: 'Total Distance',
-				value: statisticsData.totalDistance ?? '',
+				value: statisticsData.totalDistance ?? '0 km',
 				icon: Navigation,
 				color: 'blue'
 			},
@@ -996,7 +1065,7 @@
 				id: 'green',
 				title: 'Distance Travelled Green',
 				value: greenDistance > 0 ? `${greenDistance.toLocaleString(undefined, { maximumFractionDigits: 1 })} km` : '0 km',
-				icon: Activity, // You can change to Train or another icon if preferred
+				icon: Activity,
 				color: 'green'
 			},
 			{
@@ -1009,35 +1078,35 @@
 			{
 				id: 3,
 				title: 'Geopoints Tracked',
-				value: statisticsData.geopoints?.toLocaleString() ?? '',
+				value: statisticsData.geopoints?.toLocaleString() ?? '0',
 				icon: MapPin,
 				color: 'blue'
 			},
 			{
 				id: 4,
 				title: 'Time Moving',
-				value: statisticsData.timeSpentMoving ?? '',
+				value: statisticsData.timeSpentMoving ?? '0h',
 				icon: Clock,
 				color: 'blue'
 			},
 			{
 				id: 5,
 				title: 'Unique Places',
-				value: statisticsData.uniquePlaces?.toLocaleString() ?? '',
+				value: statisticsData.uniquePlaces?.toLocaleString() ?? '0',
 				icon: Flag,
 				color: 'blue'
 			},
 			{
 				id: 6,
 				title: 'Countries Visited',
-				value: statisticsData.countriesVisited?.toString() ?? '',
+				value: statisticsData.countriesVisited?.toString() ?? '0',
 				icon: Globe2,
 				color: 'blue'
 			},
 						{
 				id: 7,
 				title: 'Approximate Steps',
-				value: statisticsData.steps?.toLocaleString() ?? '',
+				value: statisticsData.steps?.toLocaleString() ?? '0',
 				icon: Footprints,
 				color: 'blue'
 			}
@@ -1072,10 +1141,10 @@
 	}
 
 	// Watch for date changes and reload statistics
-	$: if (state.filtersStartDate || state.filtersEndDate) {
+	$: if (state.filtersStartDate && state.filtersEndDate && !isInitializing) {
 		if (map) {
-			// Only reload if map is initialized
-			fetchMapDataAndStatistics(true, 0); // Force refresh when date changes
+			// Only reload if map is initialized, both dates are selected, and not during initial setup
+			fetchMapDataAndStatistics(true, 0); // Force refresh when both dates are selected
 		}
 	}
 
@@ -1129,18 +1198,11 @@
 		clearMapMarkers();
 	});
 
-	// Add a function to update statistics only when both dates are set
-	function loadStatistics() {
-		// Your existing logic to update statistics, e.g. reload data, etc.
-		// This should be the same logic that previously ran on date change
-		// Example:
-		if (state.filtersStartDate && state.filtersEndDate) {
-			// ... trigger statistics update logic here ...
-			// e.g. fetchStatistics(state.filtersStartDate, state.filtersEndDate);
-		}
-	}
+
 
 	onMount(async () => {
+		console.log('🗺️ Statistics page onMount started');
+
 		L = (await import('leaflet')).default;
 		if (map) return;
 
@@ -1243,11 +1305,35 @@
 			sevenDaysAgo.setDate(today.getDate() - 6); // Last 7 days includes today and 6 days before
 			state.filtersStartDate = sevenDaysAgo;
 			state.filtersEndDate = today;
+			console.log('📅 Set default date range:', { start: sevenDaysAgo, end: today });
+
+						// Load initial data only when we set default dates
+			console.log('🗺️ About to call fetchMapDataAndStatistics with default dates');
+			await fetchMapDataAndStatistics(false, 0); // Allow cache for initial load
+			console.log('🗺️ fetchMapDataAndStatistics completed');
+		} else {
+			console.log('📅 Using existing date range:', { start: state.filtersStartDate, end: state.filtersEndDate });
+
+			// Debug: Check if the date range makes sense
+			const startDate = state.filtersStartDate;
+			const endDate = state.filtersEndDate;
+			console.log('📅 Date range debug:', {
+				startDate: startDate?.toISOString(),
+				endDate: endDate?.toISOString(),
+				startDateType: typeof startDate,
+				endDateType: typeof endDate,
+				isStartDateValid: startDate instanceof Date && !isNaN(startDate.getTime()),
+				isEndDateValid: endDate instanceof Date && !isNaN(endDate.getTime())
+			});
+
+			// Load initial data only if dates are already set
+			console.log('🗺️ About to call fetchMapDataAndStatistics with existing dates');
+			await fetchMapDataAndStatistics(false, 0); // Allow cache for initial load
+			console.log('🗺️ fetchMapDataAndStatistics completed');
 		}
 
-		// Load initial data
-		// await loadLocationData(); // <-- Remove this line
-		await fetchMapDataAndStatistics(false, 0); // Allow cache for initial load
+		// Mark initialization as complete
+		isInitializing = false;
 	});
 </script>
 
@@ -1384,12 +1470,6 @@
 							isRange
 							showPresets
 							align="right"
-							on:change={() => {
-								if (state.filtersStartDate && state.filtersEndDate) {
-									// Only update when both dates are selected
-									loadStatistics();
-								}
-							}}
 						/>
 					</div>
 				{/if}
@@ -1581,7 +1661,7 @@
 				</div>
 			{/each}
 		</div>
-	{:else if getStatistics().length === 0}
+	{:else if !statisticsData || Object.keys(statisticsData).length === 0}
 		<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
 			No statistics available for this period.
 		</div>
@@ -1652,7 +1732,7 @@
 	{/if}
 
 	<!-- Modes of Transport: Full Width -->
-	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.transportModes && statisticsData.transportModes.length > 0}
+	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.transport && statisticsData.transport.length > 0}
 		<div class="mb-8">
 			<div
 				class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
@@ -1689,7 +1769,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each statisticsData.transportModes
+						{#each statisticsData.transport
 							.slice()
 							.sort((a: { distance: number }, b: { distance: number }) => b.distance - a.distance) as mode}
 							<tr>
@@ -1702,13 +1782,13 @@
 									>{mode.distance}</td
 								>
 								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-									>{formatSegmentDuration(mode.time)}</td
+									>{formatSegmentDuration(mode.time || 0)}</td
 								>
 								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-									>{mode.percentage}%</td
+									>{mode.percentage || 0}%</td
 								>
 								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-									>{mode.count}</td
+									>{mode.points || 0}</td
 								>
 							</tr>
 						{/each}

@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       // Get user's recovery codes from profile
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
-        .select('two_factor_recovery_codes, two_factor_enabled')
+        .select('*')
         .eq('id', user.id)
         .single();
 

@@ -523,7 +523,7 @@
 					suggestedImageUrl = trip.image_url;
 				}
 			} else {
-				console.log('🔍 [EditModal] No attribution found in metadata');
+
 			}
 		} else {
 			imagePreview = null;
@@ -751,7 +751,7 @@
 				const uploadedUrl = await uploadTripImage(file);
 				if (uploadedUrl) {
 					uploadedImageUrl = uploadedUrl;
-					console.log('✅ [UPLOAD] Image uploaded successfully:', uploadedUrl);
+
 					toast.success('Image uploaded successfully!');
 				} else {
 					imageError = 'Failed to upload image. Please try again.';
@@ -851,23 +851,24 @@
 		customHomeAddressSearchTimeout = setTimeout(() => searchCustomHomeAddressSuggestions(), 300);
 	}
 
-	function handleCustomHomeAddressKeydown(event: KeyboardEvent) {
+	function handleCustomHomeAddressKeydown(event: CustomEvent<{ event: KeyboardEvent }>) {
 		if (!showCustomHomeAddressSuggestions || customHomeAddressSuggestions.length === 0) return;
 
-		switch (event.key) {
+		const keyboardEvent = event.detail.event;
+		switch (keyboardEvent.key) {
 			case 'ArrowDown':
-				event.preventDefault();
+				keyboardEvent.preventDefault();
 				selectedCustomHomeAddressIndex = Math.min(
 					selectedCustomHomeAddressIndex + 1,
 					customHomeAddressSuggestions.length - 1
 				);
 				break;
 			case 'ArrowUp':
-				event.preventDefault();
+				keyboardEvent.preventDefault();
 				selectedCustomHomeAddressIndex = Math.max(selectedCustomHomeAddressIndex - 1, 0);
 				break;
 			case 'Enter':
-				event.preventDefault();
+				keyboardEvent.preventDefault();
 				if (
 					selectedCustomHomeAddressIndex >= 0 &&
 					selectedCustomHomeAddressIndex < customHomeAddressSuggestions.length
@@ -876,7 +877,7 @@
 				}
 				break;
 			case 'Escape':
-				event.preventDefault();
+				keyboardEvent.preventDefault();
 				showCustomHomeAddressSuggestions = false;
 				selectedCustomHomeAddressIndex = -1;
 				break;
@@ -899,11 +900,12 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = await serviceAdapter.searchGeocode(customHomeAddressInput.trim()) as any;
-				// Handle both old format (data.data as array) and new format (data.data.results as array)
-				customHomeAddressSuggestions = data.data?.results || data.data || [];
-				showCustomHomeAddressSuggestions = true;
-				if (customHomeAddressSuggestions.length === 0) {
-					customHomeAddressSearchError = 'No addresses found';
+
+			// The Edge Functions service returns the data array directly
+			customHomeAddressSuggestions = Array.isArray(data) ? data : [];
+			showCustomHomeAddressSuggestions = true;
+			if (customHomeAddressSuggestions.length === 0) {
+				customHomeAddressSearchError = 'No addresses found';
 			}
 		} catch (error) {
 			console.error('Error searching for custom home address:', error);
@@ -916,7 +918,6 @@
 	}
 
 	function selectCustomHomeAddress(suggestion: any) {
-		console.log('selectCustomHomeAddress called with:', suggestion);
 		customHomeAddressInput = suggestion.display_name;
 		tripGenerationData.customHomeAddress = suggestion.display_name;
 		selectedCustomHomeAddress = suggestion;
@@ -1618,7 +1619,7 @@
 			aria-labelledby="suggested-trips-modal-title"
 			tabindex="0"
 			on:click={() => (showSuggestedTripsModal = false)}
-			on:keydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') showSuggestedTripsModal = false; }}
+							on:keydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') showSuggestedTripsModal = false; }}
 		>
 			<div
 				class="relative mx-4 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
@@ -1655,7 +1656,7 @@
 					<button type="button"
 						class="py-12 text-center w-full bg-transparent border-0 cursor-pointer"
 						on:click={() => (showSuggestedTripsModal = false)}
-						on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') showSuggestedTripsModal = false; }}
+						on:keydown={(e) => { if (e.key === 'Enter') showSuggestedTripsModal = false; }}
 					>
 						<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
 						<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">

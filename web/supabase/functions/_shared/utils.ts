@@ -1,5 +1,5 @@
 import { corsHeaders, handleCors } from './cors.ts';
-import { createAuthenticatedClient } from './supabase.ts';
+import { createAuthenticatedClient, createUserClient } from './supabase.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface AuthenticatedContext {
@@ -24,16 +24,21 @@ export async function authenticateRequest(req: Request): Promise<AuthenticatedCo
   }
 
   const token = authHeader.replace('Bearer ', '');
-  const supabase = createAuthenticatedClient(token);
+
+  // Use service role client for authentication
+  const authClient = createAuthenticatedClient(token);
 
   const {
     data: { user },
     error: authError
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
 
   if (authError || !user) {
     throw new Error('Invalid token');
   }
+
+  // Use user client for database access (respects RLS policies)
+  const supabase = createUserClient(token);
 
   return { user, supabase };
 }

@@ -19,13 +19,12 @@
 			sessionStore.set(null);
 			// authStore.set(null); // This line was removed from the new_code, so it's removed here.
 
-			// Then sign out from Supabase
-			const { error } = await supabase.auth.signOut();
-			if (error) {
-				console.error('❌ [Dashboard] Signout error:', error);
-			}
+			// Then redirect to server-side signout endpoint
+			goto('/auth/signout');
 		} catch (error) {
 			console.error('❌ [Dashboard] Signout error:', error);
+			// Even if there's an error, try to redirect to signout
+			goto('/auth/signout');
 		}
 	}
 

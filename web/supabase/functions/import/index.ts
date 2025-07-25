@@ -1,92 +1,110 @@
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { createAuthenticatedClient } from '../_shared/supabase.ts';
+import {
+  setupRequest,
+  authenticateRequest,
+  successResponse,
+  errorResponse,
+  parseJsonBody,
+  validateRequiredFields,
+  logError,
+  logInfo,
+  logSuccess
+} from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
-	// Handle CORS
-	const corsResponse = handleCors(req);
-	if (corsResponse) return corsResponse;
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Max-Age': '86400'
+      }
+    });
+  }
 
-	try {
-		// Get auth token
-		const authHeader = req.headers.get('Authorization');
-		if (!authHeader) {
-			return new Response(JSON.stringify({ error: 'No authorization header' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+  // Handle CORS for actual requests
+  const corsResponse = setupRequest(req);
+  if (corsResponse) return corsResponse;
 
-		const token = authHeader.replace('Bearer ', '');
-		const supabase = createAuthenticatedClient(token);
+  try {
+    console.log('🔐 [IMPORT] Starting authentication...');
+    let user, supabase;
 
-		// Verify user is authenticated
-		const {
-			data: { user },
-			error: authError
-		} = await supabase.auth.getUser();
-		if (authError || !user) {
-			return new Response(JSON.stringify({ error: 'Invalid token' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    try {
+      const authResult = await authenticateRequest(req);
+      user = authResult.user;
+      supabase = authResult.supabase;
+      console.log('✅ [IMPORT] Authentication successful for user:', user.id);
+    } catch (authError) {
+      console.error('❌ [IMPORT] Authentication failed:', authError);
+      return errorResponse(`Authentication failed: ${authError instanceof Error ? authError.message : 'Unknown error'}`, 401);
+    }
 
-		// Only allow POST requests
-		if (req.method !== 'POST') {
-			return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-				status: 405,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      return errorResponse('Method not allowed', 405);
+    }
 
-		// Parse request body
-		const body = await req.json();
-		const { file_url, file_type, options } = body;
+    logInfo('Creating import job', 'IMPORT', { userId: user.id });
 
-		if (!file_url || !file_type) {
-			return new Response(JSON.stringify({ error: 'file_url and file_type are required' }), {
-				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    // Parse JSON body
+    const body = await parseJsonBody<Record<string, unknown>>(req);
+    const { storage_path, file_name, file_size, format } = body;
 
-		// Create import job
-		const { data: job, error: jobError } = await supabase
-			.from('jobs')
-			.insert({
-				created_by: user.id,
-				type: 'import',
-				status: 'pending',
-				data: {
-					file_url,
-					file_type,
-					options: options || {}
-				}
-			})
-			.select()
-			.single();
+    // Validate required fields
+    const requiredFields = ['storage_path', 'file_name', 'file_size', 'format'];
+    const missingFields = validateRequiredFields(body, requiredFields);
 
-		if (jobError) {
-			throw jobError;
-		}
+    if (missingFields.length > 0) {
+      return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
+    }
 
-		// Trigger job processing (this would be handled by a background worker)
-		// For now, we'll just return the job ID
-		return new Response(
-			JSON.stringify({
-				job_id: job.id,
-				status: 'pending',
-				message: 'Import job created successfully'
-			}),
-			{
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			}
-		);
-	} catch (error) {
-		console.error('Import error:', error);
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
-	}
+    // Create import job
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .insert({
+        created_by: user.id,
+        type: 'data_import',
+        status: 'queued',
+        data: {
+          storagePath: storage_path,
+          fileName: file_name,
+          fileSize: file_size,
+          format: format,
+          options: {}
+        }
+      })
+      .select()
+      .single();
+
+    if (jobError) {
+      logError(jobError, 'IMPORT');
+      return errorResponse('Failed to create import job', 500);
+    }
+
+    logSuccess('Import job created successfully', 'IMPORT', {
+      userId: user.id,
+      jobId: job.id,
+      fileName: file_name as string
+    });
+
+    return successResponse({
+      success: true,
+      data: {
+        jobId: job.id
+      },
+      message: 'Import job created successfully'
+    }, 201);
+
+  } catch (error) {
+    logError(error, 'IMPORT');
+    console.error('Import function error:', error);
+
+    if (error instanceof Error) {
+      return errorResponse(`Import failed: ${error.message}`, 500);
+    } else {
+    return errorResponse('Internal server error', 500);
+    }
+  }
 });

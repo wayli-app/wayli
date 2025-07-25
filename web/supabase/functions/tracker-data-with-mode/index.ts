@@ -64,11 +64,21 @@ Deno.serve(async (req) => {
     }
 
     // Get total count with date filters applied
-    const { count, error: countError } = await baseQuery.select('*', { count: 'exact', head: true })
+    let count = 0;
+    try {
+      const { count: totalCount, error: countError } = await baseQuery.select('*', { count: 'exact', head: true })
 
-    if (countError) {
-      logError(countError, 'TRACKER-DATA-WITH-MODE');
-      return errorResponse('Failed to get count', 400);
+      if (countError) {
+        logError(countError, 'TRACKER-DATA-WITH-MODE');
+        // Don't fail the entire request, just set count to 0
+        count = 0;
+      } else {
+        count = totalCount || 0;
+      }
+    } catch (error) {
+      logError(error, 'TRACKER-DATA-WITH-MODE');
+      // Don't fail the entire request, just set count to 0
+      count = 0;
     }
 
     // Implement proper pagination with date filters
@@ -504,7 +514,7 @@ function calculateStatistics(trackerData: any[]): any {
   const uniqueCountries = new Set<string>()
   const uniqueCities = new Set<string>()
   const uniquePlaces = new Set<string>()
-  const transportModes: Record<string, { distance: number; time: number }> = {}
+  const transportModes: Record<string, { distance: number; time: number; points: number }> = {}
   const activityData: Array<{ label: string; distance: number; locations: number }> = []
   const trainStationVisits: { name: string; count: number }[] = []
   const stationVisits = new Map<string, number[]>()
@@ -534,10 +544,11 @@ function calculateStatistics(trackerData: any[]): any {
       // Use transport mode from enhanced data
       const mode = point.transport_mode || 'unknown'
       if (!transportModes[mode]) {
-        transportModes[mode] = { distance: 0, time: 0 }
+        transportModes[mode] = { distance: 0, time: 0, points: 0 }
       }
       transportModes[mode].distance += distance
       transportModes[mode].time += timeDiff
+      transportModes[mode].points += 1
     }
 
     // Track countries and places
@@ -646,7 +657,8 @@ function calculateStatistics(trackerData: any[]): any {
     mode,
     distance: Math.round((data.distance / 1000) * 100) / 100, // Convert to km
     percentage: totalTransportDistance > 0 ? Math.round((data.distance / totalTransportDistance) * 100) : 0,
-    time: Math.round(data.time / 1000) // Convert to seconds
+    time: Math.round(data.time / 1000), // Convert to seconds
+    points: data.points // Include point count
   }))
 
   // Sort transport by distance

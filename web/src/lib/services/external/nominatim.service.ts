@@ -41,7 +41,7 @@ export async function reverseGeocode(lat: number, lon: number): Promise<Nominati
 	}
 
 	// Try the configured endpoint first, then fallback to public Nominatim
-	const endpoints = [config.endpoint, 'https://nominatim.int.hazen.nu'];
+	const endpoints = [config.endpoint, 'https://nominatim.wayli.app'];
 
 	for (const endpoint of endpoints) {
 		try {
@@ -108,7 +108,7 @@ export async function forwardGeocode(query: string): Promise<NominatimSearchResp
 	}
 
 	// Try the configured endpoint first, then fallback to public Nominatim
-	const endpoints = [config.endpoint, 'https://nominatim.int.hazen.nu'];
+	const endpoints = [config.endpoint, 'https://nominatim.wayli.app'];
 
 	for (const endpoint of endpoints) {
 		try {

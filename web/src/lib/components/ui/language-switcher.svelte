@@ -245,7 +245,7 @@
         aria-selected={locale === $currentLocale}
         on:click={() => selectLocale(locale)}
         on:keydown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (e.key === 'Enter') {
             e.preventDefault();
             selectLocale(locale);
           }

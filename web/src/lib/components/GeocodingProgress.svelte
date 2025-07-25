@@ -22,7 +22,9 @@
 	async function checkForActiveReverseGeocodingJob() {
 		try {
 			const session = get(sessionStore);
-			if (!session) return;
+			if (!session) {
+				return;
+			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const jobs = await serviceAdapter.getJobs({ type: 'reverse_geocoding_missing' }) as any;
@@ -37,13 +39,12 @@
 
 			const activeJobs = jobsData.filter(
 				(job: any) => job.status === 'queued' || job.status === 'running'
-				);
+			);
 
-				if (activeJobs.length > 0) {
-					activeReverseGeocodingJob = activeJobs[0]; // Get the most recent active job
-					console.log('Found active reverse geocoding job:', activeReverseGeocodingJob);
-					startReverseGeocodingPolling(activeReverseGeocodingJob.id);
-					updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
+			if (activeJobs.length > 0) {
+				activeReverseGeocodingJob = activeJobs[0]; // Get the most recent active job
+				startReverseGeocodingPolling(activeReverseGeocodingJob.id);
+				updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
 			}
 		} catch (error) {
 			console.error('Error checking for active reverse geocoding jobs:', error);
@@ -57,16 +58,22 @@
 		}
 
 		reverseGeocodingPollingInterval = setInterval(async () => {
-			if (!activeReverseGeocodingJob) return;
+			if (!activeReverseGeocodingJob) {
+				stopReverseGeocodingPolling();
+				return;
+			}
 
 			try {
 				const session = get(sessionStore);
-			if (!session) return;
+				if (!session) {
+					stopReverseGeocodingPolling();
+					return;
+				}
 
-			const serviceAdapter = new ServiceAdapter({ session });
-			const job = await serviceAdapter.getJobProgress(jobId) as any;
+				const serviceAdapter = new ServiceAdapter({ session });
+				const job = await serviceAdapter.getJobProgress(jobId) as any;
 
-			if (job) {
+				if (job) {
 					activeReverseGeocodingJob = job;
 					updateReverseGeocodingProgressFromJob(job);
 
@@ -105,10 +112,45 @@
 		}
 	}
 
-	function updateReverseGeocodingProgressFromJob(job: any) {
-		reverseGeocodingProgress = job.progress || 0;
+			function updateReverseGeocodingProgressFromJob(job: any) {
 		const result = (job.result as Record<string, unknown>) || {};
-		reverseGeocodingStatus = (result.message as string) || job.status;
+
+		// Calculate progress from detailed result data
+		if (result.totalCount && result.processedCount !== undefined) {
+			const totalCount = Number(result.totalCount);
+			const processedCount = Number(result.processedCount);
+
+			if (totalCount > 0) {
+				// Use more precise calculation without rounding to avoid mismatch with status text
+				reverseGeocodingProgress = Math.floor((processedCount / totalCount) * 100);
+			} else {
+				reverseGeocodingProgress = 0;
+			}
+		} else {
+			// Fallback to job.progress if detailed data not available
+			reverseGeocodingProgress = job.progress || 0;
+		}
+
+		// Build status message with processed/total counts
+		if (result.totalCount && result.processedCount !== undefined) {
+			const totalCount = Number(result.totalCount);
+			const processedCount = Number(result.processedCount);
+			const errorCount = Number(result.errorCount || 0);
+
+			reverseGeocodingStatus = `Processed ${processedCount.toLocaleString()}/${totalCount.toLocaleString()} points`;
+			if (errorCount > 0) {
+				reverseGeocodingStatus += ` (${errorCount} errors)`;
+			} else {
+				reverseGeocodingStatus += ` (0 errors)`;
+			}
+		} else {
+			reverseGeocodingStatus = (result.message as string) || job.status;
+		}
+
+		// Extract ETA from the result
+		if (result.estimatedTimeRemaining) {
+			reverseGeocodingStatus += ` • ETA: ${result.estimatedTimeRemaining}`;
+		}
 	}
 
 	// Load geocoding statistics

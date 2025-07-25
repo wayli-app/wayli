@@ -89,8 +89,8 @@ export class ServiceAdapter {
     return this.edgeFunctionsService.updatePassword(this.session, password);
   }
 
-  async setup2FA(secret: string, token: string) {
-    return this.edgeFunctionsService.setup2FA(this.session, secret, token);
+  async setup2FA(action: string, token: string) {
+    return this.edgeFunctionsService.setup2FA(this.session, action, token);
   }
 
   async verify2FA(token: string) {
@@ -240,10 +240,151 @@ export class ServiceAdapter {
     });
   }
 
-  async createImportJob(importData: Record<string, unknown>) {
-    return this.callApi('import', {
+  async createImportJob(file: File, format: string): Promise<{ jobId: string }> {
+    try {
+      console.log('🚀 [SERVICE] Starting import job creation for file:', file.name);
+
+            // Upload file directly to storage
+      const fileName = `${Date.now()}-${file.name}`;
+      const storagePath = `${this.session.user.id}/${fileName}`;
+
+      console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
+
+      const { supabase } = await import('$lib/core/supabase/client');
+      const { error: uploadError } = await supabase.storage
+        .from('temp-files')
+        .upload(storagePath, file, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ [SERVICE] File upload failed:', uploadError);
+        throw new Error(`File upload failed: ${uploadError.message}`);
+      }
+
+      console.log('✅ [SERVICE] File uploaded successfully');
+
+      // Create import job via edge function
+      const response = await supabase.functions.invoke('import', {
+        body: {
+          storage_path: storagePath,
+          file_name: file.name,
+          file_size: file.size,
+          format: format
+        }
+      });
+
+      if (response.error) {
+        console.error('❌ [SERVICE] Import job creation failed:', response.error);
+        throw new Error(`Import job creation failed: ${response.error.message}`);
+      }
+
+      const result = response.data as { success: boolean; data: { jobId: string }; message: string };
+
+      if (!result.success) {
+        throw new Error(`Import job creation failed: ${result.message || 'Unknown error'}`);
+      }
+
+      console.log('✅ [SERVICE] Import job created successfully:', result.data.jobId);
+      return { jobId: result.data.jobId };
+    } catch (error) {
+      console.error('❌ [SERVICE] Error in createImportJob:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload large files directly to storage, then create import job
+   */
+  private async uploadLargeFileDirectly(
+    file: File,
+    format: string,
+    options?: Record<string, unknown>
+  ) {
+    try {
+      // Get Supabase client
+      const { supabase } = await import('$lib/core/supabase/client');
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const fileName = `${this.session?.user?.id}/${timestamp}-${file.name}`;
+
+      console.log(`📁 [SERVICE-ADAPTER] Uploading to storage: ${fileName}`);
+
+      // Upload file directly to storage
+      const { error: uploadError } = await supabase.storage
+        .from('temp-files')
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ [SERVICE-ADAPTER] Storage upload failed:', uploadError);
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+
+      console.log(`✅ [SERVICE-ADAPTER] File uploaded successfully to storage`);
+
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from('temp-files')
+        .getPublicUrl(fileName);
+
+      // Create import job via Edge Function (without file upload)
+      const jobData = {
+        file_url: urlData.publicUrl,
+        file_type: format,
+        storage_path: fileName, // Use the actual uploaded filename
+        original_filename: file.name,
+        file_size: file.size,
+        options: options || {}
+      };
+
+      console.log(`📁 [SERVICE-ADAPTER] Creating import job for uploaded file: ${fileName}`);
+
+      return this.callApi('import', {
+        method: 'POST',
+        body: jobData
+      });
+
+    } catch (error) {
+      console.error('❌ [SERVICE-ADAPTER] Direct upload failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload smaller files via Edge Function
+   */
+  private async uploadFileViaEdgeFunction(
+    file: File,
+    format: string,
+    options?: Record<string, unknown>
+  ) {
+    // Create FormData for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('format', format);
+
+    // Add options if present
+    if (options) {
+      Object.entries(options).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
+    }
+
+    // Use the edge function directly with FormData
+    // For large files, we'll use a longer timeout
+    const fileSize = file.size;
+    const timeout = fileSize > 100 * 1024 * 1024 ? 120000 : 30000; // 2 minutes for files > 100MB
+
+    return this.edgeFunctionsService.makeRequest('import', {
       method: 'POST',
-      body: importData
+      body: formData,
+      session: this.session,
+      timeout
     });
   }
 
@@ -255,7 +396,7 @@ export class ServiceAdapter {
    * Geocoding Operations
    */
   async searchGeocode(query: string) {
-    return this.callApi('geocode/search', { params: { q: query } });
+    return this.edgeFunctionsService.searchGeocode(this.session, query);
   }
 
   async getExportDownloadUrl(jobId: string) {
@@ -286,7 +427,7 @@ export class ServiceAdapter {
   }
 
   async getJobProgress(jobId: string) {
-    return this.callApi(`jobs/${jobId}/progress`);
+    return this.edgeFunctionsService.getJobProgress(this.session, jobId);
   }
 
     async getJobStream() {

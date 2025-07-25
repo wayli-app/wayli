@@ -87,12 +87,12 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = await serviceAdapter.searchGeocode(inputValue.trim()) as any;
 
-				// Handle both old format (data.data as array) and new format (data.data.results as array)
-				suggestions = data.data?.results || data.data || [];
-				showSuggestions = true;
+			// The Edge Functions service returns the data array directly
+			suggestions = Array.isArray(data) ? data : [];
+			showSuggestions = true;
 
-				if (suggestions.length === 0) {
-					searchError = 'No addresses found';
+			if (suggestions.length === 0) {
+				searchError = 'No addresses found';
 			}
 		} catch (error) {
 			console.error('Error searching for address:', error);

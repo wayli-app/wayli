@@ -927,15 +927,24 @@ export class JobProcessorService {
 			}
 
 			// Download file content from Supabase Storage
+			console.log('📥 Downloading file from storage:', storagePath);
+
 			const { data: fileData, error: downloadError } = await supabase.storage
 				.from('temp-files')
 				.download(storagePath);
 
 			if (downloadError || !fileData) {
-				throw new Error(
-					`Failed to download file from storage: ${downloadError?.message || 'Unknown error'}`
-				);
+				console.error('File download failed:', {
+					storagePath,
+					downloadError,
+					fileData: fileData ? 'exists' : 'null'
+				});
+				throw new Error(`Failed to download file from storage: ${JSON.stringify(downloadError)}`);
 			}
+
+			// Get file size for memory management
+			const fileSize = fileData.size;
+			console.log(`📁 File size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toFixed(2)} MB)`);
 
 			// Convert blob to text
 			const fileContent = await fileData.text();
@@ -1003,15 +1012,30 @@ export class JobProcessorService {
 				`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`
 			);
 
-			// Automatically start reverse geocoding job for newly imported data
-			try {
-				console.log('🔄 Starting automatic reverse geocoding job for imported data...');
-				await JobQueueService.createJob('reverse_geocoding_missing', {}, 'normal', userId);
-				console.log('✅ Reverse geocoding job created successfully');
-			} catch (geocodeJobError) {
-				console.error('❌ Failed to create reverse geocoding job:', geocodeJobError);
-				// Don't fail the import job if geocoding job creation fails
+					// Create auto-reverse geocoding job for newly imported data
+		try {
+			console.log('🔄 Creating auto-reverse geocoding job for imported data...');
+			const { error: reverseGeocodingError } = await supabase
+				.from('jobs')
+				.insert({
+					created_by: userId,
+					type: 'reverse_geocoding_missing',
+					status: 'queued',
+					priority: 'normal',
+					data: {
+						type: 'reverse_geocoding_missing',
+						created_by: userId
+					}
+				});
+
+			if (reverseGeocodingError) {
+				console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
+			} else {
+				console.log('✅ Auto-reverse geocoding job created successfully');
 			}
+		} catch (error) {
+			console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
+		}
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {
@@ -1216,7 +1240,7 @@ export class JobProcessorService {
 		} catch (error) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {
-				console.log(`🛑 GeoJSON import was cancelled`);
+				console.log(`�� GeoJSON import was cancelled`);
 				return 0;
 			}
 			console.error('❌ Error in GeoJSON import:', error);
@@ -2416,4 +2440,480 @@ export class JobProcessorService {
 			pageCount
 		};
 	}
+
+	/**
+	 * Process large files (>100MB) using streaming approach to avoid memory issues
+	 */
+	private static async processLargeFileImport(
+		fileData: Blob,
+		format: string,
+		userId: string,
+		jobId: string,
+		fileName: string
+	): Promise<void> {
+		console.log(`🔄 Processing large file import: ${fileName} (${format})`);
+
+		const startTime = Date.now();
+
+		try {
+			// Update initial progress
+			await JobQueueService.updateJobProgress(jobId, 0, {
+				message: `Processing large ${format} file...`,
+				fileName,
+				format,
+				totalProcessed: 0,
+				totalItems: 0
+			});
+
+			let importedCount = 0;
+			let totalItems = 0;
+
+			// Process based on format using streaming
+			switch (format) {
+				case 'GeoJSON':
+					importedCount = await this.importLargeGeoJSON(fileData, userId, jobId, fileName);
+					break;
+				case 'GPX': {
+					const result = await this.importLargeGPX(fileData, userId, jobId, fileName);
+					importedCount = result.importedCount;
+					totalItems = result.totalItems;
+					break;
+				}
+				case 'OwnTracks':
+					importedCount = await this.importLargeOwnTracks(fileData, userId, jobId, fileName);
+					break;
+				default:
+					throw new Error(`Unsupported format for large files: ${format}`);
+			}
+
+			// Update final progress
+			const elapsedSeconds = (Date.now() - startTime) / 1000;
+			await JobQueueService.updateJobProgress(jobId, 100, {
+				message: `✅ Large file import completed successfully!`,
+				fileName,
+				format,
+				totalProcessed: importedCount,
+				totalItems: totalItems || importedCount,
+				importedCount,
+				elapsedSeconds: elapsedSeconds.toFixed(1)
+			});
+
+			console.log(
+				`✅ Large file import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`
+			);
+
+			// Automatically start reverse geocoding job for newly imported data
+			try {
+				await JobQueueService.createJob({
+					type: 'reverse_geocoding_missing',
+					created_by: userId,
+					status: 'queued',
+					data: {
+						message: `Auto-generated reverse geocoding job for imported data from ${fileName}`
+					}
+				});
+				console.log('🔄 Auto-created reverse geocoding job for imported data');
+			} catch (geocodingError) {
+				console.error('⚠️ Failed to create auto-reverse geocoding job:', geocodingError);
+			}
+		} catch (error) {
+			console.error('❌ Large file import failed:', error);
+			await JobQueueService.updateJobProgress(jobId, 0, {
+				message: `❌ Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				fileName,
+				format,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			});
+			throw error;
+		}
+	}
+
+	/**
+	 * Import large GeoJSON files
+	 */
+	private static async importLargeGeoJSON(
+		fileData: Blob,
+		userId: string,
+		jobId: string,
+		fileName: string
+	): Promise<number> {
+		console.log('🔄 Starting large GeoJSON import...');
+		const text = await fileData.text();
+		console.log('📄 File size:', text.length, 'characters');
+
+		// Parse as a single JSON object (FeatureCollection)
+		let json;
+		try {
+			json = JSON.parse(text);
+		} catch (parseError) {
+			console.error('❌ Failed to parse JSON:', parseError);
+			throw new Error(`Failed to parse JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+		}
+
+		if (json.type === 'FeatureCollection' && json.features && Array.isArray(json.features)) {
+			console.log(`📊 Found FeatureCollection with ${json.features.length} features`);
+
+			// Debug: Show the first few features to identify the problematic one
+			console.log('🔍 First 3 features for debugging:');
+			for (let i = 0; i < Math.min(3, json.features.length); i++) {
+				const feature = json.features[i];
+				console.log(`🔍 Feature ${i + 1}:`, {
+					type: feature.type,
+					properties: feature.properties,
+					geometry: feature.geometry
+				});
+			}
+
+			// Update progress to show we're starting
+			await JobQueueService.updateJobProgress(jobId, 5, {
+				message: `Processing ${json.features.length} GeoJSON features...`,
+				fileName,
+				format: 'GeoJSON',
+				totalProcessed: 0,
+				totalItems: json.features.length
+			});
+
+			try {
+				// Process features in batches to avoid database timeouts
+				const BATCH_SIZE = 5; // Process 5 features at a time for easier debugging
+				let totalImported = 0;
+
+				for (let i = 0; i < json.features.length; i += BATCH_SIZE) {
+					const batch = json.features.slice(i, i + BATCH_SIZE);
+					const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+					const totalBatches = Math.ceil(json.features.length / BATCH_SIZE);
+					console.log(`🔄 Processing batch ${batchNumber}/${totalBatches} (features ${i + 1}-${Math.min(i + BATCH_SIZE, json.features.length)})`);
+					console.log(`🔍 Batch ${batchNumber} contains ${batch.length} features`);
+
+					try {
+						const batchImported = await this.processGeoJSONFeatureBatch(batch, userId, jobId, fileName);
+						totalImported += batchImported;
+
+						// Update progress after each batch
+						const progress = Math.min(((i + BATCH_SIZE) / json.features.length) * 100, 95);
+						await JobQueueService.updateJobProgress(jobId, progress, {
+							message: `Processed ${i + BATCH_SIZE}/${json.features.length} features (${totalImported} imported)...`,
+							fileName,
+							format: 'GeoJSON',
+							totalProcessed: i + BATCH_SIZE,
+							totalItems: json.features.length
+						});
+					} catch (batchError) {
+						console.error(`❌ BATCH ${batchNumber} FAILED:`, batchError);
+						console.error(`❌ This batch contained features ${i + 1}-${Math.min(i + BATCH_SIZE, json.features.length)}`);
+						console.error(`❌ Batch ${batchNumber} had ${batch.length} features`);
+
+						// TEMPORARY DEBUGGING: Show ALL features in the failed batch
+						console.error('🔍 ALL FEATURES IN THE FAILED BATCH:');
+						console.error(`🔍 Batch ${batchNumber} contained ${batch.length} features:`);
+
+						for (let j = 0; j < batch.length; j++) {
+							console.error(`🔍 FEATURE ${j + 1} (original index ${i + j + 1}):`);
+							console.error(JSON.stringify(batch[j], null, 2));
+							console.error('---');
+						}
+
+						throw batchError; // Re-throw to stop processing
+					}
+
+					// Check for cancellation between batches
+					await this.checkJobCancellation(jobId);
+				}
+
+				// Update progress to show completion
+				await JobQueueService.updateJobProgress(jobId, 100, {
+					message: `Successfully imported ${totalImported} features`,
+					fileName,
+					format: 'GeoJSON',
+					totalProcessed: totalImported,
+					totalItems: json.features.length
+				});
+
+				return totalImported;
+			} catch (processingError) {
+				console.error('❌ Failed to process GeoJSON features:', processingError);
+				throw new Error(`Failed to process GeoJSON features: ${processingError instanceof Error ? processingError.message : 'Unknown error'}`);
+			}
+		} else {
+			throw new Error('Not a valid FeatureCollection');
+		}
+	}
+
+	/**
+	 * Import large GPX files using streaming
+	 */
+	private static async importLargeGPX(
+		fileData: Blob,
+		userId: string,
+		jobId: string,
+		fileName: string
+	): Promise<{ importedCount: number; totalItems: number }> {
+		// For now, fall back to regular processing for GPX
+		const content = await fileData.text();
+		return await this.importGPXWithProgress(content, userId, jobId, fileName);
+	}
+
+	/**
+	 * Import large OwnTracks files using streaming
+	 */
+	private static async importLargeOwnTracks(
+		fileData: Blob,
+		userId: string,
+		jobId: string,
+		fileName: string
+	): Promise<number> {
+		// For now, fall back to regular processing for OwnTracks
+		const content = await fileData.text();
+		return await this.importOwnTracksWithProgress(content, userId, jobId, fileName);
+	}
+
+
+
+	/**
+	 * Process a batch of GeoJSON features (from FeatureCollection)
+	 */
+	private static async processGeoJSONFeatureBatch(
+		features: any[],
+		userId: string,
+		jobId?: string,
+		fileName?: string
+	): Promise<number> {
+		const trackerData = [];
+		const totalFeatures = features.length;
+		let processedCount = 0;
+
+		for (const feature of features) {
+			try {
+				if (feature.type === 'Feature' && feature.geometry) {
+					const coordinates = feature.geometry.coordinates;
+					const properties = feature.properties || {};
+
+					if (coordinates && coordinates.length >= 2) {
+						const [lng, lat] = coordinates;
+
+						// TEMPORARY DEBUGGING: Check coordinate values
+						console.log(`🔍 Coordinates for feature ${processedCount + 1}: lng=${lng}, lat=${lat}`);
+						console.log(`🔍 lng type: ${typeof lng}, lat type: ${typeof lat}`);
+						if (lng.toString().includes('0.001822522735971131') || lat.toString().includes('0.001822522735971131')) {
+							console.error(`🔍 PROBLEMATIC VALUE FOUND in coordinates! lng=${lng}, lat=${lat}`);
+						}
+
+						// Extract timestamp from properties
+						let recordedAt = new Date().toISOString();
+						if (properties.timestamp) {
+							recordedAt = new Date(properties.timestamp * 1000).toISOString(); // Convert Unix timestamp
+						} else if (properties.time) {
+							recordedAt = new Date(properties.time).toISOString();
+						}
+
+						// Convert numeric fields to proper types with better error handling
+						let batteryLevel = null;
+						if (properties.battery_level !== undefined && properties.battery_level !== null) {
+							try {
+								const batteryValue = parseFloat(properties.battery_level);
+								if (!isNaN(batteryValue)) {
+									batteryLevel = Math.round(batteryValue);
+								}
+							} catch (error) {
+								console.error('Error converting battery_level:', properties.battery_level, error);
+							}
+						}
+
+						// Convert other numeric fields with error handling
+						let altitude = null;
+						try {
+							altitude = properties.altitude ? parseFloat(properties.altitude) : null;
+						} catch (error) {
+							console.error('Error converting altitude:', properties.altitude, error);
+						}
+
+						let accuracy = null;
+						try {
+							accuracy = properties.accuracy ? parseFloat(properties.accuracy) : null;
+						} catch (error) {
+							console.error('Error converting accuracy:', properties.accuracy, error);
+						}
+
+						let speed = null;
+						try {
+							speed = properties.speed ? parseFloat(properties.speed) : null;
+						} catch (error) {
+							console.error('Error converting speed:', properties.speed, error);
+						}
+
+						let heading = null;
+						try {
+							heading = properties.heading ? parseFloat(properties.heading) : null;
+						} catch (error) {
+							console.error('Error converting heading:', properties.heading, error);
+						}
+
+						// Validate all numeric fields are properly converted
+						if (batteryLevel !== null && !Number.isInteger(batteryLevel)) {
+							console.error('Invalid battery_level after conversion:', batteryLevel);
+							batteryLevel = null;
+						}
+						if (altitude !== null && typeof altitude !== 'number') {
+							console.error('Invalid altitude after conversion:', altitude);
+							altitude = null;
+						}
+						if (accuracy !== null && typeof accuracy !== 'number') {
+							console.error('Invalid accuracy after conversion:', accuracy);
+							accuracy = null;
+						}
+						if (speed !== null && typeof speed !== 'number') {
+							console.error('Invalid speed after conversion:', speed);
+							speed = null;
+						}
+						if (heading !== null && typeof heading !== 'number') {
+							console.error('Invalid heading after conversion:', heading);
+							heading = null;
+						}
+
+						// TEMPORARY DEBUGGING: Check batteryLevel value before assignment
+						console.log(`🔍 batteryLevel value for feature ${processedCount + 1}:`, batteryLevel);
+						console.log(`🔍 batteryLevel type:`, typeof batteryLevel);
+						if (batteryLevel !== null) {
+							console.log(`🔍 batteryLevel as string:`, batteryLevel.toString());
+						}
+
+						const trackerDataItem = {
+							user_id: userId,
+							tracker_type: 'imported',
+							recorded_at: recordedAt,
+							location: {
+								type: 'Point',
+								coordinates: [lng, lat]
+							},
+							country_code: this.getCountryForPoint(lat, lng),
+							battery_level: batteryLevel,
+							raw_data: properties
+						};
+
+						// TEMPORARY DEBUGGING: Check for problematic decimal values in ALL fields
+						const allFields = {
+							user_id: trackerDataItem.user_id,
+							tracker_type: trackerDataItem.tracker_type,
+							recorded_at: trackerDataItem.recorded_at,
+							location_coordinates: trackerDataItem.location.coordinates,
+							country_code: trackerDataItem.country_code,
+							battery_level: trackerDataItem.battery_level
+						};
+
+						for (const [fieldName, value] of Object.entries(allFields)) {
+							if (value !== null && value !== undefined) {
+								const valueStr = JSON.stringify(value);
+								if (valueStr.includes('0.001822522735971131')) {
+									console.error(`🔍 PROBLEMATIC VALUE FOUND in field ${fieldName}:`, value);
+									console.error(`🔍 This value is being set for feature ${processedCount + 1}`);
+									console.error(`🔍 Field type:`, typeof value);
+									console.error(`🔍 Value as string:`, valueStr);
+								}
+							}
+						}
+
+						// Also check raw_data for the problematic value
+						const rawDataStr = JSON.stringify(trackerDataItem.raw_data);
+						if (rawDataStr.includes('0.001822522735971131')) {
+							console.error(`🔍 PROBLEMATIC VALUE FOUND in raw_data for feature ${processedCount + 1}`);
+							console.error(`🔍 Raw data contains the problematic value`);
+						}
+
+						trackerData.push(trackerDataItem);
+					}
+				}
+			} catch (error) {
+				console.error('Error processing GeoJSON feature:', error);
+			}
+
+			processedCount++;
+		}
+
+		// Insert batch into database
+		if (trackerData.length > 0) {
+			try {
+				console.log(`🔍 Inserting batch of ${trackerData.length} tracker data items...`);
+
+				// TEMPORARY TEST: Try inserting a single record first
+				console.log('🔍 TESTING: Inserting single record manually...');
+				const testRecord = {
+					user_id: userId,
+					tracker_type: 'imported',
+					recorded_at: new Date().toISOString(),
+					location: {
+						type: 'Point',
+						coordinates: [0, 0]
+					},
+					country_code: 'XX',
+					battery_level: null,
+					raw_data: {}
+				};
+
+				const { error: testError } = await supabase
+					.from('tracker_data')
+					.insert(testRecord);
+
+				if (testError) {
+					console.error('❌ Single record insert failed:', testError);
+				} else {
+					console.log('✅ Single record insert succeeded');
+				}
+
+				// TEMPORARY DEBUGGING: Show the exact data being inserted
+				console.log('🔍 EXACT DATA BEING INSERTED INTO DATABASE:');
+				for (let i = 0; i < trackerData.length; i++) {
+					console.log(`🔍 TRACKER DATA ITEM ${i + 1}:`);
+					console.log(JSON.stringify(trackerData[i], null, 2));
+					console.log('---');
+				}
+
+				const { error } = await supabase
+					.from('tracker_data')
+					.upsert(trackerData, {
+						onConflict: 'user_id,location,recorded_at',
+						ignoreDuplicates: true
+					});
+
+				if (error) {
+					console.error('❌ Database insertion error:', error);
+					console.error('❌ Error details:', {
+						code: error.code,
+						message: error.message,
+						details: error.details,
+						hint: error.hint
+					});
+
+					// TEMPORARY DEBUGGING: Show ALL records in the batch that failed
+					console.error('🔍 ALL RECORDS IN THE FAILED BATCH:');
+					console.error(`🔍 This batch contained ${trackerData.length} records:`);
+
+					for (let i = 0; i < trackerData.length; i++) {
+						console.error(`🔍 RECORD ${i + 1}:`);
+						console.error(JSON.stringify(trackerData[i], null, 2));
+						console.error('---');
+					}
+
+					return 0;
+				}
+			} catch (insertError) {
+				console.error('❌ Exception during database insert:', insertError);
+
+				// TEMPORARY DEBUGGING: Show ALL records in the batch that caused the exception
+				console.error('🔍 ALL RECORDS IN THE BATCH THAT CAUSED EXCEPTION:');
+				console.error(`🔍 This batch contained ${trackerData.length} records:`);
+
+				for (let i = 0; i < trackerData.length; i++) {
+					console.error(`🔍 RECORD ${i + 1}:`);
+					console.error(JSON.stringify(trackerData[i], null, 2));
+					console.error('---');
+				}
+
+				return 0;
+			}
+		}
+
+		return trackerData.length;
+	}
+
+
 }

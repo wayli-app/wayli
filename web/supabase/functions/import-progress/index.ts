@@ -1,84 +1,71 @@
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { createAuthenticatedClient } from '../_shared/supabase.ts';
+import {
+  setupRequest,
+  authenticateRequest,
+  successResponse,
+  errorResponse,
+  getQueryParams,
+  logError,
+  logInfo,
+  logSuccess
+} from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
-	// Handle CORS
-	const corsResponse = handleCors(req);
-	if (corsResponse) return corsResponse;
+  // Handle CORS
+  const corsResponse = setupRequest(req);
+  if (corsResponse) return corsResponse;
 
-	try {
-		// Get auth token
-		const authHeader = req.headers.get('Authorization');
-		if (!authHeader) {
-			return new Response(JSON.stringify({ error: 'No authorization header' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+  try {
+    const { user, supabase } = await authenticateRequest(req);
 
-		const token = authHeader.replace('Bearer ', '');
-		const supabase = createAuthenticatedClient(token);
+    // Only allow GET requests
+    if (req.method !== 'GET') {
+      return errorResponse('Method not allowed', 405);
+    }
 
-		// Verify user is authenticated
-		const {
-			data: { user },
-			error: authError
-		} = await supabase.auth.getUser();
-		if (authError || !user) {
-			return new Response(JSON.stringify({ error: 'Invalid token' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    // Get query parameters
+    const url = req.url;
+    const params = getQueryParams(url);
+    const jobId = params.get('job_id');
 
-		// Get query parameters
-		const url = new URL(req.url);
-		const jobId = url.searchParams.get('job_id');
+    if (!jobId) {
+      return errorResponse('Job ID is required', 400);
+    }
 
-		if (!jobId) {
-			return new Response(JSON.stringify({ error: 'Job ID is required' }), {
-				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    logInfo('Fetching import progress', 'IMPORT_PROGRESS', { userId: user.id, jobId });
 
-		// Get job progress
-		const { data: job, error: jobError } = await supabase
-			.from('jobs')
-			.select('*')
-			.eq('id', jobId)
-			.eq('created_by', user.id)
-			.single();
+    // Get job progress
+    const { data: job, error: jobError } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('id', jobId)
+      .eq('created_by', user.id)
+      .single();
 
-		if (jobError) {
-			if (jobError.code === 'PGRST116') {
-				return new Response(JSON.stringify({ error: 'Job not found' }), {
-					status: 404,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				});
-			}
-			throw jobError;
-		}
+    if (jobError) {
+      if (jobError.code === 'PGRST116') {
+        return errorResponse('Job not found', 404);
+      }
+      logError(jobError, 'IMPORT_PROGRESS');
+      return errorResponse('Failed to fetch job progress', 500);
+    }
 
-		return new Response(
-			JSON.stringify({
-				job_id: job.id,
-				status: job.status,
-				progress: job.progress || 0,
-				result: job.result,
-				error: job.error,
-				created_at: job.created_at,
-				updated_at: job.updated_at
-			}),
-			{
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			}
-		);
-	} catch (error) {
-		console.error('Import progress error:', error);
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
-	}
+    logSuccess('Import progress fetched successfully', 'IMPORT_PROGRESS', {
+      userId: user.id,
+      jobId: job.id,
+      status: job.status
+    });
+
+    return successResponse({
+      job_id: job.id,
+      status: job.status,
+      progress: job.progress || 0,
+      result: job.result,
+      error: job.error,
+      created_at: job.created_at,
+      updated_at: job.updated_at
+    });
+  } catch (error) {
+    logError(error, 'IMPORT_PROGRESS');
+    return errorResponse('Internal server error', 500);
+  }
 });

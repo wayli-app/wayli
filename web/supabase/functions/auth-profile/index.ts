@@ -33,14 +33,22 @@ Deno.serve(async (req) => {
         return errorResponse('Failed to fetch profile', 500);
       }
 
+            // Combine profile data with email
+      const completeProfile = {
+        ...profile,
+        email: user.email || ''
+      };
+
       logSuccess('Profile fetched successfully', 'AUTH-PROFILE', { userId: user.id });
-      return successResponse(profile);
+      return successResponse(completeProfile);
     }
 
     if (req.method === 'POST') {
       logInfo('Updating user profile', 'AUTH-PROFILE', { userId: user.id });
 
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<{ first_name: string; last_name: string; email: string; home_address?: string | Record<string, unknown> }>(req);
+
+
 
       // Validate required fields
       const requiredFields = ['first_name', 'last_name', 'email'];
@@ -50,13 +58,13 @@ Deno.serve(async (req) => {
         return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
       }
 
-      // Update profile
+      // Update profile in user_profiles table
       const { data: updatedProfile, error: updateError } = await supabase
         .from('user_profiles')
         .update({
           first_name: body.first_name,
           last_name: body.last_name,
-          email: body.email,
+          home_address: body.home_address,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
@@ -68,8 +76,26 @@ Deno.serve(async (req) => {
         return errorResponse('Failed to update profile', 500);
       }
 
+      // Update email in auth.users if it changed
+      if (body.email && body.email !== user.email) {
+        const { error: emailUpdateError } = await supabase.auth.admin.updateUserById(user.id, {
+          email: String(body.email || '')
+        });
+
+        if (emailUpdateError) {
+          logError(emailUpdateError, 'AUTH-PROFILE');
+          return errorResponse('Failed to update email', 500);
+        }
+      }
+
+      // Combine updated profile with email
+      const completeProfile = {
+        ...updatedProfile,
+        email: String(body.email || user.email || '')
+      };
+
       logSuccess('Profile updated successfully', 'AUTH-PROFILE', { userId: user.id });
-      return successResponse(updatedProfile);
+      return successResponse(completeProfile);
     }
 
     return errorResponse('Method not allowed', 405);

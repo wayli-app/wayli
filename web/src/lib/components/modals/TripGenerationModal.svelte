@@ -102,11 +102,12 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = await serviceAdapter.searchGeocode(customHomeAddressInput.trim()) as any;
-				// Handle both old format (data.data as array) and new format (data.data.results as array)
-				customHomeAddressSuggestions = data.data?.results || data.data || [];
-				showCustomHomeAddressSuggestions = true;
-				if (customHomeAddressSuggestions.length === 0) {
-					customHomeAddressSearchError = 'No addresses found';
+
+			// The Edge Functions service returns the data array directly
+			customHomeAddressSuggestions = Array.isArray(data) ? data : [];
+			showCustomHomeAddressSuggestions = true;
+			if (customHomeAddressSuggestions.length === 0) {
+				customHomeAddressSearchError = 'No addresses found';
 			}
 		} catch (error) {
 			console.error('Error searching for custom home address:', error);
@@ -119,7 +120,6 @@
 	}
 
 	function selectCustomHomeAddress(suggestion: any) {
-		console.log('selectCustomHomeAddress called with:', suggestion);
 		customHomeAddressInput = suggestion.display_name;
 		customHomeAddress = suggestion.display_name;
 		selectedCustomHomeAddress = suggestion;
@@ -133,7 +133,7 @@
 	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 </script>
 
-<Modal {open} title="Generate Trip Suggestions" size="md" on:close={handleClose}>
+<Modal {open} title="Generate Trip Suggestions" size="md" on:close={closeModal}>
 	<div class="space-y-6">
 		<!-- Tip Section -->
 		<div
@@ -274,13 +274,13 @@
 		<!-- Action Buttons -->
 		<div class="flex gap-3 pt-4">
 			<button
-				on:click={handleClose}
+				on:click={closeModal}
 				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				Cancel
 			</button>
 			<button
-				on:click={handleGenerate}
+				on:click={generateTrip}
 				class="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:bg-blue-600 dark:hover:bg-blue-700"
 			>
 				<Route class="mr-2 h-4 w-4 flex-shrink-0" />

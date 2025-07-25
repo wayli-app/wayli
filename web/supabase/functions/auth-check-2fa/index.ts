@@ -7,9 +7,10 @@ import {
   logInfo,
   logSuccess
 } from '../_shared/utils.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   const corsResponse = setupRequest(req);
   if (corsResponse) return corsResponse;
 
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
       // Get user's 2FA status from profile
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
-        .select('two_factor_enabled, two_factor_secret')
+        .select('*')
         .eq('id', user.id)
         .single();
 
@@ -31,6 +32,7 @@ Deno.serve(async (req) => {
         return errorResponse('Failed to fetch 2FA status', 500);
       }
 
+      // Check if 2FA columns exist, if not return disabled status
       const isEnabled = profile?.two_factor_enabled || false;
       const hasSecret = !!profile?.two_factor_secret;
 
@@ -50,6 +52,20 @@ Deno.serve(async (req) => {
     return errorResponse('Method not allowed', 405);
   } catch (error) {
     logError(error, 'AUTH-CHECK-2FA');
-    return errorResponse('Internal server error', 500);
+
+    // Ensure CORS headers are applied even for authentication errors
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    const status = errorMessage.includes('authorization') || errorMessage.includes('token') || errorMessage.includes('No authorization header') ? 401 : 500;
+
+    // Create error response with explicit CORS headers
+    const response = {
+      success: false,
+      error: errorMessage
+    };
+
+    return new Response(JSON.stringify(response), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

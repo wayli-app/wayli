@@ -90,7 +90,9 @@ port = 54324
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
-file_size_limit = "50MiB"
+file_size_limit = "2GiB"
+
+
 
 # Image transformation API is available to Supabase Pro plan.
 # [storage.image_transformation]
@@ -109,6 +111,20 @@ public = false
 file_size_limit = "100MiB"
 allowed_mime_types = ["application/zip", "application/json", "application/gpx+xml", "text/plain"]
 objects_path = "./exports"
+
+# Configure temp-files bucket for temporary import files
+[storage.buckets.temp-files]
+public = false
+file_size_limit = "2GiB"
+allowed_mime_types = ["application/json", "text/csv", "application/gpx+xml", "text/plain", "application/octet-stream"]
+objects_path = "./temp-files"
+
+# Configure trip-images bucket for trip images
+[storage.buckets.trip-images]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+objects_path = "./trip-images"
 
 [auth]
 enabled = true
@@ -306,8 +322,8 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 1
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+[edge_runtime.secrets]
+pexels_api_key = "env(PEXELS_API_KEY)"
 
 [analytics]
 enabled = true

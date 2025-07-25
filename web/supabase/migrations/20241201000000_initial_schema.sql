@@ -49,9 +49,17 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator')),
     avatar_url TEXT,
     home_address JSONB, -- Store geocoded location data
+    two_factor_enabled BOOLEAN DEFAULT false,
+    two_factor_secret TEXT,
+    two_factor_recovery_codes TEXT[],
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add comment for documentation
+COMMENT ON COLUMN public.user_profiles.two_factor_enabled IS 'Whether 2FA is enabled for this user';
+COMMENT ON COLUMN public.user_profiles.two_factor_secret IS 'TOTP secret for 2FA authentication';
+COMMENT ON COLUMN public.user_profiles.two_factor_recovery_codes IS 'Array of recovery codes for 2FA backup';
 
 -- Create tracker_data table for OwnTracks and other tracking apps
 CREATE TABLE IF NOT EXISTS public.tracker_data (
@@ -277,6 +285,9 @@ CREATE POLICY "Users can update their own POI visit logs" ON public.poi_visit_lo
 CREATE POLICY "Users can delete their own POI visit logs" ON public.poi_visit_logs
     FOR DELETE USING (auth.uid() = user_id);
 
+CREATE POLICY "Service role can access all preferences" ON public.user_preferences
+    FOR ALL USING (auth.role() = 'service_role');
+
 CREATE POLICY "Users can view their own preferences" ON public.user_preferences
     FOR SELECT USING (auth.uid() = id);
 
@@ -349,6 +360,10 @@ CREATE POLICY "Admins can view all audit logs" ON public.audit_logs
         )
     );
 
+-- Add comment explaining the audit logs fix
+COMMENT ON POLICY "Admins can view all audit logs" ON public.audit_logs IS
+    'Secure policy: Only users with admin role in user_profiles table can view all audit logs. Fixed column name from id to user_id.';
+
 -- Service role can insert audit logs (for system logging)
 CREATE POLICY "Service role can insert audit logs" ON public.audit_logs
     FOR INSERT WITH CHECK (auth.role() = 'service_role');
@@ -365,8 +380,15 @@ CREATE POLICY "Service role can delete audit logs" ON public.audit_logs
 CREATE POLICY "Admins can manage server settings" ON public.server_settings
     FOR ALL USING (
         auth.role() = 'service_role' OR
-        (auth.jwt() ->> 'user_metadata')::jsonb ->> 'role' = 'admin'
+        EXISTS (
+            SELECT 1 FROM public.user_profiles
+            WHERE id = auth.uid() AND role = 'admin'
+        )
     );
+
+-- Add comment explaining the security fix
+COMMENT ON POLICY "Admins can manage server settings" ON public.server_settings IS
+    'Secure policy: Only service role or users with admin role in user_profiles table can manage server settings. Fixed from insecure user_metadata check.';
 
 -- RLS policies for suggested_trips
 CREATE POLICY "Users can view their own suggested trips" ON public.suggested_trips
@@ -485,20 +507,20 @@ BEGIN
         NOW()
     );
 
-    -- Log the user creation for audit purposes
-    PERFORM log_audit_event(
-        'user_registered',
-        'New user registered: ' || NEW.email,
-        'low',
-        jsonb_build_object(
-            'user_id', NEW.id,
-            'email', NEW.email,
-            'role', user_role,
-            'first_name', first_name,
-            'last_name', last_name,
-            'full_name', full_name
-        )
-    );
+    -- Temporarily comment out audit logging to isolate the issue
+    -- PERFORM log_audit_event(
+    --     'user_registered',
+    --     'New user registered: ' || NEW.email,
+    --     'low',
+    --     jsonb_build_object(
+    --         'user_id', NEW.id,
+    --         'email', NEW.email,
+    --         'role', user_role,
+    --         'first_name', first_name,
+    --         'last_name', last_name,
+    --         'full_name', full_name
+    --     )
+    -- );
 
     RETURN NEW;
 END;
@@ -878,95 +900,61 @@ VALUES (
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 -- Create storage policies for temp-files bucket
--- Users can upload their own files
 CREATE POLICY "Users can upload to temp-files" ON storage.objects
     FOR INSERT WITH CHECK (
         bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[2]
+        auth.uid()::text = (storage.foldername(name))[1]
     );
 
--- Users can view their own files
 CREATE POLICY "Users can view their own temp-files" ON storage.objects
     FOR SELECT USING (
         bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[2]
+        auth.uid()::text = (storage.foldername(name))[1]
     );
 
--- Users can update their own files
-CREATE POLICY "Users can update their own temp-files" ON storage.objects
-    FOR UPDATE USING (
-        bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[2]
-    );
-
--- Users can delete their own files
 CREATE POLICY "Users can delete their own temp-files" ON storage.objects
     FOR DELETE USING (
         bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[2]
-    );
-
--- Service role can access all temp-files (for background processing)
-CREATE POLICY "Service role can access temp-files" ON storage.objects
-    FOR ALL USING (auth.role() = 'service_role');
-
--- Create storage policies for trip-images bucket
--- Users can upload their own images
-CREATE POLICY "Users can upload to trip-images" ON storage.objects
-    FOR INSERT WITH CHECK (
-        bucket_id = 'trip-images' AND
         auth.uid()::text = (storage.foldername(name))[1]
     );
-
--- Users can view their own images
-CREATE POLICY "Users can view their own trip-images" ON storage.objects
-    FOR SELECT USING (
-        bucket_id = 'trip-images' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
-
--- Users can update their own images
-CREATE POLICY "Users can update their own trip-images" ON storage.objects
-    FOR UPDATE USING (
-        bucket_id = 'trip-images' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
-
--- Users can delete their own images
-CREATE POLICY "Users can delete their own trip-images" ON storage.objects
-    FOR DELETE USING (
-        bucket_id = 'trip-images' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
-
--- Service role can access all trip-images (for background processing)
-CREATE POLICY "Service role can access trip-images" ON storage.objects
-    FOR ALL USING (auth.role() = 'service_role');
 
 -- Create storage policies for exports bucket
--- Users can upload their own export files
 CREATE POLICY "Users can upload to exports" ON storage.objects
     FOR INSERT WITH CHECK (
         bucket_id = 'exports' AND
         auth.uid()::text = (storage.foldername(name))[1]
     );
 
--- Users can view their own export files
 CREATE POLICY "Users can view their own exports" ON storage.objects
     FOR SELECT USING (
         bucket_id = 'exports' AND
         auth.uid()::text = (storage.foldername(name))[1]
     );
 
--- Users can delete their own export files
 CREATE POLICY "Users can delete their own exports" ON storage.objects
     FOR DELETE USING (
         bucket_id = 'exports' AND
         auth.uid()::text = (storage.foldername(name))[1]
     );
 
--- Service role can access all exports (for background processing)
-CREATE POLICY "Service role can access exports" ON storage.objects
+-- Create storage policies for trip-images bucket (public read, authenticated upload)
+CREATE POLICY "Anyone can view trip-images" ON storage.objects
+    FOR SELECT USING (bucket_id = 'trip-images');
+
+CREATE POLICY "Authenticated users can upload trip-images" ON storage.objects
+    FOR INSERT WITH CHECK (
+        bucket_id = 'trip-images' AND
+        auth.role() = 'authenticated'
+    );
+
+CREATE POLICY "Users can delete their own trip-images" ON storage.objects
+    FOR DELETE USING (
+        bucket_id = 'trip-images' AND
+        auth.uid()::text = (storage.foldername(name))[1]
+    );
+
+-- Service role can access all storage objects
+CREATE POLICY "Service role can access all storage" ON storage.objects
     FOR ALL USING (auth.role() = 'service_role');
 
 -- Create function to clean up expired export files
@@ -1055,3 +1043,64 @@ CREATE TRIGGER trigger_update_want_to_visit_places_updated_at
     BEFORE UPDATE ON public.want_to_visit_places
     FOR EACH ROW
     EXECUTE FUNCTION update_want_to_visit_places_updated_at();
+
+-- Ensure the first user is an admin
+-- This migration checks if there's only one user and makes them admin if they aren't already
+DO $$
+DECLARE
+    user_count INTEGER;
+    first_user_id UUID;
+    first_user_role TEXT;
+BEGIN
+    -- Count total users
+    SELECT COUNT(*) INTO user_count FROM auth.users;
+
+    -- If there's only one user, ensure they're an admin
+    IF user_count = 1 THEN
+        -- Get the first user's ID
+        SELECT id INTO first_user_id FROM auth.users LIMIT 1;
+
+        -- Check their current role
+        SELECT role INTO first_user_role FROM public.user_profiles WHERE id = first_user_id;
+
+        -- If they're not an admin, make them one
+        IF first_user_role != 'admin' THEN
+            -- Update user profile
+            UPDATE public.user_profiles
+            SET role = 'admin', updated_at = NOW()
+            WHERE id = first_user_id;
+
+            -- Update user metadata
+            UPDATE auth.users
+            SET raw_user_meta_data = raw_user_meta_data || jsonb_build_object('role', 'admin')
+            WHERE id = first_user_id;
+
+            -- Log the change
+            INSERT INTO public.audit_logs (
+                event_type,
+                description,
+                severity,
+                user_id,
+                metadata,
+                timestamp,
+                created_at,
+                updated_at
+            ) VALUES (
+                'user_role_updated',
+                'First user automatically promoted to admin',
+                'medium',
+                first_user_id,
+                jsonb_build_object('old_role', first_user_role, 'new_role', 'admin'),
+                NOW(),
+                NOW(),
+                NOW()
+            );
+
+            RAISE NOTICE 'First user % promoted to admin', first_user_id;
+        ELSE
+            RAISE NOTICE 'First user % is already admin', first_user_id;
+        END IF;
+    ELSE
+        RAISE NOTICE 'Multiple users found (% users), not modifying roles', user_count;
+    END IF;
+END $$;

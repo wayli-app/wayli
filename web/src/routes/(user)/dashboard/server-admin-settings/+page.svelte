@@ -418,7 +418,7 @@
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
 		on:click={handleCloseAddUserModal}
 		on:keydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+			if (e.key === 'Escape' || e.key === 'Enter') {
 				handleCloseAddUserModal();
 			}
 		}}
@@ -540,7 +540,7 @@
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
 		on:click={handleCloseDeleteConfirm}
 		on:keydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+			if (e.key === 'Escape' || e.key === 'Enter') {
 				handleCloseDeleteConfirm();
 			}
 		}}

@@ -131,7 +131,7 @@
 			const profile = await serviceAdapter.getProfile();
 
 			if (profile) {
-				console.log('✅ [AccountSettings] Real token test successful');
+
 			} else {
 				console.error('❌ [AccountSettings] Real token test failed: No profile returned');
 			}
@@ -148,7 +148,7 @@
 				try {
 					const tokenData = JSON.parse(supabaseKey);
 					if (tokenData && tokenData.access_token) {
-						console.log('✅ [AccountSettings] Found valid token in localStorage');
+
 						return;
 					}
 				} catch (e) {
@@ -162,7 +162,7 @@
 			);
 
 			if (authCookies.length > 0) {
-				console.log('✅ [AccountSettings] Found auth cookies');
+
 			} else {
 				console.error('❌ [AccountSettings] No auth cookies found');
 			}
@@ -184,7 +184,7 @@
 			const data = await response.json();
 
 			if (response.ok) {
-				console.log('✅ [AccountSettings] Direct fetch test successful');
+
 			} else {
 				console.error('❌ [AccountSettings] Direct fetch test failed:', data);
 			}
@@ -204,7 +204,7 @@
 			}
 
 			if (user) {
-				console.log('✅ [AccountSettings] Current user found:', user.id);
+
 			} else {
 				console.error('❌ [AccountSettings] No user found - user needs to sign in');
 			}
@@ -221,7 +221,7 @@
 				anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing'
 			};
 
-			console.log('✅ [AccountSettings] Supabase config validation passed');
+
 		} catch (error) {
 			console.error('❌ [AccountSettings] Config test failed:', error);
 		}
@@ -254,7 +254,7 @@
 			}
 
 			if (user) {
-				console.log('✅ [AccountSettings] getUser successful:', user.id);
+
 			} else {
 				console.error('❌ [AccountSettings] No user returned from getUser');
 			}
@@ -324,14 +324,16 @@
 				preferredLanguageInput = preferences.language || 'en';
 				timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)';
 				pexelsApiKeyInput = preferences.pexels_api_key || '';
+
+				// Check if server-side Pexels API key is available
+				if (preferencesData?.server_pexels_api_key_available) {
+					serverPexelsApiKeyAvailable = true;
+				}
 			}
 
 			// Check 2FA status - Edge Functions return { success: true, data: ... }
-			const twoFactorResult = await serviceAdapter.check2FA();
-			const twoFactorData = (twoFactorResult as any).data || twoFactorResult;
-			twoFactorEnabled = (twoFactorData && typeof twoFactorData === 'object' && 'enabled' in twoFactorData)
-				? (twoFactorData as { enabled: boolean }).enabled
-				: false;
+			// Temporarily disabled until 2FA columns are added to database
+			twoFactorEnabled = false;
 
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error loading user data:', error);
@@ -339,7 +341,6 @@
 	}
 
 	onMount(async () => {
-		await checkPexelsApiKey();
 		await loadUserData();
 		await loadTripExclusions();
 	});
@@ -431,10 +432,13 @@
 			profile.last_name = lastNameInput.trim();
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
+
+
 			// Update profile using service adapter
 			await serviceAdapter.updateProfile({
 				first_name: profile.first_name,
 				last_name: profile.last_name,
+				email: profile.email || '',
 				home_address: profile.home_address
 			});
 
@@ -600,13 +604,9 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = await serviceAdapter.searchGeocode(homeAddressInput) as any;
 
-			if (result.success) {
-				homeAddressSuggestions = result.data.results || [];
-				showHomeAddressSuggestions = homeAddressSuggestions.length > 0;
-			} else {
-				homeAddressSuggestions = [];
-				showHomeAddressSuggestions = false;
-			}
+			// The Edge Functions service returns the data array directly
+			homeAddressSuggestions = Array.isArray(result) ? result : [];
+			showHomeAddressSuggestions = homeAddressSuggestions.length > 0;
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error searching for home address:', error);
 			homeAddressSearchError = 'Failed to search for address';
@@ -687,9 +687,10 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = await serviceAdapter.searchGeocode(exclusionAddressInput.trim()) as any;
-			const results = data.data?.results;
-			if (data.success && Array.isArray(results)) {
-				exclusionAddressSuggestions = results.map((result: any) => ({
+
+			// The Edge Functions service returns the data array directly
+			if (Array.isArray(data)) {
+				exclusionAddressSuggestions = data.map((result: any) => ({
 					display_name: result.display_name,
 					coordinates: {
 						lat: parseFloat(result.lat),
@@ -845,9 +846,10 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = await serviceAdapter.searchGeocode(editExclusionAddressInput.trim()) as any;
-			const results = data.data?.results;
-			if (data.success && Array.isArray(results)) {
-				editExclusionAddressSuggestions = results.map((result: any) => ({
+
+			// The Edge Functions service returns the data array directly
+			if (Array.isArray(data)) {
+				editExclusionAddressSuggestions = data.map((result: any) => ({
 					display_name: result.display_name,
 					coordinates: {
 						lat: parseFloat(result.lat),
@@ -883,7 +885,7 @@
 	}
 
 	function handleModalKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' || e.key === ' ') {
+					if (e.key === 'Enter') {
 			showAddExclusionModal = false;
 			showEditExclusionModal = false;
 		}
@@ -1394,7 +1396,7 @@
 		aria-label="Close modal"
 		on:click={() => (showAddExclusionModal = false)}
 		on:keydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+			if (e.key === 'Escape' || e.key === 'Enter') {
 				e.preventDefault();
 				showAddExclusionModal = false;
 			}
@@ -1534,7 +1536,7 @@
 		aria-label="Close modal"
 		on:click={() => (showEditExclusionModal = false)}
 		on:keydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+			if (e.key === 'Escape' || e.key === 'Enter') {
 				e.preventDefault();
 				showEditExclusionModal = false;
 			}

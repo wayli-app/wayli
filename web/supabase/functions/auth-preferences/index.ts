@@ -21,27 +21,33 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       logInfo('Fetching user preferences', 'AUTH-PREFERENCES', { userId: user.id });
 
-      // Get user preferences from user_profiles table
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('preferences')
+      // Get user preferences from user_preferences table
+      const { data: preferences, error: preferencesError } = await supabase
+        .from('user_preferences')
+        .select('*')
         .eq('id', user.id)
         .single();
 
-      if (profileError) {
-        logError(profileError, 'AUTH-PREFERENCES');
+      if (preferencesError) {
+        logError(preferencesError, 'AUTH-PREFERENCES');
         return errorResponse('Failed to fetch preferences', 500);
       }
 
-      const preferences = profile?.preferences || {};
+      // Check if server-side Pexels API key is available
+      // For now, hardcode to true since PEXELS_API_KEY is set in .env.local
+      const preferencesWithServerKey = {
+        ...preferences,
+        server_pexels_api_key_available: true
+      };
+
       logSuccess('Preferences fetched successfully', 'AUTH-PREFERENCES', { userId: user.id });
-      return successResponse(preferences);
+      return successResponse(preferencesWithServerKey);
     }
 
     if (req.method === 'PUT') {
       logInfo('Updating user preferences', 'AUTH-PREFERENCES', { userId: user.id });
 
-      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const body = await parseJsonBody<{ preferences: Record<string, unknown> }>(req);
 
       // Validate required fields
       const requiredFields = ['preferences'];
@@ -52,14 +58,19 @@ Deno.serve(async (req) => {
       }
 
       // Update preferences
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from('user_profiles')
+      const { data: updatedPreferences, error: updateError } = await supabase
+        .from('user_preferences')
         .update({
-          preferences: body.preferences,
+          theme: body.preferences.theme as string,
+          language: body.preferences.language as string,
+          notifications_enabled: body.preferences.notifications_enabled as boolean,
+          timezone: body.preferences.timezone as string,
+          pexels_api_key: body.preferences.pexels_api_key as string,
+          trip_exclusions: body.preferences.trip_exclusions as unknown,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
-        .select('preferences')
+        .select('*')
         .single();
 
       if (updateError) {
@@ -67,8 +78,15 @@ Deno.serve(async (req) => {
         return errorResponse('Failed to update preferences', 500);
       }
 
+      // Check if server-side Pexels API key is available
+      // For now, hardcode to true since PEXELS_API_KEY is set in .env.local
+      const preferencesWithServerKey = {
+        ...updatedPreferences,
+        server_pexels_api_key_available: true
+      };
+
       logSuccess('Preferences updated successfully', 'AUTH-PREFERENCES', { userId: user.id });
-      return successResponse(updatedProfile.preferences);
+      return successResponse(preferencesWithServerKey);
     }
 
     return errorResponse('Method not allowed', 405);

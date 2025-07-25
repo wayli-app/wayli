@@ -28,6 +28,9 @@
 		userStore.set(null);
 		sessionStore.set(null);
 
+		// Force a page refresh to ensure clean state
+		window.location.reload();
+
 		// Then redirect to server-side signout endpoint
 		goto('/auth/signout');
 	}
@@ -233,7 +236,7 @@
 				Ready to Start Your Adventure?
 			</h2>
 			<p class="mb-6 text-gray-600 transition-colors duration-300 dark:text-gray-400">
-				Join thousands of travelers who trust Wayli to document their journeys.
+				Join other travelers who trust Wayli to track their journeys.
 			</p>
 			<a
 				href="/auth/signup"

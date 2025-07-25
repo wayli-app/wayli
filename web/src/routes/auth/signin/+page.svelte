@@ -6,7 +6,7 @@
 	import { userStore, isInTwoFactorFlow } from '$lib/stores/auth';
 	import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowLeft, LogIn } from 'lucide-svelte';
 	import { page } from '$app/stores';
-	import TwoFactorVerification from '$lib/components/TwoFactorVerification.svelte';
+
 	import { get } from 'svelte/store';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { EdgeFunctionsApiService } from '$lib/services/api/edge-functions-api.service';
@@ -16,17 +16,15 @@
 	let loading = false;
 	let showPassword = false;
 	let isMagicLinkSent = false;
-	let showTwoFactorVerification = false;
-	let pendingUserEmail = '';
-	let pendingPassword = '';
+
 	let unsubscribeFromUserStore: (() => void) | null = null;
 
 	onMount(() => {
 		// Subscribe to user store for authentication state changes
 		unsubscribeFromUserStore = userStore.subscribe((user) => {
 			if (user && $page.url.pathname === '/auth/signin') {
-				// User is authenticated and on signin page, redirect to dashboard
-				goto('/dashboard');
+				// Don't automatically redirect - let the login flow handle it
+				// This prevents the brief flash of the dashboard
 			}
 		});
 	});
@@ -39,8 +37,6 @@
 	});
 
 	function resubscribeToUserStore() {
-		console.log('🔐 [SIGNIN] Resubscribing to userStore');
-
 		// Only subscribe if we're on the signin page
 		if ($page.url.pathname.startsWith('/auth/signin')) {
 			unsubscribeFromUserStore = userStore.subscribe((user) => {
@@ -66,31 +62,7 @@
 		loading = true;
 
 		try {
-			// First, check if the user has 2FA enabled
-			const edgeService = new EdgeFunctionsApiService();
-			const checkResult = await edgeService.check2FA({} as any) as any; // Minimal session for pre-auth
-			const has2FA = checkResult?.enabled === true;
-
-			if (has2FA) {
-				// Set 2FA flow state IMMEDIATELY to prevent redirects
-				isInTwoFactorFlow.set(true);
-
-				// Store credentials for 2FA verification
-				pendingUserEmail = email;
-				pendingPassword = password;
-
-				// Show 2FA verification modal
-				showTwoFactorVerification = true;
-
-				// Unsubscribe from userStore to prevent automatic redirects
-				if (unsubscribeFromUserStore) {
-					unsubscribeFromUserStore();
-					unsubscribeFromUserStore = null;
-				}
-
-				toast.info('Please enter your 2FA verification code');
-			} else {
-				// No 2FA enabled, proceed with normal login
+			// First, authenticate with Supabase to get a temporary session
 				const { data, error } = await supabase.auth.signInWithPassword({
 					email,
 					password
@@ -99,6 +71,23 @@
 				if (error) throw error;
 
 				if (data.session) {
+				// Authentication successful, now check if user has 2FA enabled
+				try {
+					const edgeService = new EdgeFunctionsApiService();
+					const checkResult = await edgeService.check2FA(data.session) as any;
+					const has2FA = checkResult?.enabled === true;
+
+															if (has2FA) {
+						// User has 2FA enabled - sign out immediately to prevent access
+						await supabase.auth.signOut();
+
+						// Redirect to 2FA verification page with credentials
+						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+						const verificationUrl = `/auth/2fa-verify?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&redirectTo=${encodeURIComponent(redirectTo)}`;
+
+						goto(verificationUrl);
+					} else {
+						// No 2FA enabled, proceed with normal login
 					toast.success('Signed in successfully');
 					// The auth state change will handle the redirect automatically
 
@@ -111,9 +100,15 @@
 							goto(redirectTo, { replaceState: true });
 						}
 					}, 1000);
+					}
+				} catch (twoFactorError: any) {
+					console.error('2FA check error:', twoFactorError);
+					// If 2FA check fails, sign out and show error
+					await supabase.auth.signOut();
+					toast.error('Failed to verify 2FA status. Please try again.');
+				}
 				} else {
 					toast.error('No session returned from authentication');
-				}
 			}
 		} catch (error: any) {
 			console.error('Sign in error:', error);
@@ -172,74 +167,7 @@
 		showPassword = !showPassword;
 	}
 
-	async function handleTwoFactorVerify(event: CustomEvent) {
-		const { code, recoveryCode } = event.detail;
 
-		try {
-			let response;
-
-			if (recoveryCode) {
-				// Handle recovery code verification
-				const edgeService = new EdgeFunctionsApiService();
-				await edgeService.recover2FA({} as any, recoveryCode);
-			} else {
-				// Handle 2FA code verification
-				const edgeService = new EdgeFunctionsApiService();
-				await edgeService.verify2FA({} as any, code);
-			}
-
-			// Verification successful, now sign in with stored credentials
-			const { data, error } = await supabase.auth.signInWithPassword({
-				email: pendingUserEmail,
-				password: pendingPassword
-			});
-
-			if (error) throw error;
-
-			if (data.session) {
-				toast.success('Signed in successfully');
-
-				// Clear pending credentials
-				pendingUserEmail = '';
-				pendingPassword = '';
-				showTwoFactorVerification = false;
-				isInTwoFactorFlow.set(false);
-
-				// Resubscribe to userStore
-				resubscribeToUserStore();
-
-				// Redirect to intended destination
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-				console.log('🔄 [SIGNIN] REDIRECTING: 2FA verified, going to', redirectTo);
-				goto(redirectTo, { replaceState: true });
-
-				// Auth store is automatically updated by onAuthStateChange, no need to manually update
-			}
-		} catch (error: any) {
-			console.error('2FA verification error:', error);
-			toast.error(error.message || 'Verification failed');
-		}
-	}
-
-	function handleTwoFactorBack() {
-		showTwoFactorVerification = false;
-		pendingUserEmail = '';
-		pendingPassword = '';
-		isInTwoFactorFlow.set(false);
-
-		// Resubscribe to userStore
-		resubscribeToUserStore();
-	}
-
-	function handleTwoFactorCancel() {
-		showTwoFactorVerification = false;
-		pendingUserEmail = '';
-		pendingPassword = '';
-		isInTwoFactorFlow.set(false);
-
-		// Resubscribe to userStore
-		resubscribeToUserStore();
-	}
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
@@ -386,11 +314,4 @@
 	</div>
 </div>
 
-<!-- Two-Factor Authentication Modal -->
-<TwoFactorVerification
-	open={showTwoFactorVerification}
-	userEmail={pendingUserEmail}
-	on:verify={handleTwoFactorVerify}
-	on:back={handleTwoFactorBack}
-	on:cancel={handleTwoFactorCancel}
-/>
+

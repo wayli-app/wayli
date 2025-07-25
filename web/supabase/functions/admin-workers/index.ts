@@ -1,149 +1,140 @@
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { createAuthenticatedClient } from '../_shared/supabase.ts';
+import {
+  setupRequest,
+  authenticateRequest,
+  successResponse,
+  errorResponse,
+  parseJsonBody,
+  validateRequiredFields,
+  logError,
+  logInfo,
+  logSuccess
+} from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
-	// Handle CORS
-	const corsResponse = handleCors(req);
-	if (corsResponse) return corsResponse;
+  // Handle CORS
+  const corsResponse = setupRequest(req);
+  if (corsResponse) return corsResponse;
 
-	try {
-		// Get auth token
-		const authHeader = req.headers.get('Authorization');
-		if (!authHeader) {
-			return new Response(JSON.stringify({ error: 'No authorization header' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+  try {
+    const { user, supabase } = await authenticateRequest(req);
 
-		const token = authHeader.replace('Bearer ', '');
-		const supabase = createAuthenticatedClient(token);
+    logInfo('Admin workers request', 'ADMIN_WORKERS', { userId: user.id, method: req.method });
 
-		// Verify user is authenticated and is admin
-		const {
-			data: { user },
-			error: authError
-		} = await supabase.auth.getUser();
-		if (authError || !user) {
-			return new Response(JSON.stringify({ error: 'Invalid token' }), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    // Check if user is admin by querying user_profiles table
+    const { data: userProfile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
 
-		// Check if user is admin
-		const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id);
+    if (profileError || userProfile?.role !== 'admin') {
+      logError(profileError || 'User is not admin', 'ADMIN_WORKERS');
+      return errorResponse('Admin access required', 403);
+    }
 
-		if (userError || !userData.user) {
-			return new Response(JSON.stringify({ error: 'User not found' }), {
-				status: 404,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+    // Handle different HTTP methods
+    if (req.method === 'GET') {
+      logInfo('Fetching workers', 'ADMIN_WORKERS', { userId: user.id });
 
-		const userRole = userData.user.user_metadata?.role || 'user';
-		if (userRole !== 'admin') {
-			return new Response(JSON.stringify({ error: 'Admin access required' }), {
-				status: 403,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+      // Get all workers
+      const { data: workers, error: workersError } = await supabase
+        .from('workers')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-		// Handle different HTTP methods
-		if (req.method === 'GET') {
-			// Get all workers
-			const { data: workers, error: workersError } = await supabase
-				.from('workers')
-				.select('*')
-				.order('created_at', { ascending: false });
+      if (workersError) {
+        logError(workersError, 'ADMIN_WORKERS');
+        return errorResponse('Failed to fetch workers', 500);
+      }
 
-			if (workersError) {
-				throw workersError;
-			}
+      logSuccess('Workers fetched successfully', 'ADMIN_WORKERS', {
+        userId: user.id,
+        count: workers?.length || 0
+      });
 
-			return new Response(JSON.stringify(workers || []), {
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+      return successResponse(workers || []);
+    }
 
-		if (req.method === 'POST') {
-			// Create a new worker
-			const body = await req.json();
-			const { name, type, config } = body;
+    if (req.method === 'POST') {
+      logInfo('Creating worker', 'ADMIN_WORKERS', { userId: user.id });
 
-			if (!name || !type) {
-				return new Response(JSON.stringify({ error: 'Name and type are required' }), {
-					status: 400,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				});
-			}
+      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const { name, type, config } = body;
 
-			const { data: worker, error: workerError } = await supabase
-				.from('workers')
-				.insert({
-					name,
-					type,
-					status: 'inactive',
-					config: config || {},
-					last_heartbeat: null
-				})
-				.select()
-				.single();
+      // Validate required fields
+      const requiredFields = ['name', 'type'];
+      const missingFields = validateRequiredFields(body, requiredFields);
 
-			if (workerError) {
-				throw workerError;
-			}
+      if (missingFields.length > 0) {
+        return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
+      }
 
-			return new Response(JSON.stringify(worker), {
-				status: 201,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+      const { data: worker, error: workerError } = await supabase
+        .from('workers')
+        .insert({
+          name,
+          type,
+          status: 'inactive',
+          config: config || {},
+          last_heartbeat: null
+        })
+        .select()
+        .single();
 
-		if (req.method === 'PUT') {
-			// Update worker status
-			const body = await req.json();
-			const { worker_id, status } = body;
+      if (workerError) {
+        logError(workerError, 'ADMIN_WORKERS');
+        return errorResponse('Failed to create worker', 500);
+      }
 
-			if (!worker_id || !status) {
-				return new Response(JSON.stringify({ error: 'Worker ID and status are required' }), {
-					status: 400,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				});
-			}
+      logSuccess('Worker created successfully', 'ADMIN_WORKERS', {
+        userId: user.id,
+        workerId: worker.id
+      });
 
-			if (!['active', 'inactive', 'error'].includes(status)) {
-				return new Response(JSON.stringify({ error: 'Invalid status' }), {
-					status: 400,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				});
-			}
+      return successResponse(worker, 201);
+    }
 
-			const { data: updatedWorker, error: updateError } = await supabase
-				.from('workers')
-				.update({ status })
-				.eq('id', worker_id)
-				.select()
-				.single();
+    if (req.method === 'PUT') {
+      logInfo('Updating worker', 'ADMIN_WORKERS', { userId: user.id });
 
-			if (updateError) {
-				throw updateError;
-			}
+      const body = await parseJsonBody<Record<string, unknown>>(req);
+      const { worker_id, status } = body;
 
-			return new Response(JSON.stringify(updatedWorker), {
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
-		}
+      // Validate required fields
+      const requiredFields = ['worker_id', 'status'];
+      const missingFields = validateRequiredFields(body, requiredFields);
 
-		return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-			status: 405,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
-	} catch (error) {
-		console.error('Admin workers error:', error);
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
-	}
+      if (missingFields.length > 0) {
+        return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
+      }
+
+      if (!['active', 'inactive', 'error'].includes(status as string)) {
+        return errorResponse('Invalid status', 400);
+      }
+
+      const { data: updatedWorker, error: updateError } = await supabase
+        .from('workers')
+        .update({ status })
+        .eq('id', worker_id)
+        .select()
+        .single();
+
+      if (updateError) {
+        logError(updateError, 'ADMIN_WORKERS');
+        return errorResponse('Failed to update worker', 500);
+      }
+
+      logSuccess('Worker updated successfully', 'ADMIN_WORKERS', {
+        userId: user.id,
+        workerId: worker_id
+      });
+
+      return successResponse(updatedWorker);
+    }
+
+    return errorResponse('Method not allowed', 405);
+  } catch (error) {
+    logError(error, 'ADMIN_WORKERS');
+    return errorResponse('Internal server error', 500);
+  }
 });

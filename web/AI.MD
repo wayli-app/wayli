@@ -294,7 +294,7 @@ All API responses follow this structure:
 // ONLY public, client-safe variables
 export function getNominatimConfig() {
   return {
-    endpoint: 'https://nominatim.openstreetmap.org',
+    endpoint: 'https://nominatim.wayli.app',
     rateLimit: 1
   };
 }

@@ -6,3 +6,8 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Storage directories - exclude all files in storage buckets
+exports/*
+temp-files/*
+trip-images/*

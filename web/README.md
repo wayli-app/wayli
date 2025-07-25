@@ -282,7 +282,7 @@ Wayli uses a secure, layered environment configuration:
 // Only public, client-safe variables
 export function getNominatimConfig() {
   return {
-    endpoint: 'https://nominatim.openstreetmap.org',
+    endpoint: 'https://nominatim.wayli.app',
     rateLimit: 1
   };
 }

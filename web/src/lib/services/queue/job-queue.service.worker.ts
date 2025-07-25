@@ -146,53 +146,17 @@ export class JobQueueService {
 	}
 
 	static async failJob(jobId: string, error: string): Promise<void> {
-		// First, get the current job to check retry attempts
-		const { data: job, error: fetchError } = await this.supabase
-			.from('jobs')
-			.select('*')
-			.eq('id', jobId)
-			.single();
-
-		if (fetchError) throw fetchError;
-		if (!job) throw new Error('Job not found');
-
-		const currentRetries = job.retry_count || 0;
-		const maxRetries = this.config.retryAttempts;
-
-		if (currentRetries < maxRetries) {
-			// Retry the job
-			const { error: retryError } = await this.supabase
-				.from('jobs')
-				.update({
-					status: 'queued',
-					retry_count: currentRetries + 1,
-					last_error: error,
-					updated_at: new Date().toISOString(),
-					// Clear worker assignment and timing fields
-					worker_id: null,
-					started_at: null,
-					progress: 0
-				})
-				.eq('id', jobId);
-
-			if (retryError) throw retryError;
-
-			// Job will be retried (info-level, omitted for less verbosity)
-		} else {
-			// Max retries reached, mark as failed
+		// Mark job as failed immediately without retrying
 			const { error: updateError } = await this.supabase
 				.from('jobs')
 				.update({
 					status: 'failed',
-					error: `Failed after ${maxRetries} attempts. Last error: ${error}`,
+				error: error,
 					updated_at: new Date().toISOString()
 				})
 				.eq('id', jobId);
 
 			if (updateError) throw updateError;
-
-			// Job failed permanently after max retries (info-level, omitted for less verbosity)
-		}
 	}
 
 	static async cancelJob(jobId: string): Promise<void> {

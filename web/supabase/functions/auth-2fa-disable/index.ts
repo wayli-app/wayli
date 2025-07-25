@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       // Get user's 2FA secret from profile
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
-        .select('two_factor_secret, two_factor_enabled')
+        .select('*')
         .eq('id', user.id)
         .single();
 

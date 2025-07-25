@@ -1,7 +1,7 @@
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createAuthenticatedClient } from '../_shared/supabase.ts';
 
-const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.int.hazen.nu';
+const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.wayli.app';
 const NOMINATIM_RATE_LIMIT = parseInt(Deno.env.get('NOMINATIM_RATE_LIMIT') || '1000');
 
 Deno.serve(async (req) => {
@@ -13,7 +13,10 @@ Deno.serve(async (req) => {
 		// Get auth token
 		const authHeader = req.headers.get('Authorization');
 		if (!authHeader) {
-			return new Response(JSON.stringify({ error: 'No authorization header' }), {
+			return new Response(JSON.stringify({
+				success: false,
+				error: 'No authorization header'
+			}), {
 				status: 401,
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 			});
@@ -28,7 +31,10 @@ Deno.serve(async (req) => {
 			error: authError
 		} = await supabase.auth.getUser();
 		if (authError || !user) {
-			return new Response(JSON.stringify({ error: 'Invalid token' }), {
+			return new Response(JSON.stringify({
+				success: false,
+				error: 'Invalid token'
+			}), {
 				status: 401,
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 			});
@@ -40,7 +46,10 @@ Deno.serve(async (req) => {
 		const limit = url.searchParams.get('limit') || '10';
 
 		if (!query) {
-			return new Response(JSON.stringify({ error: 'Query parameter "q" is required' }), {
+			return new Response(JSON.stringify({
+				success: false,
+				error: 'Query parameter "q" is required'
+			}), {
 				status: 400,
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 			});
@@ -73,6 +82,10 @@ Deno.serve(async (req) => {
 			display_name: result.display_name,
 			lat: parseFloat(result.lat),
 			lon: parseFloat(result.lon),
+			coordinates: {
+				lat: parseFloat(result.lat),
+				lng: parseFloat(result.lon)
+			},
 			type: result.type,
 			importance: result.importance,
 			address: result.address || {},
@@ -80,12 +93,19 @@ Deno.serve(async (req) => {
 			namedetails: result.namedetails || {}
 		}));
 
-		return new Response(JSON.stringify(transformedResults), {
+		// Return in the expected Edge Function response format
+		return new Response(JSON.stringify({
+			success: true,
+			data: transformedResults
+		}), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 		});
 	} catch (error) {
 		console.error('Geocode search error:', error);
-		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+		return new Response(JSON.stringify({
+			success: false,
+			error: 'Internal server error'
+		}), {
 			status: 500,
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 		});

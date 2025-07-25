@@ -27,6 +27,7 @@ Deno.serve(async (req) => {
       const limit = parseInt(params.get('limit') || '50');
       const offset = parseInt(params.get('offset') || '0');
 
+      // Use the authenticated user's context for database access
       const { data: jobs, error: jobsError } = await supabase
         .from('jobs')
         .select('*')
@@ -72,6 +73,7 @@ Deno.serve(async (req) => {
         endDate: body.endDate || null
       };
 
+      // Use the authenticated user's context for database access
       const { data: newJob, error: createError } = await supabase
         .from('jobs')
         .insert({
