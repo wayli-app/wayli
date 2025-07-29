@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator')),
     avatar_url TEXT,
     home_address JSONB, -- Store geocoded location data
+    geocoding_stats JSONB DEFAULT '{}', -- Cached geocoding statistics to avoid expensive recalculations
     two_factor_enabled BOOLEAN DEFAULT false,
     two_factor_secret TEXT,
     two_factor_recovery_codes TEXT[],
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 COMMENT ON COLUMN public.user_profiles.two_factor_enabled IS 'Whether 2FA is enabled for this user';
 COMMENT ON COLUMN public.user_profiles.two_factor_secret IS 'TOTP secret for 2FA authentication';
 COMMENT ON COLUMN public.user_profiles.two_factor_recovery_codes IS 'Array of recovery codes for 2FA backup';
+COMMENT ON COLUMN public.user_profiles.geocoding_stats IS 'Cached geocoding statistics to avoid expensive recalculations';
 
 -- Create tracker_data table for OwnTracks and other tracking apps
 CREATE TABLE IF NOT EXISTS public.tracker_data (
@@ -208,6 +210,7 @@ CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_visit_start ON public.poi_visit_lo
 CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_visit_end ON public.poi_visit_logs(visit_end);
 CREATE INDEX IF NOT EXISTS idx_user_preferences_id ON public.user_preferences(id);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_id ON public.user_profiles(id);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_geocoding_stats ON public.user_profiles USING GIN (geocoding_stats);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_user_id ON public.tracker_data(user_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_timestamp ON public.tracker_data(recorded_at);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_device_id ON public.tracker_data(device_id);
@@ -261,160 +264,269 @@ ALTER TABLE public.image_generation_jobs ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for all tables
 
-CREATE POLICY "Users can view their own trips" ON public.trips
-    FOR SELECT USING (auth.uid() = user_id);
+-- Create RLS policies for trips table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'trips' AND schemaname = 'public' AND policyname = 'Users can view their own trips') THEN
+        CREATE POLICY "Users can view their own trips" ON public.trips
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can insert their own trips" ON public.trips
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'trips' AND schemaname = 'public' AND policyname = 'Users can insert their own trips') THEN
+        CREATE POLICY "Users can insert their own trips" ON public.trips
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can update their own trips" ON public.trips
-    FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'trips' AND schemaname = 'public' AND policyname = 'Users can update their own trips') THEN
+        CREATE POLICY "Users can update their own trips" ON public.trips
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can delete their own trips" ON public.trips
-    FOR DELETE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'trips' AND schemaname = 'public' AND policyname = 'Users can delete their own trips') THEN
+        CREATE POLICY "Users can delete their own trips" ON public.trips
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
-CREATE POLICY "Users can view their own POI visit logs" ON public.poi_visit_logs
-    FOR SELECT USING (auth.uid() = user_id);
+-- Create RLS policies for POI visit logs table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'poi_visit_logs' AND schemaname = 'public' AND policyname = 'Users can view their own POI visit logs') THEN
+        CREATE POLICY "Users can view their own POI visit logs" ON public.poi_visit_logs
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can insert their own POI visit logs" ON public.poi_visit_logs
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'poi_visit_logs' AND schemaname = 'public' AND policyname = 'Users can insert their own POI visit logs') THEN
+        CREATE POLICY "Users can insert their own POI visit logs" ON public.poi_visit_logs
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can update their own POI visit logs" ON public.poi_visit_logs
-    FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'poi_visit_logs' AND schemaname = 'public' AND policyname = 'Users can update their own POI visit logs') THEN
+        CREATE POLICY "Users can update their own POI visit logs" ON public.poi_visit_logs
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can delete their own POI visit logs" ON public.poi_visit_logs
-    FOR DELETE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'poi_visit_logs' AND schemaname = 'public' AND policyname = 'Users can delete their own POI visit logs') THEN
+        CREATE POLICY "Users can delete their own POI visit logs" ON public.poi_visit_logs
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
-CREATE POLICY "Service role can access all preferences" ON public.user_preferences
-    FOR ALL USING (auth.role() = 'service_role');
+-- Create RLS policies for user_preferences table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_preferences' AND schemaname = 'public' AND policyname = 'Service role can access all preferences') THEN
+        CREATE POLICY "Service role can access all preferences" ON public.user_preferences
+            FOR ALL USING (auth.role() = 'service_role');
+    END IF;
 
-CREATE POLICY "Users can view their own preferences" ON public.user_preferences
-    FOR SELECT USING (auth.uid() = id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_preferences' AND schemaname = 'public' AND policyname = 'Users can view their own preferences') THEN
+        CREATE POLICY "Users can view their own preferences" ON public.user_preferences
+            FOR SELECT USING (auth.uid() = id);
+    END IF;
 
-CREATE POLICY "Users can insert their own preferences" ON public.user_preferences
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_preferences' AND schemaname = 'public' AND policyname = 'Users can insert their own preferences') THEN
+        CREATE POLICY "Users can insert their own preferences" ON public.user_preferences
+            FOR INSERT WITH CHECK (auth.uid() = id);
+    END IF;
 
-CREATE POLICY "Users can update their own preferences" ON public.user_preferences
-    FOR UPDATE USING (auth.uid() = id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_preferences' AND schemaname = 'public' AND policyname = 'Users can update their own preferences') THEN
+        CREATE POLICY "Users can update their own preferences" ON public.user_preferences
+            FOR UPDATE USING (auth.uid() = id);
+    END IF;
+END $$;
 
-CREATE POLICY "Users can view their own profile" ON public.user_profiles
-    FOR SELECT USING (auth.uid() = id);
+-- Create RLS policies for user_profiles table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND schemaname = 'public' AND policyname = 'Users can view their own profile') THEN
+        CREATE POLICY "Users can view their own profile" ON public.user_profiles
+            FOR SELECT USING (auth.uid() = id);
+    END IF;
 
-CREATE POLICY "Users can update their own profile" ON public.user_profiles
-    FOR UPDATE USING (auth.uid() = id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND schemaname = 'public' AND policyname = 'Users can update their own profile') THEN
+        CREATE POLICY "Users can update their own profile" ON public.user_profiles
+            FOR UPDATE USING (auth.uid() = id);
+    END IF;
 
-CREATE POLICY "Users can insert their own profile" ON public.user_profiles
-    FOR INSERT WITH CHECK (auth.uid() = id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND schemaname = 'public' AND policyname = 'Users can insert their own profile') THEN
+        CREATE POLICY "Users can insert their own profile" ON public.user_profiles
+            FOR INSERT WITH CHECK (auth.uid() = id);
+    END IF;
 
--- Allow service role to access all profiles (for admin functions)
-CREATE POLICY "Service role can access all profiles" ON public.user_profiles
-    FOR ALL USING (auth.role() = 'service_role');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_profiles' AND schemaname = 'public' AND policyname = 'Service role can access all profiles') THEN
+        CREATE POLICY "Service role can access all profiles" ON public.user_profiles
+            FOR ALL USING (auth.role() = 'service_role');
+    END IF;
+END $$;
 
-CREATE POLICY "Users can view their own tracker data" ON public.tracker_data
-    FOR SELECT USING (auth.uid() = user_id);
+-- Create RLS policies for tracker_data table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tracker_data' AND schemaname = 'public' AND policyname = 'Users can view their own tracker data') THEN
+        CREATE POLICY "Users can view their own tracker data" ON public.tracker_data
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can insert their own tracker data" ON public.tracker_data
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tracker_data' AND schemaname = 'public' AND policyname = 'Users can insert their own tracker data') THEN
+        CREATE POLICY "Users can insert their own tracker data" ON public.tracker_data
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can update their own tracker data" ON public.tracker_data
-    FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tracker_data' AND schemaname = 'public' AND policyname = 'Users can update their own tracker data') THEN
+        CREATE POLICY "Users can update their own tracker data" ON public.tracker_data
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can delete their own tracker data" ON public.tracker_data
-    FOR DELETE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tracker_data' AND schemaname = 'public' AND policyname = 'Users can delete their own tracker data') THEN
+        CREATE POLICY "Users can delete their own tracker data" ON public.tracker_data
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
-CREATE POLICY "Users can view their own jobs" ON public.jobs
-    FOR SELECT USING (auth.uid() = created_by);
+-- Create RLS policies for jobs table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'jobs' AND schemaname = 'public' AND policyname = 'Users can view their own jobs') THEN
+        CREATE POLICY "Users can view their own jobs" ON public.jobs
+            FOR SELECT USING (auth.uid()::uuid = created_by);
+    END IF;
 
-CREATE POLICY "Users can insert their own jobs" ON public.jobs
-    FOR INSERT WITH CHECK (auth.uid() = created_by);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'jobs' AND schemaname = 'public' AND policyname = 'Users can insert their own jobs') THEN
+        CREATE POLICY "Users can insert their own jobs" ON public.jobs
+            FOR INSERT WITH CHECK (auth.uid()::uuid = created_by);
+    END IF;
 
-CREATE POLICY "Users can update their own jobs" ON public.jobs
-    FOR UPDATE USING (auth.uid() = created_by);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'jobs' AND schemaname = 'public' AND policyname = 'Users can update their own jobs') THEN
+        CREATE POLICY "Users can update their own jobs" ON public.jobs
+            FOR UPDATE USING (auth.uid()::uuid = created_by);
+    END IF;
 
-CREATE POLICY "Users can delete their own jobs" ON public.jobs
-    FOR DELETE USING (auth.uid() = created_by);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'jobs' AND schemaname = 'public' AND policyname = 'Users can delete their own jobs') THEN
+        CREATE POLICY "Users can delete their own jobs" ON public.jobs
+            FOR DELETE USING (auth.uid()::uuid = created_by);
+    END IF;
 
--- Allow service role to update jobs (for background processing)
-CREATE POLICY "Allow service role to update jobs" ON public.jobs
-    FOR UPDATE USING (auth.role() = 'service_role');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'jobs' AND schemaname = 'public' AND policyname = 'Allow service role to update jobs') THEN
+        CREATE POLICY "Allow service role to update jobs" ON public.jobs
+            FOR UPDATE USING (auth.role() = 'service_role');
+    END IF;
 
--- Allow workers to update jobs
-CREATE POLICY "Workers can update jobs" ON public.jobs
-    FOR UPDATE USING (
-        auth.uid() IN (
-            SELECT user_id FROM public.workers WHERE id::text = worker_id
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'jobs' AND schemaname = 'public' AND policyname = 'Workers can update jobs') THEN
+        CREATE POLICY "Workers can update jobs" ON public.jobs
+            FOR UPDATE USING (
+                auth.role() = 'service_role' OR
+                EXISTS (
+                    SELECT 1 FROM public.workers
+                    WHERE id = auth.uid()::uuid
+                )
+            );
+    END IF;
+END $$;
 
--- RLS policies for audit_logs
--- Users can view their own audit logs
-CREATE POLICY "Users can view their own audit logs" ON public.audit_logs
-    FOR SELECT USING (auth.uid() = user_id);
+-- Create RLS policies for audit_logs table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND schemaname = 'public' AND policyname = 'Users can view their own audit logs') THEN
+        CREATE POLICY "Users can view their own audit logs" ON public.audit_logs
+            FOR SELECT USING (
+                auth.uid() = user_id OR
+                auth.role() = 'service_role' OR
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles
+                    WHERE id = auth.uid() AND role = 'admin'
+                )
+            );
+    END IF;
 
--- Admins can view all audit logs
-CREATE POLICY "Admins can view all audit logs" ON public.audit_logs
-    FOR SELECT USING (
-        EXISTS (
-            SELECT 1 FROM public.user_profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND schemaname = 'public' AND policyname = 'Admins can view all audit logs') THEN
+        CREATE POLICY "Admins can view all audit logs" ON public.audit_logs
+            FOR SELECT USING (
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles
+                    WHERE id = auth.uid() AND role = 'admin'
+                )
+            );
+    END IF;
 
--- Add comment explaining the audit logs fix
-COMMENT ON POLICY "Admins can view all audit logs" ON public.audit_logs IS
-    'Secure policy: Only users with admin role in user_profiles table can view all audit logs. Fixed column name from id to user_id.';
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND schemaname = 'public' AND policyname = 'Service role can insert audit logs') THEN
+        CREATE POLICY "Service role can insert audit logs" ON public.audit_logs
+            FOR INSERT WITH CHECK (auth.role() = 'service_role');
+    END IF;
 
--- Service role can insert audit logs (for system logging)
-CREATE POLICY "Service role can insert audit logs" ON public.audit_logs
-    FOR INSERT WITH CHECK (auth.role() = 'service_role');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND schemaname = 'public' AND policyname = 'Service role can update audit logs') THEN
+        CREATE POLICY "Service role can update audit logs" ON public.audit_logs
+            FOR UPDATE USING (auth.role() = 'service_role');
+    END IF;
 
--- Service role can update audit logs
-CREATE POLICY "Service role can update audit logs" ON public.audit_logs
-    FOR UPDATE USING (auth.role() = 'service_role');
-
--- Service role can delete audit logs (for cleanup)
-CREATE POLICY "Service role can delete audit logs" ON public.audit_logs
-    FOR DELETE USING (auth.role() = 'service_role');
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'audit_logs' AND schemaname = 'public' AND policyname = 'Service role can delete audit logs') THEN
+        CREATE POLICY "Service role can delete audit logs" ON public.audit_logs
+            FOR DELETE USING (auth.role() = 'service_role');
+    END IF;
+END $$;
 
 -- Create policy to allow admins to read and update server settings
-CREATE POLICY "Admins can manage server settings" ON public.server_settings
-    FOR ALL USING (
-        auth.role() = 'service_role' OR
-        EXISTS (
-            SELECT 1 FROM public.user_profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'server_settings' AND schemaname = 'public' AND policyname = 'Admins can manage server settings') THEN
+        CREATE POLICY "Admins can manage server settings" ON public.server_settings
+            FOR ALL USING (
+                auth.role() = 'service_role' OR
+                EXISTS (
+                    SELECT 1 FROM public.user_profiles
+                    WHERE id = auth.uid() AND role = 'admin'
+                )
+            );
+    END IF;
+END $$;
 
--- Add comment explaining the security fix
-COMMENT ON POLICY "Admins can manage server settings" ON public.server_settings IS
-    'Secure policy: Only service role or users with admin role in user_profiles table can manage server settings. Fixed from insecure user_metadata check.';
+-- Create RLS policies for suggested_trips table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can view their own suggested trips') THEN
+        CREATE POLICY "Users can view their own suggested trips" ON public.suggested_trips
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
--- RLS policies for suggested_trips
-CREATE POLICY "Users can view their own suggested trips" ON public.suggested_trips
-    FOR SELECT USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can update their own suggested trips') THEN
+        CREATE POLICY "Users can update their own suggested trips" ON public.suggested_trips
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can update their own suggested trips" ON public.suggested_trips
-    FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can insert their own suggested trips') THEN
+        CREATE POLICY "Users can insert their own suggested trips" ON public.suggested_trips
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can insert their own suggested trips" ON public.suggested_trips
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can delete their own suggested trips') THEN
+        CREATE POLICY "Users can delete their own suggested trips" ON public.suggested_trips
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
-CREATE POLICY "Users can delete their own suggested trips" ON public.suggested_trips
-    FOR DELETE USING (auth.uid() = user_id);
+-- Create RLS policies for image_generation_jobs table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can view their own image generation jobs') THEN
+        CREATE POLICY "Users can view their own image generation jobs" ON public.image_generation_jobs
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
--- RLS policies for image_generation_jobs
-CREATE POLICY "Users can view their own image generation jobs" ON public.image_generation_jobs
-    FOR SELECT USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can update their own image generation jobs') THEN
+        CREATE POLICY "Users can update their own image generation jobs" ON public.image_generation_jobs
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can update their own image generation jobs" ON public.image_generation_jobs
-    FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can insert their own image generation jobs') THEN
+        CREATE POLICY "Users can insert their own image generation jobs" ON public.image_generation_jobs
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can insert their own image generation jobs" ON public.image_generation_jobs
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own image generation jobs" ON public.image_generation_jobs
-    FOR DELETE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can delete their own image generation jobs') THEN
+        CREATE POLICY "Users can delete their own image generation jobs" ON public.image_generation_jobs
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
 -- Insert default settings if table is empty
 INSERT INTO public.server_settings (server_name, admin_email, allow_registration, require_email_verification)
@@ -484,6 +596,7 @@ BEGIN
         last_name,
         full_name,
         role,
+        geocoding_stats,
         created_at,
         updated_at
     ) VALUES (
@@ -492,6 +605,16 @@ BEGIN
         last_name,
         full_name,
         user_role,
+        jsonb_build_object(
+            'total_points', 0,
+            'geocoded_points', 0,
+            'points_needing_geocoding', 0,
+            'null_or_empty_geocodes', 0,
+            'retryable_errors', 0,
+            'non_retryable_errors', 0,
+            'last_calculated', NOW()::TEXT,
+            'cache_version', '1.0'
+        ),
         NOW(),
         NOW()
     );
@@ -526,10 +649,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for new user creation
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+-- Create trigger for new user registration
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created') THEN
+        CREATE TRIGGER on_auth_user_created
+            AFTER INSERT ON auth.users
+            FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+    END IF;
+END $$;
 
 -- Function to update workers updated_at timestamp
 CREATE OR REPLACE FUNCTION public.update_workers_updated_at()
@@ -540,10 +668,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for workers updated_at
-CREATE TRIGGER update_workers_updated_at
-    BEFORE UPDATE ON public.workers
-    FOR EACH ROW EXECUTE FUNCTION public.update_workers_updated_at();
+-- Create trigger to update workers updated_at timestamp
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_workers_updated_at') THEN
+        CREATE TRIGGER update_workers_updated_at
+            BEFORE UPDATE ON public.workers
+            FOR EACH ROW EXECUTE FUNCTION public.update_workers_updated_at();
+    END IF;
+END $$;
 
 -- Function to automatically clean up old audit logs
 CREATE OR REPLACE FUNCTION cleanup_old_audit_logs(retention_days INTEGER DEFAULT 90)
@@ -609,10 +742,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for audit_logs updated_at
-CREATE TRIGGER update_audit_logs_updated_at
-    BEFORE UPDATE ON public.audit_logs
-    FOR EACH ROW EXECUTE FUNCTION public.update_audit_logs_updated_at();
+-- Create trigger to update audit_logs updated_at timestamp
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_audit_logs_updated_at') THEN
+        CREATE TRIGGER update_audit_logs_updated_at
+            BEFORE UPDATE ON public.audit_logs
+            FOR EACH ROW EXECUTE FUNCTION public.update_audit_logs_updated_at();
+    END IF;
+END $$;
 
 -- Create a view for recent security events
 CREATE OR REPLACE VIEW public.recent_security_events AS
@@ -680,10 +818,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for user_profiles role changes
-CREATE TRIGGER audit_user_role_change_trigger
-    AFTER UPDATE ON public.user_profiles
-    FOR EACH ROW EXECUTE FUNCTION audit_user_role_change();
+-- Create trigger for user role change auditing
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'audit_user_role_change_trigger') THEN
+        CREATE TRIGGER audit_user_role_change_trigger
+            AFTER UPDATE ON public.user_profiles
+            FOR EACH ROW EXECUTE FUNCTION audit_user_role_change();
+    END IF;
+END $$;
 
 -- Function to get user activity summary
 CREATE OR REPLACE FUNCTION get_user_activity_summary(
@@ -842,10 +985,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for user_profiles updated_at
-CREATE TRIGGER update_user_profiles_updated_at
-    BEFORE UPDATE ON public.user_profiles
-    FOR EACH ROW EXECUTE FUNCTION public.update_user_profiles_updated_at();
+-- Create trigger to update user_profiles updated_at timestamp
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_profiles_updated_at') THEN
+        CREATE TRIGGER update_user_profiles_updated_at
+            BEFORE UPDATE ON public.user_profiles
+            FOR EACH ROW EXECUTE FUNCTION public.update_user_profiles_updated_at();
+    END IF;
+END $$;
 
 -- Create function to update updated_at timestamp (if not already exists)
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
@@ -857,13 +1005,24 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updated_at on enhanced trip detection tables
-CREATE TRIGGER update_suggested_trips_updated_at
-    BEFORE UPDATE ON public.suggested_trips
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_suggested_trips_updated_at') THEN
+        CREATE TRIGGER update_suggested_trips_updated_at
+            BEFORE UPDATE ON public.suggested_trips
+            FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+    END IF;
+END $$;
 
-CREATE TRIGGER update_image_generation_jobs_updated_at
-    BEFORE UPDATE ON public.image_generation_jobs
-    FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+-- Create trigger to update image_generation_jobs updated_at timestamp
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_image_generation_jobs_updated_at') THEN
+        CREATE TRIGGER update_image_generation_jobs_updated_at
+            BEFORE UPDATE ON public.image_generation_jobs
+            FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+    END IF;
+END $$;
 
 -- Create storage buckets for file uploads
 -- Create temp-files bucket for temporary import files
@@ -896,66 +1055,102 @@ VALUES (
     ARRAY['application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream']
 ) ON CONFLICT (id) DO NOTHING;
 
--- Enable RLS on storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on storage.objects with error handling
+DO $$
+BEGIN
+    ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Log the error but don't fail the migration
+        RAISE NOTICE 'Could not enable RLS on storage.objects: %', SQLERRM;
+END $$;
 
--- Create storage policies for temp-files bucket
-CREATE POLICY "Users can upload to temp-files" ON storage.objects
-    FOR INSERT WITH CHECK (
-        bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+-- Create storage policies with proper error handling
+DO $$
+BEGIN
+    -- Create storage policies for temp-files bucket
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can upload to temp-files') THEN
+        CREATE POLICY "Users can upload to temp-files" ON storage.objects
+            FOR INSERT WITH CHECK (
+                bucket_id = 'temp-files' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
-CREATE POLICY "Users can view their own temp-files" ON storage.objects
-    FOR SELECT USING (
-        bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can view their own temp-files') THEN
+        CREATE POLICY "Users can view their own temp-files" ON storage.objects
+            FOR SELECT USING (
+                bucket_id = 'temp-files' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
-CREATE POLICY "Users can delete their own temp-files" ON storage.objects
-    FOR DELETE USING (
-        bucket_id = 'temp-files' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can delete their own temp-files') THEN
+        CREATE POLICY "Users can delete their own temp-files" ON storage.objects
+            FOR DELETE USING (
+                bucket_id = 'temp-files' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
--- Create storage policies for exports bucket
-CREATE POLICY "Users can upload to exports" ON storage.objects
-    FOR INSERT WITH CHECK (
-        bucket_id = 'exports' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+    -- Create storage policies for exports bucket
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can upload to exports') THEN
+        CREATE POLICY "Users can upload to exports" ON storage.objects
+            FOR INSERT WITH CHECK (
+                bucket_id = 'exports' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
-CREATE POLICY "Users can view their own exports" ON storage.objects
-    FOR SELECT USING (
-        bucket_id = 'exports' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can view their own exports') THEN
+        CREATE POLICY "Users can view their own exports" ON storage.objects
+            FOR SELECT USING (
+                bucket_id = 'exports' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
-CREATE POLICY "Users can delete their own exports" ON storage.objects
-    FOR DELETE USING (
-        bucket_id = 'exports' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can delete their own exports') THEN
+        CREATE POLICY "Users can delete their own exports" ON storage.objects
+            FOR DELETE USING (
+                bucket_id = 'exports' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
--- Create storage policies for trip-images bucket (public read, authenticated upload)
-CREATE POLICY "Anyone can view trip-images" ON storage.objects
-    FOR SELECT USING (bucket_id = 'trip-images');
+    -- Create storage policies for trip-images bucket (public read, authenticated upload)
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Anyone can view trip-images') THEN
+        CREATE POLICY "Anyone can view trip-images" ON storage.objects
+            FOR SELECT USING (bucket_id = 'trip-images');
+    END IF;
 
-CREATE POLICY "Authenticated users can upload trip-images" ON storage.objects
-    FOR INSERT WITH CHECK (
-        bucket_id = 'trip-images' AND
-        auth.role() = 'authenticated'
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Authenticated users can upload trip-images') THEN
+        CREATE POLICY "Authenticated users can upload trip-images" ON storage.objects
+            FOR INSERT WITH CHECK (
+                bucket_id = 'trip-images' AND
+                auth.role() = 'authenticated'
+            );
+    END IF;
 
-CREATE POLICY "Users can delete their own trip-images" ON storage.objects
-    FOR DELETE USING (
-        bucket_id = 'trip-images' AND
-        auth.uid()::text = (storage.foldername(name))[1]
-    );
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can delete their own trip-images') THEN
+        CREATE POLICY "Users can delete their own trip-images" ON storage.objects
+            FOR DELETE USING (
+                bucket_id = 'trip-images' AND
+                auth.uid()::text = (storage.foldername(name))[1]
+            );
+    END IF;
 
--- Service role can access all storage objects
-CREATE POLICY "Service role can access all storage" ON storage.objects
-    FOR ALL USING (auth.role() = 'service_role');
+    -- Service role can access all storage objects
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Service role can access all storage') THEN
+        CREATE POLICY "Service role can access all storage" ON storage.objects
+            FOR ALL USING (auth.role() = 'service_role');
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Log the error but don't fail the migration
+        RAISE NOTICE 'Storage policies creation failed: %', SQLERRM;
+END $$;
 
 -- Create function to clean up expired export files
 CREATE OR REPLACE FUNCTION cleanup_expired_exports()
@@ -1017,17 +1212,28 @@ CREATE INDEX IF NOT EXISTS idx_want_to_visit_places_created_at ON public.want_to
 ALTER TABLE public.want_to_visit_places ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for want_to_visit_places
-CREATE POLICY "Users can view their own want to visit places" ON public.want_to_visit_places
-    FOR SELECT USING (auth.uid() = user_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'want_to_visit_places' AND schemaname = 'public' AND policyname = 'Users can view their own want to visit places') THEN
+        CREATE POLICY "Users can view their own want to visit places" ON public.want_to_visit_places
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can insert their own want to visit places" ON public.want_to_visit_places
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'want_to_visit_places' AND schemaname = 'public' AND policyname = 'Users can insert their own want to visit places') THEN
+        CREATE POLICY "Users can insert their own want to visit places" ON public.want_to_visit_places
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can update their own want to visit places" ON public.want_to_visit_places
-    FOR UPDATE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'want_to_visit_places' AND schemaname = 'public' AND policyname = 'Users can update their own want to visit places') THEN
+        CREATE POLICY "Users can update their own want to visit places" ON public.want_to_visit_places
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
 
-CREATE POLICY "Users can delete their own want to visit places" ON public.want_to_visit_places
-    FOR DELETE USING (auth.uid() = user_id);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'want_to_visit_places' AND schemaname = 'public' AND policyname = 'Users can delete their own want to visit places') THEN
+        CREATE POLICY "Users can delete their own want to visit places" ON public.want_to_visit_places
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+END $$;
 
 -- Create function to update want_to_visit_places updated_at timestamp
 CREATE OR REPLACE FUNCTION update_want_to_visit_places_updated_at()
@@ -1038,11 +1244,155 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger to automatically update updated_at
-CREATE TRIGGER trigger_update_want_to_visit_places_updated_at
-    BEFORE UPDATE ON public.want_to_visit_places
-    FOR EACH ROW
-    EXECUTE FUNCTION update_want_to_visit_places_updated_at();
+-- Create trigger to update want_to_visit_places updated_at timestamp
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_want_to_visit_places_updated_at') THEN
+        CREATE TRIGGER trigger_update_want_to_visit_places_updated_at
+            BEFORE UPDATE ON public.want_to_visit_places
+            FOR EACH ROW
+            EXECUTE FUNCTION update_want_to_visit_places_updated_at();
+    END IF;
+END $$;
+
+-- Geocoding Statistics Cache Functions and Triggers
+-- Create function to update geocoding statistics cache
+CREATE OR REPLACE FUNCTION update_geocoding_stats_cache(
+    p_user_id UUID,
+    p_total_points INTEGER DEFAULT NULL,
+    p_geocoded_points INTEGER DEFAULT NULL,
+    p_points_needing_geocoding INTEGER DEFAULT NULL,
+    p_null_or_empty_geocodes INTEGER DEFAULT NULL,
+    p_retryable_errors INTEGER DEFAULT NULL,
+    p_non_retryable_errors INTEGER DEFAULT NULL,
+    p_last_calculated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE public.user_profiles
+    SET geocoding_stats = jsonb_build_object(
+        'total_points', COALESCE(p_total_points, (geocoding_stats->>'total_points')::INTEGER),
+        'geocoded_points', COALESCE(p_geocoded_points, (geocoding_stats->>'geocoded_points')::INTEGER),
+        'points_needing_geocoding', COALESCE(p_points_needing_geocoding, (geocoding_stats->>'points_needing_geocoding')::INTEGER),
+        'null_or_empty_geocodes', COALESCE(p_null_or_empty_geocodes, (geocoding_stats->>'null_or_empty_geocodes')::INTEGER),
+        'retryable_errors', COALESCE(p_retryable_errors, (geocoding_stats->>'retryable_errors')::INTEGER),
+        'non_retryable_errors', COALESCE(p_non_retryable_errors, (geocoding_stats->>'non_retryable_errors')::INTEGER),
+        'last_calculated', p_last_calculated::TEXT,
+        'cache_version', '1.0'
+    ),
+    updated_at = NOW()
+    WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create function to increment geocoding statistics when new points are added
+CREATE OR REPLACE FUNCTION increment_geocoding_stats_on_insert()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only update if the new point has a location and no geocode
+    IF NEW.location IS NOT NULL AND (NEW.geocode IS NULL OR (NEW.geocode = '{}'::jsonb)) THEN
+        UPDATE public.user_profiles
+        SET geocoding_stats = jsonb_set(
+            jsonb_set(
+                COALESCE(geocoding_stats, '{}'::jsonb),
+                '{points_needing_geocoding}',
+                to_jsonb(COALESCE((geocoding_stats->>'points_needing_geocoding')::INTEGER, 0) + 1)
+            ),
+            '{total_points}',
+            to_jsonb(COALESCE((geocoding_stats->>'total_points')::INTEGER, 0) + 1)
+        ),
+        updated_at = NOW()
+        WHERE id = NEW.user_id;
+    ELSIF NEW.location IS NOT NULL THEN
+        -- Point has location and geocode, just increment total
+        UPDATE public.user_profiles
+        SET geocoding_stats = jsonb_set(
+            COALESCE(geocoding_stats, '{}'::jsonb),
+            '{total_points}',
+            to_jsonb(COALESCE((geocoding_stats->>'total_points')::INTEGER, 0) + 1)
+        ),
+        updated_at = NOW()
+        WHERE id = NEW.user_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger to update geocoding stats when tracker_data is inserted
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_increment_geocoding_stats_on_insert') THEN
+        CREATE TRIGGER trigger_increment_geocoding_stats_on_insert
+            AFTER INSERT ON public.tracker_data
+            FOR EACH ROW
+            EXECUTE FUNCTION increment_geocoding_stats_on_insert();
+    END IF;
+END $$;
+
+-- Create function to update geocoding statistics when geocode is updated
+CREATE OR REPLACE FUNCTION update_geocoding_stats_on_geocode_update()
+RETURNS TRIGGER AS $$
+DECLARE
+    old_needs_geocoding BOOLEAN;
+    new_needs_geocoding BOOLEAN;
+BEGIN
+    -- Determine if old geocode needed geocoding
+    old_needs_geocoding := (OLD.geocode IS NULL OR OLD.geocode = '{}'::jsonb OR
+                           (OLD.geocode ? 'error' AND OLD.geocode->>'error' = 'true' AND
+                            OLD.geocode->>'error_message' NOT LIKE '%unable to geocode%' AND
+                            OLD.geocode->>'error_message' NOT LIKE '%all nominatim endpoints failed%'));
+
+    -- Determine if new geocode needs geocoding
+    new_needs_geocoding := (NEW.geocode IS NULL OR NEW.geocode = '{}'::jsonb OR
+                           (NEW.geocode ? 'error' AND NEW.geocode->>'error' = 'true' AND
+                            NEW.geocode->>'error_message' NOT LIKE '%unable to geocode%' AND
+                            NEW.geocode->>'error_message' NOT LIKE '%all nominatim endpoints failed%'));
+
+    -- Only update if the status changed
+    IF old_needs_geocoding != new_needs_geocoding THEN
+        IF new_needs_geocoding THEN
+            -- Point now needs geocoding, increment counter
+            UPDATE public.user_profiles
+            SET geocoding_stats = jsonb_set(
+                COALESCE(geocoding_stats, '{}'::jsonb),
+                '{points_needing_geocoding}',
+                to_jsonb(COALESCE((geocoding_stats->>'points_needing_geocoding')::INTEGER, 0) + 1)
+            ),
+            updated_at = NOW()
+            WHERE id = NEW.user_id;
+        ELSE
+            -- Point no longer needs geocoding, decrement counter and increment geocoded
+            UPDATE public.user_profiles
+            SET geocoding_stats = jsonb_set(
+                jsonb_set(
+                    COALESCE(geocoding_stats, '{}'::jsonb),
+                    '{points_needing_geocoding}',
+                    to_jsonb(GREATEST(COALESCE((geocoding_stats->>'points_needing_geocoding')::INTEGER, 0) - 1, 0))
+                ),
+                '{geocoded_points}',
+                to_jsonb(COALESCE((geocoding_stats->>'geocoded_points')::INTEGER, 0) + 1)
+            ),
+            updated_at = NOW()
+            WHERE id = NEW.user_id;
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger to update geocoding stats when geocode is updated
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_geocoding_stats_on_geocode_update') THEN
+        CREATE TRIGGER trigger_update_geocoding_stats_on_geocode_update
+            AFTER UPDATE ON public.tracker_data
+            FOR EACH ROW
+            WHEN (OLD.geocode IS DISTINCT FROM NEW.geocode)
+            EXECUTE FUNCTION update_geocoding_stats_on_geocode_update();
+    END IF;
+END $$;
 
 -- Ensure the first user is an admin
 -- This migration checks if there's only one user and makes them admin if they aren't already
@@ -1100,6 +1450,8 @@ BEGIN
         ELSE
             RAISE NOTICE 'First user % is already admin', first_user_id;
         END IF;
+    ELSIF user_count = 0 THEN
+        RAISE NOTICE 'No users found, skipping admin promotion';
     ELSE
         RAISE NOTICE 'Multiple users found (% users), not modifying roles', user_count;
     END IF;

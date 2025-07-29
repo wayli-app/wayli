@@ -80,7 +80,7 @@ export class UserProfileService {
 					profile.full_name ||
 					`${profile.first_name || ''} ${profile.last_name || ''}`.trim() ||
 					'',
-				role: (profile.role as 'user' | 'admin' | 'moderator') || 'user',
+				role: (profile.role as 'user' | 'admin') || 'user',
 				avatar_url: profile.avatar_url,
 				home_address: profile.home_address,
 				email_confirmed_at: user.email_confirmed_at,
@@ -116,7 +116,7 @@ export class UserProfileService {
 					metadata.full_name ||
 					`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
 					'',
-				role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+				role: (metadata.role as 'user' | 'admin') || 'user',
 				avatar_url: metadata.avatar_url,
 				home_address: metadata.home_address
 			});
@@ -157,7 +157,7 @@ export class UserProfileService {
 	 */
 	static async updateUserRole(
 		userId: string,
-		newRole: 'user' | 'admin' | 'moderator'
+		newRole: 'user' | 'admin'
 	): Promise<boolean> {
 		try {
 			// Get current user data
@@ -231,7 +231,7 @@ export class UserProfileService {
 						metadata.full_name ||
 						`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
 						'',
-					role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+					role: (metadata.role as 'user' | 'admin') || 'user',
 					avatar_url: metadata.avatar_url || user.user_metadata?.avatar_url,
 					home_address: metadata.home_address,
 					email_confirmed_at: user.email_confirmed_at,

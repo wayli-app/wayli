@@ -41,6 +41,7 @@
 {#if open}
 	<div
 		class="fixed inset-0 z-50 flex cursor-pointer items-start justify-center bg-black/40 backdrop-blur-sm transition-all p-4"
+		style="height: 100vh; width: 100vw; top: 0; left: 0; right: 0; bottom: 0; position: fixed; min-height: 100vh; max-height: none; overflow: hidden;"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="modal-title"
@@ -54,6 +55,7 @@
 		<div
 			class="relative w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto my-4"
 			role="document"
+			on:click|stopPropagation
 			transition:fade={{ duration: 200, delay: 100 }}
 		>
 			<!-- Header -->

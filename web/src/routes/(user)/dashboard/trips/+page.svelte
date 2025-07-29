@@ -15,7 +15,9 @@
 		Edit,
 		X,
 		RefreshCw,
-		BarChart
+		BarChart,
+		Info,
+		Check
 	} from 'lucide-svelte';
 	import { format, formatDistanceToNow } from 'date-fns';
 	import { toast } from 'svelte-sonner';
@@ -26,6 +28,7 @@
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { supabase } from '$lib/supabase';
+	import Modal from '$lib/components/ui/modal/index.svelte';
 
 	interface Trip {
 		id: string;
@@ -78,7 +81,14 @@
 	let showTripGenerationModal = false;
 	let suggestedTrips: any[] = [];
 	let isLoadingSuggestedTrips = false;
+	let isLoadingMoreSuggestedTrips = false; // Separate state for "load more"
 	let selectedSuggestedTrips: string[] = [];
+	let suggestedTripsPagination = {
+		limit: 10,
+		offset: 0,
+		total: 0,
+		hasMore: true
+	};
 	// Custom home address geocoding state
 	let customHomeAddressInput = '';
 	let customHomeAddressInputElement: HTMLInputElement | undefined;
@@ -94,7 +104,8 @@
 		startDate: '',
 		endDate: '',
 		useCustomHomeAddress: false,
-		customHomeAddress: ''
+		customHomeAddress: '',
+		clearExistingSuggestions: false
 	};
 	let imagePreview: string | null = null;
 	let imageError: string = '';
@@ -112,6 +123,9 @@
 	let tripGenerationProgress = 0;
 	let tripGenerationStatus = '';
 	let tripGenerationPollingInterval: ReturnType<typeof setInterval> | null = null;
+	let tripGenerationStartTime: Date | null = null;
+	let jobCheckStatus = 'idle'; // 'idle', 'checking', 'found', 'not_found'
+	let backgroundJobCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 	const filters = [
 		{ value: 'all', label: 'All Trips' },
@@ -284,18 +298,42 @@
 		loadTrips($sessionStore?.user?.id);
 	}
 
+	// Force UI updates when progress changes
+	$: if (tripGenerationProgress !== undefined) {
+		console.log('🔄 Progress reactive update:', tripGenerationProgress);
+	}
+
 	async function openSuggestedTripsModal() {
 		showSuggestedTripsModal = true;
 		isLoadingSuggestedTrips = true;
 		selectedSuggestedTrips = [];
+		suggestedTripsPagination = {
+			limit: 10,
+			offset: 0,
+			total: 0,
+			hasMore: true
+		};
 
 		try {
 			const session = get(sessionStore);
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.getSuggestedTrips() as any; // Remove status parameter for now
-			suggestedTrips = result.suggestedTrips || [];
+			const result = await serviceAdapter.getSuggestedTrips({
+				limit: suggestedTripsPagination.limit,
+				offset: suggestedTripsPagination.offset
+			}) as any;
+
+			// The API returns { trips: [...], total: number, limit: number, offset: number }
+			if (result && result.trips && Array.isArray(result.trips)) {
+				// Force reactivity by creating a new array
+				suggestedTrips = [];
+				suggestedTrips = result.trips;
+				suggestedTripsPagination.total = result.total || 0;
+				suggestedTripsPagination.hasMore = (suggestedTripsPagination.offset + suggestedTripsPagination.limit) < suggestedTripsPagination.total;
+			} else {
+				suggestedTrips = [];
+			}
 		} catch (error) {
 			console.error('Error loading suggested trips:', error);
 			toast.error('Failed to load suggested trips');
@@ -304,13 +342,47 @@
 		}
 	}
 
+	async function loadMoreSuggestedTrips() {
+		if (!suggestedTripsPagination.hasMore || isLoadingMoreSuggestedTrips) return;
+
+		isLoadingMoreSuggestedTrips = true;
+		suggestedTripsPagination.offset += suggestedTripsPagination.limit;
+
+		try {
+			const session = get(sessionStore);
+			if (!session) throw new Error('No session found');
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const result = await serviceAdapter.getSuggestedTrips({
+				limit: suggestedTripsPagination.limit,
+				offset: suggestedTripsPagination.offset
+			}) as any;
+
+			if (result && result.trips && Array.isArray(result.trips)) {
+				suggestedTrips = [...suggestedTrips, ...result.trips];
+				suggestedTripsPagination.total = result.total || 0;
+				suggestedTripsPagination.hasMore = (suggestedTripsPagination.offset + suggestedTripsPagination.limit) < suggestedTripsPagination.total;
+			}
+		} catch (error) {
+			console.error('Error loading more suggested trips:', error);
+			toast.error('Failed to load more suggested trips');
+		} finally {
+			isLoadingMoreSuggestedTrips = false;
+		}
+	}
+
 	function openTripGenerationModal() {
+		// Close the current modal first
+		showSuggestedTripsModal = false;
+
+		// Then open the trip generation modal
 		showTripGenerationModal = true;
 		tripGenerationData = {
 			startDate: '',
 			endDate: '',
 			useCustomHomeAddress: false,
-			customHomeAddress: ''
+			customHomeAddress: '',
+			clearExistingSuggestions: false
 		};
 		// Reset custom home address input state
 		customHomeAddressInput = '';
@@ -321,10 +393,22 @@
 		customHomeAddressSearchError = null;
 	}
 
-		async function generateNewTripSuggestions() {
+	async function generateNewTripSuggestions() {
 		try {
+			// Clear existing suggestions if checkbox is checked
+			if (tripGenerationData.clearExistingSuggestions) {
+				console.log('🗑️ Clearing existing suggested trips...');
+				const session = get(sessionStore);
+				if (!session) throw new Error('No session found');
+
+				const serviceAdapter = new ServiceAdapter({ session });
+				await serviceAdapter.clearAllSuggestedTrips();
+				console.log('✅ Existing suggested trips cleared');
+			}
+
 			const jobData: Record<string, unknown> = {
-				useCustomHomeAddress: tripGenerationData.useCustomHomeAddress
+				useCustomHomeAddress: tripGenerationData.useCustomHomeAddress,
+				clearExistingSuggestions: tripGenerationData.clearExistingSuggestions
 			};
 
 			// Include dates if they are provided (individually)
@@ -344,33 +428,44 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = await serviceAdapter.createJob({
-					type: 'trip_generation',
-					data: jobData
+				type: 'trip_generation',
+				data: jobData
 			}) as any;
 
-				let message = 'Trip generation job started!';
+			let message = 'Trip generation job started!';
 
-				if (tripGenerationData.startDate && tripGenerationData.endDate) {
-					message = `Trip generation job started for ${tripGenerationData.startDate} to ${tripGenerationData.endDate}!`;
-				} else if (tripGenerationData.startDate) {
-					message = `Trip generation job started from ${tripGenerationData.startDate} onwards!`;
-				} else if (tripGenerationData.endDate) {
-					message = `Trip generation job started until ${tripGenerationData.endDate}!`;
-				} else {
-					message = 'Trip generation job started! The system will automatically find available date ranges and generate suggestions.';
-				}
+			if (tripGenerationData.startDate && tripGenerationData.endDate) {
+				message = `Trip generation job started for ${tripGenerationData.startDate} to ${tripGenerationData.endDate}!`;
+			} else if (tripGenerationData.startDate) {
+				message = `Trip generation job started from ${tripGenerationData.startDate} onwards!`;
+			} else if (tripGenerationData.endDate) {
+				message = `Trip generation job started until ${tripGenerationData.endDate}!`;
+			} else {
+				message = 'Trip generation job started! The system will automatically find available date ranges and generate suggestions.';
+			}
 
-								toast.success(message);
+			if (tripGenerationData.clearExistingSuggestions) {
+				message += ' Existing suggestions have been cleared.';
+			}
 
-				// Start tracking the job progress
-				if (result.data?.job?.id) {
-					activeTripGenerationJob = result.data.job;
-					startTripGenerationPolling(result.data.job.id);
-				}
+			toast.success(message);
 
-				// Close modals when starting a new job
-				showTripGenerationModal = false;
-				showSuggestedTripsModal = false;
+			// Start tracking the job progress
+			if (result.data?.job?.id) {
+				activeTripGenerationJob = result.data.job;
+				tripGenerationStartTime = new Date();
+				startTripGenerationPolling(result.data.job.id);
+			}
+
+			// Close modals when starting a new job
+			showTripGenerationModal = false;
+			showSuggestedTripsModal = false;
+
+			// Check for any other active jobs after a short delay
+			setTimeout(async () => {
+				console.log('🔍 Checking for additional active jobs after creating new job...');
+				await checkForActiveTripGenerationJob();
+			}, 2000);
 		} catch (error) {
 			console.error('Error generating new trip suggestions:', error);
 			toast.error('Failed to generate new trip suggestions');
@@ -380,86 +475,260 @@
 	// Check for active trip generation job on page load
 	async function checkForActiveTripGenerationJob() {
 		try {
+			jobCheckStatus = 'checking';
 			const session = get(sessionStore);
-			if (!session) return; // Early return if no session
-
-			const headers: Record<string, string> = {};
-			if (session?.access_token) {
-				headers['Authorization'] = `Bearer ${session.access_token}`;
+			if (!session) {
+				console.log('🔍 No session found, skipping active job check');
+				jobCheckStatus = 'not_found';
+				return; // Early return if no session
 			}
 
+			console.log('🔍 Checking for active trip generation jobs...');
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.getJobs({ type: 'trip_generation' }) as any;
+			let data = await serviceAdapter.getJobs({ type: 'trip_generation' }) as any;
 
-			if (data.success && Array.isArray(data.data)) {
-				const activeJobs = data.data.filter(
-					(job: any) =>
-						job.type === 'trip_generation' && (job.status === 'queued' || job.status === 'running')
-				);
+			console.log('🔍 Jobs API response:', data);
 
-				if (activeJobs.length > 0) {
-					activeTripGenerationJob = activeJobs[0]; // Get the most recent active job
-					console.log('Found active trip generation job:', activeTripGenerationJob);
-					startTripGenerationPolling(activeTripGenerationJob.id);
-					updateTripGenerationProgressFromJob(activeTripGenerationJob);
+			// If the type-filtered call doesn't work, try getting all jobs
+			if (!data.success || !Array.isArray(data.data) || data.data.length === 0) {
+				console.log('🔍 Type-filtered call failed, trying to get all jobs...');
+				const allJobsData = await serviceAdapter.getJobs({}) as any;
+				console.log('🔍 All jobs API response:', allJobsData);
+
+				if (allJobsData.success && Array.isArray(allJobsData.data)) {
+					// Use the all jobs response instead
+					data = allJobsData;
 				}
 			}
+
+			// Handle the response format from Edge Functions
+			// Edge Functions return { success: true, data: jobs }
+			// The makeRequest method returns the data part directly
+			const jobs = Array.isArray(data) ? data : (data.data || []);
+
+			console.log('🔍 All jobs returned:', jobs);
+
+			const activeJobs = jobs.filter(
+				(job: any) =>
+					job.type === 'trip_generation' && (job.status === 'queued' || job.status === 'running')
+			);
+
+			console.log(`🔍 Found ${activeJobs.length} active trip generation job(s):`, activeJobs);
+			console.log('🔍 Job filtering details:', jobs.map((job: any) => ({
+				id: job.id,
+				type: job.type,
+				status: job.status,
+				isTripGeneration: job.type === 'trip_generation',
+				isActive: job.status === 'queued' || job.status === 'running'
+			})));
+
+			// If no trip_generation jobs found, check for any active jobs
+			if (activeJobs.length === 0) {
+				const allActiveJobs = jobs.filter(
+					(job: any) => job.status === 'queued' || job.status === 'running'
+				);
+				console.log('🔍 No trip_generation jobs found, checking all active jobs:', allActiveJobs);
+
+				// Look for any job that might be a trip generation job by checking the job data
+				const potentialTripJobs = allActiveJobs.filter((job: any) => {
+					// Check if job data contains trip-related information
+					const jobData = job.data || {};
+					return jobData.startDate || jobData.endDate || jobData.clearExistingSuggestions !== undefined;
+				});
+
+				if (potentialTripJobs.length > 0) {
+					console.log('🔍 Found potential trip generation jobs:', potentialTripJobs);
+					activeJobs.push(...potentialTripJobs);
+				}
+			}
+
+			if (activeJobs.length > 0) {
+				// Only set up polling if we don't already have an active job
+				if (!activeTripGenerationJob || activeTripGenerationJob.id !== activeJobs[0].id) {
+					activeTripGenerationJob = activeJobs[0]; // Get the most recent active job
+					tripGenerationStartTime = new Date(activeTripGenerationJob.created_at);
+					console.log('✅ Found active trip generation job:', activeTripGenerationJob);
+					console.log('📊 Starting progress polling for job:', activeTripGenerationJob.id);
+					startTripGenerationPolling(activeTripGenerationJob.id);
+					updateTripGenerationProgressFromJob(activeTripGenerationJob);
+					jobCheckStatus = 'found';
+
+					// Stop background checking since we found a job
+					stopBackgroundJobChecking();
+				} else {
+					console.log('ℹ️ Already tracking this active job, continuing...');
+					jobCheckStatus = 'found';
+				}
+			} else {
+				console.log('ℹ️ No active trip generation jobs found');
+				// Clear any existing job state
+				activeTripGenerationJob = null;
+				tripGenerationProgress = 0;
+				tripGenerationStatus = '';
+				jobCheckStatus = 'not_found';
+
+				// Restart background checking since no job was found
+				startBackgroundJobChecking();
+			}
 		} catch (error) {
-			console.error('Error checking for active trip generation jobs:', error);
+			console.error('❌ Error checking for active trip generation jobs:', error);
+			jobCheckStatus = 'not_found';
 		}
 	}
 
-	function startTripGenerationPolling(jobId: string) {
-		if (!jobId) return;
+	async function startTripGenerationPolling(jobId: string) {
+		console.log('🔄 Starting trip generation polling for job:', jobId);
+
+		// Clear any existing polling
 		if (tripGenerationPollingInterval) {
 			clearInterval(tripGenerationPollingInterval);
 		}
 
-		tripGenerationPollingInterval = setInterval(async () => {
-			if (!activeTripGenerationJob) return;
+		// Start verification interval (every 10 seconds)
+		const verificationInterval = setInterval(async () => {
+			const isStillActive = await verifyJobStillActive(jobId);
+			if (!isStillActive) {
+				console.log('🔍 Job no longer active, stopping polling');
+				clearInterval(verificationInterval);
+				if (tripGenerationPollingInterval) {
+					clearInterval(tripGenerationPollingInterval);
+				}
+				activeTripGenerationJob = null;
+				tripGenerationProgress = 0;
+				tripGenerationStatus = '';
+				jobCheckStatus = 'not_found';
+			}
+		}, 10000);
 
+		tripGenerationPollingInterval = setInterval(async () => {
 			try {
 				const session = get(sessionStore);
-				const headers: Record<string, string> = {};
-				if (session?.access_token) {
-					headers['Authorization'] = `Bearer ${session.access_token}`;
+				if (!session) {
+					console.log('❌ No session found, stopping polling');
+					if (tripGenerationPollingInterval) {
+						clearInterval(tripGenerationPollingInterval);
+					}
+					clearInterval(verificationInterval);
+					return;
 				}
 
-				if (!session) return;
 				const serviceAdapter = new ServiceAdapter({ session });
-				const data = await serviceAdapter.getJobProgress(jobId) as any;
+				let job: any = null;
 
-				if (data.success && data.data?.job) {
-					const job = data.data.job;
-					activeTripGenerationJob = job;
-					updateTripGenerationProgressFromJob(job);
+				try {
+					const data = await serviceAdapter.getJobProgress(jobId) as any;
+					console.log('🔄 Raw job progress response:', data);
 
-					// Stop polling if job is finished
-					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-						stopTripGenerationPolling();
+					// Handle different response structures
+					if (data && data.success && data.data) {
+						// Standard API response format
+						job = data.data;
+					} else if (data && data.id) {
+						// Direct job object
+						job = data;
+					} else {
+						// Fallback
+						job = data?.data || data;
+					}
 
-						// Show completion message
-						if (job.status === 'completed') {
-							toast.success('Trip generation completed successfully!');
-						} else if (job.status === 'failed') {
-							toast.error('Trip generation failed');
+					console.log('🔄 Processed job object:', job);
+				} catch (error) {
+					console.error('❌ Error polling trip generation job:', error);
+					// If there's an error, try to get the job from the database directly
+					try {
+						const jobsResponse = await serviceAdapter.getJobs({ type: 'trip_generation' }) as any;
+						const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse?.data || []);
+						const currentJob = jobs.find((j: any) => j.id === jobId);
+						if (currentJob) {
+							console.log('🔍 Found job in jobs list:', currentJob);
+							activeTripGenerationJob = currentJob;
+							job = currentJob;
 						}
+					} catch (fallbackError) {
+						console.error('❌ Error in fallback job lookup:', fallbackError);
+					}
+					return;
+				}
 
-						// Refresh suggested trips after a short delay
+				if (job) {
+					console.log('🔄 Updated job progress:', {
+						progress: tripGenerationProgress,
+						status: tripGenerationStatus,
+						jobProgress: job.progress,
+						jobStatus: job.status
+					});
+
+					// Update progress
+					const newProgress = job.progress || 0;
+					const newStatus = job.status || '';
+
+					console.log('🔄 Setting new progress:', {
+						oldProgress: tripGenerationProgress,
+						newProgress: newProgress,
+						oldStatus: tripGenerationStatus,
+						newStatus: newStatus
+					});
+
+					tripGenerationProgress = newProgress;
+					tripGenerationStatus = newStatus;
+
+					console.log('🔄 Progress updated:', {
+						currentProgress: tripGenerationProgress,
+						currentStatus: tripGenerationStatus
+					});
+
+					// Check if job is completed, failed, or cancelled
+					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+						console.log('🔄 Job finished with status:', job.status);
+						if (tripGenerationPollingInterval) {
+							clearInterval(tripGenerationPollingInterval);
+						}
+						clearInterval(verificationInterval);
+						tripGenerationPollingInterval = null;
+
+						// Clear the active job after a delay to show completion
 						setTimeout(() => {
+							console.log('🔄 Clearing completed job from display');
 							activeTripGenerationJob = null;
-							openSuggestedTripsModal();
-						}, 2000);
+							tripGenerationProgress = 0;
+							tripGenerationStatus = '';
+							jobCheckStatus = 'not_found';
+
+							// Restart background checking since job completed
+							startBackgroundJobChecking();
+						}, 3000); // Show completion for 3 seconds
 					}
 				} else {
-					// If job is not found, stop polling and reset
-					activeTripGenerationJob = null;
-					stopTripGenerationPolling();
+					console.log('⚠️ Invalid job progress response:', job);
 				}
 			} catch (error) {
-				console.error('Error polling trip generation job status:', error);
+				console.error('❌ Error polling job progress:', error);
+				// Don't stop polling on error, just log it
 			}
-		}, 2000);
+		}, 1000); // Poll every 1 second
+	}
+
+	// Function to verify if the job is still active
+	async function verifyJobStillActive(jobId: string): Promise<boolean> {
+		try {
+			const session = get(sessionStore);
+			if (!session) return false;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const data = await serviceAdapter.getJobs({}) as any;
+
+			const jobs = Array.isArray(data) ? data : (data.data || []);
+			const activeJob = jobs.find((job: any) =>
+				job.id === jobId &&
+				(job.status === 'queued' || job.status === 'running')
+			);
+
+			console.log('🔍 Job verification:', { jobId, found: !!activeJob, status: activeJob?.status });
+			return !!activeJob;
+		} catch (error) {
+			console.error('❌ Error verifying job:', error);
+			return false;
+		}
 	}
 
 	function stopTripGenerationPolling() {
@@ -473,6 +742,26 @@
 		tripGenerationProgress = job.progress || 0;
 		const result = (job.result as Record<string, unknown>) || {};
 		tripGenerationStatus = (result.message as string) || job.status;
+	}
+
+	function getEstimatedTimeRemaining(): string {
+		if (!tripGenerationStartTime || tripGenerationProgress <= 0 || tripGenerationProgress >= 100) {
+			return '';
+		}
+
+		const elapsed = Date.now() - tripGenerationStartTime.getTime();
+		const estimatedTotal = (elapsed / tripGenerationProgress) * 100;
+		const remaining = estimatedTotal - elapsed;
+
+		if (remaining < 60000) { // Less than 1 minute
+			return 'Less than 1 minute';
+		} else if (remaining < 3600000) { // Less than 1 hour
+			const minutes = Math.ceil(remaining / 60000);
+			return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+		} else {
+			const hours = Math.ceil(remaining / 3600000);
+			return `${hours} hour${hours !== 1 ? 's' : ''}`;
+		}
 	}
 
 	function openAddTripModal() {
@@ -942,13 +1231,82 @@
 		if (browser) {
 			await loadTrips();
 			await loadUserPreferences();
-			await checkForActiveTripGenerationJob();
 		}
+		console.log('🚀 Trips page mounted, checking for active jobs...');
+		await checkForActiveTripGenerationJob();
+
+		// Start background job checking (every 30 seconds)
+		startBackgroundJobChecking();
 	});
 
 	onDestroy(() => {
 		stopTripGenerationPolling();
+		stopBackgroundJobChecking();
 	});
+
+	// Function to clean up status messages
+	function cleanStatusMessage(status: string): string {
+		if (!status) return '';
+
+		// Replace any "0009-01-01" dates with "any"
+		return status
+			.replace(/0009-01-01/g, 'any')
+			.replace(/0009-01-01 to any/g, 'any to any')
+			.replace(/any to 0009-01-01/g, 'any to any');
+	}
+
+	// Function to format date range for display
+	function formatDateRange(startDate: string | null | undefined, endDate: string | null | undefined): string {
+		const formatDate = (date: string) => {
+			// Check if it's a valid date (not "0009-01-01" or similar)
+			if (!date || date.startsWith('0009') || date === 'any') {
+				return 'not specified';
+			}
+			try {
+				const parsedDate = new Date(date);
+				if (isNaN(parsedDate.getTime())) {
+					return 'not specified';
+				}
+				return parsedDate.toLocaleDateString();
+			} catch {
+				return 'not specified';
+			}
+		};
+
+		const start = formatDate(startDate);
+		const end = formatDate(endDate);
+
+		if (start === 'not specified' && end === 'not specified') {
+			return 'any to any';
+		} else if (start === 'not specified') {
+			return `any to ${end}`;
+		} else if (end === 'not specified') {
+			return `${start} to any`;
+		} else {
+			return `${start} to ${end}`;
+		}
+	}
+
+	function stopBackgroundJobChecking() {
+		if (backgroundJobCheckInterval) {
+			clearInterval(backgroundJobCheckInterval);
+			backgroundJobCheckInterval = null;
+			console.log('🛑 Background job checking stopped');
+		}
+	}
+
+	function startBackgroundJobChecking() {
+		if (!backgroundJobCheckInterval) {
+			backgroundJobCheckInterval = setInterval(async () => {
+				if (!activeTripGenerationJob) {
+					console.log('🔍 Background check: No active job, checking for new jobs...');
+					await checkForActiveTripGenerationJob();
+				}
+			}, 30000);
+			console.log('🔄 Background job checking started');
+		}
+	}
+
 </script>
 
 <svelte:head>
@@ -983,48 +1341,89 @@
 	<!-- Active Trip Generation Job Progress Display -->
 	{#if activeTripGenerationJob}
 		<div class="mb-8">
-			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Trip Generation in Progress</h2>
+			<div class="flex items-center justify-between mb-4">
+				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Trip Generation in Progress</h2>
+				<div class="flex items-center gap-2">
+					<div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+						<div class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+						<span>Live updates</span>
+					</div>
+				</div>
+			</div>
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+				class="rounded-lg border border-blue-200 bg-blue-50 p-6 shadow-sm dark:border-blue-700 dark:bg-blue-900/20"
 			>
-				<div class="mb-3 flex items-center justify-between">
-					<div class="flex items-center gap-3">
-						<div class="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
-							<Route class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+				<div class="mb-4 flex items-center justify-between">
+					<div class="flex items-center gap-4">
+						<div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-800">
+							<Route class="h-6 w-6 text-blue-600 dark:text-blue-400" />
 						</div>
 						<div>
 							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
 								Trip Generation
 							</h3>
-							<p class="text-sm text-gray-500 dark:text-gray-400">
+							<p class="text-sm text-gray-600 dark:text-gray-400">
 								Job ID: {activeTripGenerationJob.id} | Status: {activeTripGenerationJob.status}
 							</p>
 						</div>
 					</div>
 					<div class="text-right">
-						<div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+						<div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
 							{tripGenerationProgress}%
 						</div>
+						<div class="text-xs text-gray-500 dark:text-gray-400">
+							{tripGenerationProgress < 100 ? 'Processing...' : 'Complete'}
+						</div>
+						<button
+							on:click={() => {
+								console.log('🔄 Manual refresh clicked');
+								if (activeTripGenerationJob) {
+									startTripGenerationPolling(activeTripGenerationJob.id);
+								}
+							}}
+							class="mt-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+						>
+							Refresh Progress
+						</button>
 					</div>
 				</div>
 
 				<!-- Progress Bar -->
-				<div class="mb-3">
-					<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+				<div class="mb-4">
+					<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
 						<span>Progress</span>
+						<div class="flex items-center gap-2">
+							<span>{tripGenerationProgress}%</span>
+							{#if getEstimatedTimeRemaining()}
+								<span class="text-xs text-gray-500 dark:text-gray-400">
+									~{getEstimatedTimeRemaining()} remaining
+								</span>
+							{/if}
+						</div>
 					</div>
-					<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
 						<div
-							class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
+							class="h-4 rounded-full bg-blue-600 transition-all duration-500 ease-out relative"
 							style="width: {tripGenerationProgress}%"
-						></div>
+						>
+							{#if tripGenerationProgress > 0 && tripGenerationProgress < 100}
+								<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+							{/if}
+						</div>
 					</div>
 				</div>
 
 				<!-- Status Message -->
 				{#if tripGenerationStatus}
-					<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
-						{tripGenerationStatus}
+					<div class="mb-4 p-3 rounded-lg bg-white/50 dark:bg-gray-800/50 border border-blue-200 dark:border-blue-700">
+						<div class="flex items-start gap-2">
+							<div class="mt-0.5">
+								<Info class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+							</div>
+							<div class="text-sm text-gray-700 dark:text-gray-300">
+								{cleanStatusMessage(tripGenerationStatus)}
+							</div>
+						</div>
 					</div>
 				{/if}
 
@@ -1032,15 +1431,17 @@
 				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
 					<div class="flex items-center gap-4">
 						<span>Started: {format(new Date(activeTripGenerationJob.created_at), 'MMM d, yyyy HH:mm')}</span>
-						{#if activeTripGenerationJob.data?.startDate || activeTripGenerationJob.data?.endDate}
-							<span>
-								Date range:
-								{activeTripGenerationJob.data?.startDate || 'any'}
-								to
-								{activeTripGenerationJob.data?.endDate || 'any'}
-							</span>
-						{/if}
+						<span>
+							Date range:
+							{formatDateRange(activeTripGenerationJob.data?.startDate, activeTripGenerationJob.data?.endDate)}
+						</span>
 					</div>
+					{#if activeTripGenerationJob.status === 'running'}
+						<div class="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+							<div class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
+							<span class="text-xs">Active</span>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -1611,180 +2012,159 @@
 	{/if}
 
 	<!-- Suggested Trips Modal -->
-	{#if showSuggestedTripsModal}
+	<Modal
+		open={showSuggestedTripsModal}
+		title="Review Suggested Trips"
+		size="xl"
+		on:close={() => (showSuggestedTripsModal = false)}
+	>
 		<div
-			class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="suggested-trips-modal-title"
-			tabindex="0"
-			on:click={() => (showSuggestedTripsModal = false)}
-							on:keydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter') showSuggestedTripsModal = false; }}
+			class="space-y-6 max-h-[70vh] overflow-y-auto"
+			on:scroll={(e) => {
+				const target = e.currentTarget;
+				const scrollTop = target.scrollTop;
+				const scrollHeight = target.scrollHeight;
+				const clientHeight = target.clientHeight;
+
+				// Load more when user scrolls to within 100px of the bottom
+				if (scrollHeight - scrollTop - clientHeight < 100 &&
+					suggestedTripsPagination.hasMore &&
+					!isLoadingMoreSuggestedTrips) {
+					loadMoreSuggestedTrips();
+				}
+			}}
 		>
-			<div
-				class="relative mx-4 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
-				role="document"
-				on:click|stopPropagation
-			>
+			<!-- Header with Generate New Suggestions button -->
+			<div class="flex items-center justify-between">
+				<div></div> <!-- Empty div for spacing -->
 				<button
-					class="absolute top-4 right-4 cursor-pointer text-gray-400 transition-colors hover:text-red-500"
-					on:click={() => (showSuggestedTripsModal = false)}
-					aria-label="Close modal">&times;</button
+					class="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-600"
+					on:click={openTripGenerationModal}
 				>
-				<div class="mb-6 flex items-center justify-between">
-					<h2
-						id="suggested-trips-modal-title"
-						class="text-2xl font-bold text-gray-900 dark:text-gray-100"
-					>
-						Review Suggested Trips
-					</h2>
-					<button
-						class="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-600"
-						on:click={openTripGenerationModal}
-					>
-						<RefreshCw class="h-4 w-4" />
-						Generate New Suggestions
-					</button>
+					<RefreshCw class="h-4 w-4" />
+					Generate New Suggestions
+				</button>
+			</div>
+
+			{#if isLoadingSuggestedTrips && suggestedTrips.length === 0}
+				<div class="flex items-center justify-center py-12">
+					<Loader2 class="h-8 w-8 animate-spin text-blue-500" />
+					<span class="ml-2 text-gray-600 dark:text-gray-400">Loading suggested trips...</span>
 				</div>
-
-				{#if isLoadingSuggestedTrips}
-					<div class="flex items-center justify-center py-12">
-						<Loader2 class="h-8 w-8 animate-spin text-blue-500" />
-						<span class="ml-2 text-gray-600 dark:text-gray-400">Loading suggested trips...</span>
-					</div>
-				{:else if suggestedTrips.length === 0}
-					<button type="button"
-						class="py-12 text-center w-full bg-transparent border-0 cursor-pointer"
-						on:click={() => (showSuggestedTripsModal = false)}
-						on:keydown={(e) => { if (e.key === 'Enter') showSuggestedTripsModal = false; }}
-					>
-						<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-						<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
-							No suggested trips
-						</h3>
-						<p class="text-gray-600 dark:text-gray-400">No pending trip suggestions found.</p>
-					</button>
-				{:else}
-					<div class="space-y-4">
-						<div class="flex items-center justify-between">
-							<p class="text-sm text-gray-600 dark:text-gray-400">
-								{suggestedTrips.length} suggested trip{suggestedTrips.length !== 1 ? 's' : ''} found
-							</p>
-							<div class="flex gap-2">
-								<button
-									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-									on:click={() => (selectedSuggestedTrips = suggestedTrips.map((t) => t.id))}
-								>
-									Select All
-								</button>
-								<button
-									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-									on:click={() => (selectedSuggestedTrips = [])}
-								>
-									Clear Selection
-								</button>
-							</div>
+			{:else if suggestedTrips.length === 0}
+				<div class="py-12 text-center">
+					<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+					<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+						No suggested trips
+					</h3>
+					<p class="text-gray-600 dark:text-gray-400">No pending trip suggestions found.</p>
+				</div>
+			{:else}
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<p class="text-sm text-gray-600 dark:text-gray-400">
+							{suggestedTrips.length} suggested trip{suggestedTrips.length !== 1 ? 's' : ''} found
+						</p>
+						<div class="flex gap-2">
+							<button
+								class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								on:click={() => (selectedSuggestedTrips = suggestedTrips.map((t) => t.id))}
+							>
+								Select All
+							</button>
+							<button
+								class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								on:click={() => (selectedSuggestedTrips = [])}
+							>
+								Clear Selection
+							</button>
 						</div>
+					</div>
 
-						<div class="grid gap-4">
-							{#each suggestedTrips as trip}
-								<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-									<div class="flex items-start gap-4">
-										<input
-											type="checkbox"
-											id={`trip-${trip.id}`}
-											checked={selectedSuggestedTrips.includes(trip.id)}
-											on:change={(e) => {
-												const target = e.target as HTMLInputElement;
-												if (target.checked) {
-													selectedSuggestedTrips = [...selectedSuggestedTrips, trip.id];
-												} else {
-													selectedSuggestedTrips = selectedSuggestedTrips.filter(
-														(id) => id !== trip.id
-													);
-												}
-											}}
-											class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-										/>
-										<div class="flex-1">
-											<div class="mb-2 flex items-center justify-between">
-												<label
-													for={`trip-${trip.id}`}
-													class="text-lg font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600"
-												>
-													{trip.title}
-												</label>
-												<div class="flex items-center gap-2">
-													<span class="text-sm text-gray-500 dark:text-gray-400">
-														{Math.round(trip.confidence * 100)}% confidence
-													</span>
-													<div class="h-2 w-16 rounded-full bg-gray-200 dark:bg-gray-700">
-														<div
-															class="h-2 rounded-full bg-blue-500"
-															style="width: {trip.confidence * 100}%"
-														></div>
-													</div>
-												</div>
-											</div>
-											<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
-												{trip.description}
-											</p>
-											<div
-												class="grid grid-cols-2 gap-4 text-sm text-gray-600 md:grid-cols-4 dark:text-gray-400"
+					<div class="grid gap-4">
+						{#each suggestedTrips as trip}
+							<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+								<div class="flex items-start gap-4">
+									<input
+										type="checkbox"
+										id={`trip-${trip.id}`}
+										checked={selectedSuggestedTrips.includes(trip.id)}
+										on:change={(e) => {
+											const target = e.target as HTMLInputElement;
+											if (target.checked) {
+												selectedSuggestedTrips = [...selectedSuggestedTrips, trip.id];
+											} else {
+												selectedSuggestedTrips = selectedSuggestedTrips.filter(
+													(id) => id !== trip.id
+												);
+											}
+										}}
+										class="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+									/>
+									<div class="flex-1">
+										<div class="mb-2 flex items-center justify-between">
+											<label
+												for={`trip-${trip.id}`}
+												class="text-lg font-semibold text-gray-900 dark:text-gray-100 cursor-pointer hover:text-blue-600"
 											>
-												<div>
-													<span class="font-medium">Dates:</span><br />
-													{format(new Date(trip.start_date), 'MMM d')} - {format(
-														new Date(trip.end_date),
-														'MMM d, yyyy'
-													)}
-												</div>
-												<div>
-													<span class="font-medium">Location:</span><br />
-													{trip.city_name}
-												</div>
-												<div>
-													<span class="font-medium">Overnight stays:</span><br />
-													{trip.overnight_stays}
-												</div>
-												<div>
-													<span class="font-medium">Data points:</span><br />
-													{trip.data_points}
-												</div>
-											</div>
+												{trip.title}
+											</label>
+
+										</div>
+										<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+											{trip.description}
+										</p>
+										<div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+											<span>Start: {format(new Date(trip.start_date), 'MMM d, yyyy')}</span>
+											<span>End: {format(new Date(trip.end_date), 'MMM d, yyyy')}</span>
+											<span>{trip.data_points || 0} data points</span>
 										</div>
 									</div>
 								</div>
-							{/each}
-						</div>
-
-						<div class="flex justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-							<button
-								class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-								on:click={() => (showSuggestedTripsModal = false)}
-							>
-								Cancel
-							</button>
-							<button
-								class="cursor-pointer rounded-lg bg-red-500 px-5 py-2 font-medium text-white transition-colors hover:bg-red-600"
-								on:click={() => handleRejectTrips()}
-								disabled={selectedSuggestedTrips.length === 0}
-							>
-								Reject Selected ({selectedSuggestedTrips.length})
-							</button>
-							<button
-								class="cursor-pointer rounded-lg bg-green-500 px-5 py-2 font-medium text-white transition-colors hover:bg-green-600"
-								on:click={() => handleApproveTrips()}
-								disabled={selectedSuggestedTrips.length === 0}
-							>
-								Approve Selected ({selectedSuggestedTrips.length})
-							</button>
-						</div>
+							</div>
+						{/each}
 					</div>
-				{/if}
-			</div>
+
+					<!-- Loading indicator for infinite scroll -->
+					{#if isLoadingMoreSuggestedTrips}
+						<div class="flex items-center justify-center py-4">
+							<div class="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+							<span class="ml-3 text-sm text-gray-600 dark:text-gray-400">Loading more trips...</span>
+						</div>
+					{/if}
+
+					<!-- End of list indicator -->
+					{#if !suggestedTripsPagination.hasMore && suggestedTrips.length > 0}
+						<div class="text-center py-4">
+							<span class="text-sm text-gray-500 dark:text-gray-400">
+								All {suggestedTripsPagination.total} suggested trips loaded
+							</span>
+						</div>
+					{/if}
+
+					<!-- Action Buttons -->
+					<div class="flex gap-3 pt-4">
+						<button
+							on:click={() => (showSuggestedTripsModal = false)}
+							class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+						>
+							Cancel
+						</button>
+						<button
+							on:click={handleApproveTrips}
+							disabled={selectedSuggestedTrips.length === 0}
+							class="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-700"
+						>
+							<Plus class="mr-2 h-4 w-4 flex-shrink-0" />
+							<span class="truncate">
+								Approve {selectedSuggestedTrips.length} Trip{selectedSuggestedTrips.length !== 1 ? 's' : ''}
+							</span>
+						</button>
+					</div>
+				</div>
+			{/if}
 		</div>
-	{/if}
+	</Modal>
 
 	<!-- Trip Generation Modal -->
 	<TripGenerationModal
@@ -1800,6 +2180,7 @@
 		bind:selectedCustomHomeAddressIndex
 		bind:customHomeAddressSearchError
 		bind:selectedCustomHomeAddress
+		bind:clearExistingSuggestions={tripGenerationData.clearExistingSuggestions}
 		on:close={() => (showTripGenerationModal = false)}
 		on:generate={generateNewTripSuggestions}
 		on:customHomeAddressToggle={handleCustomHomeAddressToggle}

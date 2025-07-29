@@ -7,12 +7,12 @@ export interface TripGenerationData {
 	minTripDurationHours?: number;
 	maxDistanceFromHomeKm?: number;
 	minDataPointsPerDay?: number;
-	overnightHoursStart?: number; // 20 for 8 PM
-	overnightHoursEnd?: number; // 8 for 8 AM
-	minOvernightHours?: number; // 6 for minimum overnight stay
+	minHomeDurationHours?: number; // Minimum time user must be home to end a trip
+	minHomeDataPoints?: number; // Minimum number of "home" data points to end a trip
 }
 
 import type { GeocodedLocation } from './geocoding.types';
+import type { VisitedLocation } from '../services/trip-detection.service';
 
 export interface TripExclusion {
 	id: string;
@@ -53,6 +53,8 @@ export interface TrackerDataPoint {
 }
 
 export interface DetectedTrip {
+	id: string;
+	user_id: string;
 	startDate: string;
 	endDate: string;
 	title: string;
@@ -62,7 +64,29 @@ export interface DetectedTrip {
 		coordinates: number[];
 	};
 	cityName: string;
-	image_url?: string;
+	dataPoints: number;
+	overnightStays: number;
+	distanceFromHome: number;
+	status: 'pending' | 'approved' | 'rejected' | 'created';
+	metadata: {
+		totalDurationHours: number;
+		visitedCities: string[];
+		visitedCountries: string[];
+		visitedCountryCodes: string[];
+		visitedLocations: VisitedLocation[];
+		isMultiCountryTrip: boolean;
+		isMultiCityTrip: boolean;
+		tripType: 'city' | 'country' | 'multi-city' | 'multi-country';
+		primaryLocation: string;
+		primaryCountry: string;
+		primaryCountryCode: string;
+		homeCity: string;
+		homeCountry: string;
+		homeCountryCode: string;
+		[key: string]: unknown;
+	};
+	created_at: string;
+	updated_at: string;
 }
 
 // New types for enhanced trip detection
@@ -78,7 +102,7 @@ export interface SuggestedTrip {
 		coordinates: number[];
 	};
 	cityName: string;
-	confidence: number; // 0-1 score
+
 	dataPoints: number;
 	overnightStays: number;
 	distanceFromHome: number;
@@ -103,23 +127,20 @@ export interface OvernightStay {
 		coordinates: number[];
 	};
 	cityName: string;
+	countryName?: string;
 	startTime: string;
 	endTime: string;
 	durationHours: number;
 	dataPoints: number;
-	confidence: number;
+
 }
 
 export interface TripDetectionConfig {
 	minTripDurationHours: number;
 	maxDistanceFromHomeKm: number;
 	minDataPointsPerDay: number;
-	overnightHoursStart: number;
-	overnightHoursEnd: number;
-	minOvernightHours: number;
 	homeRadiusKm: number;
 	clusteringRadiusMeters: number;
-	minConfidenceScore: number;
 }
 
 export interface HomeAddress {

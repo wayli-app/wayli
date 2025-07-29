@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
         .insert({
           created_by: user.id,
           type: 'image_generation',
-          status: 'pending',
+          			status: 'queued',
           data: {
             trip_id: tripId,
             trip_title: trip.title,

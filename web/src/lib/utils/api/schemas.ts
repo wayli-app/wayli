@@ -109,9 +109,8 @@ export const tripGenerationSchema = z.object({
 	minTripDurationHours: z.number().min(0.5).max(168).default(2),
 	maxDistanceFromHomeKm: z.number().min(1).max(10000).default(100),
 	minDataPointsPerDay: z.number().min(1).max(1000).default(10),
-	overnightHoursStart: z.number().min(0).max(23).default(22),
-	overnightHoursEnd: z.number().min(0).max(23).default(6),
-	minOvernightHours: z.number().min(1).max(24).default(6)
+	minHomeDurationHours: z.number().min(0.1).max(168).default(1), // Minimum time user must be home to end a trip
+	minHomeDataPoints: z.number().min(1).max(1000).default(5), // Minimum number of "home" data points to end a trip
 });
 
 // Export schemas

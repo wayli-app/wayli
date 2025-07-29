@@ -12,17 +12,6 @@ if (result.error) {
 	console.warn('⚠️ [dotenv] Error loading .env file:', result.error);
 }
 
-// Merge dotenv variables with process.env, handling variable substitution
-const env = { ...process.env, ...result.parsed };
-
-// Handle variable substitution manually
-if (env.PUBLIC_SUPABASE_URL === '${SUPABASE_URL}' && env.SUPABASE_URL) {
-	env.PUBLIC_SUPABASE_URL = env.SUPABASE_URL;
-}
-if (env.PUBLIC_SUPABASE_ANON_KEY === '${SUPABASE_ANON_KEY}' && env.SUPABASE_ANON_KEY) {
-	env.PUBLIC_SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;
-}
-
 export interface NodeEnvironmentConfig {
 	// Supabase Configuration
 	supabase: {
@@ -162,14 +151,6 @@ export function validateNodeEnvironmentConfig(config: NodeEnvironmentConfig): No
 export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	// Use the merged environment variables
 	const mergedEnv = { ...process.env, ...result.parsed };
-
-	// Handle variable substitution manually
-	if (mergedEnv.PUBLIC_SUPABASE_URL === '${SUPABASE_URL}' && mergedEnv.SUPABASE_URL) {
-		mergedEnv.PUBLIC_SUPABASE_URL = mergedEnv.SUPABASE_URL;
-	}
-	if (mergedEnv.PUBLIC_SUPABASE_ANON_KEY === '${SUPABASE_ANON_KEY}' && mergedEnv.SUPABASE_ANON_KEY) {
-		mergedEnv.PUBLIC_SUPABASE_ANON_KEY = mergedEnv.SUPABASE_ANON_KEY;
-	}
 
 	// Supabase Configuration
 	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';

@@ -171,6 +171,12 @@ export class ServiceAdapter {
     return this.callApi('trips/suggested', { params });
   }
 
+  async clearAllSuggestedTrips() {
+    return this.callApi('trips/suggested', {
+      method: 'DELETE'
+    });
+  }
+
   async approveSuggestedTrips(tripIds: string[]) {
     return this.callApi('trips/suggested', {
       method: 'POST',
@@ -280,14 +286,20 @@ export class ServiceAdapter {
         throw new Error(`Import job creation failed: ${response.error.message}`);
       }
 
-      const result = response.data as { success: boolean; data: { jobId: string }; message: string };
+      const result = response.data as { success: boolean; data: { success: boolean; data: { jobId: string }; message: string }; message: string };
 
       if (!result.success) {
         throw new Error(`Import job creation failed: ${result.message || 'Unknown error'}`);
       }
 
-      console.log('✅ [SERVICE] Import job created successfully:', result.data.jobId);
-      return { jobId: result.data.jobId };
+      // The Edge Function response is nested: { success: true, data: { success: true, data: { jobId: string } } }
+      const jobData = result.data;
+      if (!jobData.success || !jobData.data?.jobId) {
+        throw new Error(`Import job creation failed: Invalid response structure`);
+      }
+
+      console.log('✅ [SERVICE] Import job created successfully:', jobData.data.jobId);
+      return { jobId: jobData.data.jobId };
     } catch (error) {
       console.error('❌ [SERVICE] Error in createImportJob:', error);
       throw error;

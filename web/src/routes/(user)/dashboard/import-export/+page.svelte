@@ -44,6 +44,9 @@
 	let activeImportJob: Job | null = null;
 	let activeExportJob: Job | null = null;
 	let pollingInterval: ReturnType<typeof setInterval> | null = null;
+	let backgroundCheckInterval: ReturnType<typeof setInterval> | null = null;
+	let importJobNotified = false;
+	let exportJobNotified = false;
 
 	const importFormats = [
 		{
@@ -118,7 +121,7 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 
-						// Check for active import jobs
+			// Check for active import jobs
 			const importJobsResponse = await serviceAdapter.getJobs({ type: 'data_import' }) as any;
 			const importJobs = Array.isArray(importJobsResponse) ? importJobsResponse :
 							  (importJobsResponse?.data || []);
@@ -142,20 +145,25 @@
 				console.log('🚀 Found active import job:', activeImport);
 				console.log('🔍 Full job object:', JSON.stringify(activeImport, null, 2));
 				activeImportJob = activeImport;
+				importJobNotified = false; // Reset notification flag for new job
 				isImporting.set(true);
 				startPolling();
 			} else if (recentCompletedImport && !activeImportJob) {
 				console.log('✅ Found recently completed import job:', recentCompletedImport);
-				activeImportJob = recentCompletedImport;
+				// Don't set activeImportJob for completed jobs - just show notification
 				isImporting.set(false); // Ensure import button is enabled for completed jobs
 				// Don't start polling for completed jobs
-				toast.success('Import completed successfully!', {
-					description: 'Your file has been processed and imported.'
-				});
+				if (!importJobNotified) {
+					toast.success('Import completed successfully!', {
+						description: 'Your file has been processed and imported.'
+					});
+					importJobNotified = true;
+				}
 			} else if (!activeImport && !recentCompletedImport && activeImportJob) {
 				// No active or recent import jobs found, reset state
 				console.log('🔄 No active import jobs found, resetting state');
 				activeImportJob = null;
+				importJobNotified = false; // Reset notification flag
 				isImporting.set(false);
 			}
 
@@ -180,14 +188,24 @@
 			if (activeExport && !activeExportJob) {
 				console.log('🚀 Found active export job:', activeExport);
 				activeExportJob = activeExport;
+				exportJobNotified = false; // Reset notification flag for new job
 				startPolling();
 			} else if (recentCompletedExport && !activeExportJob) {
 				console.log('✅ Found recently completed export job:', recentCompletedExport);
-				activeExportJob = recentCompletedExport;
+				// Don't set activeExportJob for completed jobs - just show notification
 				// Don't start polling for completed jobs
-				toast.success('Export completed successfully!', {
-					description: 'Your data has been exported and is ready for download.'
-				});
+				if (!exportJobNotified) {
+					toast.success('Export completed successfully!', {
+						description: 'Your data has been exported and is ready for download.'
+					});
+					exportJobNotified = true;
+				}
+			}
+
+			// If we found any active jobs, ensure polling is running
+			if ((activeImport || activeExport) && !pollingInterval) {
+				console.log('🔄 Starting polling for active jobs');
+				startPolling();
 			}
 		} catch (error) {
 			console.error('❌ Error checking for active jobs:', error);
@@ -204,10 +222,24 @@
 		}, 2000);
 	}
 
+	function startBackgroundChecking() {
+		if (backgroundCheckInterval) {
+			clearInterval(backgroundCheckInterval);
+		}
+
+		// Check for new jobs every 10 seconds
+		backgroundCheckInterval = setInterval(async () => {
+			await checkForActiveJobs();
+		}, 10000);
+	}
+
+	// Update job progress
 	async function updateJobProgress() {
 		try {
 			const session = get(sessionStore);
-			if (!session) return;
+			if (!session) {
+				return;
+			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			let hasActiveJobs = false;
@@ -261,13 +293,17 @@
 						activeImportJob = null;
 						isImporting.set(false);
 
-						if (job.status === 'completed' || (job.progress === 100 && job.status === 'queued')) {
+						if ((job.status === 'completed' || (job.progress === 100 && job.status === 'queued')) && !importJobNotified) {
 							toast.success('Import completed successfully!');
+							importJobNotified = true;
 						} else if (job.status === 'failed') {
 							toast.error('Import failed', {
 								description: job.error || 'Unknown error occurred'
 							});
 						}
+					} else {
+						// Job is still active, update the display
+						activeImportJob = job;
 					}
 				}
 			}
@@ -320,26 +356,35 @@
 						console.log('✅ Export job finished:', job.status);
 						activeExportJob = null;
 
-						if (job.status === 'completed' || (job.progress === 100 && job.status === 'queued')) {
+						if ((job.status === 'completed' || (job.progress === 100 && job.status === 'queued')) && !exportJobNotified) {
 							toast.success('Export completed successfully!');
+							exportJobNotified = true;
 						} else if (job.status === 'failed') {
 							toast.error('Export failed', {
 								description: job.error || 'Unknown error occurred'
 							});
-	}
-					}
+						}
+									} else {
+					// Job is still active, update the display
+					activeExportJob = job;
 				}
 			}
-
-			// Stop polling if no active jobs
-			if (!hasActiveJobs && pollingInterval) {
-				clearInterval(pollingInterval);
-				pollingInterval = null;
-			}
-		} catch (error) {
-			console.error('❌ Error updating job progress:', error);
 		}
+
+		// Check for new active jobs (but don't restart polling if we already have active jobs)
+		if (!hasActiveJobs) {
+			await checkForActiveJobs();
+		}
+
+		// Stop polling if no active jobs
+		if (!hasActiveJobs && !activeImportJob && !activeExportJob && pollingInterval) {
+			clearInterval(pollingInterval);
+			pollingInterval = null;
+		}
+	} catch (error) {
+		console.error('❌ Error updating job progress:', error);
 	}
+}
 
 	// Import functions
 	async function handleImport() {
@@ -349,7 +394,7 @@
 		}
 
 		try {
-		isImporting.set(true);
+			isImporting.set(true);
 			const session = get(sessionStore);
 			if (!session) {
 				toast.error('Not authenticated');
@@ -380,7 +425,8 @@
 					priority: 'normal'
 				} as Job;
 
-								startPolling();
+				importJobNotified = false; // Reset notification flag for new job
+				startPolling();
 
 				// Trigger immediate progress update
 				await tick();
@@ -459,6 +505,7 @@
 					priority: 'normal'
 				} as Job;
 
+				exportJobNotified = false; // Reset notification flag for new job
 				startPolling();
 
 				toast.success('Export job created successfully!', {
@@ -480,11 +527,15 @@
 	// Lifecycle
 	onMount(async () => {
 		await checkForActiveJobs();
+		startBackgroundChecking();
 	});
 
 	onDestroy(() => {
 		if (pollingInterval) {
 			clearInterval(pollingInterval);
+		}
+		if (backgroundCheckInterval) {
+			clearInterval(backgroundCheckInterval);
 		}
 	});
 

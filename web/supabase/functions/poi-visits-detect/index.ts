@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
         .insert({
           created_by: user.id,
           type: 'poi_detection',
-          status: 'pending',
+          			status: 'queued',
           data: {
             start_date: startDate,
             end_date: endDate,

@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
         .from('suggested_trips')
         .select('*')
         .eq('user_id', user.id)
-        .order('confidence', { ascending: false })
+
         .range(offset, offset + limit - 1);
 
       if (tripsError) {
@@ -133,6 +133,27 @@ Deno.serve(async (req) => {
       });
 
       return successResponse(newTrip);
+    }
+
+    if (req.method === 'DELETE') {
+      logInfo('Clearing all suggested trips', 'TRIPS-SUGGESTED', { userId: user.id });
+
+      // Delete all suggested trips for the user
+      const { error: deleteError } = await supabase
+        .from('suggested_trips')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (deleteError) {
+        logError(deleteError, 'TRIPS-SUGGESTED');
+        return errorResponse('Failed to clear suggested trips', 500);
+      }
+
+      logSuccess('All suggested trips cleared successfully', 'TRIPS-SUGGESTED', {
+        userId: user.id
+      });
+
+      return successResponse({ message: 'All suggested trips cleared successfully' });
     }
 
     return errorResponse('Method not allowed', 405);

@@ -7,26 +7,9 @@ import {
   logInfo,
   logSuccess
 } from '../_shared/utils.ts';
+import { TransportDetectionReason } from '../_shared/transport-detection-reasons.ts';
 
-// Transport detection reasons enum
-enum TransportDetectionReason {
-  HIGH_VELOCITY_PLANE = 'Velocity above 400 km/h, segment marked as plane',
-  TRAIN_STATION_AND_SPEED = 'Visited train station and then travelled at train-like speed',
-  AIRPORT_AND_PLANE_SPEED = 'Visited airport and then travelled at plane speed',
-  PLANE_SPEED_ONLY = 'Speed above 350 km/h, likely plane',
-  TRAIN_SPEED_ONLY = 'Speed in train range, likely train',
-  CAR_SPEED_ONLY = 'Speed in car range, likely car',
-  WALKING_SPEED_ONLY = 'Speed in walking range, likely walking',
-  CYCLING_SPEED_ONLY = 'Speed in cycling range, likely cycling',
-  HIGHWAY_OR_MOTORWAY = 'Detected motorway or highway, assumed car',
-  FAST_SEGMENT = 'Fast segment, possible high-speed travel',
-  CONTINUITY_BROKEN = 'Continuity broken, mode reset',
-  KEEP_CONTINUITY = 'Continuity maintained, mode preserved',
-  SUSPICIOUS_SEGMENT = 'Suspicious segment detected',
-  MIN_DURATION_NOT_MET = 'Minimum duration not met for mode',
-  GEOGRAPHICALLY_IMPLAUSIBLE = 'Geographically implausible movement',
-  DEFAULT = 'Default mode assignment'
-}
+// Transport detection reasons enum is now imported from shared module
 
 Deno.serve(async (req) => {
   // Handle CORS
@@ -246,7 +229,7 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       // Airport detected - primary indicator
       mode = 'airplane'
       detectionReason = TransportDetectionReason.AIRPORT_AND_PLANE_SPEED
-    } else if (curr.geocode && (curr.geocode.type === 'motorway' || curr.geocode.class === 'highway' || curr.geocode.type === 'bridge')) {
+    } else if (curr.geocode && (curr.geocode.type === 'motorway' && curr.geocode.class === 'highway')) {
       // Highway/motorway detected - primary indicator
       mode = 'car'
       detectionReason = TransportDetectionReason.HIGHWAY_OR_MOTORWAY
@@ -271,23 +254,33 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       mode = 'car'
       detectionReason = TransportDetectionReason.CAR_SPEED_ONLY
     } else if (curr.geocode && curr.geocode.landuse === 'residential') {
-      // Residential area - likely walking or car based on speed
+      // Residential area - likely walking, car, or stationary based on speed
       if (speedKmh > 30) {
         mode = 'car'
         detectionReason = TransportDetectionReason.CAR_SPEED_ONLY
-      } else {
+      } else if (speedKmh > 1) {
         mode = 'walking'
         detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY
+      } else {
+        mode = 'stationary'
+        detectionReason = TransportDetectionReason.STATIONARY_SPEED_ONLY
       }
     } else if (curr.geocode && curr.geocode.landuse === 'park') {
-      // Park - likely walking or cycling
+      // Park - likely walking, cycling, or stationary
       if (speedKmh > 15) {
         mode = 'cycling'
         detectionReason = TransportDetectionReason.CYCLING_SPEED_ONLY
-      } else {
+      } else if (speedKmh > 1) {
         mode = 'walking'
         detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY
+      } else {
+        mode = 'stationary'
+        detectionReason = TransportDetectionReason.STATIONARY_SPEED_ONLY
       }
+    } else if (curr.geocode && curr.geocode.type === 'golf_course') {
+      // Golf course detected - assume walking if mode is unknown
+      mode = 'walking'
+      detectionReason = TransportDetectionReason.GOLF_COURSE_WALKING
     } else {
       // Fallback to speed-based detection (least preferred)
       if (speedKmh > 400) {
@@ -308,12 +301,12 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       } else if (speedKmh > 15) {
         mode = 'cycling'
         detectionReason = TransportDetectionReason.CYCLING_SPEED_ONLY
-      } else if (speedKmh > 5) {
+      } else if (speedKmh > 2) {
         mode = 'walking'
         detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY
       } else if (speedKmh > 0) {
-        mode = 'walking'
-        detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY
+        mode = 'stationary'
+        detectionReason = TransportDetectionReason.STATIONARY_SPEED_ONLY
       } else {
         mode = 'unknown'
         detectionReason = TransportDetectionReason.DEFAULT
@@ -338,7 +331,9 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       (prevMode === 'airplane' && currMode === 'cycling') ||
       (prevMode === 'cycling' && currMode === 'airplane') ||
       (prevMode === 'train' && currMode === 'car' && speedKmh > 80) || // Can't switch from train to car at high speed
-      (prevMode === 'car' && currMode === 'train' && speedKmh > 80)    // Can't switch from car to train at high speed
+      (prevMode === 'car' && currMode === 'train' && speedKmh > 80) || // Can't switch from car to train at high speed
+      (prevMode === 'cycling' && currMode === 'train') || // Can't switch from cycling to train
+      (prevMode === 'train' && currMode === 'cycling')    // Can't switch from train to cycling
     )
 
     // Speed-based continuity: if speed is similar, maintain mode

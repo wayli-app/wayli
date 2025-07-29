@@ -100,6 +100,8 @@ export function isModeSwitchPossible(
 	// Impossible switches
 	if (fromMode === 'car' && toMode === 'train' && !atTrainStation) return false;
 	if (fromMode === 'train' && toMode === 'car' && !atTrainStation) return false;
+	if (fromMode === 'cycling' && toMode === 'train') return false; // Can't switch from cycling to train
+	if (fromMode === 'train' && toMode === 'cycling') return false; // Can't switch from train to cycling
 
 	// Stationary can switch to anything
 	if (fromMode === 'stationary') return true;
@@ -107,8 +109,10 @@ export function isModeSwitchPossible(
 	// Walking can switch to anything
 	if (fromMode === 'walking') return true;
 
-	// Cycling can switch to anything
-	if (fromMode === 'cycling') return true;
+	// Cycling can switch to anything except train
+	if (fromMode === 'cycling') {
+		return toMode !== 'train';
+	}
 
 	// Car can only switch to train at station, or to walking/cycling/stationary
 	if (fromMode === 'car') {

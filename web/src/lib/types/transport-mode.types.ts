@@ -12,6 +12,7 @@ export enum TransportDetectionReason {
   SUSPICIOUS_SEGMENT = 'Implausible segment, flagged as suspicious',
   MIN_DURATION_NOT_MET = 'Minimum duration for mode not met',
   GEOGRAPHICALLY_IMPLAUSIBLE = 'Segment start/end not plausible for mode',
+  GOLF_COURSE_WALKING = 'Walking on a golf course, likely walking',
   DEFAULT = 'Default detection logic',
   HIGHWAY_OR_MOTORWAY = 'Detected motorway or highway, assumed car',
   FAST_SEGMENT = 'Fast segment, possible high-speed travel'

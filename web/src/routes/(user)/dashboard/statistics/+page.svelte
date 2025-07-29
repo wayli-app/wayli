@@ -37,6 +37,7 @@
 	import { supabase } from '$lib/supabase';
 	import GeocodingProgress from '$lib/components/GeocodingProgress.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { getTransportDetectionReasonLabel, type TransportDetectionReason } from '$lib/types/transport-detection-reasons';
 
 	// Add these interfaces at the top of the file
 	interface TrackerLocation {
@@ -53,7 +54,7 @@
 		accuracy?: number;
 		speed?: number;
 		transport_mode: string;
-		detectionReason?: string;
+		detectionReason?: TransportDetectionReason | string;
 		velocity?: number;
 		distance_from_prev?: number;
 		geocode?: GeocodeData | string | null;
@@ -76,7 +77,7 @@
 		uniquePlaces?: number;
 		countriesVisited?: number;
 		steps?: number;
-		transport?: Array<{ mode: string; distance: number; time: number; percentage: number }>;
+		transport?: Array<{ mode: string; distance: number; time: number; percentage: number; points?: number }>;
 		countryTimeDistribution?: Array<{ country_code: string; percent: number }>;
 		trainStationVisits?: Array<{ name: string; count: number }>;
 	}
@@ -456,7 +457,7 @@
 					</div>
 					<div class="flex justify-between items-center py-0.5">
 						<span class="text-gray-600 text-xs">Reason:</span>
-						<span class="font-medium text-gray-900 text-xs">${item.detectionReason || 'N/A'}</span>
+						<span class="font-medium text-gray-900 text-xs">${item.detectionReason ? getTransportDetectionReasonLabel(item.detectionReason) : 'N/A'}</span>
 					</div>
 					<div class="flex justify-between items-center py-0.5">
 						<span class="text-gray-600 text-xs">Coordinates:</span>
@@ -473,7 +474,7 @@
 				</div>
 				<!-- Geocode section -->
 				${item.geocode === 'loading' ? `<div class='mt-1 p-1 bg-blue-50 rounded text-blue-700 text-xs'>Loading geocode...</div>` : ''}
-				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && !(item.geocode as GeocodeData).error ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
+				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && (!('error' in item.geocode) || !(item.geocode as GeocodeData).error) ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
 				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && (item.geocode as GeocodeData).error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
 			</div>
 		`;
@@ -775,7 +776,7 @@
 				limit: 1, // Just get 1 record to get the total count
 				offset: 0,
 				includeStatistics: false
-			}) as { data?: { total?: number } };
+			}) as { total?: number; hasMore?: boolean };
 
 			// Check if the result indicates an error
 			if (result && typeof result === 'object' && 'success' in result && !result.success) {
@@ -783,7 +784,7 @@
 				return 0;
 			}
 
-			const total = result.data?.total || 0;
+			const total = result.total || 0;
 
 			loadingProgress = 20;
 			loadingStage = `Found ${total.toLocaleString()} records`;
@@ -811,11 +812,6 @@
 				loadingStage = 'Getting record count...';
 				loadingProgress = 5;
 				totalPoints = await getTotalCount();
-
-										// If no data found, we'll try without date filters in the main data loading
-				if (totalPoints === 0) {
-				console.log('📊 No data found with date filters, will try without date filters in main data loading');
-				}
 			}
 
 			const startDate = state.filtersStartDate
@@ -849,17 +845,13 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 
 			type TrackerApiResponse = {
-				data?: {
-					total?: number;
-					locations?: TrackerLocation[];
-					hasMore?: boolean;
-					statistics?: StatisticsData;
-				};
 				total?: number;
 				locations?: TrackerLocation[];
 				hasMore?: boolean;
 				statistics?: StatisticsData;
 			};
+
+
 			// Try with date filters first, then without if no data
 			let result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate,
@@ -868,18 +860,6 @@
 				offset: loadMoreOffset,
 				includeStatistics: loadMoreOffset === 0
 			}) as TrackerApiResponse;
-
-			// If no data with date filters, try without date filters
-			if ((!result.locations || result.locations.length === 0) && loadMoreOffset === 0) {
-				console.log('📊 No data with date filters, trying without date filters for main data...');
-				result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
-					startDate: '',
-					endDate: '',
-					limit: 5000,
-					offset: loadMoreOffset,
-					includeStatistics: loadMoreOffset === 0
-				}) as TrackerApiResponse;
-			}
 
 			console.log('📊 Full API Response:', result);
 			console.log('📊 Response keys:', Object.keys(result || {}));
@@ -950,7 +930,7 @@
 						accuracy: loc.accuracy as number | undefined,
 						speed: loc.speed as number | undefined,
 						transport_mode: String(loc.transport_mode || 'unknown'),
-						detectionReason: loc.detectionReason as string | undefined,
+						detectionReason: loc.detectionReason as TransportDetectionReason | string | undefined,
 						velocity: loc.velocity as number | undefined,
 						distance_from_prev: loc.distance_from_prev as number | undefined,
 						geocode: loc.geocode as GeocodeData | string | null
@@ -974,8 +954,12 @@
 					addMarkersToMap(transformedLocations, false);
 				}
 
-				totalPoints = result.data?.total || 0;
-				hasMoreData = result.data?.hasMore || false;
+				// Only update totalPoints if we have a valid total from the result
+				// This prevents overwriting the count from getTotalCount() with 0
+				if (result.total && result.total > 0) {
+					totalPoints = result.total;
+				}
+				hasMoreData = result.hasMore || false;
 				currentOffset = locationData.length;
 			}
 
@@ -1126,19 +1110,7 @@
 		return `${m}:00`;
 	}
 
-	// Function to get confidence color
-	function getConfidenceColor(confidence: number): string {
-		if (confidence >= 0.8) return 'text-green-600 dark:text-green-400';
-		if (confidence >= 0.6) return 'text-yellow-600 dark:text-yellow-400';
-		return 'text-red-600 dark:text-red-400';
-	}
 
-	// Function to get confidence label
-	function getConfidenceLabel(confidence: number): string {
-		if (confidence >= 0.8) return 'High';
-		if (confidence >= 0.6) return 'Medium';
-		return 'Low';
-	}
 
 	// Watch for date changes and reload statistics
 	$: if (state.filtersStartDate && state.filtersEndDate && !isInitializing) {
@@ -1441,13 +1413,13 @@
 				Statistics
 			</h1>
 		</div>
-		<div class="flex flex-1 items-center justify-end gap-6">
-			<div class="relative flex h-full items-center self-stretch" style="z-index:2001;">
+		<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
+			<div class="relative">
 				<button
 					type="button"
-					class="date-field flex w-[250px] max-w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-2 py-0.5 text-left text-base shadow dark:bg-gray-800"
-					onclick={toggleDatePicker}
-					onkeydown={(e) => e.key === 'Enter' && toggleDatePicker()}
+					class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+					on:click={toggleDatePicker}
+					on:keydown={(e) => e.key === 'Enter' && toggleDatePicker()}
 					class:open={isOpen}
 					aria-label="Select date range"
 					aria-expanded={isOpen}
@@ -1457,12 +1429,12 @@
 						{#if state.filtersStartDate}
 							{formattedStartDate} - {formattedEndDate}
 						{:else}
-							Pick a date
+							Pick a date range
 						{/if}
 					</div>
 				</button>
 				{#if isOpen}
-					<div class="date-picker-container absolute right-0 mt-2" style="z-index:2001;">
+					<div class="date-picker-container absolute right-0 mt-2" style="z-index: 2002;">
 						<DatePicker
 							bind:isOpen
 							bind:startDate={state.filtersStartDate}
@@ -1556,7 +1528,7 @@
 		<!-- Edit Controls -->
 		<div class="absolute top-4 right-4 z-[1001] flex flex-col gap-2">
 			<button
-				onclick={toggleEditMode}
+									on:click={toggleEditMode}
 				class="rounded bg-white p-2 shadow transition-colors hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
 				class:bg-blue-100={isEditMode}
 				class:dark:bg-blue-900={isEditMode}
@@ -1567,7 +1539,7 @@
 
 			{#if isEditMode && selectedMarkers.length > 0}
 				<button
-					onclick={deleteSelectedPoints}
+					on:click={deleteSelectedPoints}
 					class="rounded bg-red-500 p-2 text-white shadow transition-colors hover:bg-red-600"
 					title="Delete Selected Points"
 				>
@@ -1576,7 +1548,7 @@
 
 				{#if selectedMarkers.length >= 2}
 					<button
-						onclick={createTripFromSelected}
+						on:click={createTripFromSelected}
 						class="rounded bg-green-500 p-2 text-white shadow transition-colors hover:bg-green-600"
 						title="Create Trip from Selected Points"
 					>
@@ -1605,7 +1577,7 @@
 		<!-- Load More Button -->
 		{#if locationData.length < totalPoints}
 			<button
-				onclick={() => loadMoreData()}
+									on:click={() => loadMoreData()}
 				disabled={isLoading}
 				class="absolute right-4 bottom-4 z-[1001] rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
@@ -1726,7 +1698,7 @@
 
 			<!-- Geocoding Progress Component -->
 			<div class="w-full md:w-1/2">
-				<GeocodingProgress />
+						<GeocodingProgress />
 			</div>
 		</div>
 	{/if}
@@ -1794,9 +1766,6 @@
 						{/each}
 					</tbody>
 				</table>
-				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-					based on backend transport mode detection
-				</div>
 			</div>
 		</div>
 	{/if}

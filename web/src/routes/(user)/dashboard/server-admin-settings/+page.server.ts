@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				metadata.full_name ||
 				`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
 				'',
-			role: (metadata.role as 'user' | 'admin' | 'moderator') || 'user',
+			role: (metadata.role as 'user' | 'admin') || 'user',
 			avatar_url: metadata.avatar_url,
 			home_address: metadata.home_address,
 			email_confirmed_at: authUser.email_confirmed_at,

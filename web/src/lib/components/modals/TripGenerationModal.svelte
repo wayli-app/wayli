@@ -20,6 +20,10 @@
 	export let selectedCustomHomeAddressIndex = -1;
 	export let customHomeAddressSearchError: string | null = null;
 	export let selectedCustomHomeAddress: any = null;
+	export let clearExistingSuggestions = false;
+
+	// Add timeout variable at the top
+	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const dispatch = createEventDispatcher();
 
@@ -28,11 +32,20 @@
 	}
 
 	function generateTrip() {
+		// Prevent trips with same start and end date (single-day trips)
+		if (startDate === endDate) {
+			alert('Start and end dates cannot be the same. A trip must span at least two days.');
+			return;
+		}
+
 		dispatch('generate', {
 			startDate,
 			endDate,
 			useCustomHomeAddress,
-			customHomeAddress: useCustomHomeAddress ? customHomeAddressInput : null
+			customHomeAddress: useCustomHomeAddress ? customHomeAddressInput : null,
+			customHomeAddressGeocode:
+				useCustomHomeAddress && selectedCustomHomeAddress ? selectedCustomHomeAddress : null,
+			clearExistingSuggestions
 		});
 	}
 
@@ -47,7 +60,16 @@
 	function handleCustomHomeAddressInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		customHomeAddressInput = target.value;
-		dispatch('customHomeAddressInput', { value: customHomeAddressInput });
+
+		// Clear previous timeout
+		if (customHomeAddressSearchTimeout) {
+			clearTimeout(customHomeAddressSearchTimeout);
+		}
+
+		// Debounce the search
+		customHomeAddressSearchTimeout = setTimeout(() => {
+			searchCustomHomeAddressSuggestions();
+		}, 300);
 	}
 
 	function handleCustomHomeAddressKeydown(event: KeyboardEvent) {
@@ -98,10 +120,12 @@
 
 		try {
 			const session = get(sessionStore);
-			if (!session) return;
+			if (!session) {
+				return;
+			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.searchGeocode(customHomeAddressInput.trim()) as any;
+			const data = (await serviceAdapter.searchGeocode(customHomeAddressInput.trim())) as any;
 
 			// The Edge Functions service returns the data array directly
 			customHomeAddressSuggestions = Array.isArray(data) ? data : [];
@@ -125,12 +149,7 @@
 		selectedCustomHomeAddress = suggestion;
 		showCustomHomeAddressSuggestions = false;
 		selectedCustomHomeAddressIndex = -1;
-
-		dispatch('selectCustomHomeAddress', { suggestion });
 	}
-
-	// Add timeout variable
-	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 </script>
 
 <Modal {open} title="Generate Trip Suggestions" size="md" on:close={closeModal}>
@@ -147,14 +166,16 @@
 
 		<!-- Start Date -->
 		<div>
-			<label for="start-date" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			<label
+				for="start-date"
+				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 				>Start Date (optional)</label
 			>
 			<input
 				id="start-date"
 				type="date"
 				bind:value={startDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 			<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 				Leave empty to automatically find available date ranges
@@ -163,20 +184,52 @@
 
 		<!-- End Date -->
 		<div>
-			<label for="end-date" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			<label
+				for="end-date"
+				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 				>End Date (optional)</label
 			>
 			<input
 				id="end-date"
 				type="date"
 				bind:value={endDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 			<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 				Leave empty to automatically find available date ranges
 			</p>
 		</div>
 
+		<!-- Date validation warning -->
+		{#if startDate && endDate && startDate === endDate}
+			<div class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+				<div class="flex items-start gap-2">
+					<div class="mt-0.5">
+						<svg class="h-4 w-4 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+						</svg>
+					</div>
+					<div class="text-sm text-red-700 dark:text-red-200">
+						<strong>Invalid date range:</strong> Start and end dates cannot be the same. A trip must span at least two days.
+					</div>
+				</div>
+			</div>
+		{/if}
+		<!-- Clear Existing Suggestions Toggle -->
+		<div class="flex items-center gap-3">
+			<input
+				id="clearExistingSuggestions"
+				type="checkbox"
+				bind:checked={clearExistingSuggestions}
+				class="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+			/>
+			<label
+				for="clearExistingSuggestions"
+				class="text-sm font-medium text-gray-700 dark:text-gray-300"
+			>
+				Clear all existing suggestions before generating new ones
+			</label>
+		</div>
 		<!-- Custom Home Address Toggle -->
 		<div class="flex items-center gap-3">
 			<input
@@ -184,7 +237,7 @@
 				type="checkbox"
 				bind:checked={useCustomHomeAddress}
 				on:change={handleCustomHomeAddressToggle}
-				class="h-4 w-4 rounded border-gray-300 bg-gray-100 text-blue-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:ring-offset-gray-800 dark:focus:ring-blue-600"
+				class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 			/>
 			<label
 				for="useCustomHomeAddress"
@@ -194,63 +247,96 @@
 			</label>
 		</div>
 
+		{#if clearExistingSuggestions}
+			<div
+				class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
+			>
+				<div class="flex items-start gap-2">
+					<div class="mt-0.5">
+						<svg
+							class="h-4 w-4 text-red-600 dark:text-red-400"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</div>
+					<div class="text-sm text-red-700 dark:text-red-200">
+						<strong>Warning:</strong> This will permanently delete all your existing suggested trips
+						before generating new ones. This action cannot be undone.
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Custom Home Address Input -->
 		{#if useCustomHomeAddress}
-			<div class="relative">
-				<label for="custom-home-address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			<div>
+				<label
+					for="custom-home-address"
+					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 					>Custom Home Address</label
 				>
-				<input
-					id="custom-home-address"
-					type="text"
-					bind:value={customHomeAddressInput}
-					on:input={handleCustomHomeAddressInput}
-					on:keydown={handleCustomHomeAddressKeydown}
-					placeholder="Enter custom home address..."
-					class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-				/>
+				<div class="relative">
+					<input
+						id="custom-home-address"
+						type="text"
+						bind:value={customHomeAddressInput}
+						on:input={handleCustomHomeAddressInput}
+						on:keydown={handleCustomHomeAddressKeydown}
+						placeholder="Enter custom home address..."
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+					/>
 
-				{#if isCustomHomeAddressSearching}
-					<div
-						class="absolute top-1/2 right-3 flex h-4 w-4 -translate-y-1/2 items-center justify-center"
-					>
-						<div
-							class="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
-						></div>
-					</div>
-				{/if}
+					{#if isCustomHomeAddressSearching}
+						<div class="absolute right-3 top-1/2 -translate-y-1/2">
+							<div
+								class="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
+							></div>
+						</div>
+					{/if}
+				</div>
 
-				{#if showCustomHomeAddressSuggestions}
+				{#if customHomeAddressSuggestions.length > 0 && showCustomHomeAddressSuggestions}
 					<div
-						class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 					>
-						{#if customHomeAddressSuggestions.length > 0}
-							{#each customHomeAddressSuggestions as suggestion, index}
-								<button
-									type="button"
-									class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedCustomHomeAddressIndex ===
-									index
-										? 'bg-gray-100 dark:bg-gray-700'
-										: ''}"
-									on:click={() => selectCustomHomeAddress(suggestion)}
-								>
-									<div class="text-sm text-gray-900 dark:text-gray-100">
-										{suggestion.display_name}
+						{#each customHomeAddressSuggestions as suggestion, index}
+							<button
+								type="button"
+								class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedCustomHomeAddressIndex ===
+								index
+									? 'bg-gray-100 dark:bg-gray-700'
+									: ''}"
+								on:click={() => selectCustomHomeAddress(suggestion)}
+							>
+								<div class="text-sm text-gray-900 dark:text-gray-100">
+									{suggestion.display_name}
+								</div>
+								{#if suggestion.coordinates}
+									<div class="text-xs text-gray-500 dark:text-gray-400">
+										{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 									</div>
-									{#if suggestion.coordinates}
-										<div class="text-xs text-gray-500 dark:text-gray-400">
-											{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(
-												4
-											)}
-										</div>
-									{/if}
-								</button>
-							{/each}
-						{:else if customHomeAddressSearchError}
+								{/if}
+							</button>
+						{/each}
+						{#if customHomeAddressSearchError}
 							<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
 								{customHomeAddressSearchError}
 							</div>
 						{/if}
+					</div>
+				{:else if showCustomHomeAddressSuggestions && customHomeAddressSearchError}
+					<div
+						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+					>
+						<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+							{customHomeAddressSearchError}
+						</div>
 					</div>
 				{/if}
 
@@ -275,13 +361,13 @@
 		<div class="flex gap-3 pt-4">
 			<button
 				on:click={closeModal}
-				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				Cancel
 			</button>
 			<button
 				on:click={generateTrip}
-				class="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:bg-blue-600 dark:hover:bg-blue-700"
+				class="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-700"
 			>
 				<Route class="mr-2 h-4 w-4 flex-shrink-0" />
 				<span class="truncate">Generate Suggestions</span>

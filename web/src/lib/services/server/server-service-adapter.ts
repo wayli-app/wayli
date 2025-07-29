@@ -11,8 +11,7 @@
 
 import { AuditLoggerService } from '../audit-logger.service';
 import { TripImageSuggestionService } from '../trip-image-suggestion.service';
-import { EnhancedPoiDetectionService } from '../enhanced-poi-detection.service';
-import { EnhancedTripDetectionService } from '../enhanced-trip-detection.service';
+import { TripDetectionService } from '../trip-detection.service';
 import { TOTPService } from '../totp.service';
 import { UserProfileService } from '../user-profile.service';
 import { TripLocationsService } from '../trip-locations.service';
@@ -56,8 +55,7 @@ export class ServerServiceAdapter {
 		// Server-only application services
 		this.services.set('auditLogger', new AuditLoggerService());
 		this.services.set('tripImageSuggestion', new TripImageSuggestionService());
-		this.services.set('poiDetection', new EnhancedPoiDetectionService());
-		this.services.set('tripDetection', new EnhancedTripDetectionService());
+		this.services.set('tripDetection', new TripDetectionService());
 		this.services.set('totp', new TOTPService());
 		this.services.set('userProfile', new UserProfileService());
 		this.services.set('tripLocations', new TripLocationsService());
@@ -132,17 +130,10 @@ export function getTripImageSuggestionService() {
 }
 
 /**
- * Get the POI detection service
- */
-export function getPoiDetectionService() {
-	return serverServiceAdapter.getService<EnhancedPoiDetectionService>('poiDetection');
-}
-
-/**
  * Get the trip detection service
  */
 export function getTripDetectionService() {
-	return serverServiceAdapter.getService<EnhancedTripDetectionService>('tripDetection');
+	return serverServiceAdapter.getService<TripDetectionService>('tripDetection');
 }
 
 /**

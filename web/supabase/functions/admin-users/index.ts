@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 		const { data: userProfile, error: profileError } = await supabase
 			.from('user_profiles')
 			.select('role')
-			.eq('user_id', user.id)
+			.eq('id', user.id)
 			.single();
 
 		if (profileError || userProfile?.role !== 'admin') {

@@ -31,7 +31,7 @@ export const userProfileSchema = z.object({
 	first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
 	last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
 	full_name: z.string().min(1, 'Full name is required').max(200, 'Full name too long'),
-	role: z.enum(['user', 'admin', 'moderator']).default('user'),
+	role: z.enum(['user', 'admin']).default('user'),
 	avatar_url: z.string().url('Invalid avatar URL').optional(),
 	home_address: z
 		.object({
@@ -194,7 +194,7 @@ export const paginationSchema = z.object({
 // Admin schemas
 export const adminUserUpdateSchema = z.object({
 	id: uuidSchema,
-	role: z.enum(['user', 'admin', 'moderator']),
+	role: z.enum(['user', 'admin']),
 	email: emailSchema.optional(),
 	first_name: z.string().min(1).max(100).optional(),
 	last_name: z.string().min(1).max(100).optional()

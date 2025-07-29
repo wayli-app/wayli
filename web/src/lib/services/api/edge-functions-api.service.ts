@@ -234,6 +234,13 @@ export class EdgeFunctionsApiService {
     return this.makeRequest('trips-suggested', { session, params });
   }
 
+  async clearAllSuggestedTrips(session: Session) {
+    return this.makeRequest('trips-suggested', {
+      method: 'DELETE',
+      session
+    });
+  }
+
   async createTripFromSuggestion(session: Session, suggestedTripId: string) {
     return this.makeRequest('trips-suggested', {
       method: 'POST',

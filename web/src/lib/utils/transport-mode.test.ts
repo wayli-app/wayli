@@ -5,7 +5,8 @@ import {
 	detectEnhancedMode,
 	haversine,
 	getSpeedBracket,
-	isAtTrainStation
+	isAtTrainStation,
+	isModeSwitchPossible
 } from './transport-mode';
 import type { ModeContext, EnhancedModeContext } from './transport-mode';
 
@@ -282,5 +283,33 @@ describe('Train Detection Scenarios', () => {
 
 		// Should not start train journey
 		expect(context.isInTrainJourney).toBe(false);
+	});
+});
+
+describe('isModeSwitchPossible', () => {
+	it('should prevent cycling to train switch', () => {
+		expect(isModeSwitchPossible('cycling', 'train', false)).toBe(false);
+		expect(isModeSwitchPossible('cycling', 'train', true)).toBe(false); // Even at train station
+	});
+
+	it('should prevent train to cycling switch', () => {
+		expect(isModeSwitchPossible('train', 'cycling', false)).toBe(false);
+		expect(isModeSwitchPossible('train', 'cycling', true)).toBe(false); // Even at train station
+	});
+
+	it('should allow cycling to other modes', () => {
+		expect(isModeSwitchPossible('cycling', 'walking', false)).toBe(true);
+		expect(isModeSwitchPossible('cycling', 'car', false)).toBe(true);
+		expect(isModeSwitchPossible('cycling', 'stationary', false)).toBe(true);
+	});
+
+	it('should allow train to car at station', () => {
+		expect(isModeSwitchPossible('train', 'car', true)).toBe(true);
+		expect(isModeSwitchPossible('train', 'car', false)).toBe(false);
+	});
+
+	it('should allow car to train at station', () => {
+		expect(isModeSwitchPossible('car', 'train', true)).toBe(true);
+		expect(isModeSwitchPossible('car', 'train', false)).toBe(false);
 	});
 });

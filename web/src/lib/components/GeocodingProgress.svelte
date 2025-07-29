@@ -5,6 +5,7 @@
 	import { toast } from 'svelte-sonner';
 	import { MapPin, RefreshCw } from 'lucide-svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { supabase } from '$lib/supabase';
 
 	// Props
 	export let showProgress = true;
@@ -15,8 +16,18 @@
 	let reverseGeocodingProgress = 0;
 	let reverseGeocodingStatus = '';
 	let reverseGeocodingPollingInterval: ReturnType<typeof setInterval> | null = null;
-	let geocodingStats = { total: 0, geocoded: 0, percentage: 0, missing: 0 };
+	let geocodingStats: {
+		total: number;
+		geocoded: number;
+		percentage: number;
+		missing: number;
+		pointsNeedingGeocoding: number;
+		retryableErrors: number;
+		nonRetryableErrors: number;
+	} = { total: 0, geocoded: 0, percentage: 0, missing: 0, pointsNeedingGeocoding: 0, retryableErrors: 0, nonRetryableErrors: 0 };
 	let isLoading = false;
+	let isInitializing = true;
+	let isStatsLoading = false;
 
 	// Check for active reverse geocoding job on component mount
 	async function checkForActiveReverseGeocodingJob() {
@@ -45,6 +56,13 @@
 				activeReverseGeocodingJob = activeJobs[0]; // Get the most recent active job
 				startReverseGeocodingPolling(activeReverseGeocodingJob.id);
 				updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
+
+				// Refresh statistics to show current state matching backend
+				console.log('🔄 GeocodingProgress: Active job detected, refreshing stats to match backend');
+				// Add a small delay to ensure cache is initialized by the job processor
+				setTimeout(async () => {
+					await loadGeocodingStatsFromAPI();
+				}, 2000);
 			}
 		} catch (error) {
 			console.error('Error checking for active reverse geocoding jobs:', error);
@@ -88,11 +106,10 @@
 							toast.error('Reverse geocoding failed');
 						}
 
-						// Refresh geocoding stats after a short delay
-						setTimeout(() => {
-							activeReverseGeocodingJob = null;
-							loadGeocodingStats();
-						}, 2000);
+						// Immediately clear the active job and refresh stats
+						activeReverseGeocodingJob = null;
+						console.log('🔄 GeocodingProgress: Job completed, refreshing stats immediately');
+						await loadGeocodingStats();
 					}
 				} else {
 					// If job is not found, stop polling and reset
@@ -112,7 +129,7 @@
 		}
 	}
 
-			function updateReverseGeocodingProgressFromJob(job: any) {
+	function updateReverseGeocodingProgressFromJob(job: any) {
 		const result = (job.result as Record<string, unknown>) || {};
 
 		// Calculate progress from detailed result data
@@ -156,22 +173,110 @@
 	// Load geocoding statistics
 	async function loadGeocodingStats() {
 		try {
+			isStatsLoading = true;
+			const session = get(sessionStore);
+			if (!session) return;
+
+			console.log('📊 GeocodingProgress: Loading cached stats from user profile');
+
+			// Get cached geocoding stats from user_profiles table
+			const { data: userProfile, error: profileError } = await supabase
+				.from('user_profiles')
+				.select('geocoding_stats')
+				.eq('id', session.user.id)
+				.single();
+
+			if (profileError) {
+				console.error('Error fetching user profile:', profileError);
+				// Fallback to API call if user profile doesn't exist
+				await loadGeocodingStatsFromAPI();
+				return;
+			}
+
+			const cachedStats = userProfile?.geocoding_stats;
+			if (!cachedStats) {
+				console.log('📊 GeocodingProgress: No cached stats found, falling back to API');
+				await loadGeocodingStatsFromAPI();
+				return;
+			}
+
+			console.log('📊 GeocodingProgress: Using cached stats:', cachedStats);
+
+			const total = cachedStats.total_points || 0;
+			const geocoded = cachedStats.geocoded_points || 0;
+			const pointsNeedingGeocoding = cachedStats.points_needing_geocoding || 0;
+			const retryableErrors = cachedStats.retryable_errors || 0;
+			const nonRetryableErrors = cachedStats.non_retryable_errors || 0;
+
+			// Calculate progress: actual geocoded points vs total points
+			// This shows the real progress of geocoding, not just points that don't need geocoding
+			const processed = geocoded; // Use actual geocoded points count
+			const percentage = total > 0 ? (processed / total) * 100 : 0;
+
+			geocodingStats = {
+				total,
+				geocoded: processed, // Show actual geocoded points
+				percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
+				missing: pointsNeedingGeocoding,
+				pointsNeedingGeocoding,
+				retryableErrors,
+				nonRetryableErrors
+			};
+			console.log('📊 GeocodingProgress: Updated geocodingStats from cache:', geocodingStats);
+
+			// Force UI update by triggering reactivity
+			geocodingStats = { ...geocodingStats };
+		} catch (error) {
+			console.error('Error loading cached geocoding stats:', error);
+			// Fallback to API call
+			await loadGeocodingStatsFromAPI();
+		} finally {
+			isStatsLoading = false;
+		}
+	}
+
+	// Fallback function to load stats from API
+	async function loadGeocodingStatsFromAPI() {
+		try {
+			console.log('📊 GeocodingProgress: Loading stats from API (fallback)');
+
 			const session = get(sessionStore);
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
+
 			const stats = await serviceAdapter.getGeocodingStats() as any;
 
+			console.log('📊 GeocodingProgress: Received stats from API:', stats);
+
 			if (stats) {
+				const total = stats.total_points || 0;
+				const geocoded = stats.geocoded_count || 0;
+				const pointsNeedingGeocoding = stats.points_needing_geocoding || 0;
+				const retryableErrors = stats.retryable_errors || 0;
+				const nonRetryableErrors = stats.non_retryable_errors || 0;
+
+				// Calculate progress: actual geocoded points vs total points
+				// This shows the real progress of geocoding, not just points that don't need geocoding
+				const processed = geocoded; // Use actual geocoded points count
+				const percentage = total > 0 ? (processed / total) * 100 : 0;
+
 				geocodingStats = {
-					total: stats.total_points || 0,
-					geocoded: stats.geocoded_count || 0,
-					percentage: stats.success_rate || 0,
-					missing: stats.failed_count || 0
+					total,
+					geocoded: processed, // Show actual geocoded points
+					percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
+					missing: pointsNeedingGeocoding,
+					pointsNeedingGeocoding,
+					retryableErrors,
+					nonRetryableErrors
 				};
+				console.log('📊 GeocodingProgress: Updated geocodingStats from API:', geocodingStats);
+
+				// Force UI update by triggering reactivity
+				geocodingStats = { ...geocodingStats };
 			}
 		} catch (error) {
-			console.error('Error loading geocoding stats:', error);
+			console.error('Error loading geocoding stats from API:', error);
 		}
 	}
 
@@ -193,12 +298,19 @@
 					data: {}
 			}) as any;
 
-				toast.success('Reverse geocoding job started!');
+			if (result && result.id) {
+				activeReverseGeocodingJob = result;
+				startReverseGeocodingPolling(result.id);
+				updateReverseGeocodingProgressFromJob(result);
 
-				// Start tracking the job progress
-			if (result.job?.id) {
-				activeReverseGeocodingJob = result.job;
-				startReverseGeocodingPolling(result.job.id);
+				// Force refresh stats immediately after job starts
+				console.log('🔄 GeocodingProgress: Job started, refreshing stats to match backend');
+				// Add a small delay to ensure cache is initialized by the job processor
+				setTimeout(async () => {
+					await loadGeocodingStatsFromAPI();
+				}, 2000);
+			} else {
+				toast.error('Failed to start reverse geocoding job');
 			}
 		} catch (error) {
 			console.error('Error starting reverse geocoding job:', error);
@@ -208,14 +320,44 @@
 		}
 	}
 
-	// Refresh geocoding stats
+	// Manual refresh function
 	async function refreshStats() {
-		await loadGeocodingStats();
+		console.log('🔄 GeocodingProgress: Manual refresh requested');
+		// Force refresh the cache via API first, then load stats
+		await refreshStatsFromAPI();
+		await loadGeocodingStatsFromAPI();
+	}
+
+	// Force refresh cache via API
+	async function refreshStatsFromAPI() {
+		try {
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			// Call the statistics API to force cache refresh
+			await serviceAdapter.getGeocodingStats();
+			console.log('🔄 GeocodingProgress: Forced cache refresh via API');
+		} catch (error) {
+			console.error('Error refreshing cache via API:', error);
+		}
+	}
+
+
+
+	// Reactive statement to ensure UI updates when active job changes
+	$: if (activeReverseGeocodingJob === null && !isInitializing) {
+		console.log('🔄 GeocodingProgress: Active job cleared, ensuring stats are up to date');
+		// Force refresh stats when job completes to get updated cache
+		loadGeocodingStats();
+		// Also trigger a cache refresh via the statistics API to ensure consistency
+		refreshStatsFromAPI();
 	}
 
 	onMount(async () => {
 		await checkForActiveReverseGeocodingJob();
 		await loadGeocodingStats();
+		isInitializing = false;
 	});
 
 	onDestroy(() => {
@@ -237,7 +379,12 @@
 	</div>
 
 	<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-		{#if activeReverseGeocodingJob}
+		{#if isStatsLoading}
+			<div class="flex items-center gap-2">
+				<RefreshCw class="h-5 w-5 animate-spin text-blue-500" />
+				<span class="text-gray-500">Loading...</span>
+			</div>
+		{:else if activeReverseGeocodingJob}
 			{reverseGeocodingProgress}%
 		{:else}
 			{geocodingStats.geocoded?.toLocaleString() ?? 0} / {geocodingStats.total?.toLocaleString() ?? 0}
@@ -270,13 +417,13 @@
 		<div class="mt-3">
 			<button
 				on:click={startReverseGeocodingJob}
-				disabled={isLoading || geocodingStats.missing === 0 || geocodingStats.percentage === 100}
+				disabled={isLoading || geocodingStats.geocoded >= geocodingStats.total}
 				class="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{#if isLoading}
 					<RefreshCw class="mr-2 inline h-4 w-4 animate-spin" />
 					Starting...
-				{:else if geocodingStats.missing === 0 || geocodingStats.percentage === 100}
+				{:else if geocodingStats.geocoded >= geocodingStats.total}
 					✅ All Points Geocoded
 				{:else}
 					Start Geocoding
@@ -286,9 +433,16 @@
 	{/if}
 
 	<!-- Additional stats -->
-	{#if !activeReverseGeocodingJob && geocodingStats.total > 0}
+	{#if !activeReverseGeocodingJob && !isStatsLoading && geocodingStats.total > 0}
 		<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-			{geocodingStats.percentage}% complete • {geocodingStats.missing.toLocaleString()} points remaining
+			{geocodingStats.percentage}% complete • {geocodingStats.pointsNeedingGeocoding?.toLocaleString() ?? 0} points need geocoding
+			{#if geocodingStats.retryableErrors > 0 || geocodingStats.nonRetryableErrors > 0}
+				• {geocodingStats.retryableErrors?.toLocaleString() ?? 0} retryable errors • {geocodingStats.nonRetryableErrors?.toLocaleString() ?? 0} permanent errors
+			{/if}
+		</div>
+	{:else if isStatsLoading}
+		<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+			Loading geocoding statistics...
 		</div>
 	{/if}
 </div>

@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
                 .from('jobs')
                 .select('id, type, status, progress, error, result, updated_at')
                 .eq('created_by', user.id)
-                .in('status', ['pending', 'running'])
+                				.in('status', ['queued', 'running'])
                 .order('updated_at', { ascending: false });
 
               if (jobsError) {

@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
 async function generateImageSuggestions(trip: Record<string, unknown>): Promise<Array<{
   prompt: string;
   style: string;
-  confidence: number;
+
   reasoning: string;
 }>> {
   const title = String(trip.title || '');
@@ -96,7 +96,7 @@ async function generateImageSuggestions(trip: Record<string, unknown>): Promise<
     suggestions.push({
       prompt: `${title} ${description}`.trim(),
       style: 'photorealistic',
-      confidence: 0.8,
+
       reasoning: 'Based on trip title and description'
     });
   }
@@ -106,7 +106,7 @@ async function generateImageSuggestions(trip: Record<string, unknown>): Promise<
     suggestions.push({
       prompt: `${locationNames.join(', ')} travel destination`,
       style: 'landscape',
-      confidence: 0.7,
+
       reasoning: `Based on trip locations: ${locationNames.join(', ')}`
     });
   }
@@ -120,7 +120,7 @@ async function generateImageSuggestions(trip: Record<string, unknown>): Promise<
     suggestions.push({
       prompt: `${month} travel adventure`,
       style: 'artistic',
-      confidence: 0.6,
+
       reasoning: `Based on trip timing in ${month}`
     });
   }
@@ -129,9 +129,9 @@ async function generateImageSuggestions(trip: Record<string, unknown>): Promise<
   suggestions.push({
     prompt: 'travel adventure journey',
     style: 'minimalist',
-    confidence: 0.5,
+
     reasoning: 'Generic travel theme'
   });
 
-  return suggestions.sort((a, b) => b.confidence - a.confidence);
+  	return suggestions;
 }

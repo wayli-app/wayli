@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 				.insert({
 					created_by: user.id,
 					type,
-					status: 'pending',
+					status: 'queued',
 					data: data || {}
 				})
 				.select()

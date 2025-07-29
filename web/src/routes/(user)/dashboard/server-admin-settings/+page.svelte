@@ -758,15 +758,9 @@
 												class="inline-flex rounded-full px-2 text-xs leading-5 font-semibold {user.role ===
 												'admin'
 													? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-													: user.role === 'moderator'
-														? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-														: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'}"
+													: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'}"
 											>
-												{user.role === 'admin'
-													? 'Admin'
-													: user.role === 'moderator'
-														? 'Moderator'
-														: 'User'}
+												{user.role === 'admin' ? 'Admin' : 'User'}
 											</span>
 										</td>
 										<td

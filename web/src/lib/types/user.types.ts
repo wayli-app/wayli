@@ -6,7 +6,7 @@ export interface UserProfile {
 	first_name?: string;
 	last_name?: string;
 	full_name?: string;
-	role: 'user' | 'admin' | 'moderator';
+	role: 'user' | 'admin';
 	avatar_url?: string;
 	home_address?: string | GeocodedLocation;
 	email_confirmed_at?: string;

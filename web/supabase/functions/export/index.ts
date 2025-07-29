@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
         .insert({
           created_by: user.id,
           type: 'data_export',
-          status: 'pending',
+          			status: 'queued',
           data: jobData,
           progress: 0
         })
