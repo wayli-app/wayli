@@ -26,12 +26,12 @@ Deno.serve(async (req) => {
       const limit = parseInt(params.get('limit') || '10');
       const offset = parseInt(params.get('offset') || '0');
 
-      // Get suggested trips based on tracker data patterns
+      // Get suggested trips from trips table with status='pending'
       const { data: suggestedTrips, error: tripsError } = await supabase
-        .from('suggested_trips')
+        .from('trips')
         .select('*')
         .eq('user_id', user.id)
-
+        .eq('status', 'pending')
         .range(offset, offset + limit - 1);
 
       if (tripsError) {
@@ -39,11 +39,12 @@ Deno.serve(async (req) => {
         return errorResponse('Failed to fetch suggested trips', 500);
       }
 
-      // Get total count
+      // Get total count of pending trips
       const { count: totalCount, error: countError } = await supabase
-        .from('suggested_trips')
+        .from('trips')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
 
       if (countError) {
         logError(countError, 'TRIPS-SUGGESTED');
@@ -68,81 +69,165 @@ Deno.serve(async (req) => {
       logInfo('Processing suggested trip', 'TRIPS-SUGGESTED', { userId: user.id });
 
       const body = await parseJsonBody<Record<string, unknown>>(req);
-      const suggestedTripId = body.suggested_trip_id;
+      const action = body.action as string;
+      const tripIds = body.tripIds as string[];
 
-      if (!suggestedTripId) {
-        return errorResponse('Missing suggested trip ID', 400);
-      }
+      // Handle approve/reject actions
+      if (action === 'approve' || action === 'reject') {
+        logInfo(`Received ${action} request`, 'TRIPS-SUGGESTED', {
+          userId: user.id,
+          tripIds,
+          tripCount: tripIds?.length || 0
+        });
 
-      // Get the suggested trip
-      const { data: suggestedTrip, error: fetchError } = await supabase
-        .from('suggested_trips')
-        .select('*')
-        .eq('id', suggestedTripId)
-        .eq('user_id', user.id)
-        .single();
+        if (!tripIds || !Array.isArray(tripIds) || tripIds.length === 0) {
+          logError('Missing or invalid trip IDs', 'TRIPS-SUGGESTED', { tripIds });
+          return errorResponse('Missing trip IDs', 400);
+        }
 
-      if (fetchError || !suggestedTrip) {
-        logError(fetchError, 'TRIPS-SUGGESTED');
-        return errorResponse('Suggested trip not found', 404);
-      }
+        logInfo(`Processing ${action} action for ${tripIds.length} trips`, 'TRIPS-SUGGESTED', {
+          userId: user.id,
+          action,
+          tripCount: tripIds.length,
+          hasPreGeneratedImages: !!body.pre_generated_images,
+          preGeneratedImagesKeys: body.pre_generated_images ? Object.keys(body.pre_generated_images as Record<string, unknown>) : []
+        });
 
-      // Create a new trip from the suggestion
-      const { data: newTrip, error: createError } = await supabase
-        .from('trips')
-        .insert({
-          user_id: user.id,
-          title: suggestedTrip.title,
-          description: suggestedTrip.description || '',
-          start_date: suggestedTrip.start_date,
-          end_date: suggestedTrip.end_date,
-          status: 'planned',
-          tags: suggestedTrip.tags || [],
-          metadata: {
-            ...suggestedTrip.metadata,
-            suggested_from: suggestedTrip.id
+        const results: Array<{
+          id: string;
+          success: boolean;
+          error?: string;
+          tripId?: string;
+        }> = [];
+
+        for (const tripId of tripIds) {
+          logInfo(`Processing trip ID: ${tripId}`, 'TRIPS-SUGGESTED');
+
+          // Get the suggested trip
+          const { data: suggestedTrip, error: fetchError } = await supabase
+            .from('trips')
+            .select('*')
+            .eq('id', tripId)
+            .eq('user_id', user.id)
+            .eq('status', 'pending')
+            .single();
+
+          if (fetchError || !suggestedTrip) {
+            logError(fetchError, 'TRIPS-SUGGESTED');
+            results.push({ id: tripId, success: false, error: 'Suggested trip not found' });
+            continue;
           }
-        })
-        .select()
-        .single();
 
-      if (createError) {
-        logError(createError, 'TRIPS-SUGGESTED');
-        return errorResponse('Failed to create trip from suggestion', 500);
+          // Check if we have pre-generated images for this trip
+          const preGeneratedImages = body.pre_generated_images as Record<string, { image_url: string; attribution?: string }> || {};
+          const tripImageData = preGeneratedImages[tripId];
+
+          logInfo(`Image data for trip ${tripId}:`, 'TRIPS-SUGGESTED', {
+            hasImageData: !!tripImageData,
+            imageUrl: tripImageData?.image_url,
+            attribution: tripImageData?.attribution,
+            preGeneratedImagesKeys: Object.keys(preGeneratedImages),
+            preGeneratedImagesCount: Object.keys(preGeneratedImages).length
+          });
+
+          logInfo(`Found suggested trip: ${suggestedTrip.title}`, 'TRIPS-SUGGESTED');
+          logInfo(`Suggested trip data:`, 'TRIPS-SUGGESTED', {
+            title: suggestedTrip.title,
+            metadata: suggestedTrip.metadata
+          });
+
+          logInfo(`Processing action: ${action} for trip: ${tripId}`, 'TRIPS-SUGGESTED');
+
+          if (action === 'approve') {
+            // Update the trip status to 'active' and add image data
+            logInfo(`Approving trip: ${suggestedTrip.title}`, 'TRIPS-SUGGESTED');
+
+            const updateData: Record<string, unknown> = {
+              status: 'active',
+              metadata: {
+                ...suggestedTrip.metadata,
+                suggested: true,
+                approved_at: new Date().toISOString()
+              }
+            };
+
+            // Add image data if available
+            if (tripImageData?.image_url) {
+              updateData.image_url = tripImageData.image_url;
+              updateData.metadata.image_attribution = tripImageData.attribution || null;
+
+              logInfo(`Image data for trip ${tripId}:`, 'TRIPS-SUGGESTED', {
+                hasImageUrl: !!tripImageData.image_url,
+                hasAttribution: !!tripImageData.attribution,
+                attributionData: tripImageData.attribution
+              });
+            }
+
+            const { data: updatedTrip, error: updateError } = await supabase
+              .from('trips')
+              .update(updateData)
+              .eq('id', tripId)
+              .select()
+              .single();
+
+            if (updateError) {
+              logError(updateError, 'TRIPS-SUGGESTED');
+              results.push({ id: tripId, success: false, error: 'Failed to approve trip' });
+              continue;
+            }
+
+            logInfo(`Trip approved successfully: ${updatedTrip.id}`, 'TRIPS-SUGGESTED');
+            results.push({ id: tripId, success: true, tripId: updatedTrip.id });
+          } else if (action === 'reject') {
+            // Update the trip status to 'rejected'
+            logInfo(`Rejecting trip: ${suggestedTrip.title}`, 'TRIPS-SUGGESTED');
+
+            const { data: updatedTrip, error: updateError } = await supabase
+              .from('trips')
+              .update({
+                status: 'rejected',
+                metadata: {
+                  ...suggestedTrip.metadata,
+                  suggested: true,
+                  rejected_at: new Date().toISOString()
+                }
+              })
+              .eq('id', tripId)
+              .select()
+              .single();
+
+            if (updateError) {
+              logError(updateError, 'TRIPS-SUGGESTED');
+              results.push({ id: tripId, success: false, error: 'Failed to reject trip' });
+              continue;
+            }
+
+            logInfo(`Trip rejected successfully: ${updatedTrip.id}`, 'TRIPS-SUGGESTED');
+            results.push({ id: tripId, success: true, tripId: updatedTrip.id });
+          }
+        }
+
+        logSuccess(`${action} action completed`, 'TRIPS-SUGGESTED', {
+          userId: user.id,
+          action,
+          results: results.map(r => ({ id: r.id, success: r.success }))
+        });
+
+        return successResponse({ results });
       }
 
-      // Mark the suggestion as processed
-      const { error: updateError } = await supabase
-        .from('suggested_trips')
-        .update({
-          processed: true,
-          processed_at: new Date().toISOString(),
-          created_trip_id: newTrip.id
-        })
-        .eq('id', suggestedTripId);
-
-      if (updateError) {
-        logError(updateError, 'TRIPS-SUGGESTED');
-        // Don't fail the request, just log the error
-      }
-
-      logSuccess('Trip created from suggestion successfully', 'TRIPS-SUGGESTED', {
-        userId: user.id,
-        suggestedTripId,
-        newTripId: newTrip.id
-      });
-
-      return successResponse(newTrip);
+      return errorResponse('Invalid action', 400);
     }
 
     if (req.method === 'DELETE') {
       logInfo('Clearing all suggested trips', 'TRIPS-SUGGESTED', { userId: user.id });
 
-      // Delete all suggested trips for the user
+      // Delete all pending trips for the user
       const { error: deleteError } = await supabase
-        .from('suggested_trips')
+        .from('trips')
         .delete()
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
 
       if (deleteError) {
         logError(deleteError, 'TRIPS-SUGGESTED');

@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
         .from('trips')
         .select('*')
         .eq('user_id', user.id)
+        .eq('status', 'active') // Only show active trips by default
         .order('created_at', { ascending: false });
 
       // Add search filter if provided
@@ -47,6 +48,25 @@ Deno.serve(async (req) => {
       if (tripsError) {
         logError(tripsError, 'TRIPS');
         return errorResponse('Failed to fetch trips', 500);
+      }
+
+      // Debug: Log all trips for this user regardless of status
+      const { data: allTrips, error: allTripsError } = await supabase
+        .from('trips')
+        .select('id, title, status, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (!allTripsError) {
+        logInfo('All trips for user (debug)', 'TRIPS', {
+          userId: user.id,
+          allTrips: allTrips?.map(t => ({ id: t.id, title: t.title, status: t.status })) || [],
+          activeTrips: trips?.map(t => ({ id: t.id, title: t.title, status: t.status })) || [],
+          totalTrips: allTrips?.length || 0,
+          activeTripsCount: trips?.length || 0
+        });
+      } else {
+        logError(allTripsError, 'TRIPS');
       }
 
       logSuccess('Trips fetched successfully', 'TRIPS', {

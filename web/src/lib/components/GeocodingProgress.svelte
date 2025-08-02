@@ -28,6 +28,8 @@
 	let isLoading = false;
 	let isInitializing = true;
 	let isStatsLoading = false;
+	let hasInitialized = false;
+	let previousJobState: any = null;
 
 	// Check for active reverse geocoding job on component mount
 	async function checkForActiveReverseGeocodingJob() {
@@ -170,100 +172,56 @@
 		}
 	}
 
-	// Load geocoding statistics
-	async function loadGeocodingStats() {
-		try {
-			isStatsLoading = true;
-			const session = get(sessionStore);
-			if (!session) return;
+	        // Load geocoding statistics
+        async function loadGeocodingStats() {
+                try {
+                        isStatsLoading = true;
+                        const session = get(sessionStore);
+                        if (!session) return;
 
-			console.log('📊 GeocodingProgress: Loading cached stats from user profile');
+                        // Always use fresh API data instead of cached data
+                        console.log('📊 GeocodingProgress: Loading fresh stats from API');
+                        await loadGeocodingStatsFromAPI();
+                        return;
 
-			// Get cached geocoding stats from user_profiles table
-			const { data: userProfile, error: profileError } = await supabase
-				.from('user_profiles')
-				.select('geocoding_stats')
-				.eq('id', session.user.id)
-				.single();
-
-			if (profileError) {
-				console.error('Error fetching user profile:', profileError);
-				// Fallback to API call if user profile doesn't exist
-				await loadGeocodingStatsFromAPI();
-				return;
-			}
-
-			const cachedStats = userProfile?.geocoding_stats;
-			if (!cachedStats) {
-				console.log('📊 GeocodingProgress: No cached stats found, falling back to API');
-				await loadGeocodingStatsFromAPI();
-				return;
-			}
-
-			console.log('📊 GeocodingProgress: Using cached stats:', cachedStats);
-
-			const total = cachedStats.total_points || 0;
-			const geocoded = cachedStats.geocoded_points || 0;
-			const pointsNeedingGeocoding = cachedStats.points_needing_geocoding || 0;
-			const retryableErrors = cachedStats.retryable_errors || 0;
-			const nonRetryableErrors = cachedStats.non_retryable_errors || 0;
-
-			// Calculate progress: actual geocoded points vs total points
-			// This shows the real progress of geocoding, not just points that don't need geocoding
-			const processed = geocoded; // Use actual geocoded points count
-			const percentage = total > 0 ? (processed / total) * 100 : 0;
-
-			geocodingStats = {
-				total,
-				geocoded: processed, // Show actual geocoded points
-				percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
-				missing: pointsNeedingGeocoding,
-				pointsNeedingGeocoding,
-				retryableErrors,
-				nonRetryableErrors
-			};
-			console.log('📊 GeocodingProgress: Updated geocodingStats from cache:', geocodingStats);
-
-			// Force UI update by triggering reactivity
-			geocodingStats = { ...geocodingStats };
-		} catch (error) {
-			console.error('Error loading cached geocoding stats:', error);
-			// Fallback to API call
-			await loadGeocodingStatsFromAPI();
-		} finally {
-			isStatsLoading = false;
-		}
+			                } catch (error) {
+                        console.error('Error loading geocoding stats:', error);
+                } finally {
+                        isStatsLoading = false;
+                }
 	}
 
-	// Fallback function to load stats from API
-	async function loadGeocodingStatsFromAPI() {
-		try {
-			console.log('📊 GeocodingProgress: Loading stats from API (fallback)');
+	        // Fallback function to load stats from API
+        async function loadGeocodingStatsFromAPI() {
+                try {
+                        console.log('📊 GeocodingProgress: Loading stats from API (fallback)');
 
-			const session = get(sessionStore);
-			if (!session) return;
+                        const session = get(sessionStore);
+                        if (!session) return;
 
-			const serviceAdapter = new ServiceAdapter({ session });
+                        const serviceAdapter = new ServiceAdapter({ session });
 
-			const stats = await serviceAdapter.getGeocodingStats() as any;
+                        // Force cache refresh by adding a timestamp parameter
+                        const stats = await serviceAdapter.getGeocodingStats({
+                                forceRefresh: Date.now().toString()
+                        }) as any;
 
 			console.log('📊 GeocodingProgress: Received stats from API:', stats);
 
 			if (stats) {
 				const total = stats.total_points || 0;
-				const geocoded = stats.geocoded_count || 0;
+				const processed = stats.processed_count || stats.geocoded_count || 0; // Use processed_count if available, fallback to geocoded_count
 				const pointsNeedingGeocoding = stats.points_needing_geocoding || 0;
 				const retryableErrors = stats.retryable_errors || 0;
 				const nonRetryableErrors = stats.non_retryable_errors || 0;
 
-				// Calculate progress: actual geocoded points vs total points
-				// This shows the real progress of geocoding, not just points that don't need geocoding
-				const processed = geocoded; // Use actual geocoded points count
+				// Calculate progress: processed points vs total points
+				// This shows the real progress of processing, including both successful and failed geocoding
 				const percentage = total > 0 ? (processed / total) * 100 : 0;
 
 				geocodingStats = {
 					total,
-					geocoded: processed, // Show actual geocoded points
+					geocoded: processed, // Show processed points (successful + failed)
 					percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
 					missing: pointsNeedingGeocoding,
 					pointsNeedingGeocoding,
@@ -346,18 +304,24 @@
 
 
 	// Reactive statement to ensure UI updates when active job changes
-	$: if (activeReverseGeocodingJob === null && !isInitializing) {
-		console.log('🔄 GeocodingProgress: Active job cleared, ensuring stats are up to date');
-		// Force refresh stats when job completes to get updated cache
-		loadGeocodingStats();
-		// Also trigger a cache refresh via the statistics API to ensure consistency
-		refreshStatsFromAPI();
+	$: if (activeReverseGeocodingJob !== previousJobState && !isInitializing && !isStatsLoading && hasInitialized) {
+		console.log('🔄 GeocodingProgress: Job state changed, ensuring stats are up to date');
+		previousJobState = activeReverseGeocodingJob;
+
+		// Only refresh if job was cleared (completed/failed)
+		if (activeReverseGeocodingJob === null) {
+			// Force refresh stats when job completes to get updated cache
+			loadGeocodingStats();
+			// Also trigger a cache refresh via the statistics API to ensure consistency
+			refreshStatsFromAPI();
+		}
 	}
 
 	onMount(async () => {
 		await checkForActiveReverseGeocodingJob();
 		await loadGeocodingStats();
 		isInitializing = false;
+		hasInitialized = true;
 	});
 
 	onDestroy(() => {

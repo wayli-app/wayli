@@ -1,0 +1,1 @@
+export { default as GenerateSuggestionsButton } from './index.svelte';

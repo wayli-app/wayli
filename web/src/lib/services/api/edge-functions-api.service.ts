@@ -81,14 +81,11 @@ export class EdgeFunctionsApiService {
       }
     }
 
-
-
     const response = await fetch(url.toString(), requestOptions);
-
-
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('🌐 [EDGE] Error response:', errorText);
       throw new Error(`Edge Function error: ${response.status} - ${errorText}`);
     }
 
@@ -249,26 +246,16 @@ export class EdgeFunctionsApiService {
     });
   }
 
-  // Trip Image Generation API Methods
-    async generateTripImages(session: Session, tripId: string, options?: {
-    style?: string;
-    count?: number;
-  }) {
-    return this.makeRequest('trips-generate-images', {
-      method: 'POST',
-      body: {
-        trip_id: tripId,
-        style: options?.style || 'default',
-        count: options?.count || 1
-      },
-      session
-    });
-  }
+  // Note: Removed generateTripImages method since images are now generated during trip approval
 
-  async suggestTripImages(session: Session, tripId: string) {
+  async suggestTripImages(session: Session, tripIdOrDateRange: string | { start_date: string; end_date: string }) {
+    const body = typeof tripIdOrDateRange === 'string'
+      ? { trip_id: tripIdOrDateRange }
+      : tripIdOrDateRange;
+
     return this.makeRequest('trips-suggest-image', {
       method: 'POST',
-      body: { trip_id: tripId },
+      body,
       session
     });
   }
@@ -507,10 +494,12 @@ export class EdgeFunctionsApiService {
   async getGeocodingStats(session: Session, options?: {
     startDate?: string;
     endDate?: string;
+    forceRefresh?: string;
   }) {
     const params: Record<string, string> = {};
     if (options?.startDate) params.start_date = options.startDate;
     if (options?.endDate) params.end_date = options.endDate;
+    if (options?.forceRefresh) params.forceRefresh = options.forceRefresh;
 
     return this.makeRequest('statistics-geocoding-stats', { session, params });
   }

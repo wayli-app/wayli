@@ -23,12 +23,16 @@
 		Flag
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import type { Map as LeafletMap, LatLngExpression } from 'leaflet';
 	import { debounce } from 'lodash-es';
 	import { reverseGeocode } from '$lib/services/external/nominatim.service';
 	import { toast } from 'svelte-sonner';
+	import { supabase } from '$lib/supabase';
 	import { WantToVisitService } from '$lib/services/want-to-visit.service';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import type { Place } from '$lib/types/want-to-visit.types';
+	import type { UserProfile } from '$lib/types/user.types';
 
 	// Lucide icon mapping for SVG URLs
 	const lucideIcons = {
@@ -218,6 +222,12 @@
 
 	// Search and filter state
 	let selectedTypes: string[] = ['All']; // Array to support multiple selections
+	let showFavouritedOnly = false; // Filter for favourited places only
+
+	// User profile and home address state
+	let userProfile: UserProfile | null = null;
+	let hasHomeAddress = false;
+	let isLoadingProfile = false;
 
 	// Available types based on marker types - using the same structure as markerTypes
 	const availableTypes = [
@@ -276,6 +286,37 @@
 		searchQuery = '';
 		searchResults = [];
 		showSearchResults = false;
+		showFavouritedOnly = false;
+	}
+
+		async function loadUserProfile() {
+		if (!browser) return;
+
+		isLoadingProfile = true;
+		try {
+			const session = await supabase.auth.getSession();
+			if (!session.data.session?.user) {
+				console.error('No session found');
+				return;
+			}
+
+			// Use the Edge Function to get user profile
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const profile = await serviceAdapter.callApi('auth-profile') as any;
+
+			userProfile = profile as UserProfile;
+
+			// Check if user has a home address
+			hasHomeAddress = !!(profile?.home_address);
+			console.log('🏠 User home address check:', {
+				hasHomeAddress,
+				homeAddress: profile?.home_address
+			});
+		} catch (error) {
+			console.error('Error loading user profile:', error);
+		} finally {
+			isLoadingProfile = false;
+		}
 	}
 
 	function loadPlaces() {
@@ -328,7 +369,10 @@
 			(place.location && place.location.toLowerCase().includes(searchLower)) ||
 			(place.address && place.address.toLowerCase().includes(searchLower));
 
-		return typeMatch && searchMatch;
+		// Favourited filter - show only favourited places when enabled
+		const favouritedMatch = !showFavouritedOnly || place.favorite;
+
+		return typeMatch && searchMatch && favouritedMatch;
 	});
 
 	// Update markers when filtered places change
@@ -345,6 +389,9 @@
 	}
 
 	onMount(async () => {
+		// Load user profile to check for home address
+		await loadUserProfile();
+
 		L = (await import('leaflet')).default;
 		// Import markercluster plugin
 		await import('leaflet.markercluster');
@@ -701,6 +748,7 @@
 	function clearFilters() {
 		selectedTypes = ['All'];
 		searchQuery = '';
+		showFavouritedOnly = false;
 	}
 
 	function toggleAddForm() {
@@ -1530,6 +1578,17 @@
 							{type.name}
 						</button>
 					{/each}
+					<button
+						class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {showFavouritedOnly
+							? 'bg-red-600 text-white'
+							: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+						on:click={() => {
+							showFavouritedOnly = !showFavouritedOnly;
+						}}
+					>
+						<Heart class="h-4 w-4 {showFavouritedOnly ? 'fill-current' : ''}" />
+						Favourited
+					</button>
 				</div>
 			</div>
 
@@ -1548,8 +1607,19 @@
 		</div>
 
 		<!-- Results Count -->
-		<div class="text-sm text-gray-500 dark:text-gray-400">
-			Showing {filteredPlaces.length} of {places.length} places
+		<div class="flex items-center justify-between">
+			<div class="text-sm text-gray-500 dark:text-gray-400">
+				Showing {filteredPlaces.length} of {places.length} places
+			</div>
+			{#if searchQuery || selectedTypes.length > 1 || showFavouritedOnly}
+				<button
+					on:click={clearFilters}
+					class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+				>
+					<X class="h-3 w-3" />
+					Clear Filters
+				</button>
+			{/if}
 		</div>
 	</div>
 
@@ -1573,7 +1643,7 @@
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredPlaces as place}
 				<div
-					class="group relative rounded-xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+					class="group relative rounded-xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
 				>
 					<!-- Favorite Button -->
 					<button

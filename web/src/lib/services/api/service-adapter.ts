@@ -29,7 +29,8 @@ export class ServiceAdapter {
     } = {}
   ): Promise<T> {
     // Always use Edge Functions
-    return this.callEdgeFunction(endpoint, options);
+    const result = await this.callEdgeFunction(endpoint, options);
+    return result;
   }
 
   /**
@@ -177,14 +178,33 @@ export class ServiceAdapter {
     });
   }
 
-  async approveSuggestedTrips(tripIds: string[]) {
-    return this.callApi('trips/suggested', {
+  async approveSuggestedTrips(tripIds: string[], preGeneratedImages?: Record<string, { image_url: string; attribution?: any }>) {
+    console.log('📤 [SERVICE] Calling approveSuggestedTrips with:', tripIds);
+    console.log('📤 [SERVICE] Pre-generated images data:', preGeneratedImages);
+    const result = await this.callApi('trips/suggested', {
       method: 'POST',
       body: {
         action: 'approve',
-        tripIds
+        tripIds,
+        pre_generated_images: preGeneratedImages || {}
       }
     });
+    console.log('📥 [SERVICE] approveSuggestedTrips result:', result);
+    return result;
+  }
+
+  async generateSuggestedTripImages(suggestedTripIds: string[]) {
+    console.log('📤 [SERVICE] Calling generateSuggestedTripImages with:', suggestedTripIds);
+    const result = await this.callApi('trips-suggested-generate-images', {
+      method: 'POST',
+      body: {
+        suggested_trip_ids: suggestedTripIds
+      }
+    });
+    console.log('📥 [SERVICE] generateSuggestedTripImages result:', result);
+    console.log('📥 [SERVICE] generateSuggestedTripImages results array:', result?.results);
+    console.log('📥 [SERVICE] generateSuggestedTripImages successful results:', result?.results?.filter((r: any) => r.success));
+    return result;
   }
 
   async rejectSuggestedTrips(tripIds: string[]) {
@@ -204,24 +224,16 @@ export class ServiceAdapter {
     });
   }
 
-  async generateTripImages(tripId: string, options?: {
-    style?: string;
-    count?: number;
-  }) {
-    return this.callApi('trips/generate-images', {
-      method: 'POST',
-      body: {
-        trip_id: tripId,
-        style: options?.style || 'default',
-        count: options?.count || 1
-      }
-    });
-  }
+  // Note: Removed generateTripImages method since images are now generated during trip approval
 
-  async suggestTripImages(tripId: string) {
-    return this.callApi('trips/suggest-image', {
+  async suggestTripImages(tripIdOrDateRange: string | { start_date: string; end_date: string }) {
+    const body = typeof tripIdOrDateRange === 'string'
+      ? { trip_id: tripIdOrDateRange }
+      : tripIdOrDateRange;
+
+    return this.callEdgeFunction('trips-suggest-image', {
       method: 'POST',
-      body: { trip_id: tripId }
+      body
     });
   }
 
@@ -479,6 +491,7 @@ export class ServiceAdapter {
   async getGeocodingStats(options?: {
     startDate?: string;
     endDate?: string;
+    forceRefresh?: string;
   }) {
     return this.edgeFunctionsService.getGeocodingStats(this.session, options);
   }

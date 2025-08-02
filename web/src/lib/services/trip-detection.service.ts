@@ -96,7 +96,20 @@ export class TripDetectionService {
 				homeAddress,
 				tripExclusions,
 				finalConfig,
-				progressCallback
+				(dayProgress: number, message: string) => {
+					// Calculate overall progress based on current date range and day progress within it
+					const dateRangeProgress = processedRanges / dateRanges.length;
+					const dayProgressWithinRange = dayProgress / 100;
+					const overallProgress = 10 + Math.round((dateRangeProgress + dayProgressWithinRange / dateRanges.length) * 80);
+
+					// Ensure progress never goes backwards (minimum 10% for initial setup)
+					const minProgress = 10 + Math.round((processedRanges / dateRanges.length) * 80);
+					const finalProgress = Math.max(overallProgress, minProgress);
+
+					if (progressCallback) {
+						progressCallback(finalProgress, message);
+					}
+				}
 			);
 
 			allTrips.push(...trips);
@@ -152,9 +165,10 @@ export class TripDetectionService {
 			.eq('user_id', userId);
 
 		const { data: existingSuggestedTrips } = await this.supabase
-			.from('suggested_trips')
+			.from('trips')
 			.select('start_date, end_date')
-			.eq('user_id', userId);
+			.eq('user_id', userId)
+			.eq('status', 'pending');
 
 		const excludedRanges = [
 			...(existingTrips || []),
@@ -232,14 +246,12 @@ export class TripDetectionService {
 			// Calculate percentage of time spent in excluded cities
 			const excludedPercentage = totalDuration > 0 ? (excludedDuration / totalDuration) * 100 : 0;
 
-			console.log(`📊 Trip "${trip.title}": ${excludedDuration}h/${totalDuration}h in excluded cities (${excludedPercentage.toFixed(1)}%)`);
-
 			// Keep trip if less than 50% of time was spent in excluded cities
 			if (excludedPercentage >= 50) {
 				console.log(`❌ Removing trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`);
 				return false;
 			} else {
-				console.log(`✅ Keeping trip "${trip.title}" - only ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`);
+				console.log(`✅ Keeping trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`);
 				return true;
 			}
 		});
@@ -445,14 +457,11 @@ export class TripDetectionService {
 														matchingExclusion.location?.address?.town ||
 														matchingExclusion.location?.address?.village ||
 														matchingExclusion.location?.address?.municipality;
-								console.log(`🏠 Counting data point as home due to exclusion: "${cityName}" matches "${exclusionCityName}"`);
 								return true;
 							}
 						}
 						return false;
 					}).length;
-
-					console.log(`🏠 Home day: ${dateStr} (consecutive home: ${consecutiveHomeDays}, total home hours: ${totalHomeHours}, home data points: ${homeDataPointsToday} [${homeRadiusPoints} home radius + ${exclusionPoints} exclusions], total home data points: ${totalHomeDataPoints})`);
 
 					// Only end trip if user has been home for the minimum required duration AND has enough home data points
 					if (currentTripStart && currentTripLocations.length > 0 &&
@@ -468,11 +477,12 @@ export class TripDetectionService {
 
 						// Only consider it a trip if we've been away for at least 1 day
 						if (currentTripLocations.length >= 1) {
-							const trip = this.createTripFromLocations(
+							const trip = await this.createTripFromLocations(
 								currentTripStart,
 								currentTripEnd,
 								currentTripLocations,
-								homeAddress
+								homeAddress,
+								userId
 							);
 							if (trip) {
 								detectedTrips.push(trip);
@@ -530,11 +540,12 @@ export class TripDetectionService {
 		if (currentTripStart && currentTripLocations.length > 0) {
 			console.log(`🏁 Ending incomplete trip: ${currentTripStart} to ${endDate.toISOString().split('T')[0]} (${currentTripLocations.length} locations)`);
 
-			const trip = this.createTripFromLocations(
+			const trip = await this.createTripFromLocations(
 				currentTripStart,
 				endDate.toISOString().split('T')[0],
 				currentTripLocations,
-				homeAddress
+				homeAddress,
+				userId
 			);
 			if (trip) {
 				detectedTrips.push(trip);
@@ -745,12 +756,13 @@ export class TripDetectionService {
 	/**
 	 * Create a trip from visited locations
 	 */
-	private createTripFromLocations(
+	private async createTripFromLocations(
 		startDate: string,
 		endDate: string,
 		visitedLocations: VisitedLocation[],
-		homeAddress: HomeAddress | null
-	): DetectedTrip | null {
+		homeAddress: HomeAddress | null,
+		userId: string
+	): Promise<DetectedTrip | null> {
 		if (visitedLocations.length === 0) return null;
 
 		// Calculate trip duration
@@ -843,7 +855,36 @@ export class TripDetectionService {
 			}
 		}
 
-		// Calculate distance from home
+		// Calculate total distance traveled during the trip
+		let totalDistanceTraveled = 0;
+
+		// Get all GPS points for this trip period
+		const { data: tripPoints, error: pointsError } = await this.supabase
+			.rpc('get_user_tracking_data', {
+				user_uuid: userId,
+				start_date: startDate,
+				end_date: endDate
+			});
+
+		if (!pointsError && tripPoints && tripPoints.length > 1) {
+			// Calculate total distance by summing distances between consecutive points
+			for (let i = 1; i < tripPoints.length; i++) {
+				const prev = tripPoints[i - 1];
+				const curr = tripPoints[i];
+
+				if (prev.lat && prev.lon && curr.lat && curr.lon) {
+					const segmentDistance = haversineDistance(
+						prev.lat,
+						prev.lon,
+						curr.lat,
+						curr.lon
+					) / 1000; // Convert to km
+					totalDistanceTraveled += segmentDistance;
+				}
+			}
+		}
+
+		// Also calculate distance from home to destination for reference
 		let distanceFromHome = 0;
 		if (homeAddress?.coordinates) {
 			distanceFromHome = haversineDistance(
@@ -887,7 +928,9 @@ export class TripDetectionService {
 				homeCity: this.extractCityNameFromHomeAddress(homeAddress),
 				homeCountry: this.extractCountryNameFromHomeAddress(homeAddress),
 				homeCountryCode: homeAddress?.address?.country_code?.toUpperCase() || 'UN',
-				isInternationalTrip
+				isInternationalTrip,
+				distance_traveled: totalDistanceTraveled,
+				distance_from_home: distanceFromHome
 			},
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString()
@@ -939,36 +982,41 @@ export class TripDetectionService {
 	/**
 	 * Save trips to database
 	 */
-	private async saveTripsToDatabase(trips: DetectedTrip[], userId: string): Promise<DetectedTrip[]> {
-		if (trips.length === 0) return [];
+	        private async saveTripsToDatabase(trips: DetectedTrip[], userId: string): Promise<DetectedTrip[]> {
+                if (trips.length === 0) return [];
 
-		const tripsToSave = trips.map(trip => ({
-			user_id: userId,
-			start_date: trip.startDate,
-			end_date: trip.endDate,
-			title: trip.title,
-			description: trip.description,
-			location: trip.location,
-			city_name: trip.cityName,
+                const tripsToSave = trips.map(trip => ({
+                        user_id: userId,
+                        start_date: trip.startDate,
+                        end_date: trip.endDate,
+                        title: trip.title,
+                        description: trip.description,
+                        status: 'pending', // All detected trips are pending suggestions
+                        labels: ['suggested'], // Mark as suggested
+                        metadata: {
+                                ...trip.metadata,
+                                suggested: true,
+                                point_count: trip.dataPoints,
+                                distance_traveled: trip.distanceFromHome,
+                                visited_places_count: trip.dataPoints,
+                                overnight_stays: trip.overnightStays,
+                                location: trip.location,
+                                city_name: trip.cityName,
+                                confidence: 0.8 // Default confidence for detected trips
+                        }
+                }));
 
-			data_points: trip.dataPoints,
-			overnight_stays: trip.overnightStays,
-			distance_from_home: trip.distanceFromHome,
-			status: trip.status,
-			metadata: trip.metadata
-		}));
+                const { data: savedTrips, error } = await this.supabase
+                        .from('trips')
+                        .insert(tripsToSave)
+                        .select();
 
-		const { data: savedTrips, error } = await this.supabase
-			.from('suggested_trips')
-			.insert(tripsToSave)
-			.select();
+                if (error) {
+                        console.error('❌ Error saving trips to database:', error);
+                        return [];
+                }
 
-		if (error) {
-			console.error('❌ Error saving trips to database:', error);
-			return [];
-		}
-
-		console.log(`✅ Saved ${savedTrips?.length || 0} trips to database`);
-		return savedTrips || [];
-	}
+                console.log(`✅ Saved ${savedTrips?.length || 0} suggested trips to database`);
+                return savedTrips || [];
+        }
 }

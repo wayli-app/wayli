@@ -167,7 +167,8 @@ export class ImageGenerationProcessorService {
 	 */
 	private async updateSuggestedTripImage(suggestedTripId: string, imageUrl: string): Promise<void> {
 		const { error } = await this.supabase
-			.from('suggested_trips')
+			                        .from('trips')
+                        .eq('status', 'pending')
 			.update({ image_url: imageUrl })
 			.eq('id', suggestedTripId);
 

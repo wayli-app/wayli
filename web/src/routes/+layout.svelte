@@ -7,12 +7,20 @@
 	import { Toaster } from 'svelte-sonner';
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import { serviceAdapter } from '$lib/services/service-layer-adapter';
+	import { initializeI18n } from '$lib/i18n';
 
 	onMount(async () => {
 		// Initialize theme
 		initializeTheme();
 		// Suppress deprecation warnings from third-party libraries
 		suppressDeprecationWarnings();
+
+		// Initialize i18n system
+		try {
+			await initializeI18n();
+		} catch (error) {
+			console.error('❌ [ROOT] Failed to initialize i18n system:', error);
+		}
 
 		// Initialize client-side service layer
 		try {

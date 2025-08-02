@@ -68,6 +68,7 @@ export class JobProcessorService {
 			data_import: this.processDataImport.bind(this),
 			trip_generation: this.processTripGeneration.bind(this),
 			data_export: this.processDataExport.bind(this)
+			// Note: Removed image_generation since images are now generated during trip approval
 		};
 
 		return processors[jobType];
@@ -1880,6 +1881,8 @@ export class JobProcessorService {
 		}
 	}
 
+	// Note: Removed processImageGeneration method since images are now generated during trip approval
+
 	private static async processPoiVisitDetection(job: Job): Promise<void> {
 		console.log(`📍 Processing POI visit detection job ${job.id}`);
 
@@ -2349,29 +2352,18 @@ export class JobProcessorService {
 				`📅 Effective search range (after applying user constraints): ${earliestDate} to ${latestDate}`
 			);
 
-			// Get all existing trip date ranges (from both trips and suggested_trips tables)
-			// Include all approved trips, active trips, completed trips, and rejected trips
-			const { data: existingTrips, error: tripsError } = await supabase
-				.from('trips')
-				.select('start_date, end_date')
-				.eq('user_id', userId)
-				.in('status', ['approved', 'active', 'completed', 'rejected']);
+			                        // Get all existing trip date ranges (from trips table with different statuses)
+                        // Include all active, completed, rejected, and pending trips
+                        const { data: existingTrips, error: tripsError } = await supabase
+                                .from('trips')
+                                .select('start_date, end_date')
+                                .eq('user_id', userId)
+                                .in('status', ['active', 'completed', 'rejected', 'pending']);
 
-			if (tripsError) {
-				console.error('Error fetching existing trips:', tripsError);
-				return [];
-			}
-
-			const { data: existingSuggestedTrips, error: suggestedTripsError } = await supabase
-				.from('suggested_trips')
-				.select('start_date, end_date')
-				.eq('user_id', userId)
-				.in('status', ['pending', 'approved']);
-
-			if (suggestedTripsError) {
-				console.error('Error fetching existing suggested trips:', suggestedTripsError);
-				return [];
-			}
+                        if (tripsError) {
+                                console.error('Error fetching existing trips:', tripsError);
+                                return [];
+                        }
 
 			console.log('📋 Found existing trips:', existingTrips?.length || 0);
 			if (existingTrips && existingTrips.length > 0) {
@@ -2381,18 +2373,10 @@ export class JobProcessorService {
 				});
 			}
 
-			console.log('📋 Found existing suggested trips:', existingSuggestedTrips?.length || 0);
-			if (existingSuggestedTrips && existingSuggestedTrips.length > 0) {
-				console.log('📋 Existing suggested trips details:');
-				existingSuggestedTrips.forEach((trip, index) => {
-					console.log(`  Suggested Trip ${index + 1}: ${trip.start_date} to ${trip.end_date}`);
-				});
-			}
-
 			// Create a set of all dates that are already covered by existing trips
 			const excludedDates = new Set();
 
-			// Add dates from existing trips
+			// Add dates from all existing trips (including pending/suggested trips)
 			let tripsDatesAdded = 0;
 			existingTrips?.forEach((trip) => {
 				const start = new Date(trip.start_date);
@@ -2403,20 +2387,8 @@ export class JobProcessorService {
 				}
 			});
 
-			// Add dates from existing suggested trips
-			let suggestedTripsDatesAdded = 0;
-			existingSuggestedTrips?.forEach((trip) => {
-				const start = new Date(trip.start_date);
-				const end = new Date(trip.end_date);
-				for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-					excludedDates.add(d.toISOString().split('T')[0]);
-					suggestedTripsDatesAdded++;
-				}
-			});
-
 			console.log('📅 Excluded dates count:', excludedDates.size);
 			console.log('📅 Dates added from existing trips:', tripsDatesAdded);
-			console.log('📅 Dates added from suggested trips:', suggestedTripsDatesAdded);
 
 			const effectiveStartDate = new Date(earliestDate);
 			const effectiveEndDate = new Date(latestDate);

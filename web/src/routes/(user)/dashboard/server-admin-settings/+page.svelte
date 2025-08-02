@@ -119,8 +119,10 @@
 				hasNext: false,
 				hasPrev: false
 			};
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error fetching filtered users:', error);
+			const errorMessage = error?.message || error?.error || 'Failed to fetch users';
+			toast.error('Failed to fetch users', { description: errorMessage });
 		}
 	}
 
@@ -192,18 +194,23 @@
 			const session = get(sessionStore);
 			if (!session) throw new Error('No session found');
 
-			const serviceAdapter = new ServiceAdapter({ session });
-			await serviceAdapter.updateServerSettings({
+			const settings = {
 				server_name: serverName,
 				admin_email: adminEmail,
 				allow_registration: allowRegistration,
 				require_email_verification: requireEmailVerification
-			});
+			};
+
+			console.log('🔧 [ADMIN] Saving server settings:', settings);
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			await serviceAdapter.updateServerSettings(settings);
 
 			toast.success('Settings saved successfully');
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error saving settings:', error);
-			toast.error('Failed to save settings', { description: 'An unexpected error occurred.' });
+			const errorMessage = error?.message || error?.error || 'An unexpected error occurred.';
+			toast.error('Failed to save settings', { description: errorMessage });
 		}
 	}
 
@@ -279,7 +286,7 @@
 			let errorDescription = 'An unknown error occurred while deleting the user.';
 			try {
 				const result = await response.json();
-				errorDescription = result.error || errorDescription;
+				errorDescription = result.error || result.message || errorDescription;
 			} catch (e) {
 				// The response was not JSON, which is fine. The server might have crashed.
 			}
@@ -311,7 +318,7 @@
 			let errorDescription = 'An unknown error occurred while updating the user.';
 			try {
 				const result = await response.json();
-				errorDescription = result.error || errorDescription;
+				errorDescription = result.error || result.message || errorDescription;
 			} catch (e) {
 				// The response was not JSON.
 			}
@@ -334,12 +341,23 @@
 			// Edge Functions return { success: true, data: ... }
 			const settings = result.data || result;
 
+			console.log('🔧 [ADMIN] Loaded server settings:', settings);
+
 			serverName = settings.server_name || '';
 			adminEmail = settings.admin_email || '';
 			allowRegistration = settings.allow_registration ?? true;
 			requireEmailVerification = settings.require_email_verification ?? false;
-		} catch (error) {
+
+			console.log('🔧 [ADMIN] Processed settings:', {
+				serverName,
+				adminEmail,
+				allowRegistration,
+				requireEmailVerification
+			});
+		} catch (error: any) {
 			console.error('Error loading server settings:', error);
+			const errorMessage = error?.message || error?.error || 'Failed to load server settings';
+			toast.error('Failed to load server settings', { description: errorMessage });
 		}
 	}
 
@@ -388,15 +406,16 @@
 				let errorDescription = 'An unknown error occurred while adding the user.';
 				try {
 					const result = await response.json();
-					errorDescription = result.error || errorDescription;
+					errorDescription = result.error || result.message || errorDescription;
 				} catch (e) {
 					// The response was not JSON.
 				}
 				toast.error('Failed to add user', { description: errorDescription });
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error adding user:', error);
-			toast.error('Failed to add user', { description: 'An unexpected error occurred.' });
+			const errorMessage = error?.message || error?.error || 'An unexpected error occurred.';
+			toast.error('Failed to add user', { description: errorMessage });
 		}
 	}
 </script>

@@ -61,6 +61,19 @@ Deno.serve(async (req) => {
         return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
       }
 
+      // Extract boolean fields with defaults
+      const allowRegistration = body.allow_registration === true;
+      const requireEmailVerification = body.require_email_verification === true;
+
+      console.log('🔧 [ADMIN-SERVER-SETTINGS] Received settings:', {
+        server_name: body.server_name,
+        admin_email: body.admin_email,
+        allow_registration: body.allow_registration,
+        require_email_verification: body.require_email_verification,
+        processed_allow_registration: allowRegistration,
+        processed_require_email_verification: requireEmailVerification
+      });
+
       // Check if settings already exist
       const { data: existingSettings, error: fetchError } = await supabase
         .from('server_settings')
@@ -80,6 +93,8 @@ Deno.serve(async (req) => {
           .update({
             server_name: body.server_name,
             admin_email: body.admin_email,
+            allow_registration: allowRegistration,
+            require_email_verification: requireEmailVerification,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingSettings.id)
@@ -98,7 +113,9 @@ Deno.serve(async (req) => {
           .from('server_settings')
           .insert({
             server_name: body.server_name,
-            admin_email: body.admin_email
+            admin_email: body.admin_email,
+            allow_registration: allowRegistration,
+            require_email_verification: requireEmailVerification
           })
           .select()
           .single();

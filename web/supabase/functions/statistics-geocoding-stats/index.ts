@@ -81,12 +81,24 @@ Deno.serve(async (req) => {
         }
       }
 
+      const url = req.url;
+      const params = getQueryParams(url);
+      const forceRefresh = params.get('forceRefresh') || '';
+
       const cachedStats = userProfile?.geocoding_stats;
       const cacheAge = cachedStats?.last_calculated ?
         (Date.now() - new Date(cachedStats.last_calculated).getTime()) / (1000 * 60) : null; // Age in minutes
 
-      // Use cached data if it's less than 5 minutes old
-      if (cachedStats && cacheAge !== null && cacheAge < 5) {
+      // Use cached data if it's less than 5 minutes old and no force refresh requested
+      logInfo('Cache check', 'STATISTICS-GEOCODING-STATS', {
+        userId: user.id,
+        hasCachedStats: !!cachedStats,
+        cacheAge: cacheAge,
+        forceRefresh: forceRefresh,
+        shouldUseCache: cachedStats && cacheAge !== null && cacheAge < 5 && !forceRefresh
+      });
+
+      if (cachedStats && cacheAge !== null && cacheAge < 5 && !forceRefresh) {
         logInfo('Using cached geocoding statistics', 'STATISTICS-GEOCODING-STATS', {
           userId: user.id,
           cacheAge: `${cacheAge.toFixed(1)} minutes`,
@@ -97,6 +109,7 @@ Deno.serve(async (req) => {
         return successResponse({
           total_points: cachedStats.total_points || 0,
           geocoded_count: cachedStats.geocoded_points || 0,
+          processed_count: cachedStats.total_points || 0, // All points have been processed
           failed_count: (cachedStats.total_points || 0) - (cachedStats.geocoded_points || 0),
           points_needing_geocoding: cachedStats.points_needing_geocoding || 0,
           null_or_empty_geocodes: cachedStats.null_or_empty_geocodes || 0,
@@ -114,45 +127,75 @@ Deno.serve(async (req) => {
 
       logInfo('Cache expired or missing, calculating fresh statistics', 'STATISTICS-GEOCODING-STATS', {
         userId: user.id,
-        cacheAge: cacheAge ? `${cacheAge.toFixed(1)} minutes` : 'no cache'
+        cacheAge: cacheAge ? `${cacheAge.toFixed(1)} minutes` : 'no cache',
+        forceRefresh: forceRefresh,
+        reason: forceRefresh ? 'force refresh requested' : 'cache expired or missing'
       });
 
-      const url = req.url;
-      const params = getQueryParams(url);
       const startDate = params.get('start_date') || '';
       const endDate = params.get('end_date') || '';
 
-      // Build query for tracker data with count to get total records
-      let countQuery = supabase
+      // Use the same logic as the reverse geocoding job to determine points needing geocoding
+      // Get the actual total points in the database for this user (with location)
+      let totalCountQuery = supabase
         .from('tracker_data')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .not('location', 'is', null);
 
       if (startDate) {
-        countQuery = countQuery.gte('created_at', startDate);
+        totalCountQuery = totalCountQuery.gte('created_at', startDate);
       }
       if (endDate) {
-        countQuery = countQuery.lte('created_at', endDate);
+        totalCountQuery = totalCountQuery.lte('created_at', endDate);
       }
 
-      const { count: totalCount, error: countError } = await countQuery;
+      const { count: totalCount, error: countError } = await totalCountQuery;
 
       if (countError) {
         logError(countError, 'STATISTICS-GEOCODING-STATS');
         return errorResponse('Failed to count tracker data', 500);
       }
 
-      // Debug: Log the total count
-      logInfo('Total count fetched', 'STATISTICS-GEOCODING-STATS', {
+      // Get the actual total geocoded points in the database (with location and valid geocode)
+      let geocodedCountQuery = supabase
+        .from('tracker_data')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .not('location', 'is', null)
+        .not('geocode', 'is', null)
+        .neq('geocode', '{}');
+
+      if (startDate) {
+        geocodedCountQuery = geocodedCountQuery.gte('created_at', startDate);
+      }
+      if (endDate) {
+        geocodedCountQuery = geocodedCountQuery.lte('created_at', endDate);
+      }
+
+      const { count: geocodedCount, error: geocodedCountError } = await geocodedCountQuery;
+
+      if (geocodedCountError) {
+        logError(geocodedCountError, 'STATISTICS-GEOCODING-STATS');
+        return errorResponse('Failed to count geocoded tracker data', 500);
+      }
+
+      // Calculate points needing geocoding using the same logic as reverse geocoding job
+      const pointsNeedingGeocoding = (totalCount || 0) - (geocodedCount || 0);
+
+      logInfo('Database counts using reverse geocoding job logic', 'STATISTICS-GEOCODING-STATS', {
         userId: user.id,
-        totalCount: totalCount || 0
+        totalCount: totalCount || 0,
+        geocodedCount: geocodedCount || 0,
+        pointsNeedingGeocoding
       });
 
-      // For geocoding stats, we need to get ALL data to calculate accurate percentages
-      // Use a larger limit or paginate through all data
-      let allTrackerData: any[] = [];
+      // For detailed statistics, we still need to get some data to calculate error breakdowns
+      // But we can use a smaller sample since we already have the main counts
+      let sampleTrackerData: any[] = [];
       let offset = 0;
       const limit = 1000;
+      const maxSamples = 10000; // Limit to 10k samples for performance
 
       while (true) {
         let query = supabase
@@ -179,12 +222,12 @@ Deno.serve(async (req) => {
           break; // No more data
         }
 
-        allTrackerData = allTrackerData.concat(batchData);
+        sampleTrackerData = sampleTrackerData.concat(batchData);
         offset += limit;
 
-        // Safety check to prevent infinite loops
-        if (offset > 100000) {
-          logError('Too many records, stopping at 100k', 'STATISTICS-GEOCODING-STATS');
+        // Safety check to prevent infinite loops and limit samples for performance
+        if (offset > maxSamples) {
+          logInfo(`Reached max samples limit (${maxSamples}), stopping data fetch`, 'STATISTICS-GEOCODING-STATS');
           break;
         }
       }
@@ -196,62 +239,53 @@ Deno.serve(async (req) => {
         endDate,
         hasStartDate: !!startDate,
         hasEndDate: !!endDate,
-        totalFetched: allTrackerData.length,
+        totalFetched: sampleTrackerData.length,
         expectedTotal: totalCount
       });
 
       // Debug: Log the actual data being processed
       logInfo('Tracker data fetched', 'STATISTICS-GEOCODING-STATS', {
         userId: user.id,
-        totalRecords: allTrackerData.length,
-        sampleGeocode: allTrackerData?.[0]?.geocode,
-        hasGeocode: allTrackerData?.[0]?.geocode ? 'yes' : 'no'
+        totalRecords: sampleTrackerData.length,
+        sampleGeocode: sampleTrackerData?.[0]?.geocode,
+        hasGeocode: sampleTrackerData?.[0]?.geocode ? 'yes' : 'no'
       });
 
-            // Calculate how many points actually need geocoding (matching job logic)
-      let pointsNeedingGeocoding = 0;
+            // Calculate error breakdown from sample data
       let retryableErrors = 0;
       let nonRetryableErrors = 0;
       let nullOrEmptyGeocodes = 0;
 
-      for (const point of allTrackerData) {
+      for (const point of sampleTrackerData) {
         const geocode = point.geocode;
 
-        // Use shared utility to determine if point needs geocoding
-        if (needsGeocoding(geocode)) {
-          pointsNeedingGeocoding++;
-
-          // Count different types
-          if (!geocode || (typeof geocode === 'object' && geocode !== null && Object.keys(geocode).length === 0)) {
-            nullOrEmptyGeocodes++;
-          } else if (geocode && typeof geocode === 'object' && geocode !== null && 'error' in geocode && geocode.error && isRetryableError(geocode)) {
-            retryableErrors++;
-          }
-        }
-
-        // Count non-retryable errors
-        if (geocode && typeof geocode === 'object' && geocode !== null && 'error' in geocode && geocode.error && !isRetryableError(geocode)) {
+        // Count different error types from sample data
+        if (!geocode || (typeof geocode === 'object' && geocode !== null && Object.keys(geocode).length === 0)) {
+          nullOrEmptyGeocodes++;
+        } else if (geocode && typeof geocode === 'object' && geocode !== null && 'error' in geocode && geocode.error && isRetryableError(geocode)) {
+          retryableErrors++;
+        } else if (geocode && typeof geocode === 'object' && geocode !== null && 'error' in geocode && geocode.error && !isRetryableError(geocode)) {
           nonRetryableErrors++;
         }
       }
 
       // Debug logging
-      logInfo('Geocoding breakdown', 'STATISTICS-GEOCODING-STATS', {
-        totalPoints: allTrackerData.length,
-        pointsNeedingGeocoding,
+      logInfo('Sample geocoding breakdown', 'STATISTICS-GEOCODING-STATS', {
+        sampleSize: sampleTrackerData.length,
         nullOrEmptyGeocodes,
         retryableErrors,
-        nonRetryableErrors,
-        successfullyGeocoded: allTrackerData.length - pointsNeedingGeocoding - nonRetryableErrors
+        nonRetryableErrors
       });
 
-      // Calculate geocoding statistics
-      const stats = calculateGeocodingStats(allTrackerData);
+      // Calculate detailed statistics from sample data (for error breakdown, etc.)
+      const stats = calculateGeocodingStats(sampleTrackerData);
 
       logSuccess('Geocoding statistics calculated successfully', 'STATISTICS-GEOCODING-STATS', {
         userId: user.id,
-        totalPoints: allTrackerData.length,
-        geocodedPoints: stats.geocodedCount,
+        totalPoints: totalCount || 0,
+        geocodedPoints: geocodedCount || 0,
+        pointsNeedingGeocoding,
+        sampleSize: sampleTrackerData.length,
         successRate: stats.successRate
       });
 
@@ -259,8 +293,8 @@ Deno.serve(async (req) => {
       const { error: cacheUpdateError } = await supabase.rpc('update_geocoding_stats_cache', {
         p_user_id: user.id,
         p_total_points: totalCount || 0,
-        p_geocoded_points: stats.geocodedCount,
-        p_points_needing_geocoding: pointsNeedingGeocoding,
+        p_geocoded_points: geocodedCount || 0,
+        p_points_needing_geocoding: pointsNeedingGeocoding, // Use the accurate count from database
         p_null_or_empty_geocodes: nullOrEmptyGeocodes,
         p_retryable_errors: retryableErrors,
         p_non_retryable_errors: nonRetryableErrors
@@ -271,21 +305,32 @@ Deno.serve(async (req) => {
         // Don't fail the request, just log the cache update error
       }
 
-      return successResponse({
+      const response = {
         total_points: totalCount || 0,
-        geocoded_count: stats.geocodedCount,
-        failed_count: stats.failedCount,
+        geocoded_count: geocodedCount || 0, // Use accurate count from database
+        processed_count: totalCount || 0, // All points with location have been processed
+        failed_count: (totalCount || 0) - (geocodedCount || 0), // Failed = total - geocoded
         points_needing_geocoding: pointsNeedingGeocoding,
         null_or_empty_geocodes: nullOrEmptyGeocodes,
         retryable_errors: retryableErrors,
         non_retryable_errors: nonRetryableErrors,
-        success_rate: stats.successRate,
+        success_rate: totalCount > 0 ? ((geocodedCount || 0) / totalCount) * 100 : 0,
         average_response_time: stats.averageResponseTime,
         error_breakdown: stats.errorBreakdown,
         daily_stats: stats.dailyStats,
         from_cache: false,
         cache_age_minutes: 0
+      };
+
+      logInfo('Returning fresh statistics', 'STATISTICS-GEOCODING-STATS', {
+        userId: user.id,
+        totalPoints: response.total_points,
+        geocodedCount: response.geocoded_count,
+        pointsNeedingGeocoding: response.points_needing_geocoding,
+        fromCache: response.from_cache
       });
+
+      return successResponse(response);
     }
 
     return errorResponse('Method not allowed', 405);

@@ -27,6 +27,8 @@
 	let showPassword = false;
 	let showConfirmPassword = false;
 	let isEmailSent = false;
+	let registrationDisabled = false;
+	let isLoadingSettings = false;
 
 	// Password validation
 	let passwordValidation = {
@@ -48,8 +50,40 @@
 	$: isPasswordValid = Object.values(passwordValidation).every(Boolean);
 	$: doPasswordsMatch = password === confirmPassword && password.length > 0;
 
+	async function checkServerSettings() {
+		isLoadingSettings = true;
+		try {
+			const response = await fetch('/api/server-settings');
+			if (response.ok) {
+				const result = await response.json();
+				if (result.success && result.data) {
+					registrationDisabled = !result.data.allow_registration;
+					console.log('🔧 [SIGNUP] Server settings:', { allow_registration: result.data.allow_registration });
+				} else {
+					console.error('Failed to fetch server settings:', result.error);
+					// Default to allowing registration if we can't fetch settings
+					registrationDisabled = false;
+				}
+			} else {
+				console.error('Failed to fetch server settings');
+				// Default to allowing registration if we can't fetch settings
+				registrationDisabled = false;
+			}
+		} catch (error) {
+			console.error('Error fetching server settings:', error);
+			// Default to allowing registration if we can't fetch settings
+			registrationDisabled = false;
+		} finally {
+			isLoadingSettings = false;
+		}
+	}
+
 	onMount(() => {
 		console.log('🔐 [SIGNUP] Page mounted');
+
+		// Check server settings first
+		checkServerSettings();
+
 		// Check if user is already authenticated
 		(async () => {
 			const {
@@ -81,6 +115,12 @@
 
 	async function handleSignUp(event: Event) {
 		event.preventDefault();
+
+		// Check if registration is disabled
+		if (registrationDisabled) {
+			toast.error('User registration is currently disabled');
+			return;
+		}
 
 		// Validate required fields
 		if (!firstName.trim()) {
@@ -131,6 +171,12 @@
 	}
 
 	async function handleOAuthSignUp(provider: 'google' | 'github') {
+		// Check if registration is disabled
+		if (registrationDisabled) {
+			toast.error('User registration is currently disabled');
+			return;
+		}
+
 		loading = true;
 
 		try {
@@ -181,6 +227,36 @@
 				<p class="text-gray-600 dark:text-gray-400">Join Wayli and start your journey</p>
 			</div>
 
+			{#if isLoadingSettings}
+				<div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+					<div class="flex items-center">
+						<div class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+						<div>
+							<h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
+								Loading Settings
+							</h3>
+							<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
+								Checking registration status...
+							</p>
+						</div>
+					</div>
+				</div>
+			{:else if registrationDisabled}
+				<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+					<div class="flex items-center">
+						<X class="mr-2 h-5 w-5 text-red-500" />
+						<div>
+							<h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+								Registration Disabled
+							</h3>
+							<p class="mt-1 text-sm text-red-700 dark:text-red-300">
+								User registration is currently disabled by the system administrator.
+							</p>
+						</div>
+					</div>
+				</div>
+			{/if}
+
 			{#if isEmailSent}
 				<div class="text-center">
 					<div
@@ -217,7 +293,8 @@
 									type="text"
 									bind:value={firstName}
 									required
-									class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+									disabled={registrationDisabled}
+									class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 									placeholder="First name"
 								/>
 							</div>
@@ -234,7 +311,8 @@
 								type="text"
 								bind:value={lastName}
 								required
-								class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+								disabled={registrationDisabled}
+								class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder="Last name"
 							/>
 						</div>
@@ -257,7 +335,8 @@
 								type="email"
 								bind:value={email}
 								required
-								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+								disabled={registrationDisabled}
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder="Enter your email"
 							/>
 						</div>
@@ -280,13 +359,15 @@
 								type={showPassword ? 'text' : 'password'}
 								bind:value={password}
 								required
-								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+								disabled={registrationDisabled}
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder="Create a password"
 							/>
 							<button
 								type="button"
 								onclick={togglePassword}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+								disabled={registrationDisabled}
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -395,7 +476,8 @@
 								type={showConfirmPassword ? 'text' : 'password'}
 								bind:value={confirmPassword}
 								required
-								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 {!doPasswordsMatch &&
+								disabled={registrationDisabled}
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400 {!doPasswordsMatch &&
 								confirmPassword.length > 0
 									? 'border-red-500'
 									: ''}"
@@ -404,7 +486,8 @@
 							<button
 								type="button"
 								onclick={toggleConfirmPassword}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+								disabled={registrationDisabled}
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -421,10 +504,10 @@
 					<!-- Sign Up Button -->
 					<button
 						type="submit"
-						disabled={loading || !isPasswordValid || !doPasswordsMatch}
+						disabled={loading || !isPasswordValid || !doPasswordsMatch || registrationDisabled}
 						class="w-full cursor-pointer rounded-lg bg-[rgb(37,140,244)] px-4 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						{loading ? 'Creating account...' : 'Create account'}
+						{loading ? 'Creating account...' : registrationDisabled ? 'Registration Disabled' : 'Create account'}
 					</button>
 				</form>
 

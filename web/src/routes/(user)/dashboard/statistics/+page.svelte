@@ -38,6 +38,7 @@
 	import GeocodingProgress from '$lib/components/GeocodingProgress.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { getTransportDetectionReasonLabel, type TransportDetectionReason } from '$lib/types/transport-detection-reasons';
+	import { currentLocale, getCountryNameReactive, t } from '$lib/i18n';
 
 	// Add these interfaces at the top of the file
 	interface TrackerLocation {
@@ -1120,28 +1121,7 @@
 		}
 	}
 
-	// Country code to country name map (extend as needed)
-	const countryNames: Record<string, Record<string, string>> = {
-		NL: { en: 'Netherlands', nl: 'Nederland' },
-		BE: { en: 'Belgium', nl: 'België' },
-		DE: { en: 'Germany', nl: 'Duitsland' },
-		FR: { en: 'France', nl: 'Frankrijk' },
-		US: { en: 'United States', nl: 'Verenigde Staten' },
-		MA: { en: 'Morocco', nl: 'Marokko' },
-		GB: { en: 'Great Britain', nl: 'Groot-Brittannië' }
-		// ...add more as needed
-	};
-
-	// Detect current language (replace with your i18n detection if available)
-	let currentLang = 'en';
-	if (typeof navigator !== 'undefined' && navigator.language) {
-		currentLang = navigator.language.split('-')[0];
-	}
-
-	function getCountryName(code: string): string {
-		if (!code) return code;
-		return countryNames[code]?.[currentLang] || countryNames[code]?.en || code;
-	}
+	// Country name translation is now handled by the centralized i18n system
 
 	// Helper to get flag emoji from country code
 	function getFlagEmoji(countryCode: string): string {
@@ -1321,15 +1301,10 @@
 			background: transparent !important;
 			border: none !important;
 		}
-		.date-field {
-			align-items: center;
-			background-color: #fff;
-			border-bottom: 1px solid #e8e9ea;
-			display: inline-flex;
-			gap: 8px;
-			min-width: 100px;
-			padding: 6px;
-			border-radius: 0.75rem;
+
+		/* Override the CSS variable for dark mode */
+		:global(.dark) {
+			--color-white: var(--color-gray-800);
 		}
 		.date-field .icon-calendar {
 			background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAEmSURBVHgB7ZcPzcIwEMUfXz4BSCgKwAGgACRMAg6YBBxsOMABOAAHFAXgAK5Z2Y6lHbfQ8SfpL3lZaY/1rb01N+BHUKSMNBfEJjZWISA56Uo6C2KvVpkgFn9oRx9vICFtUT1JKO3tvRtZdjBxXQs+YY+1FenIfuesPUGVVLzfRWKvmrSzbbN19wS+kAb2+sCEuUxrYzkbe4YvCVM2Vr5NPAkVa+van7Wn38U95uTpN5TJ/A8ZKemAakmbmJJGpI0gVmwA0huieFItjG19DgTHtwIZhCfZq3ztCuzQYh+FKBSvusjAGs8PnLYkLgMf34JoIBqIBqKBaIAb0Kw9RlhMCTbzzPWAqYq7LsuPaGDUsYmznaOk5zChUJTNQ4TFVMkrOL4HPsoNn26PxROHCggAAAAASUVORK5CYII=)
@@ -1337,47 +1312,6 @@
 			background-size: 14px 14px;
 			height: 14px;
 			width: 14px;
-		}
-		html.dark .air-datepicker,
-		body.dark .air-datepicker {
-			background: #23232a !important;
-			color: #f3f4f6 !important;
-			border-color: #44444c !important;
-		}
-		html.dark .air-datepicker-nav,
-		body.dark .air-datepicker-nav {
-			background: #23232a !important;
-			color: #f3f4f6 !important;
-		}
-		html.dark .air-datepicker-cell,
-		body.dark .air-datepicker-cell {
-			color: #f3f4f6 !important;
-		}
-		html.dark .air-datepicker-cell.-selected-,
-		body.dark .air-datepicker-cell.-selected- {
-			background: #2563eb !important;
-			color: #fff !important;
-		}
-		html.dark .air-datepicker-cell.-current-,
-		body.dark .air-datepicker-cell.-current- {
-			border-color: #2563eb !important;
-		}
-		html.dark .air-datepicker-nav--title,
-		body.dark .air-datepicker-nav--title {
-			color: #f3f4f6 !important;
-		}
-		html.dark .air-datepicker-nav--action,
-		body.dark .air-datepicker-nav--action {
-			color: #f3f4f6 !important;
-		}
-		html.dark .air-datepicker-buttons,
-		body.dark .air-datepicker-buttons {
-			background: #23232a !important;
-		}
-		html.dark .air-datepicker-time,
-		body.dark .air-datepicker-time {
-			background: #23232a !important;
-			color: #f3f4f6 !important;
 		}
 
 		/* Map interaction fixes */
@@ -1434,7 +1368,7 @@
 					</div>
 				</button>
 				{#if isOpen}
-					<div class="date-picker-container absolute right-0 mt-2" style="z-index: 2002;">
+					<div class="date-picker-container absolute right-0 mt-2 z-50">
 						<DatePicker
 							bind:isOpen
 							bind:startDate={state.filtersStartDate}
@@ -1442,6 +1376,7 @@
 							isRange
 							showPresets
 							align="right"
+							class="dark-datepicker"
 						/>
 					</div>
 				{/if}
@@ -1676,7 +1611,7 @@
 								<div class="mb-1 flex items-center gap-2">
 									<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
 									<span class="text-base text-gray-700 dark:text-gray-300"
-										>{getCountryName(country.country_code)}</span
+										>{$getCountryNameReactive(country.country_code)}</span
 									>
 								</div>
 								<div class="relative w-full">
