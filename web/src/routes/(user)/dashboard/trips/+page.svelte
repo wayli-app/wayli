@@ -32,6 +32,8 @@
 	import Modal from '$lib/components/ui/modal/index.svelte';
 	import GenerateSuggestionsButton from '$lib/components/ui/generate-suggestions-button/index.svelte';
 	import type { UserProfile } from '$lib/types/user.types';
+	import { getActiveJobsMap, subscribe } from '$lib/stores/job-store';
+	import type { JobUpdate } from '$lib/services/sse.service';
 
 	interface Trip {
 		id: string;
@@ -58,89 +60,130 @@
 		updated_at: string;
 	}
 
-	let trips: Trip[] = [];
-	let isLoading = false;
-	let isLoadingMore = false;
-	let isInitialLoad = true;
-	let hasMoreTrips = true;
-	let currentPage = 1;
+	let trips = $state<Trip[]>([]);
+	let isLoading = $state(false);
+	let isLoadingMore = $state(false);
+	let isInitialLoad = $state(true);
+	let hasMoreTrips = $state(true);
+	let currentPage = $state(1);
 	const tripsPerPage = 30;
-	let isApprovingTrips = false; // Flag to prevent reactive reloads during approval
-	let searchQuery = '';
-	let selectedFilter = 'all';
+	let isApprovingTrips = $state(false); // Flag to prevent reactive reloads during approval
+	let searchQuery = $state('');
+	let selectedFilter = $state('all');
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-	let filteredTrips: Trip[] = [];
-	let showTripModal = false;
-	let isEditing = false;
-	let editingTrip: Trip | null = null;
-	let tripForm = {
+	let filteredTrips = $state<Trip[]>([]);
+	let showTripModal = $state(false);
+	let isEditing = $state(false);
+	let editingTrip = $state<Trip | null>(null);
+	let tripForm = $state({
 		title: '',
 		start_date: '',
 		end_date: '',
 		description: '',
 		labels: [] as string[]
-	};
-	let newLabel = '';
-	let formError = '';
-	let isSubmitting = false;
-	let tripToDelete: Trip | null = null;
-	let showDeleteConfirm = false;
-	let imageFile: File | null = null;
-	let showSuggestedTripsModal = false;
-	let showTripGenerationModal = false;
-	let suggestedTrips: any[] = [];
-	let isLoadingSuggestedTrips = false;
-	let isLoadingMoreSuggestedTrips = false; // Separate state for "load more"
-	let selectedSuggestedTrips: string[] = [];
-	let suggestedTripsPagination = {
+	});
+	let newLabel = $state('');
+	let formError = $state('');
+	let isSubmitting = $state(false);
+	let tripToDelete = $state<Trip | null>(null);
+	let showDeleteConfirm = $state(false);
+	let imageFile = $state<File | null>(null);
+	let showSuggestedTripsModal = $state(false);
+	let showTripGenerationModal = $state(false);
+	let suggestedTrips = $state<any[]>([]);
+	let isLoadingSuggestedTrips = $state(false);
+	let isLoadingMoreSuggestedTrips = $state(false); // Separate state for "load more"
+	let selectedSuggestedTrips = $state<string[]>([]);
+	let suggestedTripsPagination = $state({
 		limit: 10,
 		offset: 0,
 		total: 0,
 		hasMore: true
-	};
-	// Custom home address geocoding state
-	let customHomeAddressInput = '';
+	});
+	// Custom home address state
+	let customHomeAddressInput = $state('');
 	let customHomeAddressInputElement: HTMLInputElement | undefined;
-	let isCustomHomeAddressSearching = false;
-	let customHomeAddressSuggestions: any[] = [];
-	let showCustomHomeAddressSuggestions = false;
-	let selectedCustomHomeAddress: any | null = null;
-	let selectedCustomHomeAddressIndex = -1;
+	let isCustomHomeAddressSearching = $state(false);
+	let customHomeAddressSuggestions = $state<any[]>([]);
+	let showCustomHomeAddressSuggestions = $state(false);
+	let selectedCustomHomeAddress = $state<any | null>(null);
+	let selectedCustomHomeAddressIndex = $state(-1);
 	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
-	let customHomeAddressSearchError: string | null = null;
+	let customHomeAddressSearchError = $state<string | null>(null);
 
-	let tripGenerationData = {
+	let tripGenerationData = $state({
 		startDate: '',
 		endDate: '',
 		useCustomHomeAddress: false,
 		customHomeAddress: '',
 		clearExistingSuggestions: false
-	};
-	let imagePreview: string | null = null;
+	});
+	let imagePreview = $state<string | null>(null);
 
-	// Image polling state
-	let imagePollingInterval: ReturnType<typeof setInterval> | null = null;
-	// Image polling is no longer needed since image generation is synchronous
-	let imageError: string = '';
-	let uploadedImageUrl: string | null = null;
-	let isUploadingImage = false;
-	let isSuggestingImage = false;
-	let suggestedImageUrl: string | null = null;
-	let tripAnalysis: any = null;
-	let userPreferences: any = null;
-	let serverPexelsApiKeyAvailable = false;
-	let imageAttribution: any = null;
+	// Image state
+	let imageError = $state<string>('');
+	let uploadedImageUrl = $state<string | null>(null);
+	let isUploadingImage = $state(false);
+	let isSuggestingImage = $state(false);
+	let suggestedImageUrl = $state<string | null>(null);
+	let tripAnalysis = $state<any>(null);
+	let userPreferences = $state<any>(null);
+	let serverPexelsApiKeyAvailable = $state(false);
+	let imageAttribution = $state<any>(null);
 
-	// Trip generation job progress tracking
-	let activeTripGenerationJob: any = null;
-	let tripGenerationProgress = 0;
-	let tripGenerationStatus = '';
-	let tripGenerationPollingInterval: ReturnType<typeof setInterval> | null = null;
-	let tripGenerationStartTime: Date | null = null;
-	let jobCheckStatus = 'idle'; // 'idle', 'checking', 'found', 'not_found'
-	let backgroundJobCheckInterval: ReturnType<typeof setInterval> | null = null;
+	// Create a reactive subscription to the global store for trip generation jobs
+	let activeJobs = $state(getActiveJobsMap());
+
+	// Subscribe to store changes
+	onMount(() => {
+		const unsubscribe = subscribe(() => {
+			activeJobs = getActiveJobsMap();
+		});
+
+		return unsubscribe;
+	});
 
 
+	$effect(() => {
+		// Find the active trip generation job in the activeJobs map
+		for (const [jobId, job] of activeJobs.entries()) {
+			if (job.type === 'trip_generation' && (job.status === 'queued' || job.status === 'running')) {
+
+				// Update approval progress if we have an active trip generation job
+				if (job.status === 'running' && job.progress > 0) {
+					approvalProgress = {
+						step: 'creating-trips',
+						message: `Creating trips... ${job.progress}% complete`,
+						progress: job.progress,
+						totalSteps: 2,
+						currentStep: 2,
+						imageProgress: {
+							processed: 0,
+							total: 0,
+							currentTrip: null
+						}
+					};
+				}
+				return; // Found the active job, no need to continue
+			}
+		}
+
+		// If no active trip generation job found, clear the progress
+		if (approvalProgress.step === 'creating-trips') {
+			approvalProgress = {
+				step: 'idle',
+				message: '',
+				progress: 0,
+				totalSteps: 0,
+				currentStep: 0,
+				imageProgress: {
+					processed: 0,
+					total: 0,
+					currentTrip: null
+				}
+			};
+		}
+	});
 
 	const filters = [
 		{ value: 'all', label: 'All Trips' },
@@ -153,11 +196,11 @@
 		// Get trip image or return null if no image available
 	function getTripImage(trip: Trip): string | null {
 		if (!trip.image_url) {
-			console.log('🖼️ No image URL for trip:', trip.title);
+
 			return null;
 		}
 
-		console.log('🖼️ Trip image URL:', trip.title, trip.image_url);
+
 
 		// If it's already a full URL, return as is
 		if (trip.image_url.startsWith('http')) {
@@ -179,17 +222,15 @@
 	// Handle image loading
 	function handleImageLoad(tripId: string) {
 		imageLoadingStates.set(tripId, false);
-		imageLoadingStates = imageLoadingStates; // Trigger reactivity
 	}
 
 	function handleImageError(tripId: string) {
+		console.log('❌ Image error for trip:', tripId);
 		imageLoadingStates.set(tripId, false);
-		imageLoadingStates = imageLoadingStates; // Trigger reactivity
 	}
 
 	function startImageLoading(tripId: string) {
 		imageLoadingStates.set(tripId, true);
-		imageLoadingStates = imageLoadingStates; // Trigger reactivity
 	}
 
 	function formatDistance(distance: number): string {
@@ -259,21 +300,21 @@
 
 	async function loadTrips(userId?: string, loadMore = false) {
 		if (isLoading && !loadMore) {
-			console.log('⏳ Skipping loadTrips - already loading');
+
 			return;
 		}
 
 		if (loadMore && (isLoadingMore || !hasMoreTrips)) {
-			console.log('⏳ Skipping loadMore - already loading or no more trips');
+
 			return;
 		}
 
-		console.log('🔄 Starting loadTrips...', { userId, loadMore, currentPage });
+
 
 		if (loadMore) {
 			isLoadingMore = true;
 		} else {
-			isLoading = true;
+		isLoading = true;
 		}
 
 		try {
@@ -291,27 +332,27 @@
 				search: searchQuery || undefined
 			});
 
-			console.log('📊 Raw trips data:', tripsData);
+
 
 			// Handle both array and paginated response formats
 			let newTrips: Trip[] = [];
 			if (Array.isArray(tripsData)) {
 				newTrips = tripsData;
-				console.log('📋 Using array format, trips count:', newTrips.length);
+
 				hasMoreTrips = newTrips.length === tripsPerPage;
 			} else if ((tripsData as any).trips) {
 				newTrips = (tripsData as any).trips;
-				console.log('📋 Using paginated format, trips count:', newTrips.length);
+
 				hasMoreTrips = newTrips.length === tripsPerPage;
 			} else {
 				newTrips = [];
-				console.log('⚠️ Unknown format, setting empty array');
+
 				hasMoreTrips = false;
 			}
 
 			// Sort trips by end_date descending
 			newTrips = newTrips.sort((a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime());
-			console.log('📊 Trips after sorting:', newTrips.map(t => ({ id: t.id, title: t.title, end_date: t.end_date })));
+
 
 			if (loadMore) {
 				// Append new trips to existing ones
@@ -324,11 +365,6 @@
 			}
 
 			filterTrips();
-			console.log('✅ loadTrips completed successfully', {
-				totalTrips: trips.length,
-				hasMoreTrips,
-				currentPage
-			});
 		} catch (error) {
 			console.error('❌ [TripsPage] Error loading trips:', error);
 			// Only show error if trips is empty after the error
@@ -339,15 +375,15 @@
 			if (loadMore) {
 				isLoadingMore = false;
 			} else {
-				isLoading = false;
-				isInitialLoad = false;
+			isLoading = false;
+			isInitialLoad = false;
 			}
 		}
 	}
 
 	async function loadMoreTrips() {
 		if (hasMoreTrips && !isLoadingMore) {
-			console.log('📄 Loading more trips...');
+
 			await loadTrips($sessionStore?.user?.id, true);
 		}
 	}
@@ -359,9 +395,11 @@
 		const scrollTop = window.scrollY;
 		const scrollHeight = document.documentElement.scrollHeight;
 		const clientHeight = window.innerHeight;
+		const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
-		// Load more when user scrolls to within 200px of the bottom
-		if (scrollHeight - scrollTop - clientHeight < 200) {
+		// Load more when user scrolls to within 300px of the bottom
+		if (distanceFromBottom < 300) {
+			console.log('🔄 Infinite scroll triggered - distance from bottom:', distanceFromBottom);
 			loadMoreTrips();
 		}
 	}
@@ -402,17 +440,20 @@
 		}
 	}
 
-	$: if (selectedFilter) {
+	$effect(() => {
+		if (selectedFilter) {
 		filterTrips();
-		// Reset pagination when filters change
-		if (!isInitialLoad) {
-			hasMoreTrips = true;
-			currentPage = 1;
-		}
+			// Reset pagination when filters change
+			if (!isInitialLoad) {
+				hasMoreTrips = true;
+				currentPage = 1;
 	}
+		}
+	});
 
 	// Auto-suggest image when both dates are selected and no image is uploaded yet
-	$: if (
+	$effect(() => {
+		if (
 		tripForm.start_date &&
 		tripForm.end_date &&
 		!uploadedImageUrl &&
@@ -426,46 +467,43 @@
 			suggestTripImage();
 		}, 1000);
 	}
+	});
 
 	// Only load trips on initial mount, not on every session store change
-	$: if (
-		browser &&
-		$sessionStoreReady &&
-		$sessionStore &&
-		$sessionStore.user?.id &&
-		isInitialLoad &&
-		!isApprovingTrips
-	) {
-		console.log('🔄 Initial load triggered (hydrated session)', {
-			browser,
-			sessionStoreReady: $sessionStoreReady,
-			sessionStore: !!$sessionStore,
-			userId: $sessionStore?.user?.id,
-			isInitialLoad,
-			isApprovingTrips
-		});
-		loadTrips($sessionStore.user.id);
-	}
+	$effect(() => {
+		if (
+			browser &&
+			$sessionStoreReady &&
+			$sessionStore &&
+			$sessionStore.user?.id &&
+			isInitialLoad &&
+			!isApprovingTrips
+		) {
+			loadTrips($sessionStore.user.id);
+		}
+	});
 
 	// Add scroll event listener for infinite scroll
 	onMount(() => {
 		if (browser) {
-			window.addEventListener('scroll', handleScroll);
+					// Throttle scroll events to improve performance
+		let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+		const throttledHandleScroll = () => {
+			if (scrollTimeout) return;
+			scrollTimeout = setTimeout(() => {
+				handleScroll();
+				scrollTimeout = null;
+			}, 100); // Throttle to 100ms
+		};
+
+			window.addEventListener('scroll', throttledHandleScroll);
+
+			return () => {
+				window.removeEventListener('scroll', throttledHandleScroll);
+				if (scrollTimeout) clearTimeout(scrollTimeout);
+			};
 		}
 	});
-
-	onDestroy(() => {
-		if (browser) {
-			window.removeEventListener('scroll', handleScroll);
-		}
-	});
-
-
-
-	// Force UI updates when progress changes
-	$: if (tripGenerationProgress !== undefined) {
-		console.log('🔄 Progress reactive update:', tripGenerationProgress);
-	}
 
 	async function openSuggestedTripsModal() {
 		showSuggestedTripsModal = true;
@@ -561,13 +599,13 @@
 		try {
 			// Clear existing suggestions if checkbox is checked
 			if (tripGenerationData.clearExistingSuggestions) {
-				console.log('🗑️ Clearing existing suggested trips...');
+
 				const session = get(sessionStore);
 				if (!session) throw new Error('No session found');
 
 				const serviceAdapter = new ServiceAdapter({ session });
 				await serviceAdapter.clearAllSuggestedTrips();
-				console.log('✅ Existing suggested trips cleared');
+
 			}
 
 			const jobData: Record<string, unknown> = {
@@ -616,9 +654,9 @@
 
 			// Start tracking the job progress
 			if (result.data?.job?.id) {
-				activeTripGenerationJob = result.data.job;
-				tripGenerationStartTime = new Date();
-				startTripGenerationPolling(result.data.job.id);
+
+
+
 			}
 
 			// Close modals when starting a new job
@@ -627,8 +665,8 @@
 
 			// Check for any other active jobs after a short delay
 			setTimeout(async () => {
-				console.log('🔍 Checking for additional active jobs after creating new job...');
-				await checkForActiveTripGenerationJob();
+
+
 			}, 2000);
 		} catch (error) {
 			console.error('Error generating new trip suggestions:', error);
@@ -636,297 +674,9 @@
 		}
 	}
 
-	// Check for active trip generation job on page load
-	async function checkForActiveTripGenerationJob() {
-		try {
-			jobCheckStatus = 'checking';
-			const session = get(sessionStore);
-			if (!session) {
-				console.log('🔍 No session found, skipping active job check');
-				jobCheckStatus = 'not_found';
-				return; // Early return if no session
-			}
 
-			console.log('🔍 Checking for active trip generation jobs...');
-			const serviceAdapter = new ServiceAdapter({ session });
-			let data = await serviceAdapter.getJobs({ type: 'trip_generation' }) as any;
 
-			console.log('🔍 Jobs API response:', data);
 
-			// If the type-filtered call doesn't work, try getting all jobs
-			if (!data.success || !Array.isArray(data.data) || data.data.length === 0) {
-				console.log('🔍 Type-filtered call failed, trying to get all jobs...');
-				const allJobsData = await serviceAdapter.getJobs({}) as any;
-				console.log('🔍 All jobs API response:', allJobsData);
-
-				if (allJobsData.success && Array.isArray(allJobsData.data)) {
-					// Use the all jobs response instead
-					data = allJobsData;
-				}
-			}
-
-			// Handle the response format from Edge Functions
-			// Edge Functions return { success: true, data: jobs }
-			// The makeRequest method returns the data part directly
-			const jobs = Array.isArray(data) ? data : (data.data || []);
-
-			console.log('🔍 All jobs returned:', jobs);
-
-			const activeJobs = jobs.filter(
-				(job: any) =>
-					job.type === 'trip_generation' && (job.status === 'queued' || job.status === 'running')
-			);
-
-			console.log(`🔍 Found ${activeJobs.length} active trip generation job(s):`, activeJobs);
-			console.log('🔍 Job filtering details:', jobs.map((job: any) => ({
-				id: job.id,
-				type: job.type,
-				status: job.status,
-				isTripGeneration: job.type === 'trip_generation',
-				isActive: job.status === 'queued' || job.status === 'running'
-			})));
-
-			// If no trip_generation jobs found, check for any active jobs
-			if (activeJobs.length === 0) {
-				const allActiveJobs = jobs.filter(
-					(job: any) => job.status === 'queued' || job.status === 'running'
-				);
-				console.log('🔍 No trip_generation jobs found, checking all active jobs:', allActiveJobs);
-
-				// Look for any job that might be a trip generation job by checking the job data
-				const potentialTripJobs = allActiveJobs.filter((job: any) => {
-					// Check if job data contains trip-related information
-					const jobData = job.data || {};
-					return jobData.startDate || jobData.endDate || jobData.clearExistingSuggestions !== undefined;
-				});
-
-				if (potentialTripJobs.length > 0) {
-					console.log('🔍 Found potential trip generation jobs:', potentialTripJobs);
-					activeJobs.push(...potentialTripJobs);
-				}
-			}
-
-			if (activeJobs.length > 0) {
-				// Only set up polling if we don't already have an active job
-				if (!activeTripGenerationJob || activeTripGenerationJob.id !== activeJobs[0].id) {
-					activeTripGenerationJob = activeJobs[0]; // Get the most recent active job
-					tripGenerationStartTime = new Date(activeTripGenerationJob.created_at);
-					console.log('✅ Found active trip generation job:', activeTripGenerationJob);
-					console.log('📊 Starting progress polling for job:', activeTripGenerationJob.id);
-					startTripGenerationPolling(activeTripGenerationJob.id);
-					updateTripGenerationProgressFromJob(activeTripGenerationJob);
-					jobCheckStatus = 'found';
-
-					// Stop background checking since we found a job
-					stopBackgroundJobChecking();
-				} else {
-					console.log('ℹ️ Already tracking this active job, continuing...');
-					jobCheckStatus = 'found';
-				}
-			} else {
-				console.log('ℹ️ No active trip generation jobs found');
-				// Clear any existing job state
-				activeTripGenerationJob = null;
-				tripGenerationProgress = 0;
-				tripGenerationStatus = '';
-				jobCheckStatus = 'not_found';
-
-				// Restart background checking since no job was found
-				startBackgroundJobChecking();
-			}
-		} catch (error) {
-			console.error('❌ Error checking for active trip generation jobs:', error);
-			jobCheckStatus = 'not_found';
-		}
-	}
-
-	async function startTripGenerationPolling(jobId: string) {
-		console.log('🔄 Starting trip generation polling for job:', jobId);
-
-		// Clear any existing polling
-		if (tripGenerationPollingInterval) {
-			clearInterval(tripGenerationPollingInterval);
-		}
-
-		// Start verification interval (every 10 seconds)
-		const verificationInterval = setInterval(async () => {
-			const isStillActive = await verifyJobStillActive(jobId);
-			if (!isStillActive) {
-				console.log('🔍 Job no longer active, stopping polling');
-				clearInterval(verificationInterval);
-				if (tripGenerationPollingInterval) {
-					clearInterval(tripGenerationPollingInterval);
-				}
-				activeTripGenerationJob = null;
-				tripGenerationProgress = 0;
-				tripGenerationStatus = '';
-				jobCheckStatus = 'not_found';
-			}
-		}, 10000);
-
-		tripGenerationPollingInterval = setInterval(async () => {
-			try {
-				const session = get(sessionStore);
-				if (!session) {
-					console.log('❌ No session found, stopping polling');
-					if (tripGenerationPollingInterval) {
-						clearInterval(tripGenerationPollingInterval);
-					}
-					clearInterval(verificationInterval);
-					return;
-				}
-
-				const serviceAdapter = new ServiceAdapter({ session });
-				let job: any = null;
-
-				try {
-					const data = await serviceAdapter.getJobProgress(jobId) as any;
-					console.log('🔄 Raw job progress response:', data);
-
-					// Handle different response structures
-					if (data && data.success && data.data) {
-						// Standard API response format
-						job = data.data;
-					} else if (data && data.id) {
-						// Direct job object
-						job = data;
-					} else {
-						// Fallback
-						job = data?.data || data;
-					}
-
-					console.log('🔄 Processed job object:', job);
-				} catch (error) {
-					console.error('❌ Error polling trip generation job:', error);
-					// If there's an error, try to get the job from the database directly
-					try {
-						const jobsResponse = await serviceAdapter.getJobs({ type: 'trip_generation' }) as any;
-						const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse?.data || []);
-						const currentJob = jobs.find((j: any) => j.id === jobId);
-						if (currentJob) {
-							console.log('🔍 Found job in jobs list:', currentJob);
-							activeTripGenerationJob = currentJob;
-							job = currentJob;
-						}
-					} catch (fallbackError) {
-						console.error('❌ Error in fallback job lookup:', fallbackError);
-					}
-					return;
-				}
-
-				if (job) {
-					console.log('🔄 Updated job progress:', {
-						progress: tripGenerationProgress,
-						status: tripGenerationStatus,
-						jobProgress: job.progress,
-						jobStatus: job.status
-					});
-
-					// Update progress
-					const newProgress = job.progress || 0;
-					const newStatus = job.status || '';
-
-					console.log('🔄 Setting new progress:', {
-						oldProgress: tripGenerationProgress,
-						newProgress: newProgress,
-						oldStatus: tripGenerationStatus,
-						newStatus: newStatus
-					});
-
-					tripGenerationProgress = newProgress;
-					tripGenerationStatus = newStatus;
-
-					console.log('🔄 Progress updated:', {
-						currentProgress: tripGenerationProgress,
-						currentStatus: tripGenerationStatus
-					});
-
-					// Check if job is completed, failed, or cancelled
-					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-						console.log('🔄 Job finished with status:', job.status);
-						if (tripGenerationPollingInterval) {
-							clearInterval(tripGenerationPollingInterval);
-						}
-						clearInterval(verificationInterval);
-						tripGenerationPollingInterval = null;
-
-						// Clear the active job after a delay to show completion
-						setTimeout(() => {
-							console.log('🔄 Clearing completed job from display');
-							activeTripGenerationJob = null;
-							tripGenerationProgress = 0;
-							tripGenerationStatus = '';
-							jobCheckStatus = 'not_found';
-
-							// Restart background checking since job completed
-							startBackgroundJobChecking();
-						}, 3000); // Show completion for 3 seconds
-					}
-				} else {
-					console.log('⚠️ Invalid job progress response:', job);
-				}
-			} catch (error) {
-				console.error('❌ Error polling job progress:', error);
-				// Don't stop polling on error, just log it
-			}
-		}, 1000); // Poll every 1 second
-	}
-
-	// Function to verify if the job is still active
-	async function verifyJobStillActive(jobId: string): Promise<boolean> {
-		try {
-			const session = get(sessionStore);
-			if (!session) return false;
-
-			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.getJobs({}) as any;
-
-			const jobs = Array.isArray(data) ? data : (data.data || []);
-			const activeJob = jobs.find((job: any) =>
-				job.id === jobId &&
-				(job.status === 'queued' || job.status === 'running')
-			);
-
-			console.log('🔍 Job verification:', { jobId, found: !!activeJob, status: activeJob?.status });
-			return !!activeJob;
-		} catch (error) {
-			console.error('❌ Error verifying job:', error);
-			return false;
-		}
-	}
-
-	function stopTripGenerationPolling() {
-		if (tripGenerationPollingInterval) {
-			clearInterval(tripGenerationPollingInterval);
-			tripGenerationPollingInterval = null;
-		}
-	}
-
-	function updateTripGenerationProgressFromJob(job: any) {
-		tripGenerationProgress = job.progress || 0;
-		const result = (job.result as Record<string, unknown>) || {};
-		tripGenerationStatus = (result.message as string) || job.status;
-	}
-
-	function getEstimatedTimeRemaining(): string {
-		if (!tripGenerationStartTime || tripGenerationProgress <= 0 || tripGenerationProgress >= 100) {
-			return '';
-		}
-
-		const elapsed = Date.now() - tripGenerationStartTime.getTime();
-		const estimatedTotal = (elapsed / tripGenerationProgress) * 100;
-		const remaining = estimatedTotal - elapsed;
-
-		if (remaining < 60000) { // Less than 1 minute
-			return 'Less than 1 minute';
-		} else if (remaining < 3600000) { // Less than 1 hour
-			const minutes = Math.ceil(remaining / 60000);
-			return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-		} else {
-			const hours = Math.ceil(remaining / 3600000);
-			return `${hours} hour${hours !== 1 ? 's' : ''}`;
-		}
-	}
 
 	function openAddTripModal() {
 		showTripModal = true;
@@ -1028,26 +778,9 @@
 		try {
 			let imageUrl = uploadedImageUrl || (isEditing && editingTrip?.image_url ? editingTrip.image_url : undefined);
 
-			// If we have a suggested Pexels image, upload it to storage first
+			// If we have a suggested Pexels image, use it directly (no need to upload to storage)
 			if (suggestedImageUrl && suggestedImageUrl.startsWith('http') && !uploadedImageUrl) {
-				console.log('📤 Uploading Pexels image to storage...');
-
-				// Get current user for file path
-				const session = get(sessionStore);
-				if (!session?.user?.id) {
-					throw new Error('No user session found');
-				}
-
-				const fileName = `trips/${session.user.id}/${Date.now()}.jpg`;
-				const uploadedUrl = await uploadPexelsImageToStorage(suggestedImageUrl, fileName);
-
-				if (uploadedUrl) {
-					imageUrl = uploadedUrl;
-					console.log('✅ Pexels image uploaded to storage:', uploadedUrl);
-				} else {
-					console.error('❌ Failed to upload Pexels image to storage');
-					// Continue without image if upload fails
-				}
+				imageUrl = suggestedImageUrl;
 			}
 
 			// Prepare metadata with attribution if available
@@ -1171,7 +904,7 @@
 				end_date: tripForm.end_date
 			}) as any;
 
-			console.log('🔍 Suggest result:', suggestResult);
+
 
 			if (suggestResult.suggestedImageUrl) {
 				suggestedImageUrl = suggestResult.suggestedImageUrl;
@@ -1180,11 +913,11 @@
 				imagePreview = suggestResult.suggestedImageUrl;
 				uploadedImageUrl = suggestResult.suggestedImageUrl;
 				imageError = ''; // Clear any previous errors
-				console.log('✅ Image suggestion successful:', suggestResult.suggestedImageUrl);
+
 				toast.success('Trip image suggested based on your travel data!');
 			} else {
 				imageError = 'No image suggestion available for this date range.';
-				console.log('❌ Image suggestion failed:', suggestResult);
+
 			}
 		} catch (error) {
 			console.error('Error suggesting trip image:', error);
@@ -1290,7 +1023,7 @@
 				.getPublicUrl(fileName);
 
 			return urlData.publicUrl;
-		} catch (error) {
+			} catch (error) {
 			console.error('Error uploading Pexels image to storage:', error);
 			return null;
 		}
@@ -1298,7 +1031,7 @@
 
 	// State for tracking image generation progress
 	// Image loading state
-	let imageLoadingStates: Map<string, boolean> = new Map();
+	let imageLoadingStates = $state(new Map<string, boolean>());
 
 	// Approval progress state
 	let isApprovalInProgress = false;
@@ -1312,19 +1045,19 @@
 		imageProgress: {
 			processed: 0,
 			total: 0,
-			currentTrip: ''
+			currentTrip: '' as string | null
 		}
 	};
 
-		async function handleApproveTrips() {
-		console.log('🔍 handleApproveTrips called with selectedSuggestedTrips:', selectedSuggestedTrips);
+	async function handleApproveTrips() {
+
 		if (selectedSuggestedTrips.length === 0) {
-			console.log('❌ No selected trips, returning early');
+
 			return;
 		}
 
 		try {
-			console.log('🚀 Starting trip approval process...', { selectedTrips: selectedSuggestedTrips });
+
 
 			// Initialize progress
 			isApprovalInProgress = true;
@@ -1350,8 +1083,8 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 
 			// Step 1: Generate images for suggested trips (one by one for granular progress)
-			console.log('📸 Step 1: Generating images for suggested trips...');
-			console.log('📸 Selected suggested trips:', selectedSuggestedTrips);
+
+
 			approvalProgress.message = 'Generating images for suggested trips...';
 			approvalProgress.progress = 0; // Start at 0%
 
@@ -1367,11 +1100,11 @@
 				approvalProgress.imageProgress.currentTrip = `Trip ${i + 1}`;
 
 				try {
-					console.log(`📸 Generating image for trip ${i + 1}/${selectedSuggestedTrips.length}: ${tripId}`);
+
 
 					// Call the API for a single trip
 					const singleImageResult = await serviceAdapter.generateSuggestedTripImages([tripId]) as any;
-					console.log(`📸 Single image generation result for ${tripId}:`, singleImageResult);
+
 
 					if (singleImageResult?.results?.[0]?.success) {
 						successfulImageCount++;
@@ -1390,7 +1123,7 @@
 							approvalProgress.imageProgress.currentTrip = singleImageResult.results[0].trip_title;
 							approvalProgress.message = `Generated image for "${singleImageResult.results[0].trip_title}" (${successfulImageCount}/${selectedSuggestedTrips.length} trips)`;
 						}
-					} else {
+				} else {
 						imageResults.push(singleImageResult?.results?.[0] || { suggested_trip_id: tripId, success: false, error: 'Failed to generate image' });
 					}
 				} catch (error) {
@@ -1404,7 +1137,7 @@
 			// Progress is now updated in the loop above
 
 			// Step 2: Approve trips with generated images
-			console.log('📤 Step 2: Approving trips with generated images...');
+
 			approvalProgress.step = 'creating-trips';
 			approvalProgress.message = 'Creating trips with generated images...';
 			approvalProgress.currentStep = 2;
@@ -1422,18 +1155,12 @@
 				});
 			}
 
-			console.log('📸 Pre-generated images data:', {
-				totalResults: imageResult?.results?.length || 0,
-				successfulResults: imageResult?.results?.filter((r: any) => r.success).length || 0,
-				preGeneratedImagesCount: Object.keys(preGeneratedImages).length,
-				preGeneratedImages: preGeneratedImages,
-				selectedSuggestedTrips: selectedSuggestedTrips
-			});
+
 
 			const approveResult = await serviceAdapter.approveSuggestedTrips(selectedSuggestedTrips, preGeneratedImages) as any;
 
-			console.log('📋 Approve result:', approveResult);
-			console.log('📋 Approve result.results:', approveResult.results);
+
+
 
 						// Calculate final progress based on successful approvals
 			const approvalResults = approveResult.results || [];
@@ -1456,21 +1183,21 @@
 			// Close modal and clear the list
 			showSuggestedTripsModal = false;
 			suggestedTrips = [];
-			console.log('🔒 Modal closed');
+
 
 			// Get the created trip IDs from the approve result
-			console.log('📋 Results array:', approvalResults);
 
-			console.log('📋 Successful results:', successfulApprovals);
+
+
 
 			const createdTripIds = successfulApprovals
 				.filter((result: any) => result.tripId)
 				.map((result: any) => result.tripId);
 
-			console.log('🆔 Created trip IDs:', createdTripIds);
+
 
 			if (createdTripIds.length > 0) {
-				console.log('📸 Trips created with images already attached:', createdTripIds);
+
 
 				// Reload trips to show the newly created trips
 				await loadTrips();
@@ -1478,21 +1205,12 @@
 				// Verify image attachment by checking the loaded trips
 				const approvedTrips = trips.filter(trip => createdTripIds.includes(trip.id));
 				const tripsWithImages = approvedTrips.filter(trip => trip.image_url);
-				console.log('🔍 Image attachment verification:', {
-					totalApproved: approvedTrips.length,
-					withImages: tripsWithImages.length,
-					imageUrls: tripsWithImages.map(t => ({ id: t.id, image_url: t.image_url })),
-					attributions: tripsWithImages.map(t => ({
-						id: t.id,
-						image_attribution: t.metadata?.image_attribution,
-						hasAttribution: !!t.metadata?.image_attribution
-					}))
-				});
+
 
 				// Show success message
 				toast.success(`Trips approved successfully! ${tripsWithImages.length}/${approvedTrips.length} trips have images attached.`);
 			} else {
-				console.log('⚠️ No trip IDs found in approve result');
+
 				toast.success('Trips approved successfully');
 			}
 		} catch (error) {
@@ -1637,21 +1355,16 @@
 		if (browser) {
 			await loadUserPreferences();
 		}
-		console.log('🚀 Trips page mounted, checking for active jobs...');
-		await checkForActiveTripGenerationJob();
 
-		// Start background job checking (every 30 seconds)
-		startBackgroundJobChecking();
 
-		// Image polling is no longer needed since image generation is synchronous
+
+
 	});
 
 	// Image polling is no longer needed since image generation is synchronous
 
 	onDestroy(() => {
-		stopTripGenerationPolling();
-		stopBackgroundJobChecking();
-		// Image polling is no longer needed
+		// Cleanup handled by global job tracking
 	});
 
 	// Function to clean up status messages
@@ -1697,30 +1410,27 @@
 		}
 	}
 
-	function stopBackgroundJobChecking() {
-		if (backgroundJobCheckInterval) {
-			clearInterval(backgroundJobCheckInterval);
-			backgroundJobCheckInterval = null;
-			console.log('🛑 Background job checking stopped');
-		}
-	}
+	// Job handling functions for JobTracker
+	// function handleJobUpdates(jobs: JobUpdate[]) {
+	// 	console.log('🎯 Trips: handleJobUpdates called with jobs:', jobs);
+	// 	// The global store handles all job updates now
+	// }
 
-	function startBackgroundJobChecking() {
-		if (!backgroundJobCheckInterval) {
-			backgroundJobCheckInterval = setInterval(async () => {
-				if (!activeTripGenerationJob) {
-					console.log('🔍 Background check: No active job, checking for new jobs...');
-					await checkForActiveTripGenerationJob();
-				}
-			}, 30000);
-			console.log('🔄 Background job checking started');
-		}
-	}
+	// function handleJobCompletions(jobs: JobUpdate[]) {
+	// 	console.log('🎯 Trips: handleJobCompletions called with jobs:', jobs);
+	// 	// The global store handles all job completions now
+	// }
+
+
 
 	// Add session hydration debug logging
-	$: {
-		console.log('SessionStoreReady:', $sessionStoreReady, 'SessionStore:', $sessionStore);
-	}
+	$effect(() => {
+		// This effect ensures UI updates when session changes
+	});
+
+
+
+
 
 </script>
 
@@ -1753,89 +1463,7 @@
 		</div>
 	</div>
 
-	<!-- Active Trip Generation Job Progress Display -->
-	{#if activeTripGenerationJob}
-		<div class="mb-8">
-			<div class="flex items-center justify-between mb-4">
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Trip Generation in Progress</h2>
-				<div class="flex items-center gap-2">
-					<div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-						<div class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
-						<span>Live updates</span>
-					</div>
-				</div>
-			</div>
-			<div
-				class="rounded-lg border border-blue-200 bg-blue-50 p-6 shadow-sm dark:border-blue-700 dark:bg-blue-900/20"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<div class="flex items-center gap-4">
-						<div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-800">
-							<Route class="h-6 w-6 text-blue-600 dark:text-blue-400" />
-						</div>
-						<div>
-							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
-								Trip Generation
-							</h3>
-							<p class="text-sm text-gray-600 dark:text-gray-400">
-								Job ID: {activeTripGenerationJob.id} | Status: {activeTripGenerationJob.status}
-							</p>
-						</div>
-					</div>
-					<div class="text-right">
-						<div class="text-3xl font-bold text-blue-600 dark:text-blue-400">
-							{tripGenerationProgress}%
-						</div>
-						<div class="text-xs text-gray-500 dark:text-gray-400">
-							{tripGenerationProgress < 100 ? 'Processing...' : 'Complete'}
-						</div>
-					</div>
-				</div>
 
-				<!-- Progress Bar -->
-				<div class="mb-4">
-					<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-						<span>Progress</span>
-						<div class="flex items-center gap-2">
-							<span>{tripGenerationProgress}%</span>
-							{#if getEstimatedTimeRemaining()}
-								<span class="text-xs text-gray-500 dark:text-gray-400">
-									~{getEstimatedTimeRemaining()} remaining
-								</span>
-							{/if}
-						</div>
-					</div>
-					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-						<div
-							class="h-4 rounded-full bg-blue-600 transition-all duration-500 ease-out relative"
-							style="width: {tripGenerationProgress}%"
-						>
-							{#if tripGenerationProgress > 0 && tripGenerationProgress < 100}
-								<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-							{/if}
-						</div>
-					</div>
-				</div>
-
-				<!-- Job Details -->
-				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-					<div class="flex items-center gap-4">
-						<span>Started: {format(new Date(activeTripGenerationJob.created_at), 'MMM d, yyyy HH:mm')}</span>
-						<span>
-							Date range:
-							{formatDateRange(activeTripGenerationJob.data?.startDate, activeTripGenerationJob.data?.endDate)}
-						</span>
-					</div>
-					{#if activeTripGenerationJob.status === 'running'}
-						<div class="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-							<div class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></div>
-							<span class="text-xs">Active</span>
-						</div>
-					{/if}
-				</div>
-			</div>
-		</div>
-	{/if}
 
 	<!-- Search and Filters -->
 	<div class="flex flex-col gap-4 md:flex-row">
@@ -1851,22 +1479,22 @@
 		</div>
 		<div class="flex gap-2">
 			{#each filters as filter}
-							<button
-				on:click={() => {
-					selectedFilter = filter.value;
-					// Reset pagination when filter changes
-					currentPage = 1;
-					hasMoreTrips = true;
-					trips = [];
-					loadTrips($sessionStore?.user?.id);
-				}}
-				class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {selectedFilter ===
-				filter.value
-					? 'bg-blue-500 text-white'
-					: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-			>
-				{filter.label}
-			</button>
+				<button
+					on:click={() => {
+						selectedFilter = filter.value;
+						// Reset pagination when filter changes
+						currentPage = 1;
+						hasMoreTrips = true;
+						trips = [];
+						loadTrips($sessionStore?.user?.id);
+					}}
+					class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {selectedFilter ===
+					filter.value
+						? 'bg-blue-500 text-white'
+						: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+				>
+					{filter.label}
+				</button>
 			{/each}
 		</div>
 	</div>
@@ -2283,7 +1911,7 @@
 					<!-- Trip Image -->
 					<div class="relative h-48 bg-gray-200 dark:bg-gray-700">
 						{#if getTripImage(trip)}
-							{#if imageLoadingStates.get(trip.id) !== false}
+							{#if imageLoadingStates.get(trip.id) === true}
 								<!-- Loading placeholder -->
 								<div class="flex h-full w-full items-center justify-center">
 									<div class="text-center">
@@ -2296,7 +1924,7 @@
 							<img
 								src={getTripImage(trip)}
 								alt={trip.title}
-								class="h-full w-full object-cover {imageLoadingStates.get(trip.id) !== false ? 'hidden' : ''}"
+								class="h-full w-full object-cover {imageLoadingStates.get(trip.id) === true ? 'hidden' : ''}"
 								on:load={() => handleImageLoad(trip.id)}
 								on:error={() => handleImageError(trip.id)}
 								on:loadstart={() => startImageLoading(trip.id)}
@@ -2430,23 +2058,13 @@
 			{/each}
 		</div>
 
-		<!-- Load More Indicator -->
-		{#if hasMoreTrips}
+		<!-- Loading indicator for infinite scroll -->
+		{#if isLoadingMore}
 			<div class="mt-6 flex justify-center">
-				{#if isLoadingMore}
-					<div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-						<Loader2 class="h-5 w-5 animate-spin" />
-						<span>Loading more trips...</span>
-					</div>
-				{:else}
-					<button
-						class="flex cursor-pointer items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						on:click={loadMoreTrips}
-					>
-						<RefreshCw class="h-4 w-4" />
-						Load More Trips
-					</button>
-				{/if}
+				<div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+					<Loader2 class="h-5 w-5 animate-spin" />
+					<span>Loading more trips...</span>
+				</div>
 			</div>
 		{/if}
 
@@ -2489,7 +2107,9 @@
 			<!-- Header with Generate New Suggestions button -->
 			<div class="flex items-center justify-between">
 				<div></div> <!-- Empty div for spacing -->
-				<GenerateSuggestionsButton on:click={openTripGenerationModal} />
+				<GenerateSuggestionsButton
+					on:click={openTripGenerationModal}
+				/>
 			</div>
 
 			{#if isLoadingSuggestedTrips && suggestedTrips.length === 0}
@@ -2563,7 +2183,7 @@
 										<div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
 											<span>Start: {format(new Date(trip.start_date), 'MMM d, yyyy')}</span>
 											<span>End: {format(new Date(trip.end_date), 'MMM d, yyyy')}</span>
-											<span>{trip.data_points || 0} data points</span>
+											<span>{trip.metadata?.point_count || 0} data points</span>
 										</div>
 									</div>
 								</div>
@@ -2612,7 +2232,7 @@
 				</button>
 				<button
 					on:click={() => {
-						console.log('🔘 Approve button clicked, selectedSuggestedTrips:', selectedSuggestedTrips);
+
 						handleApproveTrips();
 					}}
 					disabled={selectedSuggestedTrips.length === 0}
@@ -2820,6 +2440,8 @@
 		</div>
 	</div>
 </div>
+
+
 
 <style>
 	.line-clamp-2 {

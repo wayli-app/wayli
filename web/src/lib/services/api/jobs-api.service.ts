@@ -207,8 +207,18 @@ export class JobsApiService {
 				);
 			}
 
-			// Cancel the job
-			const { error } = await this.supabase
+			// Cancel the job via Edge Function
+			const { data, error } = await this.supabase.functions.invoke('jobs', {
+				method: 'DELETE',
+				body: { jobId }
+			});
+
+			if (error) {
+				throw error;
+			}
+
+			// Also update locally for immediate UI feedback
+			const { error: updateError } = await this.supabase
 				.from('jobs')
 				.update({
 					status: 'cancelled',
@@ -216,8 +226,8 @@ export class JobsApiService {
 				})
 				.eq('id', jobId);
 
-			if (error) {
-				throw error;
+			if (updateError) {
+				console.warn('⚠️ Failed to update job status locally:', updateError);
 			}
 		} catch (error) {
 			if (error instanceof Error && error.message.includes('VALIDATION_ERROR')) {

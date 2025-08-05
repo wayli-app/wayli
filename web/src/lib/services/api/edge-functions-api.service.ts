@@ -312,11 +312,23 @@ export class EdgeFunctionsApiService {
     return this.makeRequest(`jobs-progress/${jobId}`, { session });
   }
 
+  async cancelJob(session: Session, jobId: string) {
+    return this.makeRequest(`jobs/${jobId}`, {
+      method: 'DELETE',
+      session
+    });
+  }
+
   // Jobs Stream API Methods (Server-Sent Events)
-  async getJobStream(session: Session) {
-    // For SSE, we need to return the raw response
-    const url = `${this.baseUrl}/jobs-stream`;
-    const response = await fetch(url, {
+    async getJobStream(session: Session) {
+    // For SSE, we need to return the raw response - no filtering, frontend will filter
+    const url = new URL(`${this.baseUrl}/jobs-stream`);
+
+    console.log('🔗 EdgeFunctionsApiService: Making request to:', url.toString());
+    console.log('🔗 EdgeFunctionsApiService: Session token length:', session.access_token?.length || 0);
+    console.log('🔗 EdgeFunctionsApiService: Session token starts with:', session.access_token?.substring(0, 20) + '...');
+
+    const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
@@ -324,7 +336,11 @@ export class EdgeFunctionsApiService {
       }
     });
 
+    console.log('🔗 EdgeFunctionsApiService: Response status:', response.status, response.statusText);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('🔗 EdgeFunctionsApiService: Error response:', errorText);
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 

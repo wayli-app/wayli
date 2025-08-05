@@ -336,7 +336,7 @@ export class TripDetectionService {
 		config: TripDetectionConfig,
 		progressCallback?: (progress: number, message: string) => void
 	): Promise<DetectedTrip[]> {
-		console.log(`📊 Processing date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+
 
 		// Initialize trip detection state
 		let currentTripStart: string | null = null;
@@ -360,12 +360,14 @@ export class TripDetectionService {
 		while (currentDate <= endDate) {
 			const dateStr = currentDate.toISOString().split('T')[0];
 
-			// Update progress every 10 days or at the end
-			if (processedDays % 10 === 0 || currentDate >= endDate) {
+			// Update progress every day or at the end
+			if (processedDays % 1 === 0 || currentDate >= endDate) {
 				const progress = Math.round((processedDays / totalDays) * 100);
 				if (progressCallback) {
 					progressCallback(progress, `Processing day ${dateStr} (${processedDays}/${totalDays} days)`);
 				}
+				// Add a small delay to make progress updates more visible
+				await new Promise(resolve => setTimeout(resolve, 100));
 			}
 
 			// Fetch data for this specific day
@@ -985,26 +987,26 @@ export class TripDetectionService {
 	        private async saveTripsToDatabase(trips: DetectedTrip[], userId: string): Promise<DetectedTrip[]> {
                 if (trips.length === 0) return [];
 
-                const tripsToSave = trips.map(trip => ({
-                        user_id: userId,
-                        start_date: trip.startDate,
-                        end_date: trip.endDate,
-                        title: trip.title,
-                        description: trip.description,
-                        status: 'pending', // All detected trips are pending suggestions
-                        labels: ['suggested'], // Mark as suggested
-                        metadata: {
-                                ...trip.metadata,
-                                suggested: true,
-                                point_count: trip.dataPoints,
-                                distance_traveled: trip.distanceFromHome,
-                                visited_places_count: trip.dataPoints,
-                                overnight_stays: trip.overnightStays,
-                                location: trip.location,
-                                city_name: trip.cityName,
-                                confidence: 0.8 // Default confidence for detected trips
-                        }
-                }));
+                		const tripsToSave = trips.map(trip => ({
+			user_id: userId,
+			start_date: trip.startDate,
+			end_date: trip.endDate,
+			title: trip.title,
+			description: trip.description,
+			status: 'pending', // All detected trips are pending suggestions
+			labels: ['suggested'], // Mark as suggested
+			metadata: {
+				...trip.metadata,
+				suggested: true,
+				point_count: trip.dataPoints,
+				distance_traveled: trip.distanceFromHome,
+				visited_places_count: trip.dataPoints,
+				overnight_stays: trip.overnightStays,
+				location: trip.location,
+				city_name: trip.cityName,
+				confidence: 0.8 // Default confidence for detected trips
+			}
+		}));
 
                 const { data: savedTrips, error } = await this.supabase
                         .from('trips')

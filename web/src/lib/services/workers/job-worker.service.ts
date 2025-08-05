@@ -25,29 +25,42 @@ export class JobWorker {
 	async start(): Promise<void> {
 		if (this.isRunning) return;
 
-		await this.checkEnvironmentVariables();
+		console.log(`🚀 Starting worker ${this.workerId}...`);
 
-		this.isRunning = true;
-		await this.registerWorker();
+		try {
+			// Check environment variables with timeout
+			await Promise.race([
+				this.checkEnvironmentVariables(),
+				new Promise((_, reject) =>
+					setTimeout(() => reject(new Error('Environment check timeout')), 10000)
+				)
+			]);
 
-		console.log(`🚀 Worker ${this.workerId} started`);
+			this.isRunning = true;
+			await this.registerWorker();
 
-		// Start polling for jobs
-		this.intervalId = setInterval(async () => {
-			if (this.isRunning && !this.currentJob) {
-				await this.pollForJobs();
-			}
-		}, this.pollInterval);
+			console.log(`✅ Worker ${this.workerId} started successfully`);
 
-		// Start cancellation checking for running jobs
-		this.cancellationCheckInterval = setInterval(async () => {
-			if (this.isRunning && this.currentJob) {
-				await this.checkJobCancellation();
-			}
-		}, this.cancellationCheckIntervalMs);
+			// Start polling for jobs
+			this.intervalId = setInterval(async () => {
+				if (this.isRunning && !this.currentJob) {
+					await this.pollForJobs();
+				}
+			}, this.pollInterval);
 
-		// Initial poll
-		await this.pollForJobs();
+			// Start cancellation checking for running jobs
+			this.cancellationCheckInterval = setInterval(async () => {
+				if (this.isRunning && this.currentJob) {
+					await this.checkJobCancellation();
+				}
+			}, this.cancellationCheckIntervalMs);
+
+			// Initial poll
+			await this.pollForJobs();
+		} catch (error) {
+			console.error(`❌ Failed to start worker ${this.workerId}:`, error);
+			throw error;
+		}
 	}
 
 	private async checkEnvironmentVariables(): Promise<void> {
@@ -72,17 +85,17 @@ export class JobWorker {
 					'   Please set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
 				);
 			} else {
-				// Test the connection by trying to get job stats
+				// Test the connection by trying to get job stats with timeout
 				try {
-					const stats = await JobQueueService.getJobStats();
+					const stats = await Promise.race([
+						JobQueueService.getJobStats(),
+						new Promise((_, reject) =>
+							setTimeout(() => reject(new Error('Supabase connection timeout')), 5000)
+						)
+					]);
 					console.log('✅ Supabase connection successful! Job stats:', stats);
 				} catch (error) {
 					console.error('❌ Failed to connect to Supabase:', error);
-					console.error('   This could be due to:');
-					console.error('   - Invalid SUPABASE_SERVICE_ROLE_KEY');
-					console.error('   - Invalid PUBLIC_SUPABASE_URL');
-					console.error('   - Network connectivity issues');
-					console.error('   - Database permissions issues');
 				}
 			}
 		} catch (error) {

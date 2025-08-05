@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Play, Square, Settings, Users } from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/index.svelte';
 	import Input from '$lib/components/ui/input/index.svelte';
@@ -7,6 +7,7 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { get } from 'svelte/store';
 	import { sessionStore } from '$lib/stores/auth';
+	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
 
 	interface WorkerStatus {
 		isRunning: boolean;
@@ -49,13 +50,18 @@
 		retryAttempts: '3',
 		retryDelay: '60000'
 	};
+	let sseService: SSEService | null = null;
 
-	onMount(() => {
-		loadStatus();
+	onMount(async () => {
+		await loadStatus();
 		loadRealtimeConfig();
-		// Refresh status every 5 seconds
-		const interval = setInterval(loadStatus, 5000);
-		return () => clearInterval(interval);
+		startSSEMonitoring();
+	});
+
+	onDestroy(() => {
+		if (sseService) {
+			sseService.disconnect();
+		}
 	});
 
 	async function loadStatus() {
@@ -81,6 +87,38 @@
 		} catch (err) {
 			console.error('Failed to load worker status:', err);
 		}
+	}
+
+	function startSSEMonitoring() {
+		// Create SSE service for worker monitoring
+		sseService = SSEService.createJobMonitor({
+			onConnect: () => {
+
+			},
+			onDisconnect: () => {
+
+			},
+			onJobUpdate: (jobs: JobUpdate[]) => {
+				console.log('📡 Worker jobs update received:', jobs);
+				// For worker manager, we're more interested in worker status than job updates
+				// But we can use job updates to trigger a status refresh
+				loadStatus();
+			},
+			onJobCompleted: (jobs: JobUpdate[]) => {
+				console.log('✅ Worker jobs completed:', jobs);
+				// Refresh worker status when jobs complete
+				loadStatus();
+			},
+			onError: (error: string) => {
+				console.error('❌ Worker manager SSE error:', error);
+			},
+			onHeartbeat: () => {
+				// Use heartbeat to refresh worker status periodically
+				loadStatus();
+			}
+		});
+
+		sseService.connect();
 	}
 
 	async function loadRealtimeConfig() {

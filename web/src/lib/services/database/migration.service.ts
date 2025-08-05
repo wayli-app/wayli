@@ -233,7 +233,7 @@ export class DatabaseMigrationService {
 			healthy = false;
 		}
 
-		console.log('📊 Health check results:', {
+
 			healthy,
 			initialized,
 			errorCount: errors.length,

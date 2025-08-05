@@ -6,9 +6,9 @@
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 
-	export let data;
+	let { data } = $props<{ data: any }>();
 
-	let copiedField = '';
+	let copiedField = $state('');
 
 	function copyToClipboard(text: string, fieldName: string) {
 		navigator.clipboard
@@ -33,11 +33,13 @@
 	});
 
 	// Watch for form results
-	$: if ($page.form?.success) {
-		toast.success('API key generated successfully!');
-	} else if ($page.form?.error) {
-		toast.error($page.form.error);
-	}
+	$effect(() => {
+		if ($page.form?.success) {
+			toast.success('API key generated successfully!');
+		} else if ($page.form?.error) {
+			toast.error($page.form.error);
+		}
+	});
 
 	// Enhanced form submission that refreshes data after success
 	function handleGenerateApiKey() {

@@ -63,6 +63,7 @@ export async function uploadTripImage(file: File, fileName?: string): Promise<st
 
 		const uploadEndTime = Date.now();
 		console.log('⏱️ [UPLOAD] Upload completed in', uploadEndTime - uploadStartTime, 'ms');
+
 		console.log('📊 [UPLOAD] Upload result:', {
 			data: uploadData,
 			error,

@@ -22,18 +22,30 @@ export class ExportProcessorService {
 	private static supabase = supabase;
 
 	static async processExport(job: Job): Promise<void> {
-		const { userId, options } = job.data as {
-			userId: string;
-			options: {
-				format: string;
-				includeLocationData: boolean;
-				includeTripInfo: boolean;
-				includeWantToVisit: boolean;
-				includeTrips: boolean;
-				startDate?: string | null;
-				endDate?: string | null;
-			};
+		console.log(`[ExportWorker] Starting export job ${job.id}`);
+		// Extract data from job - the actual structure from the export Edge Function
+		const jobData = job.data as {
+			format: string;
+			includeLocationData: boolean;
+			includeTripInfo: boolean;
+			includeWantToVisit: boolean;
+			includeTrips: boolean;
+			dateRange?: string;
+			startDate?: string | null;
+			endDate?: string | null;
 		};
+
+		// Use the job creator as the userId
+		const userId = job.created_by;
+		console.log('[ExportWorker] Job data:', {
+			userId,
+			includeLocationData: jobData.includeLocationData,
+			includeTripInfo: jobData.includeTripInfo,
+			includeWantToVisit: jobData.includeWantToVisit,
+			includeTrips: jobData.includeTrips,
+			startDate: jobData.startDate,
+			endDate: jobData.endDate
+		});
 
 		try {
 			// Update job status to running
@@ -41,15 +53,20 @@ export class ExportProcessorService {
 				message: 'Starting export process...'
 			});
 
+			// Add a small delay to make the "running" status visible
+			await new Promise(resolve => setTimeout(resolve, 500));
+
 			const zip = new JSZip();
 			let totalFiles = 0;
 
 			// Export location data if requested
-			if (options.includeLocationData) {
+			if (jobData.includeLocationData) {
 				await ExportService.updateExportJobProgress(job.id, 20, {
 					message: 'Exporting location data...'
 				});
-				const locationData = await this.exportLocationData(userId, options.startDate, options.endDate);
+				// Add a small delay to make progress updates visible
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				const locationData = await this.exportLocationData(userId, jobData.startDate, jobData.endDate);
 				if (locationData) {
 					zip.file('locations.geojson', locationData);
 					totalFiles++;
@@ -59,39 +76,55 @@ export class ExportProcessorService {
 			}
 
 			// Export trip information if requested
-			if (options.includeTripInfo) {
+			if (jobData.includeTripInfo) {
+				console.log('[ExportWorker] Starting trip info export');
 				await ExportService.updateExportJobProgress(job.id, 40, {
 					message: 'Exporting trip information...'
 				});
-				const tripInfo = await this.exportTripInfo(userId, options.startDate, options.endDate);
+				// Add a small delay to make progress updates visible
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				console.log('[ExportWorker] Calling exportTripInfo');
+				const tripInfo = await this.exportTripInfo(userId, jobData.startDate, jobData.endDate);
+				console.log('[ExportWorker] exportTripInfo returned', { hasData: !!tripInfo, dataLength: tripInfo?.length || 0 });
 				if (tripInfo) {
-					zip.file('trips.json', tripInfo);
+					zip.file('trip-info.json', tripInfo);
 					totalFiles++;
+					console.log('[ExportWorker] Added trip info to zip');
 				} else {
 					console.log(`[ExportWorker] No trip info found for user ${userId}`);
 				}
 			}
 
 			// Export want-to-visit data if requested
-			if (options.includeWantToVisit) {
+			if (jobData.includeWantToVisit) {
+				console.log('[ExportWorker] Starting want-to-visit export');
 				await ExportService.updateExportJobProgress(job.id, 60, {
 					message: 'Exporting want-to-visit data...'
 				});
-				const wantToVisitData = await this.exportWantToVisit(userId, options.startDate, options.endDate);
+				// Add a small delay to make progress updates visible
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				console.log('[ExportWorker] Calling exportWantToVisit');
+				const wantToVisitData = await this.exportWantToVisit(userId, jobData.startDate, jobData.endDate);
+				console.log('[ExportWorker] exportWantToVisit returned', { hasData: !!wantToVisitData, dataLength: wantToVisitData?.length || 0 });
 				if (wantToVisitData) {
 					zip.file('want-to-visit.json', wantToVisitData);
 					totalFiles++;
+					console.log('[ExportWorker] Added want-to-visit data to zip');
 				} else {
 					console.log(`[ExportWorker] No want-to-visit data found for user ${userId}`);
 				}
 			}
 
 			// Export trips data if requested
-			if (options.includeTrips) {
+			if (jobData.includeTrips) {
+				console.log(`[ExportWorker] Starting trips export for job ${job.id}`);
 				await ExportService.updateExportJobProgress(job.id, 80, {
 					message: 'Exporting trips data...'
 				});
-				const tripsData = await this.exportTrips(userId, options.startDate, options.endDate);
+				// Add a small delay to make progress updates visible
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				const tripsData = await this.exportTrips(userId, jobData.startDate, jobData.endDate);
+				console.log(`[ExportWorker] Trips export completed for job ${job.id}, data length: ${tripsData?.length || 0}`);
 				if (tripsData) {
 					zip.file('trips.json', tripsData);
 					totalFiles++;
@@ -101,11 +134,14 @@ export class ExportProcessorService {
 			}
 
 			// Generate zip file
+			console.log(`[ExportWorker] Generating zip file for job ${job.id} with ${totalFiles} files`);
 			const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+			console.log(`[ExportWorker] Zip file generated, size: ${zipBuffer.length} bytes`);
 
 			// Upload to storage
 			const fileName = `export_${userId}_${Date.now()}.zip`;
 			const filePath = `${userId}/${fileName}`;
+			console.log(`[ExportWorker] Uploading zip file to storage: ${filePath}`);
 
 			// Before uploading, delete old export files (keep only 5 most recent)
 			const exportJobs = await ExportService.getUserExportJobs(userId);
@@ -130,10 +166,16 @@ export class ExportProcessorService {
 				throw new Error(`Failed to upload export file: ${uploadError.message}`);
 			}
 
+			// Update progress to 100% before completing
+			await ExportService.updateExportJobProgress(job.id, 100, {
+				message: 'Finalizing export...'
+			});
+
 			// Complete the export job
+			console.log(`[ExportWorker] Completing export job ${job.id} with ${totalFiles} files`);
 			await ExportService.completeExportJob(job.id, filePath, zipBuffer.length, {
 				totalFiles,
-				format: options.format,
+				format: jobData.format,
 				exportedAt: new Date().toISOString(),
 				file_path: filePath,
 				file_size: zipBuffer.length
@@ -216,6 +258,7 @@ export class ExportProcessorService {
 	}
 
 	private static async exportTripInfo(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
+		console.log('[ExportWorker] exportTripInfo starting', { userId, startDate, endDate });
 		let query = this.supabase
 			.from('trips')
 			.select('*')
@@ -224,13 +267,23 @@ export class ExportProcessorService {
 		if (endDate) query = query.lte('end_date', endDate);
 		query = query.order('start_date', { ascending: true });
 		const { data: trips, error } = await query;
+		console.log('[ExportWorker] exportTripInfo query result', {
+			count: trips?.length || 0,
+			error: error?.message
+		});
 		if (error || !trips || trips.length === 0) {
+			console.log('[ExportWorker] exportTripInfo returning null');
 			return null;
 		}
-		return JSON.stringify(trips, null, 2);
+		const result = JSON.stringify(trips, null, 2);
+		console.log('[ExportWorker] exportTripInfo completed', {
+			resultLength: result.length
+		});
+		return result;
 	}
 
 	private static async exportWantToVisit(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
+		console.log('[ExportWorker] exportWantToVisit starting', { userId, startDate, endDate });
 		let query = this.supabase
 			.from('want_to_visit_places')
 			.select('*')
@@ -239,13 +292,23 @@ export class ExportProcessorService {
 		if (endDate) query = query.lte('created_at', endDate);
 		query = query.order('created_at', { ascending: true });
 		const { data: wantToVisit, error } = await query;
+		console.log('[ExportWorker] exportWantToVisit query result', {
+			count: wantToVisit?.length || 0,
+			error: error?.message
+		});
 		if (error || !wantToVisit || wantToVisit.length === 0) {
+			console.log('[ExportWorker] exportWantToVisit returning null');
 			return null;
 		}
-		return JSON.stringify(wantToVisit, null, 2);
+		const result = JSON.stringify(wantToVisit, null, 2);
+		console.log('[ExportWorker] exportWantToVisit completed', {
+			resultLength: result.length
+		});
+		return result;
 	}
 
 	private static async exportTrips(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
+		console.log('[ExportWorker] exportTrips starting', { userId, startDate, endDate });
 		let query = this.supabase
 			.from('trips')
 			.select('*')
@@ -254,9 +317,18 @@ export class ExportProcessorService {
 		if (endDate) query = query.lte('end_date', endDate);
 		query = query.order('start_date', { ascending: true });
 		const { data: trips, error } = await query;
+		console.log('[ExportWorker] exportTrips query result', {
+			count: trips?.length || 0,
+			error: error?.message
+		});
 		if (error || !trips || trips.length === 0) {
+			console.log('[ExportWorker] exportTrips returning null');
 			return null;
 		}
-		return JSON.stringify(trips, null, 2);
+		const result = JSON.stringify(trips, null, 2);
+		console.log('[ExportWorker] exportTrips completed', {
+			resultLength: result.length
+		});
+		return result;
 	}
 }

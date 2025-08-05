@@ -37,11 +37,30 @@ process.on('unhandledRejection', async (reason, promise) => {
 	process.exit(1);
 });
 
-// Start the worker
-worker.start().catch(async (error) => {
-	console.error('❌ Failed to start worker:', error);
-	await worker.stop();
-	process.exit(1);
-});
+// Start the worker with retry mechanism
+async function startWorkerWithRetry(maxRetries = 3, retryDelay = 2000) {
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			console.log(`🔄 Attempt ${attempt}/${maxRetries} to start worker...`);
+			await worker.start();
+			console.log('✅ Worker started successfully!');
+			return;
+		} catch (error) {
+			console.error(`❌ Attempt ${attempt} failed:`, error);
+
+			if (attempt < maxRetries) {
+				console.log(`⏳ Retrying in ${retryDelay}ms...`);
+				await new Promise(resolve => setTimeout(resolve, retryDelay));
+				retryDelay *= 2; // Exponential backoff
+			} else {
+				console.error('❌ All attempts to start worker failed');
+				await worker.stop();
+				process.exit(1);
+			}
+		}
+	}
+}
+
+startWorkerWithRetry();
 
 console.log(`✅ Worker ${workerId} is running. Press Ctrl+C to stop.`);

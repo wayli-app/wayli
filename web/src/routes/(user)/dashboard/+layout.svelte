@@ -4,13 +4,15 @@
 	import { goto } from '$app/navigation';
 	import { supabase } from '$lib/supabase';
 	import AppNav from '$lib/components/AppNav.svelte';
+	import JobTracker from '$lib/components/JobTracker.svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	import { page } from '$app/stores';
 
-	export let data: PageData;
+	let { data } = $props<{ data: PageData }>();
 
 	let unsubscribe: (() => void) | null = null;
+	let globalJobTracker: JobTracker;
 
 	async function handleSignout() {
 		try {
@@ -28,6 +30,8 @@
 		}
 	}
 
+
+
 	onMount(async () => {
 		try {
 			// Initialize user store with server data
@@ -39,15 +43,19 @@
 		}
 	});
 
-	$: if ($userStore !== data.user) {
-		// Update user store when server data changes
-		userStore.set(data.user as any);
-	}
+	$effect(() => {
+		if ($userStore !== data.user) {
+			// Update user store when server data changes
+			userStore.set(data.user as any);
+		}
+	});
 
-	$: if (!$userStore && !data.user) {
-		// User signed out, redirect to signin
-		goto('/auth/signin');
-	}
+	$effect(() => {
+		if (!$userStore && !data.user) {
+			// User signed out, redirect to signin
+			goto('/auth/signin');
+		}
+	});
 </script>
 
 <AppNav isAdmin={data.isAdmin} on:signout={handleSignout}>
@@ -56,3 +64,13 @@
 		<slot />
 	</div>
 </AppNav>
+
+<!-- Global JobTracker for all dashboard pages -->
+<JobTracker
+	bind:this={globalJobTracker}
+	jobType={null}
+	autoStart={true}
+	showToasts={true}
+	onJobUpdate={() => {}}
+	onJobCompleted={() => {}}
+/>

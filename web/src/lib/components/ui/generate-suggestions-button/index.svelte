@@ -53,6 +53,8 @@
 		}
 	}
 
+
+
 	// Load user profile on mount
 	import { onMount } from 'svelte';
 	onMount(() => {

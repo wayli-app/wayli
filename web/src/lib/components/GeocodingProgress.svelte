@@ -6,6 +6,7 @@
 	import { MapPin, RefreshCw } from 'lucide-svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { supabase } from '$lib/supabase';
+	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
 
 	// Props
 	export let showProgress = true;
@@ -15,7 +16,7 @@
 	let activeReverseGeocodingJob: any = null;
 	let reverseGeocodingProgress = 0;
 	let reverseGeocodingStatus = '';
-	let reverseGeocodingPollingInterval: ReturnType<typeof setInterval> | null = null;
+	let sseService: SSEService | null = null;
 	let geocodingStats: {
 		total: number;
 		geocoded: number;
@@ -30,6 +31,25 @@
 	let isStatsLoading = false;
 	let hasInitialized = false;
 	let previousJobState: any = null;
+
+	onMount(async () => {
+		await checkForActiveReverseGeocodingJob();
+		// Load initial stats
+		await loadGeocodingStats();
+		hasInitialized = true;
+		isInitializing = false;
+
+		// Only start SSE monitoring if there's an active job
+		if (activeReverseGeocodingJob) {
+			startSSEMonitoring();
+		}
+	});
+
+	onDestroy(() => {
+		if (sseService) {
+			sseService.disconnect();
+		}
+	});
 
 	// Check for active reverse geocoding job on component mount
 	async function checkForActiveReverseGeocodingJob() {
@@ -56,7 +76,6 @@
 
 			if (activeJobs.length > 0) {
 				activeReverseGeocodingJob = activeJobs[0]; // Get the most recent active job
-				startReverseGeocodingPolling(activeReverseGeocodingJob.id);
 				updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
 
 				// Refresh statistics to show current state matching backend
@@ -71,64 +90,86 @@
 		}
 	}
 
-	function startReverseGeocodingPolling(jobId: string) {
-		if (!jobId) return;
-		if (reverseGeocodingPollingInterval) {
-			clearInterval(reverseGeocodingPollingInterval);
+		function startSSEMonitoring() {
+		// Only start SSE monitoring if there's an active job
+		if (!activeReverseGeocodingJob) {
+
+			return;
 		}
 
-		reverseGeocodingPollingInterval = setInterval(async () => {
-			if (!activeReverseGeocodingJob) {
-				stopReverseGeocodingPolling();
-				return;
-			}
 
-			try {
-				const session = get(sessionStore);
-				if (!session) {
-					stopReverseGeocodingPolling();
-					return;
-				}
 
-				const serviceAdapter = new ServiceAdapter({ session });
-				const job = await serviceAdapter.getJobProgress(jobId) as any;
+		// Create SSE service for reverse geocoding job monitoring
+		sseService = new SSEService({
+			onConnected: () => {
 
-				if (job) {
-					activeReverseGeocodingJob = job;
-					updateReverseGeocodingProgressFromJob(job);
+			},
+			onDisconnected: () => {
 
-					// Stop polling if job is finished
-					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
-						stopReverseGeocodingPolling();
+			},
+			onJobUpdate: (jobs: JobUpdate[]) => {
+				console.log('📡 Geocoding job update received:', jobs);
+				handleJobUpdates(jobs);
+			},
+			onJobCompleted: (jobs: JobUpdate[]) => {
+				console.log('✅ Geocoding job completed:', jobs);
+				handleJobUpdates(jobs);
 
-						// Show completion message
-						if (job.status === 'completed') {
-							toast.success('Reverse geocoding completed successfully!');
-						} else if (job.status === 'failed') {
-							toast.error('Reverse geocoding failed');
-						}
-
-						// Immediately clear the active job and refresh stats
-						activeReverseGeocodingJob = null;
-						console.log('🔄 GeocodingProgress: Job completed, refreshing stats immediately');
-						await loadGeocodingStats();
+				// Show completion toast
+				jobs.forEach(job => {
+					if (job.status === 'completed') {
+						toast.success('Reverse geocoding completed successfully!');
+					} else if (job.status === 'failed') {
+						toast.error(`Reverse geocoding failed: ${job.error || 'Unknown error'}`);
 					}
-				} else {
-					// If job is not found, stop polling and reset
-					activeReverseGeocodingJob = null;
-					stopReverseGeocodingPolling();
-				}
-			} catch (error) {
-				console.error('Error polling reverse geocoding job status:', error);
+				});
+			},
+			onError: (error: string) => {
+				console.error('❌ Geocoding progress SSE error:', error);
 			}
-		}, 2000);
+		}, 'reverse_geocoding_missing');
+
+		sseService.connect();
 	}
 
-	function stopReverseGeocodingPolling() {
-		if (reverseGeocodingPollingInterval) {
-			clearInterval(reverseGeocodingPollingInterval);
-			reverseGeocodingPollingInterval = null;
-		}
+	function handleJobUpdates(jobs: JobUpdate[]) {
+		jobs.forEach(job => {
+			// Update active job if this is the one we're tracking
+			if (activeReverseGeocodingJob && job.id === activeReverseGeocodingJob.id) {
+				activeReverseGeocodingJob = {
+					...activeReverseGeocodingJob,
+					status: job.status,
+					progress: job.progress,
+					error: job.error,
+					result: job.result,
+					updated_at: job.updated_at
+				};
+				updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
+			} else if (!activeReverseGeocodingJob && (job.status === 'queued' || job.status === 'running')) {
+				// Set as active job if we don't have one
+				activeReverseGeocodingJob = {
+					id: job.id,
+					status: job.status,
+					progress: job.progress,
+					error: job.error,
+					result: job.result,
+					created_at: job.created_at,
+					updated_at: job.updated_at
+				};
+				updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
+
+				// Start SSE monitoring for this new job
+				if (!sseService) {
+					startSSEMonitoring();
+				}
+			}
+
+			// Clear active job if it's completed or failed
+			if (activeReverseGeocodingJob && job.id === activeReverseGeocodingJob.id &&
+				(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled')) {
+				activeReverseGeocodingJob = null;
+			}
+		});
 	}
 
 	function updateReverseGeocodingProgressFromJob(job: any) {
@@ -180,7 +221,7 @@
                         if (!session) return;
 
                         // Always use fresh API data instead of cached data
-                        console.log('📊 GeocodingProgress: Loading fresh stats from API');
+
                         await loadGeocodingStatsFromAPI();
                         return;
 
@@ -194,7 +235,7 @@
 	        // Fallback function to load stats from API
         async function loadGeocodingStatsFromAPI() {
                 try {
-                        console.log('📊 GeocodingProgress: Loading stats from API (fallback)');
+
 
                         const session = get(sessionStore);
                         if (!session) return;
@@ -206,7 +247,9 @@
                                 forceRefresh: Date.now().toString()
                         }) as any;
 
-			console.log('📊 GeocodingProgress: Received stats from API:', stats);
+
+
+			console.log('📊 GeocodingProgress: API response:', stats);
 
 			if (stats) {
 				const total = stats.total_points || 0;
@@ -214,6 +257,14 @@
 				const pointsNeedingGeocoding = stats.points_needing_geocoding || 0;
 				const retryableErrors = stats.retryable_errors || 0;
 				const nonRetryableErrors = stats.non_retryable_errors || 0;
+
+				console.log('📊 GeocodingProgress: Parsed stats:', {
+					total,
+					processed,
+					pointsNeedingGeocoding,
+					retryableErrors,
+					nonRetryableErrors
+				});
 
 				// Calculate progress: processed points vs total points
 				// This shows the real progress of processing, including both successful and failed geocoding
@@ -228,7 +279,8 @@
 					retryableErrors,
 					nonRetryableErrors
 				};
-				console.log('📊 GeocodingProgress: Updated geocodingStats from API:', geocodingStats);
+
+				console.log('📊 GeocodingProgress: Final geocodingStats:', geocodingStats);
 
 				// Force UI update by triggering reactivity
 				geocodingStats = { ...geocodingStats };
@@ -258,7 +310,6 @@
 
 			if (result && result.id) {
 				activeReverseGeocodingJob = result;
-				startReverseGeocodingPolling(result.id);
 				updateReverseGeocodingProgressFromJob(result);
 
 				// Force refresh stats immediately after job starts
@@ -316,17 +367,6 @@
 			refreshStatsFromAPI();
 		}
 	}
-
-	onMount(async () => {
-		await checkForActiveReverseGeocodingJob();
-		await loadGeocodingStats();
-		isInitializing = false;
-		hasInitialized = true;
-	});
-
-	onDestroy(() => {
-		stopReverseGeocodingPolling();
-	});
 </script>
 
 <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

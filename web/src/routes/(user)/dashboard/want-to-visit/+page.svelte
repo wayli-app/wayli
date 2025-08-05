@@ -49,47 +49,7 @@
 		flag: 'flag'
 	};
 
-	// Utility function to get Lucide SVG icon with custom color
-	function getOSMIcon(markerType: string = 'default', color: string = '#3B82F6'): any {
-		const iconName = lucideIcons[markerType as keyof typeof lucideIcons] || 'map-pin';
 
-		console.log(
-			'Creating Lucide marker with type:',
-			markerType,
-			'icon:',
-			iconName,
-			'color:',
-			color
-		);
-
-		// Use Lucide SVG icons from a reliable CDN
-		const iconUrl = `https://unpkg.com/lucide-static@latest/icons/${iconName}.svg`;
-
-		// Create a custom div icon that displays the Lucide SVG with the user's color
-		const isDark = document.documentElement.classList.contains('dark');
-		const bgColor = isDark ? '#374151' : '#ffffff';
-		const borderColor = isDark ? '#6B7280' : '#E5E7EB';
-
-		return L.divIcon({
-			className: 'custom-lucide-marker',
-			html: `<div style="
-				width: 32px;
-				height: 32px;
-				background: ${bgColor};
-				border: 2px solid ${borderColor};
-				border-radius: 6px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-				position: relative;
-			">
-				<div style="width: 24px; height: 24px; background-size: fit; background-color: ${color}; mask: url('${iconUrl}'); -webkit-mask: url('${iconUrl}');" />
-			</div>`,
-			iconSize: [32, 32],
-			iconAnchor: [16, 32]
-		});
-	}
 
 	// Helper function to convert hex color to color name for marker icons
 	function getColorName(hexColor: string): string {
@@ -147,35 +107,35 @@
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
-	let currentTileLayer: any;
-	let searchQuery = ''; // Search query for location lookup and filtering
-	let selectedType = 'All';
-	let markers: any[] = [];
-	let markerClusterGroup: any = null; // Add cluster group variable
-	let showAddForm = false;
-	let showEditForm = false;
-	let tempMarker: any = null;
-	let isReverseGeocoding = false;
-	let isLoading = true;
+	let currentTileLayer = $state<any>(null);
+	let searchQuery = $state(''); // Search query for location lookup and filtering
+	let selectedType = $state('All');
+	let markers = $state<any[]>([]);
+	let markerClusterGroup = $state<any>(null); // Add cluster group variable
+	let showAddForm = $state(false);
+	let showEditForm = $state(false);
+	let tempMarker = $state<any>(null);
+	let isReverseGeocoding = $state(false);
+	let isLoading = $state(true);
 
 	// Form fields
-	let title = '';
-	let latitude = '';
-	let longitude = '';
-	let description = '';
-	let address = '';
-	let placeType = '';
-	let searchResults: any[] = [];
-	let showSearchResults = false;
-	let isSearching = false;
+	let title = $state('');
+	let latitude = $state('');
+	let longitude = $state('');
+	let description = $state('');
+	let address = $state('');
+	let placeType = $state('');
+	let searchResults = $state<any[]>([]);
+	let showSearchResults = $state(false);
+	let isSearching = $state(false);
 
 	// Marker customization
-	let selectedMarkerType = 'default';
-	let selectedMarkerColor = '#3B82F6'; // blue-500
-	let showMarkerOptions = false;
+	let selectedMarkerType = $state('default');
+	let selectedMarkerColor = $state('#3B82F6'); // blue-500
+	let showMarkerOptions = $state(false);
 
 	// Edit mode
-	let editingPlace: Place | null = null;
+	let editingPlace = $state<Place | null>(null);
 
 	// Marker options - updated to use standard marker colors that match the map
 	const markerTypes = [
@@ -214,20 +174,20 @@
 	];
 
 	// Database data
-	let places: Place[] = [];
+	let places = $state<Place[]>([]);
 
 	// Add label state for the form
-	let labelInput = '';
-	let labels: string[] = [];
+	let labelInput = $state('');
+	let labels = $state<string[]>([]);
 
 	// Search and filter state
-	let selectedTypes: string[] = ['All']; // Array to support multiple selections
-	let showFavouritedOnly = false; // Filter for favourited places only
+	let selectedTypes = $state<string[]>(['All']); // Array to support multiple selections
+	let showFavouritedOnly = $state(false); // Filter for favourited places only
 
 	// User profile and home address state
-	let userProfile: UserProfile | null = null;
-	let hasHomeAddress = false;
-	let isLoadingProfile = false;
+	let userProfile = $state<UserProfile | null>(null);
+	let hasHomeAddress = $state(false);
+	let isLoadingProfile = $state(false);
 
 	// Available types based on marker types - using the same structure as markerTypes
 	const availableTypes = [
@@ -308,10 +268,6 @@
 
 			// Check if user has a home address
 			hasHomeAddress = !!(profile?.home_address);
-			console.log('🏠 User home address check:', {
-				hasHomeAddress,
-				homeAddress: profile?.home_address
-			});
 		} catch (error) {
 			console.error('Error loading user profile:', error);
 		} finally {
@@ -353,7 +309,7 @@
 		showSearchResults = false;
 	}
 
-	$: filteredPlaces = places.filter((place) => {
+	let filteredPlaces = $derived(places.filter((place) => {
 		// Type filter - match by markerType ID
 		const typeMatch =
 			(selectedTypes.length === 1 && selectedTypes[0] === 'All') ||
@@ -373,12 +329,14 @@
 		const favouritedMatch = !showFavouritedOnly || place.favorite;
 
 		return typeMatch && searchMatch && favouritedMatch;
-	});
+	}));
 
 	// Update markers when filtered places change
-	$: if (places.length > 0 && filteredPlaces.length >= 0) {
-		updateMarkers();
-	}
+	$effect(() => {
+		if (places.length > 0 && filteredPlaces.length >= 0) {
+			updateMarkers();
+		}
+	});
 
 	// Get marker icon based on type and color
 	function getMarkerIcon(markerType: string = 'default', color: string = '#3B82F6') {
@@ -386,6 +344,34 @@
 
 		// Use standard Leaflet marker icons - much simpler and more reliable
 		return getOSMIcon(markerType, color);
+	}
+
+	// Utility function to get Lucide SVG icon with custom color
+	function getOSMIcon(markerType: string = 'default', color: string = '#3B82F6'): any {
+		if (!L) return null;
+
+		const iconName = lucideIcons[markerType as keyof typeof lucideIcons] || 'map-pin';
+
+		// Use Lucide SVG icons from a reliable CDN
+		const iconUrl = `https://unpkg.com/lucide-static@latest/icons/${iconName}.svg`;
+
+
+
+		return L.divIcon({
+			className: 'custom-lucide-marker',
+			html: `<div style="
+				width: 24px;
+				height: 24px;
+				background-color: ${color};
+				mask: url('${iconUrl}');
+				-webkit-mask: url('${iconUrl}');
+				background-size: contain;
+				background-repeat: no-repeat;
+				background-position: center;
+			"></div>`,
+			iconSize: [24, 24],
+			iconAnchor: [12, 24]
+		});
 	}
 
 	onMount(async () => {
@@ -576,14 +562,6 @@
 	}
 
 	function updateMarkers() {
-		console.log(
-			'Updating markers for',
-			filteredPlaces.length,
-			'filtered places out of',
-			places.length,
-			'total places'
-		);
-
 		// Clear existing markers from cluster group
 		if (markerClusterGroup) {
 			markerClusterGroup.clearLayers();
@@ -595,14 +573,7 @@
 		// Add markers to cluster group (only filtered places)
 		markers = filteredPlaces.map((place, i) => {
 			const [lat, lng] = place.coordinates.split(',').map(Number);
-			console.log(
-				`Creating marker for place ${i}:`,
-				place.title,
-				'markerType:',
-				place.markerType,
-				'markerColor:',
-				place.markerColor
-			);
+
 			const markerIcon = getMarkerIcon(
 				place.markerType || 'default',
 				place.markerColor || '#3B82F6'
@@ -615,8 +586,6 @@
 			markerClusterGroup.addLayer(marker);
 			return marker;
 		});
-
-		console.log('Created', markers.length, 'markers in cluster group');
 
 		// Don't change zoom level when filters change - let user control the view
 		// Only fit bounds on initial load when places are first loaded
@@ -766,13 +735,6 @@
 		}
 
 		try {
-			console.log(
-				'Adding place with marker type:',
-				selectedMarkerType,
-				'and color:',
-				selectedMarkerColor
-			);
-
 			const newPlace = await WantToVisitService.addPlace({
 				title,
 				type: placeType,
@@ -785,14 +747,6 @@
 				labels: [...labels],
 				favorite: false
 			});
-
-			console.log('Place added successfully:', newPlace);
-			console.log(
-				'Retrieved marker type:',
-				newPlace.markerType,
-				'and color:',
-				newPlace.markerColor
-			);
 
 			places = [newPlace, ...places];
 
@@ -1015,9 +969,7 @@
 		<button
 			class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 			on:click={() => {
-				console.log('Button clicked, showAddForm before:', showAddForm);
 				showAddForm = true;
-				console.log('showAddForm after:', showAddForm);
 				// Clear form data when opening
 				title = '';
 				latitude = '';

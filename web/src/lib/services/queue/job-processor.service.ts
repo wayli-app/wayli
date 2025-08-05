@@ -93,11 +93,7 @@ export class JobProcessorService {
 			totalSuccess = (metadata.totalSuccess as number) || 0;
 			totalErrors = (metadata.totalErrors as number) || 0;
 
-			console.log(`📊 Restored cumulative totals from job metadata:`, {
-				totalProcessed,
-				totalSuccess,
-				totalErrors
-			});
+
 		}
 
 		try {
@@ -133,11 +129,7 @@ export class JobProcessorService {
 						const totalGeocodedInDB = actualGeocodedPoints || 0;
 						const pointsNeedingGeocoding = totalPointsInDB - totalGeocodedInDB;
 
-						console.log(`📊 Job start - Initial DB counts:`, {
-							totalPointsInDB,
-							totalGeocodedInDB,
-							pointsNeedingGeocoding
-						});
+
 
 						const { error: cacheUpdateError } = await supabase.rpc('update_geocoding_stats_cache', {
 							p_user_id: userId,
@@ -273,7 +265,7 @@ export class JobProcessorService {
 				}
 			}
 
-			console.log(`📊 Found ${totalPoints} tracker data points needing geocoding`);
+
 			console.log(`🔍 Error breakdown: ${retryableErrors} retryable, ${nonRetryableErrors} non-retryable`);
 
 			// Update initial progress and store metadata
@@ -1258,12 +1250,12 @@ export class JobProcessorService {
 		let skippedCount = 0;
 		let errorCount = 0;
 
-		// Determine optimal chunk size based on CPU cores
+		// Determine optimal chunk size based on CPU cores - smaller chunks for better progress updates
 		const cpuCores = cpus().length;
-		const CHUNK_SIZE = Math.max(100, Math.floor(totalFeatures / (cpuCores * 4))); // Use 4x CPU cores for I/O-bound tasks
-		const CONCURRENT_CHUNKS = cpuCores * 4; // 4x CPU cores for I/O-bound tasks
+		const CHUNK_SIZE = Math.max(50, Math.min(500, Math.floor(totalFeatures / (cpuCores * 8)))); // Smaller chunks, more concurrent
+		const CONCURRENT_CHUNKS = Math.min(cpuCores * 2, 8); // Limit concurrent chunks to prevent DB overload
 
-		console.log(`🔄 Parallel processing: ${cpuCores} CPU cores, ${CHUNK_SIZE} features per chunk, ${CONCURRENT_CHUNKS} concurrent chunks (4x for I/O-bound tasks)`);
+		console.log(`🔄 Parallel processing: ${cpuCores} CPU cores, ${CHUNK_SIZE} features per chunk, ${CONCURRENT_CHUNKS} concurrent chunks (optimized for progress updates)`);
 
 		// Process features in chunks
 		for (let i = 0; i < features.length; i += CHUNK_SIZE * CONCURRENT_CHUNKS) {
@@ -1278,7 +1270,7 @@ export class JobProcessorService {
 				const chunkEnd = Math.min(chunkStart + CHUNK_SIZE, features.length);
 				const chunk = features.slice(chunkStart, chunkEnd);
 
-				chunkPromises.push(this.processFeatureChunk(chunk, userId, chunkStart));
+				chunkPromises.push(this.processFeatureChunk(chunk, userId, chunkStart, jobId, totalFeatures, fileName));
 			}
 
 			// Wait for all chunks to complete
@@ -1296,13 +1288,13 @@ export class JobProcessorService {
 				}
 			}
 
-			// Update progress
+			// Update progress more frequently
 			const currentTime = Date.now();
 			const processed = Math.min(i + CHUNK_SIZE * CONCURRENT_CHUNKS, totalFeatures);
 			const progress = Math.round((processed / totalFeatures) * 100);
 
-			// Log progress every 1000 features or every 30 seconds
-			if (processed % 1000 === 0 || currentTime - lastLogTime > 30000) {
+			// Log progress every 100 features or every 10 seconds for better user feedback
+			if (processed % 100 === 0 || currentTime - lastLogTime > 10000) {
 				const elapsedSeconds = (currentTime - startTime) / 1000;
 				const rate = processed > 0 ? (processed / elapsedSeconds).toFixed(1) : '0';
 				const eta = processed > 0 ? ((totalFeatures - processed) / (processed / elapsedSeconds)).toFixed(0) : '0';
@@ -1327,8 +1319,8 @@ export class JobProcessorService {
 				lastLogTime = currentTime;
 			}
 
-			// Log milestone achievements
-			if (importedCount > 0 && importedCount % 5000 === 0) {
+			// Log milestone achievements more frequently
+			if (importedCount > 0 && importedCount % 1000 === 0) {
 				console.log(`🎉 Milestone: Imported ${importedCount.toLocaleString()} points!`);
 				await JobQueueService.updateJobProgress(
 					jobId,
@@ -1354,7 +1346,10 @@ export class JobProcessorService {
 	private static async processFeatureChunk(
 		features: any[],
 		userId: string,
-		chunkStart: number
+		chunkStart: number,
+		jobId?: string,
+		totalFeatures?: number,
+		fileName?: string
 	): Promise<{ imported: number; skipped: number; errors: number }> {
 		let imported = 0;
 		let skipped = 0;
@@ -1364,7 +1359,13 @@ export class JobProcessorService {
 		const trackerData: any[] = [];
 
 		for (let i = 0; i < features.length; i++) {
-			const feature = features[chunkStart + i];
+			const feature = features[i];
+
+			// Skip invalid features
+			if (!feature || !feature.geometry) {
+				skipped++;
+				continue;
+			}
 
 			if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
 				const [longitude, latitude] = feature.geometry.coordinates;
@@ -1439,6 +1440,24 @@ export class JobProcessorService {
 
 				if (!error) {
 					imported = trackerData.length;
+
+					// Update progress if we have job tracking info
+					if (jobId && totalFeatures) {
+						const processedFeatures = chunkStart + features.length;
+						const progress = Math.round((processedFeatures / totalFeatures) * 100);
+
+						// Update progress every 50 features or so
+						if (processedFeatures % 50 === 0) {
+							await JobQueueService.updateJobProgress(jobId, progress, {
+								message: `🗺️ Processing features... ${processedFeatures.toLocaleString()}/${totalFeatures.toLocaleString()} (${progress}%)`,
+								fileName,
+								format: 'GeoJSON',
+								totalProcessed: processedFeatures,
+								totalItems: totalFeatures,
+								currentFeature: processedFeatures + 1
+							});
+						}
+					}
 				} else {
 					// Handle individual errors by processing one by one
 					for (const data of trackerData) {

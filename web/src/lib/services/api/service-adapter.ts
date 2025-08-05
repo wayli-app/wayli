@@ -258,23 +258,60 @@ export class ServiceAdapter {
     });
   }
 
-  async createImportJob(file: File, format: string): Promise<{ jobId: string }> {
+  async createImportJob(file: File, format: string, onUploadProgress?: (progress: number) => void): Promise<{ jobId: string }> {
     try {
       console.log('🚀 [SERVICE] Starting import job creation for file:', file.name);
 
-            // Upload file directly to storage
+      // Upload file directly to storage with progress tracking
       const fileName = `${Date.now()}-${file.name}`;
       const storagePath = `${this.session.user.id}/${fileName}`;
 
       console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
 
       const { supabase } = await import('$lib/core/supabase/client');
-      const { error: uploadError } = await supabase.storage
-        .from('temp-files')
-        .upload(storagePath, file, {
-          contentType: file.type,
-          upsert: false
-        });
+
+      // Upload file with progress tracking using XMLHttpRequest
+      const uploadPromise = new Promise<{ error: any }>((resolve) => {
+        const xhr = new XMLHttpRequest();
+
+        // Get upload URL from Supabase
+        supabase.storage
+          .from('temp-files')
+          .createSignedUploadUrl(storagePath)
+          .then(({ data, error }) => {
+            if (error) {
+              resolve({ error });
+              return;
+            }
+
+            const uploadUrl = data.signedUrl;
+
+            xhr.upload.addEventListener('progress', (event) => {
+              if (event.lengthComputable && onUploadProgress) {
+                const percentage = Math.round((event.loaded / event.total) * 100);
+                onUploadProgress(percentage);
+              }
+            });
+
+            xhr.addEventListener('load', () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve({ error: null });
+              } else {
+                resolve({ error: new Error(`Upload failed with status ${xhr.status}`) });
+              }
+            });
+
+            xhr.addEventListener('error', () => {
+              resolve({ error: new Error('Upload failed') });
+            });
+
+            xhr.open('PUT', uploadUrl);
+            xhr.setRequestHeader('Content-Type', file.type);
+            xhr.send(file);
+          });
+      });
+
+      const { error: uploadError } = await uploadPromise;
 
       if (uploadError) {
         console.error('❌ [SERVICE] File upload failed:', uploadError);
@@ -454,8 +491,12 @@ export class ServiceAdapter {
     return this.edgeFunctionsService.getJobProgress(this.session, jobId);
   }
 
+  async cancelJob(jobId: string) {
+    return this.edgeFunctionsService.cancelJob(this.session, jobId);
+  }
+
     async getJobStream() {
-    // Always use Edge Functions for SSE
+    // Always use Edge Functions for SSE - no filtering, frontend will filter
     return this.edgeFunctionsService.getJobStream(this.session);
   }
 

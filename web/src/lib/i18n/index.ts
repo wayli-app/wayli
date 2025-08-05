@@ -18,55 +18,30 @@ export const currentLocale = writable<SupportedLocale>(DEFAULT_LOCALE);
 // Load translation messages
 async function loadMessages(locale: SupportedLocale): Promise<Record<string, string>> {
   try {
-    console.log(`🌍 [i18n] Loading messages for locale: ${locale}`);
-
     // Try fetch approach first (working method)
+    const response = await fetch(`/messages/${locale}.json`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
+    }
+
+    const messages = await response.json();
+    return messages;
+  } catch {
+    // Try dynamic import as fallback
     try {
-      console.log(`🌍 [i18n] Trying fetch: /messages/${locale}.json`);
-      const response = await fetch(`/messages/${locale}.json`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
-      }
-
-      const messages = await response.json();
-      console.log(`🌍 [i18n] Fetch successful, loaded ${Object.keys(messages).length} messages`);
-
-      console.log(`🌍 [i18n] Successfully loaded ${Object.keys(messages).length} messages for ${locale}`);
-
-      // Debug: Check if country translations are in the loaded messages
-      const countryKeys = Object.keys(messages).filter(key => key.startsWith('country.'));
-      console.log(`🌍 [i18n] Found ${countryKeys.length} country keys in ${locale}.json`);
-
-
-
-      return messages;
-                        } catch (fetchError: unknown) {
-          console.log(`🌍 [i18n] Fetch failed, trying dynamic import`);
-
-          // Try dynamic import as fallback
-          try {
-            console.log(`🌍 [i18n] Trying dynamic import: ../../../messages/${locale}.json`);
-            const messages = await import(`../../../messages/${locale}.json`);
-            const result = messages.default || messages;
-            console.log(`🌍 [i18n] Dynamic import successful, loaded ${Object.keys(result).length} messages`);
-            return result;
-          } catch (dynamicError: unknown) {
-            console.log(`🌍 [i18n] Dynamic import failed, error:`, (dynamicError as Error).message);
-            throw dynamicError;
-          }
-        }
-      } catch (error: unknown) {
-      console.warn(`Failed to load messages for locale ${locale}:`, error);
-      console.warn(`Error details:`, (error as Error).message, (error as Error).stack);
-      // Fallback to English
+      const messages = await import(`../../../messages/${locale}.json`);
+      const result = messages.default || messages;
+      return result;
+    } catch (dynamicError: unknown) {
+      // If both fetch and dynamic import fail, try fallback to English
+      console.warn(`Failed to load messages for locale ${locale}:`, dynamicError);
       if (locale !== 'en') {
-        console.log(`🌍 [i18n] Falling back to English`);
         return loadMessages('en');
       }
-      console.log(`🌍 [i18n] Loading fallback messages`);
       // Return empty object as fallback
       return {};
     }
+  }
 }
 
 // Translation store
@@ -74,29 +49,19 @@ export const messages = writable<Record<string, string>>({});
 
 // Initialize i18n system
 export async function initializeI18n(): Promise<void> {
-  console.log(`🌍 [i18n] initializeI18n called`);
-  console.log(`🌍 [i18n] browser variable:`, browser);
-
   if (!browser) {
-    console.log(`🌍 [i18n] Not in browser, skipping initialization`);
     return;
   }
-
-  console.log(`🌍 [i18n] Browser detected, proceeding with initialization`);
 
   // Detect user's preferred locale
   const detectedLocale = detectUserLocale();
   const locale = SUPPORTED_LOCALES.includes(detectedLocale) ? detectedLocale : DEFAULT_LOCALE;
 
-  console.log(`🌍 [i18n] Initializing with locale: ${locale} (detected: ${detectedLocale})`);
-
   // Load messages for the detected locale
   const loadedMessages = await loadMessages(locale);
 
-  console.log(`🌍 [i18n] Setting messages and locale`);
   messages.set(loadedMessages);
   currentLocale.set(locale);
-  console.log(`🌍 [i18n] Initialization complete`);
 }
 
 // Detect user's preferred locale
@@ -277,23 +242,15 @@ export function getCountryName(countryCode: string): string {
   const key = `country.${countryCode.toUpperCase()}` as TranslationKey;
   const currentMessages = get(messages);
 
-  // Debug: Check if messages are loaded
-  console.log(`🌍 [i18n] getCountryName: ${countryCode} -> ${key}`);
-  console.log(`🌍 [i18n] Messages loaded: ${Object.keys(currentMessages).length} total`);
-  console.log(`🌍 [i18n] Country keys available: ${Object.keys(currentMessages).filter(k => k.startsWith('country.')).length}`);
-
   // Check if the key exists
   if (key in currentMessages) {
     const translatedName = currentMessages[key];
-    console.log(`🌍 [i18n] Translation found: ${key} -> ${translatedName}`);
     return translatedName;
   } else {
-    console.log(`⚠️ [i18n] No translation found for ${key}`);
     // Try English fallback
     const englishKey = `country.${countryCode.toUpperCase()}` as TranslationKey;
     if (englishKey in currentMessages) {
       const englishName = currentMessages[englishKey];
-      console.log(`🌍 [i18n] English fallback found: ${englishKey} -> ${englishName}`);
       return englishName;
     }
     return countryCode.toUpperCase();

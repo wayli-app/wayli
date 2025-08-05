@@ -7,6 +7,7 @@ Most important rules:
 - Do not use the Supabase CLI to deploy functions. Assume we're running Supabase in a self-hosted manner.
 - Prefix all log messages with an appropriate emoji.
 - Always comply with a11y.
+- Use Svelte v5's runes system where applicable.
 
 ## Tech Stack & Project Context
 - Frontend & Backend: SvelteKit

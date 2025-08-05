@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { Download, Clock, CheckCircle, XCircle, AlertCircle, Check } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { supabase } from '$lib/core/supabase/client';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionStore } from '$lib/stores/auth';
 	import { get } from 'svelte/store';
+	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
 
 	interface ExportJob {
 		id: string;
@@ -33,27 +34,32 @@
 		completed_at?: string;
 	}
 
-	let exportJobs: ExportJob[] = [];
-	let filteredExportJobs: ExportJob[] = [];
-	let loading = true;
-	let refreshInterval: ReturnType<typeof setInterval>;
+	let exportJobs = $state<ExportJob[]>([]);
+	let filteredExportJobs = $state<ExportJob[]>([]);
+	let loading = $state(true);
+	let sseService = $state<SSEService | null>(null);
 
-	onMount(() => {
+	onMount(async () => {
 		// Small delay to ensure session is available
-		setTimeout(() => {
-			loadExportJobs();
-		}, 100);
+		setTimeout(async () => {
+			await loadExportJobs();
+			// Only start SSE monitoring if there are active export jobs
+			const hasActiveJobs = exportJobs.some(job =>
+				job.status === 'queued' || job.status === 'running'
+			);
+			if (hasActiveJobs) {
 
-		// Auto-refresh every 5 seconds to check for completed exports
-		refreshInterval = setInterval(() => {
-			loadExportJobs();
-		}, 5000);
+				startSSEMonitoring();
+			} else {
 
-		return () => {
-			if (refreshInterval) {
-				clearInterval(refreshInterval);
 			}
-		};
+		}, 100);
+	});
+
+	onDestroy(() => {
+		if (sseService) {
+			sseService.disconnect();
+		}
 	});
 
 	async function loadExportJobs() {
@@ -70,15 +76,7 @@
 			// The service adapter returns the data directly, not wrapped in a success object
 			if (Array.isArray(result)) {
 				exportJobs = result;
-				// Filter: only last 7 days, then take 5 most recent
-				const now = new Date();
-				filteredExportJobs = exportJobs
-					.filter(job => {
-						const created = new Date(job.created_at);
-						return (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
-					})
-					.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-					.slice(0, 5);
+				updateFilteredJobs();
 			} else {
 				console.error('Failed to load export jobs: Invalid response format', result);
 			}
@@ -86,6 +84,94 @@
 			console.error('Error loading export jobs:', error);
 		} finally {
 			loading = false;
+		}
+	}
+
+	// Expose the function for external use
+	export { loadExportJobs };
+
+	function updateFilteredJobs() {
+		// Filter: only last 7 days, then take 5 most recent
+		const now = new Date();
+		filteredExportJobs = exportJobs
+			.filter(job => {
+				const created = new Date(job.created_at);
+				return (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
+			})
+			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+			.slice(0, 5);
+	}
+
+	function startSSEMonitoring() {
+		// Create SSE service for export job monitoring
+		sseService = new SSEService({
+			onConnected: () => {
+
+			},
+			onDisconnected: () => {
+
+			},
+			onJobUpdate: (jobs: JobUpdate[]) => {
+				console.log('📡 Export jobs update received:', jobs);
+				updateJobsFromSSE(jobs);
+			},
+			onJobCompleted: (jobs: JobUpdate[]) => {
+				console.log('✅ Export jobs completed:', jobs);
+				updateJobsFromSSE(jobs);
+
+				// Don't show toasts here - the parent page handles them
+			},
+			onError: (error: string) => {
+				console.error('❌ Export jobs SSE error:', error);
+				toast.error(`Export monitoring error: ${error}`);
+			}
+		}, 'data_export');
+
+		sseService.connect();
+	}
+
+	function updateJobsFromSSE(jobs: JobUpdate[]) {
+		jobs.forEach(update => {
+			const existingJobIndex = exportJobs.findIndex(job => job.id === update.id);
+
+			if (existingJobIndex >= 0) {
+				// Update existing job
+				exportJobs[existingJobIndex] = {
+					...exportJobs[existingJobIndex],
+					status: update.status as any,
+					progress: update.progress,
+					error: update.error,
+					result: update.result,
+					updated_at: update.updated_at
+				};
+			} else {
+				// Add new job
+				exportJobs.push({
+					id: update.id,
+					status: update.status as any,
+					type: update.type,
+					progress: update.progress,
+					error: update.error,
+					result: update.result,
+					created_at: update.created_at,
+					updated_at: update.updated_at
+				});
+			}
+		});
+
+		updateFilteredJobs();
+
+		// Check if we need to start SSE monitoring for new active jobs
+		const hasActiveJobs = exportJobs.some(job =>
+			job.status === 'queued' || job.status === 'running'
+		);
+		if (hasActiveJobs && !sseService) {
+			console.log('🔄 New active export jobs detected, starting SSE monitoring');
+			startSSEMonitoring();
+		} else if (!hasActiveJobs && sseService) {
+			console.log('🔄 No active export jobs, disconnecting SSE');
+			sseService.disconnect();
+			sseService = null;
 		}
 	}
 
@@ -178,6 +264,21 @@
 	function getExpiryDate(job: ExportJob): Date {
 		return new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000);
 	}
+
+	function formatDateRange(job: ExportJob): string {
+		if (!job.data?.startDate || !job.data?.endDate) {
+			return 'All data';
+		}
+
+		const startDate = new Date(job.data.startDate);
+		const endDate = new Date(job.data.endDate);
+
+		// Format dates as YYYY-MM-DD
+		const startFormatted = startDate.toISOString().split('T')[0];
+		const endFormatted = endDate.toISOString().split('T')[0];
+
+		return `${startFormatted} to ${endFormatted}`;
+	}
 </script>
 
 <div class="space-y-4">
@@ -211,6 +312,9 @@
 								<h4 class="font-medium text-gray-900 dark:text-gray-100">
 									Created: {formatDate(job.created_at)}
 								</h4>
+								<div class="text-xs text-gray-500 dark:text-gray-400">
+									Date range: {formatDateRange(job)}
+								</div>
 								{#if job.status === 'completed'}
 									<div class="text-xs text-gray-500 dark:text-gray-400">
 										{#if getExpiryDate(job) > new Date()}

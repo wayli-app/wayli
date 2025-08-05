@@ -88,6 +88,57 @@ Deno.serve(async (req) => {
 			return successResponse(job);
 		}
 
+		if (req.method === 'DELETE') {
+			logInfo('Cancelling job', 'JOBS', { userId: user.id });
+
+			// Parse job ID from URL path
+			const url = new URL(req.url);
+			const pathParts = url.pathname.split('/');
+			const jobId = pathParts[pathParts.length - 1];
+
+			if (!jobId) {
+				return errorResponse('Job ID is required', 400);
+			}
+
+			// First get the job to check permissions and status
+			const { data: job, error: jobError } = await supabase
+				.from('jobs')
+				.select('*')
+				.eq('id', jobId)
+				.eq('created_by', user.id)
+				.single();
+
+			if (jobError) {
+				logError(jobError, 'JOBS');
+				return errorResponse('Job not found', 404);
+			}
+
+			// Check if job can be cancelled
+			if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+				return errorResponse(`Cannot cancel job in ${job.status} status`, 400);
+			}
+
+			// Cancel the job
+			const { error: updateError } = await supabase
+				.from('jobs')
+				.update({
+					status: 'cancelled',
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', jobId);
+
+			if (updateError) {
+				logError(updateError, 'JOBS');
+				return errorResponse('Failed to cancel job', 500);
+			}
+
+			logSuccess('Job cancelled successfully', 'JOBS', {
+				userId: user.id,
+				jobId: jobId
+			});
+			return successResponse({ message: 'Job cancelled successfully' });
+		}
+
 		return errorResponse('Method not allowed', 405);
 	} catch (error) {
 		logError(error, 'JOBS');

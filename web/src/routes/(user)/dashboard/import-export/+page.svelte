@@ -9,44 +9,94 @@
 	import { toast } from 'svelte-sonner';
 	import { onMount, onDestroy } from 'svelte';
 	import { tick } from 'svelte';
-	import { writable } from 'svelte/store';
+
 	import { sessionStore } from '$lib/stores/auth';
 	import { get } from 'svelte/store';
 	import type { Job } from '$lib/types/job-queue.types';
 	import ExportJobs from '$lib/components/ExportJobs.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { jobCreationService } from '$lib/services/job-creation.service';
 	import { createClient } from '@supabase/supabase-js';
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { format } from 'date-fns';
 
 	// Import state
-	let importFormat: string | null = null;
-	let selectedFile: File | null = null;
-	let includeLocationData = true;
-	let includeTripInfo = true;
-	let includeWantToVisit = true;
-	let includeTrips = true;
-	const isImporting = writable(false);
-	let fileInputEl: HTMLInputElement | null = null;
+	let importFormat = $state<string | null>(null);
+	let selectedFile = $state<File | null>(null);
+	let includeLocationData = $state(true);
+	let includeTripInfo = $state(true);
+	let includeWantToVisit = $state(true);
+	let includeTrips = $state(true);
+	let isImporting = $state(false);
+	let fileInputEl = $state<HTMLInputElement | null>(null);
+
+	// Upload progress state
+	let uploadProgress = $state(0);
+	let isUploading = $state(false);
+
+	// Last successful import date
+	let lastSuccessfulImport = $state<string | null>(null);
 
 	// Export state
-	let exportFormat = 'JSON';
-	let exportStartDate: Date | null = null;
-	let exportEndDate: Date | null = null;
-	let isExportDatePickerOpen = false;
-	let includeLocationDataExport = true;
-	let includeTripInfoExport = true;
-	let includeWantToVisitExport = true;
-	let includeTripsExport = true;
+	let exportFormat = $state('JSON');
+	let exportStartDate = $state<Date | null>(null);
+	let exportEndDate = $state<Date | null>(null);
+	let isExportDatePickerOpen = $state(false);
+	let includeLocationDataExport = $state(true);
+	let includeTripInfoExport = $state(true);
+	let includeWantToVisitExport = $state(true);
+	let includeTripsExport = $state(true);
 
-	// Progress tracking - simplified
-	let activeImportJob: Job | null = null;
-	let activeExportJob: Job | null = null;
-	let pollingInterval: ReturnType<typeof setInterval> | null = null;
-	let backgroundCheckInterval: ReturnType<typeof setInterval> | null = null;
-	let importJobNotified = false;
-	let exportJobNotified = false;
+
+
+	// Track which jobs we've already shown toasts for (to prevent duplicates on navigation)
+	// Use localStorage to persist across page navigation
+	let completedJobIds = $state(new Set<string>());
+
+	// Load previously completed job IDs from localStorage
+	if (typeof window !== 'undefined') {
+		try {
+			const stored = localStorage.getItem('wayli_completed_jobs');
+			if (stored) {
+				const jobIds = JSON.parse(stored);
+				completedJobIds = new Set(jobIds);
+			}
+		} catch (error) {
+			console.warn('Failed to load completed job IDs from localStorage:', error);
+		}
+	}
+
+	// Save completed job IDs to localStorage
+	function saveCompletedJobIds() {
+		if (typeof window !== 'undefined') {
+			try {
+				localStorage.setItem('wayli_completed_jobs', JSON.stringify([...completedJobIds]));
+			} catch (error) {
+				console.warn('Failed to save completed job IDs to localStorage:', error);
+			}
+		}
+	}
+
+	// Clean up old completed job IDs periodically
+	setInterval(() => {
+		// Keep only jobs from the last 5 minutes
+		const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+		// Note: We can't easily clean up the Set without job timestamps,
+		// but it's small enough that it won't cause memory issues
+
+		// Clean up localStorage periodically (every 5 minutes)
+		if (typeof window !== 'undefined' && completedJobIds.size > 100) {
+			// If we have too many job IDs, clear them all and start fresh
+			completedJobIds.clear();
+			localStorage.removeItem('wayli_completed_jobs');
+		}
+	}, 5 * 60 * 1000); // Clean up every 5 minutes
+
+	let exportJobsComponent: ExportJobs;
+	const autoStart = true;
+
+
 
 	const importFormats = [
 		{
@@ -110,281 +160,10 @@
 		isExportDatePickerOpen = false;
 	}
 
-	$: formattedExportStartDate = exportStartDate ? format(exportStartDate, 'MMM dd, yyyy') : '';
-	$: formattedExportEndDate = exportEndDate ? format(exportEndDate, 'MMM dd, yyyy') : '';
+	let formattedExportStartDate = $derived(exportStartDate ? format(exportStartDate, 'MMM dd, yyyy') : '');
+	let formattedExportEndDate = $derived(exportEndDate ? format(exportEndDate, 'MMM dd, yyyy') : '');
 
-	// Simple progress tracking functions
-	async function checkForActiveJobs() {
-		try {
-			const session = get(sessionStore);
-			if (!session) return;
 
-			const serviceAdapter = new ServiceAdapter({ session });
-
-			// Check for active import jobs
-			const importJobsResponse = await serviceAdapter.getJobs({ type: 'data_import' }) as any;
-			const importJobs = Array.isArray(importJobsResponse) ? importJobsResponse :
-							  (importJobsResponse?.data || []);
-
-			console.log('🔍 All import jobs:', importJobs);
-
-			const activeImport = importJobs.find((job: Job) =>
-				(job.status === 'queued' && job.progress < 100) ||
-				(job.status === 'running')
-			);
-
-			// Also check for recently completed jobs (within last 5 minutes)
-			const recentCompletedImport = importJobs.find((job: Job) => {
-				if (job.status !== 'completed') return false;
-				const completedAt = job.completed_at ? new Date(job.completed_at).getTime() : 0;
-				const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-				return completedAt > fiveMinutesAgo;
-			});
-
-			if (activeImport && !activeImportJob) {
-				console.log('🚀 Found active import job:', activeImport);
-				console.log('🔍 Full job object:', JSON.stringify(activeImport, null, 2));
-				activeImportJob = activeImport;
-				importJobNotified = false; // Reset notification flag for new job
-				isImporting.set(true);
-				startPolling();
-			} else if (recentCompletedImport && !activeImportJob) {
-				console.log('✅ Found recently completed import job:', recentCompletedImport);
-				// Don't set activeImportJob for completed jobs - just show notification
-				isImporting.set(false); // Ensure import button is enabled for completed jobs
-				// Don't start polling for completed jobs
-				if (!importJobNotified) {
-					toast.success('Import completed successfully!', {
-						description: 'Your file has been processed and imported.'
-					});
-					importJobNotified = true;
-				}
-			} else if (!activeImport && !recentCompletedImport && activeImportJob) {
-				// No active or recent import jobs found, reset state
-				console.log('🔄 No active import jobs found, resetting state');
-				activeImportJob = null;
-				importJobNotified = false; // Reset notification flag
-				isImporting.set(false);
-			}
-
-			// Check for active export jobs
-			const exportJobsResponse = await serviceAdapter.getJobs({ type: 'data_export' }) as any;
-			const exportJobs = Array.isArray(exportJobsResponse) ? exportJobsResponse :
-							  (exportJobsResponse?.data || []);
-
-			const activeExport = exportJobs.find((job: Job) =>
-				(job.status === 'queued' && job.progress < 100) ||
-				(job.status === 'running')
-			);
-
-			// Also check for recently completed jobs (within last 5 minutes)
-			const recentCompletedExport = exportJobs.find((job: Job) => {
-				if (job.status !== 'completed') return false;
-				const completedAt = job.completed_at ? new Date(job.completed_at).getTime() : 0;
-				const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-				return completedAt > fiveMinutesAgo;
-			});
-
-			if (activeExport && !activeExportJob) {
-				console.log('🚀 Found active export job:', activeExport);
-				activeExportJob = activeExport;
-				exportJobNotified = false; // Reset notification flag for new job
-				startPolling();
-			} else if (recentCompletedExport && !activeExportJob) {
-				console.log('✅ Found recently completed export job:', recentCompletedExport);
-				// Don't set activeExportJob for completed jobs - just show notification
-				// Don't start polling for completed jobs
-				if (!exportJobNotified) {
-					toast.success('Export completed successfully!', {
-						description: 'Your data has been exported and is ready for download.'
-					});
-					exportJobNotified = true;
-				}
-			}
-
-			// If we found any active jobs, ensure polling is running
-			if ((activeImport || activeExport) && !pollingInterval) {
-				console.log('🔄 Starting polling for active jobs');
-				startPolling();
-			}
-		} catch (error) {
-			console.error('❌ Error checking for active jobs:', error);
-		}
-	}
-
-	function startPolling() {
-		if (pollingInterval) {
-			clearInterval(pollingInterval);
-		}
-
-		pollingInterval = setInterval(async () => {
-			await updateJobProgress();
-		}, 2000);
-	}
-
-	function startBackgroundChecking() {
-		if (backgroundCheckInterval) {
-			clearInterval(backgroundCheckInterval);
-		}
-
-		// Check for new jobs every 10 seconds
-		backgroundCheckInterval = setInterval(async () => {
-			await checkForActiveJobs();
-		}, 10000);
-	}
-
-	// Update job progress
-	async function updateJobProgress() {
-		try {
-			const session = get(sessionStore);
-			if (!session) {
-				return;
-			}
-
-			const serviceAdapter = new ServiceAdapter({ session });
-			let hasActiveJobs = false;
-
-			// Update import job progress
-			if (activeImportJob && activeImportJob.id) {
-				console.log('🔄 Polling import job:', activeImportJob.id);
-				let job: Job | null = null;
-
-				try {
-					const jobData = await serviceAdapter.getJobProgress(activeImportJob.id) as any;
-					console.log('🔍 Raw job progress response:', jobData);
-
-					// Handle different response structures
-					if (jobData.success && jobData.data) {
-						// Standard API response format
-						job = jobData.data;
-					} else if (jobData.id) {
-						// Direct job object
-						job = jobData;
-					} else {
-						// Fallback
-						job = jobData.data || jobData;
-					}
-
-					console.log('🔍 Processed job object:', job);
-				} catch (error) {
-					console.error('❌ Error polling import job:', error);
-					// If there's an error, try to get the job from the database directly
-					try {
-						const jobsResponse = await serviceAdapter.getJobs({ type: 'data_import' }) as any;
-						const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse?.data || []);
-						const currentJob = jobs.find((j: Job) => j.id === activeImportJob?.id);
-						if (currentJob) {
-							console.log('🔍 Found job in jobs list:', currentJob);
-							activeImportJob = currentJob;
-							job = currentJob;
-						}
-					} catch (fallbackError) {
-						console.error('❌ Error in fallback job lookup:', fallbackError);
-					}
-					return;
-				}
-
-				if (job) {
-					activeImportJob = job;
-					hasActiveJobs = true;
-
-					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled' || (job.progress === 100 && job.status === 'queued')) {
-						console.log('✅ Import job finished:', job.status);
-						activeImportJob = null;
-						isImporting.set(false);
-
-						if ((job.status === 'completed' || (job.progress === 100 && job.status === 'queued')) && !importJobNotified) {
-							toast.success('Import completed successfully!');
-							importJobNotified = true;
-						} else if (job.status === 'failed') {
-							toast.error('Import failed', {
-								description: job.error || 'Unknown error occurred'
-							});
-						}
-					} else {
-						// Job is still active, update the display
-						activeImportJob = job;
-					}
-				}
-			}
-
-			// Update export job progress
-			if (activeExportJob && activeExportJob.id) {
-				console.log('🔄 Polling export job:', activeExportJob.id);
-				let job: Job | null = null;
-
-				try {
-					const jobData = await serviceAdapter.getJobProgress(activeExportJob.id) as any;
-					console.log('🔍 Raw job progress response:', jobData);
-
-					// Handle different response structures
-					if (jobData.success && jobData.data) {
-						// Standard API response format
-						job = jobData.data;
-					} else if (jobData.id) {
-						// Direct job object
-						job = jobData;
-					} else {
-						// Fallback
-						job = jobData.data || jobData;
-					}
-
-					console.log('🔍 Processed job object:', job);
-				} catch (error) {
-					console.error('❌ Error polling export job:', error);
-					// If there's an error, try to get the job from the database directly
-					try {
-						const jobsResponse = await serviceAdapter.getJobs({ type: 'data_export' }) as any;
-						const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse?.data || []);
-						const currentJob = jobs.find((j: Job) => j.id === activeExportJob?.id);
-						if (currentJob) {
-							console.log('🔍 Found job in jobs list:', currentJob);
-							activeExportJob = currentJob;
-							job = currentJob;
-						}
-					} catch (fallbackError) {
-						console.error('❌ Error in fallback job lookup:', fallbackError);
-					}
-					return;
-				}
-
-				if (job) {
-					activeExportJob = job;
-					hasActiveJobs = true;
-
-					if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled' || (job.progress === 100 && job.status === 'queued')) {
-						console.log('✅ Export job finished:', job.status);
-						activeExportJob = null;
-
-						if ((job.status === 'completed' || (job.progress === 100 && job.status === 'queued')) && !exportJobNotified) {
-							toast.success('Export completed successfully!');
-							exportJobNotified = true;
-						} else if (job.status === 'failed') {
-							toast.error('Export failed', {
-								description: job.error || 'Unknown error occurred'
-							});
-						}
-									} else {
-					// Job is still active, update the display
-					activeExportJob = job;
-				}
-			}
-		}
-
-		// Check for new active jobs (but don't restart polling if we already have active jobs)
-		if (!hasActiveJobs) {
-			await checkForActiveJobs();
-		}
-
-		// Stop polling if no active jobs
-		if (!hasActiveJobs && !activeImportJob && !activeExportJob && pollingInterval) {
-			clearInterval(pollingInterval);
-			pollingInterval = null;
-		}
-	} catch (error) {
-		console.error('❌ Error updating job progress:', error);
-	}
-}
 
 	// Import functions
 	async function handleImport() {
@@ -394,63 +173,81 @@
 		}
 
 		try {
-			isImporting.set(true);
-			const session = get(sessionStore);
-			if (!session) {
-				toast.error('Not authenticated');
-				return;
-			}
+			isImporting = true;
+			isUploading = true;
+			uploadProgress = 0;
 
-			const serviceAdapter = new ServiceAdapter({ session });
+			await jobCreationService.createImportJob(selectedFile, {
+				format: importFormat,
+				includeLocationData,
+				includeTripInfo,
+				includeWantToVisit,
+				includeTrips
+			}, (progress: number) => {
+				uploadProgress = progress;
+				console.log('📤 Upload progress:', progress + '%');
+			});
 
-			// Create import job
-			const result = await serviceAdapter.createImportJob(selectedFile, importFormat);
+			// Reset form
+			selectedFile = null;
+			importFormat = null;
+			includeLocationData = true;
+			includeTripInfo = true;
+			includeWantToVisit = true;
+			includeTrips = true;
 
-			if (result.jobId) {
-				console.log('🚀 Import job created:', result.jobId);
-
-				// Set the active job and start polling
-				activeImportJob = {
-					id: result.jobId,
-					type: 'data_import',
-					status: 'queued',
-					progress: 0,
-					data: {
-						fileName: selectedFile.name,
-						format: importFormat
-					},
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-					created_by: session.user.id,
-					priority: 'normal'
-				} as Job;
-
-				importJobNotified = false; // Reset notification flag for new job
-				startPolling();
-
-				// Trigger immediate progress update
-				await tick();
-
-				// Get initial job status immediately
-				await updateJobProgress();
-
-				toast.success('Import job created successfully!', {
-					description: 'Your file is being processed. You can track progress below.'
-				});
-			} else {
-				toast.error('Failed to create import job', {
-					description: 'Unknown error occurred'
-				});
+			// Clear file input
+			if (fileInputEl) {
+				fileInputEl.value = '';
 			}
 		} catch (error) {
 			console.error('Import error:', error);
-			toast.error('Failed to create import job', {
-				description: error instanceof Error ? error.message : 'Unknown error occurred'
-			});
 		} finally {
-			isImporting.set(false);
+			isImporting = false;
+			isUploading = false;
+			uploadProgress = 0;
+		}
+
+		// Refresh the last successful import date after a successful import
+		await fetchLastSuccessfulImport();
+	}
+
+	// Fetch last successful import date
+	async function fetchLastSuccessfulImport() {
+		try {
+			const session = get(sessionStore);
+			if (!session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session });
+			const jobsResponse = await serviceAdapter.getJobs({ type: 'data_import' }) as any;
+			const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse?.data || []);
+
+			// Find the most recent completed import job
+			const lastCompletedImport = jobs
+				.filter((job: any) => job.status === 'completed')
+				.sort((a: any, b: any) => new Date(b.completed_at || b.updated_at).getTime() - new Date(a.completed_at || a.updated_at).getTime())[0];
+
+			if (lastCompletedImport) {
+				const date = new Date(lastCompletedImport.completed_at || lastCompletedImport.updated_at);
+				lastSuccessfulImport = date.toLocaleString('en-US', {
+					year: 'numeric',
+					month: 'short',
+					day: 'numeric',
+					hour: '2-digit',
+					minute: '2-digit'
+				});
+			}
+		} catch (error) {
+			console.error('Error fetching last successful import:', error);
 		}
 	}
+
+
+
+	// Fetch last successful import date on mount
+	onMount(async () => {
+		await fetchLastSuccessfulImport();
+	});
 
 	// Export functions
 	async function handleExport() {
@@ -460,89 +257,57 @@
 		}
 
 		// Convert Date objects to ISO strings for the API
-		const startDateStr = exportStartDate.toISOString().split('T')[0];
-		const endDateStr = exportEndDate.toISOString().split('T')[0];
+		// Always ensure we have proper Date objects, regardless of what the DatePicker returns
+		let startDate: Date;
+		let endDate: Date;
 
 		try {
-			const session = get(sessionStore);
-			if (!session) {
-				toast.error('Not authenticated');
+			// Convert to Date objects if they're not already
+			startDate = exportStartDate instanceof Date ? exportStartDate : new Date(exportStartDate);
+			endDate = exportEndDate instanceof Date ? exportEndDate : new Date(exportEndDate);
+
+			// Validate the dates
+			if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+				toast.error('Invalid date format. Please select valid start and end dates.');
 				return;
 			}
+		} catch (error) {
+			toast.error('Invalid date format. Please select valid start and end dates.');
+			return;
+		}
 
-			const serviceAdapter = new ServiceAdapter({ session });
+		const startDateStr = startDate.toISOString().split('T')[0];
+		const endDateStr = endDate.toISOString().split('T')[0];
 
-			// Create export job
-			const result = await serviceAdapter.createExportJob({
-				startDate: startDateStr,
-				endDate: endDateStr,
+		try {
+			await jobCreationService.createExportJob({
 				format: exportFormat,
-				options: {
-					includeLocationData: includeLocationDataExport,
-					includeTripInfo: includeTripInfoExport,
-					includeWantToVisit: includeWantToVisitExport,
-					includeTrips: includeTripsExport
-				}
-			}) as any;
+				includeLocationData: includeLocationDataExport,
+				includeTripInfo: includeTripInfoExport,
+				includeWantToVisit: includeWantToVisitExport,
+				includeTrips: includeTripsExport,
+				startDate: startDate,
+				endDate: endDate
+			});
 
-			if (result.success && result.data?.jobId) {
-				console.log('🚀 Export job created:', result.data.jobId);
-
-				// Set the active job and start polling
-				activeExportJob = {
-					id: result.data.jobId,
-					type: 'data_export',
-					status: 'queued',
-					progress: 0,
-					data: {
-						format: exportFormat,
-						startDate: exportStartDate,
-						endDate: exportEndDate
-					},
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-					created_by: session.user.id,
-					priority: 'normal'
-				} as Job;
-
-				exportJobNotified = false; // Reset notification flag for new job
-				startPolling();
-
-				toast.success('Export job created successfully!', {
-					description: 'Your export is being processed. You can track progress below.'
-				});
-			} else {
-				toast.error('Failed to create export job', {
-					description: result.message || 'Unknown error occurred'
-				});
-			}
+			// Reset form
+			exportFormat = 'JSON';
+			exportStartDate = null;
+			exportEndDate = null;
+			includeLocationDataExport = true;
+			includeTripInfoExport = true;
+			includeWantToVisitExport = true;
+			includeTripsExport = true;
 		} catch (error) {
 			console.error('Export error:', error);
-			toast.error('Failed to create export job', {
-				description: error instanceof Error ? error.message : 'Unknown error occurred'
-			});
 		}
+
+
 	}
 
-	// Lifecycle
-	onMount(async () => {
-		await checkForActiveJobs();
-		startBackgroundChecking();
-	});
 
-	onDestroy(() => {
-		if (pollingInterval) {
-			clearInterval(pollingInterval);
-		}
-		if (backgroundCheckInterval) {
-			clearInterval(backgroundCheckInterval);
-		}
-	});
-
-	// Helper functions for UI
 	function getJobFileName(job: Job | null): string {
 		if (!job) return 'Unknown file';
-		console.log('🔍 Job data for filename:', job.data);
 		if (job.data?.fileName) return job.data.fileName as string;
 		if (job.data?.original_filename) return job.data.original_filename as string;
 		if (job.data?.filename) return job.data.filename as string;
@@ -551,7 +316,6 @@
 
 	function getJobStatus(job: Job | null): string {
 		if (!job) return 'Unknown';
-		console.log('🔍 Job status:', job.status, 'Job result:', job.result);
 
 		// Check for detailed status from job result
 		if (job.result?.status) return job.result.status as string;
@@ -579,10 +343,11 @@
 
 	function getJobProgress(job: Job | null): number {
 		if (!job) return 0;
+		console.log('📊 getJobProgress called for job:', job.id, 'progress:', job.progress);
 		return job.progress || 0;
 	}
 
-			function getJobETA(job: Job | null): string | null {
+	function getJobETA(job: Job | null): string | null {
 		if (!job) return null;
 
 		// Check various possible ETA fields in the result
@@ -645,144 +410,12 @@
 
 
 
-	<!-- Active Import Job Progress Display -->
-	{#if activeImportJob}
-		<div class="mb-8">
-			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Active Import Job</h2>
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-3 flex items-center justify-between">
-					<div class="flex items-center gap-3">
-						<div class="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
-							<Upload class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-						</div>
-						<div>
-							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
-								{getJobFileName(activeImportJob)}
-							</h3>
-							<p class="text-sm text-gray-500 dark:text-gray-400">
-								Job ID: {activeImportJob.id}
-							</p>
-						</div>
-					</div>
-					<div class="text-right">
-						<div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
-							{getJobProgress(activeImportJob)}%
-						</div>
-						{#if getJobETA(activeImportJob)}
-							<div class="text-sm text-gray-500 dark:text-gray-400">{getJobETA(activeImportJob)}</div>
-						{/if}
-					</div>
-				</div>
 
-				<!-- Progress Bar -->
-				<div class="mb-3">
-					<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-						<span>Progress</span>
-					</div>
-					<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-						<div
-							class="h-3 rounded-full bg-blue-600 transition-all duration-300 ease-out"
-							style="width: {getJobProgress(activeImportJob)}%"
-						></div>
-					</div>
-				</div>
-
-				<!-- Status Message -->
-				{#if getJobStatus(activeImportJob)}
-					<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
-						{getJobStatus(activeImportJob)}
-					</div>
-				{/if}
-
-				<!-- Job Details -->
-				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-					<div class="flex items-center gap-4">
-						<span>Format: {activeImportJob.data?.format || 'Unknown'}</span>
-						{#if activeImportJob.data?.fileSize && typeof activeImportJob.data.fileSize === 'number'}
-							<span>Size: {(activeImportJob.data.fileSize / (1024 * 1024)).toFixed(1)} MB</span>
-						{:else if activeImportJob.data?.file_size && typeof activeImportJob.data.file_size === 'number'}
-							<span>Size: {(activeImportJob.data.file_size / (1024 * 1024)).toFixed(1)} MB</span>
-						{/if}
-					</div>
-					<div class="text-xs text-gray-400">
-						Created: {activeImportJob.created_at ? new Date(activeImportJob.created_at).toLocaleString() : 'Unknown'}
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Active Export Job Progress Display -->
-	{#if activeExportJob}
-		<div class="mb-8">
-			<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Active Export Job</h2>
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-3 flex items-center justify-between">
-					<div class="flex items-center gap-3">
-						<div class="rounded-lg bg-green-50 p-2 dark:bg-green-900/20">
-							<FileDown class="h-5 w-5 text-green-600 dark:text-green-400" />
-						</div>
-						<div>
-							<h3 class="font-semibold text-gray-900 dark:text-gray-100">
-								Export
-							</h3>
-							<p class="text-sm text-gray-500 dark:text-gray-400">
-								Job ID: {activeExportJob.id}
-							</p>
-						</div>
-					</div>
-					<div class="text-right">
-						<div class="text-2xl font-bold text-green-600 dark:text-green-400">
-							{getJobProgress(activeExportJob)}%
-						</div>
-						{#if getJobETA(activeExportJob)}
-							<div class="text-sm text-gray-500 dark:text-gray-400">{getJobETA(activeExportJob)}</div>
-						{/if}
-					</div>
-				</div>
-
-				<!-- Progress Bar -->
-				<div class="mb-3">
-					<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-						<span>Progress</span>
-					</div>
-					<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-						<div
-							class="h-3 rounded-full bg-green-600 transition-all duration-300 ease-out"
-							style="width: {getJobProgress(activeExportJob)}%"
-						></div>
-					</div>
-				</div>
-
-				<!-- Status Message -->
-				{#if getJobStatus(activeExportJob)}
-					<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
-						{getJobStatus(activeExportJob)}
-					</div>
-				{/if}
-
-				<!-- Job Details -->
-				<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-					<div class="flex items-center gap-4">
-						<span>Format: {activeExportJob.data?.format || 'Unknown'}</span>
-						<span>Period: {activeExportJob.data?.startDate} to {activeExportJob.data?.endDate}</span>
-					</div>
-					<div class="text-xs text-gray-400">
-						Created: {activeExportJob.created_at ? new Date(activeExportJob.created_at).toLocaleString() : 'Unknown'}
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
 
 	<div class="grid gap-8 md:grid-cols-2">
 		<!-- Import Section -->
 		<div
-			class="flex flex-col rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+			class="flex flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
@@ -790,12 +423,15 @@
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
 				Import your travel data from various sources. Imports are processed in the background by
-				workers and progress will be shown on this page.
+				workers and progress will be shown in the sidebar.
 			</p>
+			{#if lastSuccessfulImport}
+				<div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+					Last successful import: {lastSuccessfulImport}
+				</div>
+			{/if}
 
-			{#if !activeImportJob}
-				<!-- Show file upload UI and import button only if no active import job -->
-				<div class="flex-1 space-y-4">
+			<div class="flex-1 space-y-4">
 					<div>
 						<label
 							for="fileInput"
@@ -809,7 +445,7 @@
 								id="fileInput"
 								bind:this={fileInputEl}
 								accept=".geojson,.json,.gpx,.rec"
-								class="block w-full cursor-pointer rounded-md border border-[rgb(218,218,221)] text-sm text-gray-500 file:mr-4 file:border-0 file:bg-[rgb(37,140,244)]/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-[rgb(37,140,244)] hover:file:bg-[rgb(37,140,244)]/20 dark:border-[#23232a] dark:text-gray-400"
+								class="block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-gray-500 file:mr-4 file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-600 hover:file:bg-blue-100 dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-blue-400 dark:hover:file:bg-gray-600"
 								on:change={handleFileSelect}
 							/>
 						</div>
@@ -830,20 +466,37 @@
 						<div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
 							{#each importFormats as format}
 								<div class="flex items-center gap-2">
-									<svelte:component this={format.icon} class="h-4 w-4" />
+									<svelte:component this={format.icon || undefined} class="h-4 w-4" />
 									<span>{format.label} - {format.description}</span>
 								</div>
 							{/each}
 						</div>
 					</div>
+
+					<!-- Upload Progress Bar -->
+					{#if isUploading}
+						<div class="mt-4">
+							<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+								<span>Uploading file...</span>
+								<span>{uploadProgress}%</span>
+							</div>
+							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+								<div
+									class="h-2 rounded-full bg-green-600 transition-all duration-300"
+									style="width: {uploadProgress}%"
+								></div>
+							</div>
+						</div>
+					{/if}
+
 					<!-- Import button only shown if no active job -->
 					<button
 						type="button"
 						on:click={handleImport}
-						disabled={$isImporting || !selectedFile}
+						disabled={isImporting || !selectedFile}
 						class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						{#if $isImporting}
+						{#if isImporting}
 							<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
 							Importing... (This may take a few minutes for large files)
 						{:else}
@@ -852,12 +505,11 @@
 						{/if}
 					</button>
 				</div>
-			{/if}
 		</div>
 
 		<!-- Export Section -->
 		<div
-			class="flex flex-col rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+			class="flex flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
@@ -880,7 +532,7 @@
 								bind:checked={includeLocationData}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Location data (GeoJSON)</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Location data</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -888,7 +540,7 @@
 								bind:checked={includeTripInfo}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Trip information (JSON)</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Trip information</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -896,7 +548,7 @@
 								bind:checked={includeWantToVisit}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Want to visit (JSON)</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Want to visit</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -904,7 +556,7 @@
 								bind:checked={includeTrips}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Trips (JSON)</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">Trips</span>
 						</label>
 					</div>
 				</div>
@@ -913,14 +565,16 @@
 					<div class="relative">
 						<button
 							type="button"
-							class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+							class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
 							on:click={toggleExportDatePicker}
 							on:keydown={(e) => e.key === 'Enter' && toggleExportDatePicker()}
 							class:open={isExportDatePickerOpen}
 							aria-label="Select export date range"
 							aria-expanded={isExportDatePickerOpen}
 						>
-							<i class="icon-calendar"></i>
+							<svg class="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+							</svg>
 							<div class="date">
 								{#if exportStartDate && exportEndDate}
 									{formattedExportStartDate} - {formattedExportEndDate}
@@ -945,19 +599,12 @@
 				</div>
 			</div>
 
-			<!-- Only disable if there is an active export job that is not completed/failed/cancelled -->
 			<button
 				on:click={handleExport}
-				disabled={activeExportJob && !['completed','failed','cancelled'].includes(activeExportJob.status)}
-				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 			>
-				{#if activeExportJob && !['completed','failed','cancelled'].includes(activeExportJob.status)}
-					<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-					Export in Progress...
-				{:else}
-					<FileDown class="h-4 w-4" />
-					Export Data
-				{/if}
+				<FileDown class="h-4 w-4" />
+				Export Data
 			</button>
 		</div>
 	</div>
@@ -969,12 +616,6 @@
 </div>
 
 <style>
-	/* Calendar icon */
-	.icon-calendar {
-		background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAEmSURBVHgB7ZcPzcIwEMUfXz4BSCgKwAGgACRMAg6YBBxsOMABOAAHFAXgAK5Z2Y6lHbfQ8SfpL3lZaY/1rb01N+BHUKSMNBfEJjZWISA56Uo6C2KvVpkgFn9oRx9vICFtUT1JKO3tvRtZdjBxXQs+YY+1FenIfuesPUGVVLzfRWKvmrSzbbN19wS+kAb2+sCEuUxrYzkbe4YvCVM2Vr5NPAkVa+van7Wn38U95uTpN5TJ/A8ZKemAakmbmJJGpI0gVmwA0huieFItjG19DgTHtwIZhCfZq3ztCuzQYh+FKBSvusjAGs8PnLYkLgMf34JoIBqIBqKBaIAb0Kw9RlhMCTbzzPWAqYq7LsuPaGDUsYmznaOk5zChUJTNQ4TFVMkrOL4HPsoNn26PxROHCggAAAAASUVORK5CYII=)
-			no-repeat center center;
-		background-size: 14px 14px;
-		height: 14px;
-		width: 14px;
-	}
+	/* No custom styles needed - using SVG icon */
 </style>
+

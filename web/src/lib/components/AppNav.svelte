@@ -20,6 +20,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
 	import { onMount } from 'svelte';
+	import JobProgressIndicator from './JobProgressIndicator.svelte';
 
 	export let isAdmin = false;
 
@@ -145,6 +146,9 @@
 					<Moon class="h-5 w-5" />
 				</button>
 			</div>
+
+			<!-- Job Progress Indicator -->
+			<JobProgressIndicator />
 
 			<!-- User Navigation -->
 			<div class="mb-4">

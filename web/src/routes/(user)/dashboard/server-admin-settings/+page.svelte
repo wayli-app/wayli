@@ -26,7 +26,7 @@
 	import { get } from 'svelte/store';
 	import { sessionStore } from '$lib/stores/auth';
 
-	export let data: PageData;
+	let { data } = $props<{ data: PageData }>();
 
 	type Integration = {
 		id: string;
@@ -46,36 +46,36 @@
 	};
 
 	// Initialize users from server data
-	$: users = data.users || [];
-	let searchQuery = $page.url.searchParams.get('search') || '';
-	let debouncedSearchQuery = searchQuery;
-	let currentPage = data.pagination?.page || 1;
-	let itemsPerPage = data.pagination?.limit || 10;
-	let registrationEnabled = true;
-	let oauthEnabled = false;
+	let users = $state(data.users || []);
+	let searchQuery = $state($page.url.searchParams.get('search') || '');
+	let debouncedSearchQuery = $state(searchQuery);
+	let currentPage = $state(data.pagination?.page || 1);
+	let itemsPerPage = $state(data.pagination?.limit || 10);
+	let registrationEnabled = $state(true);
+	let oauthEnabled = $state(false);
 
 	// Initialize server settings
-	let serverName = '';
-	let adminEmail = '';
-	let allowRegistration = true;
-	let requireEmailVerification = false;
-	let showAddUserModal = false;
-	let isModalOpen = false;
-	let selectedUser: UserProfile | null = null;
-	let showDeleteConfirm = false;
-	let userToDelete: UserProfile | null = null;
+	let serverName = $state('');
+	let adminEmail = $state('');
+	let allowRegistration = $state(true);
+	let requireEmailVerification = $state(false);
+	let showAddUserModal = $state(false);
+	let isModalOpen = $state(false);
+	let selectedUser = $state<UserProfile | null>(null);
+	let showDeleteConfirm = $state(false);
+	let userToDelete = $state<UserProfile | null>(null);
 	let searchTimeout: ReturnType<typeof setTimeout>;
-	let activeTab = 'settings'; // Add tab state - default to settings tab
+	let activeTab = $state('settings'); // Add tab state - default to settings tab
 
 	// Get pagination data from server
-	$: pagination = data.pagination || {
+	let pagination = $derived(data.pagination || {
 		page: 1,
 		limit: 10,
 		total: 0,
 		totalPages: 0,
 		hasNext: false,
 		hasPrev: false
-	};
+	});
 
 	// Debounced search update - only trigger when user changes the input
 	function handleSearchInput() {
@@ -280,7 +280,7 @@
 		});
 
 		if (response.ok) {
-			users = users.filter((u) => u.id !== userToDelete!.id);
+			users = users.filter((u: UserProfile) => u.id !== userToDelete!.id);
 			toast.success('User deleted successfully');
 		} else {
 			let errorDescription = 'An unknown error occurred while deleting the user.';
