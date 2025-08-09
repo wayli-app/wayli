@@ -1,75 +1,25 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
+import {
+  setupRequest,
+  authenticateRequest,
+  errorResponse,
+  logError,
+  logInfo,
+  logSuccess
+} from '../_shared/utils.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
-    });
-  }
+  // Handle CORS
+  const corsResponse = setupRequest(req);
+  if (corsResponse) return corsResponse;
 
   if (req.method === 'GET') {
     try {
-      console.log('SSE stream request received');
-      console.log('Request method:', req.method);
-      console.log('Request URL:', req.url);
+      // Authenticate the request properly
+      const { user, supabase } = await authenticateRequest(req);
+      const userId = user.id;
 
-      // Get authorization header
-      const authHeader = req.headers.get('Authorization');
-      console.log('🔗 Edge Function: Auth header received:', !!authHeader, authHeader?.substring(0, 20) + '...');
-      if (!authHeader) {
-        console.error('No authorization header provided');
-        return new Response('Unauthorized: No authorization header', {
-          status: 401,
-          headers: corsHeaders
-        });
-      }
-
-      const token = authHeader.replace('Bearer ', '');
-      console.log('🔗 Edge Function: Token length:', token.length);
-      console.log('🔗 Edge Function: Token starts with:', token.substring(0, 20) + '...');
-
-            // Create Supabase client with service role key for admin access
-      const supabaseUrl = Deno.env.get('SUPABASE_URL');
-      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-
-      if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
-        console.error('Missing environment variables');
-        return new Response('Internal Server Error: Missing configuration', {
-          status: 500,
-          headers: corsHeaders
-        });
-      }
-
-      console.log('🔗 Edge Function: Creating Supabase client with URL:', supabaseUrl);
-      const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      });
-
-            // For now, skip authentication to test the connection
-      console.log('🔗 Edge Function: Skipping authentication for testing...');
-
-      // Extract user ID from token if possible, otherwise use a default
-      let userId = 'test-user';
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        userId = payload.sub || 'test-user';
-        console.log('🔗 Edge Function: Extracted user ID from token:', userId);
-      } catch (error) {
-        console.log('🔗 Edge Function: Could not decode token, using default user ID');
-      }
-      console.log('SSE stream requested for user:', userId);
-      console.log('SSE stream headers:', Object.fromEntries(req.headers.entries()));
+      logInfo('Authenticated user for jobs stream', 'JOBS_STREAM', { userId });
 
       // Set up SSE headers
       const headers = {
@@ -104,7 +54,7 @@ Deno.serve(async (req) => {
                 .order('created_at', { ascending: false });
 
               if (error) {
-                console.error('Error fetching jobs:', error);
+                logError(error, 'JOBS_STREAM');
                 const errorMessage = `data: ${JSON.stringify({
                   type: 'error',
                   error: 'Failed to fetch jobs'
@@ -159,7 +109,7 @@ Deno.serve(async (req) => {
               }
 
             } catch (error) {
-              console.error('Stream error:', error);
+              logError(error, 'JOBS_STREAM');
               const errorMessage = `data: ${JSON.stringify({
                 type: 'error',
                 error: 'Stream error'
@@ -171,7 +121,7 @@ Deno.serve(async (req) => {
           // Clean up on disconnect
           req.signal.addEventListener('abort', () => {
             clearInterval(pollInterval);
-            console.log('SSE stream ended for user:', userId);
+            logInfo('SSE stream ended', 'JOBS_STREAM', { userId });
           });
         }
       });
@@ -179,17 +129,10 @@ Deno.serve(async (req) => {
       return new Response(stream, { headers });
 
     } catch (error) {
-      console.error('Unhandled error in jobs-stream:', error);
-      console.error('Error stack:', error.stack);
-      return new Response(`Internal Server Error: ${error.message}`, {
-        status: 500,
-        headers: corsHeaders
-      });
+      logError(error, 'JOBS_STREAM');
+      return errorResponse('Internal server error', 500);
     }
   }
 
-  return new Response('Method not allowed', {
-    status: 405,
-    headers: corsHeaders
-  });
+  return errorResponse('Method not allowed', 405);
 });

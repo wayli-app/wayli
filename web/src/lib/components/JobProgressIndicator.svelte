@@ -4,6 +4,10 @@
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { supabase } from '$lib/core/supabase/client';
+	import { translate } from '$lib/i18n';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	// State
 	let activeJobs = $state(getActiveJobsMap());
@@ -58,14 +62,14 @@
 	function getJobTypeDisplayName(type: string) {
 		switch (type) {
 			case 'data_import':
-				return 'Import';
+				return t('jobProgress.import');
 			case 'data_export':
-				return 'Export';
+				return t('jobProgress.export');
 			case 'reverse_geocoding':
 			case 'reverse_geocoding_missing':
-				return 'Geocoding';
+				return t('jobProgress.geocoding');
 			case 'trip_generation':
-				return 'Trip Generation';
+				return t('jobProgress.tripGeneration');
 			default:
 				return type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
 		}
@@ -75,16 +79,16 @@
 	function getJobTypeTitle(type: string) {
 		switch (type) {
 			case 'data_import':
-				return 'Import';
+				return t('jobProgress.import');
 			case 'data_export':
-				return 'Export';
+				return t('jobProgress.export');
 			case 'reverse_geocoding':
 			case 'reverse_geocoding_missing':
-				return 'Geocoding';
+				return t('jobProgress.geocoding');
 			case 'trip_generation':
-				return 'Trip Generation';
+				return t('jobProgress.tripGeneration');
 			default:
-				return 'Job';
+				return t('jobProgress.job');
 		}
 	}
 
@@ -96,7 +100,7 @@
 
 		// Show "Queued..." for queued jobs
 		if (job.status === 'queued') {
-			return 'Queued...';
+			return t('jobProgress.queued');
 		}
 
 		// Use server-provided ETA from result.estimatedTimeRemaining if available
@@ -111,27 +115,27 @@
 
 		// For data import/export, calculate ETA based on progress
 		if (job.type === 'data_import' || job.type === 'data_export') {
-			if (job.progress === 0) return 'Calculating...';
-			if (job.progress === 100) return 'Complete';
+			if (job.progress === 0) return t('jobProgress.calculating');
+			if (job.progress === 100) return t('jobProgress.complete');
 
 			// Simple ETA calculation (could be improved with actual timing data)
 			const remaining = 100 - job.progress;
 			const estimatedMinutes = Math.ceil(remaining / 10); // Rough estimate
-			return `${estimatedMinutes}m remaining`;
+			return t('jobProgress.remaining', { minutes: estimatedMinutes });
 		}
 
 		// For reverse geocoding jobs, calculate based on progress
 		if (job.type === 'reverse_geocoding' || job.type === 'reverse_geocoding_missing') {
-			if (job.progress === 0) return 'Calculating...';
-			if (job.progress === 100) return 'Complete';
+			if (job.progress === 0) return t('jobProgress.calculating');
+			if (job.progress === 100) return t('jobProgress.complete');
 
 			// Simple ETA calculation for reverse geocoding
 			const remaining = 100 - job.progress;
 			const estimatedMinutes = Math.ceil(remaining / 5); // Reverse geocoding is typically slower
-			return `${estimatedMinutes}m remaining`;
+			return t('jobProgress.remaining', { minutes: estimatedMinutes });
 		}
 
-		return 'In progress';
+		return t('jobProgress.inProgress');
 	}
 
 	// Get status color
@@ -163,24 +167,23 @@
 		try {
 			const { data: { session } } = await supabase.auth.getSession();
 			if (!session) {
-				toast.error('❌ Not authenticated');
+				toast.error('❌ ' + t('jobProgress.notAuthenticated'));
 				return;
 			}
 
 			// Call the cancel job Edge Function
-			const { data, error } = await supabase.functions.invoke('jobs', {
-				method: 'DELETE',
-				body: { jobId: jobToCancel.id }
+			const { data, error } = await supabase.functions.invoke(`jobs/${jobToCancel.id}`, {
+				method: 'DELETE'
 			});
 
 			if (error) {
 				throw new Error(error.message || 'Failed to cancel job');
 			}
 
-			toast.success('✅ Job cancelled successfully');
+			toast.success('✅ ' + t('jobProgress.jobCancelledSuccessfully'));
 		} catch (error) {
 			console.error('❌ Error cancelling job:', error);
-			toast.error('❌ Failed to cancel job');
+			toast.error('❌ ' + t('jobProgress.failedToCancelJob'));
 		} finally {
 			showCancelConfirm = false;
 			jobToCancel = null;
@@ -198,7 +201,7 @@
 		try {
 			const { data: { session } } = await supabase.auth.getSession();
 			if (!session) {
-				toast.error('❌ Not authenticated');
+				toast.error('❌ ' + t('jobProgress.notAuthenticated'));
 				return;
 			}
 
@@ -218,7 +221,7 @@
 				link.click();
 				document.body.removeChild(link);
 
-				toast.success('✅ Download started');
+				toast.success('✅ ' + t('jobProgress.downloadStarted'));
 
 				// Remove the job from the completed export jobs list
 				completedExportJobs = completedExportJobs.filter(j => j.id !== job.id);
@@ -231,30 +234,25 @@
 			}
 		} catch (error) {
 			console.error('❌ Error downloading export:', error);
-			toast.error('❌ Failed to download export');
+			toast.error('❌ ' + t('jobProgress.failedToDownloadExport'));
 		}
 	}
 
-		// Watch for active jobs and show all active/queued jobs
+		// Optimized job filtering with derived reactive variables
+	let jobsArray = $derived(Array.from(activeJobs.values()));
+	let activeJobsList = $derived(jobsArray.filter(job => job.status === 'queued' || job.status === 'running'));
+	let recentlyCompletedJobs = $derived(jobsArray.filter(job =>
+		job.status === 'completed' &&
+		(Date.now() - new Date(job.updated_at).getTime()) < 5000
+	));
+	let recentlyCompletedExportJobs = $derived(jobsArray.filter(job =>
+		job.type === 'data_export' &&
+		job.status === 'completed' &&
+		(Date.now() - new Date(job.updated_at).getTime()) < 60000
+	));
+
+	// Watch for changes and update state
 	$effect(() => {
-		const jobs = Array.from(activeJobs.values());
-
-		// Get all active and queued jobs
-		const activeJobsList = jobs.filter(job => job.status === 'queued' || job.status === 'running');
-
-		// Get recently completed jobs (within 5 seconds)
-		const recentlyCompletedJobs = jobs.filter(job =>
-			job.status === 'completed' &&
-			(Date.now() - new Date(job.updated_at).getTime()) < 5000
-		);
-
-		// Get completed export jobs (within 1 minute)
-		const recentlyCompletedExportJobs = jobs.filter(job =>
-			job.type === 'data_export' &&
-			job.status === 'completed' &&
-			(Date.now() - new Date(job.updated_at).getTime()) < 60000
-		);
-
 		// Update visible jobs
 		visibleJobs = activeJobsList;
 
@@ -364,12 +362,12 @@
 			</div>
 
 			<!-- Cancel Button (only for running/queued jobs) -->
-			{#if job.status === 'running' || job.status === 'queued'}
-				<button
-					on:click={() => handleCancelJob(job)}
+            {#if job.status === 'running' || job.status === 'queued'}
+                <button
+                    onclick={() => handleCancelJob(job)}
 					class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700 dark:hover:text-red-400"
-					title="Cancel job"
-					aria-label="Cancel job"
+					title={t('jobProgress.cancelJob')}
+					aria-label={t('jobProgress.cancelJob')}
 				>
 					<X class="h-4 w-4" />
 				</button>
@@ -422,17 +420,17 @@
 					{jobTypeName}
 				</div>
 
-				<div class="text-xs text-green-600 dark:text-green-400">
+                    <div class="text-xs text-green-600 dark:text-green-400">
 					✅ Complete - Ready to download
 				</div>
 			</div>
 
 			<!-- Download Button -->
-			<button
-				on:click={() => handleDownloadExport(job)}
+            <button
+                onclick={() => handleDownloadExport(job)}
 				class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-blue-400"
-				title="Download export"
-				aria-label="Download export"
+				title={t('jobProgress.downloadExport')}
+				aria-label={t('jobProgress.downloadExport')}
 			>
 				<Download class="h-4 w-4" />
 			</button>
@@ -443,24 +441,24 @@
 <!-- Cancel Confirmation Modal -->
 {#if showCancelConfirm && jobToCancel}
 	<div class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-		<div class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800 p-6">
+		<div class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800 p-6 mx-4">
 			<div class="mb-4">
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
 					Cancel Job
 				</h3>
-				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
 					Are you sure you want to cancel the {getJobTypeDisplayName(jobToCancel.type).toLowerCase()} job? This action cannot be undone.
 				</p>
 			</div>
 			<div class="flex justify-end gap-3">
-				<button
-					on:click={cancelConfirmation}
+                <button
+                    onclick={cancelConfirmation}
 					class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
 				>
 					Keep Running
 				</button>
-				<button
-					on:click={confirmCancelJob}
+                <button
+                    onclick={confirmCancelJob}
 					class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
 				>
 					Cancel Job

@@ -20,6 +20,7 @@
 		Import
 	} from 'lucide-svelte';
 	import { format } from 'date-fns';
+	import { formatDateForLocation } from '$lib/utils/timezone-utils';
 	import {
 		state as appState,
 		setMapInitialState,
@@ -32,7 +33,10 @@
 	import { supabase } from '$lib/supabase';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { getTransportDetectionReasonLabel, type TransportDetectionReason } from '$lib/types/transport-detection-reasons';
-	import { currentLocale, getCountryNameReactive, t } from '$lib/i18n';
+	import { currentLocale, getCountryNameReactive, translate } from '$lib/i18n';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	// Add these interfaces at the top of the file
 	interface TrackerLocation {
@@ -93,8 +97,8 @@
 	let locationData = $state<TrackerLocation[]>([]);
 	let hasMoreData = $state(false);
 	let currentOffset = $state(0);
-	const BATCH_SIZE = 5000; // Show 5000 points by default
-	let totalPoints = 0;
+    const BATCH_SIZE = 15000; // Show 15000 points by default
+    let totalPoints = $state(0);
 
 	// Progress tracking
 	let loadingProgress = $state(0); // 0-100
@@ -119,8 +123,9 @@
 	const today = new Date();
 	const getDateFromToday = (days: number) => new Date(Date.now() - days * MILLISECONDS_IN_DAY);
 
-	let isOpen = $state(false);
-	let dateFormat = 'MMM d, yyyy';
+    let isOpen = $state(false);
+    let dateFormat = 'MMM d, yyyy';
+    let lastEndDateSnapshot: Date | null = null; // track closing condition
 
 
 
@@ -141,20 +146,55 @@
 		clearFilters(); // Use the global clear function
 	}
 
+	// Custom presets for date range selection
+	let datePresets = $derived([
+		{ label: t('datePicker.today'), startDate: new Date(), endDate: new Date() },
+		{ label: t('datePicker.last7Days'), startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.last30Days'), startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.last60Days'), startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.last90Days'), startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.lastYear'), startDate: new Date(new Date().getFullYear() - 1, 0, 1), endDate: new Date(new Date().getFullYear() - 1, 11, 31) }
+	]);
+
 	function toggleDatePicker() {
+		console.log('📅 Toggle date picker:', {
+			currentState: isOpen,
+			newState: !isOpen,
+			hasStartDate: !!appState.filtersStartDate,
+			hasEndDate: !!appState.filtersEndDate
+		});
+
 		if (!isOpen) {
 			// Clear the date range when opening the picker for a fresh selection
+			console.log('📅 Clearing date range for fresh selection');
 			appState.filtersStartDate = null;
 			appState.filtersEndDate = null;
 		}
 		isOpen = !isOpen;
 	}
 
-	function selectedDateRange() {
-		return appState.filtersStartDate && appState.filtersEndDate
-			? `${format(appState.filtersStartDate, 'MMM d, yyyy')} - ${format(appState.filtersEndDate, 'MMM d, yyyy')}`
-			: 'Date range';
-	}
+	// Handle date changes
+    function handleDateChange() {
+        console.log('📅 Date picker change detected:', {
+            startDate: appState.filtersStartDate,
+            endDate: appState.filtersEndDate,
+            hasStartDate: !!appState.filtersStartDate,
+            hasEndDate: !!appState.filtersEndDate
+        });
+        // Close only when the user picks an end date (transition from null -> set or changed)
+        const currentEnd = appState.filtersEndDate ? getDateObject(appState.filtersEndDate) : null;
+        const shouldClose = !!currentEnd && (!lastEndDateSnapshot || +currentEnd !== +lastEndDateSnapshot);
+        if (shouldClose) {
+            isOpen = false;
+        }
+        lastEndDateSnapshot = currentEnd;
+    }
+
+    function selectedDateRange() {
+        return appState.filtersStartDate && appState.filtersEndDate
+            ? `${format(appState.filtersStartDate, 'MMM d, yyyy')} - ${format(appState.filtersEndDate, 'MMM d, yyyy')}`
+            : t('datePicker.pickDateRange');
+    }
 
 	// Removed handleClickOutside function - let the DatePicker handle its own closing
 
@@ -334,6 +374,66 @@
 		}
 	}
 
+	// --- Create popup content with timezone-aware time ---
+	async function createPopupContentWithTimezone(item: TrackerLocation): Promise<string> {
+		const date = item.recorded_at || item.created_at;
+		let formattedDate = 'Unknown date';
+
+		if (date && item.coordinates?.lat && item.coordinates?.lng) {
+			try {
+				formattedDate = await formatDateForLocation(date, item.coordinates.lat, item.coordinates.lng);
+			} catch (error) {
+				console.warn('⚠️ Error formatting date with timezone, using local time:', error);
+				formattedDate = date ? format(new Date(date), 'MMM d, yyyy HH:mm') : 'Unknown date';
+			}
+		} else if (date) {
+			formattedDate = format(new Date(date), 'MMM d, yyyy HH:mm');
+		}
+
+		const transportMode = item.transport_mode || 'unknown';
+
+		let content = `
+			<div class="p-2 max-w-lg">
+				<!-- Header with location name -->
+				<div class="mb-2">
+					<h3 class="font-bold text-sm text-gray-900 leading-tight">${item.name || 'Data Point'}</h3>
+				</div>
+				<!-- Point details in a more compact layout -->
+				<div class="space-y-1 mb-2">
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Date:</span>
+						<span class="font-medium text-gray-900 text-xs">${formattedDate}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">${t('statistics.popupMode')}</span>
+						<span class="font-medium text-gray-900 text-xs">${translateTransportMode(transportMode)}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Reason:</span>
+						<span class="font-medium text-gray-900 text-xs">${item.detectionReason ? getTransportDetectionReasonLabel(item.detectionReason) : 'N/A'}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Coordinates:</span>
+						<span class="font-medium text-gray-900 text-xs">${typeof item.coordinates?.lat === 'number' && typeof item.coordinates?.lng === 'number' ? `${item.coordinates.lat.toFixed(6)}, ${item.coordinates.lng.toFixed(6)}` : 'N/A'}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Velocity:</span>
+						<span class="font-medium text-gray-900 text-xs">${item.velocity !== null && item.velocity !== undefined ? (typeof item.velocity === 'number' ? item.velocity.toFixed(2) + ' km/h' : item.velocity + ' km/h') : 'N/A'}</span>
+					</div>
+					<div class="flex justify-between items-center py-0.5">
+						<span class="text-gray-600 text-xs">Distance from prev:</span>
+						<span class="font-medium text-gray-900 text-xs">${typeof item.distance_from_prev === 'number' ? item.distance_from_prev.toFixed(1) + ' m' : 'N/A'}</span>
+					</div>
+				</div>
+				<!-- Geocode section -->
+				${item.geocode === 'loading' ? `<div class='mt-1 p-1 bg-blue-50 rounded text-blue-700 text-xs'>Loading geocode...</div>` : ''}
+				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && (!('error' in item.geocode) || !(item.geocode as GeocodeData).error) ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
+				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && (item.geocode as GeocodeData).error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
+			</div>
+		`;
+		return content;
+	}
+
 	// --- Marker click handler ---
 	async function handleMarkerClick(item: TrackerLocation) {
 		if (!item.geocode) {
@@ -346,16 +446,24 @@
 			try {
 				const geocode = await fetchGeocodeForPoint(item);
 				item.geocode = geocode;
-				// Re-render tooltip with geocode data
+				// Re-render tooltip with geocode data and timezone-aware time
 				if (currentPopup) {
-					currentPopup.setContent(createPopupContent(item));
+					const timezoneAwareContent = await createPopupContentWithTimezone(item);
+					currentPopup.setContent(timezoneAwareContent);
 				}
 			} catch (error) {
 				console.error('Failed to fetch geocode:', error);
 				item.geocode = { error: true };
 				if (currentPopup) {
-					currentPopup.setContent(createPopupContent(item));
+					const timezoneAwareContent = await createPopupContentWithTimezone(item);
+					currentPopup.setContent(timezoneAwareContent);
 				}
+			}
+		} else {
+			// Update popup with timezone-aware time even if geocode is already loaded
+			if (currentPopup) {
+				const timezoneAwareContent = await createPopupContentWithTimezone(item);
+				currentPopup.setContent(timezoneAwareContent);
 			}
 		}
 	}
@@ -438,8 +546,8 @@
 						<span class="font-medium text-gray-900 text-xs">${formattedDate}</span>
 					</div>
 					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Mode:</span>
-						<span class="font-medium capitalize text-gray-900 text-xs">${transportMode}</span>
+						<span class="text-gray-600 text-xs">${t('statistics.popupMode')}</span>
+						<span class="font-medium text-gray-900 text-xs">${translateTransportMode(transportMode)}</span>
 					</div>
 					<div class="flex justify-between items-center py-0.5">
 						<span class="text-gray-600 text-xs">Reason:</span>
@@ -629,6 +737,20 @@
 	// Track last filter state to prevent infinite loops
 	let lastFilterState = $state('');
 	let hasLoadedInitialData = $state(false);
+	let dataLoadTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	// Debounced data loading function
+	function debouncedLoadData(reset = true) {
+		if (dataLoadTimeout) {
+			clearTimeout(dataLoadTimeout);
+		}
+		dataLoadTimeout = setTimeout(() => {
+			if (map && !isLoading) {
+				console.log('🔄 Debounced data load triggered');
+				fetchMapDataAndStatistics(reset, 0);
+			}
+		}, 300); // 300ms debounce
+	}
 
 	// Initialize lastFilterState with current date range to prevent reactive statement from firing on initial load
 	$effect(() => {
@@ -641,9 +763,9 @@
 		}
 	});
 
-	// Watch for date changes and reload data (consolidated)
+	// Single consolidated effect for date changes
 	$effect(() => {
-		if (browser && !isInitializing && hasLoadedInitialData) {
+		if (browser && !isInitializing && hasLoadedInitialData && map && !isLoading) {
 			const filterState = {
 				startDate: getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0] || '',
 				endDate: getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0] || ''
@@ -653,16 +775,13 @@
 
 			// Only reload if we have some filter applied and the state actually changed
 			if ((filterState.startDate || filterState.endDate) && filterStateString !== lastFilterState) {
-				console.log('🔍 State changed, triggering data load:', {
+				console.log('🔍 State changed, triggering debounced data load:', {
 					oldState: lastFilterState,
 					newState: filterStateString,
 					hasMap: !!map
 				});
 				lastFilterState = filterStateString;
-				// Use fetchMapDataAndStatistics instead of loadLocationData to avoid duplicate loads
-				if (map) {
-					fetchMapDataAndStatistics(true, 0);
-				}
+				debouncedLoadData(true);
 			}
 		}
 	});
@@ -754,13 +873,37 @@
 	// Helper to determine if loading more (not initial load)
 	let isLoadingMore = $derived(isLoading && !isInitialLoad);
 
+	// Helper function to translate transport mode names
+	function translateTransportMode(mode: string): string {
+		switch (mode?.toLowerCase()) {
+			case 'car':
+				return t('statistics.car');
+			case 'train':
+				return t('statistics.train');
+			case 'airplane':
+			case 'plane':
+				return t('statistics.airplane');
+			case 'cycling':
+			case 'bike':
+				return t('statistics.cycling');
+			case 'walking':
+			case 'walk':
+				return t('statistics.walking');
+			case 'stationary':
+				return t('statistics.stationary');
+			case 'unknown':
+			default:
+				return t('statistics.unknown');
+		}
+	}
+
 
 
 	// Function to get total count of records for progress indication
 	async function getTotalCount(): Promise<number> {
 		try {
 			isCountingRecords = true;
-			loadingStage = 'Counting records...';
+			loadingStage = t('statistics.countingRecords');
 			loadingProgress = 10;
 
 			const startDate = appState.filtersStartDate
@@ -804,13 +947,13 @@
 
 				const total = result.total || 0;
 				loadingProgress = 20;
-				loadingStage = `Found ${total.toLocaleString()} records`;
+				loadingStage = t('statistics.foundRecords', { count: total.toLocaleString() });
 				return total;
 			}
 
 			const total = count || 0;
 			loadingProgress = 20;
-			loadingStage = `Found ${total.toLocaleString()} records`;
+			loadingStage = t('statistics.foundRecords', { count: total.toLocaleString() });
 
 			return total;
 		} catch (err) {
@@ -824,6 +967,12 @@
 
 	// Function to fetch both map data and statistics from the edge function
 	async function fetchMapDataAndStatistics(forceRefresh = false, loadMoreOffset = 0): Promise<void> {
+		// Prevent duplicate calls
+		if (isLoading && loadMoreOffset === 0) {
+			console.log('🔄 Data loading already in progress, skipping duplicate call');
+			return;
+		}
+
 		try {
 			// Set loading states - map loading for initial loads and date range changes, not for "load more"
 			if (loadMoreOffset === 0) {
@@ -833,12 +982,12 @@
 			statisticsLoading = true;
 			statisticsError = '';
 
-					// If this is the initial load, get the total count first for progress indication
-		if (loadMoreOffset === 0) {
-			loadingStage = 'Getting record count...';
-			loadingProgress = 5;
-			totalPoints = await getTotalCount();
-		}
+			// If this is the initial load, get the total count first for progress indication
+			if (loadMoreOffset === 0) {
+				loadingStage = t('statistics.gettingRecordCount');
+				loadingProgress = 5;
+				totalPoints = await getTotalCount();
+			}
 
 		const startDate = appState.filtersStartDate
 			? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
@@ -847,7 +996,13 @@
 			? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
 			: '';
 
-			console.log('📅 Date range being sent to API:', { startDate, endDate });
+		// Don't fetch data if no date range is set
+		if (!startDate && !endDate) {
+			console.log('📅 No date range set, skipping data fetch');
+			return;
+		}
+
+		console.log('📅 Date range being sent to API:', { startDate, endDate });
 
 			// Get current user's session
 			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -858,7 +1013,7 @@
 			}
 
 			// Update progress for data fetching
-			loadingStage = loadMoreOffset === 0 ? 'Loading initial data...' : 'Loading more data...';
+			loadingStage = loadMoreOffset === 0 ? t('statistics.loadingInitialData') : t('statistics.loadingMoreData');
 			loadingProgress = loadMoreOffset === 0 ? 30 : 60;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -871,70 +1026,41 @@
 			};
 
 
-			// Try with date filters first, then without if no data
-			let result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+			// Optimize: Make a single API call to get both data and statistics
+			// Only include statistics on initial load (not when loading more data)
+			const shouldIncludeStatistics = loadMoreOffset === 0;
+			const currentDateRange = `${startDate}_${endDate}`;
+			const needsNewStatistics = shouldIncludeStatistics && (!statisticsData || statisticsData._dateRange !== currentDateRange);
+
+        let result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate,
 				endDate,
-				limit: 5000,
+            limit: 15000,
 				offset: loadMoreOffset,
-				includeStatistics: false // Don't include statistics in the main data fetch
+				includeStatistics: needsNewStatistics // Include statistics only when needed
 			}) as TrackerApiResponse;
-
-
 
 			// Check if the result indicates an error
 			if (result && typeof result === 'object' && 'success' in result && !result.success) {
 				throw new Error((result as any).error || 'Failed to fetch data');
 			}
 
-						// Note: totalPoints is already set from getTotalCount() for progress indication
-			// The actual data loading is independent of the count
-
 			// Update progress for data processing
-			loadingStage = 'Processing data...';
+			loadingStage = t('statistics.processingData');
 			loadingProgress = loadMoreOffset === 0 ? 70 : 80;
 
-			// Get statistics for the entire period (only for initial load and when date range changes)
-			if (loadMoreOffset === 0) {
-				// Check if we need to recalculate statistics (only when date range changes)
-				const currentDateRange = `${startDate}_${endDate}`;
-				if (!statisticsData || statisticsData._dateRange !== currentDateRange) {
-					try {
-						// Make a separate call to get statistics for the entire period
-						const statsResult = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
-							startDate,
-							endDate,
-							limit: 100000, // Use a large limit to get statistics for the entire period
-							offset: 0,
-							includeStatistics: true
-						}) as TrackerApiResponse;
-
-						if (statsResult.statistics) {
-							// Store the date range with the statistics to track when they were calculated
-							statisticsData = {
-								...statsResult.statistics,
-								_dateRange: currentDateRange
-							};
-						}
-					} catch (statsError) {
-						console.error('Error fetching statistics for entire period:', statsError);
-						// Fallback to statistics from the main data fetch if available
-						if (result.statistics) {
-							statisticsData = {
-								...result.statistics,
-								_dateRange: currentDateRange
-							};
-						}
-					}
-				}
-				// If statistics already exist for this date range, keep them (no recalculation needed)
+			// Process statistics if they were included in the response
+			if (needsNewStatistics && result.statistics) {
+				// Store the date range with the statistics to track when they were calculated
+				statisticsData = {
+					...result.statistics,
+					_dateRange: currentDateRange
+				};
 			}
 
 			// Transform and set location data for map
 			if (result.locations) {
-				console.log('🗺️ Number of locations:', result.locations.length);
-
-				loadingStage = 'Transforming data...';
+				loadingStage = t('statistics.transformingData');
 				loadingProgress = loadMoreOffset === 0 ? 85 : 90;
 
 				const transformedLocations: TrackerLocation[] = (result.locations as unknown[]).map((location, index) => {
@@ -1003,7 +1129,7 @@
 			}
 
 			// Complete loading
-			loadingStage = 'Complete!';
+			loadingStage = t('statistics.complete');
 			loadingProgress = 100;
 
 		} catch (err) {
@@ -1012,7 +1138,7 @@
 			if (loadMoreOffset === 0) {
 				statisticsData = null;
 			}
-			loadingStage = 'Error occurred';
+			loadingStage = t('statistics.errorOccurred');
 			loadingProgress = 0;
 		} finally {
 			// Reset loading states
@@ -1040,10 +1166,10 @@
 
 		isLoading = true;
 		try {
-			console.log(`Loading more data from offset ${currentOffset}`);
+			console.log(t('statistics.loadingMoreDataFromOffset', { offset: currentOffset }));
 			await fetchMapDataAndStatistics(false, currentOffset);
 		} catch (error) {
-			console.error('Error loading more data:', error);
+			console.error(t('statistics.errorLoadingMoreData'), error);
 			toast.error('Failed to load more data');
 		} finally {
 			isLoading = false;
@@ -1083,56 +1209,56 @@
 		return [
 			{
 				id: 1,
-				title: 'Total Distance',
+				title: t('statistics.totalDistance'),
 				value: statisticsData.totalDistance ?? '0 km',
 				icon: Navigation,
 				color: 'blue'
 			},
 			{
 				id: 'green',
-				title: 'Distance Travelled Green',
+				title: t('statistics.distanceTravelledGreen'),
 				value: greenDistance > 0 ? `${greenDistance.toLocaleString(undefined, { maximumFractionDigits: 1 })} km` : '0 km',
 				icon: Activity,
 				color: 'green'
 			},
 			{
 				id: 2,
-				title: 'Earth Circumferences',
+				title: t('statistics.earthCircumferences'),
 				value: formatEarthCircumferences(statisticsData.earthCircumferences),
 				icon: Globe2,
 				color: 'blue'
 			},
 			{
 				id: 3,
-				title: 'Geopoints Tracked',
+				title: t('statistics.geopointsTracked'),
 				value: statisticsData.geopoints?.toLocaleString() ?? '0',
 				icon: MapPin,
 				color: 'blue'
 			},
 			{
 				id: 4,
-				title: 'Time Moving',
+				title: t('statistics.timeMoving'),
 				value: statisticsData.timeSpentMoving ?? '0h',
 				icon: Clock,
 				color: 'blue'
 			},
 			{
 				id: 5,
-				title: 'Unique Places',
+				title: t('statistics.uniquePlaces'),
 				value: statisticsData.uniquePlaces?.toLocaleString() ?? '0',
 				icon: Flag,
 				color: 'blue'
 			},
 			{
 				id: 6,
-				title: 'Countries Visited',
+				title: t('statistics.countriesVisited'),
 				value: statisticsData.countriesVisited?.toString() ?? '0',
 				icon: Globe2,
 				color: 'blue'
 			},
 						{
 				id: 7,
-				title: 'Approximate Steps',
+				title: t('statistics.approximateSteps'),
 				value: statisticsData.steps?.toLocaleString() ?? '0',
 				icon: Footprints,
 				color: 'blue'
@@ -1184,6 +1310,9 @@
 
 	onDestroy(() => {
 		clearMapMarkers();
+		if (dataLoadTimeout) {
+			clearTimeout(dataLoadTimeout);
+		}
 	});
 
 
@@ -1273,14 +1402,14 @@
 			legend.style.left = '10px';
 			legend.style.zIndex = '1000';
 			legend.innerHTML = `
-				<div class="font-semibold mb-2 text-xs text-gray-900 dark:text-gray-100">Mode Colors</div>
+				<div class="font-semibold mb-2 text-xs text-gray-900 dark:text-gray-100">${t('statistics.modeColors')}</div>
 				<div class="flex flex-col gap-1">
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#ef4444;"></span>Car</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#a21caf;"></span>Train</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#000000;"></span>Airplane</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#f59e42;"></span>Cycling</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#10b981;"></span>Walking</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#6b7280;"></span>Unknown</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#ef4444;"></span>${t('statistics.car')}</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#a21caf;"></span>${t('statistics.train')}</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#000000;"></span>${t('statistics.airplane')}</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#f59e42;"></span>${t('statistics.cycling')}</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#10b981;"></span>${t('statistics.walking')}</div>
+					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#6b7280;"></span>${t('statistics.unknown')}</div>
 				</div>
 			`;
 			map.getContainer().appendChild(legend);
@@ -1318,17 +1447,6 @@
 			// Mark initialization as complete
 	isInitializing = false;
 	hasLoadedInitialData = true;
-});
-
-// Ensure data loads when navigating to this page (not just on mount)
-$effect(() => {
-	if (browser && !isInitializing && hasLoadedInitialData && !isLoading && locationData.length === 0) {
-		// If we have a date range but no data, load it
-		if (appState.filtersStartDate && appState.filtersEndDate) {
-			console.log('🔄 Loading data on navigation to statistics page');
-			fetchMapDataAndStatistics(false, 0);
-		}
-	}
 });
 </script>
 
@@ -1381,20 +1499,20 @@ $effect(() => {
 		<div class="flex min-w-0 items-center gap-2">
 			<BarChart class="h-8 w-8 flex-shrink-0 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold whitespace-nowrap text-gray-900 dark:text-gray-100">
-				Statistics
+				{t('navigation.statistics')}
 			</h1>
 		</div>
 		<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
 			<div class="relative">
-				<button
-					type="button"
-					class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-					on:click={toggleDatePicker}
-					on:keydown={(e) => e.key === 'Enter' && toggleDatePicker()}
-					class:open={isOpen}
-					aria-label="Select date range"
-					aria-expanded={isOpen}
-				>
+                <button
+                    type="button"
+                    class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                    onclick={toggleDatePicker}
+                    onkeydown={(e) => e.key === 'Enter' && toggleDatePicker()}
+                    class:open={isOpen}
+                    aria-label="Select date range"
+                    aria-expanded={isOpen}
+                >
 					<svg class="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
 					</svg>
@@ -1402,7 +1520,7 @@ $effect(() => {
 						{#if appState.filtersStartDate}
 							{formattedStartDate} - {formattedEndDate}
 						{:else}
-							Pick a date range
+							{t('datePicker.pickDateRange')}
 						{/if}
 					</div>
 				</button>
@@ -1414,8 +1532,16 @@ $effect(() => {
 					bind:endDate={appState.filtersEndDate}
 					isRange
 					showPresets
+					presets={datePresets}
+					presetLabels={[t('datePicker.today'), t('datePicker.last7Days'), t('datePicker.last30Days'), t('datePicker.last60Days'), t('datePicker.last90Days'), t('datePicker.lastYear')]}
+					dowLabels={t('datePicker.dowLabels')}
+					monthLabels={t('datePicker.monthLabels')}
 					align="right"
-					class="dark-datepicker"
+                    class="dark-datepicker"
+                    onclose={() => {
+						isOpen = false;
+					}}
+                    onchange={handleDateChange}
 				/>
 			</div>
 		{/if}
@@ -1433,7 +1559,7 @@ $effect(() => {
 				<Loader2 class="h-16 w-16 animate-spin text-blue-500 dark:text-blue-300" />
 				<div class="mt-4 text-center">
 					<div class="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">
-						{loadingStage || 'Loading...'}
+						{loadingStage || t('statistics.loading')}
 					</div>
 					{#if loadingProgress > 0}
 						<div class="w-64 bg-gray-200 rounded-full h-2 mb-2 dark:bg-gray-700">
@@ -1443,7 +1569,7 @@ $effect(() => {
 							></div>
 						</div>
 						<div class="text-sm text-gray-600 dark:text-gray-400">
-							{loadingProgress}% complete
+							{t('statistics.percentComplete', { percent: loadingProgress })}
 						</div>
 					{/if}
 					{#if totalPoints > 0}
@@ -1482,10 +1608,10 @@ $effect(() => {
 						class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300"
 						style="pointer-events: none;"
 					>
-						No location data found
+						{t('statistics.noDataMessage')}
 					</h3>
 					<p class="mb-4 text-sm text-gray-500 dark:text-gray-400" style="pointer-events: none;">
-						Import your travel data to see your locations on the map
+						{t('statistics.noDataMessage')}
 					</p>
 					<a
 						href="/dashboard/import-export"
@@ -1513,28 +1639,30 @@ $effect(() => {
 
 
 		<!-- Load More Button -->
-		{#if locationData.length < totalPoints}
-			<button
-									on:click={() => loadMoreData()}
-				disabled={isLoading}
-				class="absolute right-4 bottom-4 z-[1001] rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-			>
-				{#if isLoading}
-					<Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
-					{#if loadingStage}
-						<span class="text-xs text-gray-500">{loadingStage}</span>
-					{/if}
-				{:else}
-					Load More ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
-				{/if}
-			</button>
-		{/if}
+        {#if locationData.length < totalPoints}
+            <div class="absolute right-4 bottom-4 z-[1001] flex flex-col gap-2">
+                <button
+                    onclick={() => loadMoreData()}
+                    disabled={isLoading}
+                    class="rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                    {#if isLoading}
+                        <Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
+                        {#if loadingStage}
+                            <span class="text-xs text-gray-500">{loadingStage}</span>
+                        {/if}
+                    {:else}
+                        {t('statistics.loadMore')} (+15,000) ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
+                    {/if}
+                </button>
+            </div>
+        {/if}
 	</div>
 
 	<!-- Stats -->
 	{#if statisticsError}
 		<div class="mb-8 py-8 text-center font-semibold text-red-600 dark:text-red-400">
-			Error loading statistics: {statisticsError}
+			{t('statistics.errorLoadingStatistics')} {statisticsError}
 		</div>
 	{:else if statisticsLoading}
 		<!-- Loading Placeholders -->
@@ -1606,7 +1734,7 @@ $effect(() => {
 						<div class="mb-3 flex items-center gap-2">
 							<Globe2 class="h-5 w-5 text-blue-500" />
 							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-								>Time Distribution per Country</span
+								>{t('statistics.countryTimeDistribution')}</span
 							>
 						</div>
 						<div class="space-y-4">
@@ -1631,7 +1759,7 @@ $effect(() => {
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">of selected period</div>
+						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">{t('statistics.ofSelectedPeriod')}</div>
 					</div>
 				</div>
 			{/if}
@@ -1644,7 +1772,7 @@ $effect(() => {
 						<div class="mb-3 flex items-center gap-2">
 							<Route class="h-5 w-5 text-blue-500" />
 							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-								>Modes of Transport</span
+								>{t('statistics.transportModes')}</span
 							>
 						</div>
 						<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -1652,23 +1780,23 @@ $effect(() => {
 								<tr>
 									<th
 										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>Mode</th
+										>{t('statistics.mode')}</th
 									>
 									<th
 										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>Distance (km)</th
+										>{t('statistics.distanceKm')}</th
 									>
 									<th
 										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>Time</th
+										>{t('statistics.time')}</th
 									>
 									<th
 										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>% of Total</th
+										>{t('statistics.percentOfTotal')}</th
 									>
 									<th
 										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>Points</th
+										>{t('statistics.points')}</th
 									>
 								</tr>
 							</thead>
@@ -1678,8 +1806,8 @@ $effect(() => {
 									.sort((a: { distance: number }, b: { distance: number }) => b.distance - a.distance) as mode}
 									<tr>
 										<td
-											class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 capitalize dark:text-gray-100"
-											>{mode.mode}</td
+											class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
+											>{translateTransportMode(mode.mode)}</td
 										>
 										<td
 											class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
@@ -1712,7 +1840,7 @@ $effect(() => {
 			<div class="mb-3 flex items-center gap-2">
 				<Train class="h-5 w-5 text-blue-500" />
 				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-					>Train Station Visits</span
+					>{t('statistics.trainStationVisits')}</span
 				>
 			</div>
 			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

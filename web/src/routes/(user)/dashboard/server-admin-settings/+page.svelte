@@ -25,6 +25,10 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { get } from 'svelte/store';
 	import { sessionStore } from '$lib/stores/auth';
+	import { translate } from '$lib/i18n';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -627,7 +631,7 @@
 			<div class="flex items-center gap-3">
 				<Settings class="h-7 w-7 text-[rgb(37,140,244)]" />
 				<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-					Server Admin Settings
+					{t('serverAdmin.title')}
 				</h1>
 			</div>
 		</div>
@@ -643,7 +647,7 @@
 				>
 					<div class="flex items-center gap-2">
 						<Server class="h-4 w-4" />
-						General
+						{t('serverAdmin.general')}
 					</div>
 				</button>
 				<button
@@ -654,7 +658,7 @@
 				>
 					<div class="flex items-center gap-2">
 						<UserIcon class="h-4 w-4" />
-						Users
+						{t('serverAdmin.users')}
 					</div>
 				</button>
 			</nav>
@@ -879,9 +883,9 @@
 					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
 				>
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Server Settings</h2>
+						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('serverAdmin.serverSettings')}</h2>
 						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-							Configure server-wide settings and policies.
+							{t('serverAdmin.serverSettingsDescription')}
 						</p>
 					</div>
 
@@ -891,7 +895,7 @@
 							<label
 								for="serverName"
 								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Server Name</label
+								>{t('serverAdmin.serverName')}</label
 							>
 							<div class="mt-1">
 								<input
@@ -909,7 +913,7 @@
 							<label
 								for="adminEmail"
 								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>Admin Email</label
+								>{t('serverAdmin.adminEmail')}</label
 							>
 							<div class="mt-1">
 								<input
@@ -930,10 +934,10 @@
 										for="allowRegistration"
 										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
 									>
-										Allow new user registration
+										{t('serverAdmin.allowNewUserRegistration')}
 									</label>
 									<p class="text-sm text-gray-500 dark:text-gray-400">
-										Enable public user registration
+										{t('serverAdmin.enablePublicUserRegistration')}
 									</p>
 								</div>
 								<button
@@ -960,10 +964,10 @@
 										for="requireEmailVerification"
 										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
 									>
-										Require email verification
+										{t('serverAdmin.requireEmailVerification')}
 									</label>
 									<p class="text-sm text-gray-500 dark:text-gray-400">
-										Users must verify their email before accessing the system
+										{t('serverAdmin.requireEmailVerificationDescription')}
 									</p>
 								</div>
 								<button
@@ -993,7 +997,7 @@
 							on:click={saveSettings}
 							class="rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 						>
-							Save Settings
+							{t('serverAdmin.saveSettings')}
 						</button>
 					</div>
 				</div>

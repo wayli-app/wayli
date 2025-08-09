@@ -28,16 +28,16 @@ Deno.serve(async (req) => {
   if (corsResponse) return corsResponse;
 
   try {
-    console.log('🔐 [IMPORT] Starting authentication...');
+    logInfo('Starting authentication', 'IMPORT');
     let user, supabase;
 
     try {
       const authResult = await authenticateRequest(req);
       user = authResult.user;
       supabase = authResult.supabase;
-      console.log('✅ [IMPORT] Authentication successful for user:', user.id);
+      logInfo('Authentication successful', 'IMPORT', { userId: user.id });
     } catch (authError) {
-      console.error('❌ [IMPORT] Authentication failed:', authError);
+      logError(authError, 'IMPORT');
       return errorResponse(`Authentication failed: ${authError instanceof Error ? authError.message : 'Unknown error'}`, 401);
     }
 
@@ -99,7 +99,6 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     logError(error, 'IMPORT');
-    console.error('Import function error:', error);
 
     if (error instanceof Error) {
       return errorResponse(`Import failed: ${error.message}`, 500);

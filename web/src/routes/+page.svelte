@@ -16,6 +16,11 @@
 	import { state, setTheme } from '$lib/stores/app-state.svelte';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { translate } from '$lib/i18n';
+	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	async function handleLogin() {
 		goto('/auth/signin');
@@ -58,8 +63,16 @@
 	});
 </script>
 
-<!-- Theme Toggle and User/Login Button in Top Right -->
+<!-- Theme Toggle, Language Selector, and User/Login Button in Top Right -->
 <div class="fixed top-4 right-4 z-50 flex items-center gap-3">
+	<!-- Language Selector -->
+	<LanguageSelector
+		variant="minimal"
+		size="sm"
+		showLabel={false}
+		position="bottom-right"
+	/>
+
 	<!-- Theme Toggle -->
 	<div class="flex gap-2">
 		<button
@@ -67,7 +80,7 @@
 			class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'light'
 				? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 				: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-			title="Light Mode"
+			title={t('landing.lightMode')}
 		>
 			<Sun class="h-4 w-4" />
 		</button>
@@ -76,7 +89,7 @@
 			class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'dark'
 				? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 				: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-			title="Dark Mode"
+			title={t('landing.darkMode')}
 		>
 			<Moon class="h-4 w-4" />
 		</button>
@@ -103,13 +116,13 @@
 						href="/dashboard/statistics"
 						class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 					>
-						Dashboard
+						{t('landing.dashboard')}
 					</a>
 					<a
 						href="/dashboard/account-settings"
 						class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 					>
-						Account Settings
+						{t('landing.accountSettings')}
 					</a>
 					<hr class="my-2 border-gray-200 dark:border-gray-700" />
 					<button
@@ -117,7 +130,7 @@
 						class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-50 dark:text-red-400 dark:hover:bg-gray-700"
 					>
 						<LogOut class="h-4 w-4" />
-						Sign Out
+						{t('landing.signOut')}
 					</button>
 				</div>
 			</div>
@@ -129,7 +142,7 @@
 			class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white shadow-lg transition-colors hover:bg-[rgb(37,140,244)]/90"
 		>
 			<LogIn class="h-4 w-4" />
-			Login
+			{t('landing.login')}
 		</button>
 	{/if}
 </div>
@@ -144,27 +157,26 @@
 			<h1
 				class="mb-6 text-5xl font-bold text-gray-900 transition-colors duration-300 md:text-7xl dark:text-gray-100"
 			>
-				Welcome to <span class="text-[rgb(37,140,244)]">Wayli</span>
+				{t('landing.welcomeTo')} <span class="text-[rgb(37,140,244)]">Wayli</span>
 			</h1>
 			<p
 				class="mb-8 text-xl leading-relaxed text-gray-600 transition-colors duration-300 md:text-2xl dark:text-gray-300"
 			>
-				Your personal travel companion. Track your journeys, discover new places, and create
-				unforgettable memories.
+				{t('landing.tagline')}
 			</p>
 			<div class="flex flex-col justify-center gap-4 sm:flex-row">
 				<a
 					href="/auth/signup"
 					class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-8 py-4 font-semibold text-white shadow-lg transition-colors hover:bg-[rgb(37,140,244)]/90"
 				>
-					Get Started
+					{t('landing.getStarted')}
 					<ArrowRight class="h-5 w-5" />
 				</a>
 				<a
 					href="/auth/signin"
 					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
-					Sign In
+					{t('landing.signIn')}
 				</a>
 			</div>
 		</div>
@@ -182,10 +194,10 @@
 				<h3
 					class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 				>
-					Track Your Journey
+					{t('landing.trackYourJourney')}
 				</h3>
 				<p class="text-gray-600 transition-colors duration-300 dark:text-gray-400">
-					Record every location you visit with precise coordinates and timestamps.
+					{t('landing.trackYourJourneyDescription')}
 				</p>
 			</div>
 
@@ -200,10 +212,10 @@
 				<h3
 					class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 				>
-					Discover the World
+					{t('landing.discoverTheWorld')}
 				</h3>
 				<p class="text-gray-600 transition-colors duration-300 dark:text-gray-400">
-					Explore new destinations and keep track of places you want to visit.
+					{t('landing.discoverTheWorldDescription')}
 				</p>
 			</div>
 
@@ -218,10 +230,10 @@
 				<h3
 					class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 				>
-					Analyze Your Travels
+					{t('landing.analyzeYourTravels')}
 				</h3>
 				<p class="text-gray-600 transition-colors duration-300 dark:text-gray-400">
-					Get insights into your travel patterns and statistics.
+					{t('landing.analyzeYourTravelsDescription')}
 				</p>
 			</div>
 		</div>
@@ -233,16 +245,16 @@
 			<h2
 				class="mb-4 text-3xl font-bold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 			>
-				Ready to Start Your Adventure?
+				{t('landing.readyToStartAdventure')}
 			</h2>
 			<p class="mb-6 text-gray-600 transition-colors duration-300 dark:text-gray-400">
-				Join other travelers who trust Wayli to track their journeys.
+				{t('landing.joinOtherTravelers')}
 			</p>
 			<a
 				href="/auth/signup"
 				class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-6 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
 			>
-				Create Your Account
+				{t('landing.createYourAccount')}
 				<ArrowRight class="h-4 w-4" />
 			</a>
 		</div>

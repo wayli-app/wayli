@@ -208,9 +208,8 @@ export class JobsApiService {
 			}
 
 			// Cancel the job via Edge Function
-			const { data, error } = await this.supabase.functions.invoke('jobs', {
-				method: 'DELETE',
-				body: { jobId }
+			const { data, error } = await this.supabase.functions.invoke(`jobs/${jobId}`, {
+				method: 'DELETE'
 			});
 
 			if (error) {

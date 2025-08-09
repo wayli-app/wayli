@@ -8,6 +8,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { PageData } from './$types';
 	import { page } from '$app/stores';
+	import { changeLocale, type SupportedLocale } from '$lib/i18n';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -30,6 +32,29 @@
 		}
 	}
 
+	// Load user preferences and apply language
+	async function loadUserPreferences() {
+		try {
+			const session = await supabase.auth.getSession();
+			if (!session.data.session) return;
+
+			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const preferencesResult = await serviceAdapter.getPreferences();
+
+			if (preferencesResult && typeof preferencesResult === 'object') {
+				const preferencesData = (preferencesResult as any).data || preferencesResult;
+				const userLanguage = preferencesData?.language;
+
+				if (userLanguage && ['en', 'nl'].includes(userLanguage)) {
+					await changeLocale(userLanguage as SupportedLocale);
+					console.log('🌍 [Dashboard] Applied user language preference:', userLanguage);
+				}
+			}
+		} catch (error) {
+			console.error('❌ [Dashboard] Error loading user preferences:', error);
+		}
+	}
+
 
 
 	onMount(async () => {
@@ -38,6 +63,9 @@
 			if (data.user) {
 				userStore.set(data.user as any);
 			}
+
+			// Load user preferences and apply language
+			await loadUserPreferences();
 		} catch (error) {
 			console.error('❌ [Dashboard] Error initializing user store:', error);
 		}

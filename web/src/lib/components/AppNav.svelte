@@ -21,34 +21,39 @@
 	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
 	import { onMount } from 'svelte';
 	import JobProgressIndicator from './JobProgressIndicator.svelte';
+	import { translate } from '$lib/i18n';
 
-	export let isAdmin = false;
+    let { isAdmin = false, children } = $props<{ isAdmin?: boolean; children?: any }>();
 
 	const dispatch = createEventDispatcher();
 
-	const navMain = [
-		{ href: '/dashboard/statistics', label: 'Statistics', icon: BarChart },
-		{ href: '/dashboard/trips', label: 'Trips', icon: Map },
-		{ href: '/dashboard/import-export', label: 'Import/Export', icon: Import },
+	// Use the reactive translation function
+	let t = $derived($translate);
+
+	// Reactive navigation items that update with language changes
+	let navMain = $derived([
+		{ href: '/dashboard/statistics', label: t('navigation.statistics'), icon: BarChart },
+		{ href: '/dashboard/trips', label: t('navigation.trips'), icon: Map },
+		{ href: '/dashboard/import-export', label: t('navigation.importExport'), icon: Import },
 		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
 		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
-		{ href: '/dashboard/want-to-visit', label: 'Want to Visit', icon: Star },
-		{ href: '/dashboard/connections', label: 'Connections', icon: Link }
-	];
+		{ href: '/dashboard/want-to-visit', label: t('navigation.wantToVisit'), icon: Star },
+		{ href: '/dashboard/connections', label: t('navigation.connections'), icon: Link }
+	]);
 
-	// Dynamic user navigation based on admin status
-	$: navUser = [
-		{ href: '/dashboard/account-settings', label: 'Account Settings', icon: User },
+	// Dynamic user navigation based on admin status - reactive to language changes
+	let navUser = $derived([
+		{ href: '/dashboard/account-settings', label: t('navigation.accountSettings'), icon: User },
 		...(isAdmin
 			? [
 					{
 						href: '/dashboard/server-admin-settings',
-						label: 'Server Admin Settings',
+						label: t('navigation.serverAdminSettings'),
 						icon: Settings
 					}
 				]
 			: [])
-	];
+	]);
 
 	// Force reactive update after navigation
 	afterNavigate(() => {
@@ -115,7 +120,7 @@
 							: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 						onclick={closeSidebar}
 					>
-						<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
+                        <item.icon class="mr-3 h-5 w-5" />
 						{item.label}
 					</a>
 				{/each}
@@ -132,7 +137,7 @@
 					'light'
 						? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-					title="Light Mode"
+					title={t('navigation.lightMode')}
 				>
 					<Sun class="h-5 w-5" />
 				</button>
@@ -141,7 +146,7 @@
 					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'dark'
 						? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-					title="Dark Mode"
+					title={t('navigation.darkMode')}
 				>
 					<Moon class="h-5 w-5" />
 				</button>
@@ -162,7 +167,7 @@
 								: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 							onclick={closeSidebar}
 						>
-							<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
+                            <item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
 								{#if isAdmin && item.label === 'Account Settings'}
@@ -183,7 +188,7 @@
 				class="flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
 			>
 				<LogOut class="mr-3 h-5 w-5" />
-				Sign Out
+				{t('navigation.signOut')}
 			</button>
 		</div>
 	</aside>
@@ -221,8 +226,10 @@
 		</div>
 
 		<!-- Content Area -->
-		<main class="flex-1 overflow-auto">
-			<slot />
-		</main>
+        <main class="flex-1 overflow-auto">
+            {#if children}
+                {@render children()}
+            {/if}
+        </main>
 	</div>
 </div>

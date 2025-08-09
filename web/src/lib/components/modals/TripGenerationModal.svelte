@@ -7,20 +7,27 @@
 	import { get } from 'svelte/store';
 	import { sessionStore } from '$lib/stores/auth';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { translate } from '$lib/i18n';
 
-	export let open = false;
-	export let startDate = '';
-	export let endDate = '';
-	export let useCustomHomeAddress = false;
-	export let customHomeAddress = '';
-	export let customHomeAddressInput = '';
-	export let isCustomHomeAddressSearching = false;
-	export let customHomeAddressSuggestions: any[] = [];
-	export let showCustomHomeAddressSuggestions = false;
-	export let selectedCustomHomeAddressIndex = -1;
-	export let customHomeAddressSearchError: string | null = null;
-	export let selectedCustomHomeAddress: any = null;
-	export let clearExistingSuggestions = false;
+	// Use the reactive translation function
+	let t = $derived($translate);
+
+	// Props using Svelte 5 runes
+	let {
+		open = $bindable(false),
+		startDate = $bindable(''),
+		endDate = $bindable(''),
+		useCustomHomeAddress = $bindable(false),
+		customHomeAddress = $bindable(''),
+		customHomeAddressInput = $bindable(''),
+		isCustomHomeAddressSearching = $bindable(false),
+		customHomeAddressSuggestions = $bindable([]),
+		showCustomHomeAddressSuggestions = $bindable(false),
+		selectedCustomHomeAddressIndex = $bindable(-1),
+		customHomeAddressSearchError = $bindable(null),
+		selectedCustomHomeAddress = $bindable(null),
+		clearExistingSuggestions = $bindable(false)
+	} = $props();
 
 	// Add timeout variable at the top
 	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -34,7 +41,7 @@
 	function generateTrip() {
 		// Prevent trips with same start and end date (single-day trips)
 		if (startDate === endDate) {
-			alert('Start and end dates cannot be the same. A trip must span at least two days.');
+			alert(t('tripGenerationModal.singleDayTripError'));
 			return;
 		}
 
@@ -131,12 +138,12 @@
 			customHomeAddressSuggestions = Array.isArray(data) ? data : [];
 			showCustomHomeAddressSuggestions = true;
 			if (customHomeAddressSuggestions.length === 0) {
-				customHomeAddressSearchError = 'No addresses found';
+				customHomeAddressSearchError = t('tripGenerationModal.noAddressesFound');
 			}
 		} catch (error) {
 			console.error('Error searching for custom home address:', error);
 			customHomeAddressSuggestions = [];
-			customHomeAddressSearchError = 'Failed to search for address';
+			customHomeAddressSearchError = t('tripGenerationModal.failedToSearchAddress');
 			showCustomHomeAddressSuggestions = true;
 		} finally {
 			isCustomHomeAddressSearching = false;
@@ -152,15 +159,14 @@
 	}
 </script>
 
-<Modal {open} title="Generate Trip Suggestions" size="md" on:close={closeModal}>
+<Modal {open} title={t('tripGenerationModal.title')} size="md" on:close={closeModal}>
 	<div class="space-y-6">
 		<!-- Tip Section -->
 		<div
 			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
 		>
 			<p class="text-sm text-blue-800 dark:text-blue-200">
-				💡 <strong>Tip:</strong> If you lived at different addresses during the analysis period, consider
-				setting specific start and end dates for each address to get more accurate trip detection.
+				💡 <strong>{t('tripGenerationModal.tip')}</strong> {t('tripGenerationModal.tipDescription')}
 			</p>
 		</div>
 
@@ -169,7 +175,7 @@
 			<label
 				for="start-date"
 				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-				>Start Date (optional)</label
+				>{t('tripGenerationModal.startDate')}</label
 			>
 			<input
 				id="start-date"
@@ -178,7 +184,7 @@
 				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 			<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-				Leave empty to automatically find available date ranges
+				{t('tripGenerationModal.automaticDateRangeDescription')}
 			</p>
 		</div>
 
@@ -187,7 +193,7 @@
 			<label
 				for="end-date"
 				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-				>End Date (optional)</label
+				>{t('tripGenerationModal.endDate')}</label
 			>
 			<input
 				id="end-date"
@@ -196,7 +202,7 @@
 				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 			<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-				Leave empty to automatically find available date ranges
+				{t('tripGenerationModal.automaticDateRangeDescription')}
 			</p>
 		</div>
 
@@ -210,7 +216,7 @@
 						</svg>
 					</div>
 					<div class="text-sm text-red-700 dark:text-red-200">
-						<strong>Invalid date range:</strong> Start and end dates cannot be the same. A trip must span at least two days.
+						<strong>{t('tripGenerationModal.invalidDateRange')}</strong> {t('tripGenerationModal.singleDayTripError')}
 					</div>
 				</div>
 			</div>
@@ -227,7 +233,7 @@
 				for="clearExistingSuggestions"
 				class="text-sm font-medium text-gray-700 dark:text-gray-300"
 			>
-				Clear all existing suggestions before generating new ones
+				{t('tripGenerationModal.clearExistingSuggestions')}
 			</label>
 		</div>
 		<!-- Custom Home Address Toggle -->
@@ -243,7 +249,7 @@
 				for="useCustomHomeAddress"
 				class="text-sm font-medium text-gray-700 dark:text-gray-300"
 			>
-				Use custom home address for this analysis
+				{t('tripGenerationModal.useCustomHomeAddress')}
 			</label>
 		</div>
 
@@ -266,8 +272,7 @@
 						</svg>
 					</div>
 					<div class="text-sm text-red-700 dark:text-red-200">
-						<strong>Warning:</strong> This will permanently delete all your existing suggested trips
-						before generating new ones. This action cannot be undone.
+						<strong>{t('tripGenerationModal.warning')}</strong> {t('tripGenerationModal.clearSuggestionsWarning')}
 					</div>
 				</div>
 			</div>
@@ -279,7 +284,7 @@
 				<label
 					for="custom-home-address"
 					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-					>Custom Home Address</label
+					>{t('tripGenerationModal.customHomeAddress')}</label
 				>
 				<div class="relative">
 					<input
@@ -288,7 +293,7 @@
 						bind:value={customHomeAddressInput}
 						on:input={handleCustomHomeAddressInput}
 						on:keydown={handleCustomHomeAddressKeydown}
-						placeholder="Enter custom home address..."
+						placeholder={t('tripGenerationModal.enterCustomHomeAddress')}
 						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 
@@ -363,14 +368,14 @@
 				on:click={closeModal}
 				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
-				Cancel
+				{t('tripGenerationModal.cancel')}
 			</button>
 			<button
 				on:click={generateTrip}
 				class="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-600 dark:hover:bg-blue-700"
 			>
 				<Route class="mr-2 h-4 w-4 flex-shrink-0" />
-				<span class="truncate">Generate Suggestions</span>
+				<span class="truncate">{t('tripGenerationModal.generateSuggestions')}</span>
 			</button>
 		</div>
 	</div>

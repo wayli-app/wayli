@@ -4,17 +4,15 @@ import type {
 	TripExclusion,
 	TrackerDataPoint,
 	DetectedTrip,
-	HomeAddress,
-	SuggestedTrip
+	HomeAddress
 } from '$lib/types/trip-generation.types';
 import { reverseGeocode, forwardGeocode } from '../external/nominatim.service';
 import { supabase } from '$lib/core/supabase/worker';
 import { JobQueueService } from './job-queue.service.worker';
 import { TripDetectionService } from '../trip-detection.service';
-// Import TripLocationsService but we'll create our own instance with worker client
 import { TripLocationsService } from '../../services/trip-locations.service';
 import { UserProfileService } from '../user-profile.service';
-import { haversineDistance } from '../../utils';
+
 import {
 	getCountryForPoint,
 	normalizeCountryCode
@@ -23,34 +21,11 @@ import { ExportProcessorService } from '../export-processor.service';
 import { needsGeocoding, isRetryableError, createPermanentError, createRetryableError } from '../../utils/geocoding-utils';
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
 import { cpus } from 'node:os';
+import { checkJobCancellation } from '../../utils/job-cancellation';
+import { TripsService } from '../trips.service';
 
 export class JobProcessorService {
-	/**
-	 * Check if a job has been cancelled
-	 */
-	private static async isJobCancelled(jobId: string): Promise<boolean> {
-		const { data: job, error } = await supabase
-			.from('jobs')
-			.select('status')
-			.eq('id', jobId)
-			.single();
 
-		if (error || !job) {
-			console.error('Error checking job status:', error);
-			return false;
-		}
-
-		return job.status === 'cancelled';
-	}
-
-	/**
-	 * Throw an error if the job has been cancelled
-	 */
-	private static async checkJobCancellation(jobId: string): Promise<void> {
-		if (await this.isJobCancelled(jobId)) {
-			throw new Error('Job was cancelled');
-		}
-	}
 
 	static async processJob(job: Job): Promise<void> {
 		const processor = this.getJobProcessor(job.type);
@@ -98,7 +73,7 @@ export class JobProcessorService {
 
 		try {
 			// Check for cancellation before starting
-			await this.checkJobCancellation(job.id);
+			await checkJobCancellation(job.id);
 
 			// Initialize cache with current database state at job start
 			console.log(`🔄 Initializing geocoding cache with current database state...`);
@@ -167,7 +142,7 @@ export class JobProcessorService {
 
 			// Get ALL points first, then filter in code to understand what's happening
 			// Use pagination to fetch all points, not just the first 1000
-			let allPoints: any[] = [];
+			let allPoints: Array<{ geocode: unknown }> = [];
 			let offset = 0;
 			const limit = 1000;
 			let hasMore = true;
@@ -201,7 +176,7 @@ export class JobProcessorService {
 			let emptyGeocodes = 0;
 			let errorGeocodes = 0;
 			let validGeocodes = 0;
-			let noGeocodeField = 0;
+
 			let debugRetryableErrors = 0;
 			let debugNonRetryableErrors = 0;
 
@@ -225,7 +200,7 @@ export class JobProcessorService {
 
 						// Debug: Log the first few error messages
 						if (debugRetryableErrors + debugNonRetryableErrors <= 5) {
-							const errorMessage = String((geocode as any).error_message || 'no message');
+							const errorMessage = String((geocode as { error_message?: string }).error_message || 'no message');
 							console.log(`🔍 Error geocode ${debugRetryableErrors + debugNonRetryableErrors}: "${errorMessage}" (retryable: ${isRetryable})`);
 						}
 					} else {
@@ -438,7 +413,7 @@ export class JobProcessorService {
 	): Promise<void> {
 		let offset = 0;
 		let totalProcessed = 0;
-		const actualTotalPoints = totalPoints; // Track actual total as it may change
+
 		// Use all available CPU cores for maximum parallelization
 		// For I/O-bound tasks (API calls, database queries), use more than CPU cores
 		const CONCURRENT_REQUESTS = Math.max(8, Math.min(50, cpus().length * 4)); // 4x CPU cores for I/O-bound tasks
@@ -447,7 +422,7 @@ export class JobProcessorService {
 
 		while (hasMoreData) {
 			// Check for cancellation before processing each batch
-			await this.checkJobCancellation(jobId);
+			await checkJobCancellation(jobId);
 
 			// Get batch of tracker data points that need geocoding
 			// Use the same filtering logic as the initial count
@@ -478,7 +453,8 @@ export class JobProcessorService {
 			if (points.length > 0) {
 				const results = await this.processPointsInParallel(
 					points,
-					CONCURRENT_REQUESTS
+					CONCURRENT_REQUESTS,
+					jobId
 				);
 
 				// Update cumulative counters
@@ -515,7 +491,8 @@ export class JobProcessorService {
 			recorded_at: string;
 			raw_data?: unknown;
 		}>,
-		concurrency: number
+		concurrency: number,
+		jobId: string
 	): Promise<{ processed: number; success: number; errors: number }> {
 		let processed = 0;
 		let success = 0;
@@ -523,6 +500,9 @@ export class JobProcessorService {
 
 		// Process points in chunks to control concurrency
 		for (let i = 0; i < points.length; i += concurrency) {
+			// Check for cancellation before processing each chunk
+			await checkJobCancellation(jobId);
+
 			const chunk = points.slice(i, i + concurrency);
 
 			// Process chunk in parallel
@@ -782,7 +762,7 @@ export class JobProcessorService {
 
 		try {
 			// Check for cancellation before starting
-			await this.checkJobCancellation(job.id);
+			await checkJobCancellation(job.id);
 
 			// Determine date ranges - if not provided, find available ranges automatically
 			let dateRanges: Array<{ startDate: string; endDate: string }> = [];
@@ -938,18 +918,15 @@ export class JobProcessorService {
 			UserProfileService.useNodeEnvironmentConfig();
 
 			// Get user's trip exclusions from user preferences
-			const { data: userPreferences, error: userPreferencesError } = await supabase
+			const { error: userPreferencesError } = await supabase
 				.from('user_preferences')
 				.select('trip_exclusions')
 				.eq('id', userId)
 				.single();
 
-			let exclusions: TripExclusion[] = [];
 			if (userPreferencesError) {
 				console.error('Error fetching user preferences for trip exclusions:', userPreferencesError);
 				// Fallback to empty array if preferences not found
-			} else {
-				exclusions = userPreferences?.trip_exclusions || [];
 			}
 
 					// Use trip detection service
@@ -1017,7 +994,7 @@ export class JobProcessorService {
 
 		try {
 			// Check for cancellation before starting
-			await this.checkJobCancellation(job.id);
+			await checkJobCancellation(job.id);
 
 			// Extract job data
 			const { storagePath, format, fileName } = job.data as {
@@ -1095,6 +1072,36 @@ export class JobProcessorService {
 					break;
 				default:
 					throw new Error(`Unsupported format: ${format}`);
+			}
+
+			// Calculate distance and time_spent for imported data
+			console.log(`🧮 [IMPORT] Calculating distance and time_spent for imported data...`);
+
+			await JobQueueService.updateJobProgress(job.id, 95, {
+				message: `🧮 Calculating distances and time spent...`,
+				fileName,
+				format,
+				totalProcessed: importedCount,
+				totalItems: totalItems || importedCount,
+				importedCount
+			});
+
+			try {
+				// Use the optimized bulk calculation for this user's data
+				const { data: distanceResult, error: distanceError } = await supabase.rpc(
+					'update_tracker_distances',
+					{ target_user_id: userId }
+				);
+
+				if (distanceError) {
+					console.error('❌ [IMPORT] Distance calculation failed:', distanceError);
+					// Don't fail the import, just log the error
+				} else {
+					console.log(`✅ [IMPORT] Distance calculation completed: ${distanceResult} records updated`);
+				}
+			} catch (distanceError) {
+				console.error('❌ [IMPORT] Distance calculation error:', distanceError);
+				// Don't fail the import, just log the error
 			}
 
 			// Update final progress
@@ -1196,7 +1203,7 @@ export class JobProcessorService {
 				});
 
 				const startTime = Date.now();
-				let lastLogTime = startTime;
+				const lastLogTime = startTime;
 
 				// Use parallel processing for better performance
 				const results = await this.processFeaturesInParallel(
@@ -1238,7 +1245,14 @@ export class JobProcessorService {
 	 * Process GeoJSON features in parallel using all available CPU cores
 	 */
 	private static async processFeaturesInParallel(
-		features: any[],
+		features: Array<{
+			type: string;
+			geometry?: {
+				type: string;
+				coordinates: number[]
+			};
+			properties?: Record<string, unknown>
+		}>,
 		userId: string,
 		jobId: string,
 		fileName: string,
@@ -1260,7 +1274,7 @@ export class JobProcessorService {
 		// Process features in chunks
 		for (let i = 0; i < features.length; i += CHUNK_SIZE * CONCURRENT_CHUNKS) {
 			// Check for cancellation
-			await this.checkJobCancellation(jobId);
+			await checkJobCancellation(jobId);
 
 			const chunkPromises: Promise<{ imported: number; skipped: number; errors: number }>[] = [];
 
@@ -1344,7 +1358,14 @@ export class JobProcessorService {
 	 * Process a chunk of GeoJSON features
 	 */
 	private static async processFeatureChunk(
-		features: any[],
+		features: Array<{
+			type: string;
+			geometry?: {
+				type: string;
+				coordinates: number[]
+			};
+			properties?: Record<string, unknown>
+		}>,
 		userId: string,
 		chunkStart: number,
 		jobId?: string,
@@ -1356,7 +1377,21 @@ export class JobProcessorService {
 		let errors = 0;
 
 		// Prepare batch insert data
-		const trackerData: any[] = [];
+		const trackerData: Array<{
+			user_id: string;
+			tracker_type: string;
+			location: string;
+			recorded_at: string;
+			country_code: string | null;
+			geocode: unknown;
+			altitude: number | null;
+			accuracy: number | null;
+			speed: number | null;
+			heading: number | null;
+			activity_type: string | null;
+			raw_data: Record<string, unknown>;
+			created_at?: string;
+		}> = [];
 
 		for (let i = 0; i < features.length; i++) {
 			const feature = features[i];
@@ -1373,7 +1408,7 @@ export class JobProcessorService {
 
 				// Extract timestamp from properties - handle both seconds and milliseconds
 				let recordedAt = new Date().toISOString();
-				if (properties.timestamp) {
+				if (properties.timestamp && typeof properties.timestamp === 'number') {
 					// Check if timestamp is in seconds (Unix timestamp) or milliseconds
 					const timestamp = properties.timestamp;
 					if (timestamp < 10000000000) {
@@ -1383,15 +1418,21 @@ export class JobProcessorService {
 						// Timestamp is already in milliseconds
 						recordedAt = new Date(timestamp).toISOString();
 					}
-				} else if (properties.time) {
+				} else if (properties.time && (typeof properties.time === 'string' || typeof properties.time === 'number')) {
 					recordedAt = new Date(properties.time).toISOString();
-				} else if (properties.date) {
+				} else if (properties.date && (typeof properties.date === 'string' || typeof properties.date === 'number')) {
 					recordedAt = new Date(properties.date).toISOString();
 				}
 
 				// Extract country code from properties first, then from coordinates if not available
-				let countryCode =
-					properties.countrycode || properties.country_code || properties.country || null;
+				let countryCode: string | null = null;
+				if (typeof properties.countrycode === 'string') {
+					countryCode = properties.countrycode;
+				} else if (typeof properties.country_code === 'string') {
+					countryCode = properties.country_code;
+				} else if (typeof properties.country === 'string') {
+					countryCode = properties.country;
+				}
 
 				// If no country code in properties, determine it from coordinates
 				if (!countryCode) {
@@ -1414,11 +1455,15 @@ export class JobProcessorService {
 					recorded_at: recordedAt,
 					country_code: countryCode,
 					geocode: reverseGeocode,
-					altitude: properties.altitude || properties.elevation || null,
-					accuracy: properties.accuracy || null,
-					speed: properties.speed || properties.velocity || null,
-					heading: properties.heading || properties.bearing || properties.course || null,
-					activity_type: properties.activity_type || null,
+					altitude: (typeof properties.altitude === 'number' ? properties.altitude :
+							  typeof properties.elevation === 'number' ? properties.elevation : null),
+					accuracy: (typeof properties.accuracy === 'number' ? properties.accuracy : null),
+					speed: (typeof properties.speed === 'number' ? properties.speed :
+							typeof properties.velocity === 'number' ? properties.velocity : null),
+					heading: (typeof properties.heading === 'number' ? properties.heading :
+							  typeof properties.bearing === 'number' ? properties.bearing :
+							  typeof properties.course === 'number' ? properties.course : null),
+					activity_type: (typeof properties.activity_type === 'string' ? properties.activity_type : null),
 					raw_data: { ...properties, import_source: 'geojson' }, // Store all original properties plus import source
 					created_at: new Date().toISOString()
 				});
@@ -1478,12 +1523,12 @@ export class JobProcessorService {
 							} else {
 								errors++;
 							}
-						} catch (singleError) {
+						} catch {
 							errors++;
 						}
 					}
 				}
-			} catch (batchError) {
+			} catch {
 				// If batch insert fails, process individually
 				for (const data of trackerData) {
 					try {
@@ -1503,7 +1548,7 @@ export class JobProcessorService {
 						} else {
 							errors++;
 						}
-					} catch (singleError) {
+					} catch {
 						errors++;
 					}
 				}
@@ -1557,7 +1602,7 @@ export class JobProcessorService {
 			for (let i = 0; i < waypoints.length; i++) {
 				// Check for cancellation every 5 waypoints
 				if (i % 5 === 0) {
-					await this.checkJobCancellation(jobId);
+					await checkJobCancellation(jobId);
 				}
 
 				const waypoint = waypoints[i];
@@ -1626,7 +1671,7 @@ export class JobProcessorService {
 			console.log(`🛤️ Processing ${tracks.length.toLocaleString()} tracks...`);
 			for (let i = 0; i < tracks.length; i++) {
 				// Check for cancellation before processing each track
-				await this.checkJobCancellation(jobId);
+				await checkJobCancellation(jobId);
 
 				const track = tracks[i];
 				const trackPoints = track.trkseg?.trkpt || [];
@@ -1746,7 +1791,7 @@ export class JobProcessorService {
 			for (let i = 0; i < lines.length; i++) {
 				// Check for cancellation every 100 lines
 				if (i % 100 === 0) {
-					await this.checkJobCancellation(jobId);
+					await checkJobCancellation(jobId);
 				}
 
 				const line = lines[i].trim();
@@ -1909,7 +1954,7 @@ export class JobProcessorService {
 
 		try {
 			// Check for cancellation before starting
-			await this.checkJobCancellation(job.id);
+			await checkJobCancellation(job.id);
 
 			// Update job progress to started
 			await JobQueueService.updateJobProgress(job.id, 0, {
@@ -1919,12 +1964,7 @@ export class JobProcessorService {
 			});
 
 			// Get configuration from job data or use defaults
-			const config = {
-				minDwellMinutes: (job.data.minDwellMinutes as number) || 15,
-				maxDistanceMeters: (job.data.maxDistanceMeters as number) || 100,
-				minConsecutivePoints: (job.data.minConsecutivePoints as number) || 3,
-				lookbackDays: (job.data.lookbackDays as number) || 7
-			};
+
 
 			// Check if this is for a specific user or all users
 			const targetUserId = job.data.userId as string;
@@ -1938,7 +1978,7 @@ export class JobProcessorService {
 				});
 
 				// Check for cancellation before processing user
-				await this.checkJobCancellation(job.id);
+				await checkJobCancellation(job.id);
 
 				// TODO: Implement POI visit detection
 				// For now, return a stub result
@@ -1970,11 +2010,10 @@ export class JobProcessorService {
 				});
 
 				// Check for cancellation before processing all users
-				await this.checkJobCancellation(job.id);
+				await checkJobCancellation(job.id);
 
 				// TODO: Implement POI visit detection for all users
 				// For now, return a stub result
-				const allUsersResults = [];
 
 				await JobQueueService.updateJobProgress(job.id, 75, {
 					message: `Found 0 visits for all users`,
@@ -2026,7 +2065,7 @@ export class JobProcessorService {
 					// This could be the start of a trip
 					const trip = await this.createTripFromDayData(date, dayData);
 					if (trip) {
-						trips.push(trip);
+						trips.push(trip as DetectedTrip);
 					}
 				}
 			}
@@ -2109,7 +2148,7 @@ export class JobProcessorService {
 	private static async createTripFromDayData(
 		date: string,
 		dayData: TrackerDataPoint[]
-	): Promise<DetectedTrip | null> {
+	): Promise<Partial<DetectedTrip> | null> {
 		if (dayData.length === 0) return null;
 
 		// Get the most common location for this day
@@ -2213,7 +2252,10 @@ export class JobProcessorService {
 
 			// Assign banner images to trips
 			for (const trip of tripsWithBanners) {
-				trip.image_url = bannerImages[trip.cityName] || undefined;
+				const imageUrl = bannerImages[trip.cityName];
+				if (imageUrl) {
+					trip.metadata.imageUrl = imageUrl;
+				}
 			}
 		} catch (error) {
 			console.error('Error generating trip banners:', error);
@@ -2242,7 +2284,7 @@ export class JobProcessorService {
 					description: trip.description,
 					start_date: trip.startDate,
 					end_date: trip.endDate,
-					image_url: trip.image_url,
+					image_url: trip.metadata?.imageUrl as string,
 					labels: ['auto-generated'],
 					status: 'approved',
 					metadata: {
@@ -2261,24 +2303,10 @@ export class JobProcessorService {
 			} else if (savedTrip && savedTrip.id) {
 				// --- Calculate geopoints and distance, then update metadata ---
 				try {
-					const points = await tripLocationsService.getTripLocations(savedTrip.id);
-					const pointCount = points.length;
-					let distance = 0;
-					for (let i = 1; i < points.length; i++) {
-						const prev = points[i - 1].location.coordinates;
-						const curr = points[i].location.coordinates;
-						distance += haversineDistance(prev[1], prev[0], curr[1], curr[0]); // [lng, lat] -> [lat, lng]
-					}
-					await supabase
-						.from('trips')
-						.update({
-							metadata: {
-								...savedTrip.metadata,
-								point_count: pointCount,
-								distance_traveled: distance
-							}
-						})
-						.eq('id', savedTrip.id);
+					// Use the trips service to properly calculate distance with the distance column
+					const workerClient = createWorkerClient();
+					const tripsService = new TripsService(workerClient);
+					await tripsService.updateTripMetadata(savedTrip.id);
 				} catch (err) {
 					console.error('Error updating trip metadata (auto-generated):', err);
 				}
@@ -2684,7 +2712,7 @@ export class JobProcessorService {
 					}
 
 					// Check for cancellation between batches
-					await this.checkJobCancellation(jobId);
+					await checkJobCancellation(jobId);
 				}
 
 				// Update progress to show completion
@@ -2740,19 +2768,27 @@ export class JobProcessorService {
 	 * Process a batch of GeoJSON features (from FeatureCollection)
 	 */
 	private static async processGeoJSONFeatureBatch(
-		features: any[],
+		features: Array<{
+			type: string;
+			geometry?: {
+				type: string;
+				coordinates: number[]
+			};
+			properties?: Record<string, unknown>
+		}>,
 		userId: string,
-		jobId?: string,
-		fileName?: string
+		_jobId?: string,
+		_fileName?: string
 	): Promise<number> {
 		const trackerData = [];
-		const totalFeatures = features.length;
+		const _totalFeatures = features.length;
 		let processedCount = 0;
 
 		for (const feature of features) {
 			try {
-				if (feature.type === 'Feature' && feature.geometry) {
-					const coordinates = feature.geometry.coordinates;
+				if (feature.type === 'Feature' && feature.geometry &&
+					typeof feature.geometry === 'object' && 'coordinates' in feature.geometry) {
+					const coordinates = (feature.geometry as { coordinates: number[] }).coordinates;
 					const properties = feature.properties || {};
 
 					if (coordinates && coordinates.length >= 2) {
@@ -2767,9 +2803,9 @@ export class JobProcessorService {
 
 						// Extract timestamp from properties
 						let recordedAt = new Date().toISOString();
-						if (properties.timestamp) {
+						if (properties.timestamp && typeof properties.timestamp === 'number') {
 							recordedAt = new Date(properties.timestamp * 1000).toISOString(); // Convert Unix timestamp
-						} else if (properties.time) {
+						} else if (properties.time && (typeof properties.time === 'string' || typeof properties.time === 'number')) {
 							recordedAt = new Date(properties.time).toISOString();
 						}
 
@@ -2777,7 +2813,7 @@ export class JobProcessorService {
 						let batteryLevel = null;
 						if (properties.battery_level !== undefined && properties.battery_level !== null) {
 							try {
-								const batteryValue = parseFloat(properties.battery_level);
+								const batteryValue = parseFloat(String(properties.battery_level));
 								if (!isNaN(batteryValue)) {
 									batteryLevel = Math.round(batteryValue);
 								}
@@ -2789,28 +2825,28 @@ export class JobProcessorService {
 						// Convert other numeric fields with error handling
 						let altitude = null;
 						try {
-							altitude = properties.altitude ? parseFloat(properties.altitude) : null;
+							altitude = properties.altitude ? parseFloat(String(properties.altitude)) : null;
 						} catch (error) {
 							console.error('Error converting altitude:', properties.altitude, error);
 						}
 
 						let accuracy = null;
 						try {
-							accuracy = properties.accuracy ? parseFloat(properties.accuracy) : null;
+							accuracy = properties.accuracy ? parseFloat(String(properties.accuracy)) : null;
 						} catch (error) {
 							console.error('Error converting accuracy:', properties.accuracy, error);
 						}
 
 						let speed = null;
 						try {
-							speed = properties.speed ? parseFloat(properties.speed) : null;
+							speed = properties.speed ? parseFloat(String(properties.speed)) : null;
 						} catch (error) {
 							console.error('Error converting speed:', properties.speed, error);
 						}
 
 						let heading = null;
 						try {
-							heading = properties.heading ? parseFloat(properties.heading) : null;
+							heading = properties.heading ? parseFloat(String(properties.heading)) : null;
 						} catch (error) {
 							console.error('Error converting heading:', properties.heading, error);
 						}

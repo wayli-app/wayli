@@ -122,7 +122,7 @@ export function t(key: string, params?: Record<string, string | number>): string
   // Replace parameters
   if (params) {
     Object.entries(params).forEach(([param, value]) => {
-      message = message.replace(new RegExp(`{${param}}`, 'g'), String(value));
+      message = message.replace(new RegExp(`\\{${param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'), String(value));
     });
   }
 
@@ -136,13 +136,31 @@ export const translate = derived([messages, currentLocale], ([$messages, $locale
 
     if (params) {
       Object.entries(params).forEach(([param, value]) => {
-        message = message.replace(new RegExp(`{${param}}`, 'g'), String(value));
+        message = message.replace(new RegExp(`\\{${param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'), String(value));
       });
     }
 
     return message;
   };
 });
+
+// Create a reactive translation function for components
+export function createReactiveTranslation() {
+  return derived(messages, ($messages) => {
+    return (key: string, params?: Record<string, string | number>): string => {
+      let message = $messages[key] || key;
+
+      // Replace parameters
+      if (params) {
+        Object.entries(params).forEach(([param, value]) => {
+          message = message.replace(new RegExp(`\\{${param.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`, 'g'), String(value));
+        });
+      }
+
+      return message;
+    };
+  });
+}
 
 // Date formatting
 export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {

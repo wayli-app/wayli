@@ -222,23 +222,23 @@ Deno.serve(async (req) => {
     if (req.method === 'DELETE') {
       logInfo('Clearing all suggested trips', 'TRIPS-SUGGESTED', { userId: user.id });
 
-      // Delete all pending trips for the user
+      // Delete all pending and rejected trips for the user
       const { error: deleteError } = await supabase
         .from('trips')
         .delete()
         .eq('user_id', user.id)
-        .eq('status', 'pending');
+        .in('status', ['pending', 'rejected']);
 
       if (deleteError) {
         logError(deleteError, 'TRIPS-SUGGESTED');
         return errorResponse('Failed to clear suggested trips', 500);
       }
 
-      logSuccess('All suggested trips cleared successfully', 'TRIPS-SUGGESTED', {
+      logSuccess('All suggested trips and rejected suggestions cleared successfully', 'TRIPS-SUGGESTED', {
         userId: user.id
       });
 
-      return successResponse({ message: 'All suggested trips cleared successfully' });
+      return successResponse({ message: 'All suggested trips and rejected suggestions cleared successfully' });
     }
 
     return errorResponse('Method not allowed', 405);

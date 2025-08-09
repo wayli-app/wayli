@@ -75,8 +75,8 @@
 
 <div
 	bind:this={triggerElement}
-	on:mouseenter={handleMouseEnter}
-	on:mouseleave={handleMouseLeave}
+    onmouseenter={handleMouseEnter}
+    onmouseleave={handleMouseLeave}
 	class="relative inline-block"
 >
 	<slot />

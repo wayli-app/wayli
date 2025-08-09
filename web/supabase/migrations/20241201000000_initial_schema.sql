@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS public.tracker_data (
     altitude DECIMAL(8, 2), -- Altitude in meters
     accuracy DECIMAL(8, 2), -- GPS accuracy in meters
     speed DECIMAL(8, 2), -- Speed in m/s
+    distance DECIMAL(8, 2), -- Distance compared to previous point
+    time_spent DECIMAL(8, 2), -- Time difference in seconds compared to previous point
     heading DECIMAL(5, 2), -- Heading in degrees (0-360)
     battery_level INTEGER, -- Battery level percentage
     is_charging BOOLEAN,
@@ -887,12 +889,12 @@ BEGIN
         td.recorded_at,
         ST_Y(td.location::geometry) as lat,
         ST_X(td.location::geometry) as lon,
-        ST_Distance(td.location, ST_SetSRID(ST_MakePoint(center_lon, center_lat), 4326)) as distance_meters
+        ST_DistanceSphere(td.location, ST_SetSRID(ST_MakePoint(center_lon, center_lat), 4326)) as distance_meters
     FROM public.tracker_data td
     WHERE td.user_id = user_uuid
       AND ST_DWithin(
-          td.location,
-          ST_SetSRID(ST_MakePoint(center_lon, center_lat), 4326),
+          td.location::geography,
+          ST_SetSRID(ST_MakePoint(center_lon, center_lat), 4326)::geography,
           radius_meters
       )
     ORDER BY td.recorded_at;
@@ -915,7 +917,9 @@ RETURNS TABLE (
     accuracy DECIMAL(8, 2),
     speed DECIMAL(8, 2),
     activity_type TEXT,
-    geocode JSONB
+    geocode JSONB,
+    distance DECIMAL,
+    time_spent DECIMAL
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -928,12 +932,14 @@ BEGIN
         td.accuracy,
         td.speed,
         td.activity_type,
-        td.geocode
+        td.geocode,
+        td.distance,
+        td.time_spent
     FROM public.tracker_data td
     WHERE td.user_id = user_uuid
       AND (start_date IS NULL OR td.recorded_at >= start_date)
       AND (end_date IS NULL OR td.recorded_at <= end_date)
-    ORDER BY td.recorded_at DESC
+    ORDER BY td.recorded_at ASC -- Changed to ASC for proper distance calculation
     LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -1455,4 +1461,298 @@ BEGIN
     ELSE
         RAISE NOTICE 'Multiple users found (% users), not modifying roles', user_count;
     END IF;
+END $$;
+
+-- ========================================================================
+-- MERGED MIGRATIONS START HERE
+-- ========================================================================
+
+-- ========================================================================
+-- Migration: 20241201000002_make_confidence_nullable.sql
+-- Make confidence column nullable in suggested_trips table
+-- Since we removed the confidence logic, this column should be optional
+-- ========================================================================
+
+ALTER TABLE public.suggested_trips
+ALTER COLUMN confidence DROP NOT NULL;
+
+-- Add a comment to explain the change
+COMMENT ON COLUMN public.suggested_trips.confidence IS 'Trip confidence score (0-1). Made nullable since confidence logic was removed.';
+
+-- ========================================================================
+-- Migration: 20241201000003_refactor_trip_suggestions.sql
+-- Refactor trip suggestions to use trips table with status='pending'
+-- This removes the need for a separate suggested_trips table
+-- ========================================================================
+
+-- First, migrate existing suggested trips to the trips table
+INSERT INTO public.trips (
+    id,
+    user_id,
+    title,
+    description,
+    start_date,
+    end_date,
+    status,
+    image_url,
+    labels,
+    metadata,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    user_id,
+    title,
+    description,
+    start_date,
+    end_date,
+    CASE
+        WHEN status = 'approved' THEN 'active'
+        WHEN status = 'rejected' THEN 'rejected'
+        ELSE 'pending'
+    END as status,
+    image_url,
+    ARRAY['suggested'] as labels,
+    jsonb_build_object(
+        'suggested_from', id,
+        'point_count', data_points,
+        'distance_traveled', distance_from_home,
+        'visited_places_count', data_points,
+        'overnight_stays', overnight_stays,
+        'location', ST_AsGeoJSON(location)::jsonb,
+        'city_name', city_name,
+        'confidence', confidence,
+        'suggested', true,
+        'image_attribution', metadata->>'image_attribution'
+    ) as metadata,
+    created_at,
+    updated_at
+FROM public.suggested_trips
+WHERE status IN ('pending', 'approved', 'rejected');
+
+-- Update the trips table to allow 'pending' and 'rejected' status values
+ALTER TABLE public.trips
+DROP CONSTRAINT IF EXISTS trips_status_check;
+
+ALTER TABLE public.trips
+ADD CONSTRAINT trips_status_check
+CHECK (status IN ('active', 'planned', 'completed', 'cancelled', 'pending', 'rejected'));
+
+-- Drop the suggested_trips table and related objects
+DROP TABLE IF EXISTS public.suggested_trips CASCADE;
+
+-- Drop the image_generation_jobs table as it's no longer needed
+DROP TABLE IF EXISTS public.image_generation_jobs CASCADE;
+
+-- Add comment to trips table to document the new status values
+COMMENT ON COLUMN public.trips.status IS 'Trip status: active, planned, completed, cancelled, pending (suggested), rejected';
+COMMENT ON COLUMN public.trips.labels IS 'Array of labels including "suggested" for trips created from suggestions';
+COMMENT ON COLUMN public.trips.metadata IS 'Trip metadata including suggested_from, point_count, distance_traveled, etc.';
+
+-- ========================================================================
+-- Migration: 20241201000003_populate_distance_column.sql
+-- Calculate and populate distance column for tracker_data table
+-- This migration adds distance calculations between consecutive points for each user
+-- ========================================================================
+
+-- Distance calculation now uses PostGIS functions (ST_DistanceSphere),
+-- so a custom Haversine function is not required.
+
+-- Function to update distance and time_spent for all tracker_data records using window functions
+CREATE OR REPLACE FUNCTION update_tracker_distances(target_user_id UUID DEFAULT NULL)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER;
+    user_filter TEXT := '';
+BEGIN
+    IF target_user_id IS NOT NULL THEN
+        RAISE NOTICE 'Starting distance and time_spent calculation for user % using optimized window function approach...', target_user_id;
+        user_filter := ' AND t1.user_id = $1';
+    ELSE
+        RAISE NOTICE 'Starting distance and time_spent calculation for ALL users using optimized window function approach...';
+    END IF;
+
+    -- Use a single UPDATE with window functions and JOIN for much better performance
+    WITH distance_and_time_calculations AS (
+        SELECT
+            t1.user_id,
+            t1.recorded_at,
+            t1.location,
+            CASE
+                WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                    0  -- First point for each user
+                ELSE
+                    ST_DistanceSphere(
+                        LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                        t1.location
+                    )
+            END AS calculated_distance,
+            CASE
+                WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                    0  -- First point for each user
+                ELSE
+                    EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at)))
+            END AS calculated_time_spent
+        FROM public.tracker_data t1
+        WHERE t1.location IS NOT NULL
+        AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+    )
+    UPDATE public.tracker_data
+    SET
+        distance = dc.calculated_distance,
+        time_spent = dc.calculated_time_spent,
+        speed = (
+            CASE
+                WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
+                ELSE 0
+            END
+        )::DECIMAL(8,2),
+        updated_at = NOW()
+    FROM distance_and_time_calculations dc
+    WHERE tracker_data.user_id = dc.user_id
+    AND tracker_data.recorded_at = dc.recorded_at
+    AND tracker_data.location = dc.location;
+
+    -- Get count of updated records
+    GET DIAGNOSTICS total_updated = ROW_COUNT;
+
+    IF target_user_id IS NOT NULL THEN
+        RAISE NOTICE 'Distance and time_spent calculation complete for user %. Updated % records using window functions.', target_user_id, total_updated;
+    ELSE
+        RAISE NOTICE 'Distance and time_spent calculation complete for ALL users. Updated % records using window functions.', total_updated;
+    END IF;
+
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to automatically calculate distance and time_spent for new/updated records
+CREATE OR REPLACE FUNCTION trigger_calculate_distance()
+RETURNS TRIGGER AS $$
+DECLARE
+    prev_point RECORD;
+    calculated_distance DECIMAL;
+    calculated_time_spent DECIMAL;
+BEGIN
+    -- Only calculate if location is provided and it's an INSERT or location changed
+    IF NEW.location IS NOT NULL AND (TG_OP = 'INSERT' OR OLD.location IS DISTINCT FROM NEW.location) THEN
+        -- Find the previous point for this user based on recorded_at
+        SELECT
+            location,
+            recorded_at
+        INTO prev_point
+        FROM public.tracker_data
+        WHERE user_id = NEW.user_id
+        AND recorded_at < NEW.recorded_at
+        AND location IS NOT NULL
+        ORDER BY recorded_at DESC
+        LIMIT 1;
+
+        IF prev_point IS NOT NULL THEN
+            -- Calculate distance from previous point
+            calculated_distance := ST_DistanceSphere(prev_point.location, NEW.location);
+            NEW.distance := calculated_distance;
+
+            -- Calculate time spent (time difference in seconds from previous point)
+            calculated_time_spent := EXTRACT(EPOCH FROM (NEW.recorded_at - prev_point.recorded_at));
+            NEW.time_spent := calculated_time_spent;
+
+            -- Calculate instantaneous speed in m/s
+            IF calculated_time_spent > 0 THEN
+                NEW.speed := ROUND((calculated_distance / calculated_time_spent)::numeric, 2);
+            ELSE
+                NEW.speed := 0;
+            END IF;
+        ELSE
+            -- First point for this user - set distance and time_spent to 0
+            NEW.distance := 0;
+            NEW.time_spent := 0;
+            NEW.speed := 0;
+        END IF;
+
+        -- Set updated timestamp
+        NEW.updated_at := NOW();
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically calculate distance for new records
+DROP TRIGGER IF EXISTS tracker_data_distance_trigger ON public.tracker_data;
+CREATE TRIGGER tracker_data_distance_trigger
+    BEFORE INSERT OR UPDATE ON public.tracker_data
+    FOR EACH ROW
+    EXECUTE FUNCTION trigger_calculate_distance();
+
+-- Note: Distance calculation will be executed at the end of this migration
+-- to ensure all functions are properly created first
+
+-- Helper functions for managing triggers during bulk operations
+CREATE OR REPLACE FUNCTION disable_tracker_data_trigger()
+RETURNS void AS $$
+BEGIN
+    ALTER TABLE public.tracker_data DISABLE TRIGGER tracker_data_distance_trigger;
+    RAISE NOTICE 'Disabled tracker_data_distance_trigger for bulk operations';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION enable_tracker_data_trigger()
+RETURNS void AS $$
+BEGIN
+    ALTER TABLE public.tracker_data ENABLE TRIGGER tracker_data_distance_trigger;
+    RAISE NOTICE 'Enabled tracker_data_distance_trigger';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to safely perform bulk import with optimized distance calculation
+CREATE OR REPLACE FUNCTION perform_bulk_import_with_distance_calculation(target_user_id UUID)
+RETURNS INTEGER AS $$
+DECLARE
+    updated_count INTEGER;
+BEGIN
+    RAISE NOTICE 'Starting bulk import optimization for user %...', target_user_id;
+
+    -- Disable trigger for better performance during import
+    PERFORM disable_tracker_data_trigger();
+
+    -- Calculate distances and time_spent for the imported user's data
+    SELECT update_tracker_distances(target_user_id) INTO updated_count;
+
+    -- Re-enable trigger
+    PERFORM enable_tracker_data_trigger();
+
+    RAISE NOTICE 'Bulk import optimization complete for user %. Updated % records.', target_user_id, updated_count;
+    RETURN updated_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add helpful comments
+COMMENT ON FUNCTION update_tracker_distances IS 'Updates distance and time_spent columns for all tracker_data records by calculating from previous chronological point. Can target specific user for performance.';
+COMMENT ON FUNCTION trigger_calculate_distance IS 'Trigger function to automatically calculate distance and time_spent for new tracker_data records';
+COMMENT ON FUNCTION disable_tracker_data_trigger IS 'Temporarily disables distance calculation trigger for bulk operations';
+COMMENT ON FUNCTION enable_tracker_data_trigger IS 'Re-enables distance calculation trigger after bulk operations';
+COMMENT ON FUNCTION perform_bulk_import_with_distance_calculation IS 'Optimized bulk import helper that disables triggers, calculates distances, and re-enables triggers';
+COMMENT ON COLUMN public.tracker_data.distance IS 'Distance in meters from the previous chronological point for this user';
+COMMENT ON COLUMN public.tracker_data.time_spent IS 'Time spent in seconds from the previous chronological point for this user';
+
+-- ========================================================================
+-- MERGED MIGRATIONS END HERE
+-- ========================================================================
+
+-- Execute the distance and time_spent calculation for all existing records
+-- This is placed at the end to ensure all functions are created first
+-- This might take a while for large datasets
+DO $$
+DECLARE
+    updated_count INTEGER;
+BEGIN
+    RAISE NOTICE 'Starting distance and time_spent calculation for all existing tracker_data records...';
+    RAISE NOTICE 'This may take several minutes for large datasets.';
+
+    SELECT update_tracker_distances() INTO updated_count;
+
+    RAISE NOTICE 'Distance and time_spent calculation completed successfully!';
+    RAISE NOTICE 'Updated % records total.', updated_count;
 END $$;

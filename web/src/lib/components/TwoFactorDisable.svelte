@@ -51,20 +51,21 @@
 	<!-- Backdrop -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-		on:click={closeModal}
-		on:keydown={(e) => e.key === 'Escape' && closeModal()}
+		onclick={closeModal}
+		onkeydown={(e) => e.key === 'Escape' && closeModal()}
 		role="presentation"
 		aria-hidden="true"
 	>
 		<!-- Modal -->
 		<div
 			class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800"
-			on:click|stopPropagation
-			on:keydown={(e) => e.key === 'Escape' && closeModal()}
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && closeModal()}
 			aria-modal="true"
 			role="dialog"
 			aria-labelledby="two-factor-disable-modal-title"
 			aria-describedby="two-factor-disable-modal-description"
+			tabindex="0"
 		>
 			<!-- Header -->
 			<div
@@ -77,7 +78,7 @@
 					</h2>
 				</div>
 				<button
-					on:click={closeModal}
+					onclick={closeModal}
 					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 				>
 					<X class="h-5 w-5" />
@@ -128,13 +129,13 @@
 				<!-- Action Buttons -->
 				<div class="flex gap-3">
 					<button
-						on:click={closeModal}
+						onclick={closeModal}
 						class="flex-1 cursor-pointer rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 					>
 						Cancel
 					</button>
 					<button
-						on:click={handleDisable2FA}
+						onclick={handleDisable2FA}
 						disabled={isDisabling || !password}
 						class="flex-1 cursor-pointer rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>

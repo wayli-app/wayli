@@ -139,26 +139,27 @@
 	}
 </script>
 
-<svelte:window on:keydown={(event) => event.key === 'Escape' && closeModal()} />
+<svelte:window onkeydown={(event) => event.key === 'Escape' && closeModal()} />
 
 {#if open}
 	<!-- Backdrop -->
-	<div
+    <div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-		on:click={closeModal}
-		on:keydown={(event) => event.key === 'Escape' && closeModal()}
+        onclick={closeModal}
+        onkeydown={(event) => event.key === 'Escape' && closeModal()}
 		role="presentation"
 		aria-hidden="true"
 	>
 		<!-- Modal -->
-		<div
+        <div
 			class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-xl dark:bg-gray-800"
-			on:click|stopPropagation
-			on:keydown={(event) => event.key === 'Escape' && closeModal()}
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(event) => event.key === 'Escape' && closeModal()}
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="two-factor-setup-modal-title"
 			aria-describedby="two-factor-setup-modal-description"
+            tabindex="0"
 		>
 			<!-- Header -->
 			<div
@@ -170,8 +171,8 @@
 						Set Up Two-Factor Authentication
 					</h2>
 				</div>
-				<button
-					on:click={closeModal}
+                <button
+                    onclick={closeModal}
 					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 				>
 					<X class="h-5 w-5" />
@@ -209,8 +210,8 @@
 								/>
 							</div>
 
-							<button
-								on:click={generateSecret}
+                            <button
+                                onclick={generateSecret}
 								disabled={!password}
 								class="mb-6 w-full cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 							>
@@ -270,8 +271,8 @@
 								</ul>
 							</div>
 
-							<button
-								on:click={nextStep}
+                            <button
+                                onclick={nextStep}
 								class="w-full cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 							>
 								Next: Verify Code
@@ -302,14 +303,14 @@
 						</div>
 
 						<div class="flex gap-3">
-							<button
-								on:click={prevStep}
+                            <button
+                                onclick={prevStep}
 								class="flex-1 cursor-pointer rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 							>
 								Back
 							</button>
-							<button
-								on:click={verifyAndEnable}
+                            <button
+                                onclick={verifyAndEnable}
 								disabled={isVerifying || verificationCode.length !== 6}
 								class="flex-1 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 							>
@@ -340,15 +341,15 @@
 						</div>
 
 						<div class="mb-4 flex gap-3">
-							<button
-								on:click={copyCodes}
+                        <button
+                            onclick={copyCodes}
 								class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 							>
 								<Copy class="h-4 w-4" />
 								Copy
 							</button>
-							<button
-								on:click={downloadCodes}
+                        <button
+                            onclick={downloadCodes}
 								class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 							>
 								<Download class="h-4 w-4" />
@@ -356,8 +357,8 @@
 							</button>
 						</div>
 
-						<button
-							on:click={finishSetup}
+                    <button
+                        onclick={finishSetup}
 							class="w-full cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 						>
 							Finish Setup

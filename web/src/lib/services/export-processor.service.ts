@@ -2,6 +2,7 @@ import { supabase } from '$lib/core/supabase/worker';
 import { ExportService } from './export.service.worker';
 import JSZip from 'jszip';
 import type { Job } from '$lib/types/job-queue.types';
+import { checkJobCancellation } from '$lib/utils/job-cancellation';
 
 // Add TrackerLocation interface at the top
 interface TrackerLocation {
@@ -48,6 +49,9 @@ export class ExportProcessorService {
 		});
 
 		try {
+			// Check for cancellation before starting
+			await checkJobCancellation(job.id);
+
 			// Update job status to running
 			await ExportService.updateExportJobProgress(job.id, 10, {
 				message: 'Starting export process...'
@@ -61,6 +65,9 @@ export class ExportProcessorService {
 
 			// Export location data if requested
 			if (jobData.includeLocationData) {
+				// Check for cancellation before location data export
+				await checkJobCancellation(job.id);
+
 				await ExportService.updateExportJobProgress(job.id, 20, {
 					message: 'Exporting location data...'
 				});
@@ -77,6 +84,9 @@ export class ExportProcessorService {
 
 			// Export trip information if requested
 			if (jobData.includeTripInfo) {
+				// Check for cancellation before trip info export
+				await checkJobCancellation(job.id);
+
 				console.log('[ExportWorker] Starting trip info export');
 				await ExportService.updateExportJobProgress(job.id, 40, {
 					message: 'Exporting trip information...'
@@ -97,6 +107,9 @@ export class ExportProcessorService {
 
 			// Export want-to-visit data if requested
 			if (jobData.includeWantToVisit) {
+				// Check for cancellation before want-to-visit export
+				await checkJobCancellation(job.id);
+
 				console.log('[ExportWorker] Starting want-to-visit export');
 				await ExportService.updateExportJobProgress(job.id, 60, {
 					message: 'Exporting want-to-visit data...'
@@ -117,6 +130,9 @@ export class ExportProcessorService {
 
 			// Export trips data if requested
 			if (jobData.includeTrips) {
+				// Check for cancellation before trips export
+				await checkJobCancellation(job.id);
+
 				console.log(`[ExportWorker] Starting trips export for job ${job.id}`);
 				await ExportService.updateExportJobProgress(job.id, 80, {
 					message: 'Exporting trips data...'
@@ -182,6 +198,11 @@ export class ExportProcessorService {
 			});
 			console.log(`[ExportWorker] Export job ${job.id} completed successfully.`);
 		} catch (error) {
+			// Check if the error is due to cancellation
+			if (error instanceof Error && error.message === 'Job was cancelled') {
+				console.log(`🛑 Export job ${job.id} was cancelled`);
+				return;
+			}
 			console.error(`[ExportWorker] Export processing failed for job ${job.id}:`, error);
 			await ExportService.failExportJob(
 				job.id,

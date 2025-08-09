@@ -1,5 +1,5 @@
 import { supabase } from '$lib/core/supabase/client';
-import type { Place } from '$lib/types/want-to-visit.types';
+import type { Place, CreatePlaceData } from '$lib/types/want-to-visit.types';
 
 export class WantToVisitService {
 	/**
@@ -27,7 +27,7 @@ export class WantToVisitService {
 	/**
 	 * Add a new want-to-visit place
 	 */
-	static async addPlace(place: Omit<Place, 'id' | 'created_at' | 'updated_at'>): Promise<Place> {
+	static async addPlace(place: CreatePlaceData): Promise<Place> {
 		// Get current user ID
 		const {
 			data: { user }

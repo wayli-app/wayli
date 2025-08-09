@@ -187,6 +187,19 @@ export async function getTripBannerImage(
 /**
  * Get a random image for a specific location/city with attribution information
  */
+/**
+ * Helper function to randomly select a photo from Pexels search results
+ */
+function getRandomPhotoFromSearchResult(searchResult: PexelsSearchResponse | null): PexelsImage | null {
+	if (!searchResult || searchResult.photos.length === 0) {
+		return null;
+	}
+
+	// Get a random index from the available photos
+	const randomIndex = Math.floor(Math.random() * searchResult.photos.length);
+	return searchResult.photos[randomIndex];
+}
+
 export async function getTripBannerImageWithAttribution(
 	cityName: string,
 	userApiKey?: string
@@ -203,21 +216,22 @@ export async function getTripBannerImageWithAttribution(
 		// Primary: Pexels API search
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					return searchResult.photos[0].src.large;
+				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
+					return randomPhoto.src.large;
 				}
 				return null;
 			},
 			source: 'pexels',
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					const photo = searchResult.photos[0];
+				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
 					return {
-						photographer: photo.photographer,
-						photographerUrl: photo.photographer_url,
-						pexelsUrl: photo.url
+						photographer: randomPhoto.photographer,
+						photographerUrl: randomPhoto.photographer_url,
+						pexelsUrl: randomPhoto.url
 					};
 				}
 				return null;
@@ -226,21 +240,22 @@ export async function getTripBannerImageWithAttribution(
 		// Fallback 1: Generic city landscape
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					return searchResult.photos[0].src.large;
+				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
+					return randomPhoto.src.large;
 				}
 				return null;
 			},
 			source: 'pexels',
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					const photo = searchResult.photos[0];
+				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
 					return {
-						photographer: photo.photographer,
-						photographerUrl: photo.photographer_url,
-						pexelsUrl: photo.url
+						photographer: randomPhoto.photographer,
+						photographerUrl: randomPhoto.photographer_url,
+						pexelsUrl: randomPhoto.url
 					};
 				}
 				return null;
@@ -249,21 +264,22 @@ export async function getTripBannerImageWithAttribution(
 		// Fallback 2: Country-based search
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					return searchResult.photos[0].src.large;
+				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
+					return randomPhoto.src.large;
 				}
 				return null;
 			},
 			source: 'pexels',
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					const photo = searchResult.photos[0];
+				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
 					return {
-						photographer: photo.photographer,
-						photographerUrl: photo.photographer_url,
-						pexelsUrl: photo.url
+						photographer: randomPhoto.photographer,
+						photographerUrl: randomPhoto.photographer_url,
+						pexelsUrl: randomPhoto.url
 					};
 				}
 				return null;
@@ -272,21 +288,22 @@ export async function getTripBannerImageWithAttribution(
 		// Fallback 3: Generic travel image
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages('travel landscape', 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					return searchResult.photos[0].src.large;
+				const searchResult = await searchPexelsImages('travel landscape', 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
+					return randomPhoto.src.large;
 				}
 				return null;
 			},
 			source: 'pexels',
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages('travel landscape', 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					const photo = searchResult.photos[0];
+				const searchResult = await searchPexelsImages('travel landscape', 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
 					return {
-						photographer: photo.photographer,
-						photographerUrl: photo.photographer_url,
-						pexelsUrl: photo.url
+						photographer: randomPhoto.photographer,
+						photographerUrl: randomPhoto.photographer_url,
+						pexelsUrl: randomPhoto.url
 					};
 				}
 				return null;
@@ -295,21 +312,22 @@ export async function getTripBannerImageWithAttribution(
 		// Fallback 4: Generic city image
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages('city landscape', 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					return searchResult.photos[0].src.large;
+				const searchResult = await searchPexelsImages('city landscape', 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
+					return randomPhoto.src.large;
 				}
 				return null;
 			},
 			source: 'pexels',
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages('city landscape', 1, 1, userApiKey);
-				if (searchResult && searchResult.photos.length > 0) {
-					const photo = searchResult.photos[0];
+				const searchResult = await searchPexelsImages('city landscape', 1, 15, userApiKey);
+				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
+				if (randomPhoto) {
 					return {
-						photographer: photo.photographer,
-						photographerUrl: photo.photographer_url,
-						pexelsUrl: photo.url
+						photographer: randomPhoto.photographer,
+						photographerUrl: randomPhoto.photographer_url,
+						pexelsUrl: randomPhoto.url
 					};
 				}
 				return null;

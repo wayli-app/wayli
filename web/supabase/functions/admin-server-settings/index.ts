@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       const allowRegistration = body.allow_registration === true;
       const requireEmailVerification = body.require_email_verification === true;
 
-      console.log('🔧 [ADMIN-SERVER-SETTINGS] Received settings:', {
+      logInfo('Received settings update', 'ADMIN_SERVER_SETTINGS', {
         server_name: body.server_name,
         admin_email: body.admin_email,
         allow_registration: body.allow_registration,

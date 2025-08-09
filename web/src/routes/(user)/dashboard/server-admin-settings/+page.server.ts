@@ -33,9 +33,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const limit = parseInt(url.searchParams.get('limit') || '10');
 	const search = url.searchParams.get('search') || '';
 
-	console.log('Server load - Search parameter:', search);
-	console.log('Server load - All URL params:', Object.fromEntries(url.searchParams.entries()));
-
 	// Fetch all users (we'll need to get all to implement proper search)
 	// Note: Supabase Auth listUsers doesn't support server-side filtering
 	const {
@@ -87,10 +84,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					u.last_name?.toLowerCase().includes(search.toLowerCase())
 			)
 		: combinedUsers;
-
-	console.log('Server load - Total users:', combinedUsers.length);
-	console.log('Server load - Filtered users:', filteredUsers.length);
-	console.log('Server load - Search term:', search);
 
 	// Calculate pagination
 	const total = filteredUsers.length;

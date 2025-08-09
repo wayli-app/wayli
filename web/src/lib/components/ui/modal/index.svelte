@@ -36,7 +36,7 @@
 	}
 </script>
 
-<svelte:window on:keydown={handleEscapeKey} />
+<svelte:window onkeydown={handleEscapeKey} />
 
 {#if open}
 	<div
@@ -46,16 +46,16 @@
 		aria-modal="true"
 		aria-labelledby="modal-title"
 		tabindex="0"
-		on:click={handleBackdropClick}
-		on:keydown={(e) => {
+        onclick={handleBackdropClick}
+        onkeydown={(e) => {
 			if (e.key === 'Escape') handleBackdropClick();
 		}}
 		transition:fade={{ duration: 200 }}
 	>
 		<div
 			class="relative w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[size]} max-h-[calc(100vh-2rem)] overflow-y-auto my-4"
-			role="document"
-			on:click|stopPropagation
+            role="document"
+            onclick={(e) => e.stopPropagation()}
 			transition:fade={{ duration: 200, delay: 100 }}
 		>
 			<!-- Header -->
@@ -67,11 +67,11 @@
 						</h2>
 					{/if}
 					{#if showCloseButton}
-						<button
+                        <button
 							type="button"
 							class="absolute top-4 right-4 cursor-pointer p-1 text-gray-400 transition-colors hover:text-red-500"
-							on:click={closeModal}
-							on:keydown={(e) => { if (e.key === 'Enter') closeModal(); }}
+                            onclick={closeModal}
+                            onkeydown={(e) => { if (e.key === 'Enter') closeModal(); }}
 							aria-label="Close modal"
 						>
 							<X class="h-5 w-5" />

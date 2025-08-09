@@ -238,29 +238,34 @@ export class ServiceAdapter {
   }
 
   /**
-   * Export Operations
+   * Export Operations (now using centralized jobs system)
    */
   async getExportJobs(options?: {
     limit?: number;
     offset?: number;
   }) {
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = {
+      type: 'data_export' // Filter for export jobs only
+    };
     if (options?.limit) params.limit = options.limit.toString();
     if (options?.offset) params.offset = options.offset.toString();
 
-    return this.callApi('export', { params });
+    return this.callApi('jobs', { params });
   }
 
   async createExportJob(exportData: Record<string, unknown>) {
-    return this.callApi('export', {
+    return this.callApi('jobs', {
       method: 'POST',
-      body: exportData
+      body: {
+        type: 'data_export',
+        data: exportData
+      }
     });
   }
 
   async createImportJob(file: File, format: string, onUploadProgress?: (progress: number) => void): Promise<{ jobId: string }> {
     try {
-      console.log('🚀 [SERVICE] Starting import job creation for file:', file.name);
+      // Starting import job creation - removed debug log for consistency
 
       // Upload file directly to storage with progress tracking
       const fileName = `${Date.now()}-${file.name}`;

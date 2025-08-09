@@ -14,6 +14,7 @@ import { serviceManager } from '$lib/architecture/service-layer';
 import { errorHandler } from './error-handler.service';
 import { rateLimitService } from './rate-limit.service';
 import { logger } from './logging.service';
+import { supabase } from '$lib/core/supabase/client';
 
 import { TripsService } from './trips.service';
 import { StatisticsService } from './statistics.service';
@@ -67,7 +68,7 @@ export class ServiceLayerAdapter {
 		this.services.set('logger', logger);
 
 		// Client-safe application services
-		this.services.set('trips', new TripsService());
+		this.services.set('trips', new TripsService(supabase));
 		this.services.set('statistics', new StatisticsService());
 		this.services.set('wantToVisit', new WantToVisitService());
 	}

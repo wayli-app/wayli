@@ -20,6 +20,10 @@
 	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { format } from 'date-fns';
+	import { translate } from '$lib/i18n';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	// Import state
 	let importFormat = $state<string | null>(null);
@@ -98,21 +102,21 @@
 
 
 
-	const importFormats = [
+	let importFormats = $derived([
 		{
 			value: 'GeoJSON',
 			label: 'GeoJSON',
 			icon: MapPin,
-			description: 'Geographic data in JSON format'
+			description: t('importExport.geoJsonDescription')
 		},
-		{ value: 'GPX', label: 'GPX', icon: Route, description: 'GPS Exchange Format' },
+		{ value: 'GPX', label: 'GPX', icon: Route, description: t('importExport.gpxDescription')},
 		{
 			value: 'OwnTracks',
 			label: 'OwnTracks (.REC)',
 			icon: Route,
-			description: 'OwnTracks recording files'
+			description: t('importExport.ownTracksDescription')
 		}
-	];
+	]);
 
 	function getAcceptedFileTypes(format: string): string {
 		switch (format) {
@@ -160,15 +164,40 @@
 		isExportDatePickerOpen = false;
 	}
 
+		// Handle date changes
+	function handleDateChange() {
+		// Since we're using binding, the dates are automatically updated
+		// We just need to close the picker when both dates are selected
+		if (exportStartDate && exportEndDate) {
+			setTimeout(() => {
+				isExportDatePickerOpen = false;
+			}, 500);
+		}
+	}
+
+
+
 	let formattedExportStartDate = $derived(exportStartDate ? format(exportStartDate, 'MMM dd, yyyy') : '');
 	let formattedExportEndDate = $derived(exportEndDate ? format(exportEndDate, 'MMM dd, yyyy') : '');
+
+	// Custom presets for date range selection
+	let datePresets = $derived([
+		{ label: t('datePicker.today'), startDate: new Date(), endDate: new Date() },
+		{ label: t('datePicker.last7Days'), startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.last30Days'), startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.last60Days'), startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.last90Days'), startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), endDate: new Date() },
+		{ label: t('datePicker.lastYear'), startDate: new Date(new Date().getFullYear() - 1, 0, 1), endDate: new Date(new Date().getFullYear() - 1, 11, 31) }
+	]);
+
+
 
 
 
 	// Import functions
 	async function handleImport() {
 		if (!selectedFile || !importFormat) {
-			toast.error('Please select a file and format');
+			toast.error(t('importExport.pleaseSelectFile'));
 			return;
 		}
 
@@ -252,7 +281,7 @@
 	// Export functions
 	async function handleExport() {
 		if (!exportStartDate || !exportEndDate) {
-			toast.error('Please select start and end dates');
+			toast.error(t('importExport.pleaseSelectDates'));
 			return;
 		}
 
@@ -403,7 +432,7 @@
 		<div class="flex items-center gap-3">
 			<Import class="h-8 w-8 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-				Import/Export
+				{t('importExport.title')}
 			</h1>
 		</div>
 	</div>
@@ -419,15 +448,14 @@
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Import Data</h2>
+				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('importExport.importData')}</h2>
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
-				Import your travel data from various sources. Imports are processed in the background by
-				workers and progress will be shown in the sidebar.
+				{t('importExport.importDescription')}
 			</p>
 			{#if lastSuccessfulImport}
 				<div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
-					Last successful import: {lastSuccessfulImport}
+					{t('importExport.lastSuccessfulImport', { date: lastSuccessfulImport })}
 				</div>
 			{/if}
 
@@ -436,24 +464,24 @@
 						<label
 							for="fileInput"
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
-							>Select File</label
+							>{t('importExport.selectFile')}</label
 						>
 						<div class="relative">
 							<label for="fileInput" class="absolute inset-0 z-10 cursor-pointer"></label>
-							<input
+                            <input
 								type="file"
 								id="fileInput"
 								bind:this={fileInputEl}
 								accept=".geojson,.json,.gpx,.rec"
 								class="block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-gray-500 file:mr-4 file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-600 hover:file:bg-blue-100 dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-blue-400 dark:hover:file:bg-gray-600"
-								on:change={handleFileSelect}
+                                onchange={handleFileSelect}
 							/>
 						</div>
 						{#if selectedFile}
 							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-								Selected: {selectedFile.name}
+								{t('importExport.selectedFile', { filename: selectedFile.name })}
 								{#if importFormat}
-									| Detected format: <span class="font-semibold">{importFormat}</span>
+									| {t('importExport.detectedFormat', { format: importFormat })}
 								{/if}
 							</p>
 						{/if}
@@ -461,12 +489,12 @@
 
 					<div class="mt-6">
 						<h3 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-							Supported Formats
+							{t('importExport.supportedFormats')}
 						</h3>
 						<div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
 							{#each importFormats as format}
 								<div class="flex items-center gap-2">
-									<svelte:component this={format.icon || undefined} class="h-4 w-4" />
+                                    <format.icon class="h-4 w-4" />
 									<span>{format.label} - {format.description}</span>
 								</div>
 							{/each}
@@ -477,7 +505,7 @@
 					{#if isUploading}
 						<div class="mt-4">
 							<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-								<span>Uploading file...</span>
+								<span>{t('importExport.uploadingFile')}</span>
 								<span>{uploadProgress}%</span>
 							</div>
 							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
@@ -490,18 +518,18 @@
 					{/if}
 
 					<!-- Import button only shown if no active job -->
-					<button
+                    <button
 						type="button"
-						on:click={handleImport}
+                        onclick={handleImport}
 						disabled={isImporting || !selectedFile}
 						class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{#if isImporting}
 							<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-							Importing... (This may take a few minutes for large files)
+							{t('importExport.importing')}
 						{:else}
 							<Import class="h-4 w-4" />
-							Import Data
+							{t('importExport.importDataButton')}
 						{/if}
 					</button>
 				</div>
@@ -513,17 +541,17 @@
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Export Data</h2>
+				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('importExport.exportData')}</h2>
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
-				Export your travel data to various formats
+				{t('importExport.exportDescription')}
 			</p>
 
 			<div class="flex-1 space-y-4">
 				<div>
 					<label
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
-						for="includeLocationData">Include</label
+						for="includeLocationData">{t('importExport.include')}</label
 					>
 					<div class="space-y-2">
 						<label class="flex items-center gap-2">
@@ -532,7 +560,7 @@
 								bind:checked={includeLocationData}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Location data</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.locationData')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -540,7 +568,7 @@
 								bind:checked={includeTripInfo}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Trip information</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.tripInformation')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -548,7 +576,7 @@
 								bind:checked={includeWantToVisit}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Want to visit</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.wantToVisit')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -556,18 +584,18 @@
 								bind:checked={includeTrips}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">Trips</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.trips')}</span>
 						</label>
 					</div>
 				</div>
 				<div class="mt-4">
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Range</label>
+					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('importExport.dateRange')}</label>
 					<div class="relative">
-						<button
+                        <button
 							type="button"
 							class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-							on:click={toggleExportDatePicker}
-							on:keydown={(e) => e.key === 'Enter' && toggleExportDatePicker()}
+                            onclick={toggleExportDatePicker}
+                            onkeydown={(e) => e.key === 'Enter' && toggleExportDatePicker()}
 							class:open={isExportDatePickerOpen}
 							aria-label="Select export date range"
 							aria-expanded={isExportDatePickerOpen}
@@ -579,32 +607,40 @@
 								{#if exportStartDate && exportEndDate}
 									{formattedExportStartDate} - {formattedExportEndDate}
 								{:else}
-									Pick a date range
+									{t('importExport.pickDateRange')}
 								{/if}
 							</div>
 						</button>
 						{#if isExportDatePickerOpen}
 							<div class="date-picker-container absolute right-0 mt-2 z-50">
-								<DatePicker
-									bind:isOpen={isExportDatePickerOpen}
-									bind:startDate={exportStartDate}
-									bind:endDate={exportEndDate}
-									isRange
-									showPresets
-									align="right"
-								/>
+                                <DatePicker
+                                    isOpen={isExportDatePickerOpen}
+                                    bind:startDate={exportStartDate}
+                                    bind:endDate={exportEndDate}
+                                    isRange
+                                    showPresets
+                                    presets={datePresets}
+                                    presetLabels={[t('datePicker.today'), t('datePicker.last7Days'), t('datePicker.last30Days'), t('datePicker.last60Days'), t('datePicker.last90Days'), t('datePicker.lastYear')]}
+                                    dowLabels={t('datePicker.dowLabels')}
+                                    monthLabels={t('datePicker.monthLabels')}
+                                    align="right"
+                                    onclose={() => {
+                                        isExportDatePickerOpen = false;
+                                    }}
+                                    onchange={handleDateChange}
+                                />
 							</div>
 						{/if}
 					</div>
 				</div>
 			</div>
 
-			<button
-				on:click={handleExport}
+            <button
+                onclick={handleExport}
 				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 			>
 				<FileDown class="h-4 w-4" />
-				Export Data
+				{t('importExport.exportDataButton')}
 			</button>
 		</div>
 	</div>

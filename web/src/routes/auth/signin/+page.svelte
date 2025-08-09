@@ -10,6 +10,10 @@
 	import { get } from 'svelte/store';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { EdgeFunctionsApiService } from '$lib/services/api/edge-functions-api.service';
+	import { translate } from '$lib/i18n';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	let email = '';
 	let password = '';
@@ -88,7 +92,7 @@
 						goto(verificationUrl);
 					} else {
 						// No 2FA enabled, proceed with normal login
-					toast.success('Signed in successfully');
+					toast.success(t('auth.signedInSuccessfully'));
 					// The auth state change will handle the redirect automatically
 
 					// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
@@ -105,14 +109,14 @@
 					console.error('2FA check error:', twoFactorError);
 					// If 2FA check fails, sign out and show error
 					await supabase.auth.signOut();
-					toast.error('Failed to verify 2FA status. Please try again.');
+					toast.error(t('auth.failedToVerify2FA'));
 				}
 				} else {
-					toast.error('No session returned from authentication');
+					toast.error(t('auth.noSessionReturned'));
 			}
 		} catch (error: any) {
 			console.error('Sign in error:', error);
-			toast.error(error.message || 'Sign in failed');
+			toast.error(error.message || t('auth.signInFailed'));
 		} finally {
 			loading = false;
 		}
@@ -120,7 +124,7 @@
 
 	async function handleMagicLink() {
 		if (!email) {
-			toast.error('Please enter your email address');
+			toast.error(t('auth.enterValidEmail'));
 			return;
 		}
 
@@ -137,9 +141,9 @@
 			if (error) throw error;
 
 			isMagicLinkSent = true;
-			toast.success('Magic link sent to your email');
+			toast.success(t('auth.magicLinkSent'));
 		} catch (error: any) {
-			toast.error(error.message || 'Failed to send magic link');
+			toast.error(error.message || t('auth.failedToSendMagicLink'));
 		} finally {
 			loading = false;
 		}
@@ -158,7 +162,7 @@
 
 			if (error) throw error;
 		} catch (error: any) {
-			toast.error(error.message || 'OAuth sign in failed');
+			toast.error(error.message || t('auth.oauthSignInFailed'));
 			loading = false;
 		}
 	}
@@ -179,7 +183,7 @@
 				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
-				Back to home
+				{t('auth.backToHome')}
 			</a>
 		</div>
 
@@ -194,10 +198,10 @@
 					<LogIn class="h-6 w-6 text-white" />
 				</div>
 				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
-					Sign in to your account
+					{t('auth.signInToAccount')}
 				</h1>
 				<p class="text-gray-600 dark:text-gray-400">
-					Welcome back! Please enter your details to access your account.
+					{t('auth.welcomeBack')}
 				</p>
 			</div>
 
@@ -207,14 +211,14 @@
 						class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20"
 					>
 						<p class="text-sm text-green-800 dark:text-green-200">
-							Check your email for a magic link to sign in.
+							{t('auth.checkEmailMagicLink')}
 						</p>
 					</div>
 					<button
 						onclick={() => (isMagicLinkSent = false)}
 						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 					>
-						Try a different method
+						{t('auth.tryDifferentMethod')}
 					</button>
 				</div>
 			{:else}
@@ -225,7 +229,7 @@
 							for="email"
 							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 						>
-							Email address
+							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
@@ -237,7 +241,7 @@
 								bind:value={email}
 								required
 								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
-								placeholder="Enter your email"
+								placeholder={t('auth.enterYourEmail')}
 							/>
 						</div>
 					</div>
@@ -248,7 +252,7 @@
 							for="password"
 							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 						>
-							Password
+							{t('auth.password')}
 						</label>
 						<div class="relative">
 							<Lock
@@ -260,7 +264,7 @@
 								bind:value={password}
 								required
 								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
-								placeholder="Enter your password"
+								placeholder={t('auth.enterYourPassword')}
 							/>
 							<button
 								type="button"
@@ -284,7 +288,7 @@
 							disabled={loading || !email}
 							class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80 disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							Forgot your password?
+							{t('auth.forgotPassword')}
 						</button>
 					</div>
 
@@ -294,18 +298,18 @@
 						disabled={loading}
 						class="w-full cursor-pointer rounded-lg bg-[rgb(37,140,244)] px-4 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						{loading ? 'Signing in...' : 'Sign in'}
+						{loading ? t('auth.signingIn') : t('auth.signIn')}
 					</button>
 				</form>
 
 				<div class="mt-6 text-center">
 					<p class="text-sm text-gray-600 dark:text-gray-400">
-						Don't have an account?
+						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
 							class="cursor-pointer font-medium text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 						>
-							Sign up
+							{t('auth.signUp')}
 						</a>
 					</p>
 				</div>

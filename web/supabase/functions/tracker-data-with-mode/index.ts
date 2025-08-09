@@ -200,9 +200,16 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
     let detectionReason = TransportDetectionReason.DEFAULT
     let mode = 'unknown'
 
-    // Calculate speed from prev to curr
+    // Calculate speed using DB-provided speed (m/s) when available; fallback to DB distance/time; last resort: geometric calc
     let speedKmh = 0
-    if (prev.location && curr.location) {
+    if (typeof curr.speed === 'number' && isFinite(curr.speed) && curr.speed >= 0) {
+      speedKmh = curr.speed * 3.6
+    } else if (
+      typeof curr.distance === 'number' && isFinite(curr.distance) &&
+      typeof curr.time_spent === 'number' && isFinite(curr.time_spent) && curr.time_spent > 0
+    ) {
+      speedKmh = (curr.distance / curr.time_spent) * 3.6
+    } else if (prev.location && curr.location) {
       const distance = haversineDistance(
         prev.location.coordinates[1],
         prev.location.coordinates[0],
@@ -229,10 +236,10 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       // Airport detected - primary indicator
       mode = 'airplane'
       detectionReason = TransportDetectionReason.AIRPORT_AND_PLANE_SPEED
-    } else if (curr.geocode && (curr.geocode.type === 'motorway' && curr.geocode.class === 'highway')) {
-      // Highway/motorway detected - primary indicator
-      mode = 'car'
-      detectionReason = TransportDetectionReason.HIGHWAY_OR_MOTORWAY
+    // } else if (curr.geocode && (curr.geocode.type === 'motorway' && curr.geocode.class === 'highway')) {
+    //   // Highway/motorway detected - primary indicator
+    //   mode = 'car'
+    //   detectionReason = TransportDetectionReason.HIGHWAY_OR_MOTORWAY
     } else if (curr.geocode && curr.geocode.amenity === 'bus_station') {
       // Bus station detected - primary indicator
       mode = 'car' // Treat as car for now, could be 'bus' if we add that mode
@@ -422,6 +429,21 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
     }
   }
 
+  // Fourth pass: fill unknown modes by assuming last known mode
+  let lastKnownMode: string = 'unknown'
+  for (let i = 0; i < pointModes.length; i++) {
+    const current = pointModes[i]
+    const currentMode = current?.mode || 'unknown'
+    if (currentMode !== 'unknown') {
+      lastKnownMode = currentMode
+    } else if (lastKnownMode !== 'unknown') {
+      pointModes[i] = {
+        mode: lastKnownMode,
+        reason: TransportDetectionReason.KEEP_CONTINUITY
+      }
+    }
+  }
+
   // Second pass: assign segment data to each point (ending at that point)
   const enhancedData = sortedTrackerData.map((point: any, i: number, arr: any[]) => {
     if (i === 0) {
@@ -436,31 +458,41 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
 
 
 
-    // Calculate velocity and distance from previous point
+    // Calculate velocity (km/h) and distance from previous point, preferring DB values
     let velocity: number | null = null
     let distance_from_prev = 0
     const prev = arr[i - 1]
     const transportMode = pointModes[i]?.mode || 'unknown'
     const detectionReason = pointModes[i]?.reason || TransportDetectionReason.DEFAULT
 
-    if (prev.location && point.location) {
-      const d = haversineDistance(
+    const hasDbDistance = typeof point.distance === 'number' && isFinite(point.distance)
+    const hasDbSpeed = typeof point.speed === 'number' && isFinite(point.speed)
+    const hasDbTime = typeof point.time_spent === 'number' && isFinite(point.time_spent) && point.time_spent > 0
+
+    if (hasDbDistance) {
+      distance_from_prev = point.distance
+    } else if (prev.location && point.location) {
+      distance_from_prev = haversineDistance(
         prev.location.coordinates[1],
         prev.location.coordinates[0],
         point.location.coordinates[1],
         point.location.coordinates[0]
       )
-      distance_from_prev = d
-      const t = new Date(point.recorded_at).getTime() - new Date(prev.recorded_at).getTime()
+    }
 
+    if (hasDbSpeed) {
+      velocity = Math.round(point.speed * 3.6 * 100) / 100
+    } else if (hasDbDistance && hasDbTime) {
+      velocity = Math.round(((point.distance / point.time_spent) * 3.6) * 100) / 100
+    } else if (prev.location && point.location) {
+      const d = distance_from_prev
+      const t = new Date(point.recorded_at).getTime() - new Date(prev.recorded_at).getTime()
       if (t > 0) {
         velocity = (d / t) * 3.6 * 1000 // m/ms to km/h
       } else {
-        // Time difference is 0 or invalid - set to null instead of estimating
         velocity = null
       }
     } else {
-      // Missing coordinates - set to null instead of estimating
       velocity = null
     }
 
@@ -501,7 +533,7 @@ function calculateStatistics(trackerData: any[]): any {
     }
   }
 
-  // Initialize variables
+  // Initialize variables (distance in meters, time in milliseconds)
   let totalDistance = 0
   let timeSpentMoving = 0
   const geopoints = trackerData.length
@@ -520,31 +552,42 @@ function calculateStatistics(trackerData: any[]): any {
     const point = trackerData[i]
     const nextPoint = trackerData[i + 1]
 
-    // Calculate distance to next point
-    if (nextPoint && point.location && nextPoint.location) {
-      const distance = haversineDistance(
-        point.location.coordinates[1],
-        point.location.coordinates[0],
-        nextPoint.location.coordinates[1],
-        nextPoint.location.coordinates[0]
-      )
-      totalDistance += distance
+    // Prefer server-calculated columns: distance (meters) and time_spent (seconds)
+    const dbDistance = typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0
+    const dbTimeMs = typeof point.time_spent === 'number' && isFinite(point.time_spent) ? point.time_spent * 1000 : 0
 
-      // Calculate time between points
-      const timeDiff = new Date(nextPoint.recorded_at).getTime() - new Date(point.recorded_at).getTime()
-      if (timeDiff > 0 && timeDiff < 3600000) { // Less than 1 hour
-        timeSpentMoving += timeDiff
-      }
+    let distance = dbDistance
+    let timeDiff = dbTimeMs
 
-      // Use transport mode from enhanced data
-      const mode = point.transport_mode || 'unknown'
-      if (!transportModes[mode]) {
-        transportModes[mode] = { distance: 0, time: 0, points: 0 }
+    // Fallback to geometric calc when DB columns aren't present
+    if (distance === 0 || timeDiff === 0) {
+      if (nextPoint && point.location && nextPoint.location) {
+        const geomDist = haversineDistance(
+          point.location.coordinates[1],
+          point.location.coordinates[0],
+          nextPoint.location.coordinates[1],
+          nextPoint.location.coordinates[0]
+        )
+        if (distance === 0) distance = geomDist
+        if (timeDiff === 0) {
+          const td = new Date(nextPoint.recorded_at).getTime() - new Date(point.recorded_at).getTime()
+          if (td > 0 && td < 3600000) timeDiff = td
+        }
       }
-      transportModes[mode].distance += distance
-      transportModes[mode].time += timeDiff
-      transportModes[mode].points += 1
     }
+
+    // Accumulate totals
+    totalDistance += distance
+    timeSpentMoving += timeDiff
+
+    // Use transport mode from enhanced data
+    const mode = point.transport_mode || 'unknown'
+    if (!transportModes[mode]) {
+      transportModes[mode] = { distance: 0, time: 0, points: 0 }
+    }
+    transportModes[mode].distance += distance
+    transportModes[mode].time += timeDiff
+    transportModes[mode].points += 1
 
     // Track countries and places
     if (point.country_code) {
@@ -604,29 +647,23 @@ function calculateStatistics(trackerData: any[]): any {
     }
   }
 
-    // Calculate country time distribution
+  // Calculate country time distribution
   const totalTime = trackerData.length > 1
     ? new Date(trackerData[trackerData.length - 1].recorded_at).getTime() -
       new Date(trackerData[0].recorded_at).getTime()
     : 0
 
-      // Calculate country time distribution - attribute time to destination country
+  // Attribute time to each point's country using DB column when present; fallback to segment-based
   const countryTimeMap = new Map<string, number>()
-
-  // Process each data point and assign time to the destination country
-  for (let i = 0; i < trackerData.length - 1; i++) {
-    const currentPoint = trackerData[i]
-    const nextPoint = trackerData[i + 1]
-
-        if (nextPoint.country_code) {
-      const timeDiff = new Date(nextPoint.recorded_at).getTime() - new Date(currentPoint.recorded_at).getTime()
-
-      // Count all positive time intervals (no gap filtering)
-      if (timeDiff > 0) {
-        // Assign the time interval to the destination country (second point)
-        countryTimeMap.set(nextPoint.country_code,
-          (countryTimeMap.get(nextPoint.country_code) || 0) + timeDiff)
-      }
+  for (let i = 0; i < trackerData.length; i++) {
+    const p = trackerData[i]
+    if (p.country_code) {
+      const ms = typeof p.time_spent === 'number' && isFinite(p.time_spent)
+        ? p.time_spent * 1000
+        : (i < trackerData.length - 1)
+          ? Math.max(0, new Date(trackerData[i + 1].recorded_at).getTime() - new Date(p.recorded_at).getTime())
+          : 0
+      countryTimeMap.set(p.country_code, (countryTimeMap.get(p.country_code) || 0) + ms)
     }
   }
 

@@ -6,15 +6,20 @@
 	import { supabase } from '$lib/supabase';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import type { UserProfile } from '$lib/types/user.types';
+	import { translate } from '$lib/i18n';
 
-	export let disabled = false; // Allow external override
+	// Use the reactive translation function
+	let t = $derived($translate);
+
+	// Props using Svelte 5 runes
+	let { disabled = false } = $props();
 
 	const dispatch = createEventDispatcher();
 
 	// User profile and home address state
-	let userProfile: UserProfile | null = null;
-	let hasHomeAddress = false;
-	let isLoadingProfile = false;
+	let userProfile = $state<UserProfile | null>(null);
+	let hasHomeAddress = $state(false);
+	let isLoadingProfile = $state(false);
 
 	// Load user profile to check for home address
 	async function loadUserProfile() {
@@ -62,13 +67,13 @@
 	});
 
 	// Determine if button should be disabled
-	$: isDisabled = disabled || !hasHomeAddress || isLoadingProfile;
+	let isDisabled = $derived(disabled || !hasHomeAddress || isLoadingProfile);
 </script>
 
 <Tooltip
 	text={isDisabled
-		? 'Please add your home address in your account settings first'
-		: 'Generate new trip suggestions'
+		? t('generateSuggestions.pleaseAddHomeAddress')
+		: t('generateSuggestions.tooltip')
 	}
 	position="top"
 >
@@ -76,7 +81,7 @@
 		class="flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors {!isDisabled
 			? 'cursor-pointer bg-blue-500 text-white hover:bg-blue-600'
 			: 'cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-gray-600 dark:text-gray-400'}"
-		on:click={handleClick}
+		onclick={handleClick}
 		disabled={isDisabled}
 	>
 		{#if isLoadingProfile}
@@ -84,6 +89,6 @@
 		{:else}
 			<RefreshCw class="h-4 w-4" />
 		{/if}
-		Generate New Suggestions
+		{t('generateSuggestions.buttonText')}
 	</button>
 </Tooltip>

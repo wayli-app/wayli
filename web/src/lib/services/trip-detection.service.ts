@@ -1,7 +1,14 @@
 // web/src/lib/services/trip-detection.service.ts
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
-import type { TripExclusion, TrackerDataPoint, HomeAddress, DetectedTrip } from '$lib/types/trip-generation.types';
+import type {
+	TripExclusion,
+	TrackerDataPoint,
+	HomeAddress,
+	DetectedTrip
+} from '$lib/types/trip-generation.types';
 import { haversineDistance } from '$lib/utils/geocoding-utils';
+import { checkJobCancellation } from '$lib/utils/job-cancellation';
+import { translateServer, getPluralSuffix } from '$lib/utils/server-translations';
 
 export interface TripDetectionConfig {
 	minTripDurationHours: number;
@@ -31,8 +38,6 @@ export interface VisitedLocation {
 	};
 }
 
-
-
 const DEFAULT_CONFIG: TripDetectionConfig = {
 	minTripDurationHours: 24,
 	maxDistanceFromHomeKm: 50,
@@ -46,7 +51,7 @@ const DEFAULT_CONFIG: TripDetectionConfig = {
 export class TripDetectionService {
 	private supabase = createWorkerClient();
 
-		/**
+	/**
 	 * Main entry point for trip detection
 	 */
 	async detectTrips(
@@ -61,7 +66,7 @@ export class TripDetectionService {
 		console.log('🚀 Starting trip detection for user:', userId);
 
 		// Step 1: Determine date ranges to process
-		const dateRanges = providedDateRanges || await this.determineDateRanges(userId);
+		const dateRanges = providedDateRanges || (await this.determineDateRanges(userId));
 		console.log(`📅 Found ${dateRanges.length} date ranges to process`);
 
 		// Log the date ranges being processed
@@ -73,8 +78,8 @@ export class TripDetectionService {
 			progressCallback(10, `Found ${dateRanges.length} date ranges to process`);
 		}
 
-		// Step 2: Get user's home address and trip exclusions
-		const { homeAddress, tripExclusions } = await this.getUserSettings(userId);
+		// Step 2: Get user's home address, trip exclusions, and language preference
+		const { homeAddress, tripExclusions, language } = await this.getUserSettings(userId);
 		console.log('🏠 Home address:', homeAddress?.display_name || 'Not set');
 		console.log('🚫 Trip exclusions:', tripExclusions.length);
 
@@ -83,9 +88,15 @@ export class TripDetectionService {
 		let processedRanges = 0;
 
 		for (const dateRange of dateRanges) {
+			// Check for cancellation before processing each date range
+			await checkJobCancellation(jobId);
+
 			if (progressCallback) {
 				const progress = 10 + Math.round((processedRanges / dateRanges.length) * 80);
-				progressCallback(progress, `Processing date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+				progressCallback(
+					progress,
+					`Processing date range: ${dateRange.startDate} to ${dateRange.endDate}`
+				);
 			}
 
 			console.log(`🔄 Processing date range: ${dateRange.startDate} to ${dateRange.endDate}`);
@@ -96,11 +107,13 @@ export class TripDetectionService {
 				homeAddress,
 				tripExclusions,
 				finalConfig,
+				language,
 				(dayProgress: number, message: string) => {
 					// Calculate overall progress based on current date range and day progress within it
 					const dateRangeProgress = processedRanges / dateRanges.length;
 					const dayProgressWithinRange = dayProgress / 100;
-					const overallProgress = 10 + Math.round((dateRangeProgress + dayProgressWithinRange / dateRanges.length) * 80);
+					const overallProgress =
+						10 + Math.round((dateRangeProgress + dayProgressWithinRange / dateRanges.length) * 80);
 
 					// Ensure progress never goes backwards (minimum 10% for initial setup)
 					const minProgress = 10 + Math.round((processedRanges / dateRanges.length) * 80);
@@ -109,7 +122,8 @@ export class TripDetectionService {
 					if (progressCallback) {
 						progressCallback(finalProgress, message);
 					}
-				}
+				},
+				jobId
 			);
 
 			allTrips.push(...trips);
@@ -122,7 +136,9 @@ export class TripDetectionService {
 
 		// Step 4: Filter out trips that are primarily in excluded cities
 		const filteredTrips = this.filterTripsInExcludedCities(allTrips, tripExclusions);
-		console.log(`✅ Filtered trips: ${allTrips.length} → ${filteredTrips.length} (removed ${allTrips.length - filteredTrips.length} trips in excluded cities)`);
+		console.log(
+			`✅ Filtered trips: ${allTrips.length} → ${filteredTrips.length} (removed ${allTrips.length - filteredTrips.length} trips in excluded cities)`
+		);
 
 		if (progressCallback) {
 			progressCallback(98, `Filtered ${filteredTrips.length} trips, saving to database...`);
@@ -154,7 +170,9 @@ export class TripDetectionService {
 			return [];
 		}
 
-		const allDates = trackerData.map(point => new Date(point.recorded_at).toISOString().split('T')[0]);
+		const allDates = trackerData.map(
+			(point) => new Date(point.recorded_at).toISOString().split('T')[0]
+		);
 		const firstDate = allDates[0];
 		const lastDate = allDates[allDates.length - 1];
 
@@ -170,10 +188,7 @@ export class TripDetectionService {
 			.eq('user_id', userId)
 			.eq('status', 'pending');
 
-		const excludedRanges = [
-			...(existingTrips || []),
-			...(existingSuggestedTrips || [])
-		];
+		const excludedRanges = [...(existingTrips || []), ...(existingSuggestedTrips || [])];
 
 		// Create date ranges, excluding existing trips
 		const dateRanges: DateRange[] = [];
@@ -187,12 +202,16 @@ export class TripDetectionService {
 			if (currentStart < excludedStart) {
 				dateRanges.push({
 					startDate: currentStart,
-					endDate: new Date(new Date(excludedStart).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+					endDate: new Date(new Date(excludedStart).getTime() - 24 * 60 * 60 * 1000)
+						.toISOString()
+						.split('T')[0]
 				});
 			}
 
 			// Move current start to after the excluded range
-			currentStart = new Date(new Date(excludedEnd).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+			currentStart = new Date(new Date(excludedEnd).getTime() + 24 * 60 * 60 * 1000)
+				.toISOString()
+				.split('T')[0];
 		}
 
 		// Add the remaining range if any
@@ -203,14 +222,17 @@ export class TripDetectionService {
 			});
 		}
 
-		return dateRanges.filter(range => range.startDate <= range.endDate);
+		return dateRanges.filter((range) => range.startDate <= range.endDate);
 	}
 
 	/**
 	 * Filter out trips that are primarily spent in excluded cities (>50% of time)
 	 */
-	private filterTripsInExcludedCities(trips: DetectedTrip[], tripExclusions: TripExclusion[]): DetectedTrip[] {
-		return trips.filter(trip => {
+	private filterTripsInExcludedCities(
+		trips: DetectedTrip[],
+		tripExclusions: TripExclusion[]
+	): DetectedTrip[] {
+		return trips.filter((trip) => {
 			// Get all visited locations for this trip
 			const visitedLocations = trip.metadata?.visitedLocations || [];
 
@@ -227,19 +249,25 @@ export class TripDetectionService {
 				totalDuration += location.durationHours;
 
 				// Check if this location is in an excluded city
-				const isExcluded = tripExclusions.some(exclusion => {
-					const exclusionCityName = exclusion.location?.address?.city ||
-											exclusion.location?.address?.town ||
-											exclusion.location?.address?.village ||
-											exclusion.location?.address?.municipality;
+				const isExcluded = tripExclusions.some((exclusion) => {
+					const exclusionCityName =
+						exclusion.location?.address?.city ||
+						exclusion.location?.address?.town ||
+						exclusion.location?.address?.village ||
+						exclusion.location?.address?.municipality;
 
-					return exclusionCityName && location.cityName &&
-						   location.cityName.toLowerCase().includes(exclusionCityName.toLowerCase());
+					return (
+						exclusionCityName &&
+						location.cityName &&
+						location.cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
+					);
 				});
 
 				if (isExcluded) {
 					excludedDuration += location.durationHours;
-					console.log(`🚫 Trip "${trip.title}": Location "${location.cityName}" is excluded, adding ${location.durationHours}h to excluded duration`);
+					console.log(
+						`🚫 Trip "${trip.title}": Location "${location.cityName}" is excluded, adding ${location.durationHours}h to excluded duration`
+					);
 				}
 			}
 
@@ -248,47 +276,47 @@ export class TripDetectionService {
 
 			// Keep trip if less than 50% of time was spent in excluded cities
 			if (excludedPercentage >= 50) {
-				console.log(`❌ Removing trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`);
+				console.log(
+					`❌ Removing trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`
+				);
 				return false;
 			} else {
-				console.log(`✅ Keeping trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`);
+				console.log(
+					`✅ Keeping trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`
+				);
 				return true;
 			}
 		});
 	}
 
 	/**
-	 * Get user's home address and trip exclusions
+	 * Get user's home address, trip exclusions, and language preference
 	 */
 	private async getUserSettings(userId: string): Promise<{
 		homeAddress: HomeAddress | null;
 		tripExclusions: TripExclusion[];
+		language: string;
 	}> {
-		// Get home address from user_profiles and trip exclusions from user_preferences
+		// Get home address from user_profiles and trip exclusions/language from user_preferences
 		console.log(`🔍 Fetching user settings for user: ${userId}`);
 
-		const [homeAddressResult, tripExclusionsResult] = await Promise.all([
-			this.supabase
-				.from('user_profiles')
-				.select('home_address')
-				.eq('id', userId)
-				.single(),
-			this.supabase
-				.from('user_preferences')
-				.select('trip_exclusions')
-				.eq('id', userId)
-				.single()
+		const [homeAddressResult, userPreferencesResult] = await Promise.all([
+			this.supabase.from('user_profiles').select('home_address').eq('id', userId).single(),
+			this.supabase.from('user_preferences').select('trip_exclusions, language').eq('id', userId).single()
 		]);
 
 		console.log(`🔍 Home address result:`, homeAddressResult);
-		console.log(`🔍 Trip exclusions result:`, tripExclusionsResult);
+		console.log(`🔍 User preferences result:`, userPreferencesResult);
 
 		if (homeAddressResult.error) {
 			console.error('❌ Error fetching user profile (home address):', homeAddressResult.error);
 		}
 
-		if (tripExclusionsResult.error) {
-			console.error('❌ Error fetching user preferences (trip exclusions):', tripExclusionsResult.error);
+		if (userPreferencesResult.error) {
+			console.error(
+				'❌ Error fetching user preferences:',
+				userPreferencesResult.error
+			);
 		}
 
 		// Parse home address if it's a JSON string
@@ -303,7 +331,7 @@ export class TripDetectionService {
 		}
 
 		// Parse trip exclusions - they might be stored as JSON string
-		let tripExclusions = tripExclusionsResult.data?.trip_exclusions || [];
+		let tripExclusions = userPreferencesResult.data?.trip_exclusions || [];
 
 		// If it's a string, try to parse it as JSON
 		if (typeof tripExclusions === 'string') {
@@ -316,13 +344,25 @@ export class TripDetectionService {
 			}
 		}
 
-		console.log(`🚫 Raw trip exclusions data:`, tripExclusionsResult.data);
-		console.log(`🚫 Trip exclusions loaded:`, tripExclusions.map((ex: TripExclusion) => {
-			const cityName = ex.location?.address?.city || ex.location?.address?.town || ex.location?.address?.village || ex.location?.address?.municipality || 'Unknown';
-			return `${ex.name}: "${cityName}" (${ex.location?.address?.country || 'Unknown'})`;
-		}));
+		// Get user language preference, default to 'en'
+		const language = userPreferencesResult.data?.language || 'en';
 
-		return { homeAddress, tripExclusions };
+		console.log(`🚫 Raw trip exclusions data:`, userPreferencesResult.data);
+		console.log(
+			`🚫 Trip exclusions loaded:`,
+			tripExclusions.map((ex: TripExclusion) => {
+				const cityName =
+					ex.location?.address?.city ||
+					ex.location?.address?.town ||
+					ex.location?.address?.village ||
+					ex.location?.address?.municipality ||
+					'Unknown';
+				return `${ex.name}: "${cityName}" (${ex.location?.address?.country || 'Unknown'})`;
+			})
+		);
+		console.log(`🌍 User language preference:`, language);
+
+		return { homeAddress, tripExclusions, language };
 	}
 
 	/**
@@ -334,10 +374,10 @@ export class TripDetectionService {
 		homeAddress: HomeAddress | null,
 		tripExclusions: TripExclusion[],
 		config: TripDetectionConfig,
-		progressCallback?: (progress: number, message: string) => void
+		language: string,
+		progressCallback?: (progress: number, message: string) => void,
+		jobId?: string
 	): Promise<DetectedTrip[]> {
-
-
 		// Initialize trip detection state
 		let currentTripStart: string | null = null;
 		let currentTripEnd: string | null = null;
@@ -353,21 +393,29 @@ export class TripDetectionService {
 		// Process data day by day using streaming
 		const startDate = new Date(dateRange.startDate);
 		const endDate = new Date(dateRange.endDate);
-		let currentDate = new Date(startDate);
+		const currentDate = new Date(startDate);
 		const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
 		let processedDays = 0;
 
 		while (currentDate <= endDate) {
+			// Check for cancellation every 10 days or at the start
+			if (processedDays % 10 === 0 || processedDays === 0) {
+				await checkJobCancellation(jobId);
+			}
+
 			const dateStr = currentDate.toISOString().split('T')[0];
 
 			// Update progress every day or at the end
 			if (processedDays % 1 === 0 || currentDate >= endDate) {
 				const progress = Math.round((processedDays / totalDays) * 100);
 				if (progressCallback) {
-					progressCallback(progress, `Processing day ${dateStr} (${processedDays}/${totalDays} days)`);
+					progressCallback(
+						progress,
+						`Processing day ${dateStr} (${processedDays}/${totalDays} days)`
+					);
 				}
 				// Add a small delay to make progress updates more visible
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 
 			// Fetch data for this specific day
@@ -378,7 +426,9 @@ export class TripDetectionService {
 				const isHome = this.isUserHome(dayData, homeAddress, tripExclusions, config);
 				const visitedLocation = this.getVisitedLocation(dayData);
 
-				console.log(`📅 ${dateStr}: ${isHome ? '🏠 HOME' : '✈️ AWAY'} (${dayData.length} data points)`);
+				console.log(
+					`📅 ${dateStr}: ${isHome ? '🏠 HOME' : '✈️ AWAY'} (${dayData.length} data points)`
+				);
 
 				if (isHome) {
 					// User is home today
@@ -387,15 +437,16 @@ export class TripDetectionService {
 					consecutiveAwayDays = 0;
 
 					// Count home data points for this day (including trip exclusions)
-					const homeDataPointsToday = dayData.filter(point => {
+					const homeDataPointsToday = dayData.filter((point) => {
 						// Check if point is within home radius
 						if (homeAddress?.coordinates) {
-							const distance = haversineDistance(
-								point.location.coordinates[1], // lat
-								point.location.coordinates[0], // lng
-								homeAddress.coordinates.lat,
-								homeAddress.coordinates.lng
-							) / 1000; // Convert to km
+							const distance =
+								haversineDistance(
+									point.location.coordinates[1], // lat
+									point.location.coordinates[0], // lng
+									homeAddress.coordinates.lat,
+									homeAddress.coordinates.lng
+								) / 1000; // Convert to km
 							if (distance <= config.homeRadiusKm) {
 								return true;
 							}
@@ -403,14 +454,21 @@ export class TripDetectionService {
 
 						// Check if point is in excluded cities (treat as home)
 						const { cityName } = this.extractDestinationInfo(point);
-						if (cityName && tripExclusions.some(exclusion => {
-							const exclusionCityName = exclusion.location?.address?.city ||
-													exclusion.location?.address?.town ||
-													exclusion.location?.address?.village ||
-													exclusion.location?.address?.municipality;
+						if (
+							cityName &&
+							tripExclusions.some((exclusion) => {
+								const exclusionCityName =
+									exclusion.location?.address?.city ||
+									exclusion.location?.address?.town ||
+									exclusion.location?.address?.village ||
+									exclusion.location?.address?.municipality;
 
-							return exclusionCityName && cityName.toLowerCase().includes(exclusionCityName.toLowerCase());
-						})) {
+								return (
+									exclusionCityName &&
+									cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
+								);
+							})
+						) {
 							return true;
 						}
 
@@ -429,53 +487,21 @@ export class TripDetectionService {
 					// In a more sophisticated implementation, you'd calculate actual hours from GPS data
 					totalHomeHours = consecutiveHomeDays * 24;
 
-					// Log details about home data points (including trip exclusions)
-					const homeRadiusPoints = dayData.filter(point => {
-						if (homeAddress?.coordinates) {
-							const distance = haversineDistance(
-								point.location.coordinates[1], // lat
-								point.location.coordinates[0], // lng
-								homeAddress.coordinates.lat,
-								homeAddress.coordinates.lng
-							) / 1000; // Convert to km
-							return distance <= config.homeRadiusKm;
-						}
-						return false;
-					}).length;
-
-					const exclusionPoints = dayData.filter(point => {
-						const { cityName } = this.extractDestinationInfo(point);
-						if (cityName) {
-							const matchingExclusion = tripExclusions.find(exclusion => {
-								const exclusionCityName = exclusion.location?.address?.city ||
-														exclusion.location?.address?.town ||
-														exclusion.location?.address?.village ||
-														exclusion.location?.address?.municipality;
-
-								return exclusionCityName && cityName.toLowerCase().includes(exclusionCityName.toLowerCase());
-							});
-							if (matchingExclusion) {
-								const exclusionCityName = matchingExclusion.location?.address?.city ||
-														matchingExclusion.location?.address?.town ||
-														matchingExclusion.location?.address?.village ||
-														matchingExclusion.location?.address?.municipality;
-								return true;
-							}
-						}
-						return false;
-					}).length;
-
 					// Only end trip if user has been home for the minimum required duration AND has enough home data points
-					if (currentTripStart && currentTripLocations.length > 0 &&
+					if (
+						currentTripStart &&
+						currentTripLocations.length > 0 &&
 						totalHomeHours >= config.minHomeDurationHours &&
-						totalHomeDataPoints >= config.minHomeDataPoints) {
-
+						totalHomeDataPoints >= config.minHomeDataPoints
+					) {
 						// Set the end date to the last day we were away (before coming home)
 						const tripEndDate = new Date(currentDate);
 						tripEndDate.setDate(tripEndDate.getDate() - consecutiveHomeDays);
 						currentTripEnd = tripEndDate.toISOString().split('T')[0];
 
-						console.log(`🏁 Ending trip: ${currentTripStart} to ${currentTripEnd} (${currentTripLocations.length} locations) - User home for ${totalHomeHours} hours with ${totalHomeDataPoints} home data points`);
+						console.log(
+							`🏁 Ending trip: ${currentTripStart} to ${currentTripEnd} (${currentTripLocations.length} locations) - User home for ${totalHomeHours} hours with ${totalHomeDataPoints} home data points`
+						);
 
 						// Only consider it a trip if we've been away for at least 1 day
 						if (currentTripLocations.length >= 1) {
@@ -484,7 +510,8 @@ export class TripDetectionService {
 								currentTripEnd,
 								currentTripLocations,
 								homeAddress,
-								userId
+								userId,
+								language
 							);
 							if (trip) {
 								detectedTrips.push(trip);
@@ -514,18 +541,24 @@ export class TripDetectionService {
 						// Only start a trip if we have a proper home-away pattern
 						if (lastHomeDate) {
 							currentTripStart = lastHomeDate;
-							console.log(`🚀 Starting trip: ${currentTripStart} (last home: ${lastHomeDate}, consecutive away: ${consecutiveAwayDays})`);
+							console.log(
+								`🚀 Starting trip: ${currentTripStart} (last home: ${lastHomeDate}, consecutive away: ${consecutiveAwayDays})`
+							);
 						} else {
 							// If no last home date, use current date as start
 							currentTripStart = dateStr;
-							console.log(`🚀 Starting trip without known home: ${currentTripStart} (consecutive away: ${consecutiveAwayDays})`);
+							console.log(
+								`🚀 Starting trip without known home: ${currentTripStart} (consecutive away: ${consecutiveAwayDays})`
+							);
 						}
 					}
 
 					// Add this day's location to the trip
 					if (visitedLocation) {
 						currentTripLocations.push(visitedLocation);
-						console.log(`📍 Added location: ${visitedLocation.cityName}, ${visitedLocation.countryName}`);
+						console.log(
+							`📍 Added location: ${visitedLocation.cityName}, ${visitedLocation.countryName}`
+						);
 					}
 				}
 			} else {
@@ -540,15 +573,18 @@ export class TripDetectionService {
 		// Handle case where trip ends without returning home
 		// Create this trip if we have a proper home-away pattern, even without returning home
 		if (currentTripStart && currentTripLocations.length > 0) {
-			console.log(`🏁 Ending incomplete trip: ${currentTripStart} to ${endDate.toISOString().split('T')[0]} (${currentTripLocations.length} locations)`);
-
-			const trip = await this.createTripFromLocations(
-				currentTripStart,
-				endDate.toISOString().split('T')[0],
-				currentTripLocations,
-				homeAddress,
-				userId
+			console.log(
+				`🏁 Ending incomplete trip: ${currentTripStart} to ${endDate.toISOString().split('T')[0]} (${currentTripLocations.length} locations)`
 			);
+
+					const trip = await this.createTripFromLocations(
+			currentTripStart,
+			endDate.toISOString().split('T')[0],
+			currentTripLocations,
+			homeAddress,
+			userId,
+			language
+		);
 			if (trip) {
 				detectedTrips.push(trip);
 				console.log(`✅ Trip detected: ${trip.title}`);
@@ -579,8 +615,6 @@ export class TripDetectionService {
 		return trackerData || [];
 	}
 
-
-
 	/**
 	 * Determine if user is home on a given day
 	 */
@@ -593,12 +627,13 @@ export class TripDetectionService {
 		// Check if any location is within home radius
 		if (homeAddress?.coordinates) {
 			for (const point of dayData) {
-				const distance = haversineDistance(
-					point.location.coordinates[1], // lat
-					point.location.coordinates[0], // lng
-					homeAddress.coordinates.lat,
-					homeAddress.coordinates.lng
-				) / 1000; // Convert to km
+				const distance =
+					haversineDistance(
+						point.location.coordinates[1], // lat
+						point.location.coordinates[0], // lng
+						homeAddress.coordinates.lat,
+						homeAddress.coordinates.lng
+					) / 1000; // Convert to km
 
 				if (distance <= config.homeRadiusKm) {
 					return true;
@@ -611,22 +646,29 @@ export class TripDetectionService {
 			const { cityName } = this.extractDestinationInfo(point);
 			if (cityName) {
 				console.log(`🔍 Checking city "${cityName}" against trip exclusions...`);
-				const matchingExclusion = tripExclusions.find(exclusion => {
-					const exclusionCityName = exclusion.location?.address?.city ||
-											exclusion.location?.address?.town ||
-											exclusion.location?.address?.village ||
-											exclusion.location?.address?.municipality;
+				const matchingExclusion = tripExclusions.find((exclusion) => {
+					const exclusionCityName =
+						exclusion.location?.address?.city ||
+						exclusion.location?.address?.town ||
+						exclusion.location?.address?.village ||
+						exclusion.location?.address?.municipality;
 
-					return exclusionCityName && cityName &&
-						   cityName.toLowerCase().includes(exclusionCityName.toLowerCase());
+					return (
+						exclusionCityName &&
+						cityName &&
+						cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
+					);
 				});
 
 				if (matchingExclusion) {
-					const exclusionCityName = matchingExclusion.location?.address?.city ||
-											matchingExclusion.location?.address?.town ||
-											matchingExclusion.location?.address?.village ||
-											matchingExclusion.location?.address?.municipality;
-					console.log(`🏠 User considered home due to trip exclusion: "${cityName}" matches exclusion "${exclusionCityName}"`);
+					const exclusionCityName =
+						matchingExclusion.location?.address?.city ||
+						matchingExclusion.location?.address?.town ||
+						matchingExclusion.location?.address?.village ||
+						matchingExclusion.location?.address?.municipality;
+					console.log(
+						`🏠 User considered home due to trip exclusion: "${cityName}" matches exclusion "${exclusionCityName}"`
+					);
 					return true;
 				} else {
 					console.log(`❌ City "${cityName}" does not match any trip exclusions`);
@@ -646,13 +688,12 @@ export class TripDetectionService {
 		countryName: string | null;
 		stateName: string | null;
 	} {
-		if (!point.geocode) return { cityName: null, countryCode: null, countryName: null, stateName: null };
+		if (!point.geocode)
+			return { cityName: null, countryCode: null, countryName: null, stateName: null };
 
 		let geocode;
 		try {
-			geocode = typeof point.geocode === 'string'
-				? JSON.parse(point.geocode)
-				: point.geocode;
+			geocode = typeof point.geocode === 'string' ? JSON.parse(point.geocode) : point.geocode;
 		} catch {
 			return { cityName: null, countryCode: null, countryName: null, stateName: null };
 		}
@@ -696,9 +737,7 @@ export class TripDetectionService {
 
 		let geocode;
 		try {
-			geocode = typeof point.geocode === 'string'
-				? JSON.parse(point.geocode)
-				: point.geocode;
+			geocode = typeof point.geocode === 'string' ? JSON.parse(point.geocode) : point.geocode;
 		} catch {
 			return null;
 		}
@@ -713,25 +752,23 @@ export class TripDetectionService {
 	/**
 	 * Get visited location information for a day
 	 */
-	private getVisitedLocation(
-		dayData: TrackerDataPoint[]
-	): VisitedLocation | null {
+	private getVisitedLocation(dayData: TrackerDataPoint[]): VisitedLocation | null {
 		if (dayData.length === 0) return null;
 
 		// Find the most common city and country for this day
-		const destinationInfos = dayData.map(point => this.extractDestinationInfo(point));
+		const destinationInfos = dayData.map((point) => this.extractDestinationInfo(point));
 
 		const cityNames = destinationInfos
-			.map(info => info.cityName)
-			.filter(city => city && city !== 'Unknown' && city !== 'Unknown Location');
+			.map((info) => info.cityName)
+			.filter((city) => city && city !== 'Unknown' && city !== 'Unknown Location');
 
 		const countryCodes = destinationInfos
-			.map(info => info.countryCode)
-			.filter(code => code && code !== 'Unknown');
+			.map((info) => info.countryCode)
+			.filter((code) => code && code !== 'Unknown');
 
 		const countryNames = destinationInfos
-			.map(info => info.countryName)
-			.filter(country => country && country !== 'Unknown');
+			.map((info) => info.countryName)
+			.filter((country) => country && country !== 'Unknown');
 
 		const mostCommonCity = this.getMostCommonValue(cityNames);
 		const mostCommonCountryCode = this.getMostCommonValue(countryCodes);
@@ -742,8 +779,10 @@ export class TripDetectionService {
 		}
 
 		// Calculate average coordinates
-		const avgLat = dayData.reduce((sum, point) => sum + point.location.coordinates[1], 0) / dayData.length;
-		const avgLng = dayData.reduce((sum, point) => sum + point.location.coordinates[0], 0) / dayData.length;
+		const avgLat =
+			dayData.reduce((sum, point) => sum + point.location.coordinates[1], 0) / dayData.length;
+		const avgLng =
+			dayData.reduce((sum, point) => sum + point.location.coordinates[0], 0) / dayData.length;
 
 		return {
 			cityName: mostCommonCity || 'Unknown City',
@@ -763,7 +802,8 @@ export class TripDetectionService {
 		endDate: string,
 		visitedLocations: VisitedLocation[],
 		homeAddress: HomeAddress | null,
-		userId: string
+		userId: string,
+		language: string
 	): Promise<DetectedTrip | null> {
 		if (visitedLocations.length === 0) return null;
 
@@ -777,9 +817,9 @@ export class TripDetectionService {
 		}
 
 		// Analyze visited locations
-		const visitedCities = [...new Set(visitedLocations.map(loc => loc.cityName))];
-		const visitedCountries = [...new Set(visitedLocations.map(loc => loc.countryName))];
-		const visitedCountryCodes = [...new Set(visitedLocations.map(loc => loc.countryCode))];
+		const visitedCities = [...new Set(visitedLocations.map((loc) => loc.cityName))];
+		const visitedCountries = [...new Set(visitedLocations.map((loc) => loc.countryName))];
+		const visitedCountryCodes = [...new Set(visitedLocations.map((loc) => loc.countryCode))];
 
 		// Find primary location (most time spent)
 		const primaryLocation = visitedLocations.reduce((prev, current) =>
@@ -792,9 +832,11 @@ export class TripDetectionService {
 		// Determine trip type and title
 		const isMultiCountryTrip = visitedCountryCodes.length > 1;
 		const isMultiCityTrip = visitedCities.length > 1;
-		const isInternationalTrip = visitedCountryCodes.length > 1 ||
-			(visitedCountryCodes.length === 1 && homeCountryCode &&
-			 primaryLocation.countryCode !== homeCountryCode);
+		const isInternationalTrip =
+			visitedCountryCodes.length > 1 ||
+			(visitedCountryCodes.length === 1 &&
+				homeCountryCode &&
+				primaryLocation.countryCode !== homeCountryCode);
 
 		// Find the most visited city/country for better titles
 		const cityTimeMap = new Map<string, number>();
@@ -803,7 +845,10 @@ export class TripDetectionService {
 		for (const location of visitedLocations) {
 			const cityKey = `${location.cityName}, ${location.countryName}`;
 			cityTimeMap.set(cityKey, (cityTimeMap.get(cityKey) || 0) + location.durationHours);
-			countryTimeMap.set(location.countryName, (countryTimeMap.get(location.countryName) || 0) + location.durationHours);
+			countryTimeMap.set(
+				location.countryName,
+				(countryTimeMap.get(location.countryName) || 0) + location.durationHours
+			);
 		}
 
 		// Find the most visited city and country
@@ -861,27 +906,35 @@ export class TripDetectionService {
 		let totalDistanceTraveled = 0;
 
 		// Get all GPS points for this trip period
-		const { data: tripPoints, error: pointsError } = await this.supabase
-			.rpc('get_user_tracking_data', {
+		const { data: tripPoints, error: pointsError } = await this.supabase.rpc(
+			'get_user_tracking_data',
+			{
 				user_uuid: userId,
 				start_date: startDate,
 				end_date: endDate
-			});
+			}
+		);
 
-		if (!pointsError && tripPoints && tripPoints.length > 1) {
-			// Calculate total distance by summing distances between consecutive points
-			for (let i = 1; i < tripPoints.length; i++) {
-				const prev = tripPoints[i - 1];
-				const curr = tripPoints[i];
+		if (!pointsError && tripPoints && tripPoints.length > 0) {
+			// Check if points have distance column (from updated get_user_tracking_data function)
+			const hasDistanceColumn = tripPoints.some(point => typeof point.distance === 'number');
 
-				if (prev.lat && prev.lon && curr.lat && curr.lon) {
-					const segmentDistance = haversineDistance(
-						prev.lat,
-						prev.lon,
-						curr.lat,
-						curr.lon
-					) / 1000; // Convert to km
-					totalDistanceTraveled += segmentDistance;
+			if (hasDistanceColumn) {
+				// Use pre-calculated distances from database
+				totalDistanceTraveled = tripPoints.reduce((total, point) => {
+					const pointDistance = typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0;
+					return total + (pointDistance / 1000); // Convert meters to kilometers
+				}, 0);
+			} else {
+				// Fallback to manual calculation for backward compatibility
+				for (let i = 1; i < tripPoints.length; i++) {
+					const prev = tripPoints[i - 1];
+					const curr = tripPoints[i];
+
+					if (prev.lat && prev.lon && curr.lat && curr.lon) {
+						const segmentDistance = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon) / 1000; // Convert to km
+						totalDistanceTraveled += segmentDistance;
+					}
 				}
 			}
 		}
@@ -889,12 +942,13 @@ export class TripDetectionService {
 		// Also calculate distance from home to destination for reference
 		let distanceFromHome = 0;
 		if (homeAddress?.coordinates) {
-			distanceFromHome = haversineDistance(
-				homeAddress.coordinates.lat,
-				homeAddress.coordinates.lng,
-				primaryLocation.coordinates.lat,
-				primaryLocation.coordinates.lng
-			) / 1000; // Convert to km
+			distanceFromHome =
+				haversineDistance(
+					homeAddress.coordinates.lat,
+					homeAddress.coordinates.lng,
+					primaryLocation.coordinates.lat,
+					primaryLocation.coordinates.lng
+				) / 1000; // Convert to km
 		}
 
 		return {
@@ -903,7 +957,14 @@ export class TripDetectionService {
 			startDate,
 			endDate,
 			title,
-			description: `Trip detected from location patterns: ${visitedLocations.length} location${visitedLocations.length !== 1 ? 's' : ''} visited`,
+			description: translateServer(
+				'tripDetection.autoGenerated',
+				{
+					locationCount: visitedLocations.length,
+					plural: getPluralSuffix(visitedLocations.length, language)
+				},
+				language
+			),
 			location: {
 				type: 'Point',
 				coordinates: [primaryLocation.coordinates.lng, primaryLocation.coordinates.lat]
@@ -944,10 +1005,12 @@ export class TripDetectionService {
 	 */
 	private extractCityNameFromHomeAddress(homeAddress: HomeAddress | null): string {
 		if (!homeAddress?.address) return 'Unknown';
-		return homeAddress.address.city ||
-			   homeAddress.address.town ||
-			   homeAddress.address.village ||
-			   'Unknown';
+		return (
+			homeAddress.address.city ||
+			homeAddress.address.town ||
+			homeAddress.address.village ||
+			'Unknown'
+		);
 	}
 
 	/**
@@ -984,10 +1047,13 @@ export class TripDetectionService {
 	/**
 	 * Save trips to database
 	 */
-	        private async saveTripsToDatabase(trips: DetectedTrip[], userId: string): Promise<DetectedTrip[]> {
-                if (trips.length === 0) return [];
+	private async saveTripsToDatabase(
+		trips: DetectedTrip[],
+		userId: string
+	): Promise<DetectedTrip[]> {
+		if (trips.length === 0) return [];
 
-                		const tripsToSave = trips.map(trip => ({
+		const tripsToSave = trips.map((trip) => ({
 			user_id: userId,
 			start_date: trip.startDate,
 			end_date: trip.endDate,
@@ -1008,17 +1074,17 @@ export class TripDetectionService {
 			}
 		}));
 
-                const { data: savedTrips, error } = await this.supabase
-                        .from('trips')
-                        .insert(tripsToSave)
-                        .select();
+		const { data: savedTrips, error } = await this.supabase
+			.from('trips')
+			.insert(tripsToSave)
+			.select();
 
-                if (error) {
-                        console.error('❌ Error saving trips to database:', error);
-                        return [];
-                }
+		if (error) {
+			console.error('❌ Error saving trips to database:', error);
+			return [];
+		}
 
-                console.log(`✅ Saved ${savedTrips?.length || 0} suggested trips to database`);
-                return savedTrips || [];
-        }
+		console.log(`✅ Saved ${savedTrips?.length || 0} suggested trips to database`);
+		return savedTrips || [];
+	}
 }

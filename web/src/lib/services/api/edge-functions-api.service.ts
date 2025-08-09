@@ -260,22 +260,27 @@ export class EdgeFunctionsApiService {
     });
   }
 
-  // Export API Methods
+  // Export API Methods (now using centralized jobs system)
   async getExportJobs(session: Session, options?: {
     limit?: number;
     offset?: number;
   }) {
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = {
+      type: 'data_export' // Filter for export jobs only
+    };
     if (options?.limit) params.limit = options.limit.toString();
     if (options?.offset) params.offset = options.offset.toString();
 
-    return this.makeRequest('export', { session, params });
+    return this.makeRequest('jobs', { session, params });
   }
 
   async createExportJob(session: Session, exportData: Record<string, unknown>) {
-    return this.makeRequest('export', {
+    return this.makeRequest('jobs', {
       method: 'POST',
-      body: exportData,
+      body: {
+        type: 'data_export',
+        data: exportData
+      },
       session
     });
   }
@@ -323,10 +328,6 @@ export class EdgeFunctionsApiService {
     async getJobStream(session: Session) {
     // For SSE, we need to return the raw response - no filtering, frontend will filter
     const url = new URL(`${this.baseUrl}/jobs-stream`);
-
-    console.log('🔗 EdgeFunctionsApiService: Making request to:', url.toString());
-    console.log('🔗 EdgeFunctionsApiService: Session token length:', session.access_token?.length || 0);
-    console.log('🔗 EdgeFunctionsApiService: Session token starts with:', session.access_token?.substring(0, 20) + '...');
 
     const response = await fetch(url.toString(), {
       method: 'GET',

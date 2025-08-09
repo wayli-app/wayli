@@ -222,8 +222,8 @@ async function analyzeTripLocations(
           }
         }
       } catch (parseError) {
-        // Ignore geocode parsing errors
-        console.warn('Failed to parse geocode data:', parseError);
+        // Ignore geocode parsing errors - logged as info since it's not critical
+        logInfo('Failed to parse geocode data, continuing with trip name', 'TRIPS_SUGGEST_IMAGE', { error: parseError });
       }
     }
   });
@@ -274,8 +274,10 @@ async function generateImageSuggestionFromAnalysis(analysis: any, apiKey: string
   const searchResult = await searchPexelsImages(searchTerm, apiKey);
 
   if (searchResult && searchResult.photos.length > 0) {
-    const photo = searchResult.photos[0];
-    logSuccess(`Found Pexels image for: ${searchTerm}`, 'TRIPS-SUGGEST-IMAGE');
+    // Randomly select a photo from the results
+    const randomIndex = Math.floor(Math.random() * searchResult.photos.length);
+    const photo = searchResult.photos[randomIndex];
+    logSuccess(`Found Pexels image for: ${searchTerm} (selected ${randomIndex + 1} of ${searchResult.photos.length})`, 'TRIPS-SUGGEST-IMAGE');
 
     // Return the Pexels URL directly (no upload to storage)
     return {
@@ -402,7 +404,9 @@ async function searchPexelsImages(query: string, apiKey: string): Promise<{
   const url = new URL('https://api.pexels.com/v1/search');
   url.searchParams.set('query', query);
   url.searchParams.set('page', '1');
-  url.searchParams.set('per_page', '1');
+
+  // Fetch multiple photos to choose from randomly
+  url.searchParams.set('per_page', '15');
   url.searchParams.set('orientation', 'landscape');
 
   const response = await fetch(url.toString(), {

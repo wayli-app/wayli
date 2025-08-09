@@ -1,4 +1,4 @@
-import { supabase } from '$lib/core/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface Trip {
 	id: string;
@@ -25,10 +25,10 @@ interface UpdateTripData extends Partial<CreateTripData> {
 }
 
 export class TripsService {
-	private supabase: typeof supabase;
+	private supabase: SupabaseClient;
 
-	constructor() {
-		this.supabase = supabase;
+	constructor(client: SupabaseClient) {
+		this.supabase = client;
 	}
 
 	private async getCurrentUserId(): Promise<string> {
@@ -204,17 +204,29 @@ export class TripsService {
 			const pointCount = points?.length || 0;
 			let distance = 0;
 
-			// Calculate total distance
-			if (points && points.length > 1) {
-				for (let i = 1; i < points.length; i++) {
-					const prev = points[i - 1];
-					const curr = points[i];
-					distance += this.calculateDistance(
-						prev.lat,
-						prev.lon,
-						curr.lat,
-						curr.lon
-					);
+			// Calculate total distance using pre-calculated distance column if available
+			if (points && points.length > 0) {
+				// Check if points have distance column (from updated get_user_tracking_data function)
+				const hasDistanceColumn = points.some(point => typeof point.distance === 'number');
+
+				if (hasDistanceColumn) {
+					// Use pre-calculated distances from database
+					distance = points.reduce((total, point) => {
+						const pointDistance = typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0;
+						return total + (pointDistance / 1000); // Convert meters to kilometers
+					}, 0);
+				} else {
+					// Fallback to manual calculation for backward compatibility
+					for (let i = 1; i < points.length; i++) {
+						const prev = points[i - 1];
+						const curr = points[i];
+						distance += this.calculateDistance(
+							prev.lat,
+							prev.lon,
+							curr.lat,
+							curr.lon
+						);
+					}
 				}
 			}
 

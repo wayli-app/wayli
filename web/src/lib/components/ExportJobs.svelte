@@ -7,6 +7,10 @@
 	import { sessionStore } from '$lib/stores/auth';
 	import { get } from 'svelte/store';
 	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+	import { translate } from '$lib/i18n';
+
+	// Use the reactive translation function
+	let t = $derived($translate);
 
 	interface ExportJob {
 		id: string;
@@ -232,7 +236,7 @@
 	}
 
 	function formatFileSize(bytes?: number): string {
-		if (!bytes) return 'Unknown';
+		if (!bytes) return t('exportJobs.unknown');
 		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
 		const i = Math.floor(Math.log(bytes) / Math.log(1024));
 		return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
@@ -247,13 +251,13 @@
 		const expiry = new Date(expiresAt);
 		const diff = expiry.getTime() - now.getTime();
 
-		if (diff <= 0) return 'Expired';
+		if (diff <= 0) return t('exportJobs.expired');
 
 		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 		const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
-		if (days > 0) return `${days}d ${hours}h remaining`;
-		return `${hours}h remaining`;
+		if (days > 0) return `${days}d ${hours}h ${t('exportJobs.remaining')}`;
+		return `${hours}h ${t('exportJobs.remaining')}`;
 	}
 
 	function getFormatLabel(format: string): string {
@@ -267,7 +271,7 @@
 
 	function formatDateRange(job: ExportJob): string {
 		if (!job.data?.startDate || !job.data?.endDate) {
-			return 'All data';
+			return t('exportJobs.allData');
 		}
 
 		const startDate = new Date(job.data.startDate);
@@ -277,13 +281,13 @@
 		const startFormatted = startDate.toISOString().split('T')[0];
 		const endFormatted = endDate.toISOString().split('T')[0];
 
-		return `${startFormatted} to ${endFormatted}`;
+		return `${startFormatted} ${t('exportJobs.to')} ${endFormatted}`;
 	}
 </script>
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
-		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Export History</h3>
+		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('exportJobs.title')}</h3>
 	</div>
 
 	{#if loading}
@@ -292,7 +296,7 @@
 		</div>
 	{:else if filteredExportJobs.length === 0}
 		<div class="py-8 text-center text-gray-500 dark:text-gray-400">
-			<p>No export jobs found</p>
+			<p>{t('exportJobs.noJobsFound')}</p>
 		</div>
 	{:else}
 		<div class="space-y-3">
@@ -310,17 +314,17 @@
 							<!-- Job info -->
 							<div class="flex-1">
 								<h4 class="font-medium text-gray-900 dark:text-gray-100">
-									Created: {formatDate(job.created_at)}
+									{t('exportJobs.created')}: {formatDate(job.created_at)}
 								</h4>
 								<div class="text-xs text-gray-500 dark:text-gray-400">
-									Date range: {formatDateRange(job)}
+									{t('exportJobs.dateRange')}: {formatDateRange(job)}
 								</div>
 								{#if job.status === 'completed'}
 									<div class="text-xs text-gray-500 dark:text-gray-400">
 										{#if getExpiryDate(job) > new Date()}
-											Link valid until: {formatDate(getExpiryDate(job).toISOString())}
+											{t('exportJobs.linkValidUntil')}: {formatDate(getExpiryDate(job).toISOString())}
 										{:else}
-											Link expired
+											{t('exportJobs.linkExpired')}
 										{/if}
 									</div>
 								{/if}
@@ -334,7 +338,7 @@
 								class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 							>
 								<Download class="h-4 w-4" />
-								Download
+								{t('exportJobs.download')}
 							</button>
 						{/if}
 					</div>
@@ -343,7 +347,7 @@
 					{#if job.status === 'running' || job.status === 'queued'}
 						<div class="mb-3">
 							<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-								<span>Progress</span>
+								<span>{t('exportJobs.progress')}</span>
 								<span>{job.progress}%</span>
 							</div>
 							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
@@ -360,32 +364,32 @@
 						<div class="mb-3">
 							<div class="flex flex-wrap gap-2">
 								{#if job.data.includeLocationData}
-									<span
-										class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-									>
-										Location data
-									</span>
-								{/if}
+								<span
+									class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+								>
+									{t('exportJobs.locationData')}
+								</span>
+							{/if}
 								{#if job.data.includeTripInfo}
-									<span
-										class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
-									>
-										Trip info
-									</span>
+								<span
+									class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
+								>
+									{t('exportJobs.tripInfo')}
+								</span>
 								{/if}
 								{#if job.data.includeWantToVisit}
-									<span
-										class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-									>
-										Want to visit
-									</span>
+								<span
+									class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+								>
+									{t('exportJobs.wantToVisit')}
+								</span>
 								{/if}
 								{#if job.data.includeTrips}
-									<span
-										class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-									>
-										Trips
-									</span>
+								<span
+									class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+								>
+									{t('exportJobs.trips')}
+								</span>
 								{/if}
 								{#if job.data.format}
 									<span
@@ -411,10 +415,10 @@
 					{#if job.result && job.status === 'completed'}
 						<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
 							{#if job.result.file_size}
-								<span class="mr-4">Size: {formatFileSize(job.result.file_size)}</span>
+								<span class="mr-4">{t('exportJobs.size')}: {formatFileSize(job.result.file_size)}</span>
 							{/if}
 							{#if job.completed_at}
-								<span>Completed: {formatDate(job.completed_at)}</span>
+								<span>{t('exportJobs.completed')}: {formatDate(job.completed_at)}</span>
 							{/if}
 						</div>
 					{/if}

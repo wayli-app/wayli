@@ -1,5 +1,6 @@
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createAuthenticatedClient } from '../_shared/supabase.ts';
+import { logError } from '../_shared/utils.ts';
 
 const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.wayli.app';
 const NOMINATIM_RATE_LIMIT = parseInt(Deno.env.get('NOMINATIM_RATE_LIMIT') || '1000');
@@ -101,7 +102,7 @@ Deno.serve(async (req) => {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
 		});
 	} catch (error) {
-		console.error('Geocode search error:', error);
+		logError(error, 'GEOCODE_SEARCH');
 		return new Response(JSON.stringify({
 			success: false,
 			error: 'Internal server error'
