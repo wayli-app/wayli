@@ -34,7 +34,7 @@
 	export let className: string = '';
 	export let disabled = false;
 	export let type: 'button' | 'submit' | 'reset' = 'button';
-	export let loading = false;
+    export let loading = false;
 	export let pressed = false;
 	export let expanded = false;
 	export let controls: string | undefined = undefined;
@@ -81,14 +81,13 @@
 <button
 	bind:this={buttonElement}
 	{type}
-	{disabled}
-	{loading}
+    disabled={disabled || loading}
 	aria-pressed={pressed ? 'true' : undefined}
 	aria-expanded={expanded ? 'true' : undefined}
 	aria-controls={controls}
 	aria-describedby={describedBy}
 	aria-label={label}
-	on:click={handleClick}
+    on:click={handleClick}
 	on:keydown={handleKeydown}
 	class={cn(
 		'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
@@ -98,10 +97,8 @@
 	)}
 	{...$$restProps}
 >
-	{#if loading}
-		<div
-			class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-		/>
-	{/if}
+    {#if loading}
+        <div class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+    {/if}
 	<slot />
 </button>

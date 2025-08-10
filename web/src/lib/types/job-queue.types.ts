@@ -19,7 +19,6 @@ export interface Job {
 
 export type JobType =
 	| 'reverse_geocoding_missing'
-	| 'trip_cover_generation'
 	| 'data_import'
 	| 'trip_generation'
 	| 'data_export';

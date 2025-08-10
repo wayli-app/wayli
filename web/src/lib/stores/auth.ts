@@ -5,7 +5,7 @@ import type { UserProfile } from '$lib/types/user.types';
 
 type AuthStore = User & Partial<Pick<UserProfile, 'full_name' | 'avatar_url' | 'role'>>;
 
-function createAuthStore() {
+ function createAuthStore() {
 	const { subscribe, set, update } = writable<AuthStore | null>(null);
 
 	async function initializeUser(user: User) {
@@ -23,9 +23,9 @@ function createAuthStore() {
 		});
 	}
 
-	function handleAuthStateChange(event: AuthChangeEvent, session: Session | null) {
+    function handleAuthStateChange(event: AuthChangeEvent, session: Session | null) {
 		// Update session store
-		sessionStore.set(session);
+        sessionStore.set(session);
 
 		// Handle different auth events appropriately
 		if (event === 'SIGNED_IN' && session) {
@@ -54,7 +54,7 @@ function createAuthStore() {
 		}
 	}
 
-	supabase.auth.onAuthStateChange(handleAuthStateChange);
+ // Defer subscription until after sessionStore is declared
 
 	return {
 		subscribe,
@@ -62,10 +62,10 @@ function createAuthStore() {
 	};
 }
 
-export const userStore = createAuthStore();
-
 // Session store for tracking the current session
 export const sessionStore = writable<Session | null>(null);
+
+export const userStore = createAuthStore();
 
 // Store to track if session store is ready
 export const sessionStoreReady = writable<boolean>(false);
@@ -99,6 +99,13 @@ async function initializeSessionStore() {
 		sessionStoreReady.set(true);
 	}
 }
+
+// Initialize immediately
+// Now that both stores exist, subscribe to auth changes
+supabase.auth.onAuthStateChange((event, session) => {
+    // Update session first
+    sessionStore.set(session);
+});
 
 // Initialize immediately
 initializeSessionStore();

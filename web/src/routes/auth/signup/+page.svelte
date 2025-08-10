@@ -22,37 +22,29 @@
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	let email = '';
-	let password = '';
-	let confirmPassword = '';
-	let firstName = '';
-	let lastName = '';
-	let loading = false;
-	let showPassword = false;
-	let showConfirmPassword = false;
-	let isEmailSent = false;
-	let registrationDisabled = false;
-	let isLoadingSettings = false;
+    let email = $state('');
+    let password = $state('');
+    let confirmPassword = $state('');
+    let firstName = $state('');
+    let lastName = $state('');
+    let loading = $state(false);
+    let showPassword = $state(false);
+    let showConfirmPassword = $state(false);
+    let isEmailSent = $state(false);
+    let registrationDisabled = $state(false);
+    let isLoadingSettings = $state(false);
 
-	// Password validation
-	let passwordValidation = {
-		minLength: false,
-		hasUppercase: false,
-		hasLowercase: false,
-		hasNumber: false,
-		hasSpecial: false
-	};
+    // Password validation
+    let passwordValidation = $derived({
+        minLength: password.length >= 8,
+        hasUppercase: /[A-Z]/.test(password),
+        hasLowercase: /[a-z]/.test(password),
+        hasNumber: /\d/.test(password),
+        hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    });
 
-	$: passwordValidation = {
-		minLength: password.length >= 8,
-		hasUppercase: /[A-Z]/.test(password),
-		hasLowercase: /[a-z]/.test(password),
-		hasNumber: /\d/.test(password),
-		hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-	};
-
-	$: isPasswordValid = Object.values(passwordValidation).every(Boolean);
-	$: doPasswordsMatch = password === confirmPassword && password.length > 0;
+    let isPasswordValid = $derived(Object.values(passwordValidation).every(Boolean));
+    let doPasswordsMatch = $derived(password === confirmPassword && password.length > 0);
 
 	async function checkServerSettings() {
 		isLoadingSettings = true;

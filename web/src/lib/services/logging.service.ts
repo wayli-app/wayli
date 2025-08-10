@@ -58,9 +58,10 @@ class LoggingService {
 		this.config.enableDatabase = true;
 	}
 
-	private shouldLog(level: LogLevel): boolean {
-		return level >= this.config.level;
-	}
+    private shouldLog(level: LogLevel): boolean {
+        if (level === LogLevel.DEBUG && process.env.NODE_ENV === 'development') return true;
+        return level >= this.config.level;
+    }
 
 	private formatMessage(
 		level: LogLevel,
@@ -104,18 +105,22 @@ class LoggingService {
 		return (forwarded?.split(',')[0] || realIp || cfConnectingIp) || undefined;
 	}
 
-	private async writeToConsole(entry: LogEntry): Promise<void> {
+    private async writeToConsole(entry: LogEntry): Promise<void> {
 		if (!this.config.enableConsole) return;
 
-		const formattedMessage = this.formatMessage(entry.level, entry.message, entry.context);
+        const formattedMessage = this.formatMessage(entry.level, entry.message, entry.context);
 
-		switch (entry.level) {
-			case LogLevel.DEBUG:
-				console.debug(formattedMessage);
+        switch (entry.level) {
+            case LogLevel.DEBUG: {
+                if (entry.context) console.log(formattedMessage, entry.context);
+                else console.log(formattedMessage);
+                break;
+            }
+            case LogLevel.INFO: {
+                if (entry.context) console.log(formattedMessage, entry.context);
+                else console.log(formattedMessage);
 				break;
-			case LogLevel.INFO:
-				console.info(formattedMessage);
-				break;
+            }
 			case LogLevel.WARN:
 				console.warn(formattedMessage);
 				break;

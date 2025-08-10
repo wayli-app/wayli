@@ -19,7 +19,6 @@ export const MIN_STOP_DURATION = 300; // 5 minutes
 // Context object to track transport mode state
 export interface EnhancedModeContext {
 	currentMode: string;
-	modeStartTime: number;
 	lastSpeed: number;
 	trainStations: Array<{
 		timestamp: number;
@@ -97,6 +96,8 @@ export function isModeSwitchPossible(
 	toMode: string,
 	atTrainStation: boolean
 ): boolean {
+    // Same mode is always allowed (not a switch)
+    if (fromMode === toMode) return true;
 	// Impossible switches
 	if (fromMode === 'car' && toMode === 'train' && !atTrainStation) return false;
 	if (fromMode === 'train' && toMode === 'car' && !atTrainStation) return false;
@@ -140,15 +141,17 @@ export function detectEnhancedMode(
 	currLng: number,
 	dt: number, // seconds
 	reverseGeocode: unknown,
-	context: EnhancedModeContext
-): { mode: string; confidence: number; reason: string } {
-	const distance = haversine(prevLat, prevLng, currLat, currLng);
-	const speedKmh = (distance / dt) * 3.6;
+	context: EnhancedModeContext,
+	speedMps?: number
+): { mode: string; reason: string } {
+  const speedKmh =
+    typeof speedMps === 'number' ? speedMps * 3.6 :
+    dt > 0 ? (haversine(prevLat, prevLng, currLat, currLng) / dt) * 3.6 : 0;
+  // Note: previous speed is derived from context.lastSpeed when needed in callers
 
-	// Update context
-	context.lastSpeed = speedKmh;
+  // Update context (defer lastSpeed assignment until after logic that needs previous)
 	context.speedHistory.push(speedKmh);
-	if (context.speedHistory.length > 10) {
+	while (context.speedHistory.length > 10) {
 		context.speedHistory.shift();
 	}
 
@@ -171,23 +174,6 @@ export function detectEnhancedMode(
 		context.lastTrainStation = stationInfo;
 	}
 
-	// --- NEW LOGIC: Plane detection ---
-	if (speedKmh > 400) {
-		// If speed > 400, mark all contiguous > 100 as plane (handled in segment logic, here just return plane)
-		return {
-			mode: 'airplane',
-			confidence: 1,
-			reason: TransportDetectionReason.HIGH_VELOCITY_PLANE
-		};
-	}
-	if (speedKmh > 350) {
-		return {
-			mode: 'airplane',
-			confidence: 0.95,
-			reason: TransportDetectionReason.PLANE_SPEED_ONLY
-		};
-	}
-
 	// Get speed bracket for current speed
 	let speedBracket = getSpeedBracket(speedKmh);
 
@@ -200,22 +186,28 @@ export function detectEnhancedMode(
 		speedBracket = 'car';
 	}
 
-	// Special handling for train detection
-	let detectedMode = speedBracket;
-	let confidence = 0.5;
-	let reason = TransportDetectionReason.DEFAULT;
+  // Special handling for train detection
+    let detectedMode = speedBracket;
+    let reason = TransportDetectionReason.DEFAULT;
 
-	if (speedBracket === 'train' || (context.isInTrainJourney && speedKmh >= 30)) {
+    // Proactively start a train journey when at a station and moving at >= 30 km/h
+    if (!context.isInTrainJourney && atTrainStation && speedKmh >= 15) {
+        context.isInTrainJourney = true;
+        context.trainJourneyStartTime = Date.now();
+        context.trainJourneyStartStation = stationName || 'Unknown';
+        detectedMode = 'train';
+        reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
+    }
+
+    if (speedBracket === 'train' || (context.isInTrainJourney && speedKmh >= 15)) {
 		if (!context.isInTrainJourney && atTrainStation) {
 			context.isInTrainJourney = true;
 			context.trainJourneyStartTime = Date.now();
 			context.trainJourneyStartStation = stationName || 'Unknown';
 			detectedMode = 'train';
-			confidence = 0.8;
 			reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
 		} else if (context.isInTrainJourney) {
 			detectedMode = 'train';
-			confidence = 0.7;
 			reason = TransportDetectionReason.TRAIN_SPEED_ONLY;
 			if (atTrainStation && context.trainJourneyStartStation !== stationName) {
 				context.isInTrainJourney = false;
@@ -226,18 +218,17 @@ export function detectEnhancedMode(
 		} else if (
 			context.lastTrainStation &&
 			Date.now() - context.lastTrainStation.timestamp < 3600000 &&
-			speedKmh >= 50
+			speedKmh >= 25
 		) {
 			context.isInTrainJourney = true;
 			context.trainJourneyStartTime = context.lastTrainStation.timestamp;
 			context.trainJourneyStartStation = context.lastTrainStation.name;
 			detectedMode = 'train';
-			confidence = 0.6;
 			reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
 		}
 	}
 
-	if (context.isInTrainJourney && speedKmh < 20) {
+  if (context.isInTrainJourney && speedKmh < 20) {
 		context.isInTrainJourney = false;
 		context.trainJourneyStartTime = undefined;
 		context.trainJourneyStartStation = undefined;
@@ -246,109 +237,30 @@ export function detectEnhancedMode(
 	}
 
 	// --- CONTINUITY LOGIC ---
-	if (
-		context.currentMode &&
-		context.currentMode !== 'stationary' &&
-		context.currentMode !== 'unknown' &&
-		context.lastSpeed > 0 &&
-		speedBracket === getSpeedBracket(context.lastSpeed) &&
-		dt < MIN_STOP_DURATION
-	) {
-		// Prevent direct car->plane switch
-		if (context.currentMode === 'car' && detectedMode === 'airplane') {
-			detectedMode = 'car';
-			confidence = 0.5;
-			reason = TransportDetectionReason.KEEP_CONTINUITY;
-		} else {
-			if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
-				detectedMode = context.currentMode;
-				confidence = 0.9;
-				reason = TransportDetectionReason.KEEP_CONTINUITY;
-			}
-		}
-	}
+    if (
+        context.currentMode &&
+        context.currentMode !== 'stationary' &&
+        context.currentMode !== 'unknown' &&
+        dt < MIN_STOP_DURATION
+    ) {
+        // Prevent direct car->plane switch
+        if (context.currentMode === 'car' && detectedMode === 'airplane') {
+            detectedMode = 'car';
+            reason = TransportDetectionReason.KEEP_CONTINUITY;
+        } else if (detectedMode !== 'airplane') {
+            if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
+                detectedMode = context.currentMode;
+                reason = TransportDetectionReason.KEEP_CONTINUITY;
+            }
+        }
+    }
 
-	context.currentMode = detectedMode;
-	context.modeStartTime = Date.now();
+    context.currentMode = detectedMode;
+  context.lastSpeed = speedKmh;
 
-	return { mode: detectedMode, confidence, reason };
+  return { mode: detectedMode, reason };
 }
 
 // Legacy functions for backward compatibility
-export interface ModeContext {
-	airplaneTime?: number;
-	trainTime?: number;
-	isInTrainJourney?: boolean;
-	trainVelocityHistory?: number[];
-	lastTrainVelocity?: number;
-	trainJourneyStartTime?: number;
-}
 
-export function detectTrainMode(
-	prevLat: number,
-	prevLng: number,
-	currLat: number,
-	currLng: number,
-	dt: number,
-	atTrainLocation: boolean,
-	context: ModeContext
-): { mode: string; confidence: number } {
-	// Create enhanced context
-	const enhancedContext: EnhancedModeContext = {
-		currentMode: context.isInTrainJourney ? 'train' : 'unknown',
-		modeStartTime: Date.now(),
-		lastSpeed: 0,
-		trainStations: [],
-		averageSpeed: 0,
-		speedHistory: [],
-		isInTrainJourney: context.isInTrainJourney || false,
-		trainJourneyStartTime: context.trainJourneyStartTime
-	};
-
-	// Create mock geocode data for train station if atTrainLocation is true
-	const mockGeocode = atTrainLocation
-		? {
-				type: 'railway_station',
-				address: { name: 'Test Station', city: 'Test City' }
-			}
-		: null;
-
-	const result = detectEnhancedMode(
-		prevLat,
-		prevLng,
-		currLat,
-		currLng,
-		dt,
-		mockGeocode,
-		enhancedContext
-	);
-
-	// Update legacy context
-	context.isInTrainJourney = enhancedContext.isInTrainJourney;
-	context.trainJourneyStartTime = enhancedContext.trainJourneyStartTime;
-	context.trainVelocityHistory = enhancedContext.speedHistory;
-	context.lastTrainVelocity = enhancedContext.lastSpeed;
-
-	return { mode: result.mode, confidence: result.confidence };
-}
-
-export function detectMode(
-	prevLat: number,
-	prevLng: number,
-	currLat: number,
-	currLng: number,
-	dt: number
-): string {
-	const enhancedContext: EnhancedModeContext = {
-		currentMode: 'unknown',
-		modeStartTime: Date.now(),
-		lastSpeed: 0,
-		trainStations: [],
-		averageSpeed: 0,
-		speedHistory: [],
-		isInTrainJourney: false
-	};
-
-	const result = detectEnhancedMode(prevLat, prevLng, currLat, currLng, dt, null, enhancedContext);
-	return result.mode;
-}
+// Legacy detectMode removed; use detectEnhancedMode instead

@@ -32,10 +32,12 @@ export class SecurityUtils {
 	static sanitizeString(input: string): string {
 		return input
 			.trim()
-			.replace(/[<>]/g, '') // Remove potential HTML tags
-			.replace(/javascript:/gi, '') // Remove javascript: protocol
-			.replace(/data:/gi, '') // Remove data: protocol
-			.replace(/vbscript:/gi, ''); // Remove vbscript: protocol
+			// Remove HTML tags like <b> and </b>
+			.replace(/<[^>]*>/g, '')
+			// Remove dangerous protocols
+			.replace(/javascript:/gi, '')
+			.replace(/data:/gi, '')
+			.replace(/vbscript:/gi, '');
 	}
 
 	static sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
@@ -52,10 +54,15 @@ export class SecurityUtils {
 		return sanitized;
 	}
 
-	static validateEmail(email: string): boolean {
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		return emailRegex.test(email) && email.length <= 254;
-	}
+    static validateEmail(email: string): boolean {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email) || email.length > 254) return false;
+        // Disallow consecutive dots and trailing dot in domain
+        if (/\.\./.test(email)) return false;
+        const domain = email.split('@')[1] || '';
+        if (domain.endsWith('.')) return false;
+        return true;
+    }
 
 	static validatePassword(password: string): { valid: boolean; errors: string[] } {
 		const errors: string[] = [];
@@ -82,9 +89,16 @@ export class SecurityUtils {
 		};
 	}
 
-	static generateCSRFToken(): string {
-		return crypto.randomUUID();
-	}
+    static generateCSRFToken(): string {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            try { return crypto.randomUUID(); } catch {
+                // Fallback
+                return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            }
+        }
+        // Fallback
+        return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
 
 	static validateCSRFToken(token: string, storedToken: string): boolean {
 		return token === storedToken;

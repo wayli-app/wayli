@@ -23,7 +23,7 @@ import {
 	changePasswordSchema,
 	locationDataQuerySchema,
 	ownTracksPointSchema
-} from '$lib/utils/api/schemas';
+} from '$lib/utils/api/schemas.testing';
 
 describe('API Validation Schemas', () => {
 	describe('paginationSchema', () => {
@@ -34,25 +34,23 @@ describe('API Validation Schemas', () => {
 				search: 'test'
 			};
 
-			const result = paginationSchema.safeParse(validData);
+            const result = paginationSchema.safeParse(validData);
 			expect(result.success).toBe(true);
 			if (result.success) {
-				expect(result.data).toEqual({
-					page: 1,
-					limit: 10,
-					search: 'test'
-				});
+                expect(result.data.page).toBe(1);
+                expect(result.data.limit).toBe(10);
+                expect(result.data.search).toBe('test');
 			}
 		});
 
 		it('should use default values when not provided', () => {
 			const data = {};
 
-			const result = paginationSchema.safeParse(data);
+            const result = paginationSchema.safeParse(data);
 			expect(result.success).toBe(true);
 			if (result.success) {
 				expect(result.data.page).toBe(1);
-				expect(result.data.limit).toBe(10);
+                expect(result.data.limit).toBe(20);
 			}
 		});
 

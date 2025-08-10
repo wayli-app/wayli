@@ -156,9 +156,15 @@
 	}
 
 	// Date range helper functions
-	function toggleExportDatePicker() {
-		isExportDatePickerOpen = !isExportDatePickerOpen;
-	}
+    function toggleExportDatePicker() {
+        const next = !isExportDatePickerOpen;
+        isExportDatePickerOpen = next;
+        if (next) {
+            // clear previous selection to prevent immediate close on mount
+            exportStartDate = null;
+            exportEndDate = null;
+        }
+    }
 
 	function closeExportDatePicker() {
 		isExportDatePickerOpen = false;

@@ -49,7 +49,7 @@ export async function reverseGeocode(lat: number, lon: number): Promise<Nominati
 
 			const response = await fetch(url, {
 				headers: {
-					'User-Agent': 'WayliApp/1.0 (your@email.com)',
+					'User-Agent': 'WayliApp/1.0',
 					Accept: 'application/json'
 				}
 			});

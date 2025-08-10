@@ -14,7 +14,7 @@
 	const dispatch = createEventDispatcher();
 
 	let inputElement: HTMLInputElement | undefined;
-	let isSearching = false;
+    let isSearching = false;
 	let suggestions: any[] = [];
 	let showSuggestions = false;
 	let selectedIndex = -1;
@@ -113,7 +113,9 @@
 		dispatch('select', { address, displayName: address.display_name });
 	}
 
-	function clearAddress() {
+    export let showClearButton: boolean = false;
+
+    function clearAddress() {
 		inputValue = '';
 		value = '';
 		selectedAddress = null;
@@ -142,17 +144,29 @@
 		{placeholder}
 		{disabled}
 		{required}
-		on:input={handleInput}
-		on:keydown={handleKeydown}
+        oninput={handleInput}
+        onkeydown={handleKeydown}
 		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 	/>
 
+    {#if showClearButton && inputValue}
+        <button
+            type="button"
+            aria-label="Clear address"
+            class="absolute right-2 top-2 rounded p-1 text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-300 dark:hover:bg-gray-700"
+            onclick={clearAddress}
+        >
+            ✕
+        </button>
+    {/if}
+
 	<!-- Loading Spinner -->
-	{#if isSearching}
-		<div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+    {#if isSearching}
+        <div data-testid="loading-indicator" class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
 			<div
 				class="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
 			></div>
+            <span class="sr-only">Searching...</span>
 		</div>
 	{/if}
 
@@ -161,20 +175,21 @@
 		<div
 			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 		>
-			{#if suggestions.length > 0}
+            {#if suggestions.length > 0}
 				{#each suggestions as suggestion, index}
 					<button
 						type="button"
-						class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedIndex ===
+                        data-testid="address-suggestion"
+                        class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedIndex ===
 						index
 							? 'bg-gray-100 dark:bg-gray-700'
 							: ''}"
-						on:click={() => selectAddress(suggestion)}
+                        onclick={() => selectAddress(suggestion)}
 					>
 						<div class="text-sm text-gray-900 dark:text-gray-100">{suggestion.display_name}</div>
 						{#if suggestion.coordinates}
 							<div class="text-xs text-gray-500 dark:text-gray-400">
-								{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
+                                {suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 							</div>
 						{/if}
 					</button>
@@ -188,14 +203,12 @@
 	{/if}
 
 	<!-- Selected Address Display -->
-	{#if selectedAddress && selectedAddress.coordinates && showCoordinates}
+    {#if selectedAddress && selectedAddress.coordinates && showCoordinates}
 		<div
 			class="mt-2 rounded-md border border-green-200 bg-green-50 p-2 dark:border-green-800 dark:bg-green-900/20"
 		>
 			<div class="text-sm text-green-800 dark:text-green-200">
-				📍 Coordinates: {selectedAddress.coordinates.lat.toFixed(6)}, {selectedAddress.coordinates.lng.toFixed(
-					6
-				)}
+                📍 Coordinates: {selectedAddress.coordinates.lat.toFixed(4)}, {selectedAddress.coordinates.lng.toFixed(4)}
 			</div>
 			<div class="mt-1 text-xs text-green-600 dark:text-green-300">
 				{selectedAddress.display_name}

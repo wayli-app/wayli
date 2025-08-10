@@ -8,7 +8,7 @@ export enum TransportDetectionReason {
   CAR_SPEED_ONLY = 'Speed in car range, likely car',
   WALKING_SPEED_ONLY = 'Speed in walking range, likely walking',
   CYCLING_SPEED_ONLY = 'Speed in cycling range, likely cycling',
-  KEEP_CONTINUITY = 'Continuity enforced, mode switch not allowed',
+  KEEP_CONTINUITY = 'Mode continuity',
   SUSPICIOUS_SEGMENT = 'Implausible segment, flagged as suspicious',
   MIN_DURATION_NOT_MET = 'Minimum duration for mode not met',
   GEOGRAPHICALLY_IMPLAUSIBLE = 'Segment start/end not plausible for mode',

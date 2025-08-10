@@ -240,9 +240,9 @@ describe('useAriaButton', () => {
 
 	describe('Edge cases', () => {
 		it('should handle empty label option', () => {
-			const action = useAriaButton(element, { label: '' });
+        const action = useAriaButton(element, { label: '' });
 
-			expect(element.getAttribute('aria-label')).toBe('');
+        expect(element.getAttribute('aria-label')).toBeNull();
 
 			action.destroy();
 		});

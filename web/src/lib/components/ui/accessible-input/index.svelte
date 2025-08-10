@@ -44,12 +44,9 @@
 		}
 	});
 
-	// Handle error state changes
-	$: if (inputElement && error) {
-		formAccessibility.addErrorMessage(inputElement, error);
-	} else if (inputElement && !error) {
-		formAccessibility.removeErrorMessage(inputElement);
-	}
+    // Handle error state changes
+    // We render a single visible error element with role="alert" below.
+    // Avoid injecting a duplicate sr-only error to keep a single source of truth for screen readers.
 
 	// Combine describedBy with error ID if error exists
 	$: finalDescribedBy = error ? `${describedBy || ''} ${inputId}-error`.trim() : describedBy;

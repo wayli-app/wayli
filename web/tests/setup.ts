@@ -9,14 +9,23 @@ vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-service-role-key');
 
 // Mock Supabase client
 vi.mock('$lib/core/supabase/client', () => ({
-	supabase: {
-		auth: {
-			getUser: vi.fn(),
-			signInWithPassword: vi.fn(),
-			signUp: vi.fn(),
-			signOut: vi.fn()
-		},
-		from: vi.fn(() => ({
+    supabase: {
+        auth: {
+            getUser: vi.fn(),
+            getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+            signInWithPassword: vi.fn(),
+            signUp: vi.fn(),
+            signOut: vi.fn(),
+            onAuthStateChange: vi.fn().mockImplementation((callback: any) => {
+                // Immediately invoke callback in tests with a default state
+                callback('SIGNED_OUT', null);
+                return {
+                    data: { subscription: { unsubscribe: vi.fn() } },
+                    error: null
+                } as any;
+            })
+        },
+        from: vi.fn(() => ({
 			select: vi.fn().mockReturnThis(),
 			insert: vi.fn().mockReturnThis(),
 			update: vi.fn().mockReturnThis(),
@@ -58,6 +67,17 @@ vi.mock('$app/environment', () => ({
 	building: false,
 	version: 'test'
 }));
+
+// Mock i18n translate store shape to avoid store_invalid_shape
+vi.mock('$lib/i18n', async () => {
+    const { readable } = await import('svelte/store');
+    const translateStore = readable((key: string) => key);
+    return {
+        translate: translateStore,
+        currentLocale: readable('en'),
+        getCountryNameReactive: () => 'Country'
+    } as any;
+});
 
 vi.mock('$app/navigation', () => ({
 	goto: vi.fn(),

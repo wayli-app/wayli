@@ -19,7 +19,7 @@
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
 	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
-	import { translate, changeLocale, type SupportedLocale } from '$lib/i18n';
+    import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 
 	// Use the reactive translation function
@@ -485,8 +485,10 @@
 				pexels_api_key: preferences.pexels_api_key
 			});
 
-			// Update the current locale in the i18n system
-			await changeLocale(preferences.language as SupportedLocale);
+            // Only adjust client locale if it differs from the just-saved preference
+            if (preferences.language && preferences.language !== $currentLocale) {
+                await changeLocale(preferences.language as SupportedLocale);
+            }
 
 			toast.success('Preferences updated successfully!');
 		} catch (error) {
@@ -1224,7 +1226,7 @@
 							size="md"
 							showLabel={true}
 							position="bottom-left"
-                            onchange={handleLanguageChange}
+                            on:change={handleLanguageChange}
 						/>
 					</div>
 				</div>
@@ -1389,15 +1391,15 @@
 <!-- Two-Factor Authentication Setup Modal -->
 <TwoFactorSetup
     open={showTwoFactorSetup}
-    onclose={handleTwoFactorSetupClose}
-    onenabled={handleTwoFactorSetupClose}
+    on:close={handleTwoFactorSetupClose}
+    on:enabled={handleTwoFactorSetupClose}
 />
 
 <!-- Two-Factor Authentication Disable Modal -->
 <TwoFactorDisable
     open={showTwoFactorDisable}
-    onclose={handleTwoFactorDisableClose}
-    ondisabled={handleTwoFactorDisableClose}
+    on:close={handleTwoFactorDisableClose}
+    on:disabled={handleTwoFactorDisableClose}
 />
 
 <!-- Add Trip Exclusion Modal -->

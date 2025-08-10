@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
-import AccessibleButton from '$lib/components/ui/accessible-button/index.svelte';
-import AccessibleInput from '$lib/components/ui/accessible-input/index.svelte';
-import AccessibleModal from '$lib/components/ui/accessible-modal/index.svelte';
+import AccessibleButton from '$lib/components/ui/accessible-button/index.svelte?client';
+import AccessibleInput from '$lib/components/ui/accessible-input/index.svelte?client';
+import AccessibleModal from '$lib/components/ui/accessible-modal/index.svelte?client';
 
 describe('Accessibility Tests', () => {
 	describe('AccessibleButton', () => {

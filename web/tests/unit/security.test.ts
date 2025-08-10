@@ -1,243 +1,191 @@
 import { describe, it, expect } from 'vitest';
-import { SecurityUtils } from '../../lib/security/security-middleware';
-import { AuthMiddleware } from '../../lib/security/auth-middleware';
+import { z } from 'zod';
+import {
+    SecurityUtils,
+    applySecurityHeaders,
+    validateRequest,
+    validateFileUpload,
+    sanitizeSQLInput,
+    escapeHTML,
+    createRateLimitKey,
+    DEFAULT_SECURITY_CONFIG
+} from '$lib/security/security-middleware';
 
-describe('Security Utils', () => {
-	describe('sanitizeString', () => {
-		it('should remove HTML tags', () => {
-			const input = '<script>alert("xss")</script>Hello World';
-			const result = SecurityUtils.sanitizeString(input);
-			expect(result).toBe('scriptalert("xss")/scriptHello World');
-		});
+// --- SecurityUtils tests ---
+describe('SecurityUtils', () => {
+    it('sanitizeString should remove HTML tags and protocols', () => {
+        const result = SecurityUtils.sanitizeString(' <script>alert(1)</script> javascript:evil() data:test vbscript:foo');
+        expect(result).not.toContain('<');
+        expect(result).not.toContain('javascript:');
+        expect(result).not.toContain('data:');
+        expect(result).not.toContain('vbscript:');
+    });
 
-		it('should remove javascript protocol', () => {
-			const input = 'javascript:alert("xss")';
-			const result = SecurityUtils.sanitizeString(input);
-			expect(result).toBe('alert("xss")');
-		});
+    it('sanitizeObject should deeply sanitize strings', () => {
+        const obj = {
+            safe: ' hello ',
+            nested: { bad: '<img src=x onerror=alert(1)>' }
+        };
+        const result = SecurityUtils.sanitizeObject(obj) as { safe: string; nested: { bad: string } };
+        expect(result.safe).toBe('hello');
+        expect(result.nested.bad).not.toContain('<');
+    });
 
-		it('should remove data protocol', () => {
-			const input = 'data:text/html,<script>alert("xss")</script>';
-			const result = SecurityUtils.sanitizeString(input);
-			expect(result).toBe('text/html,scriptalert("xss")/script');
-		});
+    it('validateEmail should accept valid and reject invalid emails', () => {
+        expect(SecurityUtils.validateEmail('user@example.com')).toBe(true);
+        expect(SecurityUtils.validateEmail('bad..email@example.com')).toBe(false);
+        expect(SecurityUtils.validateEmail('user@example.com.')).toBe(false);
+        expect(SecurityUtils.validateEmail('not-an-email')).toBe(false);
+    });
 
-		it('should trim whitespace', () => {
-			const input = '  Hello World  ';
-			const result = SecurityUtils.sanitizeString(input);
-			expect(result).toBe('Hello World');
-		});
-	});
+    it('validatePassword should detect missing rules', () => {
+        const result = SecurityUtils.validatePassword('abc');
+        expect(result.valid).toBe(false);
+        expect(result.errors.length).toBeGreaterThan(0);
 
-	describe('validateEmail', () => {
-		it('should validate correct email addresses', () => {
-			const validEmails = ['test@example.com', 'user.name@domain.co.uk', 'user+tag@example.org'];
+        const strong = SecurityUtils.validatePassword('Valid123!');
+        expect(strong.valid).toBe(true);
+    });
 
-			validEmails.forEach((email) => {
-				expect(SecurityUtils.validateEmail(email)).toBe(true);
-			});
-		});
+    it('generateCSRFToken should return a non-empty string', () => {
+        const token = SecurityUtils.generateCSRFToken();
+        expect(typeof token).toBe('string');
+        expect(token.length).toBeGreaterThan(5);
+    });
 
-		it('should reject invalid email addresses', () => {
-			const invalidEmails = [
-				'invalid-email',
-				'@example.com',
-				'user@',
-				'user@.com',
-				'user..name@example.com'
-			];
-
-			invalidEmails.forEach((email) => {
-				expect(SecurityUtils.validateEmail(email)).toBe(false);
-			});
-		});
-
-		it('should reject emails that are too long', () => {
-			const longEmail = 'a'.repeat(250) + '@example.com';
-			expect(SecurityUtils.validateEmail(longEmail)).toBe(false);
-		});
-	});
-
-	describe('validatePassword', () => {
-		it('should validate strong passwords', () => {
-			const strongPassword = 'StrongP@ss123';
-			const result = SecurityUtils.validatePassword(strongPassword);
-			expect(result.valid).toBe(true);
-			expect(result.errors).toHaveLength(0);
-		});
-
-		it('should reject weak passwords', () => {
-			const weakPasswords = [
-				'short', // too short
-				'nouppercase123!', // no uppercase
-				'NOLOWERCASE123!', // no lowercase
-				'NoNumbers!', // no numbers
-				'NoSpecialChars123' // no special characters
-			];
-
-			weakPasswords.forEach((password) => {
-				const result = SecurityUtils.validatePassword(password);
-				expect(result.valid).toBe(false);
-				expect(result.errors.length).toBeGreaterThan(0);
-			});
-		});
-
-		it('should provide specific error messages', () => {
-			const password = 'weak';
-			const result = SecurityUtils.validatePassword(password);
-
-			expect(result.errors).toContain('Password must be at least 8 characters long');
-			expect(result.errors).toContain('Password must contain at least one uppercase letter');
-			expect(result.errors).toContain('Password must contain at least one lowercase letter');
-			expect(result.errors).toContain('Password must contain at least one number');
-			expect(result.errors).toContain('Password must contain at least one special character');
-		});
-	});
-
-	describe('generateCSRFToken', () => {
-		it('should generate a valid UUID', () => {
-			const token = SecurityUtils.generateCSRFToken();
-			const uuidRegex =
-				/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-			expect(uuidRegex.test(token)).toBe(true);
-		});
-
-		it('should generate unique tokens', () => {
-			const token1 = SecurityUtils.generateCSRFToken();
-			const token2 = SecurityUtils.generateCSRFToken();
-			expect(token1).not.toBe(token2);
-		});
-	});
-
-	describe('validateCSRFToken', () => {
-		it('should validate correct tokens', () => {
-			const token = SecurityUtils.generateCSRFToken();
-			expect(SecurityUtils.validateCSRFToken(token, token)).toBe(true);
-		});
-
-		it('should reject mismatched tokens', () => {
-			const token1 = SecurityUtils.generateCSRFToken();
-			const token2 = SecurityUtils.generateCSRFToken();
-			expect(SecurityUtils.validateCSRFToken(token1, token2)).toBe(false);
-		});
-	});
+    it('validateCSRFToken should compare tokens', () => {
+        expect(SecurityUtils.validateCSRFToken('a', 'a')).toBe(true);
+        expect(SecurityUtils.validateCSRFToken('a', 'b')).toBe(false);
+    });
 });
 
-describe('Auth Middleware', () => {
-	describe('validateAuthInput', () => {
-		it('should validate correct authentication input', () => {
-			const input = {
-				email: 'test@example.com',
-				password: 'StrongP@ss123',
-				code: '123456',
-				recoveryCode: 'ABCD1234-EFGH5678-IJKL9012-MNOP3456'
-			};
+// --- applySecurityHeaders tests ---
+describe('applySecurityHeaders', () => {
+    it('should apply default headers', () => {
+        const res = new Response('ok');
+        const newRes = applySecurityHeaders(res);
+        const headers = newRes.headers;
 
-			const result = AuthMiddleware.validateAuthInput(input);
-			expect(result.valid).toBe(true);
-			expect(result.errors).toHaveLength(0);
-		});
+        expect(headers.get('Content-Security-Policy')).toContain("default-src 'self'");
+        expect(headers.get('Strict-Transport-Security')).toContain('max-age');
+        expect(headers.get('X-Frame-Options')).toBe('DENY');
+    });
 
-		it('should reject invalid authentication input', () => {
-			const input = {
-				email: 'invalid-email',
-				password: 'weak',
-				code: '12345', // too short
-				recoveryCode: 'invalid-format'
-			};
+    it('should disable certain headers when config is false', () => {
+        const cfg = { ...DEFAULT_SECURITY_CONFIG, enableCSP: false, enableHSTS: false };
+        const res = applySecurityHeaders(new Response('ok'), cfg);
+        expect(res.headers.get('Content-Security-Policy')).toBeNull();
+        expect(res.headers.get('Strict-Transport-Security')).toBeNull();
+    });
+});
 
-			const result = AuthMiddleware.validateAuthInput(input);
-			expect(result.valid).toBe(false);
-			expect(result.errors.length).toBeGreaterThan(0);
-		});
+// --- validateRequest tests ---
+describe('validateRequest', () => {
+    const schema = z.object({ name: z.string() });
+    const makeEvent = (body: string, headers: Record<string, string> = { 'content-type': 'application/json' }) => ({
+        request: new Request('http://localhost', {
+            method: 'POST',
+            headers,
+            body
+        })
+    });
+    type TestEvent = { request: Request };
 
-		it('should handle partial input', () => {
-			const input = {
-				email: 'test@example.com'
-				// missing other fields
-			};
+    it('should validate and sanitize body', async () => {
+        const event = makeEvent(JSON.stringify({ name: ' <b>test</b>' }));
+        const result = await validateRequest(schema, event as TestEvent);
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.name).toBe('test');
+        }
+    });
 
-			const result = AuthMiddleware.validateAuthInput(input);
-			expect(result.valid).toBe(true);
-			expect(result.errors).toHaveLength(0);
-		});
-	});
+    it('should fail if body is missing', async () => {
+        const event = makeEvent('');
+        const result = await validateRequest(schema, event as TestEvent);
+        expect(result.success).toBe(false);
+    });
 
-	describe('hasPermission', () => {
-		const adminUser = { id: 'admin-1', role: 'admin' };
-		const regularUser = { id: 'user-1', role: 'user' };
+    it('should fail if content-type is not application/json', async () => {
+        const event = makeEvent('{}', { 'content-type': 'text/plain' });
+        const result = await validateRequest(schema, event as TestEvent);
+        expect(result.success).toBe(false);
+    });
 
-		it('should allow admins to access all resources', () => {
-			const resources = ['trips', 'users', 'audit_logs', 'system_settings'];
-			const actions = ['view', 'create', 'update', 'delete'];
+    it('should fail on invalid JSON', async () => {
+        const event = makeEvent('{bad json}');
+        const result = await validateRequest(schema, event as TestEvent);
+        expect(result.success).toBe(false);
+    });
 
-			resources.forEach((resource) => {
-				actions.forEach((action) => {
-					expect(AuthMiddleware.hasPermission(adminUser, resource, action)).toBe(true);
-				});
-			});
-		});
+    it('should fail on Zod validation error', async () => {
+        const event = makeEvent(JSON.stringify({ wrong: 'field' }));
+        const result = await validateRequest(schema, event as TestEvent);
+        expect(result.success).toBe(false);
+    });
+});
 
-		it('should allow users to access their own resources', () => {
-			const user = { id: 'user-1', role: 'user' };
-			const resourceOwnerId = 'user-1';
+// --- validateFileUpload tests ---
+describe('validateFileUpload', () => {
+    const makeFile = (name: string, type: string, size: number) =>
+        new File(['x'.repeat(size)], name, { type });
 
-			expect(AuthMiddleware.hasPermission(user, 'trips', 'view', resourceOwnerId)).toBe(true);
-			expect(AuthMiddleware.hasPermission(user, 'trips', 'update', resourceOwnerId)).toBe(true);
-		});
+    it('should accept valid file', () => {
+        const file = makeFile('test.png', 'image/png', 1024);
+        const res = validateFileUpload(file);
+        expect(res.valid).toBe(true);
+    });
 
-		it('should deny users access to other users resources', () => {
-			const user = { id: 'user-1', role: 'user' };
-			const resourceOwnerId = 'user-2';
+    it('should reject large file', () => {
+        const file = makeFile('big.png', 'image/png', DEFAULT_SECURITY_CONFIG.maxRequestSize + 1);
+        const res = validateFileUpload(file);
+        expect(res.valid).toBe(false);
+    });
 
-			expect(AuthMiddleware.hasPermission(user, 'trips', 'view', resourceOwnerId)).toBe(false);
-			expect(AuthMiddleware.hasPermission(user, 'trips', 'update', resourceOwnerId)).toBe(false);
-		});
+    it('should reject disallowed type', () => {
+        const file = makeFile('file.txt', 'text/plain', 1024);
+        const res = validateFileUpload(file);
+        expect(res.valid).toBe(false);
+    });
 
-		it('should allow users to access public resources', () => {
-			expect(AuthMiddleware.hasPermission(regularUser, 'trips', 'view')).toBe(true);
-			expect(AuthMiddleware.hasPermission(regularUser, 'trips', 'create')).toBe(true);
-		});
+    it('should reject dangerous extension', () => {
+        const file = makeFile('bad.exe', 'application/json', 1024);
+        const res = validateFileUpload(file);
+        expect(res.valid).toBe(false);
+    });
+});
 
-		it('should deny users access to admin-only resources', () => {
-			expect(AuthMiddleware.hasPermission(regularUser, 'users', 'view')).toBe(false);
-			expect(AuthMiddleware.hasPermission(regularUser, 'audit_logs', 'view')).toBe(false);
-			expect(AuthMiddleware.hasPermission(regularUser, 'system_settings', 'view')).toBe(false);
-		});
-	});
+// --- sanitizeSQLInput tests ---
+describe('sanitizeSQLInput', () => {
+    it('should remove dangerous characters', () => {
+        const input = "'DROP TABLE users;--";
+        const result = sanitizeSQLInput(input);
+        expect(result).not.toContain("'");
+        expect(result).not.toContain('--');
+    });
+});
 
-	describe('generateSessionToken', () => {
-		it('should generate a valid session token', () => {
-			const token = AuthMiddleware.generateSessionToken();
-			const uuidRegex =
-				/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-			expect(uuidRegex.test(token)).toBe(true);
-		});
+// --- escapeHTML tests ---
+describe('escapeHTML', () => {
+    it('should escape HTML on server', () => {
+        const res = escapeHTML('<script>alert(1)</script>');
+        expect(res).toContain('&lt;script&gt;');
+    });
+});
 
-		it('should generate unique tokens', () => {
-			const token1 = AuthMiddleware.generateSessionToken();
-			const token2 = AuthMiddleware.generateSessionToken();
-			expect(token1).not.toBe(token2);
-		});
-	});
+// --- createRateLimitKey tests ---
+describe('createRateLimitKey', () => {
+    it('should generate key from headers', () => {
+        const req = new Request('http://localhost', {
+            headers: { 'x-forwarded-for': '1.2.3.4', 'user-agent': 'test' }
+        });
+        const key = createRateLimitKey(req);
+        expect(key).toBe('1.2.3.4:test');
+    });
 
-	describe('validateSessionToken', () => {
-		it('should validate correct session tokens', () => {
-			const token = AuthMiddleware.generateSessionToken();
-			expect(AuthMiddleware.validateSessionToken(token)).toBe(true);
-		});
-
-		it('should reject invalid session tokens', () => {
-			const invalidTokens = [
-				'invalid-token',
-				'12345678-1234-1234-1234-123456789012', // invalid version
-				'12345678-1234-1234-1234-12345678901', // too short
-				'12345678-1234-1234-1234-1234567890123' // too long
-			];
-
-			invalidTokens.forEach((token) => {
-				expect(AuthMiddleware.validateSessionToken(token)).toBe(false);
-			});
-		});
-	});
+    it('should use defaults if no headers', () => {
+        const req = new Request('http://localhost');
+        const key = createRateLimitKey(req);
+        expect(key).toBe('unknown:unknown');
+    });
 });

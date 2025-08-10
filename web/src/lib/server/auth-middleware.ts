@@ -325,9 +325,12 @@ export class AuthMiddleware {
 	/**
 	 * Generate a secure session token
 	 */
-	static generateSessionToken(): string {
-		return crypto.randomUUID();
-	}
+    static generateSessionToken(): string {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            try { return crypto.randomUUID(); } catch {}
+        }
+        return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
 
 	/**
 	 * Validate session token

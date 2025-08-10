@@ -1,9 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { svelteTesting } from '@testing-library/svelte/vite';
 import path from 'path';
 
 export default defineConfig({
-	plugins: [sveltekit()],
+    plugins: [sveltekit(), svelteTesting()],
 	test: {
 		include: ['tests/**/*.{test,spec}.{js,ts}', 'src/**/*.{test,spec}.{js,ts}'],
 		environment: 'jsdom',
@@ -13,6 +14,12 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],
+			thresholds: {
+				lines: 0.7,
+				functions: 0.7,
+				branches: 0.6,
+				statements: 0.7
+			},
 			exclude: [
 				'node_modules/',
 				'tests/',
@@ -36,6 +43,7 @@ export default defineConfig({
 		alias: {
 			$lib: path.resolve(__dirname, './src/lib'),
 			$app: path.resolve(__dirname, './src/app'),
+			$routes: path.resolve(__dirname, './src/routes'),
 			$components: path.resolve(__dirname, './src/lib/components'),
 			$stores: path.resolve(__dirname, './src/lib/stores'),
 			$utils: path.resolve(__dirname, './src/lib/utils'),
