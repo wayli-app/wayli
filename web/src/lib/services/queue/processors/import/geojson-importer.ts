@@ -15,6 +15,11 @@ type Feature = {
   properties?: Record<string, unknown>;
 };
 
+type ErrorSummary = {
+  counts: Record<string, number>;
+  samples: Array<{ idx: number; reason: string }>;
+};
+
 export async function importGeoJSONWithProgress(
   content: string,
   userId: string,
@@ -89,6 +94,7 @@ async function processFeaturesInParallel(
   let importedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
+  const errorSummary: ErrorSummary = { counts: {}, samples: [] };
 
   const cpuCores = cpus().length;
   const CHUNK_SIZE = Math.max(50, Math.min(500, Math.floor(totalFeatures / (cpuCores * 8))));
@@ -103,7 +109,7 @@ async function processFeaturesInParallel(
   for (let i = 0; i < features.length; i += CHUNK_SIZE * CONCURRENT_CHUNKS) {
     await checkJobCancellation(jobId);
 
-    const chunkPromises: Promise<{ imported: number; skipped: number; errors: number }>[] = [];
+    const chunkPromises: Promise<{ imported: number; skipped: number; errors: number; errorSummary: ErrorSummary }>[] = [];
 
     for (let j = 0; j < CONCURRENT_CHUNKS && i + j * CHUNK_SIZE < features.length; j++) {
       const chunkStart = i + j * CHUNK_SIZE;
@@ -120,6 +126,13 @@ async function processFeaturesInParallel(
         importedCount += result.value.imported;
         skippedCount += result.value.skipped;
         errorCount += result.value.errors;
+        // merge error summaries
+        for (const [k, v] of Object.entries(result.value.errorSummary.counts)) {
+          errorSummary.counts[k] = (errorSummary.counts[k] || 0) + v;
+        }
+        for (const s of result.value.errorSummary.samples) {
+          if (errorSummary.samples.length < 10) errorSummary.samples.push(s);
+        }
       } else {
         errorCount += CHUNK_SIZE; // Count failed chunks as errors
         console.error('❌ Chunk processing failed:', result.reason);
@@ -139,6 +152,12 @@ async function processFeaturesInParallel(
         `📈 Progress: ${processed.toLocaleString()}/${totalFeatures.toLocaleString()} (${progress}%) - Rate: ${rate} features/sec - ETA: ${eta}s - Imported: ${importedCount.toLocaleString()} - Skipped: ${skippedCount.toLocaleString()} - Errors: ${errorCount.toLocaleString()}`
       );
 
+      const topErrors = Object.entries(errorSummary.counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('; ');
+
       await JobQueueService.updateJobProgress(jobId, progress, {
         message: `🗺️ Processing GeoJSON features... ${processed.toLocaleString()}/${totalFeatures.toLocaleString()} (${progress}%)`,
         fileName,
@@ -149,7 +168,9 @@ async function processFeaturesInParallel(
         rate: `${rate} features/sec`,
         eta: `${eta}s`,
         skipped: skippedCount,
-        errors: errorCount
+        errors: errorCount,
+        errorSummary: topErrors,
+        errorSamples: errorSummary.samples
       });
 
       lastLogTime = currentTime;
@@ -178,10 +199,11 @@ async function processFeatureChunk(
   jobId?: string,
   totalFeatures?: number,
   fileName?: string
-): Promise<{ imported: number; skipped: number; errors: number }> {
+): Promise<{ imported: number; skipped: number; errors: number; errorSummary: ErrorSummary }> {
   let imported = 0;
   let skipped = 0;
   let errors = 0;
+  const errorSummary: ErrorSummary = { counts: {}, samples: [] };
 
   const trackerData: Array<{
     user_id: string;
@@ -203,6 +225,8 @@ async function processFeatureChunk(
     const feature = features[i];
     if (!feature || !feature.geometry) {
       skipped++;
+      errorSummary.counts['missing geometry'] = (errorSummary.counts['missing geometry'] || 0) + 1;
+      if (errorSummary.samples.length < 10) errorSummary.samples.push({ idx: chunkStart + i, reason: 'missing geometry' });
       continue;
     }
 
@@ -280,6 +304,9 @@ async function processFeatureChunk(
       });
     } else {
       skipped++;
+      const reason = feature.geometry ? `unsupported geometry ${feature.geometry.type}` : 'missing geometry';
+      errorSummary.counts[reason] = (errorSummary.counts[reason] || 0) + 1;
+      if (errorSummary.samples.length < 10) errorSummary.samples.push({ idx: chunkStart + i, reason });
     }
   }
 
@@ -321,13 +348,19 @@ async function processFeatureChunk(
               skipped++;
             } else {
               errors++;
+              const code = (singleError as any).code || 'unknown';
+              errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + 1;
+              if (errorSummary.samples.length < 10) errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}` });
             }
-          } catch {
+          } catch (e: any) {
             errors++;
+            const msg = e?.message || 'upsert throw';
+            errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + 1;
+            if (errorSummary.samples.length < 10) errorSummary.samples.push({ idx: chunkStart, reason: msg });
           }
         }
       }
-    } catch {
+    } catch (e: any) {
       for (const data of trackerData) {
         try {
           const { error: singleError } = await supabase.from('tracker_data').upsert(data, {
@@ -340,15 +373,21 @@ async function processFeatureChunk(
             skipped++;
           } else {
             errors++;
+            const code = (singleError as any).code || 'unknown';
+            errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + 1;
+            if (errorSummary.samples.length < 10) errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}` });
           }
-        } catch {
+        } catch (err: any) {
           errors++;
+          const msg = err?.message || 'upsert throw';
+          errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + 1;
+          if (errorSummary.samples.length < 10) errorSummary.samples.push({ idx: chunkStart, reason: msg });
         }
       }
     }
   }
 
-  return { imported, skipped, errors };
+  return { imported, skipped, errors, errorSummary };
 }
 
 function safeGetCountryForPoint(lat: number, lon: number): string | null {

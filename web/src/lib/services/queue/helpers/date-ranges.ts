@@ -72,28 +72,35 @@ export async function findAvailableDateRanges(
 
     console.log(`📅 Effective search range (after applying user constraints): ${earliestDate} to ${latestDate}`);
 
+    // Match TripDetectionService semantics: exclude all existing trips and only "pending" suggested trips
     const { data: existingTrips, error: tripsError } = await supabase
       .from('trips')
       .select('start_date, end_date')
-      .eq('user_id', userId)
-      .in('status', ['active', 'completed', 'rejected', 'pending']);
+      .eq('user_id', userId);
 
     if (tripsError) {
       console.error('❌ Error fetching existing trips:', tripsError);
       return [];
     }
 
-    console.log('📋 Found existing trips:', existingTrips?.length || 0);
-    if (existingTrips && existingTrips.length > 0) {
-      console.log('📋 Existing trips details:');
-      existingTrips.forEach((trip, index) => {
-        console.log(`  Trip ${index + 1}: ${trip.start_date} to ${trip.end_date}`);
-      });
+    // Fetch suggested trips (pending) to exclude as well
+    const { data: existingSuggestedTrips, error: suggestedError } = await supabase
+      .from('trips')
+      .select('start_date, end_date')
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+
+    if (suggestedError) {
+      console.error('❌ Error fetching suggested trips:', suggestedError);
+      return [];
     }
+
+    const allExcluded = [...(existingTrips || []), ...(existingSuggestedTrips || [])];
+    console.log('📋 Excluding trip ranges count:', allExcluded.length);
 
     const excludedDates = new Set<string>();
     let tripsDatesAdded = 0;
-    existingTrips?.forEach((trip) => {
+    allExcluded?.forEach((trip) => {
       const start = new Date(trip.start_date);
       const end = new Date(trip.end_date);
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -126,26 +133,8 @@ export async function findAvailableDateRanges(
       availableRanges.push({ startDate: currentRangeStart, endDate: latestDate });
     }
 
-    console.log(`📊 Found ${availableRanges.length} initial available ranges before filtering`);
-    const filteredRanges = availableRanges.filter((range) => {
-      const start = new Date(range.startDate);
-      const end = new Date(range.endDate);
-      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-      if (daysDiff < 2) {
-        console.log(`❌ Filtering out range ${range.startDate} to ${range.endDate}: too short (${daysDiff} days < 2)`);
-        return false;
-      }
-      console.log(`✅ Keeping range ${range.startDate} to ${range.endDate} (${daysDiff} days)`);
-      return true;
-    });
-
-    if (filteredRanges.length === 0) {
-      console.log('❌ No available date ranges found after filtering (all ranges too short or all dates excluded)');
-      return [];
-    }
-
-    console.log(`🎯 Found ${filteredRanges.length} available date ranges for sleep-based trip detection`);
-    return filteredRanges;
+    console.log(`🎯 Found ${availableRanges.length} available date ranges for sleep-based trip detection`);
+    return availableRanges;
   } catch (error) {
     console.error('❌ Error finding available date ranges:', error);
     return [];

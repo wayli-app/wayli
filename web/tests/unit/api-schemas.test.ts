@@ -513,7 +513,7 @@ describe('API Validation Schemas', () => {
 
 		it('should reject limit that is too high', () => {
 			const invalidQuery = {
-				limit: '15000' // over 10000 limit
+				limit: '5000'
 			};
 
 			const result = locationDataQuerySchema.safeParse(invalidQuery);

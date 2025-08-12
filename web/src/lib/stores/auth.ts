@@ -100,11 +100,18 @@ async function initializeSessionStore() {
 	}
 }
 
-// Initialize immediately
-// Now that both stores exist, subscribe to auth changes
+// Subscribe to auth changes to keep both stores in sync and enable redirects
 supabase.auth.onAuthStateChange((event, session) => {
     // Update session first
     sessionStore.set(session);
+
+    // Update user store for login/logout flows
+    if (event === 'SIGNED_IN' && session) {
+        userStore.set(session.user as AuthStore);
+    } else if (event === 'SIGNED_OUT' || !session) {
+        userStore.set(null);
+        sessionStore.set(null);
+    }
 });
 
 // Initialize immediately

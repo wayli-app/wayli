@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS public.tracker_data (
     country_code VARCHAR(2), -- ISO 3166-1 alpha-2 country code
     altitude DECIMAL(8, 2), -- Altitude in meters
     accuracy DECIMAL(8, 2), -- GPS accuracy in meters
-    speed DECIMAL(8, 2), -- Speed in m/s
+    speed DECIMAL(12, 2), -- Speed in m/s (increased precision to avoid overflow)
     distance DECIMAL(8, 2), -- Distance compared to previous point
     time_spent DECIMAL(8, 2), -- Time difference in seconds compared to previous point
     heading DECIMAL(5, 2), -- Heading in degrees (0-360)
@@ -1602,12 +1602,15 @@ BEGIN
     SET
         distance = dc.calculated_distance,
         time_spent = dc.calculated_time_spent,
-        speed = (
-            CASE
-                WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
-                ELSE 0
-            END
-        )::DECIMAL(8,2),
+        speed = LEAST(
+            ROUND((
+                CASE
+                    WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
+                    ELSE 0
+                END
+            )::numeric, 2),
+            9999999999.99
+        ),
         updated_at = NOW()
     FROM distance_and_time_calculations dc
     WHERE tracker_data.user_id = dc.user_id
@@ -1658,9 +1661,9 @@ BEGIN
             calculated_time_spent := EXTRACT(EPOCH FROM (NEW.recorded_at - prev_point.recorded_at));
             NEW.time_spent := calculated_time_spent;
 
-            -- Calculate instantaneous speed in m/s
+            -- Calculate instantaneous speed in m/s with clamping to avoid overflow
             IF calculated_time_spent > 0 THEN
-                NEW.speed := ROUND((calculated_distance / calculated_time_spent)::numeric, 2);
+                NEW.speed := LEAST(ROUND(((calculated_distance / calculated_time_spent))::numeric, 2), 9999999999.99);
             ELSE
                 NEW.speed := 0;
             END IF;

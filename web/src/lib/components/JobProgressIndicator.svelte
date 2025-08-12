@@ -103,15 +103,27 @@
 			return t('jobProgress.queued');
 		}
 
-		// Use server-provided ETA from result.estimatedTimeRemaining if available
-		if (job.result?.estimatedTimeRemaining) {
-			return job.result.estimatedTimeRemaining;
-		}
+    // Use server-provided ETA from result.estimatedTimeRemaining if available
+    if (job.result?.estimatedTimeRemaining) {
+      // Normalize: when server returns numeric seconds, format consistently
+      const etaVal = job.result.estimatedTimeRemaining;
+      if (typeof etaVal === 'number') {
+        return formatSeconds(etaVal);
+      }
+      if (typeof etaVal === 'string' && /^(\d+)$/.test(etaVal)) {
+        return formatSeconds(parseInt(etaVal, 10));
+      }
+      return etaVal;
+    }
 
 		// Fallback to job.eta if available
-		if (job.eta) {
-			return job.eta;
-		}
+    if (job.eta) {
+      const etaVal = job.eta;
+      if (typeof etaVal === 'number') return formatSeconds(etaVal);
+      if (typeof etaVal === 'string' && etaVal.endsWith('s')) return formatSeconds(parseInt(etaVal, 10));
+      if (typeof etaVal === 'string' && /^(\d+)$/.test(etaVal)) return formatSeconds(parseInt(etaVal, 10));
+      return etaVal;
+    }
 
 		// For data import/export, calculate ETA based on progress
 		if (job.type === 'data_import' || job.type === 'data_export') {
@@ -124,14 +136,26 @@
 			return t('jobProgress.remaining', { minutes: estimatedMinutes });
 		}
 
-		// For reverse geocoding jobs, calculate based on progress
-		if (job.type === 'reverse_geocoding' || job.type === 'reverse_geocoding_missing') {
+  // Helper to format seconds as h m s consistently
+  function formatSeconds(seconds: number): string {
+    if (!seconds || seconds <= 0) return t('jobProgress.calculating');
+    const s = Math.floor(seconds % 60);
+    const m = Math.floor((seconds / 60) % 60);
+    const h = Math.floor(seconds / 3600);
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
+    // For reverse geocoding and trip generation, prefer server-provided ETA, else fallback
+    if (job.type === 'reverse_geocoding' || job.type === 'reverse_geocoding_missing' || job.type === 'trip_generation') {
 			if (job.progress === 0) return t('jobProgress.calculating');
 			if (job.progress === 100) return t('jobProgress.complete');
 
-			// Simple ETA calculation for reverse geocoding
+      // Simple fallback ETA when server hasn't provided one
 			const remaining = 100 - job.progress;
-			const estimatedMinutes = Math.ceil(remaining / 5); // Reverse geocoding is typically slower
+      const divisor = job.type === 'trip_generation' ? 8 : 5; // heuristic fallback
+      const estimatedMinutes = Math.ceil(remaining / divisor);
 			return t('jobProgress.remaining', { minutes: estimatedMinutes });
 		}
 

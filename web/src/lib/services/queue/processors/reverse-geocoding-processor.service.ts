@@ -19,6 +19,12 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
   let totalProcessed = 0;
   let totalSuccess = 0;
   let totalErrors = 0;
+  let totalScanned = 0; // count of all tracker_data rows scanned in this job
+  let totalToScan = 0;  // total tracker_data rows that will be scanned (with non-null location)
+
+  // Moving-average window for ETA (based on scanned rows throughput)
+  const RATE_WINDOW_MS = 15_000; // 15s window per requirement
+  const scanSamples: Array<{ time: number; scanned: number }> = [];
 
   if (job.result && typeof job.result === 'object') {
     const metadata = job.result as Record<string, unknown>;
@@ -51,6 +57,7 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
           const totalPointsInDB = actualTotalPoints || 0;
           const totalGeocodedInDB = actualGeocodedPoints || 0;
           const pointsNeedingGeocoding = totalPointsInDB - totalGeocodedInDB;
+          totalToScan = totalPointsInDB;
 
           const { error: cacheUpdateError } = await supabase.rpc('update_geocoding_stats_cache', {
             p_user_id: userId,
@@ -107,6 +114,7 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
       totalSuccess: 0,
       totalErrors: 0,
       totalPoints,
+      totalToScan: totalToScan || 0,
       processedCount: 0,
       successCount: 0,
       errorCount: 0,
@@ -133,24 +141,58 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
       job.id,
       totalPoints,
       startTime,
-      (processed, success, errors) => {
+      (scanned, processed, success, errors) => {
+        totalScanned += scanned;
         totalProcessed += processed;
         totalSuccess += success;
         totalErrors += errors;
 
-        const progress = Math.min(100, Math.round((totalProcessed / totalPoints) * 100));
+        // Progress is based on scan coverage so it reflects actual job completion reliably
+        const denominator = Math.max(totalToScan || 0, 1);
+        const progress = Math.min(100, Math.round((totalScanned / denominator) * 100));
+
+        // ETA based on moving-average scan throughput to avoid noisy estimates
+        const now = Date.now();
+        scanSamples.push({ time: now, scanned: totalScanned });
+        // Trim samples to window
+        while (scanSamples.length > 1 && scanSamples[0].time < now - RATE_WINDOW_MS) {
+          scanSamples.shift();
+        }
+
+        let scanRate = 0;
+        if (scanSamples.length >= 2) {
+          const first = scanSamples[0];
+          const last = scanSamples[scanSamples.length - 1];
+          const deltaScanned = last.scanned - first.scanned;
+          const deltaSeconds = (last.time - first.time) / 1000;
+          if (deltaSeconds > 0 && deltaScanned >= 0) {
+            scanRate = deltaScanned / deltaSeconds; // rows per second
+          }
+        }
+        // Fallback to global average if window is insufficient
+        if (scanRate === 0) {
+          const elapsedSeconds = (now - startTime) / 1000;
+          scanRate = totalScanned > 0 && elapsedSeconds > 0 ? totalScanned / elapsedSeconds : 0;
+        }
+        const remainingScans = Math.max(denominator - totalScanned, 0);
+        const remainingSeconds = scanRate > 0 ? Math.round(remainingScans / scanRate) : 0;
+        const etaDisplay = formatEta(remainingSeconds);
+
         JobQueueService.updateJobProgress(job.id, progress, {
           totalProcessed,
           totalSuccess,
           totalErrors,
           totalPoints,
+          totalScanned,
+          totalToScan: denominator,
           currentBatch: Math.ceil(totalProcessed / BATCH_SIZE),
           totalBatches: Math.ceil(totalPoints / BATCH_SIZE),
-          message: `Processed ${totalProcessed.toLocaleString()}/${totalPoints.toLocaleString()} points (${totalErrors} errors)`,
+          message: `Processed ${totalProcessed.toLocaleString()}/${totalPoints.toLocaleString()} points (${totalErrors} errors)` ,
           processedCount: totalProcessed,
           successCount: totalSuccess,
           errorCount: totalErrors,
-          totalCount: totalPoints
+          totalCount: totalPoints,
+          estimatedTimeRemaining: etaDisplay
         });
       }
     );
@@ -227,10 +269,11 @@ async function processTrackerDataInBatches(
   jobId: string,
   totalPoints: number,
   startTime: number,
-  progressCallback: (processed: number, success: number, errors: number) => void
+  progressCallback: (scanned: number, processed: number, success: number, errors: number) => void
 ): Promise<void> {
   let offset = 0;
   let totalProcessed = 0;
+  let totalScanned = 0;
   const CONCURRENT_REQUESTS = Math.max(8, Math.min(50, cpus().length * 4));
   console.log(`🚀 Using ${CONCURRENT_REQUESTS} concurrent requests (${cpus().length} CPU cores available, 4x for I/O-bound tasks)`);
   let hasMoreData = true;
@@ -256,11 +299,19 @@ async function processTrackerDataInBatches(
     const points = allBatchPoints?.filter(point => needsGeocoding(point.geocode)) || [];
     console.log(`🔄 Processing batch of ${points.length} tracker data points (offset: ${offset}, total in batch: ${allBatchPoints.length})`);
 
+    let batchProcessed = 0;
+    let batchSuccess = 0;
+    let batchErrors = 0;
     if (points.length > 0) {
       const results = await processPointsInParallel(points, CONCURRENT_REQUESTS, jobId);
+      batchProcessed = results.processed;
+      batchSuccess = results.success;
+      batchErrors = results.errors;
       totalProcessed += results.processed;
-      progressCallback(results.processed, results.success, results.errors);
     }
+    // Always count scanned rows and emit progress, even if none needed geocoding
+    totalScanned += allBatchPoints.length;
+    progressCallback(allBatchPoints.length, batchProcessed, batchSuccess, batchErrors);
 
     offset += batchSize;
     if (offset > 1000000) { console.warn('⚠️ Too many records processed, stopping at 1M'); hasMoreData = false; }
@@ -405,6 +456,20 @@ async function updateGeocodeWithError(
   } catch (error) {
     console.error(`❌ Error updating geocode with error:`, error);
   }
+}
+
+function formatEta(seconds: number): string {
+  if (!seconds || seconds <= 0) return 'Calculating...';
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h}h ${m}m ${s}s`;
 }
 
 

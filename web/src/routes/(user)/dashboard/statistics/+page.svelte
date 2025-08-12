@@ -97,7 +97,6 @@
 	let locationData = $state<TrackerLocation[]>([]);
 	let hasMoreData = $state(false);
 	let currentOffset = $state(0);
-    const BATCH_SIZE = 15000; // Show 15000 points by default
     let totalPoints = $state(0);
 
 	// Progress tracking
@@ -774,7 +773,8 @@
 			const filterStateString = JSON.stringify(filterState);
 
 			// Only reload if we have some filter applied and the state actually changed
-			if ((filterState.startDate || filterState.endDate) && filterStateString !== lastFilterState) {
+            // Only load when a full range is selected (both start and end present)
+            if ((filterState.startDate && filterState.endDate) && filterStateString !== lastFilterState) {
 				console.log('🔍 State changed, triggering debounced data load:', {
 					oldState: lastFilterState,
 					newState: filterStateString,
@@ -1035,7 +1035,7 @@
         let result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate,
 				endDate,
-            limit: 15000,
+            limit: 5000,
 				offset: loadMoreOffset,
 				includeStatistics: needsNewStatistics // Include statistics only when needed
 			}) as TrackerApiResponse;
@@ -1652,7 +1652,7 @@
                             <span class="text-xs text-gray-500">{loadingStage}</span>
                         {/if}
                     {:else}
-                        {t('statistics.loadMore')} (+15,000) ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
+                        {t('statistics.loadMore')} (+5,000) ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
                     {/if}
                 </button>
             </div>

@@ -26,19 +26,17 @@
 		goto('/auth/signin');
 	}
 
-	async function handleSignOut() {
-		console.log('🏠 [LANDING] Signout initiated - clearing client stores first');
-
-		// Clear client-side stores immediately
-		userStore.set(null);
-		sessionStore.set(null);
-
-		// Force a page refresh to ensure clean state
-		window.location.reload();
-
-		// Then redirect to server-side signout endpoint
-		goto('/auth/signout');
-	}
+    async function handleSignOut() {
+        console.log('🏠 [LANDING] Signout initiated');
+        try {
+            // Ensure client session/localStorage are cleared first
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('🏠 [LANDING] Client signout warning:', e);
+        }
+        // Force navigation to server-side signout to clear SSR cookies and reload UI
+        window.location.href = '/auth/signout';
+    }
 
 	onMount(() => {
 		console.log('🏠 [LANDING] Page mounted');

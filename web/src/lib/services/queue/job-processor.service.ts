@@ -46,7 +46,19 @@ export class JobProcessorService {
 		console.log(`👤 Job created by user: ${job.created_by}`);
 		console.log(`📋 Job data:`, JSON.stringify(job.data, null, 2));
 
-		const startTime = Date.now();
+    const startTime = Date.now();
+    // Moving average ETA over the last 15 seconds
+    const PROGRESS_WINDOW_MS = 15_000;
+    const progressSamples: Array<{ time: number; progress: number }> = [];
+    const formatEta = (seconds: number): string => {
+      if (!seconds || seconds <= 0) return 'Calculating...';
+      const s = Math.floor(seconds % 60);
+      const m = Math.floor((seconds / 60) % 60);
+      const h = Math.floor(seconds / 3600);
+      if (h > 0) return `${h}h ${m}m ${s}s`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    };
 		const userId = job.created_by;
 		const {
 			startDate,
@@ -248,18 +260,45 @@ export class JobProcessorService {
 			};
 
 			// Use the new trip detection service with the determined date ranges
-			const detectedTrips = await tripDetectionService.detectTrips(
+      const detectedTrips = await tripDetectionService.detectTrips(
 				userId,
 				config,
 				job.id,
 				async (progress: number, message: string) => {
-					await JobQueueService.updateJobProgress(
+          // Track samples for moving-average ETA
+          const now = Date.now();
+          progressSamples.push({ time: now, progress });
+          while (progressSamples.length > 1 && progressSamples[0].time < now - PROGRESS_WINDOW_MS) {
+            progressSamples.shift();
+          }
+
+          // Compute rate (percentage points per second)
+          let rate = 0;
+          if (progressSamples.length >= 2) {
+            const first = progressSamples[0];
+            const last = progressSamples[progressSamples.length - 1];
+            const dp = Math.max(0, last.progress - first.progress);
+            const dt = (last.time - first.time) / 1000;
+            if (dp > 0 && dt > 0) rate = dp / dt;
+          }
+          if (rate === 0 && progress > 0) {
+            const elapsed = (now - startTime) / 1000;
+            if (elapsed > 0) rate = progress / elapsed;
+          }
+
+          const remainingPct = Math.max(0, 100 - progress);
+          const remainingSeconds = rate > 0 ? Math.round(remainingPct / rate) : 0;
+          const etaDisplay = formatEta(remainingSeconds);
+
+          await JobQueueService.updateJobProgress(
 						job.id,
 						progress,
 						{
 							message,
 							userStartDate: startDate,
-							userEndDate: endDate
+              userEndDate: endDate,
+              estimatedTimeRemaining: etaDisplay,
+              etaSeconds: remainingSeconds
 						}
 					);
 				},

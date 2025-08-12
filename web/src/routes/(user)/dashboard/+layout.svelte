@@ -18,17 +18,15 @@
 
 	async function handleSignout() {
 		try {
-			// Clear client stores first
+			// Clear client session first to avoid stale UI
+			await supabase.auth.signOut();
 			userStore.set(null);
 			sessionStore.set(null);
-			// authStore.set(null); // This line was removed from the new_code, so it's removed here.
-
-			// Then redirect to server-side signout endpoint
-			goto('/auth/signout');
+			// Redirect via full reload to ensure all components re-mount without auth state
+			window.location.href = '/auth/signout';
 		} catch (error) {
 			console.error('❌ [Dashboard] Signout error:', error);
-			// Even if there's an error, try to redirect to signout
-			goto('/auth/signout');
+			window.location.href = '/auth/signout';
 		}
 	}
 

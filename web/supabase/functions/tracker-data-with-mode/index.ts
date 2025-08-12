@@ -578,10 +578,14 @@ function calculateStatistics(trackerData: any[]): any {
 
     // Accumulate totals
     totalDistance += distance
-    timeSpentMoving += timeDiff
 
     // Use transport mode from enhanced data
     const mode = point.transport_mode || 'unknown'
+
+    // Only count moving time for non-stationary segments
+    if (mode !== 'stationary') {
+      timeSpentMoving += timeDiff
+    }
     if (!transportModes[mode]) {
       transportModes[mode] = { distance: 0, time: 0, points: 0 }
     }
@@ -648,28 +652,32 @@ function calculateStatistics(trackerData: any[]): any {
   }
 
   // Calculate country time distribution
-  const totalTime = trackerData.length > 1
-    ? new Date(trackerData[trackerData.length - 1].recorded_at).getTime() -
-      new Date(trackerData[0].recorded_at).getTime()
-    : 0
+  // Ensure chronological order to avoid incorrect total time and over-100% percentages
+  const timeData = [...trackerData].sort((a, b) =>
+    new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+  )
+
+  // Use sum of per-point time (time_spent if present, otherwise next-point delta)
+  let totalTimeMs = 0
 
   // Attribute time to each point's country using DB column when present; fallback to segment-based
   const countryTimeMap = new Map<string, number>()
-  for (let i = 0; i < trackerData.length; i++) {
-    const p = trackerData[i]
+  for (let i = 0; i < timeData.length; i++) {
+    const p = timeData[i]
+    const ms = typeof p.time_spent === 'number' && isFinite(p.time_spent)
+      ? p.time_spent * 1000
+      : (i < timeData.length - 1)
+        ? Math.max(0, new Date(timeData[i + 1].recorded_at).getTime() - new Date(p.recorded_at).getTime())
+        : 0
+    totalTimeMs += ms
     if (p.country_code) {
-      const ms = typeof p.time_spent === 'number' && isFinite(p.time_spent)
-        ? p.time_spent * 1000
-        : (i < trackerData.length - 1)
-          ? Math.max(0, new Date(trackerData[i + 1].recorded_at).getTime() - new Date(p.recorded_at).getTime())
-          : 0
       countryTimeMap.set(p.country_code, (countryTimeMap.get(p.country_code) || 0) + ms)
     }
   }
 
   // Convert map to array and calculate percentages
   for (const [countryCode, timeMs] of countryTimeMap.entries()) {
-    const percent = totalTime > 0 ? (timeMs / totalTime) * 100 : 0
+    const percent = totalTimeMs > 0 ? (timeMs / totalTimeMs) * 100 : 0
     countryTimeDistribution.push({
       country_code: countryCode,
       timeMs: timeMs,
@@ -746,7 +754,7 @@ function calculateStatistics(trackerData: any[]): any {
       : '0 km',
     earthCircumferences: earthCircumferences,
     locationsVisited: totalUniquePlaces.toString(),
-    timeSpent: `${Math.round(totalTime / (1000 * 60 * 60 * 24))} days`,
+    timeSpent: `${Math.round(totalTimeMs / (1000 * 60 * 60 * 24))} days`,
     timeSpentMoving: `${timeSpentMovingHours}h`,
     geopoints: geopoints || 0,
     steps,
