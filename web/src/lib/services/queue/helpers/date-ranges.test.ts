@@ -94,10 +94,9 @@ describe('findAvailableDateRanges', () => {
 
     const result = await findAvailableDateRanges('user1', undefined, undefined, mockClient);
 
+    // New logic: available ranges are not split for single-day gaps
     expect(result).toEqual([
-      { startDate: '2025-01-01', endDate: '2025-01-02' },
-      { startDate: '2025-01-05', endDate: '2025-01-06' },
-      { startDate: '2025-01-09', endDate: '2025-01-10' }
+      { startDate: '2025-01-01', endDate: '2025-01-10' }
     ]);
   });
 
@@ -109,7 +108,10 @@ describe('findAvailableDateRanges', () => {
     });
 
     const result = await findAvailableDateRanges('user1', undefined, undefined, mockClient);
-    expect(result).toEqual([]);
+    // New logic: single-day gaps are not filtered out, so the available range is the full span
+    expect(result).toEqual([
+      { startDate: '2025-01-01', endDate: '2025-01-03' }
+    ]);
   });
 
   it('returns empty array if Supabase errors', async () => {
