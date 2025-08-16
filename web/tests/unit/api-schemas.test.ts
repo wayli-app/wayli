@@ -247,7 +247,6 @@ describe('API Validation Schemas', () => {
 			const validExport = {
 				format: 'json',
 				includeLocationData: true,
-				includeTripInfo: false,
 				includeWantToVisit: true,
 				includeTrips: true,
 				startDate: '2024-01-01',
@@ -262,7 +261,6 @@ describe('API Validation Schemas', () => {
 			const invalidExport = {
 				format: 'invalid',
 				includeLocationData: true,
-				includeTripInfo: false,
 				includeWantToVisit: true,
 				includeTrips: true
 			};

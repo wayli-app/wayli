@@ -5,8 +5,6 @@ import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
 
 export const GET: RequestHandler = async () => {
 	try {
-		console.log('🔧 [SERVER-SETTINGS] Fetching public server settings');
-
 		// Create Supabase client for server-side operations
 		const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -34,8 +32,6 @@ export const GET: RequestHandler = async () => {
 				allow_registration: settings?.allow_registration ?? true // Default to true if no settings exist
 			}
 		};
-
-		console.log('✅ [SERVER-SETTINGS] Public server settings fetched successfully:', publicSettings);
 		return json(publicSettings);
 	} catch (error) {
 		console.error('❌ [SERVER-SETTINGS] Internal server error:', error);

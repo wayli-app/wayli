@@ -17,8 +17,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Fetching job progress', 'JOBS-PROGRESS', { userId: user.id });
-
       // Extract job_id from URL path
       const url = req.url;
       const urlObj = new URL(url);
@@ -32,8 +30,6 @@ Deno.serve(async (req) => {
         return errorResponse('Missing job ID', 400);
       }
 
-      logInfo('Fetching job details', 'JOBS-PROGRESS', { jobId, userId: user.id });
-
       // Get the job
       const { data: job, error: jobError } = await supabase
         .from('jobs')
@@ -46,13 +42,6 @@ Deno.serve(async (req) => {
         logError(jobError, 'JOBS-PROGRESS');
         return errorResponse('Job not found', 404);
       }
-
-      logSuccess('Job progress fetched successfully', 'JOBS-PROGRESS', {
-        jobId,
-        userId: user.id,
-        status: job.status,
-        progress: job.progress
-      });
 
       return successResponse({
         id: job.id,

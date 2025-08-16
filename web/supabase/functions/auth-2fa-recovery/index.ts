@@ -19,8 +19,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'POST') {
-      logInfo('Processing 2FA recovery', 'AUTH-2FA-RECOVERY', { userId: user.id });
-
       const body = await parseJsonBody<Record<string, unknown>>(req);
 
       // Validate required fields

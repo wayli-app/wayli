@@ -18,8 +18,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Fetching trip locations', 'TRIPS-LOCATIONS', { userId: user.id });
-
       const url = req.url;
       const params = getQueryParams(url);
 
@@ -40,8 +38,6 @@ Deno.serve(async (req) => {
 
       // Fetch locations if requested
       if (includeLocations) {
-        logInfo('Fetching locations', 'TRIPS-LOCATIONS');
-
         let locationsQuery = supabase
           .from('locations')
           .select('*')
@@ -69,8 +65,6 @@ Deno.serve(async (req) => {
 
       // Fetch POIs if requested
       if (includePOIs) {
-        logInfo('Fetching POIs', 'TRIPS-LOCATIONS');
-
         let poisQuery = supabase
           .from('tracker_data')
           .select('*')
@@ -99,8 +93,6 @@ Deno.serve(async (req) => {
 
       // Fetch tracker data if requested
       if (includeTrackerData) {
-        logInfo('Fetching tracker data', 'TRIPS-LOCATIONS');
-
         // First get total count
         let countQuery = supabase
           .from('tracker_data')
@@ -150,11 +142,6 @@ Deno.serve(async (req) => {
           total: trackerCount || 0
         });
       }
-
-      logSuccess('Trip locations fetched successfully', 'TRIPS-LOCATIONS', {
-        userId: user.id,
-        resultKeys: Object.keys(result)
-      });
       return successResponse(result);
     }
 

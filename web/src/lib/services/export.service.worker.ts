@@ -4,7 +4,6 @@ import { JobQueueService } from './queue/job-queue.service.worker';
 export interface ExportOptions {
 	format: 'GeoJSON' | 'GPX' | 'OwnTracks';
 	includeLocationData: boolean;
-	includeTripInfo: boolean;
 	includeWantToVisit: boolean;
 	includeTrips: boolean;
 }
@@ -15,7 +14,6 @@ export interface ExportJob {
 	status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 	format: string;
 	include_location_data: boolean;
-	include_trip_info: boolean;
 	include_want_to_visit: boolean;
 	include_trips: boolean;
 	file_path?: string;
@@ -57,7 +55,6 @@ export class ExportService {
 			status: job.status,
 			format: options.format,
 			include_location_data: options.includeLocationData,
-			include_trip_info: options.includeTripInfo,
 			include_want_to_visit: options.includeWantToVisit,
 			include_trips: options.includeTrips,
 			expires_at: expiresAt.toISOString(),
@@ -95,7 +92,6 @@ export class ExportService {
 			status: job.status,
 			format: options.format as string,
 			include_location_data: options.includeLocationData as boolean,
-			include_trip_info: options.includeTripInfo as boolean,
 			include_want_to_visit: options.includeWantToVisit as boolean,
 			include_trips: options.includeTrips as boolean,
 			file_path: (options.file_path as string) || ((job.result as Record<string, unknown>)?.file_path as string) || undefined,
@@ -132,7 +128,6 @@ export class ExportService {
 				status: job.status,
 				format: options.format as string,
 				include_location_data: options.includeLocationData as boolean,
-				include_trip_info: options.includeTripInfo as boolean,
 				include_want_to_visit: options.includeWantToVisit as boolean,
 				include_trips: options.includeTrips as boolean,
 				file_path: (options.file_path as string) || ((job.result as Record<string, unknown>)?.file_path as string) || undefined,
@@ -178,31 +173,6 @@ export class ExportService {
 	static async failExportJob(jobId: string, error: string): Promise<void> {
 		// Use JobQueueService to fail the job
 		await JobQueueService.failJob(jobId, error);
-	}
-
-	static async getExportDownloadUrl(jobId: string, userId: string): Promise<string | null> {
-		const exportJob = await this.getExportJob(jobId, userId);
-
-		if (!exportJob || exportJob.status !== 'completed') {
-			return null;
-		}
-
-		// Check for file path in job.result
-		const filePath = (exportJob.result as Record<string, unknown>)?.file_path as string;
-		if (!filePath) {
-			return null;
-		}
-
-		// Check if file has expired
-		if (new Date(exportJob.expires_at) < new Date()) {
-			return null;
-		}
-
-		const { data } = await this.supabase.storage
-			.from('exports')
-			.createSignedUrl(filePath, 3600); // 1 hour expiry
-
-		return data?.signedUrl || null;
 	}
 
 	static async cleanupExpiredExports(): Promise<number> {

@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS public.tracker_data (
     activity_type TEXT, -- 'walking', 'driving', 'cycling', etc.
     raw_data JSONB, -- Store original data from tracking app
     geocode JSONB, -- Store geocoded data from Nominatim
+    tz_diff DECIMAL(4, 1), -- Timezone difference from UTC in hours (e.g., +2.0, -5.0)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (user_id, location, recorded_at)
@@ -251,6 +252,7 @@ CREATE INDEX IF NOT EXISTS idx_image_generation_jobs_suggested_trip ON public.im
 
 -- Create spatial indexes for PostGIS
 CREATE INDEX IF NOT EXISTS idx_tracker_data_location ON public.tracker_data USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_tracker_data_tz_diff ON public.tracker_data(tz_diff);
 
 -- Enable RLS on all tables
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
@@ -1566,6 +1568,9 @@ DECLARE
     total_updated INTEGER;
     user_filter TEXT := '';
 BEGIN
+    -- Set a longer statement timeout for this function
+    SET LOCAL statement_timeout = '30m';
+
     IF target_user_id IS NOT NULL THEN
         RAISE NOTICE 'Starting distance and time_spent calculation for user % using optimized window function approach...', target_user_id;
         user_filter := ' AND t1.user_id = $1';
@@ -1731,14 +1736,108 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Function to update distances in batches for large datasets
+CREATE OR REPLACE FUNCTION update_tracker_distances_batch(
+    target_user_id UUID DEFAULT NULL,
+    batch_size INTEGER DEFAULT 10000
+)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER := 0;
+    batch_updated INTEGER;
+    offset_val INTEGER := 0;
+    has_more BOOLEAN := true;
+    user_filter TEXT := '';
+BEGIN
+    -- Set a longer statement timeout for this function
+    SET LOCAL statement_timeout = '30m';
+
+    IF target_user_id IS NOT NULL THEN
+        RAISE NOTICE 'Starting batched distance calculation for user % (batch size: %)...', target_user_id, batch_size;
+        user_filter := ' AND t1.user_id = $1';
+    ELSE
+        RAISE NOTICE 'Starting batched distance calculation for ALL users (batch size: %)...', batch_size;
+    END IF;
+
+    -- Process data in batches to avoid memory issues
+    WHILE has_more LOOP
+        WITH distance_and_time_calculations AS (
+            SELECT
+                t1.user_id,
+                t1.recorded_at,
+                t1.location,
+                CASE
+                    WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                        0  -- First point for each user
+                    ELSE
+                        ST_DistanceSphere(
+                            LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                            t1.location
+                        )
+                END AS calculated_distance,
+                CASE
+                    WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                        0  -- First point for each user
+                    ELSE
+                        EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at)))
+                END AS calculated_time_spent
+            FROM public.tracker_data t1
+            WHERE t1.location IS NOT NULL
+            AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+            ORDER BY t1.user_id, t1.recorded_at
+            LIMIT batch_size OFFSET offset_val
+        )
+        UPDATE public.tracker_data
+        SET
+            distance = dc.calculated_distance,
+            time_spent = dc.calculated_time_spent,
+            speed = LEAST(
+                ROUND((
+                    CASE
+                        WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
+                        ELSE 0
+                    END
+                )::numeric, 2),
+                9999999999.99
+            ),
+            updated_at = NOW()
+        FROM distance_and_time_calculations dc
+        WHERE tracker_data.user_id = dc.user_id
+        AND tracker_data.recorded_at = dc.recorded_at
+        AND tracker_data.location = dc.location;
+
+        -- Get count of updated records in this batch
+        GET DIAGNOSTICS batch_updated = ROW_COUNT;
+
+        total_updated := total_updated + batch_updated;
+        offset_val := offset_val + batch_size;
+
+        -- Check if we have more data to process
+        IF batch_updated < batch_size THEN
+            has_more := false;
+        END IF;
+
+        RAISE NOTICE 'Processed batch: % records updated (total: %)', batch_updated, total_updated;
+
+        -- Small delay to prevent overwhelming the database
+        PERFORM pg_sleep(0.1);
+    END LOOP;
+
+    RAISE NOTICE 'Batched distance calculation complete. Total records updated: %', total_updated;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Add helpful comments
 COMMENT ON FUNCTION update_tracker_distances IS 'Updates distance and time_spent columns for all tracker_data records by calculating from previous chronological point. Can target specific user for performance.';
+COMMENT ON FUNCTION update_tracker_distances_batch IS 'Updates distance and time_spent columns in batches for large datasets to avoid timeouts. Can target specific user for performance.';
 COMMENT ON FUNCTION trigger_calculate_distance IS 'Trigger function to automatically calculate distance and time_spent for new tracker_data records';
 COMMENT ON FUNCTION disable_tracker_data_trigger IS 'Temporarily disables distance calculation trigger for bulk operations';
 COMMENT ON FUNCTION enable_tracker_data_trigger IS 'Re-enables distance calculation trigger after bulk operations';
 COMMENT ON FUNCTION perform_bulk_import_with_distance_calculation IS 'Optimized bulk import helper that disables triggers, calculates distances, and re-enables triggers';
 COMMENT ON COLUMN public.tracker_data.distance IS 'Distance in meters from the previous chronological point for this user';
 COMMENT ON COLUMN public.tracker_data.time_spent IS 'Time spent in seconds from the previous chronological point for this user';
+COMMENT ON COLUMN public.tracker_data.tz_diff IS 'Timezone difference from UTC in hours (e.g., +2.0 for UTC+2, -5.0 for UTC-5)';
 
 -- ========================================================================
 -- MERGED MIGRATIONS END HERE

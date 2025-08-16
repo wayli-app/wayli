@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { Clock, Download, Upload, MapPin, Route, FileDown, X } from 'lucide-svelte';
-	import { getActiveJobsMap, subscribe, fetchAndPopulateJobs } from '$lib/stores/job-store';
-	import { onMount } from 'svelte';
-	import { toast } from 'svelte-sonner';
-	import { supabase } from '$lib/core/supabase/client';
-	import { translate } from '$lib/i18n';
+import { getActiveJobsMap, subscribe, fetchAndPopulateJobs } from '$lib/stores/job-store';
+import { onMount } from 'svelte';
+import { toast } from 'svelte-sonner';
+import { supabase } from '$lib/core/supabase/client';
+import { translate } from '$lib/i18n';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -94,6 +94,11 @@
 
 	// Get ETA display
 	function getETADisplay(job: any): string {
+		// Hide ETA for export jobs
+		if (job.type === 'data_export') {
+			return '';
+		}
+
 		if (job.status !== 'running' && job.status !== 'queued') {
 			return '';
 		}
@@ -125,8 +130,8 @@
       return etaVal;
     }
 
-		// For data import/export, calculate ETA based on progress
-		if (job.type === 'data_import' || job.type === 'data_export') {
+		// For data import, calculate ETA based on progress (export jobs are excluded above)
+		if (job.type === 'data_import') {
 			if (job.progress === 0) return t('jobProgress.calculating');
 			if (job.progress === 100) return t('jobProgress.complete');
 
@@ -141,7 +146,7 @@
     if (!seconds || seconds <= 0) return t('jobProgress.calculating');
     const s = Math.floor(seconds % 60);
     const m = Math.floor((seconds / 60) % 60);
-    const h = Math.floor(seconds / 3600);
+    const h = Math.floor((seconds / 3600));
     if (h > 0) return `${h}h ${m}m ${s}s`;
     if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
@@ -280,8 +285,9 @@
 		// Update visible jobs
 		visibleJobs = activeJobsList;
 
-		// Handle recently completed jobs
-		recentlyCompletedJobs.forEach(job => {
+		// Handle recently completed jobs (excluding export jobs which have their own section)
+		const nonExportCompletedJobs = recentlyCompletedJobs.filter(job => job.type !== 'data_export');
+		nonExportCompletedJobs.forEach(job => {
 			if (!showCompletedJobs.find(j => j.id === job.id)) {
 				showCompletedJobs = [...showCompletedJobs, job];
 
@@ -312,7 +318,7 @@
 
 		// Clean up timers for jobs that are no longer in recently completed
 		completedJobTimers.forEach((timer, jobId) => {
-			if (!recentlyCompletedJobs.find(job => job.id === jobId)) {
+			if (!nonExportCompletedJobs.find(job => job.id === jobId)) {
 				clearTimeout(timer);
 				completedJobTimers.delete(jobId);
 			}
@@ -464,8 +470,8 @@
 
 <!-- Cancel Confirmation Modal -->
 {#if showCancelConfirm && jobToCancel}
-	<div class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-		<div class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800 p-6 mx-4">
+	<div class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important;">
+		<div class="relative w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800 p-6 mx-4" style="position: relative !important; z-index: 100000 !important;">
 			<div class="mb-4">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
 					Cancel Job

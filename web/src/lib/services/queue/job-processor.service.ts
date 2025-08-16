@@ -436,10 +436,10 @@ export class JobProcessorService {
 			});
 
 			try {
-				// Use the optimized bulk calculation for this user's data
+				// Use the optimized batch calculation for this user's data
 				const { data: distanceResult, error: distanceError } = await supabase.rpc(
-					'update_tracker_distances',
-					{ target_user_id: userId }
+					'update_tracker_distances_batch',
+					{ target_user_id: userId, batch_size: 5000 }
 				);
 
 				if (distanceError) {

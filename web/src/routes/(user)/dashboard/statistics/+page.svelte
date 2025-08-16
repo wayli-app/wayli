@@ -34,6 +34,7 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { getTransportDetectionReasonLabel, type TransportDetectionReason } from '$lib/types/transport-detection-reasons';
 	import { currentLocale, getCountryNameReactive, translate } from '$lib/i18n';
+	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -120,7 +121,9 @@
 
 	const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 	const today = new Date();
-	const getDateFromToday = (days: number) => new Date(Date.now() - days * MILLISECONDS_IN_DAY);
+	function getDateFromToday(days: number) {
+		return new Date(Date.now() - days * MILLISECONDS_IN_DAY);
+	}
 
     let isOpen = $state(false);
     let dateFormat = 'MMM d, yyyy';
@@ -132,8 +135,10 @@
 	let cacheUpdateTrigger = 0;
 
 	// Use reactive statements to format dates from global state
-	let formattedStartDate = $derived(appState.filtersStartDate ? format(appState.filtersStartDate, dateFormat) : '');
-	let formattedEndDate = $derived(appState.filtersEndDate ? format(appState.filtersEndDate, dateFormat) : '');
+	function formatDate(date: Date | string) {
+		if (!date || isNaN(new Date(date as string).getTime())) return '';
+		return format(new Date(date as string), dateFormat);
+	}
 
 	// Helper to ensure a value is a Date object
 	function getDateObject(val: any) {
@@ -156,37 +161,18 @@
 	]);
 
 	function toggleDatePicker() {
-		console.log('📅 Toggle date picker:', {
-			currentState: isOpen,
-			newState: !isOpen,
-			hasStartDate: !!appState.filtersStartDate,
-			hasEndDate: !!appState.filtersEndDate
-		});
-
-		if (!isOpen) {
-			// Clear the date range when opening the picker for a fresh selection
-			console.log('📅 Clearing date range for fresh selection');
-			appState.filtersStartDate = null;
-			appState.filtersEndDate = null;
-		}
 		isOpen = !isOpen;
+		console.log('📅 Date picker toggled:', isOpen);
 	}
 
 	// Handle date changes
     function handleDateChange() {
-        console.log('📅 Date picker change detected:', {
-            startDate: appState.filtersStartDate,
-            endDate: appState.filtersEndDate,
-            hasStartDate: !!appState.filtersStartDate,
-            hasEndDate: !!appState.filtersEndDate
-        });
-        // Close only when the user picks an end date (transition from null -> set or changed)
-        const currentEnd = appState.filtersEndDate ? getDateObject(appState.filtersEndDate) : null;
-        const shouldClose = !!currentEnd && (!lastEndDateSnapshot || +currentEnd !== +lastEndDateSnapshot);
-        if (shouldClose) {
+        console.log('📅 Date picker change:', { startDate: appState.filtersStartDate, endDate: appState.filtersEndDate });
+        if (appState.filtersStartDate && appState.filtersEndDate) {
             isOpen = false;
+            console.log('✅ Date range selected, closing picker');
         }
-        lastEndDateSnapshot = currentEnd;
+        lastEndDateSnapshot = appState.filtersEndDate ? getDateObject(appState.filtersEndDate) : null;
     }
 
     function selectedDateRange() {
@@ -1448,6 +1434,46 @@
 	isInitializing = false;
 	hasLoadedInitialData = true;
 });
+
+let localStartDate = $state(appState.filtersStartDate instanceof Date ? appState.filtersStartDate : '');
+let localEndDate = $state(appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '');
+
+$effect(() => {
+  localStartDate = appState.filtersStartDate instanceof Date ? appState.filtersStartDate : '';
+  localEndDate = appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '';
+});
+
+// Remove handleDateRangeChange and its on:change binding from DateRangePicker
+// Add MutationObserver logic in onMount
+onMount(() => {
+  let lastText = '';
+  const dateField = document.querySelector('.datepicker-statistics-fix .date-field .date');
+  if (!dateField) return;
+  const observer = new MutationObserver(() => {
+    const text = dateField.textContent?.trim();
+    if (!text || text === lastText) return;
+    lastText = text;
+    // Try to parse the date range
+    const match = text.match(/([A-Za-z]{3,} \d{1,2}, \d{4}) - ([A-Za-z]{3,} \d{1,2}, \d{4})/);
+    if (match) {
+      const [_, startStr, endStr] = match;
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        appState.filtersStartDate = start;
+        appState.filtersEndDate = end;
+        void fetchMapDataAndStatistics(true, 0);
+      }
+    }
+  });
+  observer.observe(dateField, { childList: true, subtree: true, characterData: true });
+  return () => observer.disconnect();
+});
+
+// In the DateRangePicker usage:
+// <DateRangePicker bind:startDate={localStartDate} bind:endDate={localEndDate} pickLabel={t('datePicker.pickDateRange')} />
+// (remove on:change={handleDateRangeChange})
+
 </script>
 
 <svelte:head>
@@ -1488,6 +1514,51 @@
 			pointer-events: auto !important;
 			touch-action: manipulation !important;
 		}
+
+		.datepicker-statistics-fix .date-filter {
+			position: static !important;
+		}
+		.datepicker-statistics-fix .datepicker-dropdown {
+			position: absolute !important;
+			right: 0 !important;
+			left: auto !important;
+			min-width: 340px;
+			max-width: 95vw;
+			z-index: 3000 !important;
+			box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+			border-radius: 12px;
+			margin-top: 8px;
+			overflow-x: auto;
+		}
+		@media (max-width: 600px) {
+			.datepicker-statistics-fix .datepicker-dropdown {
+				left: 0 !important;
+				right: auto !important;
+				min-width: 0;
+				width: 98vw;
+				max-width: 98vw;
+			}
+		}
+		.datepicker-statistics-fix .date-field,
+		.datepicker-statistics-fix .date-field.open {
+			cursor: pointer !important;
+		}
+		.datepicker-statistics-fix .calendars-container {
+			right: 0 !important;
+			left: auto !important;
+			max-width: 95vw !important;
+			overflow-x: auto !important;
+			position: absolute !important;
+			z-index: 3000 !important;
+		}
+		@media (max-width: 600px) {
+			.datepicker-statistics-fix .calendars-container {
+				left: 0 !important;
+				right: auto !important;
+				width: 98vw !important;
+				max-width: 98vw !important;
+			}
+		}
 	</style>
 </svelte:head>
 
@@ -1503,48 +1574,12 @@
 			</h1>
 		</div>
 		<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
-			<div class="relative">
-                <button
-                    type="button"
-                    class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
-                    onclick={toggleDatePicker}
-                    onkeydown={(e) => e.key === 'Enter' && toggleDatePicker()}
-                    class:open={isOpen}
-                    aria-label="Select date range"
-                    aria-expanded={isOpen}
-                >
-					<svg class="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-					</svg>
-					<div class="date">
-						{#if appState.filtersStartDate}
-							{formattedStartDate} - {formattedEndDate}
-						{:else}
-							{t('datePicker.pickDateRange')}
-						{/if}
-					</div>
-				</button>
-							{#if isOpen}
-			<div class="date-picker-container absolute right-0 mt-2 z-50">
-				<DatePicker
-					bind:isOpen
-					bind:startDate={appState.filtersStartDate}
-					bind:endDate={appState.filtersEndDate}
-					isRange
-					showPresets
-					presets={datePresets}
-					presetLabels={[t('datePicker.today'), t('datePicker.last7Days'), t('datePicker.last30Days'), t('datePicker.last60Days'), t('datePicker.last90Days'), t('datePicker.lastYear')]}
-					dowLabels={t('datePicker.dowLabels')}
-					monthLabels={t('datePicker.monthLabels')}
-					align="right"
-                    class="dark-datepicker"
-                    onclose={() => {
-						isOpen = false;
-					}}
-                    onchange={handleDateChange}
+			<div class="relative datepicker-statistics-fix">
+				<DateRangePicker
+					bind:startDate={localStartDate}
+					bind:endDate={localEndDate}
+					pickLabel={t('datePicker.pickDateRange')}
 				/>
-			</div>
-		{/if}
 			</div>
 		</div>
 	</div>
@@ -1803,7 +1838,8 @@
 							<tbody>
 								{#each statisticsData.transport
 									.slice()
-									.sort((a: { distance: number }, b: { distance: number }) => b.distance - a.distance) as mode}
+									.filter(mode => mode.mode !== 'stationary')
+									.sort((a, b) => b.distance - a.distance) as mode}
 									<tr>
 										<td
 											class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"

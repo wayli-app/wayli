@@ -2,6 +2,7 @@
 
 Most important rules:
 - Do not ever run `npx supabase db reset`.
+- ABSOLUTELY DO NOT EVER RUN `npx supabase db reset`.
 - Do not import $env/static/private into client-side code. This could leak sensitive information.
 - When working on the web app, use the web/ folder as a base.
 - Do not use the Supabase CLI to deploy functions. Assume we're running Supabase in a self-hosted manner.

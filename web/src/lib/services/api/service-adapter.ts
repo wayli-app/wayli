@@ -29,8 +29,7 @@ export class ServiceAdapter {
     } = {}
   ): Promise<T> {
     // Always use Edge Functions
-    const result = await this.callEdgeFunction(endpoint, options);
-    return result;
+    return await this.callEdgeFunction<T>(endpoint, options);
   }
 
   /**
@@ -46,16 +45,23 @@ export class ServiceAdapter {
   ): Promise<T> {
     const { method = 'GET', body, params } = options;
 
-    // Convert slash-separated endpoints to hyphen-separated for Edge Functions
-    const edgeFunctionName = endpoint.replace(/\//g, '-');
+    // Special handling for export-download endpoint - don't convert slashes to hyphens
+    let edgeFunctionName: string;
+    if (endpoint.startsWith('export-download/')) {
+      // Keep the path structure for export-download
+      edgeFunctionName = endpoint;
+    } else {
+      // Convert slash-separated endpoints to hyphen-separated for other Edge Functions
+      edgeFunctionName = endpoint.replace(/\//g, '-');
+    }
 
     if (method === 'GET') {
-      return this.edgeFunctionsService.makeRequest(edgeFunctionName, {
+      return this.edgeFunctionsService.makeRequest<T>(edgeFunctionName, {
         session: this.session,
         params
       });
     } else {
-      return this.edgeFunctionsService.makeRequest(edgeFunctionName, {
+      return this.edgeFunctionsService.makeRequest<T>(edgeFunctionName, {
         method,
         body,
         session: this.session
@@ -178,7 +184,7 @@ export class ServiceAdapter {
     });
   }
 
-  async approveSuggestedTrips(tripIds: string[], preGeneratedImages?: Record<string, { image_url: string; attribution?: any }>) {
+  async approveSuggestedTrips(tripIds: string[], preGeneratedImages?: Record<string, { image_url: string; attribution?: unknown }>) {
     console.log('📤 [SERVICE] Calling approveSuggestedTrips with:', tripIds);
     console.log('📤 [SERVICE] Pre-generated images data:', preGeneratedImages);
     const result = await this.callApi('trips/suggested', {
@@ -193,18 +199,30 @@ export class ServiceAdapter {
     return result;
   }
 
-  async generateSuggestedTripImages(suggestedTripIds: string[]) {
+  async generateSuggestedTripImages(suggestedTripIds: string[]): Promise<{ results: SuggestedImageResult[] }> {
     console.log('📤 [SERVICE] Calling generateSuggestedTripImages with:', suggestedTripIds);
-    const result = await this.callApi('trips-suggested-generate-images', {
-      method: 'POST',
-      body: {
-        suggested_trip_ids: suggestedTripIds
+    const results: SuggestedImageResult[] = [];
+    for (const tripId of suggestedTripIds) {
+      try {
+        const result = await this.suggestTripImages(tripId);
+        // Type guard for result
+        const imageUrl = (result && typeof result === 'object' && 'suggestedImageUrl' in result) ? (result as { suggestedImageUrl?: string }).suggestedImageUrl : undefined;
+        const attribution = (result && typeof result === 'object' && 'attribution' in result) ? (result as { attribution?: unknown }).attribution : undefined;
+        const analysis = (result && typeof result === 'object' && 'analysis' in result) ? (result as { analysis?: unknown }).analysis : undefined;
+        results.push({
+          suggested_trip_id: tripId,
+          success: !!imageUrl,
+          image_url: imageUrl,
+          attribution,
+          analysis
+        });
+      } catch (error) {
+        results.push({ suggested_trip_id: tripId, success: false, error: error instanceof Error ? error.message : String(error) });
       }
-    });
-    console.log('📥 [SERVICE] generateSuggestedTripImages result:', result);
-    console.log('📥 [SERVICE] generateSuggestedTripImages results array:', result?.results);
-    console.log('📥 [SERVICE] generateSuggestedTripImages successful results:', result?.results?.filter((r: any) => r.success));
-    return result;
+    }
+    const aggregated = { results };
+    console.log('📥 [SERVICE] generateSuggestedTripImages aggregated results:', aggregated);
+    return aggregated;
   }
 
   async rejectSuggestedTrips(tripIds: string[]) {
@@ -276,7 +294,7 @@ export class ServiceAdapter {
       const { supabase } = await import('$lib/core/supabase/client');
 
       // Upload file with progress tracking using XMLHttpRequest
-      const uploadPromise = new Promise<{ error: any }>((resolve) => {
+      const uploadPromise = new Promise<{ error: unknown }>((resolve) => {
         const xhr = new XMLHttpRequest();
 
         // Get upload URL from Supabase
@@ -320,7 +338,8 @@ export class ServiceAdapter {
 
       if (uploadError) {
         console.error('❌ [SERVICE] File upload failed:', uploadError);
-        throw new Error(`File upload failed: ${uploadError.message}`);
+        const message = typeof uploadError === 'object' && uploadError && 'message' in uploadError ? (uploadError as { message: string }).message : String(uploadError);
+        throw new Error(`File upload failed: ${message}`);
       }
 
       console.log('✅ [SERVICE] File uploaded successfully');
@@ -466,7 +485,10 @@ export class ServiceAdapter {
   }
 
   async getExportDownloadUrl(jobId: string) {
-    return this.callApi(`export/${jobId}/download`);
+    // Send job ID as a query parameter since path parameter extraction isn't working
+    return this.callApi(`export-download`, {
+      params: { job_id: jobId }
+    });
   }
 
   /**
@@ -593,4 +615,14 @@ export class ServiceAdapter {
   async deleteTripExclusion(exclusionId: string) {
     return this.edgeFunctionsService.deleteTripExclusion(this.session, exclusionId);
   }
+}
+
+// Add a type for the image suggestion result
+interface SuggestedImageResult {
+  suggested_trip_id: string;
+  success: boolean;
+  image_url?: string;
+  attribution?: unknown;
+  analysis?: unknown;
+  error?: string;
 }

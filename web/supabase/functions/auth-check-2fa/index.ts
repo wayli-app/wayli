@@ -18,8 +18,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Checking 2FA status', 'AUTH-CHECK-2FA', { userId: user.id });
-
       // Get user's 2FA status from profile
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')

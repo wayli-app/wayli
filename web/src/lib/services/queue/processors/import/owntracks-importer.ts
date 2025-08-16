@@ -3,7 +3,11 @@
 import { supabase } from '$lib/core/supabase/worker';
 import { JobQueueService } from '$lib/services/queue/job-queue.service.worker';
 import { checkJobCancellation } from '$lib/utils/job-cancellation';
-import { normalizeCountryCode as normalizeCountryCodeExternal, getCountryForPoint as getCountryForPointExternal } from '$lib/services/external/country-reverse-geocoding.service';
+import {
+  normalizeCountryCode as normalizeCountryCodeExternal,
+  getCountryForPoint as getCountryForPointExternal,
+  applyTimezoneCorrectionToTimestamp
+} from '$lib/services/external/country-reverse-geocoding.service';
 
 export async function importOwnTracksWithProgress(
   content: string,
@@ -74,12 +78,14 @@ export async function importOwnTracksWithProgress(
         if (!isNaN(timestamp) && !isNaN(lat) && !isNaN(lon)) {
           const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
 
+          const recordedAt = applyTimezoneCorrectionToTimestamp(timestamp * 1000, lat, lon);
+
           const { error } = await supabase.from('tracker_data').upsert(
             {
               user_id: userId,
               tracker_type: 'import',
               location: `POINT(${lon} ${lat})`,
-              recorded_at: new Date(timestamp * 1000).toISOString(),
+              recorded_at: recordedAt,
               country_code: countryCode,
               altitude: parts[3] ? parseFloat(parts[3]) : null,
               accuracy: parts[4] ? parseFloat(parts[4]) : null,

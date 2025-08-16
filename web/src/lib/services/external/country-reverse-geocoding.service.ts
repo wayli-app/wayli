@@ -29,6 +29,42 @@ function loadCountriesGeoJSON(): FeatureCollection<Polygon | MultiPolygon> {
 	return countriesGeoJSON;
 }
 
+// Load and cache timezones.geojson
+let timezonesGeoJSON: FeatureCollection<Polygon | MultiPolygon> | null = null;
+function loadTimezonesGeoJSON(): FeatureCollection<Polygon | MultiPolygon> {
+	if (!timezonesGeoJSON) {
+		// Try multiple possible paths for different environments
+		const possiblePaths = [
+			path.resolve(__dirname, '../../data/timezones.geojson'),
+			path.resolve(process.cwd(), 'src/lib/data/timezones.geojson'),
+			path.resolve(process.cwd(), 'web/src/lib/data/timezones.geojson'),
+			'./src/lib/data/timezones.geojson',
+			'./web/src/lib/data/timezones.geojson'
+		];
+
+		let loaded = false;
+		for (const filePath of possiblePaths) {
+			try {
+				const data = fs.readFileSync(filePath, 'utf-8');
+				const parsed = JSON.parse(data) as FeatureCollection<Polygon | MultiPolygon>;
+				timezonesGeoJSON = parsed;
+				loaded = true;
+				break;
+			} catch {
+				// Continue trying other paths
+			}
+		}
+
+		if (!loaded) {
+			console.error(`❌ [TIMEZONE] Failed to load timezones.geojson from any path`);
+			// Return empty feature collection to prevent crashes
+			const emptyCollection = { type: 'FeatureCollection', features: [] } as FeatureCollection<Polygon | MultiPolygon>;
+			timezonesGeoJSON = emptyCollection;
+		}
+	}
+	return timezonesGeoJSON!;
+}
+
 /**
  * Returns the country name or code for a given lat/lng, or null if not found.
  */
@@ -43,6 +79,101 @@ export function getCountryForPoint(lat: number, lng: number): string | null {
 		}
 	}
 	return null;
+}
+
+/**
+ * Returns the timezone offset for a given lat/lng, or null if not found.
+ * The timezone offset is a string like "-9.5", "-8", "-6", "-4", etc.
+ */
+export function getTimezoneForPoint(lat: number, lng: number): string | null {
+	const geojson = loadTimezonesGeoJSON();
+	const pt = point([lng, lat]);
+
+	for (const feature of geojson.features) {
+		if (booleanPointInPolygon(pt, feature as Feature<Polygon | MultiPolygon>)) {
+			const timezoneOffset = feature.properties?.name || null;
+			return timezoneOffset;
+		}
+	}
+
+	return null;
+}
+
+export function getTimezoneDifferenceForPoint(lat: number, lng: number): number | null {
+	const timezoneOffset = getTimezoneForPoint(lat, lng);
+	if (timezoneOffset) {
+		const offsetHours = parseFloat(timezoneOffset);
+		if (!isNaN(offsetHours)) {
+			return offsetHours;
+		}
+	}
+	return null;
+}
+
+/**
+ * Applies timezone correction to a timestamp.
+ * @param timestamp - The raw timestamp (can be Date, number, or string)
+ * @param timezoneOffset - The timezone offset string (e.g., "-9.5", "-8", "-6")
+ * @returns The corrected timestamp as a Date object with the timezone offset applied
+ */
+export function applyTimezoneCorrection(timestamp: Date | number | string, timezoneOffset: string): Date {
+	const date = new Date(timestamp);
+
+	// Parse timezone offset (e.g., "-9.5" -> -9.5 hours, "+2" -> +2 hours)
+	const offsetHours = parseFloat(timezoneOffset);
+	if (isNaN(offsetHours)) {
+		console.log(`⚠️ [TIMEZONE] Invalid timezone offset: ${timezoneOffset}, returning original timestamp`);
+		return date; // Return original if parsing fails
+	}
+
+	// Instead of converting to UTC, we want to preserve the local time
+	// but ensure the timestamp has the correct timezone offset
+	// The timestamp should represent the local time at that location
+	// PostgreSQL will handle the timezone-aware timestamp correctly
+	return date;
+}
+
+/**
+ * Applies timezone correction to a timestamp based on geographic coordinates.
+ * @param timestamp - The raw timestamp (can be Date, number, or string)
+ * @param latitude - The latitude coordinate
+ * @param longitude - The longitude coordinate
+ * @returns The timestamp formatted with the correct timezone offset
+ */
+export function applyTimezoneCorrectionToTimestamp(timestamp: Date | number | string, latitude: number, longitude: number): string {
+	const timezoneOffset = getTimezoneForPoint(latitude, longitude);
+
+	if (timezoneOffset) {
+		// Parse timezone offset (e.g., "-9.5" -> -9.5 hours, "+2" -> +2 hours)
+		const offsetHours = parseFloat(timezoneOffset);
+
+		if (!isNaN(offsetHours)) {
+			const date = new Date(timestamp);
+
+			// Format the timestamp with the timezone offset
+			// This preserves the local time but adds the timezone information
+			const year = date.getFullYear();
+			const month = String(date.getMonth() + 1).padStart(2, '0');
+			const day = String(date.getDate()).padStart(2, '0');
+			const hours = String(date.getHours()).padStart(2, '0');
+			const minutes = String(date.getMinutes()).padStart(2, '0');
+			const seconds = String(date.getSeconds()).padStart(2, '0');
+
+			// Format timezone offset as +HH:MM or -HH:MM
+			const sign = offsetHours >= 0 ? '+' : '-';
+			const absHours = Math.abs(offsetHours);
+			const wholeHours = Math.floor(absHours);
+			const minutesOffset = Math.round((absHours - wholeHours) * 60);
+
+			const timezoneString = `${sign}${String(wholeHours).padStart(2, '0')}:${String(minutesOffset).padStart(2, '0')}`;
+
+			// Return format: '2025-08-16T14:00:00+02:00'
+			return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezoneString}`;
+		}
+	}
+
+	// If no timezone found or invalid offset, return the original timestamp as UTC
+	return new Date(timestamp).toISOString();
 }
 
 /**

@@ -12,8 +12,6 @@ import {
 
 // Pexels API configuration
 const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 // Helper function to get the best available Pexels API key
 async function getPexelsApiKey(supabase: any, userId: string): Promise<string | null> {
@@ -132,7 +130,7 @@ Deno.serve(async (req) => {
 
         logSuccess('Image suggestion generated for new trip', 'TRIPS-SUGGEST-IMAGE', {
           userId: user.id,
-          primaryCountry: analysis.primaryCountry,
+          primaryCountry: analysis.primaryCountry, // This is now the full name
           primaryCity: analysis.primaryCity
         });
 
@@ -167,16 +165,24 @@ async function analyzeTripLocations(
   allCities: string[];
   countryStats: Record<string, number>;
   cityStats: Record<string, number>;
+  isMultiCity: boolean;
+  distanceTraveled: number;
 }> {
   // Fetch tracker data for the date range
   const { data: trackerData, error } = await supabase
     .from('tracker_data')
-    .select('country_code, geocode, recorded_at')
+    .select('country_code, geocode, recorded_at, distance')
     .eq('user_id', userId)
     .gte('recorded_at', `${startDate}T00:00:00Z`)
     .lte('recorded_at', `${endDate}T23:59:59Z`)
     .not('country_code', 'is', null)
     .order('recorded_at', { ascending: true });
+
+  // Calculate total distance for the date range
+  let distanceTraveled = 0;
+  if (trackerData && trackerData.length > 0) {
+    distanceTraveled = trackerData.reduce((sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0), 0);
+  }
 
   if (error || !trackerData || trackerData.length === 0) {
     return {
@@ -185,7 +191,9 @@ async function analyzeTripLocations(
       allCountries: [],
       allCities: [],
       countryStats: {},
-      cityStats: {}
+      cityStats: {},
+      isMultiCity: false,
+      distanceTraveled
     };
   }
 
@@ -228,11 +236,28 @@ async function analyzeTripLocations(
     }
   });
 
+  // Map country codes to full names using the full_country SQL function
+  const countryCodes = Array.from(allCountries);
+  const codeToName: Record<string, string> = {};
+  for (const code of countryCodes) {
+    const { data, error } = await supabase.rpc('full_country', { country: code });
+    codeToName[code] = (data && typeof data === 'string' && data) || code;
+  }
+
+  // Replace codes with names in allCountries and countryStats
+  const allCountriesFull = countryCodes.map((code) => codeToName[code] || code);
+  const countryStatsFull: Record<string, number> = {};
+  for (const code of Object.keys(countryStats)) {
+    const name = codeToName[code] || code;
+    countryStatsFull[name] = countryStats[code];
+  }
+
   // Find primary country (most visited)
-  const primaryCountry = Object.keys(countryStats).reduce(
+  const primaryCountryCode = Object.keys(countryStats).reduce(
     (a, b) => (countryStats[a] > countryStats[b] ? a : b),
     ''
   );
+  const primaryCountry = codeToName[primaryCountryCode] || primaryCountryCode;
 
   // Find primary city (most visited)
   const primaryCity = Object.keys(cityStats).reduce(
@@ -240,18 +265,23 @@ async function analyzeTripLocations(
     ''
   );
 
+  // Determine if this is a multi-city trip
+  const isMultiCity = Object.keys(cityStats).length > 1;
+
   return {
     primaryCountry,
     primaryCity: primaryCity || undefined,
-    allCountries: Array.from(allCountries),
+    allCountries: allCountriesFull,
     allCities: Array.from(allCities),
-    countryStats,
-    cityStats
+    countryStats: countryStatsFull,
+    cityStats,
+    isMultiCity,
+    distanceTraveled
   };
 }
 
 // Helper function to generate image suggestion from analysis
-async function generateImageSuggestionFromAnalysis(analysis: any, apiKey: string): Promise<{
+async function generateImageSuggestionFromAnalysis(analysis: { primaryCountry: string; primaryCity?: string; isMultiCity: boolean }, apiKey: string): Promise<{
   imageUrl: string;
   attribution?: {
     source: 'pexels' | 'picsum' | 'placeholder';
@@ -261,12 +291,14 @@ async function generateImageSuggestionFromAnalysis(analysis: any, apiKey: string
   };
 }> {
   // Create a more specific search term for better results
-  let searchTerm = 'travel landscape';
+  let searchTerm = 'landscape';
 
-  if (analysis.primaryCity) {
-    searchTerm = `${analysis.primaryCity} city landscape`;
+  if (analysis.isMultiCity && analysis.primaryCountry) {
+    searchTerm = `${analysis.primaryCountry}`;
+  } else if (analysis.primaryCity) {
+    searchTerm = `${analysis.primaryCity} city`;
   } else if (analysis.primaryCountry) {
-    searchTerm = `${analysis.primaryCountry} travel landscape`;
+    searchTerm = `${analysis.primaryCountry} landscape`;
   }
 
   // Search for images on Pexels

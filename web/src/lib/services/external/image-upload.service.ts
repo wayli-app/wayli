@@ -13,7 +13,6 @@ export async function uploadTripImage(file: File, fileName?: string): Promise<st
 		});
 
 		// Get current user for folder structure
-		console.log('👤 [UPLOAD] Fetching current user for folder structure...');
 		const {
 			data: { user },
 			error: userError

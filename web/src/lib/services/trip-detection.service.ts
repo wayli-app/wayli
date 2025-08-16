@@ -155,6 +155,7 @@ export class TripDetectionService {
 			.from('tracker_data')
 			.select('recorded_at')
 			.eq('user_id', userId)
+			.not('country_code', 'is', null) // Ignore records with NULL country codes when determining trip date ranges
 			.order('recorded_at', { ascending: true });
 
 		if (!trackerData || trackerData.length === 0) {
@@ -688,6 +689,7 @@ export class TripDetectionService {
 			.eq('user_id', userId)
 			.gte('recorded_at', `${dateStr}T00:00:00Z`)
 			.lt('recorded_at', `${dateStr}T23:59:59Z`)
+			.not('country_code', 'is', null) // Ignore records with NULL country codes when determining trip dates
 			.order('recorded_at', { ascending: true });
 
 		if (error) {

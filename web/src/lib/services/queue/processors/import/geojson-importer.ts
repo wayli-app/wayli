@@ -6,19 +6,16 @@ import { JobQueueService } from '$lib/services/queue/job-queue.service.worker';
 import { checkJobCancellation } from '$lib/utils/job-cancellation';
 import {
   getCountryForPoint as getCountryForPointExternal,
-  normalizeCountryCode as normalizeCountryCodeExternal
+  normalizeCountryCode as normalizeCountryCodeExternal,
+  applyTimezoneCorrectionToTimestamp,
+  getTimezoneDifferenceForPoint
 } from '$lib/services/external/country-reverse-geocoding.service';
+import type { Feature } from 'geojson';
 
-type Feature = {
-  type: string;
-  geometry?: { type: string; coordinates: number[] };
-  properties?: Record<string, unknown>;
-};
-
-type ErrorSummary = {
-  counts: Record<string, number>;
-  samples: Array<{ idx: number; reason: string }>;
-};
+interface ErrorSummary {
+	counts: Record<string, number>;
+	samples: Array<{ idx: number; reason: string }>;
+}
 
 export async function importGeoJSONWithProgress(
   content: string,
@@ -235,13 +232,18 @@ async function processFeatureChunk(
       const properties = feature.properties || {};
 
       let recordedAt = new Date().toISOString();
+
+      // Process timestamp from properties
       if ((properties as any).timestamp && typeof (properties as any).timestamp === 'number') {
         const timestamp = (properties as any).timestamp as number;
-        recordedAt = new Date(timestamp < 10000000000 ? timestamp * 1000 : timestamp).toISOString();
+        const rawTimestamp = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+        recordedAt = applyTimezoneCorrectionToTimestamp(rawTimestamp, latitude, longitude);
       } else if ((properties as any).time && (typeof (properties as any).time === 'string' || typeof (properties as any).time === 'number')) {
-        recordedAt = new Date((properties as any).time as any).toISOString();
+        const rawTimestamp = (properties as any).time as any;
+        recordedAt = applyTimezoneCorrectionToTimestamp(rawTimestamp, latitude, longitude);
       } else if ((properties as any).date && (typeof (properties as any).date === 'string' || typeof (properties as any).date === 'number')) {
-        recordedAt = new Date((properties as any).date as any).toISOString();
+        const rawTimestamp = (properties as any).date as any;
+        recordedAt = applyTimezoneCorrectionToTimestamp(rawTimestamp, latitude, longitude);
       }
 
       let countryCode: string | null = null;
@@ -300,6 +302,7 @@ async function processFeatureChunk(
         heading,
         activity_type: activityType,
         raw_data: { ...(properties as any), import_source: 'geojson' },
+        tz_diff: getTimezoneDifferenceForPoint(latitude, longitude),
         created_at: new Date().toISOString()
       });
     } else {
@@ -407,5 +410,3 @@ function safeNormalizeCountryCode(countryCode: string | null): string | null {
     return null;
   }
 }
-
-

@@ -139,7 +139,6 @@ export const tripGenerationSchema = z.object({
 export const exportOptionsSchema = z.object({
 	format: z.enum(['json', 'csv', 'gpx'] as const),
 	includeLocationData: z.boolean().default(true),
-	includeTripInfo: z.boolean().default(true),
 	includeWantToVisit: z.boolean().default(true),
 	includeTrips: z.boolean().default(true),
 	dateRange: dateRangeSchema.optional()
@@ -329,7 +328,6 @@ export const tripGenerationRequestSchema = z.object({
 	startDate: z.string().datetime(),
 	endDate: z.string().datetime(),
 	includeLocationData: z.boolean().default(true),
-	includeTripInfo: z.boolean().default(true),
 	includeWantToVisit: z.boolean().default(false),
 	includeTrips: z.boolean().default(true)
 });

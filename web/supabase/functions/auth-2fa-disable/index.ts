@@ -19,8 +19,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'POST') {
-      logInfo('Disabling 2FA', 'AUTH-2FA-DISABLE', { userId: user.id });
-
       const body = await parseJsonBody<Record<string, unknown>>(req);
 
       // Validate required fields

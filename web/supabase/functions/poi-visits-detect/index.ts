@@ -73,8 +73,6 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      logInfo('Fetching POI visits', 'POI-VISITS-DETECT', { userId: user.id });
-
       // Get POI visits for the user
       const { data: visits, error: visitsError } = await supabase
         .from('poi_visits')
@@ -86,11 +84,6 @@ Deno.serve(async (req) => {
         logError(visitsError, 'POI-VISITS-DETECT');
         return errorResponse('Failed to fetch POI visits', 500);
       }
-
-      logSuccess('POI visits fetched successfully', 'POI-VISITS-DETECT', {
-        userId: user.id,
-        count: visits?.length || 0
-      });
 
       return successResponse(visits || []);
     }

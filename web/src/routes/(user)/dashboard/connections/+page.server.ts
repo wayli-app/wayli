@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_FUNCTIONS_URL } from '$env/static/private';
 import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { createClient } from '@supabase/supabase-js';
 import { fail } from '@sveltejs/kit';
@@ -32,17 +32,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		};
 	}
 
-			console.log('🔄 [CONNECTIONS] User data retrieved successfully');
+	console.log('🔄 [CONNECTIONS] User data retrieved successfully');
 
 	// Get the user's current API key from user_metadata (since raw_user_metadata is undefined)
 	const owntracksApiKey = user.user_metadata?.owntracks_api_key || null;
 
-	// Construct the endpoint URL using the current domain
-	const baseUrl = PUBLIC_SUPABASE_URL.includes('localhost')
-		? 'http://localhost:54321'
-		: PUBLIC_SUPABASE_URL; // Use Supabase URL for Edge Functions
+	// Construct the endpoint URL using SUPABASE_FUNCTIONS_URL
 	const owntracksEndpoint = owntracksApiKey
-		? `${baseUrl}/functions/v1/owntracks-points?api_key=${owntracksApiKey}&user_id=${session.user.id}`
+		? `${SUPABASE_FUNCTIONS_URL}/owntracks-points?api_key=${owntracksApiKey}&user_id=${session.user.id}`
 		: null;
 
 	return {

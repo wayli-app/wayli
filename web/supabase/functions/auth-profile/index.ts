@@ -19,9 +19,7 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Fetching user profile', 'AUTH-PROFILE', { userId: user.id });
-
-      // Get user profile from user_profiles table
+       // Get user profile from user_profiles table
       const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -39,7 +37,6 @@ Deno.serve(async (req) => {
         email: user.email || ''
       };
 
-      logSuccess('Profile fetched successfully', 'AUTH-PROFILE', { userId: user.id });
       return successResponse(completeProfile);
     }
 

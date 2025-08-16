@@ -21,6 +21,8 @@
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { format } from 'date-fns';
 	import { translate } from '$lib/i18n';
+	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
+	import { subscribe, getActiveJobsMap } from '$lib/stores/job-store';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -29,7 +31,6 @@
 	let importFormat = $state<string | null>(null);
 	let selectedFile = $state<File | null>(null);
 	let includeLocationData = $state(true);
-	let includeTripInfo = $state(true);
 	let includeWantToVisit = $state(true);
 	let includeTrips = $state(true);
 	let isImporting = $state(false);
@@ -46,56 +47,18 @@
 	let exportFormat = $state('JSON');
 	let exportStartDate = $state<Date | null>(null);
 	let exportEndDate = $state<Date | null>(null);
-	let isExportDatePickerOpen = $state(false);
+
+	// Add export state variables for export job creation
 	let includeLocationDataExport = $state(true);
-	let includeTripInfoExport = $state(true);
 	let includeWantToVisitExport = $state(true);
-	let includeTripsExport = $state(true);
+let includeTripsExport = $state(true);
 
 
+	// Flag to trigger export history reload
+	let reloadExportHistoryFlag = $state(0);
 
-	// Track which jobs we've already shown toasts for (to prevent duplicates on navigation)
-	// Use localStorage to persist across page navigation
-	let completedJobIds = $state(new Set<string>());
-
-	// Load previously completed job IDs from localStorage
-	if (typeof window !== 'undefined') {
-		try {
-			const stored = localStorage.getItem('wayli_completed_jobs');
-			if (stored) {
-				const jobIds = JSON.parse(stored);
-				completedJobIds = new Set(jobIds);
-			}
-		} catch (error) {
-			console.warn('Failed to load completed job IDs from localStorage:', error);
-		}
-	}
-
-	// Save completed job IDs to localStorage
-	function saveCompletedJobIds() {
-		if (typeof window !== 'undefined') {
-			try {
-				localStorage.setItem('wayli_completed_jobs', JSON.stringify([...completedJobIds]));
-			} catch (error) {
-				console.warn('Failed to save completed job IDs to localStorage:', error);
-			}
-		}
-	}
-
-	// Clean up old completed job IDs periodically
-	setInterval(() => {
-		// Keep only jobs from the last 5 minutes
-		const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-		// Note: We can't easily clean up the Set without job timestamps,
-		// but it's small enough that it won't cause memory issues
-
-		// Clean up localStorage periodically (every 5 minutes)
-		if (typeof window !== 'undefined' && completedJobIds.size > 100) {
-			// If we have too many job IDs, clear them all and start fresh
-			completedJobIds.clear();
-			localStorage.removeItem('wayli_completed_jobs');
-		}
-	}, 5 * 60 * 1000); // Clean up every 5 minutes
+	// Job store subscription for monitoring export jobs
+	let unsubscribeJobs: (() => void) | null = null;
 
 	let exportJobsComponent: ExportJobs;
 	const autoStart = true;
@@ -109,23 +72,23 @@
 			icon: MapPin,
 			description: t('importExport.geoJsonDescription')
 		},
-		{ value: 'GPX', label: 'GPX', icon: Route, description: t('importExport.gpxDescription')},
-		{
-			value: 'OwnTracks',
-			label: 'OwnTracks (.REC)',
-			icon: Route,
-			description: t('importExport.ownTracksDescription')
-		}
+		// { value: 'GPX', label: 'GPX', icon: Route, description: t('importExport.gpxDescription')},
+		// {
+		// 	value: 'OwnTracks',
+		// 	label: 'OwnTracks (.REC)',
+		// 	icon: Route,
+		// 	description: t('importExport.ownTracksDescription')
+		// }
 	]);
 
 	function getAcceptedFileTypes(format: string): string {
 		switch (format) {
 			case 'GeoJSON':
 				return '.geojson,.json';
-			case 'GPX':
-				return '.gpx';
-			case 'OwnTracks':
-				return '.rec';
+			// case 'GPX':
+			// 	return '.gpx';
+			// case 'OwnTracks':
+			// 	return '.rec';
 			default:
 				return '*';
 		}
@@ -150,54 +113,22 @@
 	async function detectImportFormat(file: File): Promise<string> {
 		const name = file.name.toLowerCase();
 		if (name.endsWith('.geojson') || name.endsWith('.json')) return 'GeoJSON';
-		if (name.endsWith('.gpx')) return 'GPX';
-		if (name.endsWith('.rec')) return 'OwnTracks';
+		// if (name.endsWith('.gpx')) return 'GPX';
+		// if (name.endsWith('.rec')) return 'OwnTracks';
 		return 'GeoJSON'; // Default
 	}
 
 	// Date range helper functions
-    function toggleExportDatePicker() {
-        const next = !isExportDatePickerOpen;
-        isExportDatePickerOpen = next;
-        if (next) {
-            // clear previous selection to prevent immediate close on mount
-            exportStartDate = null;
-            exportEndDate = null;
-        }
-    }
-
-	function closeExportDatePicker() {
-		isExportDatePickerOpen = false;
+	const today = new Date();
+	const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
+	function getDateFromToday(days: number) {
+		return new Date(Date.now() - days * MILLISECONDS_IN_DAY);
 	}
 
-		// Handle date changes
-	function handleDateChange() {
-		// Since we're using binding, the dates are automatically updated
-		// We just need to close the picker when both dates are selected
-		if (exportStartDate && exportEndDate) {
-			setTimeout(() => {
-				isExportDatePickerOpen = false;
-			}, 500);
-		}
+	function formatDate(date: Date | string) {
+		if (!date || isNaN(new Date(date as string).getTime())) return '';
+		return format(new Date(date as string), 'MMM d, yyyy');
 	}
-
-
-
-	let formattedExportStartDate = $derived(exportStartDate ? format(exportStartDate, 'MMM dd, yyyy') : '');
-	let formattedExportEndDate = $derived(exportEndDate ? format(exportEndDate, 'MMM dd, yyyy') : '');
-
-	// Custom presets for date range selection
-	let datePresets = $derived([
-		{ label: t('datePicker.today'), startDate: new Date(), endDate: new Date() },
-		{ label: t('datePicker.last7Days'), startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.last30Days'), startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.last60Days'), startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.last90Days'), startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.lastYear'), startDate: new Date(new Date().getFullYear() - 1, 0, 1), endDate: new Date(new Date().getFullYear() - 1, 11, 31) }
-	]);
-
-
-
 
 
 	// Import functions
@@ -215,7 +146,6 @@
 			await jobCreationService.createImportJob(selectedFile, {
 				format: importFormat,
 				includeLocationData,
-				includeTripInfo,
 				includeWantToVisit,
 				includeTrips
 			}, (progress: number) => {
@@ -227,7 +157,6 @@
 			selectedFile = null;
 			importFormat = null;
 			includeLocationData = true;
-			includeTripInfo = true;
 			includeWantToVisit = true;
 			includeTrips = true;
 
@@ -282,7 +211,42 @@
 	// Fetch last successful import date on mount
 	onMount(async () => {
 		await fetchLastSuccessfulImport();
+		startJobMonitoring();
 	});
+
+	// Cleanup SSE service on destroy
+	onDestroy(() => {
+		if (unsubscribeJobs) {
+			unsubscribeJobs();
+		}
+	});
+
+	// Start job store monitoring for export jobs only
+	function startJobMonitoring() {
+		console.log('🚀 Starting job store monitoring for export jobs only on import/export page');
+
+		// Subscribe to job store updates but filter for export jobs only
+		// This prevents import job progress from triggering export history reloads
+		unsubscribeJobs = subscribe(() => {
+			// Get current jobs from store
+			const activeJobs = getActiveJobsMap();
+			const exportJobs = Array.from(activeJobs.values()).filter((job: any) => job.type === 'data_export');
+
+			// Only reload export history if there are export job updates
+			if (exportJobs.length > 0) {
+				console.log('📊 Export job update detected, reloading export history...');
+				reloadExportHistory();
+			}
+		});
+	}
+
+	// Reload export history by triggering a reload in the ExportJobs component
+	function reloadExportHistory() {
+		console.log('🔄 Triggering export history reload...');
+		// Increment the flag to trigger a reload
+		reloadExportHistoryFlag++;
+		console.log('🔄 Reload flag incremented to:', reloadExportHistoryFlag);
+	}
 
 	// Export functions
 	async function handleExport() {
@@ -318,7 +282,6 @@
 			await jobCreationService.createExportJob({
 				format: exportFormat,
 				includeLocationData: includeLocationDataExport,
-				includeTripInfo: includeTripInfoExport,
 				includeWantToVisit: includeWantToVisitExport,
 				includeTrips: includeTripsExport,
 				startDate: startDate,
@@ -330,7 +293,6 @@
 			exportStartDate = null;
 			exportEndDate = null;
 			includeLocationDataExport = true;
-			includeTripInfoExport = true;
 			includeWantToVisitExport = true;
 			includeTripsExport = true;
 		} catch (error) {
@@ -340,6 +302,18 @@
 
 	}
 
+	let localExportStartDate = $state(exportStartDate instanceof Date ? exportStartDate : '');
+let localExportEndDate = $state(exportEndDate instanceof Date ? exportEndDate : '');
+
+$effect(() => {
+  exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
+  exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
+});
+
+function handleExportDateRangeChange() {
+  exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
+  exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
+}
 
 	function getJobFileName(job: Job | null): string {
 		if (!job) return 'Unknown file';
@@ -478,7 +452,7 @@
 								type="file"
 								id="fileInput"
 								bind:this={fileInputEl}
-								accept=".geojson,.json,.gpx,.rec"
+								accept=".geojson,.json"
 								class="block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-gray-500 file:mr-4 file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-600 hover:file:bg-blue-100 dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-blue-400 dark:hover:file:bg-gray-600"
                                 onchange={handleFileSelect}
 							/>
@@ -571,14 +545,6 @@
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
-								bind:checked={includeTripInfo}
-								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
-							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.tripInformation')}</span>
-						</label>
-						<label class="flex items-center gap-2">
-							<input
-								type="checkbox"
 								bind:checked={includeWantToVisit}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
@@ -597,46 +563,12 @@
 				<div class="mt-4">
 					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('importExport.dateRange')}</label>
 					<div class="relative">
-                        <button
-							type="button"
-							class="date-field flex w-full cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-left text-sm shadow border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
-                            onclick={toggleExportDatePicker}
-                            onkeydown={(e) => e.key === 'Enter' && toggleExportDatePicker()}
-							class:open={isExportDatePickerOpen}
-							aria-label="Select export date range"
-							aria-expanded={isExportDatePickerOpen}
-						>
-							<svg class="h-4 w-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-							</svg>
-							<div class="date">
-								{#if exportStartDate && exportEndDate}
-									{formattedExportStartDate} - {formattedExportEndDate}
-								{:else}
-									{t('importExport.pickDateRange')}
-								{/if}
-							</div>
-						</button>
-						{#if isExportDatePickerOpen}
-							<div class="date-picker-container absolute right-0 mt-2 z-50">
-                                <DatePicker
-                                    isOpen={isExportDatePickerOpen}
-                                    bind:startDate={exportStartDate}
-                                    bind:endDate={exportEndDate}
-                                    isRange
-                                    showPresets
-                                    presets={datePresets}
-                                    presetLabels={[t('datePicker.today'), t('datePicker.last7Days'), t('datePicker.last30Days'), t('datePicker.last60Days'), t('datePicker.last90Days'), t('datePicker.lastYear')]}
-                                    dowLabels={t('datePicker.dowLabels')}
-                                    monthLabels={t('datePicker.monthLabels')}
-                                    align="right"
-                                    onclose={() => {
-                                        isExportDatePickerOpen = false;
-                                    }}
-                                    onchange={handleDateChange}
-                                />
-							</div>
-						{/if}
+						<DateRangePicker
+							bind:startDate={localExportStartDate}
+							bind:endDate={localExportEndDate}
+							pickLabel={t('importExport.pickDateRange')}
+							on:change={handleExportDateRangeChange}
+						/>
 					</div>
 				</div>
 			</div>
@@ -653,7 +585,7 @@
 
 	<!-- Export Jobs Section -->
 	<div class="mt-8">
-		<ExportJobs />
+		<ExportJobs {reloadExportHistoryFlag} />
 	</div>
 </div>
 

@@ -3,8 +3,7 @@ import {
   authenticateRequest,
   errorResponse,
   logError,
-  logInfo,
-  logSuccess
+  logInfo
 } from '../_shared/utils.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -19,8 +18,6 @@ Deno.serve(async (req) => {
       const { user, supabase } = await authenticateRequest(req);
       const userId = user.id;
 
-      logInfo('Authenticated user for jobs stream', 'JOBS_STREAM', { userId });
-
       // Set up SSE headers
       const headers = {
         ...corsHeaders,
@@ -30,7 +27,7 @@ Deno.serve(async (req) => {
       };
 
       const stream = new ReadableStream({
-        async start(controller) {
+        start(controller) {
           const encoder = new TextEncoder();
 
           // Send initial connection message

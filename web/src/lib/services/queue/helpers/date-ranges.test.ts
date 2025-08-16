@@ -27,6 +27,7 @@ function createMockSupabase(options: DateRangesMockOptions = {}): SupabaseClient
           _ascending: true,
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
+          not: vi.fn().mockReturnThis(),
           order: vi.fn().mockImplementation((_col: string, opts: { ascending: boolean }) => {
             api._ascending = opts?.ascending ?? true;
             return api;
@@ -44,10 +45,22 @@ function createMockSupabase(options: DateRangesMockOptions = {}): SupabaseClient
       if (table === 'trips') {
         return {
           select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          in: vi.fn().mockResolvedValue({
-            data: options.trips ?? [],
-            error: options.errorOnTrips ? { message: 'fail' } : null
+          eq: vi.fn().mockImplementation((field: string, value: string) => {
+            if (field === 'user_id') {
+              return {
+                eq: vi.fn().mockResolvedValue({
+                  data: options.trips ?? [],
+                  error: options.errorOnTrips ? { message: 'fail' } : null
+                })
+              };
+            }
+            // For the first .eq() call (user_id), return an object with another .eq() method
+            return {
+              eq: vi.fn().mockResolvedValue({
+                data: options.trips ?? [],
+                error: options.errorOnTrips ? { message: 'fail' } : null
+              })
+            };
           })
         } as any;
       }
@@ -79,6 +92,7 @@ describe('findAvailableDateRanges', () => {
       mockClient
     );
 
+    // With user constraints, should return the constrained range
     expect(result).toEqual([{ startDate: '2025-01-10', endDate: '2025-01-20' }]);
   });
 
@@ -94,9 +108,11 @@ describe('findAvailableDateRanges', () => {
 
     const result = await findAvailableDateRanges('user1', undefined, undefined, mockClient);
 
-    // New logic: available ranges are not split for single-day gaps
+    // Should exclude the trip dates and return available ranges
     expect(result).toEqual([
-      { startDate: '2025-01-01', endDate: '2025-01-10' }
+      { startDate: '2025-01-01', endDate: '2025-01-02' },
+      { startDate: '2025-01-05', endDate: '2025-01-06' },
+      { startDate: '2025-01-09', endDate: '2025-01-10' }
     ]);
   });
 
@@ -108,9 +124,10 @@ describe('findAvailableDateRanges', () => {
     });
 
     const result = await findAvailableDateRanges('user1', undefined, undefined, mockClient);
-    // New logic: single-day gaps are not filtered out, so the available range is the full span
+    // Should return available ranges excluding the trip date
     expect(result).toEqual([
-      { startDate: '2025-01-01', endDate: '2025-01-03' }
+      { startDate: '2025-01-01', endDate: '2025-01-01' },
+      { startDate: '2025-01-03', endDate: '2025-01-03' }
     ]);
   });
 

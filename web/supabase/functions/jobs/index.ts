@@ -19,8 +19,6 @@ Deno.serve(async (req) => {
 
 				// Handle different HTTP methods
 		if (req.method === 'GET') {
-			logInfo('Fetching jobs', 'JOBS', { userId: user.id });
-
 			// Parse query parameters
 			const url = new URL(req.url);
 			const type = url.searchParams.get('type');
@@ -46,12 +44,6 @@ Deno.serve(async (req) => {
 				logError(jobsError, 'JOBS');
 				return errorResponse('Failed to fetch jobs', 500);
 			}
-
-			logSuccess('Jobs fetched successfully', 'JOBS', {
-				userId: user.id,
-				count: jobs?.length || 0,
-				type: type || 'all'
-			});
 			return successResponse(jobs || []);
 		}
 

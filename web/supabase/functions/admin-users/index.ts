@@ -31,8 +31,6 @@ Deno.serve(async (req) => {
 
 		// Handle different HTTP methods
 		if (req.method === 'GET') {
-			logInfo('Fetching admin users', 'ADMIN-USERS', { userId: user.id });
-
 			// Get all users
 			const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
 
@@ -56,10 +54,6 @@ Deno.serve(async (req) => {
 				};
 			});
 
-			logSuccess('Users fetched successfully', 'ADMIN-USERS', {
-				userId: user.id,
-				count: formattedUsers.length
-			});
 			return successResponse({ users: formattedUsers });
 		}
 

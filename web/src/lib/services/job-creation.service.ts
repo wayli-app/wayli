@@ -86,7 +86,6 @@ export class JobCreationService {
 	async createImportJob(file: File, options: {
 		format: string;
 		includeLocationData: boolean;
-		includeTripInfo: boolean;
 		includeWantToVisit: boolean;
 		includeTrips: boolean;
 	}, onUploadProgress?: (progress: number) => void): Promise<any> {
@@ -109,7 +108,6 @@ export class JobCreationService {
 	async createExportJob(options: {
 		format: string;
 		includeLocationData: boolean;
-		includeTripInfo: boolean;
 		includeWantToVisit: boolean;
 		includeTrips: boolean;
 		startDate?: Date;
@@ -118,7 +116,6 @@ export class JobCreationService {
 		const data: Record<string, any> = {
 			format: options.format,
 			includeLocationData: options.includeLocationData,
-			includeTripInfo: options.includeTripInfo,
 			includeWantToVisit: options.includeWantToVisit,
 			includeTrips: options.includeTrips
 		};

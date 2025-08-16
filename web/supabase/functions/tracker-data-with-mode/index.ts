@@ -11,6 +11,19 @@ import { TransportDetectionReason } from '../_shared/transport-detection-reasons
 
 // Transport detection reasons enum is now imported from shared module
 
+// 1. Define TrackerDataPoint interface
+interface TrackerDataPoint {
+  country_code?: string;
+  distance?: number;
+  recorded_at: string;
+  geocode?: Record<string, unknown>;
+  location?: { coordinates: [number, number] };
+  speed?: number;
+  time_spent?: number;
+  transport_mode?: string;
+  [key: string]: unknown;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS
   const corsResponse = setupRequest(req);
@@ -18,8 +31,6 @@ Deno.serve(async (req) => {
 
   try {
     const { user, supabase } = await authenticateRequest(req);
-
-    logInfo('Fetching tracker data with mode', 'TRACKER-DATA-WITH-MODE', { userId: user.id });
 
     // Parse query parameters
     const url = new URL(req.url)
@@ -67,7 +78,7 @@ Deno.serve(async (req) => {
     // Implement proper pagination with date filters
     const PAGE_SIZE = 1000
     const MAX_PAGES = Math.ceil(limit / PAGE_SIZE)
-    let allData: any[] = []
+    let allData: TrackerDataPoint[] = []
     let pagesFetched = 0
     let lastRecordedAt: string | null = null
 
@@ -145,11 +156,6 @@ Deno.serve(async (req) => {
       statistics = calculateStatistics(enhancedData)
     }
 
-    logSuccess('Tracker data fetched successfully', 'TRACKER-DATA-WITH-MODE', {
-      userId: user.id,
-      count: enhancedData.length
-    });
-
     return successResponse({
       locations: enhancedData,
       total: count || 0,
@@ -178,7 +184,7 @@ Deno.serve(async (req) => {
 })
 
 // Process tracker data with transport mode detection
-function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData: any[], debug: any } {
+function processTrackerDataWithTransportMode(trackerData: TrackerDataPoint[]): { enhancedData: TrackerDataPoint[], debug: any } {
   if (trackerData.length === 0) return { enhancedData: [], debug: {} }
 
     // Ensure data is sorted oldest to newest for velocity calculation
@@ -228,7 +234,15 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
     speeds[i] = speedKmh
 
     // Enhanced transport mode detection - prioritizing reliable indicators over speed
-    if (curr.geocode && (curr.geocode.type === 'railway_station' || curr.geocode.class === 'railway')) {
+    if (
+      curr.geocode &&
+      ((curr.geocode.class === 'aeroway') || (curr.geocode.type === 'aerodrome')) &&
+      speedKmh > 100
+    ) {
+      // Aeroway or aerodrome detected with high speed - assume airplane
+      mode = 'airplane'
+      detectionReason = TransportDetectionReason.AIRPORT_AND_PLANE_SPEED
+    } else if (curr.geocode && (curr.geocode.type === 'railway_station' || curr.geocode.class === 'railway')) {
       // Train station detected - primary indicator
       mode = 'train'
       detectionReason = TransportDetectionReason.TRAIN_STATION_AND_SPEED
@@ -308,15 +322,27 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       } else if (speedKmh > 15) {
         mode = 'cycling'
         detectionReason = TransportDetectionReason.CYCLING_SPEED_ONLY
-      } else if (speedKmh > 2) {
-        mode = 'walking'
-        detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY
-      } else if (speedKmh > 0) {
-        mode = 'stationary'
-        detectionReason = TransportDetectionReason.STATIONARY_SPEED_ONLY
       } else {
-        mode = 'unknown'
-        detectionReason = TransportDetectionReason.DEFAULT
+        // New walking logic: only if speed, distance, and time are all realistic
+        if (
+          speedKmh >= 2 && speedKmh <= 6 &&
+          typeof distance === 'number' && distance < 2000 &&
+          typeof timeDiff === 'number' && timeDiff < 30 * 60 * 1000
+        ) {
+          mode = 'walking';
+          detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY;
+        } else if (speedKmh >= 2 && speedKmh <= 6) {
+          // If speed is in walking range but other conditions aren't met, still classify as walking
+          mode = 'walking';
+          detectionReason = TransportDetectionReason.WALKING_SPEED_ONLY;
+        } else if (speedKmh > 0 && speedKmh < 2) {
+          // Only mark as stationary if speed is very low (below 2 km/h)
+          mode = 'stationary';
+          detectionReason = TransportDetectionReason.STATIONARY_SPEED_ONLY;
+        } else {
+          mode = 'unknown';
+          detectionReason = TransportDetectionReason.DEFAULT;
+        }
       }
     }
 
@@ -343,6 +369,12 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
       (prevMode === 'train' && currMode === 'cycling')    // Can't switch from train to cycling
     )
 
+    // Walking-unknown continuity: if user was walking and now unknown, assume still walking
+    const walkingUnknownContinuity = (
+      (prevMode === 'walking' && currMode === 'unknown') ||
+      (prevMode === 'unknown' && currMode === 'walking')
+    )
+
     // Speed-based continuity: if speed is similar, maintain mode
     const speedSimilar = Math.abs(speedKmh - speeds[i - 1]) < 30 // Within 30 km/h
     const highSpeedContinuity = speedKmh > 80 && speeds[i - 1] > 80 && speedSimilar
@@ -350,6 +382,10 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
     if (isContinuityBroken) {
       // Keep the previous mode for continuity
       pointModes[i].mode = prevMode
+      pointModes[i].reason = TransportDetectionReason.KEEP_CONTINUITY
+    } else if (walkingUnknownContinuity) {
+      // If switching between walking and unknown, assume still walking
+      pointModes[i].mode = 'walking'
       pointModes[i].reason = TransportDetectionReason.KEEP_CONTINUITY
     } else if (highSpeedContinuity && prevMode !== 'unknown') {
       // Maintain high-speed mode if speeds are similar
@@ -363,7 +399,7 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
   }
 
   // Third pass: Train station detection and retroactive marking
-  const trainStations: Array<{ index: number; point: any }> = []
+  const trainStations: Array<{ index: number; point: TrackerDataPoint }> = []
   for (let i = 0; i < sortedTrackerData.length; i++) {
     const point = sortedTrackerData[i]
     if (point.geocode && point.geocode.amenity === 'train_station') {
@@ -445,7 +481,7 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
   }
 
   // Second pass: assign segment data to each point (ending at that point)
-  const enhancedData = sortedTrackerData.map((point: any, i: number, arr: any[]) => {
+  const enhancedData = sortedTrackerData.map((point: TrackerDataPoint, i: number, arr: TrackerDataPoint[]) => {
     if (i === 0) {
       return {
         ...point,
@@ -513,7 +549,7 @@ function processTrackerDataWithTransportMode(trackerData: any[]): { enhancedData
 // Velocity estimation function removed - we only calculate actual velocity from time differences
 
 // Calculate comprehensive statistics from tracker data
-function calculateStatistics(trackerData: any[]): any {
+function calculateStatistics(trackerData: TrackerDataPoint[]): any {
   if (trackerData.length === 0) {
     return {
       totalDistance: '0 km',
@@ -539,7 +575,6 @@ function calculateStatistics(trackerData: any[]): any {
   const geopoints = trackerData.length
   const countryTimeDistribution: { country_code: string; timeMs: number; percent: number }[] = []
   const uniqueCountries = new Set<string>()
-  const uniqueCities = new Set<string>()
   const uniquePlaces = new Set<string>()
   const transportModes: Record<string, { distance: number; time: number; points: number }> = {}
   const activityData: Array<{ label: string; distance: number; locations: number }> = []
@@ -651,42 +686,30 @@ function calculateStatistics(trackerData: any[]): any {
     }
   }
 
-  // Calculate country time distribution
-  // Ensure chronological order to avoid incorrect total time and over-100% percentages
-  const timeData = [...trackerData].sort((a, b) =>
-    new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
-  )
-
-  // Use sum of per-point time (time_spent if present, otherwise next-point delta)
-  let totalTimeMs = 0
-
-  // Attribute time to each point's country using DB column when present; fallback to segment-based
-  const countryTimeMap = new Map<string, number>()
-  for (let i = 0; i < timeData.length; i++) {
-    const p = timeData[i]
-    const ms = typeof p.time_spent === 'number' && isFinite(p.time_spent)
-      ? p.time_spent * 1000
-      : (i < timeData.length - 1)
-        ? Math.max(0, new Date(timeData[i + 1].recorded_at).getTime() - new Date(p.recorded_at).getTime())
-        : 0
-    totalTimeMs += ms
+  // Calculate country distance distribution (replace time-based logic)
+  const countryDistanceMap = new Map<string, number>()
+  for (const p of trackerData) {
     if (p.country_code) {
-      countryTimeMap.set(p.country_code, (countryTimeMap.get(p.country_code) || 0) + ms)
+      const dist = typeof p.distance === 'number' && isFinite(p.distance) ? p.distance : 0
+      countryDistanceMap.set(p.country_code, (countryDistanceMap.get(p.country_code) || 0) + dist)
     }
   }
-
-  // Convert map to array and calculate percentages
-  for (const [countryCode, timeMs] of countryTimeMap.entries()) {
-    const percent = totalTimeMs > 0 ? (timeMs / totalTimeMs) * 100 : 0
-    countryTimeDistribution.push({
-      country_code: countryCode,
-      timeMs: timeMs,
-      percent: Math.round(percent * 100) / 100
-    });
+  const totalDistanceForCountries = Array.from(countryDistanceMap.values()).reduce((a, b) => a + b, 0)
+  const countryDistanceDistribution: { country_code: string; distance: number; percent: number }[] = []
+  let percentSum = 0
+  let lastIdx = -1
+  Array.from(countryDistanceMap.entries()).forEach(([country_code, distance], idx, arr) => {
+    let percent = totalDistanceForCountries > 0 ? (distance / totalDistanceForCountries) * 100 : 0
+    percent = Math.round(percent * 100) / 100
+    percentSum += percent
+    lastIdx = idx
+    countryDistanceDistribution.push({ country_code, distance, percent })
+  })
+  // Adjust last value to ensure sum is 100%
+  if (countryDistanceDistribution.length > 0 && percentSum !== 100) {
+    const diff = Math.round((100 - percentSum) * 100) / 100
+    countryDistanceDistribution[lastIdx].percent += diff
   }
-
-  // Sort by time spent
-  countryTimeDistribution.sort((a, b) => b.timeMs - a.timeMs)
 
   // Calculate transport statistics
   const totalTransportDistance = Object.values(transportModes).reduce(
@@ -754,7 +777,7 @@ function calculateStatistics(trackerData: any[]): any {
       : '0 km',
     earthCircumferences: earthCircumferences,
     locationsVisited: totalUniquePlaces.toString(),
-    timeSpent: `${Math.round(totalTimeMs / (1000 * 60 * 60 * 24))} days`,
+    timeSpent: `${Math.round(timeSpentMoving / (1000 * 60 * 60 * 24))} days`,
     timeSpentMoving: `${timeSpentMovingHours}h`,
     geopoints: geopoints || 0,
     steps,
@@ -762,7 +785,7 @@ function calculateStatistics(trackerData: any[]): any {
     countriesVisited,
     activity: activityData,
     transport: transport,
-    countryTimeDistribution,
+    countryTimeDistribution: countryDistanceDistribution,
     visitedPlaces,
     trainStationVisits
   }

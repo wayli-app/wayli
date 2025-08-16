@@ -34,8 +34,6 @@ Deno.serve(async (req) => {
 
     // Handle different HTTP methods
     if (req.method === 'GET') {
-      logInfo('Fetching workers', 'ADMIN_WORKERS', { userId: user.id });
-
       // Get all workers
       const { data: workers, error: workersError } = await supabase
         .from('workers')
@@ -46,11 +44,6 @@ Deno.serve(async (req) => {
         logError(workersError, 'ADMIN_WORKERS');
         return errorResponse('Failed to fetch workers', 500);
       }
-
-      logSuccess('Workers fetched successfully', 'ADMIN_WORKERS', {
-        userId: user.id,
-        count: workers?.length || 0
-      });
 
       return successResponse(workers || []);
     }

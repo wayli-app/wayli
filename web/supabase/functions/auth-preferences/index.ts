@@ -19,8 +19,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Fetching user preferences', 'AUTH-PREFERENCES', { userId: user.id });
-
       // Get user preferences from user_preferences table
       const { data: preferences, error: preferencesError } = await supabase
         .from('user_preferences')
@@ -40,7 +38,6 @@ Deno.serve(async (req) => {
         server_pexels_api_key_available: true
       };
 
-      logSuccess('Preferences fetched successfully', 'AUTH-PREFERENCES', { userId: user.id });
       return successResponse(preferencesWithServerKey);
     }
 

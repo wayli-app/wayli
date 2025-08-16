@@ -1769,67 +1769,65 @@
 							</div>
 						{/if}
 
-						{#if imagePreview}
-							<div class="relative mt-2">
-								<img src={imagePreview} alt="Preview" class="max-h-40 rounded-lg" />
-								{#if isUploadingImage || isSuggestingImage}
-									<div
-										class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20"
+						<!-- Stable image suggestion area with fixed height -->
+						<div class="relative mt-2 h-40 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+							{#if isSuggestingImage}
+								<Loader2 class="h-10 w-10 animate-spin text-blue-500" />
+							{:else if imagePreview}
+								<img src={imagePreview} alt="Preview" class="max-h-40 rounded-lg mx-auto" style="max-width:100%; max-height:100%;" />
+							{/if}
+							{#if isUploadingImage || isSuggestingImage}
+								<div class="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
+									<Loader2 class="h-6 w-6 animate-spin text-white" />
+								</div>
+							{/if}
+							{#if suggestedImageUrl && !isSuggestingImage}
+								<div class="absolute top-2 right-2 rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white">
+									Suggested
+								</div>
+							{/if}
+							<!-- Auto-suggest new image button when editing -->
+							{#if isEditing && tripForm.start_date && tripForm.end_date}
+								<div class="absolute top-2 left-2">
+									<button
+										type="button"
+										class="rounded bg-white/95 px-3 py-1.5 text-xs font-medium text-blue-600 shadow-lg hover:bg-white hover:text-blue-700 transition-all duration-200 dark:bg-gray-800/95 dark:text-blue-400 dark:hover:bg-gray-800"
+										on:click={suggestTripImage}
+										disabled={isSuggestingImage}
+										title="Get a new suggested image based on your travel data"
 									>
-										<Loader2 class="h-6 w-6 animate-spin text-white" />
-									</div>
-								{/if}
-								{#if suggestedImageUrl}
-									<div
-										class="absolute top-2 right-2 rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white"
-									>
-										Suggested
-									</div>
-								{/if}
+										{isSuggestingImage ? 'Suggesting...' : '🔄 New suggestion'}
+									</button>
+								</div>
+							{/if}
+						</div>
 
-								<!-- Auto-suggest new image button when editing -->
-								{#if isEditing && tripForm.start_date && tripForm.end_date}
-									<div class="absolute top-2 left-2">
-										<button
-											type="button"
-											class="rounded bg-white/95 px-3 py-1.5 text-xs font-medium text-blue-600 shadow-lg hover:bg-white hover:text-blue-700 transition-all duration-200 dark:bg-gray-800/95 dark:text-blue-400 dark:hover:bg-gray-800"
-											on:click={suggestTripImage}
-											disabled={isSuggestingImage}
-											title="Get a new suggested image based on your travel data"
-										>
-											{isSuggestingImage ? 'Suggesting...' : '🔄 New suggestion'}
-										</button>
-									</div>
-								{/if}
-							</div>
-
-							<!-- Attribution for suggested images -->
-							{#if imageAttribution && imageAttribution.source === 'pexels' && imageAttribution.photographer}
-								<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-									Photo by
-									{#if imageAttribution.photographerUrl}
-										<a
-											href={imageAttribution.photographerUrl}
-											target="_blank"
-											rel="noopener noreferrer"
-											class="text-blue-600 hover:text-blue-700 underline"
-										>
-											{imageAttribution.photographer}
-										</a>
-									{:else}
-										{imageAttribution.photographer}
-									{/if}
-									on
+						<!-- Attribution for suggested images -->
+						{#if imageAttribution && imageAttribution.source === 'pexels' && imageAttribution.photographer}
+							<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+								Photo by
+								{#if imageAttribution.photographerUrl}
 									<a
-										href="https://www.pexels.com"
+										href={imageAttribution.photographerUrl}
 										target="_blank"
 										rel="noopener noreferrer"
 										class="text-blue-600 hover:text-blue-700 underline"
 									>
-										Pexels
+										{imageAttribution.photographer}
 									</a>
-								</div>
-							{/if}
+								{:else}
+									{imageAttribution.photographer}
+								{/if}
+								on
+								<a
+									href="https://www.pexels.com"
+									target="_blank"
+									rel="noopener noreferrer"
+									class="text-blue-600 hover:text-blue-700 underline"
+								>
+									Pexels
+								</a>
+							</div>
 						{/if}
 					</div>
 					{#if formError}

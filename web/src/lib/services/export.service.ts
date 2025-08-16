@@ -4,7 +4,6 @@ import { JobQueueService } from './queue/job-queue.service.server';
 export interface ExportOptions {
 	format?: string;
 	includeLocationData: boolean;
-	includeTripInfo: boolean;
 	includeWantToVisit: boolean;
 	includeTrips: boolean;
 	startDate?: string | null;
@@ -17,7 +16,6 @@ export interface ExportJob {
 	status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 	format: string;
 	include_location_data: boolean;
-	include_trip_info: boolean;
 	include_want_to_visit: boolean;
 	include_trips: boolean;
 	file_path?: string;
@@ -71,7 +69,6 @@ export class ExportService {
 			status: job.status,
 			format: options.format as string,
 			include_location_data: options.includeLocationData,
-			include_trip_info: options.includeTripInfo,
 			include_want_to_visit: options.includeWantToVisit,
 			include_trips: options.includeTrips,
 			expires_at: expiresAt.toISOString(),
@@ -111,7 +108,6 @@ export class ExportService {
 			status: job.status,
 			format: safe<string>('format', ''),
 			include_location_data: safe<boolean>('includeLocationData', false),
-			include_trip_info: safe<boolean>('includeTripInfo', false),
 			include_want_to_visit: safe<boolean>('includeWantToVisit', false),
 			include_trips: safe<boolean>('includeTrips', false),
 			file_path: safe<string>('file_path', '') || ((job.result as Record<string, unknown>)?.file_path as string) || '',
@@ -150,7 +146,6 @@ export class ExportService {
 				status: job.status,
 				format: safe<string>('format', ''),
 				include_location_data: safe<boolean>('includeLocationData', false),
-				include_trip_info: safe<boolean>('includeTripInfo', false),
 				include_want_to_visit: safe<boolean>('includeWantToVisit', false),
 				include_trips: safe<boolean>('includeTrips', false),
 				file_path: safe<string>('file_path', '') || ((job.result as Record<string, unknown>)?.file_path as string) || '',
@@ -218,7 +213,7 @@ export class ExportService {
 
 		const { data } = await this.supabase.storage
 			.from('exports')
-			.createSignedUrl(filePath, 3600); // 1 hour expiry
+			.createSignedUrl(filePath, 3600, { download: true }); // 1 hour expiry
 
 		return data?.signedUrl || null;
 	}

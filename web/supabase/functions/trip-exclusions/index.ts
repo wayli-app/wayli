@@ -20,8 +20,6 @@ Deno.serve(async (req) => {
 
 		// Handle different HTTP methods
 		if (req.method === 'GET') {
-			logInfo('Fetching trip exclusions', 'TRIP-EXCLUSIONS', { userId: user.id });
-
 			// Get user's trip exclusions from user preferences
 			const { data: userPreferences, error: userPreferencesError } = await supabase
 				.from('user_preferences')
@@ -34,11 +32,6 @@ Deno.serve(async (req) => {
 				// Return empty array if preferences not found
 				return successResponse({ exclusions: [] });
 			}
-
-			logSuccess('Trip exclusions fetched successfully', 'TRIP-EXCLUSIONS', {
-				userId: user.id,
-				count: userPreferences?.trip_exclusions?.length || 0
-			});
 			return successResponse({ exclusions: userPreferences?.trip_exclusions || [] });
 		}
 

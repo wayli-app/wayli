@@ -32,9 +32,14 @@ export function translateServer(
   const template = translations[lang][key] || translations['en'][key] || key;
 
   // Simple parameter interpolation
-  return template.replace(/\{(\w+)\}/g, (match, paramKey) => {
+  const result = template.replace(/\{(\w+)\}/g, (match, paramKey) => {
     return params[paramKey]?.toString() || match;
   });
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.log('[translateServer]', { key, template, params, result });
+  }
+  return result;
 }
 
 /**

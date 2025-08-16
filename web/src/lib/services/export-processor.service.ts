@@ -28,7 +28,6 @@ export class ExportProcessorService {
 		const jobData = job.data as {
 			format: string;
 			includeLocationData: boolean;
-			includeTripInfo: boolean;
 			includeWantToVisit: boolean;
 			includeTrips: boolean;
 			dateRange?: string;
@@ -41,11 +40,18 @@ export class ExportProcessorService {
 		console.log('[ExportWorker] Job data:', {
 			userId,
 			includeLocationData: jobData.includeLocationData,
-			includeTripInfo: jobData.includeTripInfo,
 			includeWantToVisit: jobData.includeWantToVisit,
 			includeTrips: jobData.includeTrips,
 			startDate: jobData.startDate,
 			endDate: jobData.endDate
+		});
+
+		console.log('[ExportWorker] Export configuration:', {
+			'Location Data': jobData.includeLocationData ? '✅ INCLUDED' : '❌ EXCLUDED',
+			'Want to Visit': jobData.includeWantToVisit ? '✅ INCLUDED' : '❌ EXCLUDED',
+			'Trips': jobData.includeTrips ? '✅ INCLUDED' : '❌ EXCLUDED',
+			'Format': jobData.format,
+			'Date Range': jobData.startDate && jobData.endDate ? `${jobData.startDate} to ${jobData.endDate}` : 'All time'
 		});
 
 		try {
@@ -68,41 +74,23 @@ export class ExportProcessorService {
 				// Check for cancellation before location data export
 				await checkJobCancellation(job.id);
 
-				await ExportService.updateExportJobProgress(job.id, 20, {
+				console.log('[ExportWorker] Starting location data export...');
+				await ExportService.updateExportJobProgress(job.id, 25, {
 					message: 'Exporting location data...'
 				});
 				// Add a small delay to make progress updates visible
 				await new Promise(resolve => setTimeout(resolve, 1000));
 				const locationData = await this.exportLocationData(userId, jobData.startDate, jobData.endDate);
 				if (locationData) {
+					console.log('[ExportWorker] Location data exported successfully, length:', locationData.length);
 					zip.file('locations.geojson', locationData);
 					totalFiles++;
+					console.log('[ExportWorker] Added locations.geojson to ZIP file');
 				} else {
 					console.log(`[ExportWorker] No location data found for user ${userId}`);
 				}
-			}
-
-			// Export trip information if requested
-			if (jobData.includeTripInfo) {
-				// Check for cancellation before trip info export
-				await checkJobCancellation(job.id);
-
-				console.log('[ExportWorker] Starting trip info export');
-				await ExportService.updateExportJobProgress(job.id, 40, {
-					message: 'Exporting trip information...'
-				});
-				// Add a small delay to make progress updates visible
-				await new Promise(resolve => setTimeout(resolve, 1000));
-				console.log('[ExportWorker] Calling exportTripInfo');
-				const tripInfo = await this.exportTripInfo(userId, jobData.startDate, jobData.endDate);
-				console.log('[ExportWorker] exportTripInfo returned', { hasData: !!tripInfo, dataLength: tripInfo?.length || 0 });
-				if (tripInfo) {
-					zip.file('trip-info.json', tripInfo);
-					totalFiles++;
-					console.log('[ExportWorker] Added trip info to zip');
-				} else {
-					console.log(`[ExportWorker] No trip info found for user ${userId}`);
-				}
+			} else {
+				console.log('[ExportWorker] Location data export skipped (not requested)');
 			}
 
 			// Export want-to-visit data if requested
@@ -110,8 +98,8 @@ export class ExportProcessorService {
 				// Check for cancellation before want-to-visit export
 				await checkJobCancellation(job.id);
 
-				console.log('[ExportWorker] Starting want-to-visit export');
-				await ExportService.updateExportJobProgress(job.id, 60, {
+				console.log('[ExportWorker] Starting want-to-visit export...');
+				await ExportService.updateExportJobProgress(job.id, 50, {
 					message: 'Exporting want-to-visit data...'
 				});
 				// Add a small delay to make progress updates visible
@@ -120,12 +108,15 @@ export class ExportProcessorService {
 				const wantToVisitData = await this.exportWantToVisit(userId, jobData.startDate, jobData.endDate);
 				console.log('[ExportWorker] exportWantToVisit returned', { hasData: !!wantToVisitData, dataLength: wantToVisitData?.length || 0 });
 				if (wantToVisitData) {
+					console.log('[ExportWorker] Want-to-visit data exported successfully, length:', wantToVisitData.length);
 					zip.file('want-to-visit.json', wantToVisitData);
 					totalFiles++;
-					console.log('[ExportWorker] Added want-to-visit data to zip');
+					console.log('[ExportWorker] Added want-to-visit.json to ZIP file');
 				} else {
 					console.log(`[ExportWorker] No want-to-visit data found for user ${userId}`);
 				}
+			} else {
+				console.log('[ExportWorker] Want-to-visit export skipped (not requested)');
 			}
 
 			// Export trips data if requested
@@ -133,8 +124,8 @@ export class ExportProcessorService {
 				// Check for cancellation before trips export
 				await checkJobCancellation(job.id);
 
-				console.log(`[ExportWorker] Starting trips export for job ${job.id}`);
-				await ExportService.updateExportJobProgress(job.id, 80, {
+				console.log(`[ExportWorker] Starting trips export for job ${job.id}...`);
+				await ExportService.updateExportJobProgress(job.id, 75, {
 					message: 'Exporting trips data...'
 				});
 				// Add a small delay to make progress updates visible
@@ -142,11 +133,15 @@ export class ExportProcessorService {
 				const tripsData = await this.exportTrips(userId, jobData.startDate, jobData.endDate);
 				console.log(`[ExportWorker] Trips export completed for job ${job.id}, data length: ${tripsData?.length || 0}`);
 				if (tripsData) {
+					console.log('[ExportWorker] Trips data exported successfully, length:', tripsData.length);
 					zip.file('trips.json', tripsData);
 					totalFiles++;
+					console.log('[ExportWorker] Added trips.json to ZIP file');
 				} else {
 					console.log(`[ExportWorker] No trips data found for user ${userId}`);
 				}
+			} else {
+				console.log('[ExportWorker] Trips export skipped (not requested)');
 			}
 
 			// Generate zip file
@@ -276,31 +271,6 @@ export class ExportProcessorService {
 		geojson += '}';
 		console.log('[ExportWorker] exportLocationData done', { totalFetched, batches: batchNum });
 		return geojson;
-	}
-
-	private static async exportTripInfo(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
-		console.log('[ExportWorker] exportTripInfo starting', { userId, startDate, endDate });
-		let query = this.supabase
-			.from('trips')
-			.select('*')
-			.eq('user_id', userId);
-		if (startDate) query = query.gte('start_date', startDate);
-		if (endDate) query = query.lte('end_date', endDate);
-		query = query.order('start_date', { ascending: true });
-		const { data: trips, error } = await query;
-		console.log('[ExportWorker] exportTripInfo query result', {
-			count: trips?.length || 0,
-			error: error?.message
-		});
-		if (error || !trips || trips.length === 0) {
-			console.log('[ExportWorker] exportTripInfo returning null');
-			return null;
-		}
-		const result = JSON.stringify(trips, null, 2);
-		console.log('[ExportWorker] exportTripInfo completed', {
-			resultLength: result.length
-		});
-		return result;
 	}
 
 	private static async exportWantToVisit(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {

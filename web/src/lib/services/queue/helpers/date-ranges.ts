@@ -20,6 +20,7 @@ export async function findAvailableDateRanges(
       .from('tracker_data')
       .select('recorded_at')
       .eq('user_id', userId)
+      .not('country_code', 'is', null) // Ignore records with NULL country codes when determining date ranges
       .order('recorded_at', { ascending: true })
       .limit(1);
 
@@ -27,6 +28,7 @@ export async function findAvailableDateRanges(
       .from('tracker_data')
       .select('recorded_at')
       .eq('user_id', userId)
+      .not('country_code', 'is', null) // Ignore records with NULL country codes when determining date ranges
       .order('recorded_at', { ascending: false })
       .limit(1);
 

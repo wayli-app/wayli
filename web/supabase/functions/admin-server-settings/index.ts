@@ -31,8 +31,6 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      logInfo('Fetching server settings', 'ADMIN-SERVER-SETTINGS', { userId: user.id });
-
       // Get server settings
       const { data: settings, error: settingsError } = await supabase
         .from('server_settings')
@@ -44,7 +42,6 @@ Deno.serve(async (req) => {
         return errorResponse('Failed to fetch server settings', 500);
       }
 
-      logSuccess('Server settings fetched successfully', 'ADMIN-SERVER-SETTINGS', { userId: user.id });
       return successResponse(settings || {});
     }
 

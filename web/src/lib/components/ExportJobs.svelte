@@ -12,6 +12,9 @@
 	// Use the reactive translation function
 	let t = $derived($translate);
 
+	// Props
+	let { reloadExportHistoryFlag = 0 } = $props();
+
 	interface ExportJob {
 		id: string;
 		status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -20,7 +23,6 @@
 		data?: {
 			format: string;
 			includeLocationData: boolean;
-			includeTripInfo: boolean;
 			includeWantToVisit: boolean;
 			includeTrips: boolean;
 			dateRange?: string;
@@ -30,6 +32,8 @@
 		result?: {
 			file_path?: string;
 			file_size?: number;
+			downloadUrl?: string;
+			eta?: string; // Added for ETA
 		};
 		error?: string;
 		created_at: string;
@@ -43,21 +47,24 @@
 	let loading = $state(true);
 	let sseService = $state<SSEService | null>(null);
 
+	// Track jobs by ID to ensure uniqueness
+	let jobsById = $state<Map<string, ExportJob>>(new Map());
+
 	onMount(async () => {
 		// Small delay to ensure session is available
 		setTimeout(async () => {
 			await loadExportJobs();
-			// Only start SSE monitoring if there are active export jobs
-			const hasActiveJobs = exportJobs.some(job =>
-				job.status === 'queued' || job.status === 'running'
-			);
-			if (hasActiveJobs) {
-
-				startSSEMonitoring();
-			} else {
-
-			}
+			// Always start SSE monitoring to get real-time updates for all export jobs
+			startSSEMonitoring();
 		}, 100);
+	});
+
+	// Watch for reload flag changes and reload export history
+	$effect(() => {
+		if (reloadExportHistoryFlag > 0) {
+			console.log('🔄 Reload flag changed, reloading export history...');
+			loadExportJobs();
+		}
 	});
 
 	onDestroy(() => {
@@ -65,6 +72,140 @@
 			sseService.disconnect();
 		}
 	});
+
+	function updateJobById(job: ExportJob) {
+		const existing = jobsById.get(job.id);
+		if (existing) {
+			// Merge with existing job, preferring the one with download info
+			const hasDownload = (j: ExportJob) => j.result?.file_path || j.result?.downloadUrl;
+			if (hasDownload(job) && !hasDownload(existing)) {
+				jobsById.set(job.id, { ...existing, ...job });
+			} else if (!hasDownload(job) && hasDownload(existing)) {
+				// Keep existing if it has download info
+			} else {
+				// Otherwise, prefer the most recently updated
+				const existingTime = new Date(existing.updated_at || existing.created_at).getTime();
+				const newTime = new Date(job.updated_at || job.created_at).getTime();
+				if (newTime > existingTime) {
+					jobsById.set(job.id, { ...existing, ...job });
+				}
+			}
+		} else {
+			jobsById.set(job.id, job);
+		}
+		console.log(`🔄 Updated job ${job.id}:`, { status: job.status, hasDownload: !!(job.result?.file_path || job.result?.downloadUrl) });
+	}
+
+	function updateExportJobs(newJobs: ExportJob[]) {
+		// Safety check: only process export jobs
+		const exportOnlyJobs = newJobs.filter(job => job.type === 'data_export');
+		if (exportOnlyJobs.length !== newJobs.length) {
+			console.log('🔒 Filtered out non-export jobs:', newJobs.length - exportOnlyJobs.length, 'jobs filtered');
+		}
+
+		// Update each job by ID
+		exportOnlyJobs.forEach(updateJobById);
+
+		// Convert map back to array
+		exportJobs = Array.from(jobsById.values());
+
+		// Update filtered jobs
+		updateFilteredJobs();
+	}
+
+	function getExportJobLabel(job: ExportJob): string {
+		if (job.status === 'completed' && (job.result?.file_path || job.result?.downloadUrl)) {
+			return t('exportJobs.completeReadyToDownload');
+		}
+		if (job.status === 'completed') {
+			return t('exportJobs.complete');
+		}
+		// Add more status labels as needed
+		return t(`exportJobs.${job.status}`);
+	}
+
+	function updateFilteredJobs() {
+		const now = new Date();
+
+		// Filter jobs: only show completed jobs with download links, or non-completed jobs
+		filteredExportJobs = exportJobs
+			.filter(job => {
+				const created = new Date(job.created_at);
+				const isRecent = (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
+
+				if (job.status === 'completed') {
+					// Only show completed jobs if they have a download available
+					const hasDownload = job.result && (job.result.file_path || job.result.downloadUrl);
+					return isRecent && hasDownload;
+				}
+
+				// Show running/queued/failed/cancelled jobs
+				return isRecent;
+			})
+			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+		console.log('🧹 Filtered export jobs:', filteredExportJobs.map(j => ({
+			id: j.id,
+			status: j.status,
+			hasDownload: !!(j.result?.file_path || j.result?.downloadUrl)
+		})));
+		console.log('📊 Total jobs in map:', jobsById.size);
+		console.log('📊 Total jobs in exportJobs:', exportJobs.length);
+		console.log('📊 Total jobs in filteredExportJobs:', filteredExportJobs.length);
+	}
+
+	function convertJobUpdateToExportJob(jobUpdate: JobUpdate): ExportJob {
+		return {
+			id: jobUpdate.id,
+			status: jobUpdate.status,
+			type: jobUpdate.type,
+			progress: jobUpdate.progress,
+			error: jobUpdate.error || undefined, // Convert null to undefined
+			result: jobUpdate.result,
+			created_at: jobUpdate.created_at,
+			updated_at: jobUpdate.updated_at,
+			// Add missing optional fields with defaults
+			data: undefined,
+			started_at: undefined,
+			completed_at: undefined
+		};
+	}
+
+	function startSSEMonitoring() {
+		// Create SSE service for export job monitoring
+		sseService = new SSEService({
+			onConnected: () => {
+				console.log('🔗 SSE connected for export jobs');
+			},
+			onDisconnected: () => {
+				console.log('🔌 SSE disconnected for export jobs');
+			},
+			onJobUpdate: (jobs: JobUpdate[]) => {
+				console.log('📡 Export jobs update received:', jobs);
+				// Filter to only include export jobs, not import jobs
+				const exportOnlyJobs = jobs.filter(job => job.type === 'data_export');
+				console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
+				// Convert JobUpdate to ExportJob for compatibility
+				const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
+				updateExportJobs(exportJobs);
+			},
+			onJobCompleted: (jobs: JobUpdate[]) => {
+				console.log('✅ Export jobs completed:', jobs);
+				// Filter to only include export jobs, not import jobs
+				const exportOnlyJobs = jobs.filter(job => job.type === 'data_export');
+				console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
+				// Convert JobUpdate to ExportJob for compatibility
+				const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
+				updateExportJobs(exportJobs);
+			},
+			onError: (error: string) => {
+				console.error('❌ Export jobs SSE error:', error);
+				toast.error(`Export monitoring error: ${error}`);
+			}
+		}, 'data_export');
+
+		sseService.connect();
+	}
 
 	async function loadExportJobs() {
 		try {
@@ -79,8 +220,7 @@
 
 			// The service adapter returns the data directly, not wrapped in a success object
 			if (Array.isArray(result)) {
-				exportJobs = result;
-				updateFilteredJobs();
+				updateExportJobs(result);
 			} else {
 				console.error('Failed to load export jobs: Invalid response format', result);
 			}
@@ -94,111 +234,53 @@
 	// Expose the function for external use
 	export { loadExportJobs };
 
-	function updateFilteredJobs() {
-		// Filter: only last 7 days, then take 5 most recent
-		const now = new Date();
-		filteredExportJobs = exportJobs
-			.filter(job => {
-				const created = new Date(job.created_at);
-				return (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
-			})
-			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-			.slice(0, 5);
-	}
-
-	function startSSEMonitoring() {
-		// Create SSE service for export job monitoring
-		sseService = new SSEService({
-			onConnected: () => {
-
-			},
-			onDisconnected: () => {
-
-			},
-			onJobUpdate: (jobs: JobUpdate[]) => {
-				console.log('📡 Export jobs update received:', jobs);
-				updateJobsFromSSE(jobs);
-			},
-			onJobCompleted: (jobs: JobUpdate[]) => {
-				console.log('✅ Export jobs completed:', jobs);
-				updateJobsFromSSE(jobs);
-
-				// Don't show toasts here - the parent page handles them
-			},
-			onError: (error: string) => {
-				console.error('❌ Export jobs SSE error:', error);
-				toast.error(`Export monitoring error: ${error}`);
-			}
-		}, 'data_export');
-
-		sseService.connect();
-	}
-
-	function updateJobsFromSSE(jobs: JobUpdate[]) {
-		jobs.forEach(update => {
-			const existingJobIndex = exportJobs.findIndex(job => job.id === update.id);
-
-			if (existingJobIndex >= 0) {
-				// Update existing job
-				exportJobs[existingJobIndex] = {
-					...exportJobs[existingJobIndex],
-					status: update.status as any,
-					progress: update.progress,
-					error: update.error,
-					result: update.result,
-					updated_at: update.updated_at
-				};
-			} else {
-				// Add new job
-				exportJobs.push({
-					id: update.id,
-					status: update.status as any,
-					type: update.type,
-					progress: update.progress,
-					error: update.error,
-					result: update.result,
-					created_at: update.created_at,
-					updated_at: update.updated_at
-				});
-			}
-		});
-
-		updateFilteredJobs();
-
-		// Check if we need to start SSE monitoring for new active jobs
-		const hasActiveJobs = exportJobs.some(job =>
-			job.status === 'queued' || job.status === 'running'
-		);
-		if (hasActiveJobs && !sseService) {
-			console.log('🔄 New active export jobs detected, starting SSE monitoring');
-			startSSEMonitoring();
-		} else if (!hasActiveJobs && sseService) {
-			console.log('🔄 No active export jobs, disconnecting SSE');
-			sseService.disconnect();
-			sseService = null;
-		}
+	function getJobETA(job: ExportJob) {
+		// Hide ETA for export jobs
+		return null;
 	}
 
 	async function downloadExport(jobId: string) {
 		try {
+			console.log('🚀 Starting download for export job:', jobId);
+
+			// Debug: Check if we have the job data
+			const job = exportJobs.find(j => j.id === jobId);
+			console.log('📋 Job data found:', job);
+			console.log('📋 Job status:', job?.status);
+			console.log('📋 Job result:', job?.result);
+			console.log('📋 Job has file_path:', !!job?.result?.file_path);
+			console.log('📋 Job has downloadUrl:', !!job?.result?.downloadUrl);
+
 			const session = get(sessionStore);
 			if (!session) {
+				console.error('❌ No session available for download');
 				toast.error('No session available');
 				return;
 			}
+			console.log('🔑 Session available, user ID:', session.user.id);
 
+			console.log('📡 Calling service adapter for download URL...');
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = await serviceAdapter.getExportDownloadUrl(jobId) as any;
+			console.log('📥 Service adapter response:', result);
+			console.log('📥 Response type:', typeof result);
+			console.log('📥 Response keys:', result ? Object.keys(result) : 'null/undefined');
 
 			// The service adapter returns the data directly, not wrapped in a success object
 			if (result && result.downloadUrl) {
+				console.log('✅ Download URL received:', result.downloadUrl);
+				console.log('🌐 Opening download URL in new tab...');
 				window.open(result.downloadUrl, '_blank');
 			} else {
-				console.error('Download URL not available:', result);
+				console.error('❌ Download URL not available in response:', result);
+				console.error('❌ Expected downloadUrl property but got:', result?.downloadUrl);
 				toast.error('Download URL not available');
 			}
 		} catch (error) {
-			console.error('Error downloading export:', error);
+			console.error('❌ Error downloading export:', error);
+			console.error('❌ Error type:', typeof error);
+			console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+			console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
 			toast.error('Failed to download export');
 		}
 	}
@@ -261,7 +343,8 @@
 	}
 
 	function getFormatLabel(format: string): string {
-		if (format === 'GeoJSON' || format === 'GPX' || format === 'OwnTracks') return format;
+		if (format === 'GeoJSON') return format;
+		// if (format === 'GPX' || format === 'OwnTracks') return format;
 		return 'JSON';
 	}
 
@@ -282,6 +365,11 @@
 		const endFormatted = endDate.toISOString().split('T')[0];
 
 		return `${startFormatted} ${t('exportJobs.to')} ${endFormatted}`;
+	}
+
+	// Export a refresh function for parent
+	export function refreshExportJobs() {
+		return loadExportJobs();
 	}
 </script>
 
@@ -328,6 +416,9 @@
 										{/if}
 									</div>
 								{/if}
+								{#if job.status === 'running' && getJobETA(job)}
+									<div class="text-xs text-gray-500 dark:text-gray-400">ETA: {getJobETA(job)}</div>
+								{/if}
 							</div>
 						</div>
 
@@ -370,13 +461,6 @@
 									{t('exportJobs.locationData')}
 								</span>
 							{/if}
-								{#if job.data.includeTripInfo}
-								<span
-									class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs text-green-800 dark:bg-green-900 dark:text-green-200"
-								>
-									{t('exportJobs.tripInfo')}
-								</span>
-								{/if}
 								{#if job.data.includeWantToVisit}
 								<span
 									class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"

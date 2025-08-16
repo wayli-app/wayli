@@ -185,82 +185,31 @@ export class TripsService {
 			// Fetch the trip to get user_id and date range
 			const { data: trip, error: tripError } = await this.supabase
 				.from('trips')
-				.select('user_id, start_date, end_date')
+				.select('user_id, start_date, end_date, metadata')
 				.eq('id', tripId)
 				.single();
-
 			if (tripError || !trip) throw tripError || new Error('Trip not found');
 
-			// Use raw SQL to extract coordinates from PostGIS location column
-			const { data: points, error: pointsError } = await this.supabase
-				.rpc('get_user_tracking_data', {
-					user_uuid: trip.user_id,
-					start_date: trip.start_date,
-					end_date: trip.end_date
-				});
-
-			if (pointsError) throw pointsError;
-
-			const pointCount = points?.length || 0;
-			let distance = 0;
-
-			// Calculate total distance using pre-calculated distance column if available
-			if (points && points.length > 0) {
-				// Check if points have distance column (from updated get_user_tracking_data function)
-				const hasDistanceColumn = points.some(point => typeof point.distance === 'number');
-
-				if (hasDistanceColumn) {
-					// Use pre-calculated distances from database
-					distance = points.reduce((total, point) => {
-						const pointDistance = typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0;
-						return total + (pointDistance / 1000); // Convert meters to kilometers
-					}, 0);
-				} else {
-					// Fallback to manual calculation for backward compatibility
-					for (let i = 1; i < points.length; i++) {
-						const prev = points[i - 1];
-						const curr = points[i];
-						distance += this.calculateDistance(
-							prev.lat,
-							prev.lon,
-							curr.lat,
-							curr.lon
-						);
-					}
+			// Calculate distance_traveled using a direct SUM query
+			let distanceTraveled = 0;
+			if (trip.start_date && trip.end_date) {
+				const { data, error } = await this.supabase
+					.from('tracker_data')
+					.select('distance')
+					.eq('user_id', trip.user_id)
+					.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
+					.lte('recorded_at', `${trip.end_date}T23:59:59Z`)
+					.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
+				if (!error && data) {
+					// Sum up all distances, treating null/undefined as 0
+					distanceTraveled = data.reduce((sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0), 0);
 				}
 			}
-
-			// Get existing metadata to preserve image_attribution and other fields
-			const { data: existingTrip, error: fetchError } = await this.supabase
+			// Update the trip's metadata.distance_traveled
+			await this.supabase
 				.from('trips')
-				.select('metadata')
-				.eq('id', tripId)
-				.single();
-
-			if (fetchError) {
-				console.error('❌ [updateTripMetadata] Error fetching existing metadata:', fetchError);
-				throw fetchError;
-			}
-
-			// Preserve existing metadata and update with new values
-			const existingMetadata = existingTrip?.metadata || {};
-			const updatedMetadata = {
-				...existingMetadata,
-				point_count: pointCount,
-				distance: Math.round(distance * 100) / 100 // Round to 2 decimal places
-			};
-
-			const { error: updateError } = await this.supabase
-				.from('trips')
-				.update({
-					metadata: updatedMetadata
-				})
+				.update({ metadata: { ...trip.metadata, distance_traveled: distanceTraveled } })
 				.eq('id', tripId);
-
-			if (updateError) {
-				console.error('❌ [updateTripMetadata] Error updating trip:', updateError);
-				throw updateError;
-			}
 		} catch (error) {
 			console.error('❌ Error updating trip metadata:', error);
 			throw error;

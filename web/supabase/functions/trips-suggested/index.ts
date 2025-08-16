@@ -19,8 +19,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Fetching suggested trips', 'TRIPS-SUGGESTED', { userId: user.id });
-
       const url = req.url;
       const params = getQueryParams(url);
       const limit = parseInt(params.get('limit') || '10');
@@ -50,12 +48,6 @@ Deno.serve(async (req) => {
         logError(countError, 'TRIPS-SUGGESTED');
         return errorResponse('Failed to count suggested trips', 500);
       }
-
-      logSuccess('Suggested trips fetched successfully', 'TRIPS-SUGGESTED', {
-        userId: user.id,
-        count: suggestedTrips?.length || 0,
-        total: totalCount || 0
-      });
 
       return successResponse({
         trips: suggestedTrips || [],

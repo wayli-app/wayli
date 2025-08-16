@@ -5,7 +5,8 @@ import { JobQueueService } from '$lib/services/queue/job-queue.service.worker';
 import { checkJobCancellation } from '$lib/utils/job-cancellation';
 import {
   getCountryForPoint as getCountryForPointExternal,
-  normalizeCountryCode as normalizeCountryCodeExternal
+  normalizeCountryCode as normalizeCountryCodeExternal,
+  applyTimezoneCorrectionToTimestamp
 } from '$lib/services/external/country-reverse-geocoding.service';
 
 export async function importGPXWithProgress(
@@ -58,12 +59,19 @@ export async function importGPXWithProgress(
       if (!isNaN(lat) && !isNaN(lon)) {
         const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
 
+        let recordedAt = waypoint.time || new Date().toISOString();
+
+        // Apply timezone correction if we have a timestamp
+        if (waypoint.time) {
+          recordedAt = applyTimezoneCorrectionToTimestamp(waypoint.time, lat, lon);
+        }
+
         const { error } = await supabase.from('tracker_data').upsert(
           {
             user_id: userId,
             tracker_type: 'import',
             location: `POINT(${lon} ${lat})`,
-            recorded_at: waypoint.time || new Date().toISOString(),
+            recorded_at: recordedAt,
             country_code: countryCode,
             raw_data: {
               name: waypoint.name || `GPX Waypoint ${i + 1}`,
@@ -119,12 +127,20 @@ export async function importGPXWithProgress(
 
         if (!isNaN(lat) && !isNaN(lon)) {
           const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
+
+          let recordedAt = point.time || new Date().toISOString();
+
+          // Apply timezone correction if we have a timestamp
+          if (point.time) {
+            recordedAt = applyTimezoneCorrectionToTimestamp(point.time, lat, lon);
+          }
+
           const { error } = await supabase.from('tracker_data').upsert(
             {
               user_id: userId,
               tracker_type: 'import',
               location: `POINT(${lon} ${lat})`,
-              recorded_at: point.time || new Date().toISOString(),
+              recorded_at: recordedAt,
               country_code: countryCode,
               raw_data: { import_source: 'gpx', data_type: 'track_point' },
               created_at: new Date().toISOString()

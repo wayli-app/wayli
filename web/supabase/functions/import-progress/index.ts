@@ -31,8 +31,6 @@ Deno.serve(async (req) => {
       return errorResponse('Job ID is required', 400);
     }
 
-    logInfo('Fetching import progress', 'IMPORT_PROGRESS', { userId: user.id, jobId });
-
     // Get job progress
     const { data: job, error: jobError } = await supabase
       .from('jobs')
@@ -48,12 +46,6 @@ Deno.serve(async (req) => {
       logError(jobError, 'IMPORT_PROGRESS');
       return errorResponse('Failed to fetch job progress', 500);
     }
-
-    logSuccess('Import progress fetched successfully', 'IMPORT_PROGRESS', {
-      userId: user.id,
-      jobId: job.id,
-      status: job.status
-    });
 
     return successResponse({
       job_id: job.id,

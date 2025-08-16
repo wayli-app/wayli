@@ -20,8 +20,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'GET') {
-      logInfo('Fetching trips', 'TRIPS', { userId: user.id });
-
       const url = req.url;
       const params = getQueryParams(url);
       const limit = parseInt(params.get('limit') || '50');
@@ -57,22 +55,9 @@ Deno.serve(async (req) => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (!allTripsError) {
-        logInfo('All trips for user (debug)', 'TRIPS', {
-          userId: user.id,
-          allTrips: allTrips?.map(t => ({ id: t.id, title: t.title, status: t.status })) || [],
-          activeTrips: trips?.map(t => ({ id: t.id, title: t.title, status: t.status })) || [],
-          totalTrips: allTrips?.length || 0,
-          activeTripsCount: trips?.length || 0
-        });
-      } else {
+      if (allTripsError) {
         logError(allTripsError, 'TRIPS');
       }
-
-      logSuccess('Trips fetched successfully', 'TRIPS', {
-        userId: user.id,
-        count: trips?.length || 0
-      });
       return successResponse(trips || []);
     }
 
@@ -108,6 +93,29 @@ Deno.serve(async (req) => {
       if (createError) {
         logError(createError, 'TRIPS');
         return errorResponse('Failed to create trip', 500);
+      }
+
+      if (newTrip.start_date && newTrip.end_date) {
+        const { data, error } = await supabase
+          .from('tracker_data')
+          .select('distance', { aggregateFn: 'sum', head: true })
+          .eq('user_id', user.id)
+          .gte('recorded_at', `${newTrip.start_date}T00:00:00Z`)
+          .lte('recorded_at', `${newTrip.end_date}T23:59:59Z`)
+          .not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
+        const totalDistance = (!error && data && typeof data[0]?.sum === 'number') ? data[0].sum : 0;
+        await supabase
+          .from('trips')
+          .update({
+            total_distance: totalDistance,
+            metadata: {
+              ...(newTrip.metadata || {}),
+              distance_traveled: totalDistance
+            }
+          })
+          .eq('id', newTrip.id);
+        newTrip.total_distance = totalDistance;
+        newTrip.metadata = { ...(newTrip.metadata || {}), distance_traveled: totalDistance };
       }
 
       logSuccess('Trip created successfully', 'TRIPS', {
@@ -163,6 +171,29 @@ Deno.serve(async (req) => {
       if (updateError) {
         logError(updateError, 'TRIPS');
         return errorResponse('Failed to update trip', 500);
+      }
+
+      if (updatedTrip.start_date && updatedTrip.end_date) {
+        const { data, error } = await supabase
+          .from('tracker_data')
+          .select('distance', { aggregateFn: 'sum', head: true })
+          .eq('user_id', user.id)
+          .gte('recorded_at', `${updatedTrip.start_date}T00:00:00Z`)
+          .lte('recorded_at', `${updatedTrip.end_date}T23:59:59Z`)
+          .not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
+        const totalDistance = (!error && data && typeof data[0]?.sum === 'number') ? data[0].sum : 0;
+        await supabase
+          .from('trips')
+          .update({
+            total_distance: totalDistance,
+            metadata: {
+              ...(updatedTrip.metadata || {}),
+              distance_traveled: totalDistance
+            }
+          })
+          .eq('id', updatedTrip.id);
+        updatedTrip.total_distance = totalDistance;
+        updatedTrip.metadata = { ...(updatedTrip.metadata || {}), distance_traveled: totalDistance };
       }
 
       logSuccess('Trip updated successfully', 'TRIPS', {

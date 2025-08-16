@@ -154,8 +154,6 @@ Deno.serve(async (req) => {
     const { user, supabase } = await authenticateRequest(req);
 
     if (req.method === 'POST') {
-      logInfo('Setting up 2FA', 'AUTH-2FA-SETUP', { userId: user.id });
-
       const body = await parseJsonBody<Record<string, unknown>>(req);
 
       // Check if this is a request to generate a new secret or verify an existing one
@@ -211,18 +209,8 @@ Deno.serve(async (req) => {
           return errorResponse('No 2FA secret found. Please generate a new one.', 400);
         }
 
-        logInfo('Retrieved stored secret', 'AUTH-2FA-SETUP', {
-          userId: user.id,
-          secretLength: profile.two_factor_secret.length
-        });
-
         // Verify the TOTP token
         const isValid = await SimpleTOTP.verifyToken(String(body.token), profile.two_factor_secret);
-
-        logInfo('TOTP verification result', 'AUTH-2FA-SETUP', {
-          token: String(body.token),
-          isValid
-        });
 
         if (!isValid) {
           return errorResponse('Invalid verification token', 400);
