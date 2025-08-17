@@ -230,9 +230,25 @@
 				}
 			}
 
-			// Check 2FA status - Edge Functions return { success: true, data: ... }
-			// Temporarily disabled until 2FA columns are added to database
-			twoFactorEnabled = false;
+			// Check 2FA status using the auth-check-2fa endpoint
+			try {
+				console.log('🔍 [AccountSettings] Checking 2FA status...');
+				const twoFactorResult = await serviceAdapter.check2FA() as any;
+				console.log('📡 [AccountSettings] 2FA check result:', twoFactorResult);
+
+				if (twoFactorResult && typeof twoFactorResult === 'object') {
+					const twoFactorData = twoFactorResult.data || twoFactorResult;
+					console.log('📊 [AccountSettings] 2FA data:', twoFactorData);
+					twoFactorEnabled = twoFactorData.enabled || false;
+					console.log('✅ [AccountSettings] 2FA enabled:', twoFactorEnabled);
+				} else {
+					console.log('⚠️ [AccountSettings] Invalid 2FA result format:', twoFactorResult);
+					twoFactorEnabled = false;
+				}
+			} catch (error) {
+				console.error('❌ [AccountSettings] Error checking 2FA status:', error);
+				twoFactorEnabled = false;
+			}
 
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error loading user data:', error);

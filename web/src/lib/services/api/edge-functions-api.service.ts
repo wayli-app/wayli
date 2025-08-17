@@ -182,10 +182,10 @@ export class EdgeFunctionsApiService {
     });
   }
 
-  async disable2FA(session: Session, token: string) {
+  async disable2FA(session: Session, password: string) {
     return this.makeRequest('auth-2fa-disable', {
       method: 'POST',
-      body: { token },
+      body: { password },
       session
     });
   }

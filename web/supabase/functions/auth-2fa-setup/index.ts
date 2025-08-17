@@ -6,7 +6,6 @@ import {
   parseJsonBody,
   validateRequiredFields,
   logError,
-  logInfo,
   logSuccess
 } from '../_shared/utils.ts';
 
@@ -26,11 +25,21 @@ function generateRecoveryCodes(count: number = 10): string[] {
 }
 
 /**
- * Hash a recovery code for storage
+ * Hash a recovery code for storage using SHA-256
  */
-function hashRecoveryCode(code: string): string {
-  // Simple hash for now - in production, use a proper cryptographic hash
-  return btoa(code).replace(/[^a-zA-Z0-9]/g, '');
+async function hashRecoveryCode(code: string): Promise<string> {
+  // Convert the code to a Uint8Array
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+
+  // Generate SHA-256 hash
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+  // Convert to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
 }
 
 // RFC 4648 Base32 alphabet
@@ -232,11 +241,16 @@ Deno.serve(async (req) => {
         // Generate recovery codes
         const recoveryCodes = generateRecoveryCodes();
 
+        // Hash recovery codes before storing
+        const hashedRecoveryCodes = await Promise.all(
+          recoveryCodes.map(code => hashRecoveryCode(code))
+        );
+
         // Store recovery codes (hashed) in the database
         const { error: recoveryError } = await supabase
           .from('user_profiles')
           .update({
-            two_factor_recovery_codes: recoveryCodes.map(code => hashRecoveryCode(code))
+            two_factor_recovery_codes: hashedRecoveryCodes
           })
           .eq('id', user.id);
 

@@ -21,8 +21,8 @@ Deno.serve(async (req) => {
     if (req.method === 'POST') {
       const body = await parseJsonBody<Record<string, unknown>>(req);
 
-      // Validate required fields
-      const requiredFields = ['token'];
+      // Validate required fields - now expecting password instead of token
+      const requiredFields = ['password'];
       const missingFields = validateRequiredFields(body, requiredFields);
 
       if (missingFields.length > 0) {
@@ -45,16 +45,15 @@ Deno.serve(async (req) => {
         return errorResponse('2FA is not enabled for this user', 400);
       }
 
-      // Verify the TOTP token before disabling
-      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-        phone: user.phone || '',
-        token: String(body.token),
-        type: 'totp'
+      // Verify the password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email || '',
+        password: String(body.password)
       });
 
-      if (verifyError || !verifyData.user) {
-        logError(verifyError, 'AUTH-2FA-DISABLE');
-        return errorResponse('Invalid verification token', 400);
+      if (signInError) {
+        logError(signInError, 'AUTH-2FA-DISABLE');
+        return errorResponse('Invalid password', 400);
       }
 
       // Disable 2FA by updating profile

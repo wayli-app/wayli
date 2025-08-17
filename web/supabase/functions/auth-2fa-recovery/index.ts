@@ -6,9 +6,26 @@ import {
   parseJsonBody,
   validateRequiredFields,
   logError,
-  logInfo,
   logSuccess
 } from '../_shared/utils.ts';
+
+/**
+ * Hash a recovery code for storage using SHA-256 - must match the hashing used in auth-2fa-setup
+ */
+async function hashRecoveryCode(code: string): Promise<string> {
+  // Convert the code to a Uint8Array
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+
+  // Generate SHA-256 hash
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+
+  // Convert to hex string
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return hashHex;
+}
 
 Deno.serve(async (req) => {
   // Handle CORS
@@ -48,14 +65,17 @@ Deno.serve(async (req) => {
       const recoveryCodes = profile.two_factor_recovery_codes as string[] || [];
       const providedCode = String(body.recovery_code);
 
+      // Hash the provided recovery code to match the stored hashed codes
+      const hashedProvidedCode = await hashRecoveryCode(providedCode);
+
       // Check if the provided recovery code is valid
-      if (!recoveryCodes.includes(providedCode)) {
+      if (!recoveryCodes.includes(hashedProvidedCode)) {
         logError('Invalid recovery code provided', 'AUTH-2FA-RECOVERY');
         return errorResponse('Invalid recovery code', 400);
       }
 
       // Remove the used recovery code
-      const updatedCodes = recoveryCodes.filter(code => code !== providedCode);
+      const updatedCodes = recoveryCodes.filter(code => code !== hashedProvidedCode);
 
       // Update profile to remove the used recovery code
       const { error: updateError } = await supabase

@@ -104,8 +104,8 @@ export class ServiceAdapter {
     return this.edgeFunctionsService.verify2FA(this.session, token);
   }
 
-  async disable2FA(token: string) {
-    return this.edgeFunctionsService.disable2FA(this.session, token);
+  async disable2FA(password: string) {
+    return this.edgeFunctionsService.disable2FA(this.session, password);
   }
 
   async check2FA() {

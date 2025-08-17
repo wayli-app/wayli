@@ -5,7 +5,8 @@ const hoisted = vi.hoisted(() => {
   const mockFrom = vi.fn();
   const mockSupabase = { from: mockFrom };
   const mockApplyTimezoneCorrectionToTimestamp = vi.fn();
-  return { mockFrom, mockSupabase, mockApplyTimezoneCorrectionToTimestamp };
+  const mockGetTimezoneDifferenceForPoint = vi.fn();
+  return { mockFrom, mockSupabase, mockApplyTimezoneCorrectionToTimestamp, mockGetTimezoneDifferenceForPoint };
 });
 
 vi.mock('$lib/core/supabase/worker', () => ({ supabase: hoisted.mockSupabase }));
@@ -16,7 +17,8 @@ vi.mock('$lib/utils/job-cancellation', () => ({ checkJobCancellation: vi.fn().mo
 vi.mock('$lib/services/external/country-reverse-geocoding.service', () => ({
   getCountryForPoint: () => 'XX',
   normalizeCountryCode: (c: string | null) => c,
-  applyTimezoneCorrectionToTimestamp: hoisted.mockApplyTimezoneCorrectionToTimestamp
+  applyTimezoneCorrectionToTimestamp: hoisted.mockApplyTimezoneCorrectionToTimestamp,
+  getTimezoneDifferenceForPoint: hoisted.mockGetTimezoneDifferenceForPoint
 }));
 
 import { importGeoJSONWithProgress } from '$lib/services/queue/processors/import/geojson-importer';
@@ -36,6 +38,23 @@ beforeEach(() => {
     } else {
       // Default to UTC
       return '2025-08-16T14:00:00Z';
+    }
+  });
+
+  // Mock getTimezoneDifferenceForPoint to return timezone differences
+  hoisted.mockGetTimezoneDifferenceForPoint.mockImplementation((lat: number, lon: number) => {
+    if (lat === 40.7128 && lon === -74.0060) {
+      // NYC area - UTC-5
+      return -5.0;
+    } else if (lat === 48.8566 && lon === 2.3522) {
+      // Paris area - UTC+1
+      return 1.0;
+    } else if (lat === 35.6762 && lon === 139.6503) {
+      // Tokyo area - UTC+9
+      return 9.0;
+    } else {
+      // Default to UTC
+      return 0.0;
     }
   });
 
@@ -74,6 +93,12 @@ describe('importGeoJSONWithProgress', () => {
       52.37, // latitude
       4.9    // longitude
     );
+
+    // Verify that getTimezoneDifferenceForPoint was called for the tz_diff field
+    expect(hoisted.mockGetTimezoneDifferenceForPoint).toHaveBeenCalledWith(
+      52.37, // latitude
+      4.9    // longitude
+    );
   });
 
   it('imports a feature with timestamp property and applies timezone correction', async () => {
@@ -103,6 +128,12 @@ describe('importGeoJSONWithProgress', () => {
     // Verify the mock returned the expected timezone format
     const result = hoisted.mockApplyTimezoneCorrectionToTimestamp(1723814400 * 1000, 40.7128, -74.0060);
     expect(result).toBe('2025-08-16T14:00:00-05:00');
+
+    // Verify that getTimezoneDifferenceForPoint was called for the tz_diff field
+    expect(hoisted.mockGetTimezoneDifferenceForPoint).toHaveBeenCalledWith(
+      40.7128,  // latitude
+      -74.0060  // longitude
+    );
   });
 
   it('imports a feature with time property and applies timezone correction', async () => {
@@ -131,6 +162,12 @@ describe('importGeoJSONWithProgress', () => {
     // Verify the mock returned the expected timezone format
     const result = hoisted.mockApplyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 48.8566, 2.3522);
     expect(result).toBe('2025-08-16T14:00:00+01:00');
+
+    // Verify that getTimezoneDifferenceForPoint was called for the tz_diff field
+    expect(hoisted.mockGetTimezoneDifferenceForPoint).toHaveBeenCalledWith(
+      48.8566,  // latitude
+      2.3522    // longitude
+    );
   });
 
   it('imports a feature with date property and applies timezone correction', async () => {
@@ -152,6 +189,12 @@ describe('importGeoJSONWithProgress', () => {
     // Verify timezone correction was called with Tokyo coordinates
     expect(hoisted.mockApplyTimezoneCorrectionToTimestamp).toHaveBeenCalledWith(
       '2025-08-16T14:00:00',
+      35.6762,  // latitude
+      139.6503  // longitude
+    );
+
+    // Verify that getTimezoneDifferenceForPoint was called for the tz_diff field
+    expect(hoisted.mockGetTimezoneDifferenceForPoint).toHaveBeenCalledWith(
       35.6762,  // latitude
       139.6503  // longitude
     );

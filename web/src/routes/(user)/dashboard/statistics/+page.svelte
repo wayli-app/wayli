@@ -58,6 +58,7 @@
 		velocity?: number;
 		distance_from_prev?: number;
 		geocode?: GeocodeData | string | null;
+		tz_diff?: number; // Timezone difference from UTC in hours
 	}
 
 	interface GeocodeData {
@@ -362,18 +363,8 @@
 	// --- Create popup content with timezone-aware time ---
 	async function createPopupContentWithTimezone(item: TrackerLocation): Promise<string> {
 		const date = item.recorded_at || item.created_at;
-		let formattedDate = 'Unknown date';
-
-		if (date && item.coordinates?.lat && item.coordinates?.lng) {
-			try {
-				formattedDate = await formatDateForLocation(date, item.coordinates.lat, item.coordinates.lng);
-			} catch (error) {
-				console.warn('⚠️ Error formatting date with timezone, using local time:', error);
-				formattedDate = date ? format(new Date(date), 'MMM d, yyyy HH:mm') : 'Unknown date';
-			}
-		} else if (date) {
-			formattedDate = format(new Date(date), 'MMM d, yyyy HH:mm');
-		}
+		// Use the new timezone-aware formatting function that uses tz_diff
+		const formattedDate = formatTimestampWithTimezone(date, item.tz_diff);
 
 		const transportMode = item.transport_mode || 'unknown';
 
@@ -515,7 +506,7 @@
 	// --- Updated tooltip content ---
 	function createPopupContent(item: TrackerLocation) {
 		const date = item.recorded_at || item.created_at;
-		const formattedDate = date ? format(new Date(date), 'MMM d, yyyy HH:mm') : 'Unknown date';
+		const formattedDate = formatTimestampWithTimezone(date, item.tz_diff);
 		const transportMode = item.transport_mode || 'unknown';
 
 		let content = `
@@ -1086,7 +1077,8 @@
 						detectionReason: loc.detectionReason as TransportDetectionReason | string | undefined,
 						velocity: loc.velocity as number | undefined,
 						distance_from_prev: loc.distance_from_prev as number | undefined,
-						geocode: loc.geocode as GeocodeData | string | null
+						geocode: loc.geocode as GeocodeData | string | null,
+						tz_diff: loc.tz_diff as number | undefined
 					};
 				});
 
@@ -1288,6 +1280,33 @@
 		const m = Math.floor((seconds % 3600) / 60);
 		const s = Math.floor(seconds % 60);
 		return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+	}
+
+	// Format timestamp with timezone information using tz_diff
+	function formatTimestampWithTimezone(timestamp: string | Date, tzDiff?: number): string {
+		if (!timestamp) return 'Unknown date';
+
+		const date = new Date(timestamp);
+		if (isNaN(date.getTime())) return 'Invalid date';
+
+		// Format the date part
+		const formattedDate = format(date, 'MMM d, yyyy, HH:mm');
+
+		// If we have timezone difference, add it to the timestamp
+		if (tzDiff !== undefined && tzDiff !== null) {
+			// Format timezone offset as +HH:MM or -HH:MM
+			const sign = tzDiff >= 0 ? '+' : '-';
+			const absHours = Math.abs(tzDiff);
+			const wholeHours = Math.floor(absHours);
+			const minutesOffset = Math.round((absHours - wholeHours) * 60);
+
+			const timezoneString = `${sign}${String(wholeHours).padStart(2, '0')}:${String(minutesOffset).padStart(2, '0')}`;
+
+			return `${formattedDate}${timezoneString}`;
+		}
+
+		// Fallback to date without timezone if tz_diff is not available
+		return formattedDate;
 	}
 
 

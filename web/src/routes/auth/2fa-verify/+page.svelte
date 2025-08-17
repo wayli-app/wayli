@@ -28,12 +28,13 @@
 		}
 	});
 
-	async function handleVerify() {
+		async function handleVerify() {
 		if (useRecoveryCode) {
 			if (!recoveryCode) {
 				toast.error('Please enter your recovery code');
 				return;
 			}
+
 			isVerifying = true;
 			try {
 				// First, sign in with stored credentials to get a valid session
