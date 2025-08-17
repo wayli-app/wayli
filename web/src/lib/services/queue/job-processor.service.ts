@@ -1,21 +1,18 @@
-import type { Job, JobType } from '$lib/types/job-queue.types';
-import type {
-	TripGenerationData,
-	HomeAddress
-} from '$lib/types/trip-generation.types';
-import { forwardGeocode } from '../external/nominatim.service';
 import { supabase } from '$lib/core/supabase/worker';
-import { JobQueueService } from './job-queue.service.worker';
+
+import { checkJobCancellation } from '../../utils/job-cancellation';
+import { ExportProcessorService } from '../export-processor.service';
+import { forwardGeocode } from '../external/nominatim.service';
 import { TripDetectionService } from '../trip-detection.service';
 import { UserProfileService } from '../user-profile.service';
 
-import { ExportProcessorService } from '../export-processor.service';
-import { checkJobCancellation } from '../../utils/job-cancellation';
 import { findAvailableDateRanges as findAvailableDateRangesHelper } from './helpers/date-ranges';
+import { JobQueueService } from './job-queue.service.worker';
+
+import type { Job, JobType } from '$lib/types/job-queue.types';
+import type { TripGenerationData, HomeAddress } from '$lib/types/trip-generation.types';
 
 export class JobProcessorService {
-
-
 	static async processJob(job: Job): Promise<void> {
 		const processor = this.getJobProcessor(job.type);
 		if (!processor) {
@@ -37,8 +34,10 @@ export class JobProcessorService {
 	}
 
 	private static async processReverseGeocodingMissing(job: Job): Promise<void> {
-        const { processReverseGeocodingMissing } = await import('./processors/reverse-geocoding-processor.service');
-        return processReverseGeocodingMissing(job);
+		const { processReverseGeocodingMissing } = await import(
+			'./processors/reverse-geocoding-processor.service'
+		);
+		return processReverseGeocodingMissing(job);
 	}
 
 	private static async processTripGeneration(job: Job): Promise<void> {
@@ -46,19 +45,19 @@ export class JobProcessorService {
 		console.log(`👤 Job created by user: ${job.created_by}`);
 		console.log(`📋 Job data:`, JSON.stringify(job.data, null, 2));
 
-    const startTime = Date.now();
-    // Moving average ETA over the last 15 seconds
-    const PROGRESS_WINDOW_MS = 15_000;
-    const progressSamples: Array<{ time: number; progress: number }> = [];
-    const formatEta = (seconds: number): string => {
-      if (!seconds || seconds <= 0) return 'Calculating...';
-      const s = Math.floor(seconds % 60);
-      const m = Math.floor((seconds / 60) % 60);
-      const h = Math.floor(seconds / 3600);
-      if (h > 0) return `${h}h ${m}m ${s}s`;
-      if (m > 0) return `${m}m ${s}s`;
-      return `${s}s`;
-    };
+		const startTime = Date.now();
+		// Moving average ETA over the last 15 seconds
+		const PROGRESS_WINDOW_MS = 15_000;
+		const progressSamples: Array<{ time: number; progress: number }> = [];
+		const formatEta = (seconds: number): string => {
+			if (!seconds || seconds <= 0) return 'Calculating...';
+			const s = Math.floor(seconds % 60);
+			const m = Math.floor((seconds / 60) % 60);
+			const h = Math.floor(seconds / 3600);
+			if (h > 0) return `${h}h ${m}m ${s}s`;
+			if (m > 0) return `${m}m ${s}s`;
+			return `${s}s`;
+		};
 		const userId = job.created_by;
 		const {
 			startDate,
@@ -91,7 +90,7 @@ export class JobProcessorService {
 					message: 'Determining available date ranges for sleep-based trip generation...'
 				});
 
-                dateRanges = await findAvailableDateRangesHelper(userId, startDate, endDate);
+				dateRanges = await findAvailableDateRangesHelper(userId, startDate, endDate);
 				console.log(`📊 findAvailableDateRanges returned ${dateRanges.length} date ranges`);
 
 				if (dateRanges.length === 0) {
@@ -126,7 +125,7 @@ export class JobProcessorService {
 
 				// Instead of checking for overlap, use the same logic as automatic detection
 				// but constrained to the provided date range
-                dateRanges = await findAvailableDateRangesHelper(userId, startDate, endDate);
+				dateRanges = await findAvailableDateRangesHelper(userId, startDate, endDate);
 				console.log(
 					`📊 findAvailableDateRanges returned ${dateRanges.length} date ranges within provided range`
 				);
@@ -245,8 +244,8 @@ export class JobProcessorService {
 				// Fallback to empty array if preferences not found
 			}
 
-					// Use trip detection service
-		const tripDetectionService = new TripDetectionService();
+			// Use trip detection service
+			const tripDetectionService = new TripDetectionService();
 
 			// Configure detection parameters
 			const config = {
@@ -260,47 +259,43 @@ export class JobProcessorService {
 			};
 
 			// Use the new trip detection service with the determined date ranges
-      const detectedTrips = await tripDetectionService.detectTrips(
+			const detectedTrips = await tripDetectionService.detectTrips(
 				userId,
 				config,
 				job.id,
 				async (progress: number, message: string) => {
-          // Track samples for moving-average ETA
-          const now = Date.now();
-          progressSamples.push({ time: now, progress });
-          while (progressSamples.length > 1 && progressSamples[0].time < now - PROGRESS_WINDOW_MS) {
-            progressSamples.shift();
-          }
+					// Track samples for moving-average ETA
+					const now = Date.now();
+					progressSamples.push({ time: now, progress });
+					while (progressSamples.length > 1 && progressSamples[0].time < now - PROGRESS_WINDOW_MS) {
+						progressSamples.shift();
+					}
 
-          // Compute rate (percentage points per second)
-          let rate = 0;
-          if (progressSamples.length >= 2) {
-            const first = progressSamples[0];
-            const last = progressSamples[progressSamples.length - 1];
-            const dp = Math.max(0, last.progress - first.progress);
-            const dt = (last.time - first.time) / 1000;
-            if (dp > 0 && dt > 0) rate = dp / dt;
-          }
-          if (rate === 0 && progress > 0) {
-            const elapsed = (now - startTime) / 1000;
-            if (elapsed > 0) rate = progress / elapsed;
-          }
+					// Compute rate (percentage points per second)
+					let rate = 0;
+					if (progressSamples.length >= 2) {
+						const first = progressSamples[0];
+						const last = progressSamples[progressSamples.length - 1];
+						const dp = Math.max(0, last.progress - first.progress);
+						const dt = (last.time - first.time) / 1000;
+						if (dp > 0 && dt > 0) rate = dp / dt;
+					}
+					if (rate === 0 && progress > 0) {
+						const elapsed = (now - startTime) / 1000;
+						if (elapsed > 0) rate = progress / elapsed;
+					}
 
-          const remainingPct = Math.max(0, 100 - progress);
-          const remainingSeconds = rate > 0 ? Math.round(remainingPct / rate) : 0;
-          const etaDisplay = formatEta(remainingSeconds);
+					const remainingPct = Math.max(0, 100 - progress);
+					const remainingSeconds = rate > 0 ? Math.round(remainingPct / rate) : 0;
+					const etaDisplay = formatEta(remainingSeconds);
 
-          await JobQueueService.updateJobProgress(
-						job.id,
-						progress,
-						{
-							message,
-							userStartDate: startDate,
-              userEndDate: endDate,
-              estimatedTimeRemaining: etaDisplay,
-              etaSeconds: remainingSeconds
-						}
-					);
+					await JobQueueService.updateJobProgress(job.id, progress, {
+						message,
+						userStartDate: startDate,
+						userEndDate: endDate,
+						estimatedTimeRemaining: etaDisplay,
+						etaSeconds: remainingSeconds
+					});
 				},
 				dateRanges
 			);
@@ -391,33 +386,32 @@ export class JobProcessorService {
 
 			// Process based on format
 			switch (format) {
-                case 'GeoJSON': {
-                    const { importGeoJSONWithProgress } = await import('./processors/import/geojson-importer');
-                    importedCount = await importGeoJSONWithProgress(
-						fileContent,
-						userId,
-						job.id,
-						fileName
+				case 'GeoJSON': {
+					const { importGeoJSONWithProgress } = await import(
+						'./processors/import/geojson-importer'
 					);
+					importedCount = await importGeoJSONWithProgress(fileContent, userId, job.id, fileName);
 					break;
-                }
+				}
 				case 'GPX': {
-                    const { importGPXWithProgress } = await import('./processors/import/gpx-importer');
-                    const result = await importGPXWithProgress(fileContent, userId, job.id, fileName);
+					const { importGPXWithProgress } = await import('./processors/import/gpx-importer');
+					const result = await importGPXWithProgress(fileContent, userId, job.id, fileName);
 					importedCount = result.importedCount;
 					totalItems = result.totalItems;
 					break;
 				}
 				case 'OwnTracks':
-                    {
-                        const { importOwnTracksWithProgress } = await import('./processors/import/owntracks-importer');
-                        importedCount = await importOwnTracksWithProgress(
-						fileContent,
-						userId,
-						job.id,
-						fileName
-					);
-                    }
+					{
+						const { importOwnTracksWithProgress } = await import(
+							'./processors/import/owntracks-importer'
+						);
+						importedCount = await importOwnTracksWithProgress(
+							fileContent,
+							userId,
+							job.id,
+							fileName
+						);
+					}
 					break;
 				default:
 					throw new Error(`Unsupported format: ${format}`);
@@ -446,7 +440,9 @@ export class JobProcessorService {
 					console.error('❌ [IMPORT] Distance calculation failed:', distanceError);
 					// Don't fail the import, just log the error
 				} else {
-					console.log(`✅ [IMPORT] Distance calculation completed: ${distanceResult} records updated`);
+					console.log(
+						`✅ [IMPORT] Distance calculation completed: ${distanceResult} records updated`
+					);
 				}
 			} catch (distanceError) {
 				console.error('❌ [IMPORT] Distance calculation error:', distanceError);
@@ -472,12 +468,10 @@ export class JobProcessorService {
 				`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`
 			);
 
-					// Create auto-reverse geocoding job for newly imported data
-		try {
-			console.log('🔄 Creating auto-reverse geocoding job for imported data...');
-			const { error: reverseGeocodingError } = await supabase
-				.from('jobs')
-				.insert({
+			// Create auto-reverse geocoding job for newly imported data
+			try {
+				console.log('🔄 Creating auto-reverse geocoding job for imported data...');
+				const { error: reverseGeocodingError } = await supabase.from('jobs').insert({
 					created_by: userId,
 					type: 'reverse_geocoding_missing',
 					status: 'queued',
@@ -488,14 +482,14 @@ export class JobProcessorService {
 					}
 				});
 
-			if (reverseGeocodingError) {
-				console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
-			} else {
-				console.log('✅ Auto-reverse geocoding job created successfully');
+				if (reverseGeocodingError) {
+					console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
+				} else {
+					console.log('✅ Auto-reverse geocoding job created successfully');
+				}
+			} catch (error) {
+				console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
 			}
-		} catch (error) {
-			console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
-		}
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {

@@ -1,22 +1,28 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { fade } from 'svelte/transition';
+	import { fade } from 'svelte';
+
 	import { useAriaButton } from '$lib/accessibility/aria-button';
 
 	export let open = false;
 	export let align: 'start' | 'center' | 'end' = 'center';
 	export let class_name = '';
-
-	const dispatch = createEventDispatcher();
+	export let onOpen: (() => void) | undefined = undefined;
+	export let onClose: (() => void) | undefined = undefined;
 
 	function handleTriggerClick() {
 		open = !open;
-		dispatch(open ? 'open' : 'close', undefined);
+		if (open && onOpen) {
+			onOpen();
+		} else if (!open && onClose) {
+			onClose();
+		}
 	}
 
 	function handleClickOutside() {
 		open = false;
-		dispatch('close', undefined);
+		if (onClose) {
+			onClose();
+		}
 	}
 
 	function handleBackdropKeydown(event: KeyboardEvent) {

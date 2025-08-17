@@ -1,8 +1,15 @@
 // src/lib/utils/api/base-handler.ts
 // Base API handler class for standardized API endpoint patterns
 
-import type { RequestEvent } from '@sveltejs/kit';
+import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+
+import {
+	requireAuth,
+	requireRole,
+	type AuthenticatedRequest
+} from '$lib/middleware/auth.middleware';
+
 import {
 	successResponse,
 	validationErrorResponse,
@@ -10,10 +17,11 @@ import {
 	conflictResponse,
 	serverErrorResponse
 } from './response';
-import { requireAuth, requireRole, type AuthenticatedRequest } from '$lib/middleware/auth.middleware';
-import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+
+import type { RequestEvent } from '@sveltejs/kit';
+
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 export interface ApiHandlerOptions {
 	requireAuthentication?: boolean;
@@ -105,7 +113,7 @@ export abstract class BaseApiHandler {
 			try {
 				const body = await event.request.json();
 				context.body = this.options.validateBody.parse(body);
-						} catch (error) {
+			} catch (error) {
 				if (error instanceof z.ZodError) {
 					throw validationErrorResponse('Invalid request body', {
 						errors: error.issues
@@ -115,7 +123,7 @@ export abstract class BaseApiHandler {
 			}
 		}
 
-				// Validate query parameters
+		// Validate query parameters
 		if (this.options.validateQuery) {
 			const query = Object.fromEntries(event.url.searchParams.entries());
 			try {

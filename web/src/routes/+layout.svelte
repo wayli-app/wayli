@@ -1,13 +1,15 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
-	import { beforeNavigate, afterNavigate } from '$app/navigation';
+	import { Toaster } from 'svelte-sonner';
+
+	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
+	import { initializeI18n } from '$lib/i18n';
+	import { serviceAdapter } from '$lib/services/service-layer-adapter';
 	import { initializeTheme } from '$lib/stores/app-state.svelte';
 	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
-	import { Toaster } from 'svelte-sonner';
-	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
-	import { serviceAdapter } from '$lib/services/service-layer-adapter';
-	import { initializeI18n } from '$lib/i18n';
+
+	import { beforeNavigate, afterNavigate } from '$app/navigation';
 
 	onMount(async () => {
 		// Initialize theme
@@ -31,11 +33,11 @@
 	});
 
 	// Track page changes using modern navigation lifecycle (without debug logging)
-	beforeNavigate(({ from, to }) => {
+	beforeNavigate(() => {
 		// Navigation started
 	});
 
-	afterNavigate(({ from, to }) => {
+	afterNavigate(() => {
 		// Navigation completed
 	});
 </script>

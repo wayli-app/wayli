@@ -1,8 +1,9 @@
 // src/lib/services/api/statistics-api.service.ts
 // Statistics API service layer - extracts business logic from statistics API routes
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler, ErrorCode } from '../error-handler.service';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface StatisticsApiServiceConfig {
 	supabase: SupabaseClient;
@@ -125,14 +126,12 @@ export class StatisticsApiService {
 	/**
 	 * Get location data for a user with filtering and pagination
 	 */
-	async getLocationData(userId: string, query: LocationDataQuery = {}): Promise<GetLocationDataResult> {
+	async getLocationData(
+		userId: string,
+		query: LocationDataQuery = {}
+	): Promise<GetLocationDataResult> {
 		try {
-			const {
-				startDate,
-				endDate,
-				limit = 5000,
-				offset = 0
-			} = query;
+			const { startDate, endDate, limit = 5000, offset = 0 } = query;
 
 			// Validate limit
 			if (limit > 10000) {
@@ -216,7 +215,11 @@ export class StatisticsApiService {
 	/**
 	 * Get comprehensive statistics for a user
 	 */
-	async getComprehensiveStats(userId: string, startDate?: string, endDate?: string): Promise<Record<string, unknown>> {
+	async getComprehensiveStats(
+		userId: string,
+		startDate?: string,
+		endDate?: string
+	): Promise<Record<string, unknown>> {
 		try {
 			// Get basic counts
 			const { count: totalPoints, error: pointsError } = await this.supabase
@@ -256,11 +259,15 @@ export class StatisticsApiService {
 			}
 
 			// Calculate transport mode distribution
-			const modeDistribution = transportModes?.reduce((acc, item) => {
-				const mode = item.transport_mode || 'unknown';
-				acc[mode] = (acc[mode] || 0) + 1;
-				return acc;
-			}, {} as Record<string, number>) || {};
+			const modeDistribution =
+				transportModes?.reduce(
+					(acc, item) => {
+						const mode = item.transport_mode || 'unknown';
+						acc[mode] = (acc[mode] || 0) + 1;
+						return acc;
+					},
+					{} as Record<string, number>
+				) || {};
 
 			return {
 				totalPoints: totalPoints || 0,

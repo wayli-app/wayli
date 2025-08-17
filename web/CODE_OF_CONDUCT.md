@@ -17,23 +17,23 @@ diverse, inclusive, and healthy community.
 Examples of behavior that contributes to a positive environment for our
 community include:
 
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes,
+- Demonstrating empathy and kindness toward other people
+- Being respectful of differing opinions, viewpoints, and experiences
+- Giving and gracefully accepting constructive feedback
+- Accepting responsibility and apologizing to those affected by our mistakes,
   and learning from the experience
-* Focusing on what is best not just for us as individuals, but for the
+- Focusing on what is best not just for us as individuals, but for the
   overall community
 
 Examples of unacceptable behavior include:
 
-* The use of sexualized language or imagery, and sexual attention or
+- The use of sexualized language or imagery, and sexual attention or
   advances of any kind
-* Trolling, insulting or derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others' private information, such as a physical or email
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information, such as a physical or email
   address, without their explicit permission
-* Other conduct which could reasonably be considered inappropriate in a
+- Other conduct which could reasonably be considered inappropriate in a
   professional setting
 
 ## Enforcement Responsibilities
@@ -119,15 +119,15 @@ it by emailing [INSERT EMAIL ADDRESS]. All reports will be kept confidential.
 
 In your report please include:
 
-* Your contact info (so we can get in touch with you if we need to follow up)
-* Names (real, nicknames, or pseudonyms) of any individuals involved. If there
+- Your contact info (so we can get in touch with you if we need to follow up)
+- Names (real, nicknames, or pseudonyms) of any individuals involved. If there
   were other witnesses besides you, please try to include them as well
-* When and where the incident occurred. Please be as specific as possible
-* Your account of what occurred. If there is a publicly available record (e.g.
+- When and where the incident occurred. Please be as specific as possible
+- Your account of what occurred. If there is a publicly available record (e.g.
   a mailing list archive or a public IRC logger) please include a link
-* Any extra context you believe existed for the incident
-* If you believe this incident is ongoing
-* Any other information you believe we should have
+- Any extra context you believe existed for the incident
+- If you believe this incident is ongoing
+- Any other information you believe we should have
 
 ## What happens after you file a report?
 
@@ -136,10 +136,10 @@ receipt within 24 hours (and we will aim for much quicker than that).
 
 The committee will immediately meet to review the incident and determine:
 
-* What happened
-* Whether this event constitutes a Code of Conduct violation
-* Who the bad actor was
-* Whether this is an ongoing situation, or if there is a threat to anyone's
+- What happened
+- Whether this event constitutes a Code of Conduct violation
+- Who the bad actor was
+- Whether this is an ongoing situation, or if there is a threat to anyone's
   physical safety
 
 If this is determined to be an ongoing incident or a threat to physical safety,
@@ -150,13 +150,13 @@ has ended and that everyone is physically safe.
 Once the committee has a complete account of the events they will make a
 decision as to how to respond. Responses may include:
 
-* Nothing (if we determine no violation occurred)
-* A private reprimand from the committee to the individual(s) involved
-* A public reprimand
-* An imposed vacation (for instance, asking someone to "take a week off" from a
+- Nothing (if we determine no violation occurred)
+- A private reprimand from the committee to the individual(s) involved
+- A public reprimand
+- An imposed vacation (for instance, asking someone to "take a week off" from a
   mailing list)
-* A permanent or temporary ban from some or all community spaces
-* A request for a public or private apology
+- A permanent or temporary ban from some or all community spaces
+- A request for a public or private apology
 
 We'll respond within one week to the person who filed the report with either a
 resolution or an explanation of why the situation is not yet resolved.

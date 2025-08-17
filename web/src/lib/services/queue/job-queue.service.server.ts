@@ -1,5 +1,6 @@
-import { supabase } from '$lib/core/supabase/server';
 import { getWorkerConfig } from '$lib/core/config/node-environment';
+import { supabase } from '$lib/core/supabase/server';
+
 import type { Job, JobType, JobStatus, JobPriority, JobConfig } from '$lib/types/job-queue.types';
 
 export class JobQueueService {

@@ -14,22 +14,26 @@ Thank you for your interest in contributing to Wayli! This guide will help you g
 ### Development Setup
 
 1. **Fork and Clone**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/wayli.git
    cd wayli/web
    ```
 
 2. **Install Dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Environment Setup**
+
    ```bash
    cp .env.example .env
    ```
 
    Edit `.env` with your Supabase credentials:
+
    ```env
    PUBLIC_SUPABASE_URL=your_supabase_url
    PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -37,11 +41,13 @@ Thank you for your interest in contributing to Wayli! This guide will help you g
    ```
 
 4. **Database Setup**
+
    ```bash
    npx supabase db reset
    ```
 
 5. **Start Development Server**
+
    ```bash
    npm run dev
    ```
@@ -72,6 +78,7 @@ git checkout -b feature/your-feature-name
 ```
 
 **Branch Naming Conventions:**
+
 - `feature/` - New features
 - `fix/` - Bug fixes
 - `docs/` - Documentation updates
@@ -120,27 +127,27 @@ Use the established API patterns:
 ```typescript
 // Use base handlers for consistent API endpoints
 export const GET: RequestHandler = createGetHandler(
-  async (context) => {
-    const { user, query } = context;
-    // Business logic here
-    return { data: result };
-  },
-  {
-    requireAuthentication: true,
-    validateQuery: paginationSchema
-  }
+	async (context) => {
+		const { user, query } = context;
+		// Business logic here
+		return { data: result };
+	},
+	{
+		requireAuthentication: true,
+		validateQuery: paginationSchema
+	}
 );
 
 // Use validation schemas
 export const POST: RequestHandler = createPostHandler(
-  async (context) => {
-    const { body } = context;
-    // body is already validated
-    return { result };
-  },
-  {
-    validateBody: createTripSchema
-  }
+	async (context) => {
+		const { body } = context;
+		// body is already validated
+		return { result };
+	},
+	{
+		validateBody: createTripSchema
+	}
 );
 ```
 
@@ -150,22 +157,17 @@ Follow accessibility-first development:
 
 ```svelte
 <script lang="ts">
-  import { useAriaButton } from '$lib/accessibility/aria-button';
+	import { useAriaButton } from '$lib/accessibility/aria-button';
 
-  export let label: string;
-  export let disabled = false;
+	export let label: string;
+	export let disabled = false;
 
-  let buttonElement: HTMLButtonElement;
-  const { buttonProps } = useAriaButton({ disabled });
+	let buttonElement: HTMLButtonElement;
+	const { buttonProps } = useAriaButton({ disabled });
 </script>
 
-<button
-  bind:this={buttonElement}
-  use:buttonProps
-  {disabled}
-  class="btn btn-primary"
->
-  {label}
+<button bind:this={buttonElement} use:buttonProps {disabled} class="btn btn-primary">
+	{label}
 </button>
 ```
 
@@ -187,23 +189,23 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { UserProfileService } from '$lib/services/user-profile.service';
 
 describe('UserProfileService', () => {
-  let service: UserProfileService;
+	let service: UserProfileService;
 
-  beforeEach(() => {
-    service = new UserProfileService(mockSupabaseClient);
-  });
+	beforeEach(() => {
+		service = new UserProfileService(mockSupabaseClient);
+	});
 
-  it('should create user profile successfully', async () => {
-    // Arrange
-    const userData = { name: 'Test User', email: 'test@example.com' };
+	it('should create user profile successfully', async () => {
+		// Arrange
+		const userData = { name: 'Test User', email: 'test@example.com' };
 
-    // Act
-    const result = await service.createProfile(userData);
+		// Act
+		const result = await service.createProfile(userData);
 
-    // Assert
-    expect(result.success).toBe(true);
-    expect(result.data.name).toBe('Test User');
-  });
+		// Assert
+		expect(result.success).toBe(true);
+		expect(result.data.name).toBe('Test User');
+	});
 });
 ```
 
@@ -272,24 +274,29 @@ import { validateWorkerEnvironment } from '$lib/core/config/worker-environment';
 
 ```markdown
 ## Description
+
 Brief description of changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
 
 ## Testing
+
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] Accessibility tests pass
 - [ ] Manual testing completed
 
 ## Screenshots (if applicable)
+
 Add screenshots for UI changes
 
 ## Checklist
+
 - [ ] Code follows project style
 - [ ] Self-review completed
 - [ ] Documentation updated

@@ -1,4 +1,5 @@
 import { supabase } from '$lib/core/supabase/worker';
+
 import { JobQueueService } from './queue/job-queue.service.worker';
 
 export interface ExportOptions {
@@ -94,8 +95,14 @@ export class ExportService {
 			include_location_data: options.includeLocationData as boolean,
 			include_want_to_visit: options.includeWantToVisit as boolean,
 			include_trips: options.includeTrips as boolean,
-			file_path: (options.file_path as string) || ((job.result as Record<string, unknown>)?.file_path as string) || undefined,
-			file_size: (options.file_size as number) || ((job.result as Record<string, unknown>)?.file_size as number) || undefined,
+			file_path:
+				(options.file_path as string) ||
+				((job.result as Record<string, unknown>)?.file_path as string) ||
+				undefined,
+			file_size:
+				(options.file_size as number) ||
+				((job.result as Record<string, unknown>)?.file_size as number) ||
+				undefined,
 			expires_at: options.expires_at as string,
 			progress: job.progress,
 			result: job.result,
@@ -130,8 +137,14 @@ export class ExportService {
 				include_location_data: options.includeLocationData as boolean,
 				include_want_to_visit: options.includeWantToVisit as boolean,
 				include_trips: options.includeTrips as boolean,
-				file_path: (options.file_path as string) || ((job.result as Record<string, unknown>)?.file_path as string) || undefined,
-				file_size: (options.file_size as number) || ((job.result as Record<string, unknown>)?.file_size as number) || undefined,
+				file_path:
+					(options.file_path as string) ||
+					((job.result as Record<string, unknown>)?.file_path as string) ||
+					undefined,
+				file_size:
+					(options.file_size as number) ||
+					((job.result as Record<string, unknown>)?.file_size as number) ||
+					undefined,
 				expires_at: options.expires_at as string,
 				progress: job.progress,
 				result: job.result,

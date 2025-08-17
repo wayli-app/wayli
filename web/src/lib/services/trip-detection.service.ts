@@ -1,14 +1,16 @@
 // web/src/lib/services/trip-detection.service.ts
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
-import type {
-	TripExclusion,
-	TrackerDataPoint,
-	HomeAddress,
-	DetectedTrip
-} from '$lib/types/trip-generation.types';
 import { haversineDistance } from '$lib/utils/geocoding-utils';
 import { checkJobCancellation } from '$lib/utils/job-cancellation';
 import { translateServer, getPluralSuffix } from '$lib/utils/server-translations';
+
+import type {
+	TripExclusion,
+	TrackerDataPoint,
+	TrackingDataPoint,
+	HomeAddress,
+	DetectedTrip
+} from '$lib/types/trip-generation.types';
 
 export interface TripDetectionConfig {
 	minTripDurationHours: number;
@@ -294,7 +296,11 @@ export class TripDetectionService {
 
 		const [homeAddressResult, userPreferencesResult] = await Promise.all([
 			this.supabase.from('user_profiles').select('home_address').eq('id', userId).single(),
-			this.supabase.from('user_preferences').select('trip_exclusions, language').eq('id', userId).single()
+			this.supabase
+				.from('user_preferences')
+				.select('trip_exclusions, language')
+				.eq('id', userId)
+				.single()
 		]);
 
 		console.log(`🔍 Home address result:`, homeAddressResult);
@@ -305,10 +311,7 @@ export class TripDetectionService {
 		}
 
 		if (userPreferencesResult.error) {
-			console.error(
-				'❌ Error fetching user preferences:',
-				userPreferencesResult.error
-			);
+			console.error('❌ Error fetching user preferences:', userPreferencesResult.error);
 		}
 
 		// Parse home address if it's a JSON string
@@ -387,11 +390,14 @@ export class TripDetectionService {
 			}
 
 			// Reduce to per-day visited location to avoid overweighting high-frequency days
-			const dayMap = new Map<string, { lat: number; lng: number; city: string; country?: string; cc?: string }>();
-			for (const point of trackerData as any[]) {
+			const dayMap = new Map<
+				string,
+				{ lat: number; lng: number; city: string; country?: string; cc?: string }
+			>();
+			for (const point of trackerData as TrackerDataPoint[]) {
 				const dateStr = new Date(point.recorded_at).toISOString().split('T')[0];
 				if (dayMap.has(dateStr)) continue;
-				const loc = this.getVisitedLocation([point as any]);
+				const loc = this.getVisitedLocation([point]);
 				if (loc) {
 					dayMap.set(dateStr, {
 						lat: loc.coordinates.lat,
@@ -527,38 +533,38 @@ export class TripDetectionService {
 					consecutiveHomeDays++;
 					consecutiveAwayDays = 0;
 
-				// Count home data points for this day (home means within radius OR in home/exclusion city)
-				const homeCityName = (homeAddress?.address?.city || '').toLowerCase();
-				const homeDataPointsToday = dayData.filter((point) => {
-					// Check radius
-					let isHome = false;
-					if (homeAddress?.coordinates) {
-						const distance =
-							haversineDistance(
-								point.location.coordinates[1],
-								point.location.coordinates[0],
-								homeAddress.coordinates.lat,
-								homeAddress.coordinates.lng
-							) / 1000;
-						if (distance <= config.homeRadiusKm) isHome = true;
-					}
-					const { cityName } = this.extractDestinationInfo(point);
-					const inHomeCity = cityName && homeCityName && cityName.toLowerCase() === homeCityName;
-					const inExcludedCity =
-						cityName &&
-						tripExclusions.some((exclusion) => {
-							const exclusionCityName =
-								exclusion.location?.address?.city ||
-								exclusion.location?.address?.town ||
-								exclusion.location?.address?.village ||
-								exclusion.location?.address?.municipality;
-							return (
-								exclusionCityName &&
-								cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
-							);
-						});
-					return isHome || inHomeCity || inExcludedCity;
-				}).length;
+					// Count home data points for this day (home means within radius OR in home/exclusion city)
+					const homeCityName = (homeAddress?.address?.city || '').toLowerCase();
+					const homeDataPointsToday = dayData.filter((point) => {
+						// Check radius
+						let isHome = false;
+						if (homeAddress?.coordinates) {
+							const distance =
+								haversineDistance(
+									point.location.coordinates[1],
+									point.location.coordinates[0],
+									homeAddress.coordinates.lat,
+									homeAddress.coordinates.lng
+								) / 1000;
+							if (distance <= config.homeRadiusKm) isHome = true;
+						}
+						const { cityName } = this.extractDestinationInfo(point);
+						const inHomeCity = cityName && homeCityName && cityName.toLowerCase() === homeCityName;
+						const inExcludedCity =
+							cityName &&
+							tripExclusions.some((exclusion) => {
+								const exclusionCityName =
+									exclusion.location?.address?.city ||
+									exclusion.location?.address?.town ||
+									exclusion.location?.address?.village ||
+									exclusion.location?.address?.municipality;
+								return (
+									exclusionCityName &&
+									cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
+								);
+							});
+						return isHome || inHomeCity || inExcludedCity;
+					}).length;
 
 					totalHomeDataPoints += homeDataPointsToday;
 
@@ -661,14 +667,14 @@ export class TripDetectionService {
 				`🏁 Ending incomplete trip: ${currentTripStart} to ${endDate.toISOString().split('T')[0]} (${currentTripLocations.length} locations)`
 			);
 
-					const trip = await this.createTripFromLocations(
-			currentTripStart,
-			endDate.toISOString().split('T')[0],
-			currentTripLocations,
-			homeAddress,
-			userId,
-			language
-		);
+			const trip = await this.createTripFromLocations(
+				currentTripStart,
+				endDate.toISOString().split('T')[0],
+				currentTripLocations,
+				homeAddress,
+				userId,
+				language
+			);
 			if (trip) {
 				detectedTrips.push(trip);
 				console.log(`✅ Trip detected: ${trip.title}`);
@@ -1002,13 +1008,16 @@ export class TripDetectionService {
 
 		if (!pointsError && tripPoints && tripPoints.length > 0) {
 			// Check if points have distance column (from updated get_user_tracking_data function)
-			const hasDistanceColumn = tripPoints.some(point => typeof point.distance === 'number');
+			const hasDistanceColumn = tripPoints.some(
+				(point: TrackingDataPoint) => typeof point.distance === 'number'
+			);
 
 			if (hasDistanceColumn) {
 				// Use pre-calculated distances from database
-				totalDistanceTraveled = tripPoints.reduce((total, point) => {
-					const pointDistance = typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0;
-					return total + (pointDistance / 1000); // Convert meters to kilometers
+				totalDistanceTraveled = tripPoints.reduce((total: number, point: TrackingDataPoint) => {
+					const pointDistance =
+						typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0;
+					return total + pointDistance / 1000; // Convert meters to kilometers
 				}, 0);
 			} else {
 				// Fallback to manual calculation for backward compatibility
@@ -1017,7 +1026,8 @@ export class TripDetectionService {
 					const curr = tripPoints[i];
 
 					if (prev.lat && prev.lon && curr.lat && curr.lon) {
-						const segmentDistance = haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon) / 1000; // Convert to km
+						const segmentDistance =
+							haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon) / 1000; // Convert to km
 						totalDistanceTraveled += segmentDistance;
 					}
 				}

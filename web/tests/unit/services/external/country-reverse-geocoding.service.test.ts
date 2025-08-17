@@ -1,6 +1,14 @@
 // web/tests/unit/services/external/country-reverse-geocoding.service.test.ts
 import { describe, it, expect, vi } from 'vitest';
 
+import {
+	getCountryForPoint,
+	normalizeCountryCode,
+	getTimezoneForPoint,
+	applyTimezoneCorrection,
+	applyTimezoneCorrectionToTimestamp
+} from '$lib/services/external/country-reverse-geocoding.service';
+
 // Mock the timezones.geojson file
 vi.mock('../../data/timezones.geojson', () => ({
 	default: {
@@ -11,9 +19,15 @@ vi.mock('../../data/timezones.geojson', () => ({
 				properties: { name: '-5' },
 				geometry: {
 					type: 'Polygon',
-					coordinates: [[
-						[-80, 25], [-80, 45], [-70, 45], [-70, 25], [-80, 25]
-					]]
+					coordinates: [
+						[
+							[-80, 25],
+							[-80, 45],
+							[-70, 45],
+							[-70, 25],
+							[-80, 25]
+						]
+					]
 				}
 			},
 			{
@@ -21,9 +35,15 @@ vi.mock('../../data/timezones.geojson', () => ({
 				properties: { name: '+1' },
 				geometry: {
 					type: 'Polygon',
-					coordinates: [[
-						[0, 40], [0, 60], [10, 60], [10, 40], [0, 40]
-					]]
+					coordinates: [
+						[
+							[0, 40],
+							[0, 60],
+							[10, 60],
+							[10, 40],
+							[0, 40]
+						]
+					]
 				}
 			},
 			{
@@ -31,9 +51,15 @@ vi.mock('../../data/timezones.geojson', () => ({
 				properties: { name: '+9' },
 				geometry: {
 					type: 'Polygon',
-					coordinates: [[
-						[130, 30], [130, 50], [140, 50], [140, 30], [130, 30]
-					]]
+					coordinates: [
+						[
+							[130, 30],
+							[130, 50],
+							[140, 50],
+							[140, 30],
+							[130, 30]
+						]
+					]
 				}
 			},
 			{
@@ -41,22 +67,20 @@ vi.mock('../../data/timezones.geojson', () => ({
 				properties: { name: '-9.5' },
 				geometry: {
 					type: 'Polygon',
-					coordinates: [[
-						[-160, -30], [-160, -10], [-150, -10], [-150, -30], [-160, -30]
-					]]
+					coordinates: [
+						[
+							[-160, -30],
+							[-160, -10],
+							[-150, -10],
+							[-150, -30],
+							[-160, -30]
+						]
+					]
 				}
 			}
 		]
 	}
 }));
-
-import {
-	getCountryForPoint,
-	normalizeCountryCode,
-	getTimezoneForPoint,
-	applyTimezoneCorrection,
-	applyTimezoneCorrectionToTimestamp
-} from '$lib/services/external/country-reverse-geocoding.service';
 
 describe('country-reverse-geocoding.service', () => {
 	describe('getCountryForPoint', () => {
@@ -78,7 +102,7 @@ describe('country-reverse-geocoding.service', () => {
 	describe('getTimezoneForPoint', () => {
 		it('should return timezone offset for coordinates in NYC area', () => {
 			// NYC coordinates (40.7128, -74.0060) should be in the -5 polygon
-			const result = getTimezoneForPoint(40.7128, -74.0060);
+			const result = getTimezoneForPoint(40.7128, -74.006);
 			expect(result).toBe('-5');
 		});
 
@@ -141,7 +165,7 @@ describe('country-reverse-geocoding.service', () => {
 
 	describe('applyTimezoneCorrectionToTimestamp', () => {
 		it('should format timestamp with negative timezone offset', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 40.7128, -74.006);
 			expect(result).toBe('2025-08-16T14:00:00-05:00');
 		});
 
@@ -163,19 +187,23 @@ describe('country-reverse-geocoding.service', () => {
 
 		it('should handle Date objects', () => {
 			const date = new Date('2025-08-16T14:00:00');
-			const result = applyTimezoneCorrectionToTimestamp(date, 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp(date, 40.7128, -74.006);
 			expect(result).toBe('2025-08-16T14:00:00-05:00');
 		});
 
 		it('should handle numeric timestamps', () => {
 			// Use a timestamp that represents 2025-08-16T14:00:00
 			const timestamp = new Date('2025-08-16T14:00:00').getTime();
-			const result = applyTimezoneCorrectionToTimestamp(timestamp, 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp(timestamp, 40.7128, -74.006);
 			expect(result).toBe('2025-08-16T14:00:00-05:00');
 		});
 
 		it('should handle timestamps with milliseconds', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00.123', 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp(
+				'2025-08-16T14:00:00.123',
+				40.7128,
+				-74.006
+			);
 			expect(result).toBe('2025-08-16T14:00:00-05:00');
 		});
 
@@ -186,17 +214,17 @@ describe('country-reverse-geocoding.service', () => {
 		});
 
 		it('should handle edge case of midnight', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T00:00:00', 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T00:00:00', 40.7128, -74.006);
 			expect(result).toBe('2025-08-16T00:00:00-05:00');
 		});
 
 		it('should handle edge case of end of day', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T23:59:59', 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T23:59:59', 40.7128, -74.006);
 			expect(result).toBe('2025-08-16T23:59:59-05:00');
 		});
 
 		it('should handle leap year dates', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2024-02-29T14:00:00', 40.7128, -74.0060);
+			const result = applyTimezoneCorrectionToTimestamp('2024-02-29T14:00:00', 40.7128, -74.006);
 			expect(result).toBe('2024-02-29T14:00:00-05:00');
 		});
 	});

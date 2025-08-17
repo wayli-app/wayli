@@ -1,12 +1,12 @@
 import {
-  setupRequest,
-  authenticateRequest,
-  successResponse,
-  errorResponse,
-  parseJsonBody,
-  logError,
-  logInfo,
-  logSuccess
+	setupRequest,
+	authenticateRequest,
+	successResponse,
+	errorResponse,
+	parseJsonBody,
+	logError,
+	logInfo,
+	logSuccess
 } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {
@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 	try {
 		const { user, supabase } = await authenticateRequest(req);
 
-				// Handle different HTTP methods
+		// Handle different HTTP methods
 		if (req.method === 'GET') {
 			// Parse query parameters
 			const url = new URL(req.url);

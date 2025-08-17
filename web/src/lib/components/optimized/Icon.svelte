@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+
 	import { bundleMonitor } from '$lib/utils/bundle-optimizer';
 
 	export let name: string;
@@ -13,8 +14,6 @@
 	let error = false;
 
 	async function loadIcon(iconName: string) {
-		const cacheKey = `icon-${iconName}`;
-
 		// Check if already loaded
 		if (iconComponent) return iconComponent;
 
@@ -33,7 +32,7 @@
 			bundleMonitor.endTimer(`icon-${iconName}`);
 
 			return iconComponent;
-		} catch (err) {
+		} catch {
 			console.warn(`Icon ${iconName} not found in lucide-svelte`);
 			error = true;
 			return null;
@@ -48,7 +47,8 @@
 	});
 
 	// Reload icon when name changes
-	$: if (name && iconComponent !== name) {
+	$: if (name && !iconComponent && !loading) {
+		// Load icon when name changes and no icon is loaded
 		(async () => {
 			iconComponent = null;
 			await loadIcon(name);

@@ -1,14 +1,13 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { Shield, Smartphone, ArrowLeft, Key } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 
 	export let open = false;
 	export let userEmail = '';
-
-
-
-	const dispatch = createEventDispatcher();
+	export let onVerify: ((data: { recoveryCode?: string; code?: string }) => void) | undefined =
+		undefined;
+	export let onBack: (() => void) | undefined = undefined;
+	export let onCancel: (() => void) | undefined = undefined;
 
 	let verificationCode = '';
 	let recoveryCode = '';
@@ -23,8 +22,10 @@
 			}
 			isVerifying = true;
 			try {
-				// Dispatch the recovery code to the parent component
-				dispatch('verify', { recoveryCode });
+				// Call the verify callback with recovery code
+				if (onVerify) {
+					onVerify({ recoveryCode });
+				}
 			} catch (error) {
 				console.error('Error during recovery code verification:', error);
 				toast.error('Recovery code verification failed');
@@ -44,8 +45,10 @@
 
 			isVerifying = true;
 			try {
-				// Dispatch the verification code to the parent component
-				dispatch('verify', { code: verificationCode });
+				// Call the verify callback with verification code
+				if (onVerify) {
+					onVerify({ code: verificationCode });
+				}
 			} catch (error) {
 				console.error('Error during verification:', error);
 				toast.error('Verification failed');
@@ -55,22 +58,16 @@
 		}
 	}
 
-	function handleRecoveryCodeSubmit() {
-		if (!recoveryCode.trim()) return;
-		dispatch('verify', { recoveryCode });
-	}
-
-	function handleCodeSubmit() {
-		if (!verificationCode.trim()) return;
-		dispatch('verify', { code: verificationCode });
-	}
-
 	function handleBack() {
-		dispatch('back', undefined);
+		if (onBack) {
+			onBack();
+		}
 	}
 
 	function handleCancel() {
-		dispatch('cancel', undefined);
+		if (onCancel) {
+			onCancel();
+		}
 	}
 
 	function toggleMode() {

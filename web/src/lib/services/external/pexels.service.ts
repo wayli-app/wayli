@@ -1,7 +1,9 @@
-import { getPexelsConfig } from '$lib/core/config/node-environment';
 import { createClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+
+import { getPexelsConfig } from '$lib/core/config/node-environment';
+
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 /**
  * Pexels Image Service
@@ -190,7 +192,9 @@ export async function getTripBannerImage(
 /**
  * Helper function to randomly select a photo from Pexels search results
  */
-function getRandomPhotoFromSearchResult(searchResult: PexelsSearchResponse | null): PexelsImage | null {
+function getRandomPhotoFromSearchResult(
+	searchResult: PexelsSearchResponse | null
+): PexelsImage | null {
 	if (!searchResult || searchResult.photos.length === 0) {
 		return null;
 	}
@@ -216,7 +220,12 @@ export async function getTripBannerImageWithAttribution(
 		// Primary: Pexels API search
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 15, userApiKey);
+				const searchResult = await searchPexelsImages(
+					`${cityName} city landscape`,
+					1,
+					15,
+					userApiKey
+				);
 				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
 				if (randomPhoto) {
 					return randomPhoto.src.large;
@@ -225,7 +234,12 @@ export async function getTripBannerImageWithAttribution(
 			},
 			source: 'pexels',
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} city landscape`, 1, 15, userApiKey);
+				const searchResult = await searchPexelsImages(
+					`${cityName} city landscape`,
+					1,
+					15,
+					userApiKey
+				);
 				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
 				if (randomPhoto) {
 					return {
@@ -340,12 +354,18 @@ export async function getTripBannerImageWithAttribution(
 		},
 		// Fallback 6: Alternative placeholder service
 		{
-			getter: () => Promise.resolve(`https://placehold.co/800x400/3b82f6/ffffff?text=${encodeURIComponent(cityName)}`),
+			getter: () =>
+				Promise.resolve(
+					`https://placehold.co/800x400/3b82f6/ffffff?text=${encodeURIComponent(cityName)}`
+				),
 			source: 'placeholder'
 		},
 		// Fallback 7: Another placeholder service
 		{
-			getter: () => Promise.resolve(`https://dummyimage.com/800x400/3b82f6/ffffff&text=${encodeURIComponent(cityName)}`),
+			getter: () =>
+				Promise.resolve(
+					`https://dummyimage.com/800x400/3b82f6/ffffff&text=${encodeURIComponent(cityName)}`
+				),
 			source: 'placeholder'
 		}
 	];
@@ -380,12 +400,14 @@ export async function getTripBannerImageWithAttribution(
 
 				return {
 					imageUrl: result,
-					attribution: attribution ? {
-						source: source.source,
-						...attribution
-					} : {
-						source: source.source
-					}
+					attribution: attribution
+						? {
+								source: source.source,
+								...attribution
+							}
+						: {
+								source: source.source
+							}
 				};
 			}
 		} catch (error) {

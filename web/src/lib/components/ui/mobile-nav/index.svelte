@@ -1,22 +1,19 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { Menu, X, ChevronDown } from 'lucide-svelte';
-	import {
-		FocusManager,
-		ariaHelpers,
-		keyboardNavigation
-	} from '$lib/accessibility/accessibility-utils';
+
+	import { FocusManager, keyboardNavigation } from '$lib/accessibility/accessibility-utils';
 
 	export let items: Array<{
 		label: string;
 		href?: string;
-		icon?: any;
-		children?: Array<{ label: string; href: string; icon?: any }>;
+		icon?: unknown;
+		children?: Array<{ label: string; href: string; icon?: unknown }>;
 		action?: () => void;
 	}> = [];
 	export let className: string = '';
-
-	const dispatch = createEventDispatcher();
+	export let onToggle: ((data: { isOpen: boolean }) => void) | undefined = undefined;
+	export let onClose: (() => void) | undefined = undefined;
 
 	let isOpen = false;
 	let activeDropdown: number | null = null;
@@ -37,13 +34,17 @@
 				focusManager?.focusFirst();
 			}, 100);
 		}
-		dispatch('toggle', { isOpen });
+		if (onToggle) {
+			onToggle({ isOpen });
+		}
 	}
 
 	function closeMenu() {
 		isOpen = false;
 		activeDropdown = null;
-		dispatch('close', undefined);
+		if (onClose) {
+			onClose();
+		}
 	}
 
 	function toggleDropdown(index: number) {
@@ -61,7 +62,13 @@
 		}
 	}
 
-	function handleItemClick(item: any) {
+	function handleItemClick(item: {
+		label: string;
+		href?: string;
+		icon?: unknown;
+		children?: Array<{ label: string; href: string; icon?: unknown }>;
+		action?: () => void;
+	}) {
 		if (item.action) {
 			item.action();
 		}
@@ -123,7 +130,7 @@
 
 				<!-- Menu Items -->
 				<div class="flex-1 space-y-2 overflow-y-auto p-4">
-					{#each items as item, index}
+					{#each items as item, index (item.label + index)}
 						<div class="space-y-1">
 							{#if item.href}
 								<a
@@ -157,7 +164,7 @@
 								</button>
 								{#if activeDropdown === index}
 									<div id="dropdown-{index}" class="ml-4 space-y-1">
-										{#each item.children as child}
+										{#each item.children as child (child.label)}
 											<a
 												href={child.href}
 												class="flex min-h-[44px] w-full items-center rounded-lg px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-gray-400 dark:hover:bg-gray-700"

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { MapPin, Edit, BarChart2, Trash2, Map } from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
 
 	export let title: string;
 	export let labels: string[];
@@ -26,7 +25,7 @@
 		/>
 		<div class="absolute inset-0 bg-black/40">
 			<div class="absolute top-4 right-4 flex gap-1">
-				{#each countries as country}
+				{#each countries as country (country)}
 					<img
 						src={`https://flagcdn.com/w20/${country.toLowerCase()}.png`}
 						alt={country}
@@ -37,7 +36,7 @@
 			<div class="absolute bottom-4 left-4">
 				<h3 class="text-lg font-semibold text-white">{title}</h3>
 				<div class="mt-2 flex flex-wrap gap-1">
-					{#each labels as label}
+					{#each labels as label (label)}
 						<span
 							class="rounded-full px-2 py-0.5 text-xs font-medium
 							{label === 'Adventure'

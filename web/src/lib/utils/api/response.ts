@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+
 import type { AppError } from '$lib/utils/errors/error-handler';
 
 export interface ApiResponse<T = unknown> {

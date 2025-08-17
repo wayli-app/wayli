@@ -1,4 +1,5 @@
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
+
 import { getTripBannerImageWithAttribution } from './external/pexels.service';
 
 export interface TripLocationAnalysis {
@@ -158,7 +159,10 @@ export class TripImageSuggestionService {
 
 			// Fallback to country-based image
 			console.log(`Suggesting image for primary country: ${analysis.primaryCountry}`);
-			const countryImage = await getTripBannerImageWithAttribution(analysis.primaryCountry, userApiKey);
+			const countryImage = await getTripBannerImageWithAttribution(
+				analysis.primaryCountry,
+				userApiKey
+			);
 			if (countryImage) {
 				console.log(`Successfully got country image: ${countryImage.imageUrl}`);
 				return countryImage;

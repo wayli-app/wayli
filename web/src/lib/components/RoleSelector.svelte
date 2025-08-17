@@ -20,7 +20,7 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-	{#each roles as roleOption}
+	{#each roles as roleOption (roleOption.id)}
 		<button
 			type="button"
 			class="rounded-lg border-2 p-4 text-left transition-all {role === roleOption.id

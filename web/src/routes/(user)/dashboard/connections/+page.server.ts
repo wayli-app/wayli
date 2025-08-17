@@ -1,9 +1,12 @@
-import type { PageServerLoad } from './$types';
-import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_FUNCTIONS_URL } from '$env/static/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { randomBytes, createHash } from 'crypto';
+
 import { createClient } from '@supabase/supabase-js';
 import { fail } from '@sveltejs/kit';
-import { randomBytes, createHash } from 'crypto';
+
+import type { PageServerLoad } from './$types';
+
+import { SUPABASE_SERVICE_ROLE_KEY, SUPABASE_FUNCTIONS_URL } from '$env/static/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.getSession();

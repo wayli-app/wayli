@@ -1,19 +1,37 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { get } from 'svelte/store';
-	import { sessionStore } from '$lib/stores/auth';
-	import { toast } from 'svelte-sonner';
 	import { MapPin, RefreshCw } from 'lucide-svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { toast } from 'svelte-sonner';
+
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { supabase } from '$lib/supabase';
 	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+	import { sessionStore } from '$lib/stores/auth';
 
 	// Props
 	export let showProgress = true;
 	export let showButton = true;
 
 	// State
-	let activeReverseGeocodingJob: any = null;
+	interface ServiceJob {
+		id: string;
+		status: string;
+		progress: number;
+		error?: string | null;
+		result?: Record<string, unknown>;
+		created_at: string;
+		updated_at: string;
+	}
+
+	interface GeocodingStatsResponse {
+		total_points?: number;
+		processed_count?: number;
+		geocoded_count?: number;
+		points_needing_geocoding?: number;
+		retryable_errors?: number;
+		non_retryable_errors?: number;
+	}
+
+	let activeReverseGeocodingJob: ServiceJob | null = null;
 	let reverseGeocodingProgress = 0;
 	let reverseGeocodingStatus = '';
 	let sseService: SSEService | null = null;
@@ -25,12 +43,20 @@
 		pointsNeedingGeocoding: number;
 		retryableErrors: number;
 		nonRetryableErrors: number;
-	} = { total: 0, geocoded: 0, percentage: 0, missing: 0, pointsNeedingGeocoding: 0, retryableErrors: 0, nonRetryableErrors: 0 };
+	} = {
+		total: 0,
+		geocoded: 0,
+		percentage: 0,
+		missing: 0,
+		pointsNeedingGeocoding: 0,
+		retryableErrors: 0,
+		nonRetryableErrors: 0
+	};
 	let isLoading = false;
 	let isInitializing = true;
 	let isStatsLoading = false;
 	let hasInitialized = false;
-	let previousJobState: any = null;
+	let previousJobState: ServiceJob | null = null;
 
 	onMount(async () => {
 		await checkForActiveReverseGeocodingJob();
@@ -54,16 +80,18 @@
 	// Check for active reverse geocoding job on component mount
 	async function checkForActiveReverseGeocodingJob() {
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) {
 				return;
 			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const jobs = await serviceAdapter.getJobs({ type: 'reverse_geocoding_missing' }) as any;
+			const jobs = (await serviceAdapter.getJobs({ type: 'reverse_geocoding_missing' })) as
+				| ServiceJob[]
+				| { jobs: ServiceJob[] };
 
 			// Handle both array and paginated response formats
-			let jobsData: any[] = [];
+			let jobsData: ServiceJob[] = [];
 			if (Array.isArray(jobs)) {
 				jobsData = jobs;
 			} else if (jobs.jobs) {
@@ -71,7 +99,7 @@
 			}
 
 			const activeJobs = jobsData.filter(
-				(job: any) => job.status === 'queued' || job.status === 'running'
+				(job: ServiceJob) => job.status === 'queued' || job.status === 'running'
 			);
 
 			if (activeJobs.length > 0) {
@@ -90,50 +118,46 @@
 		}
 	}
 
-		function startSSEMonitoring() {
+	function startSSEMonitoring() {
 		// Only start SSE monitoring if there's an active job
 		if (!activeReverseGeocodingJob) {
-
 			return;
 		}
 
-
-
 		// Create SSE service for reverse geocoding job monitoring
-		sseService = new SSEService({
-			onConnected: () => {
+		sseService = new SSEService(
+			{
+				onConnected: () => {},
+				onDisconnected: () => {},
+				onJobUpdate: (jobs: JobUpdate[]) => {
+					console.log('📡 Geocoding job update received:', jobs);
+					handleJobUpdates(jobs);
+				},
+				onJobCompleted: (jobs: JobUpdate[]) => {
+					console.log('✅ Geocoding job completed:', jobs);
+					handleJobUpdates(jobs);
 
+					// Show completion toast
+					jobs.forEach((job) => {
+						if (job.status === 'completed') {
+							toast.success('Reverse geocoding completed successfully!');
+						} else if (job.status === 'failed') {
+							toast.error(`Reverse geocoding failed: ${job.error || 'Unknown error'}`);
+						}
+					});
+				},
+				onError: (error: string) => {
+					console.error('❌ Geocoding progress SSE error:', error);
+				}
 			},
-			onDisconnected: () => {
-
-			},
-			onJobUpdate: (jobs: JobUpdate[]) => {
-				console.log('📡 Geocoding job update received:', jobs);
-				handleJobUpdates(jobs);
-			},
-			onJobCompleted: (jobs: JobUpdate[]) => {
-				console.log('✅ Geocoding job completed:', jobs);
-				handleJobUpdates(jobs);
-
-				// Show completion toast
-				jobs.forEach(job => {
-					if (job.status === 'completed') {
-						toast.success('Reverse geocoding completed successfully!');
-					} else if (job.status === 'failed') {
-						toast.error(`Reverse geocoding failed: ${job.error || 'Unknown error'}`);
-					}
-				});
-			},
-			onError: (error: string) => {
-				console.error('❌ Geocoding progress SSE error:', error);
-			}
-		}, 'reverse_geocoding_missing');
+			'reverse_geocoding_missing'
+		);
 
 		sseService.connect();
 	}
 
 	function handleJobUpdates(jobs: JobUpdate[]) {
-		jobs.forEach(job => {
+		jobs.forEach((job) => {
 			// Update active job if this is the one we're tracking
 			if (activeReverseGeocodingJob && job.id === activeReverseGeocodingJob.id) {
 				activeReverseGeocodingJob = {
@@ -145,7 +169,10 @@
 					updated_at: job.updated_at
 				};
 				updateReverseGeocodingProgressFromJob(activeReverseGeocodingJob);
-			} else if (!activeReverseGeocodingJob && (job.status === 'queued' || job.status === 'running')) {
+			} else if (
+				!activeReverseGeocodingJob &&
+				(job.status === 'queued' || job.status === 'running')
+			) {
 				// Set as active job if we don't have one
 				activeReverseGeocodingJob = {
 					id: job.id,
@@ -165,14 +192,17 @@
 			}
 
 			// Clear active job if it's completed or failed
-			if (activeReverseGeocodingJob && job.id === activeReverseGeocodingJob.id &&
-				(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled')) {
+			if (
+				activeReverseGeocodingJob &&
+				job.id === activeReverseGeocodingJob.id &&
+				(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled')
+			) {
 				activeReverseGeocodingJob = null;
 			}
 		});
 	}
 
-	function updateReverseGeocodingProgressFromJob(job: any) {
+	function updateReverseGeocodingProgressFromJob(job: ServiceJob) {
 		const result = (job.result as Record<string, unknown>) || {};
 
 		// Calculate progress from detailed result data
@@ -213,41 +243,36 @@
 		}
 	}
 
-	        // Load geocoding statistics
-        async function loadGeocodingStats() {
-                try {
-                        isStatsLoading = true;
-                        const session = get(sessionStore);
-                        if (!session) return;
+	// Load geocoding statistics
+	async function loadGeocodingStats() {
+		try {
+			isStatsLoading = true;
+			const session = $sessionStore;
+			if (!session) return;
 
-                        // Always use fresh API data instead of cached data
+			// Always use fresh API data instead of cached data
 
-                        await loadGeocodingStatsFromAPI();
-                        return;
-
-			                } catch (error) {
-                        console.error('Error loading geocoding stats:', error);
-                } finally {
-                        isStatsLoading = false;
-                }
+			await loadGeocodingStatsFromAPI();
+			return;
+		} catch (error) {
+			console.error('Error loading geocoding stats:', error);
+		} finally {
+			isStatsLoading = false;
+		}
 	}
 
-	        // Fallback function to load stats from API
-        async function loadGeocodingStatsFromAPI() {
-                try {
+	// Fallback function to load stats from API
+	async function loadGeocodingStatsFromAPI() {
+		try {
+			const session = $sessionStore;
+			if (!session) return;
 
+			const serviceAdapter = new ServiceAdapter({ session });
 
-                        const session = get(sessionStore);
-                        if (!session) return;
-
-                        const serviceAdapter = new ServiceAdapter({ session });
-
-                        // Force cache refresh by adding a timestamp parameter
-                        const stats = await serviceAdapter.getGeocodingStats({
-                                forceRefresh: Date.now().toString()
-                        }) as any;
-
-
+			// Force cache refresh by adding a timestamp parameter
+			const stats = (await serviceAdapter.getGeocodingStats({
+				forceRefresh: Date.now().toString()
+			})) as GeocodingStatsResponse;
 
 			console.log('📊 GeocodingProgress: API response:', stats);
 
@@ -296,17 +321,17 @@
 
 		isLoading = true;
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) {
 				toast.error('Not authenticated');
 				return;
 			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.createJob({
-					type: 'reverse_geocoding_missing',
-					data: {}
-			}) as any;
+			const result = (await serviceAdapter.createJob({
+				type: 'reverse_geocoding_missing',
+				data: {}
+			})) as ServiceJob;
 
 			if (result && result.id) {
 				activeReverseGeocodingJob = result;
@@ -340,7 +365,7 @@
 	// Force refresh cache via API
 	async function refreshStatsFromAPI() {
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -352,19 +377,25 @@
 		}
 	}
 
-
-
 	// Reactive statement to ensure UI updates when active job changes
-	$: if (activeReverseGeocodingJob !== previousJobState && !isInitializing && !isStatsLoading && hasInitialized) {
+	$: if (
+		activeReverseGeocodingJob !== previousJobState &&
+		!isInitializing &&
+		!isStatsLoading &&
+		hasInitialized
+	) {
 		console.log('🔄 GeocodingProgress: Job state changed, ensuring stats are up to date');
 		previousJobState = activeReverseGeocodingJob;
 
 		// Only refresh if job was cleared (completed/failed)
 		if (activeReverseGeocodingJob === null) {
 			// Force refresh stats when job completes to get updated cache
-			loadGeocodingStats();
-			// Also trigger a cache refresh via the statistics API to ensure consistency
-			refreshStatsFromAPI();
+			// Use setTimeout to break the reactive cycle
+			setTimeout(() => {
+				loadGeocodingStats();
+				// Also trigger a cache refresh via the statistics API to ensure consistency
+				refreshStatsFromAPI();
+			}, 0);
 		}
 	}
 </script>
@@ -391,7 +422,8 @@
 		{:else if activeReverseGeocodingJob}
 			{reverseGeocodingProgress}%
 		{:else}
-			{geocodingStats.geocoded?.toLocaleString() ?? 0} / {geocodingStats.total?.toLocaleString() ?? 0}
+			{geocodingStats.geocoded?.toLocaleString() ?? 0} / {geocodingStats.total?.toLocaleString() ??
+				0}
 		{/if}
 	</div>
 
@@ -439,14 +471,14 @@
 	<!-- Additional stats -->
 	{#if !activeReverseGeocodingJob && !isStatsLoading && geocodingStats.total > 0}
 		<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-			{geocodingStats.percentage}% complete • {geocodingStats.pointsNeedingGeocoding?.toLocaleString() ?? 0} points need geocoding
+			{geocodingStats.percentage}% complete • {geocodingStats.pointsNeedingGeocoding?.toLocaleString() ??
+				0} points need geocoding
 			{#if geocodingStats.retryableErrors > 0 || geocodingStats.nonRetryableErrors > 0}
-				• {geocodingStats.retryableErrors?.toLocaleString() ?? 0} retryable errors • {geocodingStats.nonRetryableErrors?.toLocaleString() ?? 0} permanent errors
+				• {geocodingStats.retryableErrors?.toLocaleString() ?? 0} retryable errors • {geocodingStats.nonRetryableErrors?.toLocaleString() ??
+					0} permanent errors
 			{/if}
 		</div>
 	{:else if isStatsLoading}
-		<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-			Loading geocoding statistics...
-		</div>
+		<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Loading geocoding statistics...</div>
 	{/if}
 </div>

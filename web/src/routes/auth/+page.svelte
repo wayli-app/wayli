@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { Mail, Lock, ArrowRight } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+
 	import { userStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
-	import { Mail, Lock, ArrowRight } from 'lucide-svelte';
+
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 
 	onMount(() => {

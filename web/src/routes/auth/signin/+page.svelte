@@ -1,31 +1,28 @@
 <script lang="ts">
-	import { supabase } from '$lib/supabase';
-	import { goto } from '$app/navigation';
+	import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn } from 'lucide-svelte';
+	import { onMount, get } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { onMount, onDestroy } from 'svelte';
-	import { userStore, isInTwoFactorFlow } from '$lib/stores/auth';
-	import { Mail, Lock, Eye, EyeOff, Github, Chrome, ArrowLeft, LogIn } from 'lucide-svelte';
-	import { page } from '$app/stores';
 
-	import { get } from 'svelte/store';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { EdgeFunctionsApiService } from '$lib/services/api/edge-functions-api.service';
 	import { translate } from '$lib/i18n';
+	import { EdgeFunctionsApiService } from '$lib/services/api/edge-functions-api.service';
+	import { userStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
+
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	let email = '';
-	let password = '';
-	let loading = false;
-	let showPassword = false;
-	let isMagicLinkSent = false;
-
-	let unsubscribeFromUserStore: (() => void) | null = null;
+	let email = $state<string>('');
+	let password = $state<string>('');
+	let loading = $state(false);
+	let showPassword = $state(false);
+	let isMagicLinkSent = $state(false);
 
 	onMount(() => {
 		// Subscribe to user store for authentication state changes
-		unsubscribeFromUserStore = userStore.subscribe((user) => {
+		userStore.subscribe((user) => {
 			if (user && $page.url.pathname === '/auth/signin') {
 				// Don't automatically redirect - let the login flow handle it
 				// This prevents the brief flash of the dashboard
@@ -33,55 +30,27 @@
 		});
 	});
 
-	onDestroy(() => {
-		if (unsubscribeFromUserStore) {
-			unsubscribeFromUserStore();
-			unsubscribeFromUserStore = null;
-		}
-	});
-
-	function resubscribeToUserStore() {
-		// Only subscribe if we're on the signin page
-		if ($page.url.pathname.startsWith('/auth/signin')) {
-			unsubscribeFromUserStore = userStore.subscribe((user) => {
-				// Get current 2FA flow state
-				let currentTwoFactorState = false;
-				isInTwoFactorFlow.subscribe((state) => {
-					currentTwoFactorState = state;
-				})();
-
-				if (user && !currentTwoFactorState) {
-					// Only redirect if we're on the signin page and not in 2FA flow
-					if ($page.url.pathname.startsWith('/auth/signin')) {
-						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-						goto(redirectTo);
-					}
-				}
-			});
-		}
-	}
-
 	async function handleSignIn(event: Event) {
 		event.preventDefault();
-		loading = true;
+		loading.set(true);
 
 		try {
 			// First, authenticate with Supabase to get a temporary session
-				const { data, error } = await supabase.auth.signInWithPassword({
-					email,
-					password
-				});
+			const { data, error } = await supabase.auth.signInWithPassword({
+				email,
+				password
+			});
 
-				if (error) throw error;
+			if (error) throw error;
 
-				if (data.session) {
+			if (data.session) {
 				// Authentication successful, now check if user has 2FA enabled
 				try {
 					const edgeService = new EdgeFunctionsApiService();
-					const checkResult = await edgeService.check2FA(data.session) as any;
+					const checkResult = (await edgeService.check2FA(data.session)) as any;
 					const has2FA = checkResult?.enabled === true;
 
-															if (has2FA) {
+					if (has2FA) {
 						// User has 2FA enabled - sign out immediately to prevent access
 						await supabase.auth.signOut();
 
@@ -92,18 +61,18 @@
 						goto(verificationUrl);
 					} else {
 						// No 2FA enabled, proceed with normal login
-					toast.success(t('auth.signedInSuccessfully'));
-					// The auth state change will handle the redirect automatically
+						toast.success(t('auth.signedInSuccessfully'));
+						// The auth state change will handle the redirect automatically
 
-					// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
-					setTimeout(() => {
-						const currentUser = get(userStore);
-						if (currentUser && $page.url.pathname.startsWith('/auth/signin')) {
-							const redirectTo =
-								$page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-							goto(redirectTo, { replaceState: true });
-						}
-					}, 1000);
+						// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
+						setTimeout(() => {
+							const currentUser = get(userStore);
+							if (currentUser && $page.url.pathname.startsWith('/auth/signin')) {
+								const redirectTo =
+									$page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+								goto(redirectTo, { replaceState: true });
+							}
+						}, 1000);
 					}
 				} catch (twoFactorError: any) {
 					console.error('2FA check error:', twoFactorError);
@@ -111,14 +80,14 @@
 					await supabase.auth.signOut();
 					toast.error(t('auth.failedToVerify2FA'));
 				}
-				} else {
-					toast.error(t('auth.noSessionReturned'));
+			} else {
+				toast.error(t('auth.noSessionReturned'));
 			}
 		} catch (error: any) {
 			console.error('Sign in error:', error);
 			toast.error(error.message || t('auth.signInFailed'));
 		} finally {
-			loading = false;
+			loading.set(false);
 		}
 	}
 
@@ -128,7 +97,7 @@
 			return;
 		}
 
-		loading = true;
+		loading.set(true);
 
 		try {
 			const { error } = await supabase.auth.signInWithOtp({
@@ -140,38 +109,18 @@
 
 			if (error) throw error;
 
-			isMagicLinkSent = true;
+			isMagicLinkSent.set(true);
 			toast.success(t('auth.magicLinkSent'));
 		} catch (error: any) {
 			toast.error(error.message || t('auth.failedToSendMagicLink'));
 		} finally {
-			loading = false;
-		}
-	}
-
-	async function handleOAuthSignIn(provider: 'google' | 'github') {
-		loading = true;
-
-		try {
-			const { error } = await supabase.auth.signInWithOAuth({
-				provider,
-				options: {
-					redirectTo: `${window.location.origin}/auth/callback`
-				}
-			});
-
-			if (error) throw error;
-		} catch (error: any) {
-			toast.error(error.message || t('auth.oauthSignInFailed'));
-			loading = false;
+			loading.set(false);
 		}
 	}
 
 	function togglePassword() {
-		showPassword = !showPassword;
+		showPassword.set(!showPassword);
 	}
-
-
 </script>
 
 <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
@@ -215,7 +164,7 @@
 						</p>
 					</div>
 					<button
-						onclick={() => (isMagicLinkSent = false)}
+						onclick={() => isMagicLinkSent.set(false)}
 						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 					>
 						{t('auth.tryDifferentMethod')}
@@ -317,5 +266,3 @@
 		</div>
 	</div>
 </div>
-
-

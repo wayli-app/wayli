@@ -1,13 +1,12 @@
 import {
-  setupRequest,
-  authenticateRequest,
-  successResponse,
-  errorResponse,
-  parseJsonBody,
-  validateRequiredFields,
-  logError,
-  logInfo,
-  logSuccess
+	setupRequest,
+	authenticateRequest,
+	successResponse,
+	errorResponse,
+	parseJsonBody,
+	logError,
+	logInfo,
+	logSuccess
 } from '../_shared/utils.ts';
 
 Deno.serve(async (req) => {

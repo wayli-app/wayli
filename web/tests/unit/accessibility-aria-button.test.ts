@@ -2,6 +2,7 @@
 // Tests for the useAriaButton accessibility action
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
 import { useAriaButton } from '$lib/accessibility/aria-button';
 
 describe('useAriaButton', () => {
@@ -240,9 +241,9 @@ describe('useAriaButton', () => {
 
 	describe('Edge cases', () => {
 		it('should handle empty label option', () => {
-        const action = useAriaButton(element, { label: '' });
+			const action = useAriaButton(element, { label: '' });
 
-        expect(element.getAttribute('aria-label')).toBeNull();
+			expect(element.getAttribute('aria-label')).toBeNull();
 
 			action.destroy();
 		});

@@ -1,16 +1,18 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+
+	import type { Map as LeafletMap } from 'leaflet';
+
+	import { debounce } from 'lodash-es';
 	import {
-		Stars,
 		Search,
 		Plus,
 		X,
 		MapPin,
 		Heart,
 		Globe2,
-		Filter,
 		Trash2,
 		Edit,
-		Palette,
 		Home,
 		Utensils,
 		Building2,
@@ -23,20 +25,21 @@
 		Flag
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
-	import type { Map as LeafletMap, LatLngExpression } from 'leaflet';
-	import { debounce } from 'lodash-es';
+
 	import { reverseGeocode } from '$lib/services/external/nominatim.service';
+
 	import { toast } from 'svelte-sonner';
+
 	import { translate } from '$lib/i18n';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
-	import { supabase } from '$lib/supabase';
-	import { WantToVisitService } from '$lib/services/want-to-visit.service';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import type { Place } from '$lib/types/want-to-visit.types';
+	import { WantToVisitService } from '$lib/services/want-to-visit.service';
+	import { supabase } from '$lib/supabase';
+
 	import type { UserProfile } from '$lib/types/user.types';
+	import type { Place } from '$lib/types/want-to-visit.types';
 
 	// Lucide icon mapping for SVG URLs
 	const lucideIcons = {
@@ -53,68 +56,11 @@
 		flag: 'flag'
 	};
 
-
-
-	// Helper function to convert hex color to color name for marker icons
-	function getColorName(hexColor: string): string {
-		const colorMap: { [key: string]: string } = {
-			'#3B82F6': 'blue',
-			'#10B981': 'green',
-			'#F59E0B': 'orange',
-			'#EF4444': 'red',
-			'#8B5CF6': 'purple',
-			'#EC4899': 'pink',
-			'#06B6D4': 'cyan',
-			'#059669': 'green',
-			'#D97706': 'orange',
-			'#DC2626': 'red',
-			'#6B7280': 'gray',
-			'#000000': 'black'
-		};
-
-		return colorMap[hexColor] || 'blue';
-	}
-
-	// Utility function to convert hex color to hue for CSS filter
-	function getHueFromColor(hexColor: string): number {
-		// Convert hex to RGB
-		const r = parseInt(hexColor.slice(1, 3), 16);
-		const g = parseInt(hexColor.slice(3, 5), 16);
-		const b = parseInt(hexColor.slice(5, 7), 16);
-
-		// Convert RGB to HSL to get hue
-		const max = Math.max(r, g, b);
-		const min = Math.min(r, g, b);
-		let h = 0;
-
-		if (max === min) {
-			h = 0; // achromatic
-		} else {
-			const d = max - min;
-			switch (max) {
-				case r:
-					h = (g - b) / d + (g < b ? 6 : 0);
-					break;
-				case g:
-					h = (b - r) / d + 2;
-					break;
-				case b:
-					h = (r - g) / d + 4;
-					break;
-			}
-			h /= 6;
-		}
-
-		return Math.round(h * 360);
-	}
-
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer = $state<any>(null);
 	let searchQuery = $state(''); // Search query for location lookup and filtering
-	let selectedType = $state('All');
-	let markers = $state<any[]>([]);
 	let markerClusterGroup = $state<any>(null); // Add cluster group variable
 	let showAddForm = $state(false);
 	let showEditForm = $state(false);
@@ -136,15 +82,26 @@
 	// Marker customization
 	let selectedMarkerType = $state('default');
 	let selectedMarkerColor = $state('#3B82F6'); // blue-500
-	let showMarkerOptions = $state(false);
 
 	// Edit mode
 	let editingPlace = $state<Place | null>(null);
 
 	// Marker options - updated to use translation keys
 	let markerTypes = $derived([
-		{ id: 'default', name: t('wantToVisit.markerTypes.default'), icon: MapPin, iconName: 'default', color: '#3B82F6' },
-		{ id: 'home', name: t('wantToVisit.markerTypes.home'), icon: Home, iconName: 'home', color: '#10B981' },
+		{
+			id: 'default',
+			name: t('wantToVisit.markerTypes.default'),
+			icon: MapPin,
+			iconName: 'default',
+			color: '#3B82F6'
+		},
+		{
+			id: 'home',
+			name: t('wantToVisit.markerTypes.home'),
+			icon: Home,
+			iconName: 'home',
+			color: '#10B981'
+		},
 		{
 			id: 'restaurant',
 			name: t('wantToVisit.markerTypes.restaurant'),
@@ -152,14 +109,62 @@
 			iconName: 'restaurant',
 			color: '#F59E0B'
 		},
-		{ id: 'hotel', name: t('wantToVisit.markerTypes.hotel'), icon: Building2, iconName: 'hotel', color: '#8B5CF6' },
-		{ id: 'camera', name: t('wantToVisit.markerTypes.camera'), icon: Camera, iconName: 'camera', color: '#EF4444' },
-		{ id: 'tree', name: t('wantToVisit.markerTypes.tree'), icon: TreePine, iconName: 'tree', color: '#059669' },
-		{ id: 'coffee', name: t('wantToVisit.markerTypes.coffee'), icon: Coffee, iconName: 'coffee', color: '#D97706' },
-		{ id: 'shopping', name: t('wantToVisit.markerTypes.shopping'), icon: ShoppingBag, iconName: 'shopping', color: '#EC4899' },
-		{ id: 'umbrella', name: t('wantToVisit.markerTypes.umbrella'), icon: Anchor, iconName: 'umbrella', color: '#06B6D4' },
-		{ id: 'building', name: t('wantToVisit.markerTypes.building'), icon: Building, iconName: 'building', color: '#6B7280' },
-		{ id: 'flag', name: t('wantToVisit.markerTypes.flag'), icon: Flag, iconName: 'flag', color: '#DC2626' }
+		{
+			id: 'hotel',
+			name: t('wantToVisit.markerTypes.hotel'),
+			icon: Building2,
+			iconName: 'hotel',
+			color: '#8B5CF6'
+		},
+		{
+			id: 'camera',
+			name: t('wantToVisit.markerTypes.camera'),
+			icon: Camera,
+			iconName: 'camera',
+			color: '#EF4444'
+		},
+		{
+			id: 'tree',
+			name: t('wantToVisit.markerTypes.tree'),
+			icon: TreePine,
+			iconName: 'tree',
+			color: '#059669'
+		},
+		{
+			id: 'coffee',
+			name: t('wantToVisit.markerTypes.coffee'),
+			icon: Coffee,
+			iconName: 'coffee',
+			color: '#D97706'
+		},
+		{
+			id: 'shopping',
+			name: t('wantToVisit.markerTypes.shopping'),
+			icon: ShoppingBag,
+			iconName: 'shopping',
+			color: '#EC4899'
+		},
+		{
+			id: 'umbrella',
+			name: t('wantToVisit.markerTypes.umbrella'),
+			icon: Anchor,
+			iconName: 'umbrella',
+			color: '#06B6D4'
+		},
+		{
+			id: 'building',
+			name: t('wantToVisit.markerTypes.building'),
+			icon: Building,
+			iconName: 'building',
+			color: '#6B7280'
+		},
+		{
+			id: 'flag',
+			name: t('wantToVisit.markerTypes.flag'),
+			icon: Flag,
+			iconName: 'flag',
+			color: '#DC2626'
+		}
 	]);
 
 	const markerColors = [
@@ -188,11 +193,6 @@
 	let selectedTypes = $state<string[]>(['All']); // Array to support multiple selections
 	let showFavouritedOnly = $state(false); // Filter for favourited places only
 
-	// User profile and home address state
-	let userProfile = $state<UserProfile | null>(null);
-	let hasHomeAddress = $state(false);
-	let isLoadingProfile = $state(false);
-
 	// Available types based on marker types - using translation keys
 	let availableTypes = $derived([
 		{ id: 'All', name: t('wantToVisit.markerTypes.all'), icon: MapPin },
@@ -211,7 +211,7 @@
 
 	// Helper function to get translated marker type name
 	function getMarkerTypeName(markerId: string): string {
-		const markerType = markerTypes.find(m => m.id === markerId);
+		const markerType = markerTypes.find((m) => m.id === markerId);
 		return markerType ? markerType.name : t('wantToVisit.markerTypes.default');
 	}
 
@@ -244,7 +244,7 @@
 		showFavouritedOnly = false;
 	}
 
-		async function loadUserProfile() {
+	async function loadUserProfile() {
 		if (!browser) return;
 
 		isLoadingProfile = true;
@@ -257,12 +257,12 @@
 
 			// Use the Edge Function to get user profile
 			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
-			const profile = await serviceAdapter.callApi('auth-profile') as any;
+			const profile = (await serviceAdapter.callApi('auth-profile')) as any;
 
 			userProfile = profile as UserProfile;
 
 			// Check if user has a home address
-			hasHomeAddress = !!(profile?.home_address);
+			hasHomeAddress = !!profile?.home_address;
 		} catch (error) {
 			console.error('Error loading user profile:', error);
 		} finally {
@@ -304,27 +304,29 @@
 		showSearchResults = false;
 	}
 
-	let filteredPlaces = $derived(places.filter((place) => {
-		// Type filter - match by markerType ID
-		const typeMatch =
-			(selectedTypes.length === 1 && selectedTypes[0] === 'All') ||
-			selectedTypes.some((selectedType) => place.markerType && place.markerType === selectedType);
+	let filteredPlaces = $derived(
+		places.filter((place) => {
+			// Type filter - match by markerType ID
+			const typeMatch =
+				(selectedTypes.length === 1 && selectedTypes[0] === 'All') ||
+				selectedTypes.some((selectedType) => place.markerType && place.markerType === selectedType);
 
-		// Search filter - search in title, description, labels, and location
-		const searchLower = searchQuery.toLowerCase();
-		const searchMatch =
-			!searchQuery ||
-			place.title.toLowerCase().includes(searchLower) ||
-			(place.description && place.description.toLowerCase().includes(searchLower)) ||
-			(place.labels && place.labels.some((label) => label.toLowerCase().includes(searchLower))) ||
-			(place.location && place.location.toLowerCase().includes(searchLower)) ||
-			(place.address && place.address.toLowerCase().includes(searchLower));
+			// Search filter - search in title, description, labels, and location
+			const searchLower = searchQuery.toLowerCase();
+			const searchMatch =
+				!searchQuery ||
+				place.title.toLowerCase().includes(searchLower) ||
+				(place.description && place.description.toLowerCase().includes(searchLower)) ||
+				(place.labels && place.labels.some((label) => label.toLowerCase().includes(searchLower))) ||
+				(place.location && place.location.toLowerCase().includes(searchLower)) ||
+				(place.address && place.address.toLowerCase().includes(searchLower));
 
-		// Favourited filter - show only favourited places when enabled
-		const favouritedMatch = !showFavouritedOnly || place.favorite;
+			// Favourited filter - show only favourited places when enabled
+			const favouritedMatch = !showFavouritedOnly || place.favorite;
 
-		return typeMatch && searchMatch && favouritedMatch;
-	}));
+			return typeMatch && searchMatch && favouritedMatch;
+		})
+	);
 
 	// Update markers when filtered places change
 	$effect(() => {
@@ -349,8 +351,6 @@
 
 		// Use Lucide SVG icons from a reliable CDN
 		const iconUrl = `https://unpkg.com/lucide-static@latest/icons/${iconName}.svg`;
-
-
 
 		return L.divIcon({
 			className: 'custom-lucide-marker',
@@ -412,17 +412,13 @@
 			iconCreateFunction: function (cluster: any) {
 				const count = cluster.getChildCount();
 				let className = 'marker-cluster-';
-				let size = 'medium';
 
 				if (count < 5) {
 					className += 'small';
-					size = 'small';
 				} else if (count < 10) {
 					className += 'medium';
-					size = 'medium';
 				} else {
 					className += 'large';
-					size = 'large';
 				}
 
 				return L.divIcon({
@@ -484,7 +480,6 @@
 
 		// Listen for theme changes
 		const observer = new MutationObserver(() => {
-			const isDark = document.documentElement.classList.contains('dark');
 			const newUrl = getTileLayerUrl();
 			const newAttribution = getAttribution();
 			if (currentTileLayer && currentTileLayer._url !== newUrl) {
@@ -557,7 +552,7 @@
 		markers = [];
 
 		// Add markers to cluster group (only filtered places)
-		markers = filteredPlaces.map((place, i) => {
+		markers = filteredPlaces.map((place) => {
 			const [lat, lng] = place.coordinates.split(',').map(Number);
 
 			const markerIcon = getMarkerIcon(
@@ -695,14 +690,6 @@
 		selectedTypes = ['All'];
 		searchQuery = '';
 		showFavouritedOnly = false;
-	}
-
-	function toggleAddForm() {
-		showAddForm = !showAddForm;
-		if (!showAddForm && tempMarker) {
-			tempMarker.remove();
-			tempMarker = null;
-		}
 	}
 
 	async function addPlace() {
@@ -941,11 +928,13 @@
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div class="flex items-center gap-3">
 			<Heart class="h-8 w-8 text-red-500" />
-			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">{t('navigation.wantToVisit')}</h1>
+			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+				{t('navigation.wantToVisit')}
+			</h1>
 		</div>
-        <button
-            class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-            onclick={() => {
+		<button
+			class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+			onclick={() => {
 				showAddForm = true;
 				// Clear form data when opening
 				title = '';
@@ -961,7 +950,7 @@
 			}}
 		>
 			<Plus class="h-4 w-4" />
-            {t('wantToVisit.addNewPlace')}
+			{t('wantToVisit.addNewPlace')}
 		</button>
 	</div>
 
@@ -977,8 +966,8 @@
 				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-gray-800/90"
 			>
 				<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                    <MapPin class="h-4 w-4" />
-                    {t('wantToVisit.clickOnMapToAdd')}
+					<MapPin class="h-4 w-4" />
+					{t('wantToVisit.clickOnMapToAdd')}
 				</div>
 			</div>
 		{/if}
@@ -993,9 +982,11 @@
 				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">{t('wantToVisit.addNewPlace')}</h3>
-                    <button
-                        onclick={() => {
+					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+						{t('wantToVisit.addNewPlace')}
+					</h3>
+					<button
+						onclick={() => {
 							showAddForm = false;
 							if (tempMarker) {
 								tempMarker.remove();
@@ -1012,17 +1003,17 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-                        <label
+						<label
 							for="titleInput"
 							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >{t('wantToVisit.title')} <span class="text-red-500">*</span></label
+							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
 							id="titleInput"
 							type="text"
 							bind:value={title}
 							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                            placeholder={t('wantToVisit.titlePlaceholder')}
+							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
 					</div>
@@ -1033,17 +1024,17 @@
 							for="searchPlace"
 							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 						>
-{t('wantToVisit.searchForPlace')}
+							{t('wantToVisit.searchForPlace')}
 						</label>
 						<div class="relative">
 							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input
+							<input
 								type="text"
 								id="searchPlace"
 								bind:value={searchQuery}
-                                oninput={handleSearchInput}
+								oninput={handleSearchInput}
 								class="relative z-[10001] w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                placeholder={t('wantToVisit.searchPlaceholder')}
+								placeholder={t('wantToVisit.searchPlaceholder')}
 							/>
 							{#if isSearching}
 								<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -1059,11 +1050,11 @@
 							<div
 								class="relative z-[10002] mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700"
 							>
-								{#each searchResults as result}
+								{#each searchResults as result (result.id)}
 									<button
 										type="button"
 										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
-                                        onclick={() => selectPlace(result)}
+										onclick={() => selectPlace(result)}
 									>
 										<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
 											{result.name.split(',')[0]}
@@ -1080,10 +1071,10 @@
 					<!-- Coordinates Display -->
 					<div class="grid grid-cols-2 gap-3">
 						<div>
-                            <label
+							<label
 								for="latitudeInput"
 								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >{t('wantToVisit.latitude')}</label
+								>{t('wantToVisit.latitude')}</label
 							>
 							<input
 								id="latitudeInput"
@@ -1094,10 +1085,10 @@
 							/>
 						</div>
 						<div>
-                            <label
+							<label
 								for="longitudeInput"
 								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >{t('wantToVisit.longitude')}</label
+								>{t('wantToVisit.longitude')}</label
 							>
 							<input
 								id="longitudeInput"
@@ -1111,259 +1102,39 @@
 
 					<!-- Address Display -->
 					<div>
-                        <label
+						<label
 							for="addressDisplay"
-                            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.address')}</label
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.address')}</label
 						>
 						<div
 							id="addressDisplay"
 							class="flex min-h-[2.5rem] w-full items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 						>
 							{#if isReverseGeocoding}
-                                <div class="flex items-center gap-2 text-gray-500">
+								<div class="flex items-center gap-2 text-gray-500">
 									<div
 										class="h-3 w-3 animate-spin rounded-full border border-gray-400 border-t-transparent"
 									></div>
-                                    {t('wantToVisit.lookingUpAddress')}
+									{t('wantToVisit.lookingUpAddress')}
 								</div>
 							{:else}
-                                {address || t('wantToVisit.clickMapOrSearch')}
+								{address || t('wantToVisit.clickMapOrSearch')}
 							{/if}
 						</div>
 					</div>
 
 					<!-- Type Selection via Icons -->
-                    <fieldset>
-                        <legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >{t('wantToVisit.type')}</legend
-						>
-						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
-							{#each markerTypes as marker}
-								<button
-									type="button"
-									aria-label="Select {marker.name} type"
-                                    									onclick={() => {
-										placeType = marker.id; // Store marker ID, not name
-										selectedMarkerType = marker.id;
-									}}
-									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
-									marker.id
-										? 'border-blue-600 bg-blue-600 text-white'
-										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-								>
-									<marker.icon class="h-5 w-5" />
-                                    <span class="text-xs">{marker.name}</span>
-								</button>
-							{/each}
-						</div>
-					</fieldset>
-
-					<!-- Marker Color -->
-                    <fieldset>
-                        <legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >{t('wantToVisit.markerColor')}</legend
-						>
-						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
-							{#each markerColors as color}
-								<button
-									type="button"
-									aria-label="Select {color} color"
-                                    onclick={() => (selectedMarkerColor = color)}
-									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
-									style="background-color: {color}"
-								></button>
-							{/each}
-						</div>
-					</fieldset>
-
-					<!-- Custom Labels -->
-					<div>
-                        <label
-							for="labelInput"
-                            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.labels')}</label
-						>
-						<div class="mb-2 flex flex-wrap gap-2">
-							{#each labels as label}
-								<span
-									class="mr-1 mb-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-								>
-									{label}
-                                    <button
-										type="button"
-										aria-label="Remove {label} label"
-										class="ml-1 text-blue-500 hover:text-red-500"
-                                        onclick={() => removeLabel(label)}
-									>
-										<X class="h-3 w-3" />
-									</button>
-								</span>
-							{/each}
-						</div>
-						<div class="flex gap-2">
-							<input
-								id="labelInput"
-								type="text"
-								bind:value={labelInput}
-								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                placeholder={t('wantToVisit.addLabelPlaceholder')}
-                                onkeydown={(e) => {
-									if (e.key === 'Enter') {
-										e.preventDefault();
-										addLabel();
-									}
-								}}
-							/>
-							<button
-								type="button"
-								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-                                onclick={addLabel}
-							>
-                                {t('add')}
-							</button>
-						</div>
-					</div>
-
-					<!-- Description -->
-					<div>
-                        <label
-							for="descriptionInput"
-                            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.notes')}</label
-						>
-						<textarea
-							id="descriptionInput"
-							bind:value={description}
-							rows="3"
-							class="relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                            placeholder={t('wantToVisit.notesPlaceholder')}
-						></textarea>
-					</div>
-
-					<!-- Action Buttons -->
-					<div class="flex gap-3 pt-2">
-                        <button
-							type="button"
-                            onclick={() => {
-								showAddForm = false;
-								if (tempMarker) {
-									tempMarker.remove();
-									tempMarker = null;
-								}
-							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-						>
-                            {t('cancel')}
-						</button>
-						<button
-							type="button"
-                            onclick={addPlace}
-							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-						>
-                            {t('wantToVisit.addToList')}
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Edit Modal Overlay -->
-	{#if showEditForm}
-		<div
-			class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-		>
-			<div
-				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
-			>
-				<div class="mb-4 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">{t('wantToVisit.editPlace')}</h3>
-					<button
-                        onclick={() => {
-							showEditForm = false;
-							resetForm();
-						}}
-						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-					>
-						<X class="h-5 w-5" />
-					</button>
-				</div>
-
-				<!-- Edit form with same fields as add form -->
-				<div class="space-y-4">
-					<!-- Title Input (required) -->
-					<div>
-                        <label
-							for="titleInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >{t('wantToVisit.title')} <span class="text-red-500">*</span></label
-						>
-						<input
-							id="titleInput"
-							type="text"
-							bind:value={title}
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                            placeholder={t('wantToVisit.titlePlaceholder')}
-							required
-						/>
-					</div>
-
-					<!-- Coordinates Display -->
-					<div class="grid grid-cols-2 gap-3">
-						<div>
-                            <label
-								for="latitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >{t('wantToVisit.latitude')}</label
-							>
-							<input
-								id="latitudeInput"
-								type="text"
-								bind:value={latitude}
-								readonly
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-							/>
-						</div>
-						<div>
-                            <label
-								for="longitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                                >{t('wantToVisit.longitude')}</label
-							>
-							<input
-								id="longitudeInput"
-								type="text"
-								bind:value={longitude}
-								readonly
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
-							/>
-						</div>
-					</div>
-
-					<!-- Address Display -->
-					<div>
-                        <label
-							for="addressDisplay"
-                            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.address')}</label
-						>
-						<input
-							id="addressDisplay"
-							type="text"
-							bind:value={address}
-							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder={t('wantToVisit.addressPlaceholder')}
-						/>
-					</div>
-
-					<!-- Type Selection via Icons -->
 					<fieldset>
-                        <legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >{t('wantToVisit.type')}</legend
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.type')}</legend
 						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
-							{#each markerTypes as marker}
+							{#each markerTypes as marker (marker.id)}
 								<button
 									type="button"
 									aria-label="Select {marker.name} type"
-                                    									onclick={() => {
+									onclick={() => {
 										placeType = marker.id; // Store marker ID, not name
 										selectedMarkerType = marker.id;
 									}}
@@ -1381,15 +1152,15 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-                        <legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                            >{t('wantToVisit.markerColor')}</legend
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.markerColor')}</legend
 						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
-							{#each markerColors as color}
+							{#each markerColors as color (color)}
 								<button
 									type="button"
 									aria-label="Select {color} color"
-                                    onclick={() => (selectedMarkerColor = color)}
+									onclick={() => (selectedMarkerColor = color)}
 									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
 									style="background-color: {color}"
 								></button>
@@ -1399,21 +1170,22 @@
 
 					<!-- Custom Labels -->
 					<div>
-                        <label
+						<label
 							for="labelInput"
-                            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.labels')}</label
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
-							{#each labels as label}
+							{#each labels as label (label)}
 								<span
 									class="mr-1 mb-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
 								>
 									{label}
-                                    <button
+									<button
 										type="button"
 										aria-label="Remove {label} label"
 										class="ml-1 text-blue-500 hover:text-red-500"
-                                        onclick={() => removeLabel(label)}
+										onclick={() => removeLabel(label)}
 									>
 										<X class="h-3 w-3" />
 									</button>
@@ -1426,8 +1198,8 @@
 								type="text"
 								bind:value={labelInput}
 								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                placeholder={t('wantToVisit.addLabelPlaceholder')}
-                                onkeydown={(e) => {
+								placeholder={t('wantToVisit.addLabelPlaceholder')}
+								onkeydown={(e) => {
 									if (e.key === 'Enter') {
 										e.preventDefault();
 										addLabel();
@@ -1437,46 +1209,273 @@
 							<button
 								type="button"
 								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-                                onclick={addLabel}
+								onclick={addLabel}
 							>
-                                {t('add')}
+								{t('add')}
 							</button>
 						</div>
 					</div>
 
 					<!-- Description -->
 					<div>
-                        <label
+						<label
 							for="descriptionInput"
-                            class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.notes')}</label
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.notes')}</label
 						>
 						<textarea
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
 							class="relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                            placeholder={t('wantToVisit.notesPlaceholder')}
+							placeholder={t('wantToVisit.notesPlaceholder')}
 						></textarea>
 					</div>
 
 					<!-- Action Buttons -->
 					<div class="flex gap-3 pt-2">
-                        <button
+						<button
 							type="button"
-                            onclick={() => {
+							onclick={() => {
+								showAddForm = false;
+								if (tempMarker) {
+									tempMarker.remove();
+									tempMarker = null;
+								}
+							}}
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+						>
+							{t('cancel')}
+						</button>
+						<button
+							type="button"
+							onclick={addPlace}
+							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+						>
+							{t('wantToVisit.addToList')}
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Edit Modal Overlay -->
+	{#if showEditForm}
+		<div
+			class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+		>
+			<div
+				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+						{t('wantToVisit.editPlace')}
+					</h3>
+					<button
+						onclick={() => {
+							showEditForm = false;
+							resetForm();
+						}}
+						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+					>
+						<X class="h-5 w-5" />
+					</button>
+				</div>
+
+				<!-- Edit form with same fields as add form -->
+				<div class="space-y-4">
+					<!-- Title Input (required) -->
+					<div>
+						<label
+							for="titleInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
+						>
+						<input
+							id="titleInput"
+							type="text"
+							bind:value={title}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.titlePlaceholder')}
+							required
+						/>
+					</div>
+
+					<!-- Coordinates Display -->
+					<div class="grid grid-cols-2 gap-3">
+						<div>
+							<label
+								for="latitudeInput"
+								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>{t('wantToVisit.latitude')}</label
+							>
+							<input
+								id="latitudeInput"
+								type="text"
+								bind:value={latitude}
+								readonly
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+							/>
+						</div>
+						<div>
+							<label
+								for="longitudeInput"
+								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>{t('wantToVisit.longitude')}</label
+							>
+							<input
+								id="longitudeInput"
+								type="text"
+								bind:value={longitude}
+								readonly
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+							/>
+						</div>
+					</div>
+
+					<!-- Address Display -->
+					<div>
+						<label
+							for="addressDisplay"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.address')}</label
+						>
+						<input
+							id="addressDisplay"
+							type="text"
+							bind:value={address}
+							class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.addressPlaceholder')}
+						/>
+					</div>
+
+					<!-- Type Selection via Icons -->
+					<fieldset>
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.type')}</legend
+						>
+						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
+							{#each markerTypes as marker (marker.id)}
+								<button
+									type="button"
+									aria-label="Select {marker.name} type"
+									onclick={() => {
+										placeType = marker.id; // Store marker ID, not name
+										selectedMarkerType = marker.id;
+									}}
+									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
+									marker.id
+										? 'border-blue-600 bg-blue-600 text-white'
+										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+								>
+									<marker.icon class="h-5 w-5" />
+									<span class="text-xs">{marker.name}</span>
+								</button>
+							{/each}
+						</div>
+					</fieldset>
+
+					<!-- Marker Color -->
+					<fieldset>
+						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.markerColor')}</legend
+						>
+						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
+							{#each markerColors as color (color)}
+								<button
+									type="button"
+									aria-label="Select {color} color"
+									onclick={() => (selectedMarkerColor = color)}
+									class="color-option {selectedMarkerColor === color ? 'selected' : ''}"
+									style="background-color: {color}"
+								></button>
+							{/each}
+						</div>
+					</fieldset>
+
+					<!-- Custom Labels -->
+					<div>
+						<label
+							for="labelInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.labels')}</label
+						>
+						<div class="mb-2 flex flex-wrap gap-2">
+							{#each labels as label (label)}
+								<span
+									class="mr-1 mb-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+								>
+									{label}
+									<button
+										type="button"
+										aria-label="Remove {label} label"
+										class="ml-1 text-blue-500 hover:text-red-500"
+										onclick={() => removeLabel(label)}
+									>
+										<X class="h-3 w-3" />
+									</button>
+								</span>
+							{/each}
+						</div>
+						<div class="flex gap-2">
+							<input
+								id="labelInput"
+								type="text"
+								bind:value={labelInput}
+								class="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								placeholder={t('wantToVisit.addLabelPlaceholder')}
+								onkeydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										addLabel();
+									}
+								}}
+							/>
+							<button
+								type="button"
+								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+								onclick={addLabel}
+							>
+								{t('add')}
+							</button>
+						</div>
+					</div>
+
+					<!-- Description -->
+					<div>
+						<label
+							for="descriptionInput"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>{t('wantToVisit.notes')}</label
+						>
+						<textarea
+							id="descriptionInput"
+							bind:value={description}
+							rows="3"
+							class="relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.notesPlaceholder')}
+						></textarea>
+					</div>
+
+					<!-- Action Buttons -->
+					<div class="flex gap-3 pt-2">
+						<button
+							type="button"
+							onclick={() => {
 								showEditForm = false;
 								resetForm();
 							}}
 							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-                            {t('cancel')}
+							{t('cancel')}
 						</button>
 						<button
 							type="button"
-                            onclick={updatePlace}
+							onclick={updatePlace}
 							class="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 						>
-                            {t('wantToVisit.updatePlace')}
+							{t('wantToVisit.updatePlace')}
 						</button>
 					</div>
 				</div>
@@ -1490,16 +1489,18 @@
 		<div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
 			<!-- Type Filter -->
 			<div class="flex flex-col gap-2">
-				<label for="type-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">{t('wantToVisit.type')}</label>
+				<label for="type-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
+					>{t('wantToVisit.type')}</label
+				>
 				<div id="type-filter" class="flex flex-wrap gap-2">
-					{#each availableTypes as type}
+					{#each availableTypes as type (type.id)}
 						<button
 							class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {selectedTypes.includes(
 								type.id
 							)
 								? 'bg-blue-600 text-white'
 								: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-                            onclick={() => {
+							onclick={() => {
 								selectType(type.id);
 							}}
 						>
@@ -1507,16 +1508,16 @@
 							{type.name}
 						</button>
 					{/each}
-                    <button
+					<button
 						class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {showFavouritedOnly
 							? 'bg-red-600 text-white'
 							: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
-                        onclick={() => {
+						onclick={() => {
 							showFavouritedOnly = !showFavouritedOnly;
 						}}
 					>
 						<Heart class="h-4 w-4 {showFavouritedOnly ? 'fill-current' : ''}" />
-                        {t('wantToVisit.favourited')}
+						{t('wantToVisit.favourited')}
 					</button>
 				</div>
 			</div>
@@ -1526,10 +1527,10 @@
 				<Search
 					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
 				/>
-                <input
+				<input
 					type="text"
 					bind:value={searchQuery}
-					placeholder="{t('wantToVisit.searchTitlesPlaceholder')}"
+					placeholder={t('wantToVisit.searchTitlesPlaceholder')}
 					class="w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 			</div>
@@ -1537,16 +1538,19 @@
 
 		<!-- Results Count -->
 		<div class="flex items-center justify-between">
-            <div class="text-sm text-gray-500 dark:text-gray-400">
-                {t('wantToVisit.showingPlacesOf', { filtered: filteredPlaces.length.toLocaleString(), total: places.length.toLocaleString() })}
+			<div class="text-sm text-gray-500 dark:text-gray-400">
+				{t('wantToVisit.showingPlacesOf', {
+					filtered: filteredPlaces.length.toLocaleString(),
+					total: places.length.toLocaleString()
+				})}
 			</div>
 			{#if searchQuery || selectedTypes.length > 1 || showFavouritedOnly}
-                <button
-                    onclick={clearFilters}
+				<button
+					onclick={clearFilters}
 					class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
 				>
 					<X class="h-3 w-3" />
-{t('wantToVisit.clearFilters')}
+					{t('wantToVisit.clearFilters')}
 				</button>
 			{/if}
 		</div>
@@ -1556,27 +1560,29 @@
 	{#if isLoading}
 		<div class="py-12 text-center">
 			<div class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-            <p class="mt-4 text-gray-500 dark:text-gray-400">{t('wantToVisit.loadingPlaces')}</p>
+			<p class="mt-4 text-gray-500 dark:text-gray-400">{t('wantToVisit.loadingPlaces')}</p>
 		</div>
 	{:else if filteredPlaces.length === 0}
 		<div class="py-12 text-center">
 			<Globe2 class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">{t('wantToVisit.noPlacesFound')}</h3>
+			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+				{t('wantToVisit.noPlacesFound')}
+			</h3>
 			<p class="text-gray-500 dark:text-gray-400">
-                {searchQuery || selectedTypes.length > 1
-                    ? t('wantToVisit.tryAdjustingFilters')
-                    : t('wantToVisit.addFirstPlace')}
+				{searchQuery || selectedTypes.length > 1
+					? t('wantToVisit.tryAdjustingFilters')
+					: t('wantToVisit.addFirstPlace')}
 			</p>
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each filteredPlaces as place}
+			{#each filteredPlaces as place (place.id)}
 				<div
 					class="group relative rounded-xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
 				>
 					<!-- Favorite Button -->
-                    <button
-                        onclick={() => toggleFavorite(place)}
+					<button
+						onclick={() => toggleFavorite(place)}
 						class="absolute top-4 right-4 rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 					>
 						<Heart class="h-5 w-5 {place.favorite ? 'fill-red-500 text-red-500' : ''}" />
@@ -1602,7 +1608,7 @@
 						<!-- Labels -->
 						{#if place.labels && place.labels.length > 0}
 							<div class="mt-2 flex flex-wrap gap-1">
-								{#each place.labels as label}
+								{#each place.labels as label (label)}
 									<span
 										class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs text-blue-700 dark:bg-blue-900/40 dark:text-blue-200"
 									>
@@ -1629,24 +1635,24 @@
 
 					<!-- Action Buttons -->
 					<div class="flex gap-2">
-                        <button
-                            onclick={() => {
+						<button
+							onclick={() => {
 								const [lat, lng] = place.coordinates.split(',').map(Number);
 								map.setView([lat, lng], 15);
 							}}
 							class="flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20"
 						>
 							<MapPin class="h-4 w-4" />
-                            {t('wantToVisit.showOnMap')}
+							{t('wantToVisit.showOnMap')}
 						</button>
-                        <button
-                            onclick={() => editPlace(place)}
+						<button
+							onclick={() => editPlace(place)}
 							class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20"
 						>
 							<Edit class="h-4 w-4" />
 						</button>
-                        <button
-                            onclick={() => deletePlace(place.id)}
+						<button
+							onclick={() => deletePlace(place.id)}
 							class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 						>
 							<Trash2 class="h-4 w-4" />

@@ -1,9 +1,10 @@
 // src/lib/services/api/two-factor-api.service.ts
 // Two-Factor Authentication API Service for handling 2FA-related API operations
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler, ErrorCode } from '../error-handler.service';
 import { TOTPService } from '../totp.service';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface TwoFactorApiServiceConfig {
 	supabase: SupabaseClient;
@@ -62,7 +63,11 @@ export class TwoFactorApiService {
 	/**
 	 * Setup 2FA for a user
 	 */
-	async setup2FA(userId: string, userEmail: string, request: Setup2FARequest): Promise<Setup2FAResult> {
+	async setup2FA(
+		userId: string,
+		userEmail: string,
+		request: Setup2FARequest
+	): Promise<Setup2FAResult> {
 		try {
 			const { password } = request;
 
@@ -146,16 +151,16 @@ export class TwoFactorApiService {
 
 			// Validate token
 			if (!token) {
-				throw errorHandler.createError(
-					ErrorCode.MISSING_REQUIRED_FIELD,
-					'Token is required',
-					400,
-					{ field: 'token' }
-				);
+				throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Token is required', 400, {
+					field: 'token'
+				});
 			}
 
 			// Get user to access TOTP secret
-			const { data: { user }, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+			const {
+				data: { user },
+				error: userError
+			} = await this.supabase.auth.admin.getUserById(userId);
 			if (userError || !user) {
 				throw errorHandler.createError(
 					ErrorCode.RECORD_NOT_FOUND,
@@ -179,12 +184,9 @@ export class TwoFactorApiService {
 			// Verify the token
 			const isValid = await TOTPService.verifyTOTPToken(totpSecret, token);
 			if (!isValid) {
-				throw errorHandler.createError(
-					ErrorCode.INVALID_CREDENTIALS,
-					'Invalid 2FA token',
-					401,
-					{ userId }
-				);
+				throw errorHandler.createError(ErrorCode.INVALID_CREDENTIALS, 'Invalid 2FA token', 401, {
+					userId
+				});
 			}
 
 			// Mark 2FA as enabled in user metadata
@@ -226,7 +228,10 @@ export class TwoFactorApiService {
 	/**
 	 * Verify recovery code
 	 */
-	async verifyRecoveryCode(userId: string, request: RecoveryCodeRequest): Promise<RecoveryCodeResult> {
+	async verifyRecoveryCode(
+		userId: string,
+		request: RecoveryCodeRequest
+	): Promise<RecoveryCodeResult> {
 		try {
 			const { recoveryCode } = request;
 
@@ -241,7 +246,10 @@ export class TwoFactorApiService {
 			}
 
 			// Get user to access recovery codes
-			const { data: { user }, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+			const {
+				data: { user },
+				error: userError
+			} = await this.supabase.auth.admin.getUserById(userId);
 			if (userError || !user) {
 				throw errorHandler.createError(
 					ErrorCode.RECORD_NOT_FOUND,
@@ -312,7 +320,11 @@ export class TwoFactorApiService {
 	/**
 	 * Disable 2FA for a user
 	 */
-	async disable2FA(userId: string, userEmail: string, request: Disable2FARequest): Promise<Disable2FAResult> {
+	async disable2FA(
+		userId: string,
+		userEmail: string,
+		request: Disable2FARequest
+	): Promise<Disable2FAResult> {
 		try {
 			const { password } = request;
 
@@ -342,7 +354,10 @@ export class TwoFactorApiService {
 			}
 
 			// Get user to access current metadata
-			const { data: { user }, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+			const {
+				data: { user },
+				error: userError
+			} = await this.supabase.auth.admin.getUserById(userId);
 			if (userError || !user) {
 				throw errorHandler.createError(
 					ErrorCode.RECORD_NOT_FOUND,
@@ -397,7 +412,10 @@ export class TwoFactorApiService {
 	async check2FAStatus(userId: string): Promise<Check2FAResult> {
 		try {
 			// Get user to check 2FA status
-			const { data: { user }, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+			const {
+				data: { user },
+				error: userError
+			} = await this.supabase.auth.admin.getUserById(userId);
 			if (userError || !user) {
 				throw errorHandler.createError(
 					ErrorCode.RECORD_NOT_FOUND,
@@ -409,7 +427,9 @@ export class TwoFactorApiService {
 			}
 
 			const enabled = !!user.user_metadata?.totp_enabled;
-			const requiresVerification = !!(user.user_metadata?.totp_secret && !user.user_metadata?.totp_setup_completed);
+			const requiresVerification = !!(
+				user.user_metadata?.totp_secret && !user.user_metadata?.totp_setup_completed
+			);
 
 			return {
 				enabled,
@@ -450,12 +470,9 @@ export class TwoFactorApiService {
 		const { token } = request;
 
 		if (!token) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'Token is required',
-				400,
-				{ field: 'token' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Token is required', 400, {
+				field: 'token'
+			});
 		}
 	}
 

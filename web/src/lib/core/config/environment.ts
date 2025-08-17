@@ -8,8 +8,8 @@
  * @returns {{ endpoint: string; rateLimit: number }}
  */
 export function getNominatimConfig() {
-  return {
-    endpoint: 'https://nominatim.wayli.app',
-    rateLimit: 1 // 1 request per second
-  };
+	return {
+		endpoint: 'https://nominatim.wayli.app',
+		rateLimit: 1 // 1 request per second
+	};
 }

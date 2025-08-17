@@ -151,9 +151,9 @@ export class TripLocationsService {
 			const locationData = locationObj.location as { coordinates?: number[] } | null;
 			const coordinates = locationData?.coordinates
 				? {
-					lat: locationData.coordinates[1] || 0,
-					lng: locationData.coordinates[0] || 0
-				}
+						lat: locationData.coordinates[1] || 0,
+						lng: locationData.coordinates[0] || 0
+					}
 				: { lat: 0, lng: 0 };
 
 			let transportMode = 'unknown';
@@ -181,8 +181,10 @@ export class TripLocationsService {
 				accuracy: locationObj.accuracy !== undefined ? Number(locationObj.accuracy) : undefined,
 				speed: locationObj.speed !== undefined ? Number(locationObj.speed) : undefined,
 				heading: locationObj.heading !== undefined ? Number(locationObj.heading) : undefined,
-				battery_level: locationObj.battery_level !== undefined ? Number(locationObj.battery_level) : undefined,
-				is_charging: locationObj.is_charging !== undefined ? Boolean(locationObj.is_charging) : undefined,
+				battery_level:
+					locationObj.battery_level !== undefined ? Number(locationObj.battery_level) : undefined,
+				is_charging:
+					locationObj.is_charging !== undefined ? Boolean(locationObj.is_charging) : undefined,
 				activity_type: locationObj.activity_type ? String(locationObj.activity_type) : undefined,
 				raw_data: locationObj.raw_data as Record<string, unknown> | undefined,
 				geocode: geocode || undefined,

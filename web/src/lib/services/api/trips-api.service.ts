@@ -1,10 +1,12 @@
 // src/lib/services/api/trips-api.service.ts
 // Trips API Service for handling trip-related API operations
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+
 import { errorHandler, ErrorCode } from '../error-handler.service';
 import { getTripsService } from '../service-layer-adapter';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Validation schemas
 const createTripSchema = z.object({
@@ -13,7 +15,7 @@ const createTripSchema = z.object({
 	start_date: z.string().min(1, 'Start date is required'),
 	end_date: z.string().min(1, 'End date is required'),
 	labels: z.array(z.string()).optional(),
-	metadata: z.record(z.unknown()).optional(),
+	metadata: z.record(z.string(), z.unknown()).optional(),
 	image_url: z.string().optional()
 });
 
@@ -24,13 +26,17 @@ const updateTripSchema = z.object({
 	start_date: z.string().min(1, 'Start date is required'),
 	end_date: z.string().min(1, 'End date is required'),
 	labels: z.array(z.string()).optional(),
-	metadata: z.record(z.unknown()).optional(),
+	metadata: z.record(z.string(), z.unknown()).optional(),
 	image_url: z.string().optional()
 });
 
 const tripQuerySchema = z.object({
 	page: z.coerce.number().min(1, 'Page must be at least 1').default(1),
-	limit: z.coerce.number().min(1, 'Limit must be at least 1').max(100, 'Limit too high').default(10),
+	limit: z.coerce
+		.number()
+		.min(1, 'Limit must be at least 1')
+		.max(100, 'Limit too high')
+		.default(10),
 	search: z.string().optional(),
 	status: z.enum(['approved', 'pending', 'rejected']).optional(),
 	start_date: z.string().optional(),
@@ -184,12 +190,9 @@ export class TripsApiService {
 	 */
 	async getTripById(tripId: string, userId: string): Promise<Trip> {
 		if (!tripId) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'Trip ID is required',
-				400,
-				{ field: 'tripId' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Trip ID is required', 400, {
+				field: 'tripId'
+			});
 		}
 
 		const { data: trip, error } = await this.supabase
@@ -201,20 +204,15 @@ export class TripsApiService {
 
 		if (error) {
 			if (error.code === 'PGRST116') {
-				throw errorHandler.createError(
-					ErrorCode.RECORD_NOT_FOUND,
-					'Trip not found',
-					404,
-					{ tripId, userId }
-				);
+				throw errorHandler.createError(ErrorCode.RECORD_NOT_FOUND, 'Trip not found', 404, {
+					tripId,
+					userId
+				});
 			}
-			throw errorHandler.createError(
-				ErrorCode.DATABASE_ERROR,
-				'Failed to fetch trip',
-				500,
-				error,
-				{ tripId, userId }
-			);
+			throw errorHandler.createError(ErrorCode.DATABASE_ERROR, 'Failed to fetch trip', 500, error, {
+				tripId,
+				userId
+			});
 		}
 
 		return trip as Trip;
@@ -289,12 +287,9 @@ export class TripsApiService {
 	 */
 	async deleteTrip(tripId: string, userId: string): Promise<{ message: string }> {
 		if (!tripId) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'Trip ID is required',
-				400,
-				{ field: 'tripId' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Trip ID is required', 400, {
+				field: 'tripId'
+			});
 		}
 
 		// Check if trip exists and user has access
@@ -375,12 +370,10 @@ export class TripsApiService {
 		const end = new Date(endDate);
 
 		if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-			throw errorHandler.createError(
-				ErrorCode.VALIDATION_ERROR,
-				'Invalid date format',
-				400,
-				{ startDate, endDate }
-			);
+			throw errorHandler.createError(ErrorCode.VALIDATION_ERROR, 'Invalid date format', 400, {
+				startDate,
+				endDate
+			});
 		}
 
 		if (end < start) {

@@ -3,7 +3,6 @@ import { createAuthenticatedClient } from '../_shared/supabase.ts';
 import { logError } from '../_shared/utils.ts';
 
 const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.wayli.app';
-const NOMINATIM_RATE_LIMIT = parseInt(Deno.env.get('NOMINATIM_RATE_LIMIT') || '1000');
 
 Deno.serve(async (req) => {
 	// Handle CORS
@@ -14,13 +13,16 @@ Deno.serve(async (req) => {
 		// Get auth token
 		const authHeader = req.headers.get('Authorization');
 		if (!authHeader) {
-			return new Response(JSON.stringify({
-				success: false,
-				error: 'No authorization header'
-			}), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({
+					success: false,
+					error: 'No authorization header'
+				}),
+				{
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				}
+			);
 		}
 
 		const token = authHeader.replace('Bearer ', '');
@@ -32,13 +34,16 @@ Deno.serve(async (req) => {
 			error: authError
 		} = await supabase.auth.getUser();
 		if (authError || !user) {
-			return new Response(JSON.stringify({
-				success: false,
-				error: 'Invalid token'
-			}), {
-				status: 401,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({
+					success: false,
+					error: 'Invalid token'
+				}),
+				{
+					status: 401,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				}
+			);
 		}
 
 		// Get query parameters
@@ -47,13 +52,16 @@ Deno.serve(async (req) => {
 		const limit = url.searchParams.get('limit') || '10';
 
 		if (!query) {
-			return new Response(JSON.stringify({
-				success: false,
-				error: 'Query parameter "q" is required'
-			}), {
-				status: 400,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({
+					success: false,
+					error: 'Query parameter "q" is required'
+				}),
+				{
+					status: 400,
+					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+				}
+			);
 		}
 
 		// Call Nominatim API
@@ -95,20 +103,26 @@ Deno.serve(async (req) => {
 		}));
 
 		// Return in the expected Edge Function response format
-		return new Response(JSON.stringify({
-			success: true,
-			data: transformedResults
-		}), {
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		return new Response(
+			JSON.stringify({
+				success: true,
+				data: transformedResults
+			}),
+			{
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			}
+		);
 	} catch (error) {
 		logError(error, 'GEOCODE_SEARCH');
-		return new Response(JSON.stringify({
-			success: false,
-			error: 'Internal server error'
-		}), {
-			status: 500,
-			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-		});
+		return new Response(
+			JSON.stringify({
+				success: false,
+				error: 'Internal server error'
+			}),
+			{
+				status: 500,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			}
+		);
 	}
 });

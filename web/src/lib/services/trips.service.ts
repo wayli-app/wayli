@@ -32,7 +32,9 @@ export class TripsService {
 	}
 
 	private async getCurrentUserId(): Promise<string> {
-		const { data: { session } } = await this.supabase.auth.getSession();
+		const {
+			data: { session }
+		} = await this.supabase.auth.getSession();
 		if (!session?.user?.id) {
 			throw new Error('User not authenticated');
 		}
@@ -41,13 +43,15 @@ export class TripsService {
 
 	private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
 		const R = 6371; // Earth's radius in kilometers
-		const dLat = (lat2 - lat1) * Math.PI / 180;
-		const dLon = (lon2 - lon1) * Math.PI / 180;
+		const dLat = ((lat2 - lat1) * Math.PI) / 180;
+		const dLon = ((lon2 - lon1) * Math.PI) / 180;
 		const a =
-			Math.sin(dLat/2) * Math.sin(dLat/2) +
-			Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-			Math.sin(dLon/2) * Math.sin(dLon/2);
-		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+			Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+			Math.cos((lat1 * Math.PI) / 180) *
+				Math.cos((lat2 * Math.PI) / 180) *
+				Math.sin(dLon / 2) *
+				Math.sin(dLon / 2);
+		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 		return R * c;
 	}
 
@@ -56,7 +60,10 @@ export class TripsService {
 			// Get current user if userId is not provided
 			let currentUserId = userId;
 			if (!currentUserId) {
-				const { data: { user }, error: userError } = await this.supabase.auth.getUser();
+				const {
+					data: { user },
+					error: userError
+				} = await this.supabase.auth.getUser();
 				if (userError || !user) {
 					throw new Error('User not authenticated');
 				}
@@ -128,7 +135,7 @@ export class TripsService {
 			const { id, ...updateData } = tripData;
 			const updatePayload = {
 				...updateData,
-				metadata: updateData.metadata ?? {},
+				metadata: updateData.metadata ?? {}
 			};
 			const { data: trip, error } = await this.supabase
 				.from('trips')
@@ -202,7 +209,10 @@ export class TripsService {
 					.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
 				if (!error && data) {
 					// Sum up all distances, treating null/undefined as 0
-					distanceTraveled = data.reduce((sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0), 0);
+					distanceTraveled = data.reduce(
+						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						0
+					);
 				}
 			}
 			// Update the trip's metadata.distance_traveled

@@ -1,9 +1,8 @@
 <!-- src/lib/components/ui/language-selector/index.svelte -->
 <script lang="ts">
-	import { currentLocale, changeLocale, type SupportedLocale, SUPPORTED_LOCALES } from '$lib/i18n';
-	import { translate } from '$lib/i18n';
 	import { ChevronDown } from 'lucide-svelte';
-	import { createEventDispatcher } from 'svelte';
+
+	import { currentLocale, changeLocale, type SupportedLocale } from '$lib/i18n';
 
 	// Props
 	interface Props {
@@ -11,25 +10,20 @@
 		variant?: 'default' | 'minimal' | 'button';
 		showLabel?: boolean;
 		position?: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
+		onChange?: (data: { locale: SupportedLocale }) => void;
 	}
 
 	let {
 		size = 'md',
 		variant = 'default',
 		showLabel = true,
-		position = 'bottom-left'
+		position = 'bottom-left',
+		onChange
 	}: Props = $props();
-
-	// Use the reactive translation function
-	let t = $derived($translate);
 
 	// Dropdown state
 	let isOpen = $state(false);
 	let dropdownElement: HTMLDivElement | undefined;
-
-	const dispatch = createEventDispatcher<{
-		change: { locale: SupportedLocale };
-	}>();
 
 	// Language configuration with flags and names
 	const languages = [
@@ -47,14 +41,16 @@
 
 	// Get current language info
 	let currentLanguage = $derived(
-		languages.find(lang => lang.code === $currentLocale) || languages[0]
+		languages.find((lang) => lang.code === $currentLocale) || languages[0]
 	);
 
 	// Handle language change
 	async function handleLanguageChange(locale: SupportedLocale) {
 		try {
 			await changeLocale(locale);
-			dispatch('change', { locale });
+			if (onChange) {
+				onChange({ locale });
+			}
 			isOpen = false;
 		} catch (error) {
 			console.error('❌ [LanguageSelector] Failed to change language:', error);
@@ -84,7 +80,8 @@
 
 	// Variant classes
 	const variantClasses = {
-		default: 'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
+		default:
+			'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
 		minimal: 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800',
 		button: 'bg-blue-500 hover:bg-blue-600 text-white border-0'
 	};
@@ -105,7 +102,11 @@
 	<button
 		type="button"
 		onclick={() => (isOpen = !isOpen)}
-		class="flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 {sizeClasses[size]} {variantClasses[variant]} {variant === 'button' ? 'text-white' : 'text-gray-700 dark:text-gray-200'}"
+		class="flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none {sizeClasses[
+			size
+		]} {variantClasses[variant]} {variant === 'button'
+			? 'text-white'
+			: 'text-gray-700 dark:text-gray-200'}"
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 		aria-label="Select language"
@@ -120,23 +121,31 @@
 
 		<!-- Chevron -->
 		<ChevronDown
-			class="h-4 w-4 transition-transform duration-200 {isOpen ? 'rotate-180' : ''} {variant === 'button' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}"
+			class="h-4 w-4 transition-transform duration-200 {isOpen ? 'rotate-180' : ''} {variant ===
+			'button'
+				? 'text-white'
+				: 'text-gray-500 dark:text-gray-400'}"
 		/>
 	</button>
 
 	<!-- Dropdown Menu -->
 	{#if isOpen}
 		<div
-			class="absolute z-50 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 {positionClasses[position]}"
+			class="absolute z-50 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 {positionClasses[
+				position
+			]}"
 			role="listbox"
 			aria-label="Language options"
 		>
 			<div class="py-1">
-				{#each languages as language}
+				{#each languages as language (language.code)}
 					<button
 						type="button"
 						onclick={() => handleLanguageChange(language.code)}
-						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 {language.code === $currentLocale ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}"
+						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 {language.code ===
+						$currentLocale
+							? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
+							: 'text-gray-700 dark:text-gray-200'}"
 						role="option"
 						aria-selected={language.code === $currentLocale}
 					>

@@ -1,26 +1,17 @@
 <script lang="ts">
-	import {
-		User,
-		Globe,
-		Shield,
-		Trash2,
-		Info,
-		Lock,
-		MapPin,
-		Plus,
-		Pencil
-	} from 'lucide-svelte';
-	import { supabase } from '$lib/supabase';
-	import { toast } from 'svelte-sonner';
+	import { User, Globe, Shield, Trash2, Info, Lock, MapPin, Plus, Pencil } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
-	import { sessionStore } from '$lib/stores/auth';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
+	import { toast } from 'svelte-sonner';
+
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
-	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
-    import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
+	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+	import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { sessionStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
+
+	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -39,13 +30,11 @@
 	let firstNameInput = $state('');
 	let lastNameInput = $state('');
 
-	// Timezone input hidden - using automatic timezone detection based on location
-	let timezoneInput = $state('UTC+00:00 (London, Dublin)'); // Default value, not used in UI
 	let pexelsApiKeyInput = $state('');
 	let serverPexelsApiKeyAvailable = $state(false);
 	let error = $state<string | null>(null);
-    let homeAddressInput = $state('');
-    let homeAddressInputElement: HTMLInputElement | undefined = $state(undefined);
+	let homeAddressInput = $state('');
+	let homeAddressInputElement: HTMLInputElement | undefined = $state(undefined);
 	let isHomeAddressSearching = $state(false);
 	let homeAddressSuggestions = $state<any[]>([]);
 	let showHomeAddressSuggestions = $state(false);
@@ -55,129 +44,48 @@
 	let homeAddressSearchError = $state<string | null>(null);
 
 	// Trip exclusions state
-    let tripExclusions: any[] = $state([]);
-    let showAddExclusionModal = $state(false);
-    let showEditExclusionModal = $state(false);
-    let newExclusion = $state({
+	let tripExclusions: any[] = $state([]);
+	let showAddExclusionModal = $state(false);
+	let showEditExclusionModal = $state(false);
+	let newExclusion = $state({
 		name: '',
 		location: null as any
-    });
-    let editingExclusion = $state({
+	});
+	let editingExclusion = $state({
 		id: '',
 		name: '',
 		location: null as any
-    });
-    let isAddingExclusion = $state(false);
-    let isEditingExclusion = $state(false);
-    let isDeletingExclusion = $state(false);
+	});
+	let isAddingExclusion = $state(false);
+	let isEditingExclusion = $state(false);
+	let isDeletingExclusion = $state(false);
 
 	// Trip exclusion address search state
-    let exclusionAddressInput = $state('');
-    let exclusionAddressInputElement: HTMLInputElement | undefined = $state(undefined);
-    let isExclusionAddressSearching = $state(false);
-    let exclusionAddressSuggestions: any[] = $state([]);
-    let showExclusionAddressSuggestions = $state(false);
-    let selectedExclusionAddress: any | null = $state(null);
-    let selectedExclusionAddressIndex = $state(-1);
+	let exclusionAddressInput = $state('');
+	let exclusionAddressInputElement: HTMLInputElement | undefined = $state(undefined);
+	let isExclusionAddressSearching = $state(false);
+	let exclusionAddressSuggestions: any[] = $state([]);
+	let showExclusionAddressSuggestions = $state(false);
+	let selectedExclusionAddress: any | null = $state(null);
+	let selectedExclusionAddressIndex = $state(-1);
 	let exclusionAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
-    let exclusionAddressSearchError: string | null = $state(null);
+	let exclusionAddressSearchError: string | null = $state(null);
 
 	// Edit exclusion address search state
-    let editExclusionAddressInput = $state('');
-    let editExclusionAddressInputElement: HTMLInputElement | undefined = $state(undefined);
-    let isEditExclusionAddressSearching = $state(false);
-    let editExclusionAddressSuggestions: any[] = $state([]);
-    let showEditExclusionAddressSuggestions = $state(false);
-    let selectedEditExclusionAddress: any | null = $state(null);
-    let selectedEditExclusionAddressIndex = $state(-1);
+	let editExclusionAddressInput = $state('');
+	let editExclusionAddressInputElement: HTMLInputElement | undefined = $state(undefined);
+	let isEditExclusionAddressSearching = $state(false);
+	let editExclusionAddressSuggestions: any[] = $state([]);
+	let showEditExclusionAddressSuggestions = $state(false);
+	let selectedEditExclusionAddress: any | null = $state(null);
+	let selectedEditExclusionAddressIndex = $state(-1);
 	let editExclusionAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
-    let editExclusionAddressSearchError: string | null = $state(null);
+	let editExclusionAddressSearchError: string | null = $state(null);
 
 	// Language selector handler
 	function handleLanguageChange(event: CustomEvent<{ locale: SupportedLocale }>) {
 		if (preferences) {
 			preferences.language = event.detail.locale;
-		}
-	}
-	const timezones = [
-		'UTC-12:00 (International Date Line West)',
-		'UTC-11:00 (Samoa)',
-		'UTC-10:00 (Hawaii)',
-		'UTC-09:00 (Alaska)',
-		'UTC-08:00 (Pacific Time)',
-		'UTC-07:00 (Mountain Time)',
-		'UTC-06:00 (Central Time)',
-		'UTC-05:00 (Eastern Time)',
-		'UTC-04:00 (Atlantic Time)',
-		'UTC-03:00 (Brasilia)',
-		'UTC-02:00 (Mid-Atlantic)',
-		'UTC-01:00 (Azores)',
-		'UTC+00:00 (London, Dublin)',
-		'UTC+01:00 (Paris, Berlin)',
-		'UTC+02:00 (Eastern Europe)',
-		'UTC+03:00 (Moscow)',
-		'UTC+04:00 (Gulf)',
-		'UTC+05:00 (Pakistan)',
-		'UTC+06:00 (Bangladesh)',
-		'UTC+07:00 (Bangkok)',
-		'UTC+08:00 (Beijing)',
-		'UTC+09:00 (Tokyo)',
-		'UTC+10:00 (Sydney)',
-		'UTC+11:00 (Solomon Islands)',
-		'UTC+12:00 (Auckland, Fiji)',
-		'UTC+13:00 (Samoa, Tonga)'
-	];
-
-	async function testRealAccessToken() {
-		try {
-			// Get the current session
-			const { data: { session } } = await supabase.auth.getSession();
-			if (!session?.access_token) {
-				console.error('❌ [AccountSettings] No access token found in session');
-				return;
-			}
-
-			const serviceAdapter = new ServiceAdapter({ session });
-			const profile = await serviceAdapter.getProfile();
-
-			if (profile) {
-
-			} else {
-				console.error('❌ [AccountSettings] Real token test failed: No profile returned');
-			}
-		} catch (error) {
-			console.error('❌ [AccountSettings] Real token test failed:', error);
-		}
-	}
-
-	async function testAvailableTokens() {
-		try {
-			// Check localStorage
-			const supabaseKey = localStorage.getItem('sb-wayli-auth-token');
-			if (supabaseKey) {
-				try {
-					const tokenData = JSON.parse(supabaseKey);
-					if (tokenData && tokenData.access_token) {
-
-						return;
-					}
-				} catch (e) {
-					console.error('❌ [AccountSettings] Invalid token data in localStorage');
-				}
-			}
-
-			// Check cookies
-			const authCookies = document.cookie.split(';').filter(cookie =>
-				cookie.trim().startsWith('sb-') || cookie.trim().startsWith('auth')
-			);
-
-			if (authCookies.length > 0) {
-
-			} else {
-				console.error('❌ [AccountSettings] No auth cookies found');
-			}
-		} catch (error) {
-			console.error('❌ [AccountSettings] Token test failed:', error);
 		}
 	}
 
@@ -218,7 +126,11 @@
 			}
 
 			// Handle preferences data - Edge Functions return { success: true, data: ... }
-			if (preferencesResult && typeof preferencesResult === 'object' && preferencesResult !== null) {
+			if (
+				preferencesResult &&
+				typeof preferencesResult === 'object' &&
+				preferencesResult !== null
+			) {
 				const preferencesData = (preferencesResult as any).data || preferencesResult;
 				preferences = preferencesData as UserPreferences;
 				// timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)'; // Timezone selection hidden
@@ -233,7 +145,7 @@
 			// Check 2FA status using the auth-check-2fa endpoint
 			try {
 				console.log('🔍 [AccountSettings] Checking 2FA status...');
-				const twoFactorResult = await serviceAdapter.check2FA() as any;
+				const twoFactorResult = (await serviceAdapter.check2FA()) as any;
 				console.log('📡 [AccountSettings] 2FA check result:', twoFactorResult);
 
 				if (twoFactorResult && typeof twoFactorResult === 'object') {
@@ -249,7 +161,6 @@
 				console.error('❌ [AccountSettings] Error checking 2FA status:', error);
 				twoFactorEnabled = false;
 			}
-
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error loading user data:', error);
 		}
@@ -266,7 +177,7 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.getTripExclusions() as any;
+			const result = (await serviceAdapter.getTripExclusions()) as any;
 
 			// Edge Functions return { success: true, data: ... }
 			const exclusionsData = result.data || result;
@@ -288,10 +199,10 @@
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.createTripExclusion({
+			const result = (await serviceAdapter.createTripExclusion({
 				name: newExclusion.name,
 				location: newExclusion.location
-			}) as any;
+			})) as any;
 
 			// Edge Functions return { success: true, data: ... }
 			const exclusionData = result.data || result;
@@ -347,8 +258,6 @@
 			profile.last_name = lastNameInput.trim();
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
-
-
 			// Update profile using service adapter
 			await serviceAdapter.updateProfile({
 				first_name: profile.first_name,
@@ -391,10 +300,10 @@
 				pexels_api_key: preferences.pexels_api_key
 			});
 
-            // Only adjust client locale if it differs from the just-saved preference
-            if (preferences.language && preferences.language !== $currentLocale) {
-                await changeLocale(preferences.language as SupportedLocale);
-            }
+			// Only adjust client locale if it differs from the just-saved preference
+			if (preferences.language && preferences.language !== $currentLocale) {
+				await changeLocale(preferences.language as SupportedLocale);
+			}
 
 			toast.success('Preferences updated successfully!');
 		} catch (error) {
@@ -425,7 +334,9 @@
 		}
 		isUpdatingPassword = true;
 		try {
-			const { data: { session } } = await supabase.auth.getSession();
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
 			if (!session) throw new Error('No session found');
 			const serviceAdapter = new ServiceAdapter({ session });
 			await serviceAdapter.updatePassword(newPassword);
@@ -433,7 +344,7 @@
 			currentPassword = '';
 			newPassword = '';
 			confirmPassword = '';
-		} catch (error) {
+		} catch {
 			toast.error('Failed to update password. Please try again.');
 		} finally {
 			isUpdatingPassword = false;
@@ -521,7 +432,7 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.searchGeocode(homeAddressInput) as any;
+			const result = (await serviceAdapter.searchGeocode(homeAddressInput)) as any;
 
 			// The Edge Functions service returns the data array directly
 			homeAddressSuggestions = Array.isArray(result) ? result : [];
@@ -605,7 +516,7 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.searchGeocode(exclusionAddressInput.trim()) as any;
+			const data = (await serviceAdapter.searchGeocode(exclusionAddressInput.trim())) as any;
 
 			// The Edge Functions service returns the data array directly
 			if (Array.isArray(data)) {
@@ -668,11 +579,11 @@
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.updateTripExclusion({
+			const result = (await serviceAdapter.updateTripExclusion({
 				id: editingExclusion.id,
 				name: editingExclusion.name,
 				location: editingExclusion.location
-			}) as any;
+			})) as any;
 
 			if (result.success) {
 				// Update the exclusion in the local array
@@ -764,7 +675,7 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.searchGeocode(editExclusionAddressInput.trim()) as any;
+			const data = (await serviceAdapter.searchGeocode(editExclusionAddressInput.trim())) as any;
 
 			// The Edge Functions service returns the data array directly
 			if (Array.isArray(data)) {
@@ -802,13 +713,6 @@
 		showEditExclusionAddressSuggestions = false;
 		selectedEditExclusionAddressIndex = -1;
 	}
-
-	function handleModalKeydown(e: KeyboardEvent) {
-					if (e.key === 'Enter') {
-			showAddExclusionModal = false;
-			showEditExclusionModal = false;
-		}
-	}
 </script>
 
 <div>
@@ -835,9 +739,15 @@
 			class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
 		>
 			<div class="mb-6">
-                                <div class="flex items-center gap-2" role="group" aria-labelledby="preferred-language-label">
+				<div
+					class="flex items-center gap-2"
+					role="group"
+					aria-labelledby="preferred-language-label"
+				>
 					<User class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('accountSettings.profile')}</h2>
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						{t('accountSettings.profile')}
+					</h2>
 				</div>
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
 					{t('accountSettings.profileDescription')}
@@ -877,8 +787,8 @@
 							type="text"
 							bind:value={homeAddressInput}
 							bind:this={homeAddressInputElement}
-						oninput={handleHomeAddressInput}
-						onkeydown={handleHomeAddressKeydown}
+							oninput={handleHomeAddressInput}
+							onkeydown={handleHomeAddressKeydown}
 							placeholder={t('accountSettings.startTypingHomeAddress')}
 							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
@@ -894,7 +804,7 @@
 						<div
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-[rgb(218,218,221)] bg-white shadow-lg dark:border-[#3f3f46] dark:bg-[#23232a]"
 						>
-							{#each homeAddressSuggestions as suggestion, index}
+							{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
 									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-[#2d2d35] dark:focus:bg-[#2d2d35] {selectedHomeAddressIndex ===
@@ -998,7 +908,9 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Lock class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('accountSettings.security')}</h2>
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						{t('accountSettings.security')}
+					</h2>
 				</div>
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
 					{t('accountSettings.securityDescription')}
@@ -1055,7 +967,9 @@
 					onclick={handleUpdatePassword}
 					disabled={isUpdatingPassword}
 				>
-					{isUpdatingPassword ? t('accountSettings.updatingPassword') : t('accountSettings.updatePassword')}
+					{isUpdatingPassword
+						? t('accountSettings.updatingPassword')
+						: t('accountSettings.updatePassword')}
 				</button>
 
 				<!-- Two-Factor Authentication Section -->
@@ -1112,7 +1026,9 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Globe class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('accountSettings.preferences')}</h2>
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						{t('accountSettings.preferences')}
+					</h2>
 				</div>
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
 					Configure your language, units, and display preferences
@@ -1120,19 +1036,18 @@
 			</div>
 
 			<div class="grid gap-6 md:grid-cols-2">
-                <div>
-                    <span
-                        class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
-                        id="preferred-language-label"
-                        >{t('accountSettings.preferredLanguage')}</span
-                    >
-                    <div class="flex items-center" role="group" aria-labelledby="preferred-language-label">
-                        <LanguageSelector
+				<div>
+					<span
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						id="preferred-language-label">{t('accountSettings.preferredLanguage')}</span
+					>
+					<div class="flex items-center" role="group" aria-labelledby="preferred-language-label">
+						<LanguageSelector
 							variant="default"
 							size="md"
 							showLabel={true}
 							position="bottom-left"
-                            on:change={handleLanguageChange}
+							on:change={handleLanguageChange}
 						/>
 					</div>
 				</div>
@@ -1170,8 +1085,9 @@
 								Trip Image Suggestions
 							</h3>
 							<p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
-								Configure a Pexels API key to get better quality trip image suggestions based on your
-								travel destinations. Without an API key, the system will use fallback image services.
+								Configure a Pexels API key to get better quality trip image suggestions based on
+								your travel destinations. Without an API key, the system will use fallback image
+								services.
 								<a
 									href="https://www.pexels.com/api/"
 									target="_blank"
@@ -1210,7 +1126,9 @@
 				onclick={handleSavePreferences}
 				disabled={isUpdatingPreferences}
 			>
-				{isUpdatingPreferences ? t('accountSettings.savingPreferences') : t('accountSettings.savePreferences')}
+				{isUpdatingPreferences
+					? t('accountSettings.savingPreferences')
+					: t('accountSettings.savePreferences')}
 			</button>
 		</div>
 
@@ -1221,17 +1139,19 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<MapPin class="h-5 w-5 text-gray-400" />
-                    <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('accountSettings.tripExclusions')}</h2>
+					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						{t('accountSettings.tripExclusions')}
+					</h2>
 				</div>
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
-                    {t('accountSettings.tripExclusionsDescription')}
+					{t('accountSettings.tripExclusionsDescription')}
 				</p>
 			</div>
 
 			<div class="space-y-4">
 				{#if tripExclusions.length > 0}
 					<div class="space-y-3">
-						{#each tripExclusions as exclusion}
+						{#each tripExclusions as exclusion (exclusion.id)}
 							<div
 								class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
 							>
@@ -1249,14 +1169,14 @@
 									{/if}
 								</div>
 								<div class="flex items-center gap-2">
-                                <button
-                                        onclick={() => handleEditExclusion(exclusion)}
+									<button
+										onclick={() => handleEditExclusion(exclusion)}
 										class="rounded-lg p-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20"
 									>
 										<Pencil class="h-4 w-4" />
 									</button>
-						<button
-							onclick={() => handleDeleteExclusion(exclusion.id)}
+									<button
+										onclick={() => handleDeleteExclusion(exclusion.id)}
 										disabled={isDeletingExclusion}
 										class="rounded-lg p-2 text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:hover:bg-red-900/20"
 									>
@@ -1269,24 +1189,24 @@
 				{:else}
 					<div class="py-8 text-center text-gray-500 dark:text-gray-400">
 						<MapPin class="mx-auto mb-4 h-12 w-12 opacity-50" />
-                        <p>{t('accountSettings.noTripExclusions')}</p>
-                        <p class="text-sm">
-                            {t('accountSettings.addTripExclusionsHint')}
-                        </p>
+						<p>{t('accountSettings.noTripExclusions')}</p>
+						<p class="text-sm">
+							{t('accountSettings.addTripExclusionsHint')}
+						</p>
 					</div>
 				{/if}
 
 				{#if tripExclusions.length < 10}
-                            <button
-                                onclick={() => (showAddExclusionModal = true)}
+					<button
+						onclick={() => (showAddExclusionModal = true)}
 						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-300"
 					>
 						<Plus class="h-4 w-4" />
-                        {t('accountSettings.addTripExclusion')}
+						{t('accountSettings.addTripExclusion')}
 					</button>
 				{:else}
 					<div class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                        {t('accountSettings.maxTripExclusionsReached')}
+						{t('accountSettings.maxTripExclusionsReached')}
 					</div>
 				{/if}
 			</div>
@@ -1296,28 +1216,28 @@
 
 <!-- Two-Factor Authentication Setup Modal -->
 <TwoFactorSetup
-    open={showTwoFactorSetup}
-    on:close={handleTwoFactorSetupClose}
-    on:enabled={handleTwoFactorSetupClose}
+	open={showTwoFactorSetup}
+	on:close={handleTwoFactorSetupClose}
+	on:enabled={handleTwoFactorSetupClose}
 />
 
 <!-- Two-Factor Authentication Disable Modal -->
 <TwoFactorDisable
-    open={showTwoFactorDisable}
-    on:close={handleTwoFactorDisableClose}
-    on:disabled={handleTwoFactorDisableClose}
+	open={showTwoFactorDisable}
+	on:close={handleTwoFactorDisableClose}
+	on:disabled={handleTwoFactorDisableClose}
 />
 
 <!-- Add Trip Exclusion Modal -->
 {#if showAddExclusionModal}
 	<!-- Modal Overlay -->
-		<div
+	<div
 		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 		tabindex="0"
 		role="button"
 		aria-label="Close modal"
-			onclick={() => (showAddExclusionModal = false)}
-			onkeydown={(e) => {
+		onclick={() => (showAddExclusionModal = false)}
+		onkeydown={(e) => {
 			if (e.key === 'Escape' || e.key === 'Enter') {
 				e.preventDefault();
 				showAddExclusionModal = false;
@@ -1341,7 +1261,10 @@
 			</h3>
 			<div class="space-y-6">
 				<div>
-					<label for="add-exclusion-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+					<label
+						for="add-exclusion-name"
+						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label
+					>
 					<input
 						id="add-exclusion-name"
 						type="text"
@@ -1351,15 +1274,18 @@
 					/>
 				</div>
 				<div>
-					<label for="add-exclusion-address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+					<label
+						for="add-exclusion-address"
+						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label
+					>
 					<div class="relative">
-                            <input
+						<input
 							id="add-exclusion-address"
 							type="text"
 							bind:value={exclusionAddressInput}
 							bind:this={exclusionAddressInputElement}
-                                oninput={handleExclusionAddressInput}
-                                onkeydown={handleExclusionAddressKeydown}
+							oninput={handleExclusionAddressInput}
+							onkeydown={handleExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
 							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 						/>
@@ -1375,14 +1301,14 @@
 						<div
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 						>
-							{#each exclusionAddressSuggestions as suggestion, index}
-                                <button
+							{#each exclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
+								<button
 									type="button"
 									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedExclusionAddressIndex ===
 									index
 										? 'bg-blue-500/10 dark:bg-blue-500/20'
 										: ''}"
-                                    onclick={() => selectExclusionAddress(suggestion)}
+									onclick={() => selectExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
@@ -1429,15 +1355,15 @@
 					{/if}
 				</div>
 				<div class="mt-4 flex gap-3">
-                    <button
-                        onclick={handleAddExclusion}
+					<button
+						onclick={handleAddExclusion}
 						disabled={isAddingExclusion || !newExclusion.name || !newExclusion.location}
 						class="flex-1 cursor-pointer rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isAddingExclusion ? 'Adding...' : 'Add Exclusion'}
 					</button>
-                    <button
-                        onclick={() => (showAddExclusionModal = false)}
+					<button
+						onclick={() => (showAddExclusionModal = false)}
 						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
 					>
 						Cancel
@@ -1451,13 +1377,13 @@
 <!-- Edit Trip Exclusion Modal -->
 {#if showEditExclusionModal}
 	<!-- Modal Overlay -->
-		<div
+	<div
 		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 		tabindex="0"
 		role="button"
 		aria-label="Close modal"
-			onclick={() => (showEditExclusionModal = false)}
-			onkeydown={(e) => {
+		onclick={() => (showEditExclusionModal = false)}
+		onkeydown={(e) => {
 			if (e.key === 'Escape' || e.key === 'Enter') {
 				e.preventDefault();
 				showEditExclusionModal = false;
@@ -1481,7 +1407,10 @@
 			</h3>
 			<div class="space-y-6">
 				<div>
-					<label for="edit-exclusion-name" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+					<label
+						for="edit-exclusion-name"
+						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label
+					>
 					<input
 						id="edit-exclusion-name"
 						type="text"
@@ -1491,15 +1420,18 @@
 					/>
 				</div>
 				<div>
-					<label for="edit-exclusion-address" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+					<label
+						for="edit-exclusion-address"
+						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label
+					>
 					<div class="relative">
-                        <input
+						<input
 							id="edit-exclusion-address"
 							type="text"
 							bind:value={editExclusionAddressInput}
 							bind:this={editExclusionAddressInputElement}
-                            oninput={handleEditExclusionAddressInput}
-                            onkeydown={handleEditExclusionAddressKeydown}
+							oninput={handleEditExclusionAddressInput}
+							onkeydown={handleEditExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
 							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 						/>
@@ -1515,14 +1447,14 @@
 						<div
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 						>
-							{#each editExclusionAddressSuggestions as suggestion, index}
-                                <button
+							{#each editExclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
+								<button
 									type="button"
 									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedEditExclusionAddressIndex ===
 									index
 										? 'bg-blue-500/10 dark:bg-blue-500/20'
 										: ''}"
-                                    onclick={() => selectEditExclusionAddress(suggestion)}
+									onclick={() => selectEditExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
@@ -1569,15 +1501,15 @@
 					{/if}
 				</div>
 				<div class="mt-4 flex gap-3">
-                    <button
-                        onclick={handleUpdateExclusion}
+					<button
+						onclick={handleUpdateExclusion}
 						disabled={isEditingExclusion || !editingExclusion.name || !editingExclusion.location}
 						class="flex-1 cursor-pointer rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white shadow transition-all duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isEditingExclusion ? 'Updating...' : 'Update Exclusion'}
 					</button>
-                    <button
-                        onclick={() => (showEditExclusionModal = false)}
+					<button
+						onclick={() => (showEditExclusionModal = false)}
 						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
 					>
 						Cancel

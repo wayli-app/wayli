@@ -11,17 +11,15 @@
  */
 
 import { serviceManager } from '$lib/architecture/service-layer';
-import { errorHandler } from './error-handler.service';
-import { rateLimitService } from './rate-limit.service';
-import { logger } from './logging.service';
 import { supabase } from '$lib/core/supabase/client';
 
-import { TripsService } from './trips.service';
-import { StatisticsService } from './statistics.service';
+import { errorHandler } from './error-handler.service';
 import { LocationCacheService } from './location-cache.service';
-
+import { logger } from './logging.service';
+import { rateLimitService } from './rate-limit.service';
+import { StatisticsService } from './statistics.service';
+import { TripsService } from './trips.service';
 import { WantToVisitService } from './want-to-visit.service';
-
 
 /**
  * Service Layer Adapter for managing application services
@@ -45,17 +43,13 @@ export class ServiceLayerAdapter {
 	async initialize(): Promise<void> {
 		if (this.initialized) return;
 
-		try {
-			// Initialize core service layer
-			await serviceManager.initialize();
+		// Initialize core service layer
+		await serviceManager.initialize();
 
-			// Register client-safe services only
-			this.registerClientSafeServices();
+		// Register client-safe services only
+		this.registerClientSafeServices();
 
-			this.initialized = true;
-		} catch (error) {
-			throw error;
-		}
+		this.initialized = true;
 	}
 
 	/**
@@ -149,8 +143,6 @@ export function getLogger() {
 	return serviceAdapter.getService('logger');
 }
 
-
-
 /**
  * Get the trips service
  */
@@ -173,13 +165,9 @@ export function getLocationCacheService() {
 	return LocationCacheService;
 }
 
-
-
 /**
  * Get the want to visit service
  */
 export function getWantToVisitService() {
 	return serviceAdapter.getService<WantToVisitService>('wantToVisit');
 }
-
-

@@ -1,4 +1,5 @@
 import { supabase } from '$lib/core/supabase/server';
+
 import { JobQueueService } from './queue/job-queue.service.server';
 
 export interface ExportOptions {
@@ -43,7 +44,9 @@ export class ExportService {
 			.in('status', ['queued', 'running']);
 		if (existingError) throw existingError;
 		if (existingJobs && existingJobs.length > 0) {
-			throw new Error('You already have an export job in progress. Please wait for it to complete before starting a new one.');
+			throw new Error(
+				'You already have an export job in progress. Please wait for it to complete before starting a new one.'
+			);
 		}
 
 		// Set TTL to 1 week from now
@@ -98,9 +101,12 @@ export class ExportService {
 
 		if (!job) return null;
 
-		const options = ((job.data as Record<string, unknown>)?.options || (job.data as Record<string, unknown>)) as Record<string, unknown>;
+		const options = ((job.data as Record<string, unknown>)?.options ||
+			(job.data as Record<string, unknown>)) as Record<string, unknown>;
 		function safe<T>(key: string, fallback: T): T {
-			return options && Object.prototype.hasOwnProperty.call(options, key) ? (options[key] as T) : fallback;
+			return options && Object.prototype.hasOwnProperty.call(options, key)
+				? (options[key] as T)
+				: fallback;
 		}
 		return {
 			id: job.id,
@@ -110,8 +116,14 @@ export class ExportService {
 			include_location_data: safe<boolean>('includeLocationData', false),
 			include_want_to_visit: safe<boolean>('includeWantToVisit', false),
 			include_trips: safe<boolean>('includeTrips', false),
-			file_path: safe<string>('file_path', '') || ((job.result as Record<string, unknown>)?.file_path as string) || '',
-			file_size: safe<number>('file_size', 0) || ((job.result as Record<string, unknown>)?.file_size as number) || 0,
+			file_path:
+				safe<string>('file_path', '') ||
+				((job.result as Record<string, unknown>)?.file_path as string) ||
+				'',
+			file_size:
+				safe<number>('file_size', 0) ||
+				((job.result as Record<string, unknown>)?.file_size as number) ||
+				0,
 			expires_at: safe<string>('expires_at', ''),
 			progress: job.progress,
 			result: job.result,
@@ -136,9 +148,12 @@ export class ExportService {
 		if (!jobs) return [];
 
 		return jobs.map((job) => {
-			const options = ((job.data as Record<string, unknown>)?.options || (job.data as Record<string, unknown>)) as Record<string, unknown>;
+			const options = ((job.data as Record<string, unknown>)?.options ||
+				(job.data as Record<string, unknown>)) as Record<string, unknown>;
 			function safe<T>(key: string, fallback: T): T {
-				return options && Object.prototype.hasOwnProperty.call(options, key) ? (options[key] as T) : fallback;
+				return options && Object.prototype.hasOwnProperty.call(options, key)
+					? (options[key] as T)
+					: fallback;
 			}
 			return {
 				id: job.id,
@@ -148,8 +163,14 @@ export class ExportService {
 				include_location_data: safe<boolean>('includeLocationData', false),
 				include_want_to_visit: safe<boolean>('includeWantToVisit', false),
 				include_trips: safe<boolean>('includeTrips', false),
-				file_path: safe<string>('file_path', '') || ((job.result as Record<string, unknown>)?.file_path as string) || '',
-				file_size: safe<number>('file_size', 0) || ((job.result as Record<string, unknown>)?.file_size as number) || 0,
+				file_path:
+					safe<string>('file_path', '') ||
+					((job.result as Record<string, unknown>)?.file_path as string) ||
+					'',
+				file_size:
+					safe<number>('file_size', 0) ||
+					((job.result as Record<string, unknown>)?.file_size as number) ||
+					0,
 				expires_at: safe<string>('expires_at', ''),
 				progress: job.progress,
 				result: job.result,

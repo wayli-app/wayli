@@ -1,8 +1,9 @@
-import type { RequestEvent } from '@sveltejs/kit';
-import { getAuditLoggerService } from '$lib/services/server/server-service-adapter';
-import { AuditEventType, AuditSeverity } from '$lib/services/audit-logger.service';
 import { SecurityUtils } from '$lib/security/security-middleware';
+import { AuditEventType, AuditSeverity } from '$lib/services/audit-logger.service';
 import { rateLimitService } from '$lib/services/rate-limit.service';
+import { getAuditLoggerService } from '$lib/services/server/server-service-adapter';
+
+import type { RequestEvent } from '@sveltejs/kit';
 
 export interface AuthenticatedRequest extends RequestEvent {
 	user: {
@@ -325,12 +326,16 @@ export class AuthMiddleware {
 	/**
 	 * Generate a secure session token
 	 */
-    static generateSessionToken(): string {
-        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-            try { return crypto.randomUUID(); } catch {}
-        }
-        return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    }
+	static generateSessionToken(): string {
+		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+			try {
+				return crypto.randomUUID();
+			} catch {
+				// Fallback to manual generation
+			}
+		}
+		return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+	}
 
 	/**
 	 * Validate session token

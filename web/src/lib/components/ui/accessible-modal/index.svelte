@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import { X } from 'lucide-svelte';
+	import { onMount, onDestroy } from 'svelte';
+
 	import {
 		FocusManager,
 		ariaHelpers,
@@ -17,8 +17,7 @@
 	export let closeOnBackdropClick = true;
 	export let closeOnEscape = true;
 	export let trapFocus = true;
-
-	const dispatch = createEventDispatcher();
+	export let onClose: (() => void) | undefined = undefined;
 
 	const sizeClasses = {
 		sm: 'max-w-sm',
@@ -30,12 +29,10 @@
 	let modalElement: HTMLDivElement;
 	let focusManager: FocusManager;
 	let previousActiveElement: HTMLElement | null = null;
-	let modalId: string;
 	let titleId: string;
 	let descriptionId: string;
 
 	onMount(() => {
-		modalId = ariaHelpers.generateId('modal');
 		titleId = ariaHelpers.generateId('modal-title');
 		descriptionId = ariaHelpers.generateId('modal-description');
 	});
@@ -73,19 +70,25 @@
 
 		// Announce modal closing
 		screenReader.announceComplete('Modal closed');
-		dispatch('close', undefined);
+		if (onClose) {
+			onClose();
+		}
 	}
 
 	function handleBackdropClick() {
 		if (closeOnBackdropClick) {
-			dispatch('close', undefined);
+			if (onClose) {
+				onClose();
+			}
 		}
 	}
 
 	function handleEscapeKey(event: KeyboardEvent) {
 		if (closeOnEscape) {
 			keyboardNavigation.handleEscape(event, () => {
-				dispatch('close', undefined);
+				if (onClose) {
+					onClose();
+				}
 			});
 		}
 	}
@@ -118,7 +121,6 @@
 		aria-labelledby={titleId}
 		aria-describedby={descriptionId}
 		on:click={handleBackdropClick}
-		transition:fade={{ duration: 200 }}
 	>
 		<!-- Modal Content -->
 		<div
@@ -129,7 +131,6 @@
 			role="document"
 			on:click|stopPropagation
 			on:keydown={handleKeydown}
-			transition:fade={{ duration: 200, delay: 100 }}
 		>
 			<!-- Header -->
 			{#if title || showCloseButton}
@@ -142,7 +143,11 @@
 					{#if showCloseButton}
 						<button
 							class="absolute top-4 right-4 cursor-pointer rounded-md p-2 text-gray-400 transition-colors hover:text-red-500 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							on:click={() => dispatch('close', undefined)}
+							on:click={() => {
+								if (onClose) {
+									onClose();
+								}
+							}}
 							aria-label="Close modal"
 						>
 							<X class="h-5 w-5" />

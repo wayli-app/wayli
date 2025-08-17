@@ -10,11 +10,11 @@
  */
 
 import { AuditLoggerService } from '../audit-logger.service';
-import { TripImageSuggestionService } from '../trip-image-suggestion.service';
-import { TripDetectionService } from '../trip-detection.service';
 import { TOTPService } from '../totp.service';
-import { UserProfileService } from '../user-profile.service';
+import { TripDetectionService } from '../trip-detection.service';
+import { TripImageSuggestionService } from '../trip-image-suggestion.service';
 import { TripLocationsService } from '../trip-locations.service';
+import { UserProfileService } from '../user-profile.service';
 
 /**
  * Server-Only Service Layer Adapter for managing server-side services
@@ -156,4 +156,3 @@ export function getUserProfileService() {
 export function getTripLocationsService() {
 	return serverServiceAdapter.getService<TripLocationsService>('tripLocations');
 }
-

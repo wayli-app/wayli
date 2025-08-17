@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { supabase } from '$lib/supabase';
-	import { goto } from '$app/navigation';
-	import { toast } from 'svelte-sonner';
 	import { Shield, Smartphone, ArrowLeft, Key, Loader2 } from 'lucide-svelte';
-	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
+
 	import { EdgeFunctionsApiService } from '$lib/services/api/edge-functions-api.service';
+	import { supabase } from '$lib/supabase';
+
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let verificationCode = '';
 	let recoveryCode = '';
@@ -28,7 +30,7 @@
 		}
 	});
 
-		async function handleVerify() {
+	async function handleVerify() {
 		if (useRecoveryCode) {
 			if (!recoveryCode) {
 				toast.error('Please enter your recovery code');
@@ -147,9 +149,7 @@
 				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
 					Two-Factor Authentication
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
-					Please verify your identity to continue
-				</p>
+				<p class="text-gray-600 dark:text-gray-400">Please verify your identity to continue</p>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
 					Account: {userEmail}
 				</p>
@@ -227,8 +227,7 @@
 			<!-- Verify Button -->
 			<button
 				on:click={handleVerify}
-				disabled={isVerifying ||
-					(useRecoveryCode ? !recoveryCode : verificationCode.length !== 6)}
+				disabled={isVerifying || (useRecoveryCode ? !recoveryCode : verificationCode.length !== 6)}
 				class="w-full cursor-pointer rounded-lg bg-[rgb(37,140,244)] px-4 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 			>
 				{#if isVerifying}

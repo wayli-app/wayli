@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
 	import { Play, Square, Settings, Users } from 'lucide-svelte';
+	import { onMount, onDestroy, get } from 'svelte';
+
 	import Button from '$lib/components/ui/button/index.svelte';
-	import Input from '$lib/components/ui/input/index.svelte';
 	import Card from '$lib/components/ui/card/index.svelte';
+	import Input from '$lib/components/ui/input/index.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { get } from 'svelte/store';
-	import { sessionStore } from '$lib/stores/auth';
 	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+	import { sessionStore } from '$lib/stores/auth';
 
 	interface WorkerStatus {
 		isRunning: boolean;
@@ -41,7 +41,7 @@
 	let loading = false;
 	let error = '';
 	let showConfigModal = false;
-	let realtimeConfig: any = null;
+	let realtimeConfig: unknown = null;
 	let realtimeTestResult: boolean | null = null;
 	let config = {
 		maxWorkers: '2',
@@ -70,7 +70,9 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.getAdminWorkers() as any;
+			const data = (await serviceAdapter.getAdminWorkers()) as {
+				data: { status: unknown; activeWorkers: unknown[] };
+			};
 
 			status = data.data.status;
 			activeWorkers = data.data.activeWorkers;
@@ -92,12 +94,8 @@
 	function startSSEMonitoring() {
 		// Create SSE service for worker monitoring
 		sseService = SSEService.createJobMonitor({
-			onConnect: () => {
-
-			},
-			onDisconnect: () => {
-
-			},
+			onConnect: () => {},
+			onDisconnect: () => {},
 			onJobUpdate: (jobs: JobUpdate[]) => {
 				console.log('📡 Worker jobs update received:', jobs);
 				// For worker manager, we're more interested in worker status than job updates
@@ -127,7 +125,9 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.manageWorkers({ action: 'getRealtimeConfig' }) as any;
+			const data = (await serviceAdapter.manageWorkers({ action: 'getRealtimeConfig' })) as {
+				data: { realtimeConfig: unknown };
+			};
 			realtimeConfig = data.data.realtimeConfig;
 		} catch (err) {
 			console.error('Failed to load realtime config:', err);
@@ -142,7 +142,9 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.manageWorkers({ action: 'testRealtime' }) as any;
+			const data = (await serviceAdapter.manageWorkers({ action: 'testRealtime' })) as {
+				data: { realtimeTest: boolean };
+			};
 
 			realtimeTestResult = data.data.realtimeTest;
 			if (realtimeTestResult) {
@@ -524,7 +526,7 @@
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Active Workers</h3>
 
 			<div class="space-y-3">
-				{#each activeWorkers as worker}
+				{#each activeWorkers as worker (worker.id)}
 					<div class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
 						<div class="flex items-center gap-3">
 							<Users class="h-4 w-4 text-gray-500" />

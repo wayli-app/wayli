@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from './types';
+
 import { getSupabaseConfig } from '../config/node-environment';
+
+import type { Database } from './types';
 
 const config = getSupabaseConfig();
 

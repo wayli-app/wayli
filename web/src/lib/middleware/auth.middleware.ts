@@ -1,10 +1,11 @@
-import type { RequestEvent } from '@sveltejs/kit';
 import {
 	AuthenticationError,
 	AuthorizationError,
 	handleError,
 	logError
 } from '$lib/utils/errors/error-handler';
+
+import type { RequestEvent } from '@sveltejs/kit';
 
 export interface AuthenticatedRequest extends RequestEvent {
 	user: {

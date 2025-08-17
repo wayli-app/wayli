@@ -1,12 +1,8 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { onMount, onDestroy } from 'svelte';
-
 	export let text: string = '';
 	export let position: 'top' | 'bottom' | 'left' | 'right' = 'top';
-	export let show = false;
-
-	const dispatch = createEventDispatcher();
+	export let delay: number = 200;
+	export let show: boolean = false;
 
 	let tooltipElement: HTMLDivElement;
 	let triggerElement: HTMLElement;
@@ -32,18 +28,18 @@
 		switch (position) {
 			case 'top':
 				top = triggerRect.top - tooltipRect.height - 8;
-				left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
+				left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
 				break;
 			case 'bottom':
 				top = triggerRect.bottom + 8;
-				left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
+				left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
 				break;
 			case 'left':
-				top = triggerRect.top + (triggerRect.height / 2) - (tooltipRect.height / 2);
+				top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2;
 				left = triggerRect.left - tooltipRect.width - 8;
 				break;
 			case 'right':
-				top = triggerRect.top + (triggerRect.height / 2) - (tooltipRect.height / 2);
+				top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2;
 				left = triggerRect.right + 8;
 				break;
 		}
@@ -75,8 +71,8 @@
 
 <div
 	bind:this={triggerElement}
-    onmouseenter={handleMouseEnter}
-    onmouseleave={handleMouseLeave}
+	onmouseenter={handleMouseEnter}
+	onmouseleave={handleMouseLeave}
 	class="relative inline-block"
 >
 	<slot />
@@ -85,11 +81,19 @@
 {#if show}
 	<div
 		bind:this={tooltipElement}
-		class="fixed z-50 px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-lg pointer-events-none whitespace-nowrap transition-opacity duration-200"
+		class="pointer-events-none fixed z-50 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium whitespace-nowrap text-white shadow-lg transition-opacity duration-200"
 		style="opacity: {show ? '1' : '0'}"
 	>
 		{text}
 		<!-- Arrow -->
-		<div class="absolute w-2 h-2 bg-gray-900 transform rotate-45 {position === 'top' ? 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2' : position === 'bottom' ? 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2' : position === 'left' ? 'right-0 top-1/2 -translate-y-1/2 translate-x-1/2' : 'left-0 top-1/2 -translate-y-1/2 -translate-x-1/2'}"></div>
+		<div
+			class="absolute h-2 w-2 rotate-45 transform bg-gray-900 {position === 'top'
+				? 'bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2'
+				: position === 'bottom'
+					? 'top-0 left-1/2 -translate-x-1/2 -translate-y-1/2'
+					: position === 'left'
+						? 'top-1/2 right-0 translate-x-1/2 -translate-y-1/2'
+						: 'top-1/2 left-0 -translate-x-1/2 -translate-y-1/2'}"
+		></div>
 	</div>
 {/if}

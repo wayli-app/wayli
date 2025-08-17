@@ -1,7 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
 import { point, booleanPointInPolygon } from '@turf/turf';
+
 import type { FeatureCollection, Feature, Polygon, MultiPolygon } from 'geojson';
 
 // ESM-compatible __dirname
@@ -58,7 +60,9 @@ function loadTimezonesGeoJSON(): FeatureCollection<Polygon | MultiPolygon> {
 		if (!loaded) {
 			console.error(`❌ [TIMEZONE] Failed to load timezones.geojson from any path`);
 			// Return empty feature collection to prevent crashes
-			const emptyCollection = { type: 'FeatureCollection', features: [] } as FeatureCollection<Polygon | MultiPolygon>;
+			const emptyCollection = { type: 'FeatureCollection', features: [] } as FeatureCollection<
+				Polygon | MultiPolygon
+			>;
 			timezonesGeoJSON = emptyCollection;
 		}
 	}
@@ -116,13 +120,18 @@ export function getTimezoneDifferenceForPoint(lat: number, lng: number): number 
  * @param timezoneOffset - The timezone offset string (e.g., "-9.5", "-8", "-6")
  * @returns The corrected timestamp as a Date object with the timezone offset applied
  */
-export function applyTimezoneCorrection(timestamp: Date | number | string, timezoneOffset: string): Date {
+export function applyTimezoneCorrection(
+	timestamp: Date | number | string,
+	timezoneOffset: string
+): Date {
 	const date = new Date(timestamp);
 
 	// Parse timezone offset (e.g., "-9.5" -> -9.5 hours, "+2" -> +2 hours)
 	const offsetHours = parseFloat(timezoneOffset);
 	if (isNaN(offsetHours)) {
-		console.log(`⚠️ [TIMEZONE] Invalid timezone offset: ${timezoneOffset}, returning original timestamp`);
+		console.log(
+			`⚠️ [TIMEZONE] Invalid timezone offset: ${timezoneOffset}, returning original timestamp`
+		);
 		return date; // Return original if parsing fails
 	}
 
@@ -140,7 +149,11 @@ export function applyTimezoneCorrection(timestamp: Date | number | string, timez
  * @param longitude - The longitude coordinate
  * @returns The timestamp formatted with the correct timezone offset
  */
-export function applyTimezoneCorrectionToTimestamp(timestamp: Date | number | string, latitude: number, longitude: number): string {
+export function applyTimezoneCorrectionToTimestamp(
+	timestamp: Date | number | string,
+	latitude: number,
+	longitude: number
+): string {
 	const timezoneOffset = getTimezoneForPoint(latitude, longitude);
 
 	if (timezoneOffset) {

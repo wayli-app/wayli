@@ -10,31 +10,31 @@
  * @param options Optional: { label?: string }
  */
 export function useAriaButton(node: HTMLElement, options?: { label?: string }) {
-  node.setAttribute('role', 'button');
-  node.setAttribute('tabindex', '0');
-  if (options?.label) {
-    node.setAttribute('aria-label', options.label);
-  }
+	node.setAttribute('role', 'button');
+	node.setAttribute('tabindex', '0');
+	if (options?.label) {
+		node.setAttribute('aria-label', options.label);
+	}
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      node.click();
-    }
-  }
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			node.click();
+		}
+	}
 
-  node.addEventListener('keydown', handleKeydown);
+	node.addEventListener('keydown', handleKeydown);
 
-  return {
-    update(newOptions?: { label?: string }) {
-      if (newOptions?.label) {
-        node.setAttribute('aria-label', newOptions.label);
-      } else {
-        node.removeAttribute('aria-label');
-      }
-    },
-    destroy() {
-      node.removeEventListener('keydown', handleKeydown);
-    }
-  };
+	return {
+		update(newOptions?: { label?: string }) {
+			if (newOptions?.label) {
+				node.setAttribute('aria-label', newOptions.label);
+			} else {
+				node.removeAttribute('aria-label');
+			}
+		},
+		destroy() {
+			node.removeEventListener('keydown', handleKeydown);
+		}
+	};
 }

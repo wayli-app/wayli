@@ -1,8 +1,10 @@
 // web/src/lib/services/sse.service.ts
-import { ServiceAdapter } from './api/service-adapter';
-import { sessionStore } from '../stores/auth';
 import { get } from 'svelte/store';
+
+import { sessionStore } from '../stores/auth';
 import { supabase } from '../supabase';
+
+import { ServiceAdapter } from './api/service-adapter';
 
 export interface SSEEvent {
 	type: 'connected' | 'heartbeat' | 'jobs_update' | 'error';
@@ -32,25 +34,25 @@ export interface SSEOptions {
 	onHeartbeat?: () => void;
 }
 
-	export class SSEService {
-		private eventSource: EventSource | null = null;
-		private reconnectAttempts = 0;
-		private maxReconnectAttempts = 5;
-		private reconnectDelay = 1000;
-		private isConnecting = false;
-		private isDisconnected = false;
-		private options: SSEOptions;
-		private lastJobUpdate = new Map<string, JobUpdate>();
-		private jobCompletionTimeouts = new Map<string, NodeJS.Timeout>();
-		private jobType?: string;
-		private jobId?: string;
-		private tokenRefreshInterval?: NodeJS.Timeout;
+export class SSEService {
+	private eventSource: EventSource | null = null;
+	private reconnectAttempts = 0;
+	private maxReconnectAttempts = 5;
+	private reconnectDelay = 1000;
+	private isConnecting = false;
+	private isDisconnected = false;
+	private options: SSEOptions;
+	private lastJobUpdate = new Map<string, JobUpdate>();
+	private jobCompletionTimeouts = new Map<string, NodeJS.Timeout>();
+	private jobType?: string;
+	private jobId?: string;
+	private tokenRefreshInterval?: NodeJS.Timeout;
 
-		constructor(options: SSEOptions, jobType?: string, jobId?: string) {
-			this.options = options;
-			this.jobType = jobType;
-			this.jobId = jobId;
-		}
+	constructor(options: SSEOptions, jobType?: string, jobId?: string) {
+		this.options = options;
+		this.jobType = jobType;
+		this.jobId = jobId;
+	}
 
 	async connect(): Promise<void> {
 		if (this.isConnecting || this.isDisconnected) {
@@ -64,7 +66,10 @@ export interface SSEOptions {
 			// If no session in store, try to get it directly from Supabase
 			if (!session || !session.access_token) {
 				try {
-					const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+					const {
+						data: { session: currentSession },
+						error
+					} = await supabase.auth.getSession();
 					if (error) {
 						console.error('🔗 SSE: Error getting session from Supabase:', error);
 						this.isConnecting = false;
@@ -199,11 +204,14 @@ export interface SSEOptions {
 
 					// Don't immediately disconnect on stream errors, let the retry mechanism handle it
 					if (this.reconnectAttempts < this.maxReconnectAttempts) {
-						setTimeout(() => {
-							this.connect().catch(() => {
-								// Ignore connection errors in retry
-							});
-						}, this.reconnectDelay * (this.reconnectAttempts + 1));
+						setTimeout(
+							() => {
+								this.connect().catch(() => {
+									// Ignore connection errors in retry
+								});
+							},
+							this.reconnectDelay * (this.reconnectAttempts + 1)
+						);
 					} else {
 						this.handleDisconnect();
 					}
@@ -216,7 +224,6 @@ export interface SSEOptions {
 
 			// Start periodic token refresh (every 45 minutes to stay ahead of 1-hour expiry)
 			this.startTokenRefresh();
-
 		} catch (error) {
 			console.error('❌ SSE connection failed:', error);
 			this.isConnecting = false;
@@ -225,23 +232,18 @@ export interface SSEOptions {
 	}
 
 	private handleEvent(event: SSEEvent): void {
-
-
 		switch (event.type) {
 			case 'connected':
-
 				this.options.onConnected?.();
 				break;
 
 			case 'heartbeat':
-
 				this.options.onHeartbeat?.();
 				break;
 
-					case 'jobs_update':
-
-			this.handleJobUpdates(event.jobs || []);
-			break;
+			case 'jobs_update':
+				this.handleJobUpdates(event.jobs || []);
+				break;
 
 			case 'error':
 				console.error('❌ SSE error:', event.error);
@@ -249,16 +251,16 @@ export interface SSEOptions {
 				break;
 
 			default:
-
 		}
 	}
 
-					private handleJobUpdates(jobs: JobUpdate[]): void {
-
+	private handleJobUpdates(jobs: JobUpdate[]): void {
 		// Handle empty jobs array as completion signal - only if we have tracked jobs that are likely completed
 		if (jobs.length === 0 && this.lastJobUpdate.size > 0) {
 			// Only treat as completion if we have jobs that were at high progress
-			const highProgressJobs = Array.from(this.lastJobUpdate.values()).filter(job => job.progress >= 80);
+			const highProgressJobs = Array.from(this.lastJobUpdate.values()).filter(
+				(job) => job.progress >= 80
+			);
 
 			if (highProgressJobs.length > 0) {
 				const completedJobs: JobUpdate[] = [];
@@ -379,20 +381,23 @@ export interface SSEOptions {
 		}
 
 		// Refresh token every 45 minutes (2700000 ms)
-		this.tokenRefreshInterval = setInterval(async () => {
-			try {
-				console.log('🔄 SSE: Refreshing token...');
-				const { data, error } = await supabase.auth.refreshSession();
-				if (error) {
-					console.error('❌ SSE: Failed to refresh token:', error);
-					// Don't disconnect, just log the error
-				} else if (data.session) {
-					console.log('✅ SSE: Token refreshed successfully');
+		this.tokenRefreshInterval = setInterval(
+			async () => {
+				try {
+					console.log('🔄 SSE: Refreshing token...');
+					const { data, error } = await supabase.auth.refreshSession();
+					if (error) {
+						console.error('❌ SSE: Failed to refresh token:', error);
+						// Don't disconnect, just log the error
+					} else if (data.session) {
+						console.log('✅ SSE: Token refreshed successfully');
+					}
+				} catch (refreshError) {
+					console.error('❌ SSE: Error refreshing token:', refreshError);
 				}
-			} catch (refreshError) {
-				console.error('❌ SSE: Error refreshing token:', refreshError);
-			}
-		}, 45 * 60 * 1000); // 45 minutes
+			},
+			45 * 60 * 1000
+		); // 45 minutes
 	}
 
 	// Helper method to check if a job is still active

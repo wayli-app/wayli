@@ -1,8 +1,11 @@
-import { supabase } from '$lib/core/supabase/worker';
-import { ExportService } from './export.service.worker';
 import JSZip from 'jszip';
-import type { Job } from '$lib/types/job-queue.types';
+
+import { supabase } from '$lib/core/supabase/worker';
 import { checkJobCancellation } from '$lib/utils/job-cancellation';
+
+import { ExportService } from './export.service.worker';
+
+import type { Job } from '$lib/types/job-queue.types';
 
 // Add TrackerLocation interface at the top
 interface TrackerLocation {
@@ -49,9 +52,12 @@ export class ExportProcessorService {
 		console.log('[ExportWorker] Export configuration:', {
 			'Location Data': jobData.includeLocationData ? '✅ INCLUDED' : '❌ EXCLUDED',
 			'Want to Visit': jobData.includeWantToVisit ? '✅ INCLUDED' : '❌ EXCLUDED',
-			'Trips': jobData.includeTrips ? '✅ INCLUDED' : '❌ EXCLUDED',
-			'Format': jobData.format,
-			'Date Range': jobData.startDate && jobData.endDate ? `${jobData.startDate} to ${jobData.endDate}` : 'All time'
+			Trips: jobData.includeTrips ? '✅ INCLUDED' : '❌ EXCLUDED',
+			Format: jobData.format,
+			'Date Range':
+				jobData.startDate && jobData.endDate
+					? `${jobData.startDate} to ${jobData.endDate}`
+					: 'All time'
 		});
 
 		try {
@@ -64,7 +70,7 @@ export class ExportProcessorService {
 			});
 
 			// Add a small delay to make the "running" status visible
-			await new Promise(resolve => setTimeout(resolve, 500));
+			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			const zip = new JSZip();
 			let totalFiles = 0;
@@ -79,10 +85,17 @@ export class ExportProcessorService {
 					message: 'Exporting location data...'
 				});
 				// Add a small delay to make progress updates visible
-				await new Promise(resolve => setTimeout(resolve, 1000));
-				const locationData = await this.exportLocationData(userId, jobData.startDate, jobData.endDate);
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+				const locationData = await this.exportLocationData(
+					userId,
+					jobData.startDate,
+					jobData.endDate
+				);
 				if (locationData) {
-					console.log('[ExportWorker] Location data exported successfully, length:', locationData.length);
+					console.log(
+						'[ExportWorker] Location data exported successfully, length:',
+						locationData.length
+					);
 					zip.file('locations.geojson', locationData);
 					totalFiles++;
 					console.log('[ExportWorker] Added locations.geojson to ZIP file');
@@ -103,12 +116,22 @@ export class ExportProcessorService {
 					message: 'Exporting want-to-visit data...'
 				});
 				// Add a small delay to make progress updates visible
-				await new Promise(resolve => setTimeout(resolve, 1000));
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 				console.log('[ExportWorker] Calling exportWantToVisit');
-				const wantToVisitData = await this.exportWantToVisit(userId, jobData.startDate, jobData.endDate);
-				console.log('[ExportWorker] exportWantToVisit returned', { hasData: !!wantToVisitData, dataLength: wantToVisitData?.length || 0 });
+				const wantToVisitData = await this.exportWantToVisit(
+					userId,
+					jobData.startDate,
+					jobData.endDate
+				);
+				console.log('[ExportWorker] exportWantToVisit returned', {
+					hasData: !!wantToVisitData,
+					dataLength: wantToVisitData?.length || 0
+				});
 				if (wantToVisitData) {
-					console.log('[ExportWorker] Want-to-visit data exported successfully, length:', wantToVisitData.length);
+					console.log(
+						'[ExportWorker] Want-to-visit data exported successfully, length:',
+						wantToVisitData.length
+					);
 					zip.file('want-to-visit.json', wantToVisitData);
 					totalFiles++;
 					console.log('[ExportWorker] Added want-to-visit.json to ZIP file');
@@ -129,9 +152,11 @@ export class ExportProcessorService {
 					message: 'Exporting trips data...'
 				});
 				// Add a small delay to make progress updates visible
-				await new Promise(resolve => setTimeout(resolve, 1000));
+				await new Promise((resolve) => setTimeout(resolve, 1000));
 				const tripsData = await this.exportTrips(userId, jobData.startDate, jobData.endDate);
-				console.log(`[ExportWorker] Trips export completed for job ${job.id}, data length: ${tripsData?.length || 0}`);
+				console.log(
+					`[ExportWorker] Trips export completed for job ${job.id}, data length: ${tripsData?.length || 0}`
+				);
 				if (tripsData) {
 					console.log('[ExportWorker] Trips data exported successfully, length:', tripsData.length);
 					zip.file('trips.json', tripsData);
@@ -158,7 +183,9 @@ export class ExportProcessorService {
 			const exportJobs = await ExportService.getUserExportJobs(userId);
 			const oldJobs = exportJobs.filter((job, idx) => idx >= 5 && job.file_path);
 			if (oldJobs.length > 0) {
-				const oldPaths = oldJobs.map(job => job.file_path).filter((p): p is string => typeof p === 'string');
+				const oldPaths = oldJobs
+					.map((job) => job.file_path)
+					.filter((p): p is string => typeof p === 'string');
 				if (oldPaths.length > 0) {
 					console.log(`[ExportWorker] Deleting old export files:`, oldPaths);
 					await this.supabase.storage.from('exports').remove(oldPaths);
@@ -206,7 +233,11 @@ export class ExportProcessorService {
 		}
 	}
 
-	private static async exportLocationData(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
+	private static async exportLocationData(
+		userId: string,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<string | null> {
 		console.log('[ExportWorker] exportLocationData', { userId, startDate, endDate });
 		const batchSize = 1000;
 		let offset = 0;
@@ -217,16 +248,17 @@ export class ExportProcessorService {
 		const geocodeArray: (Record<string, unknown> | null)[] = [];
 
 		while (true) {
-			let query = this.supabase
-				.from('tracker_data')
-				.select('*')
-				.eq('user_id', userId);
+			let query = this.supabase.from('tracker_data').select('*').eq('user_id', userId);
 			if (startDate) query = query.gte('recorded_at', startDate);
 			if (endDate) query = query.lte('recorded_at', endDate);
 			query = query.order('recorded_at', { ascending: true }).range(offset, offset + batchSize - 1);
 			const { data: locations, error } = await query;
 			batchNum++;
-			console.log(`[ExportWorker] exportLocationData batch ${batchNum}`, { offset, count: locations?.length, error });
+			console.log(`[ExportWorker] exportLocationData batch ${batchNum}`, {
+				offset,
+				count: locations?.length,
+				error
+			});
 			if (error) throw error;
 			if (!locations || locations.length === 0) break;
 
@@ -273,12 +305,13 @@ export class ExportProcessorService {
 		return geojson;
 	}
 
-	private static async exportWantToVisit(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
+	private static async exportWantToVisit(
+		userId: string,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<string | null> {
 		console.log('[ExportWorker] exportWantToVisit starting', { userId, startDate, endDate });
-		let query = this.supabase
-			.from('want_to_visit_places')
-			.select('*')
-			.eq('user_id', userId);
+		let query = this.supabase.from('want_to_visit_places').select('*').eq('user_id', userId);
 		if (startDate) query = query.gte('created_at', startDate);
 		if (endDate) query = query.lte('created_at', endDate);
 		query = query.order('created_at', { ascending: true });
@@ -298,12 +331,13 @@ export class ExportProcessorService {
 		return result;
 	}
 
-	private static async exportTrips(userId: string, startDate?: string | null, endDate?: string | null): Promise<string | null> {
+	private static async exportTrips(
+		userId: string,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<string | null> {
 		console.log('[ExportWorker] exportTrips starting', { userId, startDate, endDate });
-		let query = this.supabase
-			.from('trips')
-			.select('*')
-			.eq('user_id', userId);
+		let query = this.supabase.from('trips').select('*').eq('user_id', userId);
 		if (startDate) query = query.gte('start_date', startDate);
 		if (endDate) query = query.lte('end_date', endDate);
 		query = query.order('start_date', { ascending: true });

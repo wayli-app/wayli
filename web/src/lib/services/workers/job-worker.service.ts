@@ -3,9 +3,12 @@
 // No changes needed unless there are direct supabase imports (which there are not).
 
 import { randomUUID } from 'crypto';
-import { JobQueueService } from '../queue/job-queue.service.worker';
-import { JobProcessorService } from '../queue/job-processor.service';
+
 import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
+
+import { JobProcessorService } from '../queue/job-processor.service';
+import { JobQueueService } from '../queue/job-queue.service.worker';
+
 import type { Job } from '$lib/types/job-queue.types';
 
 export class JobWorker {

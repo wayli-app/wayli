@@ -12,42 +12,27 @@
 		X,
 		Mail
 	} from 'lucide-svelte';
-	import type { PageData } from './$types';
-	import UserEditModal from '$lib/components/UserEditModal.svelte';
+	import { onMount, get } from 'svelte';
+	import { toast } from 'svelte-sonner';
+
 	import RoleSelector from '$lib/components/RoleSelector.svelte';
 	import UserAvatar from '$lib/components/ui/UserAvatar.svelte';
+	import UserEditModal from '$lib/components/UserEditModal.svelte';
+	import { translate } from '$lib/i18n';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { sessionStore } from '$lib/stores/auth';
+
+	import type { UserProfile } from '$lib/types/user.types';
+	import type { PageData } from './$types';
+
+	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
-	import { toast } from 'svelte-sonner';
-	import { onMount } from 'svelte';
-	import type { UserProfile } from '$lib/types/user.types';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { get } from 'svelte/store';
-	import { sessionStore } from '$lib/stores/auth';
-	import { translate } from '$lib/i18n';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
 	let { data } = $props<{ data: PageData }>();
-
-	type Integration = {
-		id: string;
-		title: string;
-		description: string;
-		icon: any;
-		fields: Array<{
-			id: string;
-			label: string;
-			type: 'text' | 'select' | 'checkbox';
-			placeholder?: string;
-			value: string | boolean;
-			options?: Array<{ value: string; label: string }>;
-			description?: string;
-			help?: string;
-		}>;
-	};
 
 	// Initialize users from server data
 	let users = $state(data.users || []);
@@ -55,8 +40,6 @@
 	let debouncedSearchQuery = $state(searchQuery);
 	let currentPage = $state(data.pagination?.page || 1);
 	let itemsPerPage = $state(data.pagination?.limit || 10);
-	let registrationEnabled = $state(true);
-	let oauthEnabled = $state(false);
 
 	// Initialize server settings
 	let serverName = $state('');
@@ -72,14 +55,16 @@
 	let activeTab = $state('settings'); // Add tab state - default to settings tab
 
 	// Get pagination data from server
-	let pagination = $derived(data.pagination || {
-		page: 1,
-		limit: 10,
-		total: 0,
-		totalPages: 0,
-		hasNext: false,
-		hasPrev: false
-	});
+	let pagination = $derived(
+		data.pagination || {
+			page: 1,
+			limit: 10,
+			total: 0,
+			totalPages: 0,
+			hasNext: false,
+			hasPrev: false
+		}
+	);
 
 	// Debounced search update - only trigger when user changes the input
 	function handleSearchInput() {
@@ -107,10 +92,10 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.getAdminUsers({
+			const result = (await serviceAdapter.getAdminUsers({
 				page: currentPage,
 				limit: itemsPerPage
-			}) as any;
+			})) as any;
 
 			// Edge Functions return { success: true, data: ... }
 			const data = result.data || result;
@@ -174,25 +159,6 @@
 		);
 	}
 
-	function getUserAvatar(user: UserProfile) {
-		return user.avatar_url;
-	}
-
-	function handleAddUserEvent(event: CustomEvent) {
-		// ... existing code ...
-	}
-
-	function handleUpdateServerName() {
-		// Note: Server name update functionality to be implemented in future version
-	}
-
-	function resetForm() {
-		serverName = '';
-		adminEmail = '';
-		allowRegistration = false;
-		requireEmailVerification = false;
-	}
-
 	async function saveSettings() {
 		try {
 			const session = get(sessionStore);
@@ -221,12 +187,6 @@
 	function handleEditUser(user: UserProfile) {
 		selectedUser = user;
 		isModalOpen = true;
-	}
-
-	function handleModalKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			handleCloseDeleteConfirm();
-		}
 	}
 
 	function getPageNumbers() {
@@ -291,7 +251,7 @@
 			try {
 				const result = await response.json();
 				errorDescription = result.error || result.message || errorDescription;
-			} catch (e) {
+			} catch {
 				// The response was not JSON, which is fine. The server might have crashed.
 			}
 			toast.error('Failed to delete user', { description: errorDescription });
@@ -323,7 +283,7 @@
 			try {
 				const result = await response.json();
 				errorDescription = result.error || result.message || errorDescription;
-			} catch (e) {
+			} catch {
 				// The response was not JSON.
 			}
 			toast.error('Failed to update user', {
@@ -340,7 +300,7 @@
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.getServerSettings() as any;
+			const result = (await serviceAdapter.getServerSettings()) as any;
 
 			// Edge Functions return { success: true, data: ... }
 			const settings = result.data || result;
@@ -358,7 +318,7 @@
 				allowRegistration,
 				requireEmailVerification
 			});
-		} catch (error: any) {
+		} catch (error) {
 			console.error('Error loading server settings:', error);
 			const errorMessage = error?.message || error?.error || 'Failed to load server settings';
 			toast.error('Failed to load server settings', { description: errorMessage });
@@ -411,7 +371,7 @@
 				try {
 					const result = await response.json();
 					errorDescription = result.error || result.message || errorDescription;
-				} catch (e) {
+				} catch {
 					// The response was not JSON.
 				}
 				toast.error('Failed to add user', { description: errorDescription });
@@ -533,7 +493,8 @@
 				</div>
 
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label
+					>
 					<RoleSelector bind:role={newUserRole} />
 				</div>
 			</div>
@@ -763,7 +724,7 @@
 							<tbody
 								class="divide-y divide-[rgb(218,218,221)] bg-white dark:divide-[#3f3f46] dark:bg-[#23232a]"
 							>
-								{#each users as user}
+								{#each users as user (user.id)}
 									<tr>
 										<td class="px-6 py-4 whitespace-nowrap">
 											<div class="flex items-center gap-3">
@@ -845,7 +806,7 @@
 										</button>
 
 										<!-- Page numbers -->
-										{#each getPageNumbers() as pageNum}
+										{#each getPageNumbers() as pageNum (pageNum)}
 											<button
 												on:click={() => goToPage(pageNum)}
 												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
@@ -883,7 +844,9 @@
 					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
 				>
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('serverAdmin.serverSettings')}</h2>
+						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+							{t('serverAdmin.serverSettings')}
+						</h2>
 						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
 							{t('serverAdmin.serverSettingsDescription')}
 						</p>

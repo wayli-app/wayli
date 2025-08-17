@@ -1,8 +1,9 @@
 // src/lib/services/api/preferences-api.service.ts
 // Preferences API Service for handling user preferences-related API operations
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler, ErrorCode } from '../error-handler.service';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface PreferencesApiServiceConfig {
 	supabase: SupabaseClient;
@@ -123,7 +124,10 @@ export class PreferencesApiService {
 	/**
 	 * Update user preferences
 	 */
-	async updateUserPreferences(userId: string, request: UpdatePreferencesRequest): Promise<UpdatePreferencesResult> {
+	async updateUserPreferences(
+		userId: string,
+		request: UpdatePreferencesRequest
+	): Promise<UpdatePreferencesResult> {
 		try {
 			const { language, notifications_enabled, timezone, pexels_api_key } = request;
 
@@ -214,12 +218,9 @@ export class PreferencesApiService {
 		const { language, notifications_enabled, timezone } = request;
 
 		if (language && typeof language !== 'string') {
-			throw errorHandler.createError(
-				ErrorCode.VALIDATION_ERROR,
-				'Language must be a string',
-				400,
-				{ field: 'language' }
-			);
+			throw errorHandler.createError(ErrorCode.VALIDATION_ERROR, 'Language must be a string', 400, {
+				field: 'language'
+			});
 		}
 
 		if (notifications_enabled !== undefined && typeof notifications_enabled !== 'boolean') {
@@ -232,12 +233,9 @@ export class PreferencesApiService {
 		}
 
 		if (timezone && typeof timezone !== 'string') {
-			throw errorHandler.createError(
-				ErrorCode.VALIDATION_ERROR,
-				'Timezone must be a string',
-				400,
-				{ field: 'timezone' }
-			);
+			throw errorHandler.createError(ErrorCode.VALIDATION_ERROR, 'Timezone must be a string', 400, {
+				field: 'timezone'
+			});
 		}
 	}
 }

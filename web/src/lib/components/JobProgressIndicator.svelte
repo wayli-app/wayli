@@ -1,28 +1,31 @@
 <script lang="ts">
 	import { Clock, Download, Upload, MapPin, Route, FileDown, X } from 'lucide-svelte';
-import { getActiveJobsMap, subscribe, fetchAndPopulateJobs } from '$lib/stores/job-store';
-import { onMount } from 'svelte';
-import { toast } from 'svelte-sonner';
-import { supabase } from '$lib/core/supabase/client';
-import { translate } from '$lib/i18n';
+	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
+
+	import { supabase } from '$lib/core/supabase/client';
+	import { translate } from '$lib/i18n';
+	import { getActiveJobsMap, subscribe, fetchAndPopulateJobs } from '$lib/stores/job-store';
+
+	import type { JobUpdate } from '$lib/services/sse.service';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
 	// State
 	let activeJobs = $state(getActiveJobsMap());
-	let visibleJobs = $state<any[]>([]);
-	let showCompletedJobs = $state<any[]>([]);
+	let visibleJobs = $state<JobUpdate[]>([]);
+	let showCompletedJobs = $state<JobUpdate[]>([]);
 	let completedJobTimers = $state(new Map<string, NodeJS.Timeout>());
 	let showCancelConfirm = $state(false);
-	let jobToCancel = $state<any>(null);
-	let completedExportJobs = $state<any[]>([]);
+	let jobToCancel = $state<JobUpdate | null>(null);
+	let completedExportJobs = $state<JobUpdate[]>([]);
 	let exportJobTimers = $state(new Map<string, NodeJS.Timeout>());
 
 	// Subscribe to store changes
 	onMount(() => {
 		// Fetch and populate jobs on page load
-		fetchAndPopulateJobs().catch(error => {
+		fetchAndPopulateJobs().catch((error) => {
 			console.error('❌ JobProgressIndicator: Error fetching jobs on mount:', error);
 		});
 
@@ -34,9 +37,9 @@ import { translate } from '$lib/i18n';
 		return () => {
 			unsubscribeJobs();
 			// Clear all timers
-			completedJobTimers.forEach(timer => clearTimeout(timer));
+			completedJobTimers.forEach((timer) => clearTimeout(timer));
 			completedJobTimers.clear();
-			exportJobTimers.forEach(timer => clearTimeout(timer));
+			exportJobTimers.forEach((timer) => clearTimeout(timer));
 			exportJobTimers.clear();
 		};
 	});
@@ -75,25 +78,8 @@ import { translate } from '$lib/i18n';
 		}
 	}
 
-	// Get job type title
-	function getJobTypeTitle(type: string) {
-		switch (type) {
-			case 'data_import':
-				return t('jobProgress.import');
-			case 'data_export':
-				return t('jobProgress.export');
-			case 'reverse_geocoding':
-			case 'reverse_geocoding_missing':
-				return t('jobProgress.geocoding');
-			case 'trip_generation':
-				return t('jobProgress.tripGeneration');
-			default:
-				return t('jobProgress.job');
-		}
-	}
-
 	// Get ETA display
-	function getETADisplay(job: any): string {
+	function getETADisplay(job: JobUpdate): string {
 		// Hide ETA for export jobs
 		if (job.type === 'data_export') {
 			return '';
@@ -108,27 +94,18 @@ import { translate } from '$lib/i18n';
 			return t('jobProgress.queued');
 		}
 
-    // Use server-provided ETA from result.estimatedTimeRemaining if available
-    if (job.result?.estimatedTimeRemaining) {
-      // Normalize: when server returns numeric seconds, format consistently
-      const etaVal = job.result.estimatedTimeRemaining;
-      if (typeof etaVal === 'number') {
-        return formatSeconds(etaVal);
-      }
-      if (typeof etaVal === 'string' && /^(\d+)$/.test(etaVal)) {
-        return formatSeconds(parseInt(etaVal, 10));
-      }
-      return etaVal;
-    }
-
-		// Fallback to job.eta if available
-    if (job.eta) {
-      const etaVal = job.eta;
-      if (typeof etaVal === 'number') return formatSeconds(etaVal);
-      if (typeof etaVal === 'string' && etaVal.endsWith('s')) return formatSeconds(parseInt(etaVal, 10));
-      if (typeof etaVal === 'string' && /^(\d+)$/.test(etaVal)) return formatSeconds(parseInt(etaVal, 10));
-      return etaVal;
-    }
+		// Use server-provided ETA from result.estimatedTimeRemaining if available
+		if (job.result?.estimatedTimeRemaining) {
+			// Normalize: when server returns numeric seconds, format consistently
+			const etaVal = job.result.estimatedTimeRemaining;
+			if (typeof etaVal === 'number') {
+				return formatSeconds(etaVal);
+			}
+			if (typeof etaVal === 'string' && /^(\d+)$/.test(etaVal)) {
+				return formatSeconds(parseInt(etaVal, 10));
+			}
+			return String(etaVal);
+		}
 
 		// For data import, calculate ETA based on progress (export jobs are excluded above)
 		if (job.type === 'data_import') {
@@ -141,26 +118,30 @@ import { translate } from '$lib/i18n';
 			return t('jobProgress.remaining', { minutes: estimatedMinutes });
 		}
 
-  // Helper to format seconds as h m s consistently
-  function formatSeconds(seconds: number): string {
-    if (!seconds || seconds <= 0) return t('jobProgress.calculating');
-    const s = Math.floor(seconds % 60);
-    const m = Math.floor((seconds / 60) % 60);
-    const h = Math.floor((seconds / 3600));
-    if (h > 0) return `${h}h ${m}m ${s}s`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-  }
+		// Helper to format seconds as h m s consistently
+		function formatSeconds(seconds: number): string {
+			if (!seconds || seconds <= 0) return t('jobProgress.calculating');
+			const s = Math.floor(seconds % 60);
+			const m = Math.floor((seconds / 60) % 60);
+			const h = Math.floor(seconds / 3600);
+			if (h > 0) return `${h}h ${m}m ${s}s`;
+			if (m > 0) return `${m}m ${s}s`;
+			return `${s}s`;
+		}
 
-    // For reverse geocoding and trip generation, prefer server-provided ETA, else fallback
-    if (job.type === 'reverse_geocoding' || job.type === 'reverse_geocoding_missing' || job.type === 'trip_generation') {
+		// For reverse geocoding and trip generation, prefer server-provided ETA, else fallback
+		if (
+			job.type === 'reverse_geocoding' ||
+			job.type === 'reverse_geocoding_missing' ||
+			job.type === 'trip_generation'
+		) {
 			if (job.progress === 0) return t('jobProgress.calculating');
 			if (job.progress === 100) return t('jobProgress.complete');
 
-      // Simple fallback ETA when server hasn't provided one
+			// Simple fallback ETA when server hasn't provided one
 			const remaining = 100 - job.progress;
-      const divisor = job.type === 'trip_generation' ? 8 : 5; // heuristic fallback
-      const estimatedMinutes = Math.ceil(remaining / divisor);
+			const divisor = job.type === 'trip_generation' ? 8 : 5; // heuristic fallback
+			const estimatedMinutes = Math.ceil(remaining / divisor);
 			return t('jobProgress.remaining', { minutes: estimatedMinutes });
 		}
 
@@ -184,7 +165,7 @@ import { translate } from '$lib/i18n';
 	}
 
 	// Cancel job function
-	async function handleCancelJob(job: any) {
+	async function handleCancelJob(job: JobUpdate) {
 		jobToCancel = job;
 		showCancelConfirm = true;
 	}
@@ -194,14 +175,16 @@ import { translate } from '$lib/i18n';
 		if (!jobToCancel) return;
 
 		try {
-			const { data: { session } } = await supabase.auth.getSession();
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
 			if (!session) {
 				toast.error('❌ ' + t('jobProgress.notAuthenticated'));
 				return;
 			}
 
 			// Call the cancel job Edge Function
-			const { data, error } = await supabase.functions.invoke(`jobs/${jobToCancel.id}`, {
+			const { error } = await supabase.functions.invoke(`jobs/${jobToCancel.id}`, {
 				method: 'DELETE'
 			});
 
@@ -226,9 +209,11 @@ import { translate } from '$lib/i18n';
 	}
 
 	// Download export job result
-	async function handleDownloadExport(job: any) {
+	async function handleDownloadExport(job: JobUpdate) {
 		try {
-			const { data: { session } } = await supabase.auth.getSession();
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
 			if (!session) {
 				toast.error('❌ ' + t('jobProgress.notAuthenticated'));
 				return;
@@ -253,7 +238,7 @@ import { translate } from '$lib/i18n';
 				toast.success('✅ ' + t('jobProgress.downloadStarted'));
 
 				// Remove the job from the completed export jobs list
-				completedExportJobs = completedExportJobs.filter(j => j.id !== job.id);
+				completedExportJobs = completedExportJobs.filter((j) => j.id !== job.id);
 				if (exportJobTimers.has(job.id)) {
 					clearTimeout(exportJobTimers.get(job.id));
 					exportJobTimers.delete(job.id);
@@ -267,18 +252,24 @@ import { translate } from '$lib/i18n';
 		}
 	}
 
-		// Optimized job filtering with derived reactive variables
+	// Optimized job filtering with derived reactive variables
 	let jobsArray = $derived(Array.from(activeJobs.values()));
-	let activeJobsList = $derived(jobsArray.filter(job => job.status === 'queued' || job.status === 'running'));
-	let recentlyCompletedJobs = $derived(jobsArray.filter(job =>
-		job.status === 'completed' &&
-		(Date.now() - new Date(job.updated_at).getTime()) < 5000
-	));
-	let recentlyCompletedExportJobs = $derived(jobsArray.filter(job =>
-		job.type === 'data_export' &&
-		job.status === 'completed' &&
-		(Date.now() - new Date(job.updated_at).getTime()) < 60000
-	));
+	let activeJobsList = $derived(
+		jobsArray.filter((job) => job.status === 'queued' || job.status === 'running')
+	);
+	let recentlyCompletedJobs = $derived(
+		jobsArray.filter(
+			(job) => job.status === 'completed' && Date.now() - new Date(job.updated_at).getTime() < 5000
+		)
+	);
+	let recentlyCompletedExportJobs = $derived(
+		jobsArray.filter(
+			(job) =>
+				job.type === 'data_export' &&
+				job.status === 'completed' &&
+				Date.now() - new Date(job.updated_at).getTime() < 60000
+		)
+	);
 
 	// Watch for changes and update state
 	$effect(() => {
@@ -286,14 +277,16 @@ import { translate } from '$lib/i18n';
 		visibleJobs = activeJobsList;
 
 		// Handle recently completed jobs (excluding export jobs which have their own section)
-		const nonExportCompletedJobs = recentlyCompletedJobs.filter(job => job.type !== 'data_export');
-		nonExportCompletedJobs.forEach(job => {
-			if (!showCompletedJobs.find(j => j.id === job.id)) {
+		const nonExportCompletedJobs = recentlyCompletedJobs.filter(
+			(job) => job.type !== 'data_export'
+		);
+		nonExportCompletedJobs.forEach((job) => {
+			if (!showCompletedJobs.find((j) => j.id === job.id)) {
 				showCompletedJobs = [...showCompletedJobs, job];
 
 				// Set timer to remove this completed job after 5 seconds
 				const timer = setTimeout(() => {
-					showCompletedJobs = showCompletedJobs.filter(j => j.id !== job.id);
+					showCompletedJobs = showCompletedJobs.filter((j) => j.id !== job.id);
 					completedJobTimers.delete(job.id);
 				}, 5000);
 
@@ -302,13 +295,13 @@ import { translate } from '$lib/i18n';
 		});
 
 		// Handle completed export jobs
-		recentlyCompletedExportJobs.forEach(job => {
-			if (!completedExportJobs.find(j => j.id === job.id)) {
+		recentlyCompletedExportJobs.forEach((job) => {
+			if (!completedExportJobs.find((j) => j.id === job.id)) {
 				completedExportJobs = [...completedExportJobs, job];
 
 				// Set timer to remove this completed export job after 1 minute
 				const timer = setTimeout(() => {
-					completedExportJobs = completedExportJobs.filter(j => j.id !== job.id);
+					completedExportJobs = completedExportJobs.filter((j) => j.id !== job.id);
 					exportJobTimers.delete(job.id);
 				}, 60000);
 
@@ -318,7 +311,7 @@ import { translate } from '$lib/i18n';
 
 		// Clean up timers for jobs that are no longer in recently completed
 		completedJobTimers.forEach((timer, jobId) => {
-			if (!nonExportCompletedJobs.find(job => job.id === jobId)) {
+			if (!nonExportCompletedJobs.find((job) => job.id === jobId)) {
 				clearTimeout(timer);
 				completedJobTimers.delete(jobId);
 			}
@@ -326,7 +319,7 @@ import { translate } from '$lib/i18n';
 
 		// Clean up timers for export jobs that are no longer in recently completed
 		exportJobTimers.forEach((timer, jobId) => {
-			if (!recentlyCompletedExportJobs.find(job => job.id === jobId)) {
+			if (!recentlyCompletedExportJobs.find((job) => job.id === jobId)) {
 				clearTimeout(timer);
 				exportJobTimers.delete(jobId);
 			}
@@ -349,7 +342,7 @@ import { translate } from '$lib/i18n';
 			</div>
 
 			<!-- Progress and ETA -->
-			<div class="flex-1 min-w-0">
+			<div class="min-w-0 flex-1">
 				<!-- Job Type Label -->
 				<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
 					{jobTypeName}
@@ -357,10 +350,10 @@ import { translate } from '$lib/i18n';
 
 				{#if job.status === 'running' || job.status === 'queued'}
 					<!-- Progress Bar with percentage inside -->
-					<div class="mb-1 relative">
+					<div class="relative mb-1">
 						<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700">
 							<div
-								class="h-4 rounded-full bg-blue-600 transition-all duration-300 relative"
+								class="relative h-4 rounded-full bg-blue-600 transition-all duration-300"
 								style="width: {job.progress}%"
 							>
 								<!-- Percentage text inside progress bar -->
@@ -381,20 +374,16 @@ import { translate } from '$lib/i18n';
 						</div>
 					{/if}
 				{:else if job.status === 'completed'}
-					<div class="text-xs text-green-600 dark:text-green-400">
-						✅ Complete
-					</div>
+					<div class="text-xs text-green-600 dark:text-green-400">✅ Complete</div>
 				{:else if job.status === 'failed'}
-					<div class="text-xs text-red-600 dark:text-red-400">
-						❌ Failed
-					</div>
+					<div class="text-xs text-red-600 dark:text-red-400">❌ Failed</div>
 				{/if}
 			</div>
 
 			<!-- Cancel Button (only for running/queued jobs) -->
-            {#if job.status === 'running' || job.status === 'queued'}
-                <button
-                    onclick={() => handleCancelJob(job)}
+			{#if job.status === 'running' || job.status === 'queued'}
+				<button
+					onclick={() => handleCancelJob(job)}
 					class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700 dark:hover:text-red-400"
 					title={t('jobProgress.cancelJob')}
 					aria-label={t('jobProgress.cancelJob')}
@@ -418,15 +407,13 @@ import { translate } from '$lib/i18n';
 			</div>
 
 			<!-- Progress and ETA -->
-			<div class="flex-1 min-w-0">
+			<div class="min-w-0 flex-1">
 				<!-- Job Type Label -->
 				<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
 					{jobTypeName}
 				</div>
 
-				<div class="text-xs text-green-600 dark:text-green-400">
-					✅ Complete
-				</div>
+				<div class="text-xs text-green-600 dark:text-green-400">✅ Complete</div>
 			</div>
 		</div>
 	{/each}
@@ -444,20 +431,20 @@ import { translate } from '$lib/i18n';
 			</div>
 
 			<!-- Progress and Download -->
-			<div class="flex-1 min-w-0">
+			<div class="min-w-0 flex-1">
 				<!-- Job Type Label -->
 				<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
 					{jobTypeName}
 				</div>
 
-                    <div class="text-xs text-green-600 dark:text-green-400">
+				<div class="text-xs text-green-600 dark:text-green-400">
 					✅ Complete - Ready to download
 				</div>
 			</div>
 
 			<!-- Download Button -->
-            <button
-                onclick={() => handleDownloadExport(job)}
+			<button
+				onclick={() => handleDownloadExport(job)}
 				class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-blue-400"
 				title={t('jobProgress.downloadExport')}
 				aria-label={t('jobProgress.downloadExport')}
@@ -470,26 +457,32 @@ import { translate } from '$lib/i18n';
 
 <!-- Cancel Confirmation Modal -->
 {#if showCancelConfirm && jobToCancel}
-	<div class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important;">
-		<div class="relative w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800 p-6 mx-4" style="position: relative !important; z-index: 100000 !important;">
+	<div
+		class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important;"
+	>
+		<div
+			class="relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			style="position: relative !important; z-index: 100000 !important;"
+		>
 			<div class="mb-4">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-					Cancel Job
-				</h3>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-					Are you sure you want to cancel the {getJobTypeDisplayName(jobToCancel.type).toLowerCase()} job? This action cannot be undone.
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Cancel Job</h3>
+				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+					Are you sure you want to cancel the {getJobTypeDisplayName(
+						jobToCancel.type
+					).toLowerCase()} job? This action cannot be undone.
 				</p>
 			</div>
 			<div class="flex justify-end gap-3">
-                <button
-                    onclick={cancelConfirmation}
-					class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+				<button
+					onclick={cancelConfirmation}
+					class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 				>
 					Keep Running
 				</button>
-                <button
-                    onclick={confirmCancelJob}
-					class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+				<button
+					onclick={confirmCancelJob}
+					class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
 				>
 					Cancel Job
 				</button>

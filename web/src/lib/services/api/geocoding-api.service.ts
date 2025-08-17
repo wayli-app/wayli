@@ -1,9 +1,10 @@
 // src/lib/services/api/geocoding-api.service.ts
 // Geocoding API Service for handling geocoding-related API operations
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler, ErrorCode } from '../error-handler.service';
 import { forwardGeocode } from '../external/nominatim.service';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface GeocodingApiServiceConfig {
 	supabase: SupabaseClient;
@@ -100,12 +101,9 @@ export class GeocodingApiService {
 		const { query, limit } = request;
 
 		if (!query) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'Query is required',
-				400,
-				{ field: 'query' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Query is required', 400, {
+				field: 'query'
+			});
 		}
 
 		if (query.trim().length < 3) {

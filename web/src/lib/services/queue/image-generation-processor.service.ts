@@ -1,5 +1,7 @@
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
+
 import { getTripBannerImage } from '../external/pexels.service';
+
 import type { ImageGenerationJob } from '../../types/trip-generation.types';
 
 export class ImageGenerationProcessorService {
@@ -167,8 +169,8 @@ export class ImageGenerationProcessorService {
 	 */
 	private async updateSuggestedTripImage(suggestedTripId: string, imageUrl: string): Promise<void> {
 		const { error } = await this.supabase
-			                        .from('trips')
-                        .eq('status', 'pending')
+			.from('trips')
+			.eq('status', 'pending')
 			.update({ image_url: imageUrl })
 			.eq('id', suggestedTripId);
 

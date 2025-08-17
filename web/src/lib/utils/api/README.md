@@ -12,12 +12,12 @@ Standardized response functions for consistent API responses:
 
 ```typescript
 import {
-  successResponse,
-  errorResponse,
-  validationErrorResponse,
-  notFoundResponse,
-  conflictResponse,
-  serverErrorResponse
+	successResponse,
+	errorResponse,
+	validationErrorResponse,
+	notFoundResponse,
+	conflictResponse,
+	serverErrorResponse
 } from '$lib/utils/api/response';
 
 // Success response
@@ -39,20 +39,20 @@ Abstract base class for standardized API endpoint patterns:
 import { BaseApiHandler, type ApiContext } from '$lib/utils/api/base-handler';
 
 class MyApiHandler extends BaseApiHandler {
-  constructor() {
-    super({
-      requireAuthentication: true,
-      requiredRole: 'admin',
-      validateBody: mySchema,
-      validateQuery: querySchema,
-      validateParams: paramSchema
-    });
-  }
+	constructor() {
+		super({
+			requireAuthentication: true,
+			requiredRole: 'admin',
+			validateBody: mySchema,
+			validateQuery: querySchema,
+			validateParams: paramSchema
+		});
+	}
 
-  protected async execute(context: ApiContext): Promise<unknown> {
-    // Business logic here
-    return result;
-  }
+	protected async execute(context: ApiContext): Promise<unknown> {
+		// Business logic here
+		return result;
+	}
 }
 ```
 
@@ -65,26 +65,26 @@ import { createGetHandler, createPostHandler } from '$lib/utils/api/base-handler
 
 // GET handler
 export const GET: RequestHandler = createGetHandler(
-  async (context) => {
-    // Handler logic
-    return data;
-  },
-  {
-    requireAuthentication: true,
-    validateQuery: paginationSchema
-  }
+	async (context) => {
+		// Handler logic
+		return data;
+	},
+	{
+		requireAuthentication: true,
+		validateQuery: paginationSchema
+	}
 );
 
 // POST handler
 export const POST: RequestHandler = createPostHandler(
-  async (context) => {
-    // Handler logic
-    return result;
-  },
-  {
-    requireAuthentication: true,
-    validateBody: createSchema
-  }
+	async (context) => {
+		// Handler logic
+		return result;
+	},
+	{
+		requireAuthentication: true,
+		validateBody: createSchema
+	}
 );
 ```
 
@@ -112,24 +112,22 @@ import {
 
 ```typescript
 export const GET: RequestHandler = async ({ locals }) => {
-  try {
-    const session = await locals.getSession();
-    if (!session?.user) {
-      return json({ error: 'Unauthorized' }, { status: 401 });
-    }
+	try {
+		const session = await locals.getSession();
+		if (!session?.user) {
+			return json({ error: 'Unauthorized' }, { status: 401 });
+		}
 
-    const { data, error } = await locals.supabase
-      .from('table')
-      .select('*');
+		const { data, error } = await locals.supabase.from('table').select('*');
 
-    if (error) {
-      return json({ error: error.message }, { status: 500 });
-    }
+		if (error) {
+			return json({ error: error.message }, { status: 500 });
+		}
 
-    return json({ data });
-  } catch (error) {
-    return json({ error: 'Server error' }, { status: 500 });
-  }
+		return json({ data });
+	} catch (error) {
+		return json({ error: 'Server error' }, { status: 500 });
+	}
 };
 ```
 
@@ -137,21 +135,18 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 ```typescript
 export const GET: RequestHandler = createGetHandler(
-  async (context) => {
-    const { user, supabase } = context;
+	async (context) => {
+		const { user, supabase } = context;
 
-    const { data, error } = await supabase
-      .from('table')
-      .select('*')
-      .eq('user_id', user!.id);
+		const { data, error } = await supabase.from('table').select('*').eq('user_id', user!.id);
 
-    if (error) throw error;
+		if (error) throw error;
 
-    return { data };
-  },
-  {
-    requireAuthentication: true
-  }
+		return { data };
+	},
+	{
+		requireAuthentication: true
+	}
 );
 ```
 
@@ -193,26 +188,26 @@ export const GET: RequestHandler = createGetHandler(
 
 ```typescript
 export const GET: RequestHandler = createGetHandler(
-  async (context) => {
-    const { query } = context;
-    const { page, limit, search } = query as { page: number; limit: number; search?: string };
+	async (context) => {
+		const { query } = context;
+		const { page, limit, search } = query as { page: number; limit: number; search?: string };
 
-    // Business logic with pagination
-    return {
-      data: results,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
-    };
-  },
-  {
-    validateQuery: paginationSchema
-  }
+		// Business logic with pagination
+		return {
+			data: results,
+			pagination: {
+				page,
+				limit,
+				total,
+				totalPages: Math.ceil(total / limit),
+				hasNext: page * limit < total,
+				hasPrev: page > 1
+			}
+		};
+	},
+	{
+		validateQuery: paginationSchema
+	}
 );
 ```
 
@@ -221,55 +216,55 @@ export const GET: RequestHandler = createGetHandler(
 ```typescript
 // Create
 export const POST: RequestHandler = createPostHandler(
-  async (context) => {
-    const { user, body } = context;
-    const result = await service.create(body, user!.id);
-    return { item: result };
-  },
-  {
-    validateBody: createSchema
-  }
+	async (context) => {
+		const { user, body } = context;
+		const result = await service.create(body, user!.id);
+		return { item: result };
+	},
+	{
+		validateBody: createSchema
+	}
 );
 
 // Read
 export const GET: RequestHandler = createGetHandler(
-  async (context) => {
-    const { user, params } = context;
-    const { id } = params as { id: string };
-    const item = await service.getById(id, user!.id);
-    if (!item) throw new Error('Not found');
-    return { item };
-  },
-  {
-    validateParams: idParamSchema
-  }
+	async (context) => {
+		const { user, params } = context;
+		const { id } = params as { id: string };
+		const item = await service.getById(id, user!.id);
+		if (!item) throw new Error('Not found');
+		return { item };
+	},
+	{
+		validateParams: idParamSchema
+	}
 );
 
 // Update
 export const PUT: RequestHandler = createPostHandler(
-  async (context) => {
-    const { user, body, params } = context;
-    const { id } = params as { id: string };
-    const result = await service.update(id, body, user!.id);
-    return { item: result };
-  },
-  {
-    validateBody: updateSchema,
-    validateParams: idParamSchema
-  }
+	async (context) => {
+		const { user, body, params } = context;
+		const { id } = params as { id: string };
+		const result = await service.update(id, body, user!.id);
+		return { item: result };
+	},
+	{
+		validateBody: updateSchema,
+		validateParams: idParamSchema
+	}
 );
 
 // Delete
 export const DELETE: RequestHandler = createGetHandler(
-  async (context) => {
-    const { user, params } = context;
-    const { id } = params as { id: string };
-    await service.delete(id, user!.id);
-    return { message: 'Deleted successfully' };
-  },
-  {
-    validateParams: idParamSchema
-  }
+	async (context) => {
+		const { user, params } = context;
+		const { id } = params as { id: string };
+		await service.delete(id, user!.id);
+		return { message: 'Deleted successfully' };
+	},
+	{
+		validateParams: idParamSchema
+	}
 );
 ```
 
@@ -309,6 +304,7 @@ For each API endpoint to refactor:
 ## Examples
 
 See the following files for complete examples:
+
 - `web/src/routes/api/v1/jobs/+server.ts` (original)
 - `web/src/routes/api/v1/trips/+server.ts` (partially refactored)
 - `web/src/routes/api/v1/auth/profile/+server.ts` (good pattern)

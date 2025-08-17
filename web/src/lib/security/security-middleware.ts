@@ -1,5 +1,7 @@
 import { z } from 'zod';
+
 import { errorResponse } from '$lib/utils/api/response';
+
 import type { RequestEvent } from '@sveltejs/kit';
 
 // Security configuration
@@ -30,14 +32,16 @@ export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
 // Input sanitization utilities
 export class SecurityUtils {
 	static sanitizeString(input: string): string {
-		return input
-			.trim()
-			// Remove HTML tags like <b> and </b>
-			.replace(/<[^>]*>/g, '')
-			// Remove dangerous protocols
-			.replace(/javascript:/gi, '')
-			.replace(/data:/gi, '')
-			.replace(/vbscript:/gi, '');
+		return (
+			input
+				.trim()
+				// Remove HTML tags like <b> and </b>
+				.replace(/<[^>]*>/g, '')
+				// Remove dangerous protocols
+				.replace(/javascript:/gi, '')
+				.replace(/data:/gi, '')
+				.replace(/vbscript:/gi, '')
+		);
 	}
 
 	static sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
@@ -54,15 +58,15 @@ export class SecurityUtils {
 		return sanitized;
 	}
 
-    static validateEmail(email: string): boolean {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email) || email.length > 254) return false;
-        // Disallow consecutive dots and trailing dot in domain
-        if (/\.\./.test(email)) return false;
-        const domain = email.split('@')[1] || '';
-        if (domain.endsWith('.')) return false;
-        return true;
-    }
+	static validateEmail(email: string): boolean {
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		if (!emailRegex.test(email) || email.length > 254) return false;
+		// Disallow consecutive dots and trailing dot in domain
+		if (/\.\./.test(email)) return false;
+		const domain = email.split('@')[1] || '';
+		if (domain.endsWith('.')) return false;
+		return true;
+	}
 
 	static validatePassword(password: string): { valid: boolean; errors: string[] } {
 		const errors: string[] = [];
@@ -89,16 +93,18 @@ export class SecurityUtils {
 		};
 	}
 
-    static generateCSRFToken(): string {
-        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-            try { return crypto.randomUUID(); } catch {
-                // Fallback
-                return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-            }
-        }
-        // Fallback
-        return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    }
+	static generateCSRFToken(): string {
+		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+			try {
+				return crypto.randomUUID();
+			} catch {
+				// Fallback
+				return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+			}
+		}
+		// Fallback
+		return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+	}
 
 	static validateCSRFToken(token: string, storedToken: string): boolean {
 		return token === storedToken;

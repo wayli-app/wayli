@@ -1,6 +1,6 @@
 import { supabase } from '$lib/core/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export class StatisticsService {
 	private supabase: SupabaseClient;
@@ -61,9 +61,10 @@ export class StatisticsService {
 				.select('distance')
 				.eq('user_id', userId);
 
-			const totalDistance = trips?.reduce((sum: number, trip: { distance: number }) => {
-				return sum + (trip.distance || 0);
-			}, 0) || 0;
+			const totalDistance =
+				trips?.reduce((sum: number, trip: { distance: number }) => {
+					return sum + (trip.distance || 0);
+				}, 0) || 0;
 
 			// Get average speed (placeholder calculation)
 			const averageSpeed = totalDistance > 0 ? totalDistance / (totalTrips || 1) : 0;

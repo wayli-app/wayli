@@ -4,12 +4,12 @@
 
 We take security seriously and provide security updates for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | ✅ Yes             |
-| 0.9.x   | ✅ Yes             |
-| 0.8.x   | ❌ No              |
-| < 0.8   | ❌ No              |
+| Version | Supported |
+| ------- | --------- |
+| 1.0.x   | ✅ Yes    |
+| 0.9.x   | ✅ Yes    |
+| 0.8.x   | ❌ No     |
+| < 0.8   | ❌ No     |
 
 ## 🚨 Reporting a Vulnerability
 
@@ -22,21 +22,27 @@ We appreciate your efforts to responsibly disclose your findings, and will make 
 Instead, please report security vulnerabilities via one of the following methods:
 
 #### 1. **Email (Recommended)**
+
 Send an email to [security@wayli.app](mailto:security@wayli.app) with:
+
 - A detailed description of the vulnerability
 - Steps to reproduce the issue
 - Potential impact assessment
 - Suggested fix (if available)
 
 #### 2. **Private Security Advisory**
+
 Create a private security advisory in GitHub:
+
 1. Go to the repository's "Security" tab
 2. Click "Advisories"
 3. Click "New draft security advisory"
 4. Fill in the details and submit
 
 #### 3. **Encrypted Communication**
+
 For highly sensitive vulnerabilities, you may use our PGP key:
+
 ```
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 [PGP key will be added here]
@@ -148,10 +154,12 @@ Regular security assessments include:
 We recognize security researchers who help improve Wayli's security:
 
 ### 2024
+
 - [Researcher Name] - [Vulnerability Description]
 - [Researcher Name] - [Vulnerability Description]
 
 ### 2023
+
 - [Researcher Name] - [Vulnerability Description]
 
 ## 📚 Security Resources
@@ -178,22 +186,27 @@ We recognize security researchers who help improve Wayli's security:
 ## 🔗 Contact Information
 
 ### Security Team
+
 - **Email**: [security@wayli.app](mailto:security@wayli.app)
 - **PGP Key**: [security-pgp.asc](security-pgp.asc)
 - **Response Time**: Within 48 hours
 
 ### Emergency Contact
+
 For critical security issues requiring immediate attention:
+
 - **Phone**: [Emergency number]
 - **Response Time**: Within 4 hours
 
 ### General Security Questions
+
 - **GitHub Discussions**: [Security Discussions](https://github.com/your-username/wayli/discussions/categories/security)
 - **Documentation**: [Security Documentation](docs/security/)
 
 ## 📋 Security Checklist
 
 ### For Contributors
+
 - [ ] Follow secure coding practices
 - [ ] Validate all user input
 - [ ] Use parameterized queries
@@ -203,6 +216,7 @@ For critical security issues requiring immediate attention:
 - [ ] Update dependencies regularly
 
 ### For Users
+
 - [ ] Use strong passwords
 - [ ] Enable two-factor authentication
 - [ ] Keep software updated

@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { auditLogger, AuditEventType, AuditSeverity } from '../../src/lib/services/audit-logger.service';
+
+import {
+	auditLogger,
+	AuditEventType,
+	AuditSeverity
+} from '../../src/lib/services/audit-logger.service';
 import { rateLimitService } from '../../src/lib/services/rate-limit.service';
 
 // Mock external dependencies
@@ -100,7 +105,7 @@ describe('Service Integration Tests', () => {
 				message: 'Too many requests'
 			});
 
-						const result = rateLimitService.checkRateLimit(mockRequest, config);
+			const result = rateLimitService.checkRateLimit(mockRequest, config);
 
 			// Log the rate limit event
 			if (!result.allowed) {

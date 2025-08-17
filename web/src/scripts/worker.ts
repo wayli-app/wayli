@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 
-import { JobWorker } from '../lib/services/workers/job-worker.service';
 import { randomUUID } from 'crypto';
+
+import { JobWorker } from '../lib/services/workers/job-worker.service';
 
 // Get worker ID from command line arguments or generate one
 const workerId = process.argv[2] || randomUUID();
@@ -50,7 +51,7 @@ async function startWorkerWithRetry(maxRetries = 3, retryDelay = 2000) {
 
 			if (attempt < maxRetries) {
 				console.log(`⏳ Retrying in ${retryDelay}ms...`);
-				await new Promise(resolve => setTimeout(resolve, retryDelay));
+				await new Promise((resolve) => setTimeout(resolve, retryDelay));
 				retryDelay *= 2; // Exponential backoff
 			} else {
 				console.error('❌ All attempts to start worker failed');

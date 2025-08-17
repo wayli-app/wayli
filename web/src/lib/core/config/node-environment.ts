@@ -100,7 +100,9 @@ export interface NodeEnvironmentConfig {
  * @param config - The configuration object to validate
  * @returns The validated configuration
  */
-export function validateNodeEnvironmentConfig(config: NodeEnvironmentConfig): NodeEnvironmentConfig {
+export function validateNodeEnvironmentConfig(
+	config: NodeEnvironmentConfig
+): NodeEnvironmentConfig {
 	const isDev = config.app.nodeEnv === 'development';
 	const errors: string[] = [];
 
@@ -187,8 +189,10 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 
 	// Security Configuration
 	const jwtSecret = mergedEnv.JWT_SECRET || '';
-	const sessionSecret = mergedEnv.SESSION_SECRET || (nodeEnv === 'development' ? 'dev-session-secret' : '');
-	const cookieSecret = mergedEnv.COOKIE_SECRET || (nodeEnv === 'development' ? 'dev-cookie-secret' : '');
+	const sessionSecret =
+		mergedEnv.SESSION_SECRET || (nodeEnv === 'development' ? 'dev-session-secret' : '');
+	const cookieSecret =
+		mergedEnv.COOKIE_SECRET || (nodeEnv === 'development' ? 'dev-cookie-secret' : '');
 	const bcryptRounds = parseInt(mergedEnv.BCRYPT_ROUNDS || '12', 10);
 
 	// Cache Configuration
@@ -198,7 +202,10 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 
 	// File Upload Configuration
 	const uploadMaxSize = parseInt(mergedEnv.UPLOAD_MAX_SIZE || '5242880', 10);
-	const uploadAllowedTypes = mergedEnv.UPLOAD_ALLOWED_TYPES?.split(',') || ['image/jpeg', 'image/png'];
+	const uploadAllowedTypes = mergedEnv.UPLOAD_ALLOWED_TYPES?.split(',') || [
+		'image/jpeg',
+		'image/png'
+	];
 	const uploadStoragePath = mergedEnv.UPLOAD_STORAGE_PATH || './uploads';
 
 	// Email Configuration

@@ -3,8 +3,8 @@
 // This file should ONLY be imported in server-side code (API routes, server actions, etc).
 // Never import this in client-side or shared code.
 
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 export interface ServerEnvironmentConfig {
 	supabase: {
@@ -52,7 +52,9 @@ export function validateServerEnvironmentConfig(strict: boolean = false): Server
 		if (strict) {
 			throw new Error(`Server environment configuration errors: ${errors.join(', ')}`);
 		} else {
-			console.warn('⚠️  Server environment configuration has issues. Some features may not work correctly.');
+			console.warn(
+				'⚠️  Server environment configuration has issues. Some features may not work correctly.'
+			);
 		}
 	}
 

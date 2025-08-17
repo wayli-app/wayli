@@ -1,47 +1,83 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { detectEnhancedMode, haversine, getSpeedBracket, isAtTrainStation, isModeSwitchPossible } from './transport-mode';
+
+import {
+	detectEnhancedMode,
+	haversine,
+	getSpeedBracket,
+	isAtTrainStation,
+	isModeSwitchPossible
+} from './transport-mode';
+
 import type { EnhancedModeContext } from './transport-mode';
 
 describe('Transport Mode Detection', () => {
-    // detectMode removed; basic detection covered via detectEnhancedMode
-    describe('detectMode (via enhanced)', () => {
-        it('should detect stationary for very slow speeds', () => {
-            const ctx = { currentMode: 'unknown', lastSpeed: 0, trainStations: [], averageSpeed: 0, speedHistory: [], isInTrainJourney: false };
-            const result = detectEnhancedMode(0, 0, 0.0001, 0.0001, 60, null, ctx);
-            expect(result.mode).toBe('stationary');
-        });
-        it('should detect walking for slow speeds', () => {
-            const ctx = { currentMode: 'unknown', lastSpeed: 0, trainStations: [], averageSpeed: 0, speedHistory: [], isInTrainJourney: false };
-            const result = detectEnhancedMode(0, 0, 0.0003, 0.0003, 60, null, ctx);
-            expect(result.mode).toBe('walking');
-        });
-        it('should detect cycling for moderate speeds', () => {
-            const ctx = { currentMode: 'unknown', lastSpeed: 0, trainStations: [], averageSpeed: 0, speedHistory: [], isInTrainJourney: false };
-            const result = detectEnhancedMode(0, 0, 0.001, 0.001, 60, null, ctx);
-            expect(result.mode).toBe('cycling');
-        });
-        it('should detect car for higher speeds', () => {
-            const ctx = { currentMode: 'unknown', lastSpeed: 0, trainStations: [], averageSpeed: 0, speedHistory: [], isInTrainJourney: false };
-            const result = detectEnhancedMode(0, 0, 0.003, 0.003, 60, null, ctx);
-            expect(result.mode).toBe('car');
-        });
-    });
+	// detectMode removed; basic detection covered via detectEnhancedMode
+	describe('detectMode (via enhanced)', () => {
+		it('should detect stationary for very slow speeds', () => {
+			const ctx = {
+				currentMode: 'unknown',
+				lastSpeed: 0,
+				trainStations: [],
+				averageSpeed: 0,
+				speedHistory: [],
+				isInTrainJourney: false
+			};
+			const result = detectEnhancedMode(0, 0, 0.0001, 0.0001, 60, null, ctx);
+			expect(result.mode).toBe('stationary');
+		});
+		it('should detect walking for slow speeds', () => {
+			const ctx = {
+				currentMode: 'unknown',
+				lastSpeed: 0,
+				trainStations: [],
+				averageSpeed: 0,
+				speedHistory: [],
+				isInTrainJourney: false
+			};
+			const result = detectEnhancedMode(0, 0, 0.0003, 0.0003, 60, null, ctx);
+			expect(result.mode).toBe('walking');
+		});
+		it('should detect cycling for moderate speeds', () => {
+			const ctx = {
+				currentMode: 'unknown',
+				lastSpeed: 0,
+				trainStations: [],
+				averageSpeed: 0,
+				speedHistory: [],
+				isInTrainJourney: false
+			};
+			const result = detectEnhancedMode(0, 0, 0.001, 0.001, 60, null, ctx);
+			expect(result.mode).toBe('cycling');
+		});
+		it('should detect car for higher speeds', () => {
+			const ctx = {
+				currentMode: 'unknown',
+				lastSpeed: 0,
+				trainStations: [],
+				averageSpeed: 0,
+				speedHistory: [],
+				isInTrainJourney: false
+			};
+			const result = detectEnhancedMode(0, 0, 0.003, 0.003, 60, null, ctx);
+			expect(result.mode).toBe('car');
+		});
+	});
 
-    // detectTrainMode was removed; Enhanced mode covers train logic now
+	// detectTrainMode was removed; Enhanced mode covers train logic now
 
 	describe('Enhanced Transport Mode Detection', () => {
 		describe('Enhanced Mode Detection', () => {
 			let context: EnhancedModeContext;
 
 			beforeEach(() => {
-                context = {
-                    currentMode: 'unknown',
-                    lastSpeed: 0,
-                    trainStations: [],
-                    averageSpeed: 0,
-                    speedHistory: [],
-                    isInTrainJourney: false
-                };
+				context = {
+					currentMode: 'unknown',
+					lastSpeed: 0,
+					trainStations: [],
+					averageSpeed: 0,
+					speedHistory: [],
+					isInTrainJourney: false
+				};
 			});
 
 			it('should detect train journey with station visits', () => {
@@ -56,8 +92,8 @@ describe('Transport Mode Detection', () => {
 			});
 
 			it('should maintain mode continuity', () => {
-                // Start with car mode
-                context.currentMode = 'car';
+				// Start with car mode
+				context.currentMode = 'car';
 
 				const result = detectEnhancedMode(0.003, 0.003, 0.006, 0.006, 60, null, context);
 				expect(result.mode).toBe('car');

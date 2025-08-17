@@ -55,11 +55,15 @@ describe('Validation Schemas', () => {
 			const result = userSchema.safeParse(incompleteUser);
 			expect(result.success).toBe(false);
 
-            if (!result.success) {
-                expect(result.error.issues).toHaveLength(2);
-                // Zod uses specific messages from schema; accept any non-empty message
-                expect(result.error.issues.every((e: z.ZodIssue) => typeof e.message === 'string' && e.message.length > 0)).toBe(true);
-            }
+			if (!result.success) {
+				expect(result.error.issues).toHaveLength(2);
+				// Zod uses specific messages from schema; accept any non-empty message
+				expect(
+					result.error.issues.every(
+						(e: z.ZodIssue) => typeof e.message === 'string' && e.message.length > 0
+					)
+				).toBe(true);
+			}
 		});
 	});
 
@@ -98,7 +102,9 @@ describe('Validation Schemas', () => {
 			expect(result.success).toBe(false);
 
 			if (!result.success) {
-				expect(result.error.issues.some((e: z.ZodIssue) => e.message === 'Invalid date format')).toBe(true);
+				expect(
+					result.error.issues.some((e: z.ZodIssue) => e.message === 'Invalid date format')
+				).toBe(true);
 			}
 		});
 
@@ -121,7 +127,7 @@ describe('Validation Schemas', () => {
 
 describe('Validation Utilities', () => {
 	describe('Email Validation', () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 		it('should validate correct email addresses', () => {
 			const validEmails = [
@@ -147,19 +153,19 @@ describe('Validation Utilities', () => {
 				'user name@example.com'
 			];
 
-            invalidEmails.forEach((email) => {
-                const isValid = emailRegex.test(email);
-                // Very loose regex might allow some invalid patterns; strengthen with extra checks
-                const hasConsecutiveDots = /\.\./.test(email);
-                const endsWithDot = /\.$/.test(email.split('@')[1] || '');
-                const noDomainTld = !/(?:[^@]+)\.[^@]+$/.test(email);
-                expect(isValid && !(hasConsecutiveDots || endsWithDot || noDomainTld)).toBe(false);
-            });
+			invalidEmails.forEach((email) => {
+				const isValid = emailRegex.test(email);
+				// Very loose regex might allow some invalid patterns; strengthen with extra checks
+				const hasConsecutiveDots = /\.\./.test(email);
+				const endsWithDot = /\.$/.test(email.split('@')[1] || '');
+				const noDomainTld = !/(?:[^@]+)\.[^@]+$/.test(email);
+				expect(isValid && !(hasConsecutiveDots || endsWithDot || noDomainTld)).toBe(false);
+			});
 		});
 	});
 
 	describe('Date Validation', () => {
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+		const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 		it('should validate correct date formats', () => {
 			const validDates = [
@@ -185,16 +191,16 @@ describe('Validation Utilities', () => {
 				'2024-01-00' // invalid day
 			];
 
-            invalidDates.forEach((date) => {
-                const matches = dateRegex.test(date);
-                // Additional bounds check for month/day ranges
-                let inRange = false;
-                if (matches) {
-                    const [y, m, d] = date.split('-').map((v) => parseInt(v, 10));
-                    inRange = m >= 1 && m <= 12 && d >= 1 && d <= 31;
-                }
-                expect(matches && inRange).toBe(false);
-            });
+			invalidDates.forEach((date) => {
+				const matches = dateRegex.test(date);
+				// Additional bounds check for month/day ranges
+				let inRange = false;
+				if (matches) {
+					const [, m, d] = date.split('-').map((v) => parseInt(v, 10));
+					inRange = m >= 1 && m <= 12 && d >= 1 && d <= 31;
+				}
+				expect(matches && inRange).toBe(false);
+			});
 		});
 	});
 
@@ -278,9 +284,12 @@ describe('Data Sanitization', () => {
 
 		it('should remove dangerous protocols', () => {
 			const input = 'javascript:alert("xss") data:text/html,<script>alert("xss")</script>';
-            const sanitized = input.replace(/javascript:/gi, '').replace(/data:/gi, '').replace(/[<>]/g, '');
+			const sanitized = input
+				.replace(/javascript:/gi, '')
+				.replace(/data:/gi, '')
+				.replace(/[<>]/g, '');
 
-            expect(sanitized).toBe('alert("xss") text/html,scriptalert("xss")/script');
+			expect(sanitized).toBe('alert("xss") text/html,scriptalert("xss")/script');
 			expect(sanitized).not.toContain('javascript:');
 			expect(sanitized).not.toContain('data:');
 		});

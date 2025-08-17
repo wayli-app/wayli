@@ -1,5 +1,6 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler } from '../error-handler.service';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface QueryCacheEntry<T> {
 	data: T;

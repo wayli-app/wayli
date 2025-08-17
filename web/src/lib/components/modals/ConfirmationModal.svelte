@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { AlertTriangle, Trash2 } from 'lucide-svelte';
+
+	import AccessibleButton from '$lib/components/ui/accessible-button/index.svelte';
 	import Modal from '$lib/components/ui/modal/index.svelte';
-	import Button from '$lib/components/ui/button/index.svelte';
 
 	export let open = false;
 	export let title = 'Confirm Action';
@@ -11,8 +11,8 @@
 	export let cancelText = 'Cancel';
 	export let variant: 'danger' | 'warning' | 'info' = 'warning';
 	export let icon: typeof AlertTriangle | typeof Trash2 = AlertTriangle;
-
-	const dispatch = createEventDispatcher();
+	export let onConfirm: (() => void) | undefined = undefined;
+	export let onCancel: (() => void) | undefined = undefined;
 
 	const variantConfig = {
 		danger: {
@@ -33,15 +33,19 @@
 	};
 
 	function handleConfirm() {
-		dispatch('confirm', undefined);
+		if (onConfirm) {
+			onConfirm();
+		}
 	}
 
 	function handleCancel() {
-		dispatch('cancel', undefined);
+		if (onCancel) {
+			onCancel();
+		}
 	}
 </script>
 
-<Modal {open} title="" size="sm" showCloseButton={false} on:close={handleCancel}>
+<Modal {open} title="" size="sm" showCloseButton={false} onClose={handleCancel}>
 	<div class="space-y-4 text-center">
 		<!-- Icon -->
 		<div
@@ -63,12 +67,12 @@
 
 		<!-- Action Buttons -->
 		<div class="flex gap-3 pt-4">
-			<Button variant="outline" on:click={handleCancel} class="flex-1">
+			<AccessibleButton variant="outline" onClick={handleCancel} class="flex-1">
 				{cancelText}
-			</Button>
-			<Button on:click={handleConfirm} class="flex-1 {variantConfig[variant].buttonClass}">
+			</AccessibleButton>
+			<AccessibleButton onClick={handleConfirm} class="flex-1 {variantConfig[variant].buttonClass}">
 				{confirmText}
-			</Button>
+			</AccessibleButton>
 		</div>
 	</div>
 </Modal>

@@ -3,7 +3,9 @@
 // Never import secrets or private env vars here.
 
 import { createBrowserClient } from '@supabase/ssr';
+
 import type { Database } from './types';
+
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 // Check if environment variables are available

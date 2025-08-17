@@ -1,5 +1,6 @@
-import { authenticator } from 'otplib';
 import { randomBytes, createHash } from 'crypto';
+
+import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 
 // Configure otplib with secure defaults

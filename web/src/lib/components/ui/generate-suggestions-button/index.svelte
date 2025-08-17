@@ -1,23 +1,27 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { RefreshCw } from 'lucide-svelte';
-	import Tooltip from '../tooltip/index.svelte';
-	import { browser } from '$app/environment';
-	import { supabase } from '$lib/supabase';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import type { UserProfile } from '$lib/types/user.types';
+	import { onMount } from 'svelte';
+
 	import { translate } from '$lib/i18n';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { supabase } from '$lib/supabase';
+
+	import Tooltip from '../tooltip/index.svelte';
+
+	import type { UserProfile } from '$lib/types/user.types';
+
+	import { browser } from '$app/environment';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
 	// Props using Svelte 5 runes
-	let { disabled = false } = $props();
-
-	const dispatch = createEventDispatcher();
+	let { disabled = false, onClick } = $props<{
+		disabled?: boolean;
+		onClick?: () => void;
+	}>();
 
 	// User profile and home address state
-	let userProfile = $state<UserProfile | null>(null);
 	let hasHomeAddress = $state(false);
 	let isLoadingProfile = $state(false);
 
@@ -35,12 +39,10 @@
 
 			// Use the Edge Function to get user profile
 			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
-			const profile = await serviceAdapter.callApi('auth-profile') as any;
-
-			userProfile = profile as UserProfile;
+			const profile = (await serviceAdapter.callApi('auth-profile')) as UserProfile;
 
 			// Check if user has a home address
-			hasHomeAddress = !!(profile?.home_address);
+			hasHomeAddress = !!profile?.home_address;
 			console.log('🏠 User home address check:', {
 				hasHomeAddress,
 				homeAddress: profile?.home_address
@@ -53,15 +55,13 @@
 	}
 
 	function handleClick() {
-		if (hasHomeAddress && !disabled) {
-			dispatch('click');
+		if (hasHomeAddress && !disabled && onClick) {
+			onClick();
 		}
 	}
 
-
-
 	// Load user profile on mount
-	import { onMount } from 'svelte';
+
 	onMount(() => {
 		loadUserProfile();
 	});
@@ -73,8 +73,7 @@
 <Tooltip
 	text={isDisabled
 		? t('generateSuggestions.pleaseAddHomeAddress')
-		: t('generateSuggestions.tooltip')
-	}
+		: t('generateSuggestions.tooltip')}
 	position="top"
 >
 	<button
@@ -85,7 +84,9 @@
 		disabled={isDisabled}
 	>
 		{#if isLoadingProfile}
-			<div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"></div>
+			<div
+				class="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
+			></div>
 		{:else}
 			<RefreshCw class="h-4 w-4" />
 		{/if}

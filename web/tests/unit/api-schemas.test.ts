@@ -2,6 +2,7 @@
 // Tests for API validation schemas
 
 import { describe, it, expect } from 'vitest';
+
 import {
 	paginationSchema,
 	dateRangeSchema,
@@ -34,23 +35,23 @@ describe('API Validation Schemas', () => {
 				search: 'test'
 			};
 
-            const result = paginationSchema.safeParse(validData);
+			const result = paginationSchema.safeParse(validData);
 			expect(result.success).toBe(true);
 			if (result.success) {
-                expect(result.data.page).toBe(1);
-                expect(result.data.limit).toBe(10);
-                expect(result.data.search).toBe('test');
+				expect(result.data.page).toBe(1);
+				expect(result.data.limit).toBe(10);
+				expect(result.data.search).toBe('test');
 			}
 		});
 
 		it('should use default values when not provided', () => {
 			const data = {};
 
-            const result = paginationSchema.safeParse(data);
+			const result = paginationSchema.safeParse(data);
 			expect(result.success).toBe(true);
 			if (result.success) {
 				expect(result.data.page).toBe(1);
-                expect(result.data.limit).toBe(20);
+				expect(result.data.limit).toBe(20);
 			}
 		});
 
@@ -165,7 +166,7 @@ describe('API Validation Schemas', () => {
 		it('should validate all valid statuses', () => {
 			const validStatuses = ['queued', 'processing', 'completed', 'failed', 'cancelled'];
 
-			validStatuses.forEach(status => {
+			validStatuses.forEach((status) => {
 				const result = jobStatusSchema.safeParse(status);
 				expect(result.success).toBe(true);
 			});
@@ -412,11 +413,15 @@ describe('API Validation Schemas', () => {
 	describe('workerActionSchema', () => {
 		it('should validate all valid worker actions', () => {
 			const validActions = [
-				'start', 'stop', 'updateWorkers', 'updateConfig',
-				'testRealtime', 'getRealtimeConfig'
+				'start',
+				'stop',
+				'updateWorkers',
+				'updateConfig',
+				'testRealtime',
+				'getRealtimeConfig'
 			];
 
-			validActions.forEach(action => {
+			validActions.forEach((action) => {
 				const result = workerActionSchema.safeParse({ action });
 				expect(result.success).toBe(true);
 			});

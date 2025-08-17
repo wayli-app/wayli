@@ -1,14 +1,11 @@
 <script lang="ts">
 	console.log('🚀 Statistics page script loaded');
 
-	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
-	import type { Map as LeafletMap } from 'leaflet';
+	import { format } from 'date-fns';
 	import {
 		MapPin,
 		Activity,
 		Loader2,
-		Trash2,
 		Route,
 		Navigation,
 		Globe2,
@@ -19,22 +16,22 @@
 		BarChart,
 		Import
 	} from 'lucide-svelte';
-	import { format } from 'date-fns';
-	import { formatDateForLocation } from '$lib/utils/timezone-utils';
-	import {
-		state as appState,
-		setMapInitialState,
-		clearMapInitialState,
-		closeDatePicker,
-		clearFilters
-	} from '$lib/stores/app-state.svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { DatePicker } from '@svelte-plugins/datepicker';
-	import { supabase } from '$lib/supabase';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { getTransportDetectionReasonLabel, type TransportDetectionReason } from '$lib/types/transport-detection-reasons';
-	import { currentLocale, getCountryNameReactive, translate } from '$lib/i18n';
+
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
+	import { getCountryNameReactive, translate } from '$lib/i18n';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { state as appState } from '$lib/stores/app-state.svelte';
+	import { supabase } from '$lib/supabase';
+	import {
+		getTransportDetectionReasonLabel,
+		type TransportDetectionReason
+	} from '$lib/types/transport-detection-reasons';
+
+	import type { Map as LeafletMap } from 'leaflet';
+
+	import { browser } from '$app/environment';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -78,7 +75,13 @@
 		uniquePlaces?: number;
 		countriesVisited?: number;
 		steps?: number;
-		transport?: Array<{ mode: string; distance: number; time: number; percentage: number; points?: number }>;
+		transport?: Array<{
+			mode: string;
+			distance: number;
+			time: number;
+			percentage: number;
+			points?: number;
+		}>;
 		countryTimeDistribution?: Array<{ country_code: string; percent: number }>;
 		trainStationVisits?: Array<{ name: string; count: number }>;
 		_dateRange?: string; // Internal property to track when statistics were calculated
@@ -97,147 +100,22 @@
 	let isInitialLoad = $state(true);
 	let isInitializing = $state(true); // Flag to prevent reactive statement during initial setup
 	let locationData = $state<TrackerLocation[]>([]);
-	let hasMoreData = $state(false);
 	let currentOffset = $state(0);
-    let totalPoints = $state(0);
+	let totalPoints = $state(0);
 
 	// Progress tracking
 	let loadingProgress = $state(0); // 0-100
 	let loadingStage = $state(''); // Current loading stage description
-	let isCountingRecords = $state(false); // Whether we're currently counting records
-
-	// Add minimum loading time to ensure loading indicator is visible
-	let loadingStartTime = 0;
-	const MIN_LOADING_TIME = 800; // 800ms minimum loading time
-
-	// Custom marker icons
-	let locationIcon: any;
-	let poiIcon: any;
-	let trackerIcon: any;
 
 	// Add statistics state
 	let statisticsData = $state<StatisticsData | null>(null);
 	let statisticsLoading = $state(false);
 	let statisticsError = $state('');
 
-	const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
-	const today = new Date();
-	function getDateFromToday(days: number) {
-		return new Date(Date.now() - days * MILLISECONDS_IN_DAY);
-	}
-
-    let isOpen = $state(false);
-    let dateFormat = 'MMM d, yyyy';
-    let lastEndDateSnapshot: Date | null = null; // track closing condition
-
-
-
-	// Add reactive cache update trigger
-	let cacheUpdateTrigger = 0;
-
-	// Use reactive statements to format dates from global state
-	function formatDate(date: Date | string) {
-		if (!date || isNaN(new Date(date as string).getTime())) return '';
-		return format(new Date(date as string), dateFormat);
-	}
-
 	// Helper to ensure a value is a Date object
 	function getDateObject(val: any) {
 		if (!val) return null;
 		return val instanceof Date ? val : new Date(val);
-	}
-
-	function onClearDates() {
-		clearFilters(); // Use the global clear function
-	}
-
-	// Custom presets for date range selection
-	let datePresets = $derived([
-		{ label: t('datePicker.today'), startDate: new Date(), endDate: new Date() },
-		{ label: t('datePicker.last7Days'), startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.last30Days'), startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.last60Days'), startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.last90Days'), startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), endDate: new Date() },
-		{ label: t('datePicker.lastYear'), startDate: new Date(new Date().getFullYear() - 1, 0, 1), endDate: new Date(new Date().getFullYear() - 1, 11, 31) }
-	]);
-
-	function toggleDatePicker() {
-		isOpen = !isOpen;
-		console.log('📅 Date picker toggled:', isOpen);
-	}
-
-	// Handle date changes
-    function handleDateChange() {
-        console.log('📅 Date picker change:', { startDate: appState.filtersStartDate, endDate: appState.filtersEndDate });
-        if (appState.filtersStartDate && appState.filtersEndDate) {
-            isOpen = false;
-            console.log('✅ Date range selected, closing picker');
-        }
-        lastEndDateSnapshot = appState.filtersEndDate ? getDateObject(appState.filtersEndDate) : null;
-    }
-
-    function selectedDateRange() {
-        return appState.filtersStartDate && appState.filtersEndDate
-            ? `${format(appState.filtersStartDate, 'MMM d, yyyy')} - ${format(appState.filtersEndDate, 'MMM d, yyyy')}`
-            : t('datePicker.pickDateRange');
-    }
-
-	// Removed handleClickOutside function - let the DatePicker handle its own closing
-
-	function handlePlaceHover(event: CustomEvent<{ lat: number; lng: number }>) {
-		if (!map) return;
-		const { lat, lng } = event.detail;
-
-		// Store initial map state if not already stored
-		if (!appState.mapInitialZoom) {
-			setMapInitialState(map.getZoom(), map.getCenter());
-		}
-
-		map.flyTo([lat, lng], 13, {
-			animate: true,
-			duration: 0.5
-		});
-	}
-
-	function handlePlaceLeave() {
-		if (!map || !appState.mapInitialCenter) return;
-
-		map.flyTo(appState.mapInitialCenter, appState.mapInitialZoom || 2, {
-			animate: true,
-			duration: 0.5
-		});
-
-		clearMapInitialState();
-	}
-
-
-
-	async function loadLocationData(reset = true) {
-		if (isLoading) return;
-
-		loadingStartTime = Date.now();
-		isLoading = true;
-		if (reset) {
-			currentOffset = 0;
-			clearMapMarkers();
-			locationData = []; // Clear existing data when resetting
-		}
-
-		try {
-			// Use the combined function that fetches both map data and statistics
-			await fetchMapDataAndStatistics(false, 0);
-		} catch (error) {
-			console.error('Error loading location data:', error);
-			toast.error('Failed to load location data');
-		} finally {
-			// Ensure minimum loading time
-			const elapsed = Date.now() - loadingStartTime;
-			if (elapsed < MIN_LOADING_TIME) {
-				await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
-			}
-			isLoading = false;
-			isInitialLoad = false;
-		}
 	}
 
 	function addMarkersToMap(data: TrackerLocation[], reset = true) {
@@ -270,10 +148,16 @@
 
 		// Sort data by recorded_at timestamp for sequential rendering
 		const sortedData = data
-			.filter(item => {
-				const hasValidCoords = item.coordinates && typeof item.coordinates.lat === 'number' && typeof item.coordinates.lng === 'number';
+			.filter((item) => {
+				const hasValidCoords =
+					item.coordinates &&
+					typeof item.coordinates.lat === 'number' &&
+					typeof item.coordinates.lng === 'number';
 				if (!hasValidCoords) {
-					console.log('❌ [Statistics] Filtered out item with invalid coordinates:', item.coordinates);
+					console.log(
+						'❌ [Statistics] Filtered out item with invalid coordinates:',
+						item.coordinates
+					);
 				}
 				return hasValidCoords;
 			})
@@ -330,7 +214,10 @@
 	async function fetchGeocodeForPoint(item: TrackerLocation) {
 		try {
 			// Get current session
-			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error: sessionError
+			} = await supabase.auth.getSession();
 			if (sessionError || !session) {
 				throw new Error('User not authenticated');
 			}
@@ -338,19 +225,20 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 
 			// Use the tracker-data-with-mode endpoint to get geocode data for this specific point
-			const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+			const result = (await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate: item.recorded_at.split('T')[0],
 				endDate: item.recorded_at.split('T')[0],
 				limit: 1,
 				offset: 0,
 				includeStatistics: false
-			}) as any;
+			})) as any;
 
 			// Find the matching point
-			const matchingPoint = result.locations?.find((loc: any) =>
-				loc.recorded_at === item.recorded_at &&
-				loc.location?.coordinates?.[1] === item.coordinates.lat &&
-				loc.location?.coordinates?.[0] === item.coordinates.lng
+			const matchingPoint = result.locations?.find(
+				(loc: any) =>
+					loc.recorded_at === item.recorded_at &&
+					loc.location?.coordinates?.[1] === item.coordinates.lat &&
+					loc.location?.coordinates?.[0] === item.coordinates.lng
 			);
 
 			return matchingPoint?.geocode || null;
@@ -473,7 +361,7 @@
 			.map(([key, value]) => {
 				const formattedKey = key
 					.replace(/([A-Z])/g, ' $1')
-					.replace(/^./, str => str.toUpperCase())
+					.replace(/^./, (str) => str.toUpperCase())
 					.replace(/_/g, ' ')
 					.trim();
 				return [formattedKey, value];
@@ -483,18 +371,23 @@
 		// Always append class and type if present on the geocode object itself
 		const extraRows: string[] = [];
 		if ((data as GeocodeData).class) {
-			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Class:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).class}</td></tr>`);
+			extraRows.push(
+				`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Class:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).class}</td></tr>`
+			);
 		}
 		if ((data as GeocodeData).type) {
-			extraRows.push(`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Type:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).type}</td></tr>`);
+			extraRows.push(
+				`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Type:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).type}</td></tr>`
+			);
 		}
 
-		const rows = allFields
-			.map(
-				([k, v]) =>
-					`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>${k}:</td><td class='text-gray-900 py-0.5 text-xs'>${v}</td></tr>`
-			)
-			.join('') + extraRows.join('');
+		const rows =
+			allFields
+				.map(
+					([k, v]) =>
+						`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>${k}:</td><td class='text-gray-900 py-0.5 text-xs'>${v}</td></tr>`
+				)
+				.join('') + extraRows.join('');
 
 		if (rows) {
 			return `<table class='bg-gray-50 rounded-lg p-2 w-full border border-gray-200'><tbody>${rows}</tbody></table>`;
@@ -551,20 +444,6 @@
 		return content;
 	}
 
-	// Helper function to get color for different types
-	function getTypeColor(type: string): string {
-		switch (type) {
-			case 'tracker':
-				return 'bg-green-500';
-			case 'poi':
-				return 'bg-yellow-500';
-			case 'location':
-				return 'bg-blue-500';
-			default:
-				return 'bg-gray-500';
-		}
-	}
-
 	function clearMapMarkers() {
 		markers.forEach((marker: any) => {
 			if (map) {
@@ -584,15 +463,7 @@
 		selectedMarkers = [];
 	}
 
-	function toggleEditMode() {
-		isEditMode = !isEditMode;
-		if (!isEditMode) {
-			// Clear selections when exiting edit mode
-			deselectAllMarkers();
-		}
-	}
-
-	function selectMarker(marker: any, item: TrackerLocation) {
+	function selectMarker(marker: any) {
 		if (!isEditMode) return;
 
 		if (selectedMarkers.includes(marker)) {
@@ -603,102 +474,6 @@
 			// Select
 			selectedMarkers.push(marker);
 			marker.setStyle({ radius: 5, fillOpacity: 0.9, weight: 2, color: '#ff0000' });
-		}
-	}
-
-	function deselectAllMarkers() {
-		// Color map for transport modes
-		const modeColors: Record<string, string> = {
-			car: '#ef4444', // red
-			train: '#a21caf', // purple
-			airplane: '#000000', // black
-			cycling: '#f59e42', // orange
-			walking: '#10b981', // green
-			unknown: '#6b7280' // gray
-		};
-
-		selectedMarkers.forEach((marker: any) => {
-			const transportMode = (marker as any).item?.transport_mode || 'unknown';
-			const markerColor = modeColors[transportMode] || '#6b7280';
-			marker.setStyle({
-				radius: 3,
-				fillColor: markerColor,
-				fillOpacity: 0.6,
-				weight: 0,
-				color: 'transparent'
-			});
-		});
-		selectedMarkers = [];
-	}
-
-	async function deleteSelectedPoints() {
-		if (selectedMarkers.length === 0) return;
-
-		if (!confirm(`Are you sure you want to delete ${selectedMarkers.length} selected point(s)?`)) {
-			return;
-		}
-
-		try {
-			// Get the items associated with selected markers
-			const itemsToDelete = selectedMarkers.map((marker: any) => marker.item).filter(Boolean);
-
-			// Remove markers from map
-			selectedMarkers.forEach((marker: any) => {
-				if (map) {
-					map.removeLayer(marker);
-				}
-				markers = markers.filter((m: any) => m !== marker);
-			});
-
-			// Clear selection
-			selectedMarkers = [];
-
-			// Remove from location data
-			locationData = locationData.filter(
-				(item: TrackerLocation) => !itemsToDelete.some((deletedItem: TrackerLocation) => deletedItem.id === item.id)
-			);
-
-			toast.success(`Deleted ${itemsToDelete.length} point(s)`);
-		} catch (error) {
-			console.error('Error deleting points:', error);
-			toast.error('Failed to delete points');
-		}
-	}
-
-	async function createTripFromSelected() {
-		if (selectedMarkers.length < 2) {
-			toast.error('Please select at least 2 points to create a trip');
-			return;
-		}
-
-		try {
-			// Sort selected points by timestamp
-			const selectedItems = selectedMarkers
-				.map((marker: any) => marker.item)
-				.filter(Boolean)
-				.sort((a: any, b: any) => {
-					const dateA = new Date(a.recorded_at || a.created_at).getTime();
-					const dateB = new Date(b.recorded_at || b.created_at).getTime();
-					return dateA - dateB;
-				});
-
-			// Create trip data
-			const tripData = {
-				startPoint: selectedItems[0],
-				endPoint: selectedItems[selectedItems.length - 1],
-				points: selectedItems,
-				startTime: selectedItems[0].recorded_at || selectedItems[0].created_at,
-				endTime:
-					selectedItems[selectedItems.length - 1].recorded_at ||
-					selectedItems[selectedItems.length - 1].created_at
-			};
-
-			toast.success(`Created trip with ${selectedItems.length} points`);
-
-			// Note: Trip creation functionality to be implemented in future version
-		} catch (error) {
-			console.error('Error creating trip:', error);
-			toast.error('Failed to create trip');
 		}
 	}
 
@@ -716,14 +491,14 @@
 	let dataLoadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Debounced data loading function
-	function debouncedLoadData(reset = true) {
+	function debouncedLoadData(_reset = true) {
 		if (dataLoadTimeout) {
 			clearTimeout(dataLoadTimeout);
 		}
 		dataLoadTimeout = setTimeout(() => {
 			if (map && !isLoading) {
 				console.log('🔄 Debounced data load triggered');
-				fetchMapDataAndStatistics(reset, 0);
+				fetchMapDataAndStatistics(0);
 			}
 		}, 300); // 300ms debounce
 	}
@@ -750,8 +525,8 @@
 			const filterStateString = JSON.stringify(filterState);
 
 			// Only reload if we have some filter applied and the state actually changed
-            // Only load when a full range is selected (both start and end present)
-            if ((filterState.startDate && filterState.endDate) && filterStateString !== lastFilterState) {
+			// Only load when a full range is selected (both start and end present)
+			if (filterState.startDate && filterState.endDate && filterStateString !== lastFilterState) {
 				console.log('🔍 State changed, triggering debounced data load:', {
 					oldState: lastFilterState,
 					newState: filterStateString,
@@ -762,93 +537,6 @@
 			}
 		}
 	});
-
-
-
-	// Haversine formula to calculate distance between two lat/lng points
-	function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-		const R = 6371e3; // metres
-		const toRad = (x: number) => (x * Math.PI) / 180;
-		const φ1 = toRad(lat1);
-		const φ2 = toRad(lat2);
-		const Δφ = toRad(lat2 - lat1);
-		const Δλ = toRad(lon2 - lon1);
-		const a =
-			Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-			Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-		return R * c; // in metres
-	}
-
-	// Calculate velocity based on time difference and distance between current and previous point
-	function calculateVelocity(
-		currentPoint: TrackerLocation,
-		allPoints: TrackerLocation[]
-	): { velocity: number | null; timeDiff: number | null; distance: number | null } {
-		if (!currentPoint || !allPoints || allPoints.length < 2) {
-			return { velocity: null, timeDiff: null, distance: null };
-		}
-
-		// Find the current point's index in the sorted array
-		const sortedPoints = allPoints
-			.filter((item) => item.type === 'tracker' && item.coordinates)
-			.sort(
-				(a, b) =>
-					new Date(a.recorded_at || a.created_at).getTime() -
-					new Date(b.recorded_at || b.created_at).getTime()
-			);
-
-		const currentIndex = sortedPoints.findIndex(
-			(point) =>
-				point.id === currentPoint.id ||
-				(point.recorded_at === currentPoint.recorded_at &&
-					point.coordinates?.lat === currentPoint.coordinates?.lat &&
-					point.coordinates?.lng === currentPoint.coordinates?.lng)
-		);
-
-		if (currentIndex <= 0) {
-			return { velocity: null, timeDiff: null, distance: null };
-		}
-
-		const previousPoint = sortedPoints[currentIndex - 1];
-		const currentTime = new Date(currentPoint.recorded_at || currentPoint.created_at).getTime();
-		const previousTime = new Date(previousPoint.recorded_at || previousPoint.created_at).getTime();
-
-		// Calculate time difference in seconds
-		const timeDiff = (currentTime - previousTime) / 1000;
-
-		if (timeDiff <= 0) {
-			return { velocity: null, timeDiff: null, distance: null };
-		}
-
-		// Calculate distance in meters
-		const distance = haversineDistance(
-			previousPoint.coordinates.lat,
-			previousPoint.coordinates.lng,
-			currentPoint.coordinates.lat,
-			currentPoint.coordinates.lng
-		);
-
-		// Calculate velocity in m/s
-		const velocity = distance / timeDiff;
-
-		return { velocity, timeDiff, distance };
-	}
-
-	// Reactive total distance calculation
-	let totalDistance = $derived(() => {
-		const points = locationData.filter((item: TrackerLocation) => item.type === 'tracker' && item.coordinates);
-		let distance = 0;
-		for (let i = 1; i < points.length; i++) {
-			const prev = points[i - 1] as TrackerLocation;
-			const curr = points[i] as TrackerLocation;
-			distance += haversineDistance(prev.coordinates.lat, prev.coordinates.lng, curr.coordinates.lat, curr.coordinates.lng);
-		}
-		return distance; // in meters
-	});
-
-	// Helper to determine if loading more (not initial load)
-	let isLoadingMore = $derived(isLoading && !isInitialLoad);
 
 	// Helper function to translate transport mode names
 	function translateTransportMode(mode: string): string {
@@ -874,8 +562,6 @@
 		}
 	}
 
-
-
 	// Function to get total count of records for progress indication
 	async function getTotalCount(): Promise<number> {
 		try {
@@ -890,15 +576,16 @@
 				? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
 				: '';
 
-			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error: sessionError
+			} = await supabase.auth.getSession();
 			if (sessionError || !session) {
 				throw new Error('User not authenticated');
 			}
 
 			// Use direct Supabase query for more reliable count
-			let countQuery = supabase
-				.from('tracker_data')
-				.select('*', { count: 'exact', head: true });
+			let countQuery = supabase.from('tracker_data').select('*', { count: 'exact', head: true });
 
 			// Apply date filters
 			if (startDate) {
@@ -914,13 +601,13 @@
 				console.error('Error getting count from database:', countError);
 				// Fallback to Edge Function
 				const serviceAdapter = new ServiceAdapter({ session });
-				const result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+				const result = (await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 					startDate,
 					endDate,
 					limit: 100,
 					offset: 0,
 					includeStatistics: false
-				}) as { total?: number; hasMore?: boolean };
+				})) as { total?: number; hasMore?: boolean };
 
 				const total = result.total || 0;
 				loadingProgress = 20;
@@ -943,7 +630,7 @@
 	}
 
 	// Function to fetch both map data and statistics from the edge function
-	async function fetchMapDataAndStatistics(forceRefresh = false, loadMoreOffset = 0): Promise<void> {
+	async function fetchMapDataAndStatistics(loadMoreOffset: number = 0): Promise<void> {
 		// Prevent duplicate calls
 		if (isLoading && loadMoreOffset === 0) {
 			console.log('🔄 Data loading already in progress, skipping duplicate call');
@@ -966,23 +653,26 @@
 				totalPoints = await getTotalCount();
 			}
 
-		const startDate = appState.filtersStartDate
-			? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
-			: '';
-		const endDate = appState.filtersEndDate
-			? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
-			: '';
+			const startDate = appState.filtersStartDate
+				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
+				: '';
+			const endDate = appState.filtersEndDate
+				? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
+				: '';
 
-		// Don't fetch data if no date range is set
-		if (!startDate && !endDate) {
-			console.log('📅 No date range set, skipping data fetch');
-			return;
-		}
+			// Don't fetch data if no date range is set
+			if (!startDate && !endDate) {
+				console.log('📅 No date range set, skipping data fetch');
+				return;
+			}
 
-		console.log('📅 Date range being sent to API:', { startDate, endDate });
+			console.log('📅 Date range being sent to API:', { startDate, endDate });
 
 			// Get current user's session
-			const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error: sessionError
+			} = await supabase.auth.getSession();
 			if (sessionError || !session) {
 				console.error('Session error:', sessionError);
 				console.error('Session data:', session);
@@ -990,7 +680,8 @@
 			}
 
 			// Update progress for data fetching
-			loadingStage = loadMoreOffset === 0 ? t('statistics.loadingInitialData') : t('statistics.loadingMoreData');
+			loadingStage =
+				loadMoreOffset === 0 ? t('statistics.loadingInitialData') : t('statistics.loadingMoreData');
 			loadingProgress = loadMoreOffset === 0 ? 30 : 60;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -1002,20 +693,21 @@
 				statistics?: StatisticsData;
 			};
 
-
 			// Optimize: Make a single API call to get both data and statistics
 			// Only include statistics on initial load (not when loading more data)
 			const shouldIncludeStatistics = loadMoreOffset === 0;
 			const currentDateRange = `${startDate}_${endDate}`;
-			const needsNewStatistics = shouldIncludeStatistics && (!statisticsData || statisticsData._dateRange !== currentDateRange);
+			const needsNewStatistics =
+				shouldIncludeStatistics &&
+				(!statisticsData || statisticsData._dateRange !== currentDateRange);
 
-        let result = await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+			let result = (await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
 				startDate,
 				endDate,
-            limit: 5000,
+				limit: 5000,
 				offset: loadMoreOffset,
 				includeStatistics: needsNewStatistics // Include statistics only when needed
-			}) as TrackerApiResponse;
+			})) as TrackerApiResponse;
 
 			// Check if the result indicates an error
 			if (result && typeof result === 'object' && 'success' in result && !result.success) {
@@ -1040,49 +732,52 @@
 				loadingStage = t('statistics.transformingData');
 				loadingProgress = loadMoreOffset === 0 ? 85 : 90;
 
-				const transformedLocations: TrackerLocation[] = (result.locations as unknown[]).map((location, index) => {
-					const loc = location as Record<string, unknown>;
+				const transformedLocations: TrackerLocation[] = (result.locations as unknown[]).map(
+					(location, index) => {
+						const loc = location as Record<string, unknown>;
 
-					return {
-						id: `${loc.user_id}_${loc.recorded_at}_${loadMoreOffset + index}`,
-						name: (loc.geocode && typeof loc.geocode === 'object' && 'display_name' in loc.geocode)
-							? (loc.geocode as GeocodeData).display_name || 'Unknown Location'
-							: 'Unknown Location',
-						description: (loc.geocode && typeof loc.geocode === 'object' && 'name' in loc.geocode)
-							? (loc.geocode as GeocodeData).name || ''
-							: '',
-						type: 'tracker',
-						coordinates: (() => {
-							const coords = (loc.location as { coordinates?: number[] })?.coordinates;
-							if (coords && coords.length >= 2) {
-								const result = {
-									lat: coords[1] || 0,
-									lng: coords[0] || 0
-								};
-								return result;
-							} else {
-								return { lat: 0, lng: 0 };
-							}
-						})(),
-						city: (loc.geocode && typeof loc.geocode === 'object' && 'city' in loc.geocode)
-							? (loc.geocode as GeocodeData).city || ''
-							: '',
-						created_at: String(loc.created_at),
-						updated_at: String(loc.updated_at),
-						recorded_at: String(loc.recorded_at),
-						altitude: loc.altitude as number | undefined,
-						accuracy: loc.accuracy as number | undefined,
-						speed: loc.speed as number | undefined,
-						transport_mode: String(loc.transport_mode || 'unknown'),
-						detectionReason: loc.detectionReason as TransportDetectionReason | string | undefined,
-						velocity: loc.velocity as number | undefined,
-						distance_from_prev: loc.distance_from_prev as number | undefined,
-						geocode: loc.geocode as GeocodeData | string | null,
-						tz_diff: loc.tz_diff as number | undefined
-					};
-				});
-
-
+						return {
+							id: `${loc.user_id}_${loc.recorded_at}_${loadMoreOffset + index}`,
+							name:
+								loc.geocode && typeof loc.geocode === 'object' && 'display_name' in loc.geocode
+									? (loc.geocode as GeocodeData).display_name || 'Unknown Location'
+									: 'Unknown Location',
+							description:
+								loc.geocode && typeof loc.geocode === 'object' && 'name' in loc.geocode
+									? (loc.geocode as GeocodeData).name || ''
+									: '',
+							type: 'tracker',
+							coordinates: (() => {
+								const coords = (loc.location as { coordinates?: number[] })?.coordinates;
+								if (coords && coords.length >= 2) {
+									const result = {
+										lat: coords[1] || 0,
+										lng: coords[0] || 0
+									};
+									return result;
+								} else {
+									return { lat: 0, lng: 0 };
+								}
+							})(),
+							city:
+								loc.geocode && typeof loc.geocode === 'object' && 'city' in loc.geocode
+									? (loc.geocode as GeocodeData).city || ''
+									: '',
+							created_at: String(loc.created_at),
+							updated_at: String(loc.updated_at),
+							recorded_at: String(loc.recorded_at),
+							altitude: loc.altitude as number | undefined,
+							accuracy: loc.accuracy as number | undefined,
+							speed: loc.speed as number | undefined,
+							transport_mode: String(loc.transport_mode || 'unknown'),
+							detectionReason: loc.detectionReason as TransportDetectionReason | string | undefined,
+							velocity: loc.velocity as number | undefined,
+							distance_from_prev: loc.distance_from_prev as number | undefined,
+							geocode: loc.geocode as GeocodeData | string | null,
+							tz_diff: loc.tz_diff as number | undefined
+						};
+					}
+				);
 
 				if (loadMoreOffset === 0) {
 					// Initial load - replace all data
@@ -1109,7 +804,6 @@
 			// Complete loading
 			loadingStage = t('statistics.complete');
 			loadingProgress = 100;
-
 		} catch (err) {
 			console.error('Error fetching map data and statistics:', err);
 			statisticsError = err instanceof Error ? err.message : String(err);
@@ -1132,12 +826,6 @@
 		}
 	}
 
-	// Function to fetch statistics data from backend API (kept for backward compatibility)
-	async function fetchStatisticsData(forceRefresh = false) {
-		// Redirect to the new combined function
-		await fetchMapDataAndStatistics(forceRefresh, 0);
-	}
-
 	// Function to load more data points
 	async function loadMoreData() {
 		if (isLoading) return;
@@ -1145,7 +833,7 @@
 		isLoading = true;
 		try {
 			console.log(t('statistics.loadingMoreDataFromOffset', { offset: currentOffset }));
-			await fetchMapDataAndStatistics(false, currentOffset);
+			await fetchMapDataAndStatistics(currentOffset);
 		} catch (error) {
 			console.error(t('statistics.errorLoadingMoreData'), error);
 			toast.error('Failed to load more data');
@@ -1179,7 +867,11 @@
 			if (!statisticsData || !statisticsData.transport) return 0;
 			return statisticsData.transport
 				.filter((t: { mode: string }) => greenModes.includes(t.mode))
-				.reduce((sum: number, t: { distance: number }) => sum + (typeof t.distance === 'number' ? t.distance : 0), 0);
+				.reduce(
+					(sum: number, t: { distance: number }) =>
+						sum + (typeof t.distance === 'number' ? t.distance : 0),
+					0
+				);
 		}
 
 		const greenDistance = getGreenDistance();
@@ -1195,7 +887,10 @@
 			{
 				id: 'green',
 				title: t('statistics.distanceTravelledGreen'),
-				value: greenDistance > 0 ? `${greenDistance.toLocaleString(undefined, { maximumFractionDigits: 1 })} km` : '0 km',
+				value:
+					greenDistance > 0
+						? `${greenDistance.toLocaleString(undefined, { maximumFractionDigits: 1 })} km`
+						: '0 km',
 				icon: Activity,
 				color: 'green'
 			},
@@ -1234,7 +929,7 @@
 				icon: Globe2,
 				color: 'blue'
 			},
-						{
+			{
 				id: 7,
 				title: t('statistics.approximateSteps'),
 				value: statisticsData.steps?.toLocaleString() ?? '0',
@@ -1243,8 +938,6 @@
 			}
 		];
 	}
-
-
 
 	// Function to format segment duration
 	function formatSegmentDuration(seconds: number): string {
@@ -1257,10 +950,6 @@
 		return `${m}:00`;
 	}
 
-
-
-
-
 	// Country name translation is now handled by the centralized i18n system
 
 	// Helper to get flag emoji from country code
@@ -1272,16 +961,6 @@
 			.map((char) => 0x1f1e6 + char.charCodeAt(0) - 65);
 		return String.fromCodePoint(...codePoints);
 	}
-
-	// Add a helper to format seconds as hh:mm:ss
-	function formatTime(seconds: number | undefined): string {
-		if (!seconds || isNaN(seconds)) return '0:00:00';
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const s = Math.floor(seconds % 60);
-		return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-	}
-
 	// Format timestamp with timezone information using tz_diff
 	function formatTimestampWithTimezone(timestamp: string | Date, tzDiff?: number): string {
 		if (!timestamp) return 'Unknown date';
@@ -1309,18 +988,12 @@
 		return formattedDate;
 	}
 
-
-
-
-
 	onDestroy(() => {
 		clearMapMarkers();
 		if (dataLoadTimeout) {
 			clearTimeout(dataLoadTimeout);
 		}
 	});
-
-
 
 	onMount(async () => {
 		console.log('🗺️ Statistics page onMount started');
@@ -1429,9 +1102,12 @@
 			appState.filtersEndDate = today;
 			console.log('📅 Set default date range:', { start: sevenDaysAgo, end: today });
 
-			await fetchMapDataAndStatistics(false, 0); // Allow cache for initial load
+			await fetchMapDataAndStatistics(0); // Allow cache for initial load
 		} else {
-			console.log('📅 Using existing date range:', { start: appState.filtersStartDate, end: appState.filtersEndDate });
+			console.log('📅 Using existing date range:', {
+				start: appState.filtersStartDate,
+				end: appState.filtersEndDate
+			});
 
 			// Debug: Check if the date range makes sense
 			const startDate = appState.filtersStartDate;
@@ -1446,53 +1122,54 @@
 			});
 
 			// Load initial data only if dates are already set
-			await fetchMapDataAndStatistics(false, 0); // Allow cache for initial load
+			await fetchMapDataAndStatistics(0); // Allow cache for initial load
 		}
 
-			// Mark initialization as complete
-	isInitializing = false;
-	hasLoadedInitialData = true;
-});
+		// Mark initialization as complete
+		isInitializing = false;
+		hasLoadedInitialData = true;
+	});
 
-let localStartDate = $state(appState.filtersStartDate instanceof Date ? appState.filtersStartDate : '');
-let localEndDate = $state(appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '');
+	let localStartDate = $state(
+		appState.filtersStartDate instanceof Date ? appState.filtersStartDate : ''
+	);
+	let localEndDate = $state(appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '');
 
-$effect(() => {
-  localStartDate = appState.filtersStartDate instanceof Date ? appState.filtersStartDate : '';
-  localEndDate = appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '';
-});
+	$effect(() => {
+		localStartDate = appState.filtersStartDate instanceof Date ? appState.filtersStartDate : '';
+		localEndDate = appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '';
+	});
 
-// Remove handleDateRangeChange and its on:change binding from DateRangePicker
-// Add MutationObserver logic in onMount
-onMount(() => {
-  let lastText = '';
-  const dateField = document.querySelector('.datepicker-statistics-fix .date-field .date');
-  if (!dateField) return;
-  const observer = new MutationObserver(() => {
-    const text = dateField.textContent?.trim();
-    if (!text || text === lastText) return;
-    lastText = text;
-    // Try to parse the date range
-    const match = text.match(/([A-Za-z]{3,} \d{1,2}, \d{4}) - ([A-Za-z]{3,} \d{1,2}, \d{4})/);
-    if (match) {
-      const [_, startStr, endStr] = match;
-      const start = new Date(startStr);
-      const end = new Date(endStr);
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        appState.filtersStartDate = start;
-        appState.filtersEndDate = end;
-        void fetchMapDataAndStatistics(true, 0);
-      }
-    }
-  });
-  observer.observe(dateField, { childList: true, subtree: true, characterData: true });
-  return () => observer.disconnect();
-});
+	// Remove handleDateRangeChange and its on:change binding from DateRangePicker
+	// Add MutationObserver logic in onMount
+	onMount(() => {
+		let lastText = '';
+		const dateField = document.querySelector('.datepicker-statistics-fix .date-field .date');
+		if (!dateField) return;
+		const observer = new MutationObserver(() => {
+			const text = dateField.textContent?.trim();
+			if (!text || text === lastText) return;
+			lastText = text;
+			// Try to parse the date range
+			const match = text.match(/([A-Za-z]{3,} \d{1,2}, \d{4}) - ([A-Za-z]{3,} \d{1,2}, \d{4})/);
+			if (match) {
+				const [, startStr, endStr] = match;
+				const start = new Date(startStr);
+				const end = new Date(endStr);
+				if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+					appState.filtersStartDate = start;
+					appState.filtersEndDate = end;
+					void fetchMapDataAndStatistics(0);
+				}
+			}
+		});
+		observer.observe(dateField, { childList: true, subtree: true, characterData: true });
+		return () => observer.disconnect();
+	});
 
-// In the DateRangePicker usage:
-// <DateRangePicker bind:startDate={localStartDate} bind:endDate={localEndDate} pickLabel={t('datePicker.pickDateRange')} />
-// (remove on:change={handleDateRangeChange})
-
+	// In the DateRangePicker usage:
+	// <DateRangePicker bind:startDate={localStartDate} bind:endDate={localEndDate} pickLabel={t('datePicker.pickDateRange')} />
+	// (remove on:change={handleDateRangeChange})
 </script>
 
 <svelte:head>
@@ -1544,7 +1221,7 @@ onMount(() => {
 			min-width: 340px;
 			max-width: 95vw;
 			z-index: 3000 !important;
-			box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 			border-radius: 12px;
 			margin-top: 8px;
 			overflow-x: auto;
@@ -1581,8 +1258,6 @@ onMount(() => {
 	</style>
 </svelte:head>
 
-
-
 <div class="space-y-6">
 	<!-- Header -->
 	<div class="flex flex-col justify-between gap-4 md:flex-row md:items-start">
@@ -1593,7 +1268,7 @@ onMount(() => {
 			</h1>
 		</div>
 		<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
-			<div class="relative datepicker-statistics-fix">
+			<div class="datepicker-statistics-fix relative">
 				<DateRangePicker
 					bind:startDate={localStartDate}
 					bind:endDate={localEndDate}
@@ -1605,20 +1280,24 @@ onMount(() => {
 
 	<!-- Map -->
 	<div
-		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode ? 'cursor-pointer ring-4 ring-blue-400' : ''}"
+		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode
+			? 'cursor-pointer ring-4 ring-blue-400'
+			: ''}"
 		style={isEditMode ? 'cursor: pointer;' : ''}
 	>
 		{#if isLoading}
-			<div class="absolute inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70">
+			<div
+				class="absolute inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70"
+			>
 				<Loader2 class="h-16 w-16 animate-spin text-blue-500 dark:text-blue-300" />
 				<div class="mt-4 text-center">
-					<div class="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">
+					<div class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
 						{loadingStage || t('statistics.loading')}
 					</div>
 					{#if loadingProgress > 0}
-						<div class="w-64 bg-gray-200 rounded-full h-2 mb-2 dark:bg-gray-700">
+						<div class="mb-2 h-2 w-64 rounded-full bg-gray-200 dark:bg-gray-700">
 							<div
-								class="bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
+								class="h-2 rounded-full bg-blue-500 transition-all duration-300 ease-out"
 								style="width: {loadingProgress}%"
 							></div>
 						</div>
@@ -1627,7 +1306,7 @@ onMount(() => {
 						</div>
 					{/if}
 					{#if totalPoints > 0}
-						<div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+						<div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 							{locationData.length} of {totalPoints.toLocaleString()} points loaded
 						</div>
 					{/if}
@@ -1679,8 +1358,6 @@ onMount(() => {
 			</div>
 		{/if}
 
-
-
 		<!-- Selection Info -->
 		{#if isEditMode && selectedMarkers.length > 0}
 			<div class="absolute bottom-4 left-4 z-[1001] rounded bg-white p-3 shadow dark:bg-gray-800">
@@ -1690,40 +1367,41 @@ onMount(() => {
 			</div>
 		{/if}
 
-
-
 		<!-- Load More Button -->
-        {#if locationData.length < totalPoints}
-            <div class="absolute right-4 bottom-4 z-[1001] flex flex-col gap-2">
-                <button
-                    onclick={() => loadMoreData()}
-                    disabled={isLoading}
-                    class="rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                >
-                    {#if isLoading}
-                        <Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
-                        {#if loadingStage}
-                            <span class="text-xs text-gray-500">{loadingStage}</span>
-                        {/if}
-                    {:else}
-                        {t('statistics.loadMore')} (+5,000) ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
-                    {/if}
-                </button>
-            </div>
-        {/if}
+		{#if locationData.length < totalPoints}
+			<div class="absolute right-4 bottom-4 z-[1001] flex flex-col gap-2">
+				<button
+					onclick={() => loadMoreData()}
+					disabled={isLoading}
+					class="rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				>
+					{#if isLoading}
+						<Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
+						{#if loadingStage}
+							<span class="text-xs text-gray-500">{loadingStage}</span>
+						{/if}
+					{:else}
+						{t('statistics.loadMore')} (+5,000) ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
+					{/if}
+				</button>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Stats -->
 	{#if statisticsError}
 		<div class="mb-8 py-8 text-center font-semibold text-red-600 dark:text-red-400">
-			{t('statistics.errorLoadingStatistics')} {statisticsError}
+			{t('statistics.errorLoadingStatistics')}
+			{statisticsError}
 		</div>
 	{:else if statisticsLoading}
 		<!-- Loading Placeholders -->
 		<!-- Top section: 4 tiles that span 25% width on larger screens -->
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			{#each Array(8) as _, i}
-				<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+			{#each Array(8) as i (i)}
+				<div
+					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+				>
 					<div class="flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1735,14 +1413,16 @@ onMount(() => {
 
 		<!-- Bottom section: 2 tiles that span 50% width -->
 		<div class="mb-8 flex flex-col gap-6 md:flex-row">
-			{#each Array(2) as _, i}
-				<div class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800">
+			{#each Array(2) as i (i)}
+				<div
+					class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
+				>
 					<div class="mb-3 flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 					</div>
 					<div class="space-y-3">
-						{#each Array(3) as _, j}
+						{#each Array(3) as i (i)}
 							<div class="flex items-center gap-4">
 								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1760,7 +1440,7 @@ onMount(() => {
 	{:else}
 		<!-- Actual Statistics Content -->
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			{#each getStatistics() as stat, index}
+			{#each getStatistics() as stat (stat.title)}
 				{@const IconComponent = stat.icon}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
@@ -1777,7 +1457,7 @@ onMount(() => {
 		</div>
 	{/if}
 
-		<!-- Country Time Distribution and Modes of Transport: Side by Side -->
+	<!-- Country Time Distribution and Modes of Transport: Side by Side -->
 	{#if statisticsData && !statisticsLoading && !statisticsError}
 		<div class="mb-8 flex flex-col gap-6 md:flex-row">
 			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
@@ -1792,7 +1472,7 @@ onMount(() => {
 							>
 						</div>
 						<div class="space-y-4">
-							{#each statisticsData.countryTimeDistribution as country}
+							{#each statisticsData.countryTimeDistribution as country (country.country_code)}
 								<div>
 									<div class="mb-1 flex items-center gap-2">
 										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
@@ -1813,7 +1493,9 @@ onMount(() => {
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">{t('statistics.ofSelectedPeriod')}</div>
+						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+							{t('statistics.ofSelectedPeriod')}
+						</div>
 					</div>
 				</div>
 			{/if}
@@ -1857,11 +1539,10 @@ onMount(() => {
 							<tbody>
 								{#each statisticsData.transport
 									.slice()
-									.filter(mode => mode.mode !== 'stationary')
-									.sort((a, b) => b.distance - a.distance) as mode}
+									.filter((mode) => mode.mode !== 'stationary')
+									.sort((a, b) => b.distance - a.distance) as mode (mode.mode)}
 									<tr>
-										<td
-											class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
+										<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
 											>{translateTransportMode(mode.mode)}</td
 										>
 										<td
@@ -1914,7 +1595,7 @@ onMount(() => {
 				<tbody>
 					{#each statisticsData.trainStationVisits
 						.slice()
-						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station}
+						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station (station.name)}
 						<tr>
 							<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
 								>{station.name}</td
@@ -1932,5 +1613,4 @@ onMount(() => {
 			</div>
 		</div>
 	{/if}
-
 </div>

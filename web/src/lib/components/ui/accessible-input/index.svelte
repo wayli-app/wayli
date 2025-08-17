@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
-	import { cn } from '$lib/utils';
+	import { onMount } from 'svelte';
+
 	import {
 		formAccessibility,
 		ariaHelpers,
 		motionPreferences
 	} from '$lib/accessibility/accessibility-utils';
+	import { cn } from '$lib/utils';
 
 	export let type: string = 'text';
 	export let className: string = '';
@@ -22,8 +23,11 @@
 	export let pattern: string | undefined = undefined;
 	export let minLength: number | undefined = undefined;
 	export let maxLength: number | undefined = undefined;
-
-	const dispatch = createEventDispatcher();
+	export let onInput: ((event: Event) => void) | undefined = undefined;
+	export let onChange: ((event: Event) => void) | undefined = undefined;
+	export let onFocus: ((event: FocusEvent) => void) | undefined = undefined;
+	export let onBlur: ((event: FocusEvent) => void) | undefined = undefined;
+	export let onKeydown: ((event: KeyboardEvent) => void) | undefined = undefined;
 
 	let inputElement: HTMLInputElement;
 	let labelElement: HTMLLabelElement;
@@ -44,9 +48,9 @@
 		}
 	});
 
-    // Handle error state changes
-    // We render a single visible error element with role="alert" below.
-    // Avoid injecting a duplicate sr-only error to keep a single source of truth for screen readers.
+	// Handle error state changes
+	// We render a single visible error element with role="alert" below.
+	// Avoid injecting a duplicate sr-only error to keep a single source of truth for screen readers.
 
 	// Combine describedBy with error ID if error exists
 	$: finalDescribedBy = error ? `${describedBy || ''} ${inputId}-error`.trim() : describedBy;
@@ -54,23 +58,33 @@
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;
 		value = target.value;
-		dispatch('input', event);
+		if (onInput) {
+			onInput(event);
+		}
 	}
 
 	function handleChange(event: Event) {
-		dispatch('change', event);
+		if (onChange) {
+			onChange(event);
+		}
 	}
 
 	function handleFocus(event: FocusEvent) {
-		dispatch('focus', event);
+		if (onFocus) {
+			onFocus(event);
+		}
 	}
 
 	function handleBlur(event: FocusEvent) {
-		dispatch('blur', event);
+		if (onBlur) {
+			onBlur(event);
+		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		dispatch('keydown', event);
+		if (onKeydown) {
+			onKeydown(event);
+		}
 	}
 </script>
 

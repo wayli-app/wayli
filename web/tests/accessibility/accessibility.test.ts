@@ -1,8 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/svelte';
-import { describe, it, expect, vi } from 'vitest';
-import AccessibleButton from '$lib/components/ui/accessible-button/index.svelte?client';
-import AccessibleInput from '$lib/components/ui/accessible-input/index.svelte?client';
-import AccessibleModal from '$lib/components/ui/accessible-modal/index.svelte?client';
+import { describe, it, expect } from 'vitest';
+
+import AccessibleButton from '$lib/components/ui/accessible-button/index.svelte';
+import AccessibleInput from '$lib/components/ui/accessible-input/index.svelte';
+import AccessibleModal from '$lib/components/ui/accessible-modal/index.svelte';
 
 describe('Accessibility Tests', () => {
 	describe('AccessibleButton', () => {
@@ -23,7 +24,6 @@ describe('Accessibility Tests', () => {
 		});
 
 		it('should handle keyboard activation', async () => {
-			const mockClick = vi.fn();
 			render(AccessibleButton, {
 				props: {
 					label: 'Test Button'
@@ -171,7 +171,6 @@ describe('Accessibility Tests', () => {
 		});
 
 		it('should handle escape key to close', async () => {
-			const mockClose = vi.fn();
 			render(AccessibleModal, {
 				props: {
 					open: true,

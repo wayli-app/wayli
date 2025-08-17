@@ -1,6 +1,8 @@
 import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+
 import { supabase } from '$lib/core/supabase/server';
+
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Get the user from the session
@@ -108,7 +110,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions = {
-	addUser: async ({ request, locals: { getSession } }: { request: Request; locals: App.Locals }) => {
+	addUser: async ({
+		request,
+		locals: { getSession }
+	}: {
+		request: Request;
+		locals: App.Locals;
+	}) => {
 		try {
 			const session = await getSession();
 			if (!session) {
@@ -168,7 +176,13 @@ export const actions = {
 		}
 	},
 
-	updateUser: async ({ request, locals: { getSession } }: { request: Request; locals: App.Locals }) => {
+	updateUser: async ({
+		request,
+		locals: { getSession }
+	}: {
+		request: Request;
+		locals: App.Locals;
+	}) => {
 		try {
 			const session = await getSession();
 			if (!session) {
@@ -226,7 +240,13 @@ export const actions = {
 		}
 	},
 
-	deleteUser: async ({ request, locals: { getSession } }: { request: Request; locals: App.Locals }) => {
+	deleteUser: async ({
+		request,
+		locals: { getSession }
+	}: {
+		request: Request;
+		locals: App.Locals;
+	}) => {
 		try {
 			const session = await getSession();
 			if (!session) {

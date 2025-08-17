@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Comprehensive API service layer with standardized patterns
 - Centralized environment configuration system
 - Accessibility utilities and ARIA button action
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Internationalization (i18n) system
 
 ### Changed
+
 - Refactored API endpoints to use new base handler patterns
 - Updated environment variable handling for better security
 - Improved TypeScript strictness across the codebase
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Standardized error handling and response formats
 
 ### Fixed
+
 - Environment variable separation between client and server
 - Accessibility issues with interactive elements
 - TypeScript strict mode compliance
@@ -32,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test coverage gaps
 
 ### Security
+
 - Prevented client-side access to server-only environment variables
 - Enhanced input validation with Zod schemas
 - Improved authentication and authorization patterns
@@ -39,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2024-01-XX
 
 ### Added
+
 - Initial release of Wayli
 - Core location tracking functionality
 - Trip management features
@@ -51,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Basic accessibility features
 
 ### Features
+
 - **Location Tracking**: Track movements with customizable privacy settings
 - **Trip Management**: Organize and plan travels with rich metadata
 - **Statistics**: Visualize travel patterns and insights
@@ -59,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Privacy Controls**: Full control over data sharing and retention
 
 ### Technical Stack
+
 - **Frontend**: SvelteKit, TypeScript, Tailwind CSS
 - **Backend**: Supabase (PostgreSQL, Auth, Storage)
 - **Testing**: Vitest, Testing Library
@@ -70,11 +77,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Version History
 
 ### Version Numbering
+
 - **Major** (X.0.0): Breaking changes, major new features
 - **Minor** (0.X.0): New features, backward compatible
 - **Patch** (0.0.X): Bug fixes, minor improvements
 
 ### Release Types
+
 - **Alpha**: Early development, breaking changes expected
 - **Beta**: Feature complete, testing phase
 - **RC** (Release Candidate): Final testing before stable release
@@ -100,10 +109,12 @@ When contributing to this project, please update the changelog by:
 
 ```markdown
 ### Added
+
 - New user profile page with enhanced settings (#456)
 - Support for exporting data in CSV format (#789)
 
 ### Fixed
+
 - Resolved issue with location tracking on mobile devices (#123)
 - Fixed accessibility issue with modal dialogs (#456)
 ```

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+
 	import { loadIcon } from '$lib/utils/bundle-optimizer';
 
 	export let name: string;
@@ -11,6 +12,7 @@
 	let iconComponent: unknown = null;
 	let loading = false;
 	let error = false;
+	let currentIconName = '';
 
 	onMount(async () => {
 		if (!name) return;
@@ -31,9 +33,10 @@
 		}
 	});
 
-	$: if (name && iconComponent !== name) {
+	$: if (name && name !== currentIconName && !loading) {
 		// Reload icon when name changes
 		(async () => {
+			currentIconName = name;
 			loading = true;
 			error = false;
 

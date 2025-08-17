@@ -1,8 +1,8 @@
 <script lang="ts">
+	import { Star, StarOff, Search, Calendar, Heart } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { Star, StarOff, Search, Calendar, MapPin, ChevronDown, Heart } from 'lucide-svelte';
-	import type { Map as LeafletMap, LatLngExpression } from 'leaflet';
-	import { format } from 'date-fns';
+
+	import type { Map as LeafletMap } from 'leaflet';
 
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
@@ -10,7 +10,6 @@
 	let currentTileLayer: any;
 	let searchQuery = '';
 	let selectedType = 'All';
-	let showFavoritesOnly = false;
 	let markers: any[] = [];
 	const types = [
 		'All',
@@ -160,7 +159,6 @@
 
 		// Listen for theme changes
 		const observer = new MutationObserver(() => {
-			const isDark = document.documentElement.classList.contains('dark');
 			const newUrl = getTileLayerUrl();
 			const newAttribution = getAttribution();
 			if (currentTileLayer && currentTileLayer._url !== newUrl) {
@@ -196,7 +194,7 @@
 
 	<!-- Filters and Search -->
 	<div class="mb-6 flex flex-wrap items-center gap-2">
-		{#each types as type}
+		{#each types as type (type)}
 			<button
 				class="rounded-md px-4 py-1.5 text-sm font-medium transition-colors {selectedType === type
 					? 'bg-[rgb(37,140,244)] text-white'
@@ -266,7 +264,7 @@
 
 	<!-- POI Cards -->
 	<div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-		{#each filteredPOIs as poi}
+		{#each filteredPOIs as poi (poi.id)}
 			<div
 				class="group relative overflow-hidden rounded-xl border border-[rgb(218,218,221)] bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
 				on:mouseenter={() => handlePlaceHover(poi)}
@@ -301,7 +299,7 @@
 				</div>
 				<div class="mt-2 flex items-center gap-1">
 					<div class="text-xs text-gray-400">Rating</div>
-					{#each Array(5) as _, i}
+					{#each Array(5) as i (i)}
 						{#if i < poi.rating}
 							<Star class="h-4 w-4 text-yellow-400" />
 						{:else}

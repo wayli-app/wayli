@@ -1,10 +1,11 @@
 // src/lib/services/api/auth-api.service.ts
 // Auth API service layer - extracts business logic from auth API routes
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler, ErrorCode } from '../error-handler.service';
 import { UserProfileService } from '../user-profile.service';
+
 import type { UserProfile, UserPreferences } from '$lib/types/user.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface AuthApiServiceConfig {
 	supabase: SupabaseClient;
@@ -51,12 +52,9 @@ export class AuthApiService {
 			// Get user profile from user_profiles
 			const profile = await UserProfileService.getUserProfile(userId);
 			if (!profile) {
-				throw errorHandler.createError(
-					ErrorCode.RECORD_NOT_FOUND,
-					'User profile not found',
-					404,
-					{ userId }
-				);
+				throw errorHandler.createError(ErrorCode.RECORD_NOT_FOUND, 'User profile not found', 404, {
+					userId
+				});
 			}
 
 			// Check if user is admin
@@ -79,7 +77,10 @@ export class AuthApiService {
 			}
 
 			// Get user data to check 2FA status
-			const { data: { user }, error: userError } = await this.supabase.auth.admin.getUserById(userId);
+			const {
+				data: { user },
+				error: userError
+			} = await this.supabase.auth.admin.getUserById(userId);
 			if (userError) {
 				throw errorHandler.createError(
 					ErrorCode.DATABASE_ERROR,
@@ -122,7 +123,10 @@ export class AuthApiService {
 	/**
 	 * Update user profile
 	 */
-	async updateUserProfile(userId: string, request: UpdateProfileRequest): Promise<UpdateProfileResult> {
+	async updateUserProfile(
+		userId: string,
+		request: UpdateProfileRequest
+	): Promise<UpdateProfileResult> {
 		try {
 			// Validate request
 			this.validateUpdateProfileRequest(request);
@@ -130,12 +134,10 @@ export class AuthApiService {
 			// Update user profile
 			const updated = await UserProfileService.updateUserProfile(userId, request);
 			if (!updated) {
-				throw errorHandler.createError(
-					ErrorCode.DATABASE_ERROR,
-					'Failed to update profile',
-					500,
-					{ userId, request }
-				);
+				throw errorHandler.createError(ErrorCode.DATABASE_ERROR, 'Failed to update profile', 500, {
+					userId,
+					request
+				});
 			}
 
 			// Get updated profile
@@ -204,7 +206,10 @@ export class AuthApiService {
 		}
 
 		// Validate avatar URL
-		if (avatar_url !== undefined && (typeof avatar_url !== 'string' || !this.isValidUrl(avatar_url))) {
+		if (
+			avatar_url !== undefined &&
+			(typeof avatar_url !== 'string' || !this.isValidUrl(avatar_url))
+		) {
 			throw errorHandler.createError(
 				ErrorCode.VALIDATION_ERROR,
 				'Avatar URL must be a valid URL',
@@ -214,7 +219,10 @@ export class AuthApiService {
 		}
 
 		// Validate home address
-		if (home_address !== undefined && (typeof home_address !== 'string' || home_address.length > 500)) {
+		if (
+			home_address !== undefined &&
+			(typeof home_address !== 'string' || home_address.length > 500)
+		) {
 			throw errorHandler.createError(
 				ErrorCode.VALIDATION_ERROR,
 				'Home address must be a string with maximum 500 characters',

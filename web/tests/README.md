@@ -23,11 +23,13 @@ tests/
 Unit tests focus on testing individual functions, classes, and utilities in isolation.
 
 **Coverage Goals:**
+
 - **Business Logic**: 90%+ coverage
 - **Utilities**: 95%+ coverage
 - **Services**: 85%+ coverage
 
 **Key Areas:**
+
 - API response utilities
 - Validation schemas
 - Error handling
@@ -35,15 +37,16 @@ Unit tests focus on testing individual functions, classes, and utilities in isol
 - Data transformation functions
 
 **Example:**
+
 ```typescript
 // tests/unit/api-response.test.ts
 describe('API Response Utilities', () => {
-  it('should create successful response', async () => {
-    const response = successResponse({ data: 'test' });
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.success).toBe(true);
-  });
+	it('should create successful response', async () => {
+		const response = successResponse({ data: 'test' });
+		expect(response.status).toBe(200);
+		const body = await response.json();
+		expect(body.success).toBe(true);
+	});
 });
 ```
 
@@ -52,11 +55,13 @@ describe('API Response Utilities', () => {
 Component tests verify that Svelte components render correctly and handle user interactions.
 
 **Coverage Goals:**
+
 - **UI Components**: 80%+ coverage
 - **User Interactions**: 90%+ coverage
 - **Accessibility**: 100% coverage for a11y features
 
 **Key Areas:**
+
 - Component rendering
 - User interactions (click, input, keyboard)
 - Event handling
@@ -64,16 +69,17 @@ Component tests verify that Svelte components render correctly and handle user i
 - Accessibility compliance
 
 **Example:**
+
 ```typescript
 // tests/components/AddressSearch.test.ts
 describe('AddressSearch Component', () => {
-  it('should render with default props', () => {
-    const { getByRole, getByText } = render(AddressSearch, {
-      props: { label: 'Address' }
-    });
-    expect(getByText('Address')).toBeInTheDocument();
-    expect(getByRole('textbox')).toBeInTheDocument();
-  });
+	it('should render with default props', () => {
+		const { getByRole, getByText } = render(AddressSearch, {
+			props: { label: 'Address' }
+		});
+		expect(getByText('Address')).toBeInTheDocument();
+		expect(getByRole('textbox')).toBeInTheDocument();
+	});
 });
 ```
 
@@ -82,12 +88,14 @@ describe('AddressSearch Component', () => {
 Accessibility tests ensure the application meets WCAG 2.1 AA standards.
 
 **Coverage Goals:**
+
 - **ARIA Attributes**: 100% coverage
 - **Keyboard Navigation**: 100% coverage
 - **Screen Reader Support**: 100% coverage
 - **Color Contrast**: 100% coverage
 
 **Key Areas:**
+
 - ARIA roles and attributes
 - Keyboard event handling
 - Focus management
@@ -95,14 +103,15 @@ Accessibility tests ensure the application meets WCAG 2.1 AA standards.
 - Color contrast ratios
 
 **Example:**
+
 ```typescript
 // tests/accessibility/accessibility.test.ts
 describe('Accessibility Tests', () => {
-  it('should have proper ARIA attributes', () => {
-    render(AccessibleButton, { props: { label: 'Test Button' } });
-    const button = screen.getByRole('button', { name: 'Test Button' });
-    expect(button).toHaveAttribute('role', 'button');
-  });
+	it('should have proper ARIA attributes', () => {
+		render(AccessibleButton, { props: { label: 'Test Button' } });
+		const button = screen.getByRole('button', { name: 'Test Button' });
+		expect(button).toHaveAttribute('role', 'button');
+	});
 });
 ```
 
@@ -111,11 +120,13 @@ describe('Accessibility Tests', () => {
 Integration tests verify that different parts of the application work together correctly.
 
 **Coverage Goals:**
+
 - **API Endpoints**: 85%+ coverage
 - **Service Integration**: 80%+ coverage
 - **Database Operations**: 75%+ coverage
 
 **Key Areas:**
+
 - API endpoint behavior
 - Service layer integration
 - Database operations
@@ -130,18 +141,18 @@ All tests should follow the AAA pattern:
 
 ```typescript
 describe('UserService', () => {
-  it('should create user successfully', async () => {
-    // Arrange
-    const userData = { name: 'John', email: 'john@example.com' };
-    const mockDb = createMockDatabase();
+	it('should create user successfully', async () => {
+		// Arrange
+		const userData = { name: 'John', email: 'john@example.com' };
+		const mockDb = createMockDatabase();
 
-    // Act
-    const result = await userService.createUser(userData);
+		// Act
+		const result = await userService.createUser(userData);
 
-    // Assert
-    expect(result).toHaveProperty('id');
-    expect(result.name).toBe(userData.name);
-  });
+		// Assert
+		expect(result).toHaveProperty('id');
+		expect(result.name).toBe(userData.name);
+	});
 });
 ```
 
@@ -163,15 +174,15 @@ Each test should be independent and not rely on other tests:
 
 ```typescript
 describe('UserService', () => {
-  beforeEach(() => {
-    // Reset database state
-    resetTestDatabase();
-  });
+	beforeEach(() => {
+		// Reset database state
+		resetTestDatabase();
+	});
 
-  afterEach(() => {
-    // Clean up after each test
-    cleanupTestData();
-  });
+	afterEach(() => {
+		// Clean up after each test
+		cleanupTestData();
+	});
 });
 ```
 
@@ -191,13 +202,13 @@ const userService = new UserService(realDatabase);
 
 ### Overall Coverage Targets
 
-| Category | Target | Current |
-|----------|--------|---------|
-| **Total Coverage** | 85% | TBD |
-| **Business Logic** | 90% | TBD |
-| **API Layer** | 85% | TBD |
-| **Components** | 80% | TBD |
-| **Accessibility** | 100% | TBD |
+| Category           | Target | Current |
+| ------------------ | ------ | ------- |
+| **Total Coverage** | 85%    | TBD     |
+| **Business Logic** | 90%    | TBD     |
+| **API Layer**      | 85%    | TBD     |
+| **Components**     | 80%    | TBD     |
+| **Accessibility**  | 100%   | TBD     |
 
 ### Critical Paths (100% Coverage Required)
 
@@ -245,16 +256,16 @@ npm run test:coverage:ci
 ```typescript
 // vitest.config.ts
 export default defineConfig({
-  test: {
-    include: ['tests/**/*.{test,spec}.{js,ts}'],
-    environment: 'jsdom',
-    setupFiles: ['./tests/setup.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'tests/']
-    }
-  }
+	test: {
+		include: ['tests/**/*.{test,spec}.{js,ts}'],
+		environment: 'jsdom',
+		setupFiles: ['./tests/setup.ts'],
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'html'],
+			exclude: ['node_modules/', 'tests/']
+		}
+	}
 });
 ```
 
@@ -270,9 +281,9 @@ vi.stubEnv('NODE_ENV', 'test');
 
 // Global test utilities
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn()
+	observe: vi.fn(),
+	unobserve: vi.fn(),
+	disconnect: vi.fn()
 }));
 ```
 
@@ -293,10 +304,10 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 ```typescript
 // test-data/factories.ts
 export const createUser = (overrides = {}) => ({
-  id: 'user-123',
-  name: 'Test User',
-  email: 'test@example.com',
-  ...overrides
+	id: 'user-123',
+	name: 'Test User',
+	email: 'test@example.com',
+	...overrides
 });
 ```
 
@@ -323,9 +334,9 @@ expect(user).toBeDefined();
 
 ```typescript
 it('should throw error for invalid input', () => {
-  expect(() => {
-    validateUser({ name: '', email: 'invalid' });
-  }).toThrow('Name is required');
+	expect(() => {
+		validateUser({ name: '', email: 'invalid' });
+	}).toThrow('Name is required');
 });
 ```
 
@@ -336,28 +347,30 @@ it('should throw error for invalid input', () => {
 Every component must include:
 
 1. **ARIA Attributes Test**
+
    ```typescript
    it('should have proper ARIA attributes', () => {
-     const button = screen.getByRole('button');
-     expect(button).toHaveAttribute('aria-label');
+   	const button = screen.getByRole('button');
+   	expect(button).toHaveAttribute('aria-label');
    });
    ```
 
 2. **Keyboard Navigation Test**
+
    ```typescript
    it('should support keyboard navigation', async () => {
-     const button = screen.getByRole('button');
-     await fireEvent.keyDown(button, { key: 'Enter' });
-     expect(mockClickHandler).toHaveBeenCalled();
+   	const button = screen.getByRole('button');
+   	await fireEvent.keyDown(button, { key: 'Enter' });
+   	expect(mockClickHandler).toHaveBeenCalled();
    });
    ```
 
 3. **Focus Management Test**
    ```typescript
    it('should manage focus correctly', () => {
-     const input = screen.getByRole('textbox');
-     input.focus();
-     expect(input).toHaveFocus();
+   	const input = screen.getByRole('textbox');
+   	input.focus();
+   	expect(input).toHaveFocus();
    });
    ```
 
@@ -377,11 +390,11 @@ Every component must include:
 
 ```typescript
 it('should render within performance budget', () => {
-  const startTime = performance.now();
-  render(ComplexComponent);
-  const endTime = performance.now();
+	const startTime = performance.now();
+	render(ComplexComponent);
+	const endTime = performance.now();
 
-  expect(endTime - startTime).toBeLessThan(100); // 100ms budget
+	expect(endTime - startTime).toBeLessThan(100); // 100ms budget
 });
 ```
 
@@ -389,15 +402,15 @@ it('should render within performance budget', () => {
 
 ```typescript
 it('should not leak memory', () => {
-  const initialMemory = performance.memory?.usedJSHeapSize || 0;
+	const initialMemory = performance.memory?.usedJSHeapSize || 0;
 
-  for (let i = 0; i < 100; i++) {
-    render(Component);
-    cleanup();
-  }
+	for (let i = 0; i < 100; i++) {
+		render(Component);
+		cleanup();
+	}
 
-  const finalMemory = performance.memory?.usedJSHeapSize || 0;
-  expect(finalMemory - initialMemory).toBeLessThan(1024 * 1024); // 1MB
+	const finalMemory = performance.memory?.usedJSHeapSize || 0;
+	expect(finalMemory - initialMemory).toBeLessThan(1024 * 1024); // 1MB
 });
 ```
 

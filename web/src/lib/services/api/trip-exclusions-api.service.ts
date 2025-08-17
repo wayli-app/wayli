@@ -1,9 +1,10 @@
 // src/lib/services/api/trip-exclusions-api.service.ts
 // Trip Exclusions API Service for handling trip exclusion-related API operations
 
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { errorHandler, ErrorCode } from '../error-handler.service';
+
 import type { GeocodedLocation } from '$lib/types/geocoding.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface TripExclusionsApiServiceConfig {
 	supabase: SupabaseClient;
@@ -68,7 +69,10 @@ export class TripExclusionsApiService {
 				.maybeSingle();
 
 			if (userPreferencesError) {
-				console.error('❌ [TripExclusionsAPI] Error fetching user preferences:', userPreferencesError);
+				console.error(
+					'❌ [TripExclusionsAPI] Error fetching user preferences:',
+					userPreferencesError
+				);
 				throw errorHandler.createError(
 					ErrorCode.DATABASE_ERROR,
 					'Failed to fetch user preferences',
@@ -100,7 +104,10 @@ export class TripExclusionsApiService {
 	/**
 	 * Create a new trip exclusion
 	 */
-	async createTripExclusion(userId: string, request: CreateTripExclusionRequest): Promise<CreateTripExclusionResult> {
+	async createTripExclusion(
+		userId: string,
+		request: CreateTripExclusionRequest
+	): Promise<CreateTripExclusionResult> {
 		try {
 			const { name, location } = request;
 
@@ -203,7 +210,10 @@ export class TripExclusionsApiService {
 	/**
 	 * Update an existing trip exclusion
 	 */
-	async updateTripExclusion(userId: string, request: UpdateTripExclusionRequest): Promise<UpdateTripExclusionResult> {
+	async updateTripExclusion(
+		userId: string,
+		request: UpdateTripExclusionRequest
+	): Promise<UpdateTripExclusionResult> {
 		try {
 			const { id, name, location } = request;
 
@@ -305,7 +315,10 @@ export class TripExclusionsApiService {
 	/**
 	 * Delete a trip exclusion
 	 */
-	async deleteTripExclusion(userId: string, request: DeleteTripExclusionRequest): Promise<DeleteTripExclusionResult> {
+	async deleteTripExclusion(
+		userId: string,
+		request: DeleteTripExclusionRequest
+	): Promise<DeleteTripExclusionResult> {
 		try {
 			const { id } = request;
 
@@ -391,12 +404,9 @@ export class TripExclusionsApiService {
 		const { name, location } = request;
 
 		if (!name) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'Name is required',
-				400,
-				{ field: 'name' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Name is required', 400, {
+				field: 'name'
+			});
 		}
 
 		if (!location) {
@@ -425,21 +435,15 @@ export class TripExclusionsApiService {
 		const { id, name, location } = request;
 
 		if (!id) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'ID is required',
-				400,
-				{ field: 'id' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'ID is required', 400, {
+				field: 'id'
+			});
 		}
 
 		if (!name) {
-			throw errorHandler.createError(
-				ErrorCode.MISSING_REQUIRED_FIELD,
-				'Name is required',
-				400,
-				{ field: 'name' }
-			);
+			throw errorHandler.createError(ErrorCode.MISSING_REQUIRED_FIELD, 'Name is required', 400, {
+				field: 'name'
+			});
 		}
 
 		if (!location) {

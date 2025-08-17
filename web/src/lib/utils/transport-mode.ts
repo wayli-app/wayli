@@ -1,5 +1,6 @@
-import { SPEED_BRACKETS } from './transport-mode.config';
 import { TransportDetectionReason } from '../types/transport-mode.types';
+
+import { SPEED_BRACKETS } from './transport-mode.config';
 // Haversine distance in meters
 export function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
 	const toRad = (x: number) => (x * Math.PI) / 180;
@@ -96,8 +97,8 @@ export function isModeSwitchPossible(
 	toMode: string,
 	atTrainStation: boolean
 ): boolean {
-    // Same mode is always allowed (not a switch)
-    if (fromMode === toMode) return true;
+	// Same mode is always allowed (not a switch)
+	if (fromMode === toMode) return true;
 	// Impossible switches
 	if (fromMode === 'car' && toMode === 'train' && !atTrainStation) return false;
 	if (fromMode === 'train' && toMode === 'car' && !atTrainStation) return false;
@@ -144,12 +145,15 @@ export function detectEnhancedMode(
 	context: EnhancedModeContext,
 	speedMps?: number
 ): { mode: string; reason: string } {
-  const speedKmh =
-    typeof speedMps === 'number' ? speedMps * 3.6 :
-    dt > 0 ? (haversine(prevLat, prevLng, currLat, currLng) / dt) * 3.6 : 0;
-  // Note: previous speed is derived from context.lastSpeed when needed in callers
+	const speedKmh =
+		typeof speedMps === 'number'
+			? speedMps * 3.6
+			: dt > 0
+				? (haversine(prevLat, prevLng, currLat, currLng) / dt) * 3.6
+				: 0;
+	// Note: previous speed is derived from context.lastSpeed when needed in callers
 
-  // Update context (defer lastSpeed assignment until after logic that needs previous)
+	// Update context (defer lastSpeed assignment until after logic that needs previous)
 	context.speedHistory.push(speedKmh);
 	while (context.speedHistory.length > 10) {
 		context.speedHistory.shift();
@@ -186,20 +190,20 @@ export function detectEnhancedMode(
 		speedBracket = 'car';
 	}
 
-  // Special handling for train detection
-    let detectedMode = speedBracket;
-    let reason = TransportDetectionReason.DEFAULT;
+	// Special handling for train detection
+	let detectedMode = speedBracket;
+	let reason = TransportDetectionReason.DEFAULT;
 
-    // Proactively start a train journey when at a station and moving at >= 30 km/h
-    if (!context.isInTrainJourney && atTrainStation && speedKmh >= 15) {
-        context.isInTrainJourney = true;
-        context.trainJourneyStartTime = Date.now();
-        context.trainJourneyStartStation = stationName || 'Unknown';
-        detectedMode = 'train';
-        reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
-    }
+	// Proactively start a train journey when at a station and moving at >= 30 km/h
+	if (!context.isInTrainJourney && atTrainStation && speedKmh >= 15) {
+		context.isInTrainJourney = true;
+		context.trainJourneyStartTime = Date.now();
+		context.trainJourneyStartStation = stationName || 'Unknown';
+		detectedMode = 'train';
+		reason = TransportDetectionReason.TRAIN_STATION_AND_SPEED;
+	}
 
-    if (speedBracket === 'train' || (context.isInTrainJourney && speedKmh >= 15)) {
+	if (speedBracket === 'train' || (context.isInTrainJourney && speedKmh >= 15)) {
 		if (!context.isInTrainJourney && atTrainStation) {
 			context.isInTrainJourney = true;
 			context.trainJourneyStartTime = Date.now();
@@ -228,7 +232,7 @@ export function detectEnhancedMode(
 		}
 	}
 
-  if (context.isInTrainJourney && speedKmh < 20) {
+	if (context.isInTrainJourney && speedKmh < 20) {
 		context.isInTrainJourney = false;
 		context.trainJourneyStartTime = undefined;
 		context.trainJourneyStartStation = undefined;
@@ -237,28 +241,28 @@ export function detectEnhancedMode(
 	}
 
 	// --- CONTINUITY LOGIC ---
-    if (
-        context.currentMode &&
-        context.currentMode !== 'stationary' &&
-        context.currentMode !== 'unknown' &&
-        dt < MIN_STOP_DURATION
-    ) {
-        // Prevent direct car->plane switch
-        if (context.currentMode === 'car' && detectedMode === 'airplane') {
-            detectedMode = 'car';
-            reason = TransportDetectionReason.KEEP_CONTINUITY;
-        } else if (detectedMode !== 'airplane') {
-            if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
-                detectedMode = context.currentMode;
-                reason = TransportDetectionReason.KEEP_CONTINUITY;
-            }
-        }
-    }
+	if (
+		context.currentMode &&
+		context.currentMode !== 'stationary' &&
+		context.currentMode !== 'unknown' &&
+		dt < MIN_STOP_DURATION
+	) {
+		// Prevent direct car->plane switch
+		if (context.currentMode === 'car' && detectedMode === 'airplane') {
+			detectedMode = 'car';
+			reason = TransportDetectionReason.KEEP_CONTINUITY;
+		} else if (detectedMode !== 'airplane') {
+			if (isModeSwitchPossible(context.currentMode, detectedMode, atTrainStation)) {
+				detectedMode = context.currentMode;
+				reason = TransportDetectionReason.KEEP_CONTINUITY;
+			}
+		}
+	}
 
-    context.currentMode = detectedMode;
-  context.lastSpeed = speedKmh;
+	context.currentMode = detectedMode;
+	context.lastSpeed = speedKmh;
 
-  return { mode: detectedMode, reason };
+	return { mode: detectedMode, reason };
 }
 
 // Legacy functions for backward compatibility

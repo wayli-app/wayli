@@ -195,36 +195,39 @@ src/
 ### Creating New API Endpoints
 
 1. **Use the base handler pattern**:
+
 ```typescript
 export const GET: RequestHandler = createGetHandler(
-  async (context) => {
-    // Business logic here
-    return { data: result };
-  },
-  {
-    requireAuthentication: true,
-    validateQuery: paginationSchema
-  }
+	async (context) => {
+		// Business logic here
+		return { data: result };
+	},
+	{
+		requireAuthentication: true,
+		validateQuery: paginationSchema
+	}
 );
 ```
 
 2. **Use validation schemas**:
+
 ```typescript
 import { createTripSchema } from '$lib/utils/api/schemas';
 
 export const POST: RequestHandler = createPostHandler(
-  async (context) => {
-    const { body } = context;
-    // body is already validated
-    return { trip: result };
-  },
-  {
-    validateBody: createTripSchema
-  }
+	async (context) => {
+		const { body } = context;
+		// body is already validated
+		return { trip: result };
+	},
+	{
+		validateBody: createTripSchema
+	}
 );
 ```
 
 3. **Use response utilities**:
+
 ```typescript
 import { successResponse, errorResponse } from '$lib/utils/api/response';
 
@@ -239,6 +242,7 @@ throw new Error('Resource not found');
 ### API Response Format
 
 All API responses follow this structure:
+
 ```typescript
 {
   success: boolean;
@@ -293,10 +297,10 @@ All API responses follow this structure:
 // src/lib/core/config/environment.ts
 // ONLY public, client-safe variables
 export function getNominatimConfig() {
-  return {
-    endpoint: 'https://nominatim.wayli.app',
-    rateLimit: 1
-  };
+	return {
+		endpoint: 'https://nominatim.wayli.app',
+		rateLimit: 1
+	};
 }
 ```
 
@@ -306,7 +310,7 @@ export function getNominatimConfig() {
 // src/lib/core/config/server-environment.ts
 // Server-only variables from $env/static/private
 export function validateServerEnvironment() {
-  // Validate required environment variables
+	// Validate required environment variables
 }
 ```
 
@@ -316,7 +320,7 @@ export function validateServerEnvironment() {
 // src/lib/core/config/worker-environment.ts
 // Worker-specific variables using process.env
 export function validateWorkerEnvironment() {
-  // Validate worker environment
+	// Validate worker environment
 }
 ```
 

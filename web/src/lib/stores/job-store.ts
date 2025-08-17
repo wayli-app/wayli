@@ -8,13 +8,13 @@ let _activeJobs = new Map<string, JobUpdate>();
 let _subscribers: Array<() => void> = [];
 
 function notifySubscribers() {
-	_subscribers.forEach(callback => callback());
+	_subscribers.forEach((callback) => callback());
 }
 
 export function subscribe(callback: () => void) {
 	_subscribers.push(callback);
 	return () => {
-		_subscribers = _subscribers.filter(cb => cb !== callback);
+		_subscribers = _subscribers.filter((cb) => cb !== callback);
 	};
 }
 
@@ -68,8 +68,11 @@ export function clearCompletedJobs() {
 
 		for (const [jobId, job] of _activeJobs.entries()) {
 			// Keep jobs that are still active or recently completed (within 30 seconds)
-			if (job.status === 'queued' || job.status === 'running' ||
-				(now - new Date(job.updated_at).getTime()) < 30000) {
+			if (
+				job.status === 'queued' ||
+				job.status === 'running' ||
+				now - new Date(job.updated_at).getTime() < 30000
+			) {
 				newJobs.set(jobId, job);
 			}
 		}
@@ -83,13 +86,15 @@ export function clearCompletedJobs() {
 
 // Fetch and populate jobs from the server
 export async function fetchAndPopulateJobs() {
-			try {
-			const { supabase } = await import('$lib/core/supabase/client');
-			const { data: { session } } = await supabase.auth.getSession();
+	try {
+		const { supabase } = await import('$lib/core/supabase/client');
+		const {
+			data: { session }
+		} = await supabase.auth.getSession();
 
-			if (!session) {
-				return;
-			}
+		if (!session) {
+			return;
+		}
 
 		// Get all active jobs (queued and running)
 		const { data: activeJobs, error: activeError } = await supabase

@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { afterNavigate } from '$app/navigation';
 	import {
 		BarChart,
 		Import,
@@ -17,15 +15,25 @@
 		LogOut,
 		Menu
 	} from 'lucide-svelte';
-	import { createEventDispatcher } from 'svelte';
-	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
 	import { onMount } from 'svelte';
-	import JobProgressIndicator from './JobProgressIndicator.svelte';
+
 	import { translate } from '$lib/i18n';
+	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
 
-    let { isAdmin = false, children } = $props<{ isAdmin?: boolean; children?: any }>();
+	import JobProgressIndicator from './JobProgressIndicator.svelte';
 
-	const dispatch = createEventDispatcher();
+	import { afterNavigate } from '$app/navigation';
+	import { page } from '$app/stores';
+
+	let {
+		isAdmin = false,
+		children,
+		onSignout
+	} = $props<{
+		isAdmin?: boolean;
+		children?: unknown;
+		onSignout?: () => void;
+	}>();
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -61,7 +69,9 @@
 	});
 
 	function handleSignOut() {
-		dispatch('signout', undefined);
+		if (onSignout) {
+			onSignout();
+		}
 	}
 
 	// Handle window resize to properly manage sidebar state
@@ -111,7 +121,7 @@
 		<!-- Scrollable Navigation - Takes remaining space -->
 		<nav class="min-h-0 flex-1 overflow-y-auto">
 			<div class="space-y-1 p-4">
-				{#each navMain as item}
+				{#each navMain as item (item.href)}
 					<a
 						href={item.href}
 						class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
@@ -120,7 +130,7 @@
 							: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 						onclick={closeSidebar}
 					>
-                        <item.icon class="mr-3 h-5 w-5" />
+						<item.icon class="mr-3 h-5 w-5" />
 						{item.label}
 					</a>
 				{/each}
@@ -158,7 +168,7 @@
 			<!-- User Navigation -->
 			<div class="mb-4">
 				<div class="space-y-1">
-					{#each navUser as item}
+					{#each navUser as item (item.href)}
 						<a
 							href={item.href}
 							class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
@@ -167,7 +177,7 @@
 								: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 							onclick={closeSidebar}
 						>
-                            <item.icon class="mr-3 h-5 w-5" />
+							<item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
 								{#if isAdmin && item.label === 'Account Settings'}
@@ -226,10 +236,10 @@
 		</div>
 
 		<!-- Content Area -->
-        <main class="flex-1 overflow-auto">
-            {#if children}
-                {@render children()}
-            {/if}
-        </main>
+		<main class="flex-1 overflow-auto">
+			{#if children}
+				{@render children()}
+			{/if}
+		</main>
 	</div>
 </div>

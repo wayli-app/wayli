@@ -58,10 +58,10 @@ class LoggingService {
 		this.config.enableDatabase = true;
 	}
 
-    private shouldLog(level: LogLevel): boolean {
-        if (level === LogLevel.DEBUG && process.env.NODE_ENV === 'development') return true;
-        return level >= this.config.level;
-    }
+	private shouldLog(level: LogLevel): boolean {
+		if (level === LogLevel.DEBUG && process.env.NODE_ENV === 'development') return true;
+		return level >= this.config.level;
+	}
 
 	private formatMessage(
 		level: LogLevel,
@@ -102,25 +102,25 @@ class LoggingService {
 		const realIp = request.headers.get('x-real-ip');
 		const cfConnectingIp = request.headers.get('cf-connecting-ip');
 
-		return (forwarded?.split(',')[0] || realIp || cfConnectingIp) || undefined;
+		return forwarded?.split(',')[0] || realIp || cfConnectingIp || undefined;
 	}
 
-    private async writeToConsole(entry: LogEntry): Promise<void> {
+	private async writeToConsole(entry: LogEntry): Promise<void> {
 		if (!this.config.enableConsole) return;
 
-        const formattedMessage = this.formatMessage(entry.level, entry.message, entry.context);
+		const formattedMessage = this.formatMessage(entry.level, entry.message, entry.context);
 
-        switch (entry.level) {
-            case LogLevel.DEBUG: {
-                if (entry.context) console.log(formattedMessage, entry.context);
-                else console.log(formattedMessage);
-                break;
-            }
-            case LogLevel.INFO: {
-                if (entry.context) console.log(formattedMessage, entry.context);
-                else console.log(formattedMessage);
+		switch (entry.level) {
+			case LogLevel.DEBUG: {
+				if (entry.context) console.log(formattedMessage, entry.context);
+				else console.log(formattedMessage);
 				break;
-            }
+			}
+			case LogLevel.INFO: {
+				if (entry.context) console.log(formattedMessage, entry.context);
+				else console.log(formattedMessage);
+				break;
+			}
 			case LogLevel.WARN:
 				console.warn(formattedMessage);
 				break;
@@ -157,7 +157,7 @@ class LoggingService {
 		}
 	}
 
-	private async writeToFile(entry: LogEntry): Promise<void> {
+	private async writeToFile(): Promise<void> {
 		if (!this.config.enableFile || !this.config.filePath) return;
 
 		// In a real implementation, you would use a proper file logging library

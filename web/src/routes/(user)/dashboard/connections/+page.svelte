@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { Link, Database, RefreshCw, Copy, Check } from 'lucide-svelte';
-	import { enhance } from '$app/forms';
-	import { toast } from 'svelte-sonner';
-	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
+
 	import { translate } from '$lib/i18n';
+
+	import { enhance } from '$app/forms';
+	import { page } from '$app/stores';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -44,23 +45,6 @@
 			toast.error($page.form.error);
 		}
 	});
-
-	// Enhanced form submission that refreshes data after success
-	function handleGenerateApiKey() {
-		return async ({ result, update }: { result: any; update: any }) => {
-			console.log('Form submission result:', result);
-			if (result.type === 'success') {
-				console.log('API key generated successfully, refreshing data...');
-				// Refresh the page data to show the new API key
-				await invalidateAll();
-				toast.success(t('connections.apiKeyGeneratedSuccess'));
-			} else if (result.type === 'failure') {
-				console.log('API key generation failed:', result.data);
-				toast.error(result.data?.error || t('connections.apiKeyGenerationFailed'));
-			}
-			await update();
-		};
-	}
 </script>
 
 <div>
@@ -108,10 +92,11 @@
 							class="flex-1 rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#1a1a1a] dark:text-gray-100"
 						/>
 						{#if data.owntracksEndpoint}
-                            <button
+							<button
 								type="button"
-                                onclick={() =>
-									data.owntracksEndpoint && copyToClipboard(data.owntracksEndpoint, t('connections.apiEndpoint'))}
+								onclick={() =>
+									data.owntracksEndpoint &&
+									copyToClipboard(data.owntracksEndpoint, t('connections.apiEndpoint'))}
 								class="flex items-center gap-2 rounded-md border border-[rgb(218,218,221)] px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#3f3f46] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
 							>
 								{#if copiedField === t('connections.apiEndpoint')}
@@ -139,10 +124,11 @@
 							class="flex-1 rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#1a1a1a] dark:text-gray-100"
 						/>
 						{#if data.owntracksApiKey}
-                            <button
+							<button
 								type="button"
-                                onclick={() =>
-									data.owntracksApiKey && copyToClipboard(data.owntracksApiKey, t('connections.apiKey'))}
+								onclick={() =>
+									data.owntracksApiKey &&
+									copyToClipboard(data.owntracksApiKey, t('connections.apiKey'))}
 								class="flex items-center gap-2 rounded-md border border-[rgb(218,218,221)] px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#3f3f46] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
 							>
 								{#if copiedField === t('connections.apiKey')}
@@ -157,13 +143,15 @@
 
 				<!-- Generate API Key Button -->
 				<form method="POST" action="?/generateApiKey" use:enhance>
-                    <button
+					<button
 						type="submit"
-                        onclick={() => console.log('Generate API Key button clicked')}
+						onclick={() => console.log('Generate API Key button clicked')}
 						class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
 					>
 						<RefreshCw class="h-4 w-4" />
-						{data.owntracksApiKey ? t('connections.generateNewApiKey') : t('connections.generateApiKey')}
+						{data.owntracksApiKey
+							? t('connections.generateNewApiKey')
+							: t('connections.generateApiKey')}
 					</button>
 				</form>
 

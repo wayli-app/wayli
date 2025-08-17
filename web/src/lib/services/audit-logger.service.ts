@@ -1,5 +1,6 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { createWorkerClient } from '$lib/core/supabase/worker-client';
+
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export enum AuditEventType {
 	// Authentication events

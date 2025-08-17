@@ -1,8 +1,9 @@
-import { createWorkerClient } from '$lib/core/supabase/worker-client';
-import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
+import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
+
+import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
+import { createWorkerClient } from '$lib/core/supabase/worker-client';
 
 export interface Migration {
 	version: string;
@@ -232,13 +233,6 @@ export class DatabaseMigrationService {
 			);
 			healthy = false;
 		}
-
-
-			healthy,
-			initialized,
-			errorCount: errors.length,
-			errors
-		});
 
 		return {
 			healthy,

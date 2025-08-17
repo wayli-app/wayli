@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+
+import { getSupabaseConfig } from '$lib/core/config/node-environment';
+
 import type { UserProfile } from '$lib/types/user.types';
 // Supports both SvelteKit and Node/worker environments. By default, uses SvelteKit $env/static/*, but can be configured for Node/worker via setSupabaseClient or setSupabaseConfig.
-import { getSupabaseConfig } from '$lib/core/config/node-environment';
 
 export class UserProfileService {
 	private static supabase = createClient(
@@ -155,10 +157,7 @@ export class UserProfileService {
 	/**
 	 * Update user role (admin only)
 	 */
-	static async updateUserRole(
-		userId: string,
-		newRole: 'user' | 'admin'
-	): Promise<boolean> {
+	static async updateUserRole(userId: string, newRole: 'user' | 'admin'): Promise<boolean> {
 		try {
 			// Get current user data
 			const { data: currentUser, error: fetchError } =

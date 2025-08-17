@@ -1,11 +1,4 @@
-// web/src/lib/components/JobProgress.svelte
 <script lang="ts">
-	interface Props {
-		progress: number;
-		status?: string;
-		jobId?: string;
-	}
-
 	const { progress, status = 'running', jobId = '' } = $props();
 
 	// Debug state to track prop changes
@@ -24,6 +17,7 @@
 	});
 </script>
 
+// web/src/lib/components/JobProgress.svelte
 <div class="space-y-4">
 	<!-- Progress Display -->
 	<div class="flex items-center justify-between">
@@ -46,7 +40,7 @@
 	</div>
 
 	<!-- Debug Info -->
-	<div class="text-xs text-red-500 dark:text-red-400 mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded">
+	<div class="mt-2 rounded bg-red-50 p-2 text-xs text-red-500 dark:bg-red-900/20 dark:text-red-400">
 		<div><strong>JobProgress Component Debug:</strong></div>
 		<div>Job ID: {jobId}</div>
 		<div>Received Progress: {debugInfo.receivedProgress}%</div>

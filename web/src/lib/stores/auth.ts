@@ -1,60 +1,16 @@
 import { writable } from 'svelte/store';
-import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
+
 import { supabase } from '$lib/supabase';
+
 import type { UserProfile } from '$lib/types/user.types';
+import type { Session, User } from '@supabase/supabase-js';
 
 type AuthStore = User & Partial<Pick<UserProfile, 'full_name' | 'avatar_url' | 'role'>>;
 
- function createAuthStore() {
-	const { subscribe, set, update } = writable<AuthStore | null>(null);
+function createAuthStore() {
+	const { subscribe, set } = writable<AuthStore | null>(null);
 
-	async function initializeUser(user: User) {
-		// Get profile data from user_metadata
-		const metadata = user.user_metadata || {};
-
-		update((current) => {
-			if (!current) return null;
-			return {
-				...current,
-				full_name: metadata.full_name,
-				avatar_url: metadata.avatar_url,
-				role: metadata.role
-			};
-		});
-	}
-
-    function handleAuthStateChange(event: AuthChangeEvent, session: Session | null) {
-		// Update session store
-        sessionStore.set(session);
-
-		// Handle different auth events appropriately
-		if (event === 'SIGNED_IN' && session) {
-			const sessionUser = session.user;
-			set(sessionUser as AuthStore | null);
-			// Now verify with the server asynchronously
-			verifyUserWithServer();
-		} else if (event === 'SIGNED_OUT' || !session) {
-			set(null);
-			sessionStore.set(null);
-		} else {
-			verifyUserWithServer();
-		}
-	}
-
-	async function verifyUserWithServer() {
-		try {
-			const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-
-			if (verifiedUser) {
-				set(verifiedUser as AuthStore | null);
-				await initializeUser(verifiedUser);
-			}
-		} catch (error) {
-			console.error('❌ [AuthStore] Error verifying user:', error);
-		}
-	}
-
- // Defer subscription until after sessionStore is declared
+	// Defer subscription until after sessionStore is declared
 
 	return {
 		subscribe,
@@ -102,16 +58,16 @@ async function initializeSessionStore() {
 
 // Subscribe to auth changes to keep both stores in sync and enable redirects
 supabase.auth.onAuthStateChange((event, session) => {
-    // Update session first
-    sessionStore.set(session);
+	// Update session first
+	sessionStore.set(session);
 
-    // Update user store for login/logout flows
-    if (event === 'SIGNED_IN' && session) {
-        userStore.set(session.user as AuthStore);
-    } else if (event === 'SIGNED_OUT' || !session) {
-        userStore.set(null);
-        sessionStore.set(null);
-    }
+	// Update user store for login/logout flows
+	if (event === 'SIGNED_IN' && session) {
+		userStore.set(session.user as AuthStore);
+	} else if (event === 'SIGNED_OUT' || !session) {
+		userStore.set(null);
+		sessionStore.set(null);
+	}
 });
 
 // Initialize immediately

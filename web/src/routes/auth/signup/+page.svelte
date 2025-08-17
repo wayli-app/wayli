@@ -1,50 +1,41 @@
 <script lang="ts">
-	import { supabase } from '$lib/supabase';
-	import { goto } from '$app/navigation';
-	import { toast } from 'svelte-sonner';
+	import { Mail, Lock, Eye, EyeOff, ArrowLeft, User, Check, X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { userStore } from '$lib/stores/auth';
-	import {
-		Mail,
-		Lock,
-		Eye,
-		EyeOff,
-		Github,
-		Chrome,
-		ArrowLeft,
-		User,
-		Check,
-		X
-	} from 'lucide-svelte';
-	import { page } from '$app/stores';
+	import { toast } from 'svelte-sonner';
+
 	import { translate } from '$lib/i18n';
+	import { userStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
+
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-    let email = $state('');
-    let password = $state('');
-    let confirmPassword = $state('');
-    let firstName = $state('');
-    let lastName = $state('');
-    let loading = $state(false);
-    let showPassword = $state(false);
-    let showConfirmPassword = $state(false);
-    let isEmailSent = $state(false);
-    let registrationDisabled = $state(false);
-    let isLoadingSettings = $state(false);
+	let email = $state('');
+	let password = $state('');
+	let confirmPassword = $state('');
+	let firstName = $state('');
+	let lastName = $state('');
+	let loading = $state(false);
+	let showPassword = $state(false);
+	let showConfirmPassword = $state(false);
+	let isEmailSent = $state(false);
+	let registrationDisabled = $state(false);
+	let isLoadingSettings = $state(false);
 
-    // Password validation
-    let passwordValidation = $derived({
-        minLength: password.length >= 8,
-        hasUppercase: /[A-Z]/.test(password),
-        hasLowercase: /[a-z]/.test(password),
-        hasNumber: /\d/.test(password),
-        hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-    });
+	// Password validation
+	let passwordValidation = $derived({
+		minLength: password.length >= 8,
+		hasUppercase: /[A-Z]/.test(password),
+		hasLowercase: /[a-z]/.test(password),
+		hasNumber: /\d/.test(password),
+		hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+	});
 
-    let isPasswordValid = $derived(Object.values(passwordValidation).every(Boolean));
-    let doPasswordsMatch = $derived(password === confirmPassword && password.length > 0);
+	let isPasswordValid = $derived(Object.values(passwordValidation).every(Boolean));
+	let doPasswordsMatch = $derived(password === confirmPassword && password.length > 0);
 
 	async function checkServerSettings() {
 		isLoadingSettings = true;
@@ -54,7 +45,9 @@
 				const result = await response.json();
 				if (result.success && result.data) {
 					registrationDisabled = !result.data.allow_registration;
-					console.log('🔧 [SIGNUP] Server settings:', { allow_registration: result.data.allow_registration });
+					console.log('🔧 [SIGNUP] Server settings:', {
+						allow_registration: result.data.allow_registration
+					});
 				} else {
 					console.error('Failed to fetch server settings:', result.error);
 					// Default to allowing registration if we can't fetch settings
@@ -166,30 +159,6 @@
 		}
 	}
 
-	async function handleOAuthSignUp(provider: 'google' | 'github') {
-		// Check if registration is disabled
-		if (registrationDisabled) {
-			toast.error(t('auth.userRegistrationDisabled'));
-			return;
-		}
-
-		loading = true;
-
-		try {
-			const { error } = await supabase.auth.signInWithOAuth({
-				provider,
-				options: {
-					redirectTo: `${window.location.origin}/auth/callback`
-				}
-			});
-
-			if (error) throw error;
-		} catch (error: any) {
-			toast.error(error.message || t('auth.oauthSignUpFailed'));
-			loading = false;
-		}
-	}
-
 	function togglePassword() {
 		showPassword = !showPassword;
 	}
@@ -224,9 +193,13 @@
 			</div>
 
 			{#if isLoadingSettings}
-				<div class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+				<div
+					class="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
+				>
 					<div class="flex items-center">
-						<div class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+						<div
+							class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+						></div>
 						<div>
 							<h3 class="text-sm font-medium text-blue-800 dark:text-blue-200">
 								{t('auth.loadingSettings')}
@@ -238,7 +211,9 @@
 					</div>
 				</div>
 			{:else if registrationDisabled}
-				<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+				<div
+					class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+				>
 					<div class="flex items-center">
 						<X class="mr-2 h-5 w-5 text-red-500" />
 						<div>
@@ -290,7 +265,7 @@
 									bind:value={firstName}
 									required
 									disabled={registrationDisabled}
-									class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+									class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 									placeholder={t('auth.firstName')}
 								/>
 							</div>
@@ -308,7 +283,7 @@
 								bind:value={lastName}
 								required
 								disabled={registrationDisabled}
-								class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+								class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder={t('auth.lastName')}
 							/>
 						</div>
@@ -332,7 +307,7 @@
 								bind:value={email}
 								required
 								disabled={registrationDisabled}
-								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder={t('auth.enterYourEmail')}
 							/>
 						</div>
@@ -356,14 +331,14 @@
 								bind:value={password}
 								required
 								disabled={registrationDisabled}
-								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder={t('auth.createPassword')}
 							/>
 							<button
 								type="button"
 								onclick={togglePassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -473,7 +448,7 @@
 								bind:value={confirmPassword}
 								required
 								disabled={registrationDisabled}
-								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed dark:disabled:bg-gray-800 dark:disabled:text-gray-400 {!doPasswordsMatch &&
+								class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(37,140,244)] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400 {!doPasswordsMatch &&
 								confirmPassword.length > 0
 									? 'border-red-500'
 									: ''}"
@@ -483,7 +458,7 @@
 								type="button"
 								onclick={toggleConfirmPassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -493,7 +468,9 @@
 							</button>
 						</div>
 						{#if !doPasswordsMatch && confirmPassword.length > 0}
-							<p class="mt-1 text-xs text-red-600 dark:text-red-400">{t('auth.passwordsDoNotMatch')}</p>
+							<p class="mt-1 text-xs text-red-600 dark:text-red-400">
+								{t('auth.passwordsDoNotMatch')}
+							</p>
 						{/if}
 					</div>
 
@@ -503,7 +480,11 @@
 						disabled={loading || !isPasswordValid || !doPasswordsMatch || registrationDisabled}
 						class="w-full cursor-pointer rounded-lg bg-[rgb(37,140,244)] px-4 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						{loading ? t('auth.creatingAccount') : registrationDisabled ? t('auth.registrationDisabled') : t('auth.createAccount')}
+						{loading
+							? t('auth.creatingAccount')
+							: registrationDisabled
+								? t('auth.registrationDisabled')
+								: t('auth.createAccount')}
 					</button>
 				</form>
 

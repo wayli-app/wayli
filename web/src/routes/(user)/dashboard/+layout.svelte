@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { userStore, sessionStore } from '$lib/stores/auth';
-	import { get } from 'svelte/store';
-	import { goto } from '$app/navigation';
-	import { supabase } from '$lib/supabase';
+	import { onMount } from 'svelte';
+
 	import AppNav from '$lib/components/AppNav.svelte';
 	import JobTracker from '$lib/components/JobTracker.svelte';
-	import { onMount, onDestroy } from 'svelte';
-	import type { PageData } from './$types';
-	import { page } from '$app/stores';
 	import { changeLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { userStore, sessionStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
+
+	import type { PageData } from './$types';
+
+	import { goto } from '$app/navigation';
 
 	let { data } = $props<{ data: PageData }>();
 
-	let unsubscribe: (() => void) | null = null;
 	let globalJobTracker: JobTracker;
 
 	async function handleSignout() {
@@ -53,8 +53,6 @@
 		}
 	}
 
-
-
 	onMount(async () => {
 		try {
 			// Initialize user store with server data
@@ -84,7 +82,7 @@
 	});
 </script>
 
-<AppNav isAdmin={data.isAdmin} on:signout={handleSignout}>
+<AppNav isAdmin={data.isAdmin} onSignout={handleSignout}>
 	<!-- Main content area -->
 	<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
 		<slot />

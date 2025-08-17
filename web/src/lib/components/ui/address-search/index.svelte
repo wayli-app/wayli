@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { get } from 'svelte/store';
-	import { sessionStore } from '$lib/stores/auth';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { sessionStore } from '$lib/stores/auth';
 
 	export let value = '';
 	export let placeholder = 'Enter address...';
@@ -10,17 +8,35 @@
 	export let disabled = false;
 	export let required = false;
 	export let showCoordinates = true;
-
-	const dispatch = createEventDispatcher();
+	export let onInput: ((event: Event) => void) | undefined = undefined;
+	export let onSelect:
+		| ((data: {
+				address: {
+					display_name: string;
+					coordinates?: { lat: number; lng: number };
+					[key: string]: unknown;
+				};
+				displayName: string;
+		  }) => void)
+		| undefined = undefined;
+	export let onClear: (() => void) | undefined = undefined;
 
 	let inputElement: HTMLInputElement | undefined;
-    let isSearching = false;
-	let suggestions: any[] = [];
+	let isSearching = false;
+	let suggestions: Array<{
+		display_name: string;
+		coordinates?: { lat: number; lng: number };
+		[key: string]: unknown;
+	}> = [];
 	let showSuggestions = false;
 	let selectedIndex = -1;
 	let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let searchError: string | null = null;
-	let selectedAddress: any | null = null;
+	let selectedAddress: {
+		display_name: string;
+		coordinates?: { lat: number; lng: number };
+		[key: string]: unknown;
+	} | null = null;
 
 	$: if (value !== inputValue) {
 		inputValue = value;
@@ -45,7 +61,9 @@
 		}
 
 		searchTimeout = setTimeout(() => searchAddresses(), 300);
-		dispatch('input', event);
+		if (onInput) {
+			onInput(event);
+		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -81,11 +99,15 @@
 			showSuggestions = true;
 			searchError = null;
 
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const data = await serviceAdapter.searchGeocode(inputValue.trim()) as any;
+			const data = (await serviceAdapter.searchGeocode(inputValue.trim())) as Array<{
+				display_name: string;
+				coordinates?: { lat: number; lng: number };
+				[key: string]: unknown;
+			}>;
 
 			// The Edge Functions service returns the data array directly
 			suggestions = Array.isArray(data) ? data : [];
@@ -104,18 +126,24 @@
 		}
 	}
 
-	function selectAddress(address: any) {
+	function selectAddress(address: {
+		display_name: string;
+		coordinates?: { lat: number; lng: number };
+		[key: string]: unknown;
+	}) {
 		selectedAddress = address;
 		inputValue = address.display_name;
 		value = address.display_name;
 		showSuggestions = false;
 		selectedIndex = -1;
-		dispatch('select', { address, displayName: address.display_name });
+		if (onSelect) {
+			onSelect({ address, displayName: address.display_name });
+		}
 	}
 
-    export let showClearButton: boolean = false;
+	export let showClearButton: boolean = false;
 
-    function clearAddress() {
+	function clearAddress() {
 		inputValue = '';
 		value = '';
 		selectedAddress = null;
@@ -124,12 +152,17 @@
 		searchError = null;
 		selectedIndex = -1;
 
-		dispatch('clear', undefined);
+		if (onClear) {
+			onClear();
+		}
 	}
 </script>
 
 <div class="relative">
-	<label for="address-input" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+	<label
+		for="address-input"
+		class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+	>
 		{label}
 		{#if required}
 			<span class="text-red-500">*</span>
@@ -144,29 +177,32 @@
 		{placeholder}
 		{disabled}
 		{required}
-        oninput={handleInput}
-        onkeydown={handleKeydown}
+		oninput={handleInput}
+		onkeydown={handleKeydown}
 		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 	/>
 
-    {#if showClearButton && inputValue}
-        <button
-            type="button"
-            aria-label="Clear address"
-            class="absolute right-2 top-2 rounded p-1 text-gray-500 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-gray-300 dark:hover:bg-gray-700"
-            onclick={clearAddress}
-        >
-            ✕
-        </button>
-    {/if}
+	{#if showClearButton && inputValue}
+		<button
+			type="button"
+			aria-label="Clear address"
+			class="absolute top-2 right-2 rounded p-1 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
+			onclick={clearAddress}
+		>
+			✕
+		</button>
+	{/if}
 
 	<!-- Loading Spinner -->
-    {#if isSearching}
-        <div data-testid="loading-indicator" class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+	{#if isSearching}
+		<div
+			data-testid="loading-indicator"
+			class="pointer-events-none absolute inset-y-0 right-3 flex items-center"
+		>
 			<div
 				class="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
 			></div>
-            <span class="sr-only">Searching...</span>
+			<span class="sr-only">Searching...</span>
 		</div>
 	{/if}
 
@@ -175,21 +211,21 @@
 		<div
 			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 		>
-            {#if suggestions.length > 0}
-				{#each suggestions as suggestion, index}
+			{#if suggestions.length > 0}
+				{#each suggestions as suggestion, index (suggestion.display_name + index)}
 					<button
 						type="button"
-                        data-testid="address-suggestion"
-                        class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedIndex ===
+						data-testid="address-suggestion"
+						class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedIndex ===
 						index
 							? 'bg-gray-100 dark:bg-gray-700'
 							: ''}"
-                        onclick={() => selectAddress(suggestion)}
+						onclick={() => selectAddress(suggestion)}
 					>
 						<div class="text-sm text-gray-900 dark:text-gray-100">{suggestion.display_name}</div>
 						{#if suggestion.coordinates}
 							<div class="text-xs text-gray-500 dark:text-gray-400">
-                                {suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
+								{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 							</div>
 						{/if}
 					</button>
@@ -203,12 +239,14 @@
 	{/if}
 
 	<!-- Selected Address Display -->
-    {#if selectedAddress && selectedAddress.coordinates && showCoordinates}
+	{#if selectedAddress && selectedAddress.coordinates && showCoordinates}
 		<div
 			class="mt-2 rounded-md border border-green-200 bg-green-50 p-2 dark:border-green-800 dark:bg-green-900/20"
 		>
 			<div class="text-sm text-green-800 dark:text-green-200">
-                📍 Coordinates: {selectedAddress.coordinates.lat.toFixed(4)}, {selectedAddress.coordinates.lng.toFixed(4)}
+				📍 Coordinates: {selectedAddress.coordinates.lat.toFixed(4)}, {selectedAddress.coordinates.lng.toFixed(
+					4
+				)}
 			</div>
 			<div class="mt-1 text-xs text-green-600 dark:text-green-300">
 				{selectedAddress.display_name}

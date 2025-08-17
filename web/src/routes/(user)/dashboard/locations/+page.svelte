@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { MapPin, Calendar } from 'lucide-svelte';
-	import LocationCard from '$lib/components/LocationCard.svelte';
 	import { onMount } from 'svelte';
+
+	import LocationCard from '$lib/components/LocationCard.svelte';
+
 	import type { Map } from 'leaflet';
 	import 'leaflet/dist/leaflet.css';
 
@@ -98,7 +100,6 @@
 
 		// Listen for theme changes
 		const observer = new MutationObserver(() => {
-			const isDark = document.documentElement.classList.contains('dark');
 			const newUrl = getTileLayerUrl();
 			const newAttribution = getAttribution();
 			if (currentTileLayer && currentTileLayer._url !== newUrl) {
@@ -189,7 +190,7 @@
 
 <!-- Cards -->
 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-	{#each locations as loc}
+	{#each locations as loc (loc.title + loc.date)}
 		<LocationCard
 			image={loc.image}
 			title={loc.title}

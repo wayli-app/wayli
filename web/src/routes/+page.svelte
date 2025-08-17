@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import {
 		MapPin,
 		Globe,
-		Calendar,
 		BarChart,
 		ArrowRight,
 		LogIn,
@@ -13,11 +11,14 @@
 		LogOut
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+
+	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+	import { translate } from '$lib/i18n';
 	import { state, setTheme } from '$lib/stores/app-state.svelte';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
-	import { translate } from '$lib/i18n';
-	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+
+	import { goto } from '$app/navigation';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -26,17 +27,17 @@
 		goto('/auth/signin');
 	}
 
-    async function handleSignOut() {
-        console.log('🏠 [LANDING] Signout initiated');
-        try {
-            // Ensure client session/localStorage are cleared first
-            await supabase.auth.signOut();
-        } catch (e) {
-            console.warn('🏠 [LANDING] Client signout warning:', e);
-        }
-        // Force navigation to server-side signout to clear SSR cookies and reload UI
-        window.location.href = '/auth/signout';
-    }
+	async function handleSignOut() {
+		console.log('🏠 [LANDING] Signout initiated');
+		try {
+			// Ensure client session/localStorage are cleared first
+			await supabase.auth.signOut();
+		} catch (e) {
+			console.warn('🏠 [LANDING] Client signout warning:', e);
+		}
+		// Force navigation to server-side signout to clear SSR cookies and reload UI
+		window.location.href = '/auth/signout';
+	}
 
 	onMount(() => {
 		console.log('🏠 [LANDING] Page mounted');
@@ -64,12 +65,7 @@
 <!-- Theme Toggle, Language Selector, and User/Login Button in Top Right -->
 <div class="fixed top-4 right-4 z-50 flex items-center gap-3">
 	<!-- Language Selector -->
-	<LanguageSelector
-		variant="minimal"
-		size="sm"
-		showLabel={false}
-		position="bottom-right"
-	/>
+	<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 
 	<!-- Theme Toggle -->
 	<div class="flex gap-2">

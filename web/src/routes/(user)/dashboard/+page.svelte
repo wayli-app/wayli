@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+
 	import { translate } from '$lib/i18n';
+
+	import { goto } from '$app/navigation';
 
 	// Use the reactive translation function
 	let t = $derived($translate);

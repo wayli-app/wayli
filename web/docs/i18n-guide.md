@@ -18,34 +18,32 @@ Wayli uses a centralized i18n system built with Svelte stores and supports multi
 
 ```svelte
 <script lang="ts">
-  import { t, translate } from '$lib/i18n';
+	import { t, translate } from '$lib/i18n';
 
-  // Simple translation
-  const message = t('welcomeBack');
+	// Simple translation
+	const message = t('welcomeBack');
 
-  // Reactive translation (updates when locale changes)
-  $: welcomeMessage = translate('welcomeBack');
+	// Reactive translation (updates when locale changes)
+	$: welcomeMessage = translate('welcomeBack');
 
-  // Translation with parameters
-  const greeting = t('welcomeBack', { name: 'John' });
+	// Translation with parameters
+	const greeting = t('welcomeBack', { name: 'John' });
 </script>
 
-<h1>{welcomeMessage}</h1>
-<p>{greeting}</p>
+<h1>{welcomeMessage}</h1><p>{greeting}</p>
 ```
 
 ### Component Usage
 
 ```svelte
 <script lang="ts">
-  import { translate } from '$lib/i18n';
+	import { translate } from '$lib/i18n';
 
-  // Reactive translation function
-  $: t = translate;
+	// Reactive translation function
+	$: t = translate;
 </script>
 
-<button>{t('startTracking')}</button>
-<p>{t('totalDistance')}: 5.2 km</p>
+<button>{t('startTracking')}</button><p>{t('totalDistance')}: 5.2 km</p>
 ```
 
 ## 📁 File Structure
@@ -72,34 +70,37 @@ src/
 ```typescript
 // src/lib/i18n/index.ts
 export const SUPPORTED_LOCALES = ['en', 'nl'] as const;
-export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
+export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 export const DEFAULT_LOCALE: SupportedLocale = 'en';
 ```
 
 ### Adding a New Locale
 
 1. **Create translation file**:
+
    ```bash
    cp messages/en.json messages/fr.json
    ```
 
 2. **Update supported locales**:
+
    ```typescript
    export const SUPPORTED_LOCALES = ['en', 'nl', 'fr'] as const;
    ```
 
 3. **Add locale metadata**:
+
    ```typescript
    const localeNames: Record<SupportedLocale, string> = {
-     en: 'English',
-     nl: 'Nederlands',
-     fr: 'Français'
+   	en: 'English',
+   	nl: 'Nederlands',
+   	fr: 'Français'
    };
 
    const localeFlags: Record<SupportedLocale, string> = {
-     en: '🇺🇸',
-     nl: '🇳🇱',
-     fr: '🇫🇷'
+   	en: '🇺🇸',
+   	nl: '🇳🇱',
+   	fr: '🇫🇷'
    };
    ```
 
@@ -111,14 +112,14 @@ Translation files use the Inlang message format:
 
 ```json
 {
-  "$schema": "https://inlang.com/schema/inlang-message-format",
+	"$schema": "https://inlang.com/schema/inlang-message-format",
 
-  "// Section Comment": "",
-  "key": "Translation",
-  "keyWithParams": "Hello {name}, you have {count} messages",
+	"// Section Comment": "",
+	"key": "Translation",
+	"keyWithParams": "Hello {name}, you have {count} messages",
 
-  "// Another Section": "",
-  "anotherKey": "Another translation"
+	"// Another Section": "",
+	"anotherKey": "Another translation"
 }
 ```
 
@@ -303,15 +304,15 @@ The `LanguageSwitcher` component provides a user-friendly way to change language
 
 ```svelte
 <script lang="ts">
-  import LanguageSwitcher from '$lib/components/ui/language-switcher.svelte';
+	import LanguageSwitcher from '$lib/components/ui/language-switcher.svelte';
 </script>
 
 <LanguageSwitcher
-  size="md"
-  showLabel={true}
-  on:change={({ detail }) => {
-    console.log('Language changed to:', detail.locale);
-  }}
+	size="md"
+	showLabel={true}
+	on:change={({ detail }) => {
+		console.log('Language changed to:', detail.locale);
+	}}
 />
 ```
 
@@ -345,24 +346,24 @@ The `LanguageSwitcher` component provides a user-friendly way to change language
 ```svelte
 <!-- src/routes/+layout.svelte -->
 <script lang="ts">
-  import { currentLocale } from '$lib/i18n';
-  import LanguageSwitcher from '$lib/components/ui/language-switcher.svelte';
+	import { currentLocale } from '$lib/i18n';
+	import LanguageSwitcher from '$lib/components/ui/language-switcher.svelte';
 </script>
 
 <header>
-  <nav>
-    <!-- Navigation items -->
-  </nav>
-  <LanguageSwitcher size="sm" />
+	<nav>
+		<!-- Navigation items -->
+	</nav>
+	<LanguageSwitcher size="sm" />
 </header>
 
 <main>
-  <slot />
+	<slot />
 </main>
 
 <!-- Update document language when locale changes -->
 <svelte:head>
-  <html lang={$currentLocale} />
+	<html lang={$currentLocale} />
 </svelte:head>
 ```
 
@@ -371,21 +372,21 @@ The `LanguageSwitcher` component provides a user-friendly way to change language
 ```svelte
 <!-- Example component with i18n -->
 <script lang="ts">
-  import { translate } from '$lib/i18n';
-  import { formatDate, formatDistance } from '$lib/i18n';
+	import { translate } from '$lib/i18n';
+	import { formatDate, formatDistance } from '$lib/i18n';
 
-  export let trip: Trip;
+	export let trip: Trip;
 
-  $: t = translate;
-  $: formattedDate = formatDate(trip.startDate);
-  $: formattedDistance = formatDistance(trip.distance);
+	$: t = translate;
+	$: formattedDate = formatDate(trip.startDate);
+	$: formattedDistance = formatDistance(trip.distance);
 </script>
 
 <div class="trip-card">
-  <h3>{t('tripName')}: {trip.name}</h3>
-  <p>{t('startDate')}: {formattedDate}</p>
-  <p>{t('distance')}: {formattedDistance}</p>
-  <p>{t('status')}: {t(trip.status)}</p>
+	<h3>{t('tripName')}: {trip.name}</h3>
+	<p>{t('startDate')}: {formattedDate}</p>
+	<p>{t('distance')}: {formattedDistance}</p>
+	<p>{t('status')}: {t(trip.status)}</p>
 </div>
 ```
 
@@ -409,9 +410,9 @@ Use the reactive `translate` function in Svelte components:
 
 ```svelte
 <script lang="ts">
-  import { translate } from '$lib/i18n';
+	import { translate } from '$lib/i18n';
 
-  $: t = translate;
+	$: t = translate;
 </script>
 
 <button>{t('startTracking')}</button>
@@ -423,10 +424,10 @@ Use consistent naming and organization:
 
 ```json
 {
-  "// Feature": "",
-  "featureAction": "Action",
-  "featureDescription": "Description",
-  "featureError": "Error message"
+	"// Feature": "",
+	"featureAction": "Action",
+	"featureDescription": "Description",
+	"featureError": "Error message"
 }
 ```
 
@@ -461,8 +462,8 @@ const currency = formatCurrency(trip.cost, 'USD');
 ```typescript
 // Test that all keys exist
 const testTranslation = (key: string) => {
-  const result = t(key);
-  return result !== key; // Should not return the key if translation exists
+	const result = t(key);
+	return result !== key; // Should not return the key if translation exists
 };
 ```
 
@@ -476,26 +477,26 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { t, changeLocale, formatDate, formatDistance } from '$lib/i18n';
 
 describe('i18n', () => {
-  beforeEach(async () => {
-    await changeLocale('en');
-  });
+	beforeEach(async () => {
+		await changeLocale('en');
+	});
 
-  it('should translate basic keys', () => {
-    expect(t('welcomeBack')).toBe('Welcome back');
-  });
+	it('should translate basic keys', () => {
+		expect(t('welcomeBack')).toBe('Welcome back');
+	});
 
-  it('should handle parameters', () => {
-    expect(t('welcomeBack', { name: 'John' })).toBe('Welcome back, John');
-  });
+	it('should handle parameters', () => {
+		expect(t('welcomeBack', { name: 'John' })).toBe('Welcome back, John');
+	});
 
-  it('should format dates correctly', () => {
-    const date = new Date('2024-01-15');
-    expect(formatDate(date)).toContain('January');
-  });
+	it('should format dates correctly', () => {
+		const date = new Date('2024-01-15');
+		expect(formatDate(date)).toContain('January');
+	});
 
-  it('should format distances correctly', () => {
-    expect(formatDistance(1500)).toBe('1.5 km');
-  });
+	it('should format distances correctly', () => {
+		expect(formatDistance(1500)).toBe('1.5 km');
+	});
 });
 ```
 
@@ -507,18 +508,18 @@ import { render, fireEvent } from '@testing-library/svelte';
 import LanguageSwitcher from '$lib/components/ui/language-switcher.svelte';
 
 describe('LanguageSwitcher', () => {
-  it('should change language when option is clicked', async () => {
-    const { getByRole, getByText } = render(LanguageSwitcher);
+	it('should change language when option is clicked', async () => {
+		const { getByRole, getByText } = render(LanguageSwitcher);
 
-    const button = getByRole('button');
-    await fireEvent.click(button);
+		const button = getByRole('button');
+		await fireEvent.click(button);
 
-    const dutchOption = getByText('Nederlands');
-    await fireEvent.click(dutchOption);
+		const dutchOption = getByText('Nederlands');
+		await fireEvent.click(dutchOption);
 
-    // Verify language changed
-    expect(document.documentElement.lang).toBe('nl');
-  });
+		// Verify language changed
+		expect(document.documentElement.lang).toBe('nl');
+	});
 });
 ```
 
@@ -529,20 +530,20 @@ describe('LanguageSwitcher', () => {
 ```typescript
 // Custom date formatting
 const customDate = (date: Date) => {
-  return formatDate(date, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+	return formatDate(date, {
+		weekday: 'long',
+		year: 'numeric',
+		month: 'long',
+		day: 'numeric'
+	});
 };
 
 // Custom number formatting
 const customNumber = (num: number) => {
-  return formatNumber(num, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+	return formatNumber(num, {
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	});
 };
 ```
 
@@ -551,27 +552,27 @@ const customNumber = (num: number) => {
 ```typescript
 // Enhanced locale detection
 function detectUserLocale(): SupportedLocale {
-  // Check for stored preference
-  const stored = localStorage.getItem('wayli-locale');
-  if (stored && SUPPORTED_LOCALES.includes(stored as SupportedLocale)) {
-    return stored as SupportedLocale;
-  }
+	// Check for stored preference
+	const stored = localStorage.getItem('wayli-locale');
+	if (stored && SUPPORTED_LOCALES.includes(stored as SupportedLocale)) {
+		return stored as SupportedLocale;
+	}
 
-  // Check browser language
-  const browserLang = navigator.language?.split('-')[0];
-  if (browserLang && SUPPORTED_LOCALES.includes(browserLang as SupportedLocale)) {
-    return browserLang as SupportedLocale;
-  }
+	// Check browser language
+	const browserLang = navigator.language?.split('-')[0];
+	if (browserLang && SUPPORTED_LOCALES.includes(browserLang as SupportedLocale)) {
+		return browserLang as SupportedLocale;
+	}
 
-  // Check navigator.languages
-  for (const lang of navigator.languages || []) {
-    const code = lang.split('-')[0];
-    if (SUPPORTED_LOCALES.includes(code as SupportedLocale)) {
-      return code as SupportedLocale;
-    }
-  }
+	// Check navigator.languages
+	for (const lang of navigator.languages || []) {
+		const code = lang.split('-')[0];
+		if (SUPPORTED_LOCALES.includes(code as SupportedLocale)) {
+			return code as SupportedLocale;
+		}
+	}
 
-  return DEFAULT_LOCALE;
+	return DEFAULT_LOCALE;
 }
 ```
 
@@ -580,17 +581,17 @@ function detectUserLocale(): SupportedLocale {
 ```typescript
 // Lazy load translation files
 async function loadMessages(locale: SupportedLocale): Promise<Record<string, string>> {
-  try {
-    const messages = await import(`../../../messages/${locale}.json`);
-    return messages.default || messages;
-  } catch (error) {
-    console.warn(`Failed to load messages for locale ${locale}:`, error);
-    // Fallback to English
-    if (locale !== 'en') {
-      return loadMessages('en');
-    }
-    return {};
-  }
+	try {
+		const messages = await import(`../../../messages/${locale}.json`);
+		return messages.default || messages;
+	} catch (error) {
+		console.warn(`Failed to load messages for locale ${locale}:`, error);
+		// Fallback to English
+		if (locale !== 'en') {
+			return loadMessages('en');
+		}
+		return {};
+	}
 }
 ```
 

@@ -1,14 +1,13 @@
 import {
-  setupRequest,
-  authenticateRequest,
-  successResponse,
-  errorResponse,
-  parseJsonBody,
-  validateRequiredFields,
-  logError,
-  logInfo,
-  logSuccess
+	setupRequest,
+	authenticateRequest,
+	successResponse,
+	errorResponse,
+	parseJsonBody,
+	logError,
+	logInfo
 } from '../_shared/utils.ts';
+
 Deno.serve(async (req) => {
 	// Handle CORS
 	const corsResponse = setupRequest(req);

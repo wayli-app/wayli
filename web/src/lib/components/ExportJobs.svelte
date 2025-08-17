@@ -1,13 +1,12 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { Download, Clock, CheckCircle, XCircle, AlertCircle, Check } from 'lucide-svelte';
+	import { Download, Check } from 'lucide-svelte';
+	import { onMount, onDestroy, get } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { supabase } from '$lib/core/supabase/client';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { sessionStore } from '$lib/stores/auth';
-	import { get } from 'svelte/store';
-	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+
 	import { translate } from '$lib/i18n';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+	import { sessionStore } from '$lib/stores/auth';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -93,14 +92,21 @@
 		} else {
 			jobsById.set(job.id, job);
 		}
-		console.log(`🔄 Updated job ${job.id}:`, { status: job.status, hasDownload: !!(job.result?.file_path || job.result?.downloadUrl) });
+		console.log(`🔄 Updated job ${job.id}:`, {
+			status: job.status,
+			hasDownload: !!(job.result?.file_path || job.result?.downloadUrl)
+		});
 	}
 
 	function updateExportJobs(newJobs: ExportJob[]) {
 		// Safety check: only process export jobs
-		const exportOnlyJobs = newJobs.filter(job => job.type === 'data_export');
+		const exportOnlyJobs = newJobs.filter((job) => job.type === 'data_export');
 		if (exportOnlyJobs.length !== newJobs.length) {
-			console.log('🔒 Filtered out non-export jobs:', newJobs.length - exportOnlyJobs.length, 'jobs filtered');
+			console.log(
+				'🔒 Filtered out non-export jobs:',
+				newJobs.length - exportOnlyJobs.length,
+				'jobs filtered'
+			);
 		}
 
 		// Update each job by ID
@@ -113,25 +119,14 @@
 		updateFilteredJobs();
 	}
 
-	function getExportJobLabel(job: ExportJob): string {
-		if (job.status === 'completed' && (job.result?.file_path || job.result?.downloadUrl)) {
-			return t('exportJobs.completeReadyToDownload');
-		}
-		if (job.status === 'completed') {
-			return t('exportJobs.complete');
-		}
-		// Add more status labels as needed
-		return t(`exportJobs.${job.status}`);
-	}
-
 	function updateFilteredJobs() {
 		const now = new Date();
 
 		// Filter jobs: only show completed jobs with download links, or non-completed jobs
 		filteredExportJobs = exportJobs
-			.filter(job => {
+			.filter((job) => {
 				const created = new Date(job.created_at);
-				const isRecent = (now.getTime() - created.getTime()) <= 7 * 24 * 60 * 60 * 1000;
+				const isRecent = now.getTime() - created.getTime() <= 7 * 24 * 60 * 60 * 1000;
 
 				if (job.status === 'completed') {
 					// Only show completed jobs if they have a download available
@@ -144,11 +139,14 @@
 			})
 			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-		console.log('🧹 Filtered export jobs:', filteredExportJobs.map(j => ({
-			id: j.id,
-			status: j.status,
-			hasDownload: !!(j.result?.file_path || j.result?.downloadUrl)
-		})));
+		console.log(
+			'🧹 Filtered export jobs:',
+			filteredExportJobs.map((j) => ({
+				id: j.id,
+				status: j.status,
+				hasDownload: !!(j.result?.file_path || j.result?.downloadUrl)
+			}))
+		);
 		console.log('📊 Total jobs in map:', jobsById.size);
 		console.log('📊 Total jobs in exportJobs:', exportJobs.length);
 		console.log('📊 Total jobs in filteredExportJobs:', filteredExportJobs.length);
@@ -173,36 +171,39 @@
 
 	function startSSEMonitoring() {
 		// Create SSE service for export job monitoring
-		sseService = new SSEService({
-			onConnected: () => {
-				console.log('🔗 SSE connected for export jobs');
+		sseService = new SSEService(
+			{
+				onConnected: () => {
+					console.log('🔗 SSE connected for export jobs');
+				},
+				onDisconnected: () => {
+					console.log('🔌 SSE disconnected for export jobs');
+				},
+				onJobUpdate: (jobs: JobUpdate[]) => {
+					console.log('📡 Export jobs update received:', jobs);
+					// Filter to only include export jobs, not import jobs
+					const exportOnlyJobs = jobs.filter((job) => job.type === 'data_export');
+					console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
+					// Convert JobUpdate to ExportJob for compatibility
+					const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
+					updateExportJobs(exportJobs);
+				},
+				onJobCompleted: (jobs: JobUpdate[]) => {
+					console.log('✅ Export jobs completed:', jobs);
+					// Filter to only include export jobs, not import jobs
+					const exportOnlyJobs = jobs.filter((job) => job.type === 'data_export');
+					console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
+					// Convert JobUpdate to ExportJob for compatibility
+					const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
+					updateExportJobs(exportJobs);
+				},
+				onError: (error: string) => {
+					console.error('❌ Export jobs SSE error:', error);
+					toast.error(`Export monitoring error: ${error}`);
+				}
 			},
-			onDisconnected: () => {
-				console.log('🔌 SSE disconnected for export jobs');
-			},
-			onJobUpdate: (jobs: JobUpdate[]) => {
-				console.log('📡 Export jobs update received:', jobs);
-				// Filter to only include export jobs, not import jobs
-				const exportOnlyJobs = jobs.filter(job => job.type === 'data_export');
-				console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
-				// Convert JobUpdate to ExportJob for compatibility
-				const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
-				updateExportJobs(exportJobs);
-			},
-			onJobCompleted: (jobs: JobUpdate[]) => {
-				console.log('✅ Export jobs completed:', jobs);
-				// Filter to only include export jobs, not import jobs
-				const exportOnlyJobs = jobs.filter(job => job.type === 'data_export');
-				console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
-				// Convert JobUpdate to ExportJob for compatibility
-				const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
-				updateExportJobs(exportJobs);
-			},
-			onError: (error: string) => {
-				console.error('❌ Export jobs SSE error:', error);
-				toast.error(`Export monitoring error: ${error}`);
-			}
-		}, 'data_export');
+			'data_export'
+		);
 
 		sseService.connect();
 	}
@@ -216,7 +217,7 @@
 			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.getExportJobs() as any;
+			const result = (await serviceAdapter.getExportJobs()) as ExportJob[] | null;
 
 			// The service adapter returns the data directly, not wrapped in a success object
 			if (Array.isArray(result)) {
@@ -234,7 +235,7 @@
 	// Expose the function for external use
 	export { loadExportJobs };
 
-	function getJobETA(job: ExportJob) {
+	function getJobETA() {
 		// Hide ETA for export jobs
 		return null;
 	}
@@ -242,14 +243,6 @@
 	async function downloadExport(jobId: string) {
 		try {
 			console.log('🚀 Starting download for export job:', jobId);
-
-			// Debug: Check if we have the job data
-			const job = exportJobs.find(j => j.id === jobId);
-			console.log('📋 Job data found:', job);
-			console.log('📋 Job status:', job?.status);
-			console.log('📋 Job result:', job?.result);
-			console.log('📋 Job has file_path:', !!job?.result?.file_path);
-			console.log('📋 Job has downloadUrl:', !!job?.result?.downloadUrl);
 
 			const session = get(sessionStore);
 			if (!session) {
@@ -261,7 +254,9 @@
 
 			console.log('📡 Calling service adapter for download URL...');
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result = await serviceAdapter.getExportDownloadUrl(jobId) as any;
+			const result = (await serviceAdapter.getExportDownloadUrl(jobId)) as {
+				downloadUrl: string;
+			} | null;
 			console.log('📥 Service adapter response:', result);
 			console.log('📥 Response type:', typeof result);
 			console.log('📥 Response keys:', result ? Object.keys(result) : 'null/undefined');
@@ -285,88 +280,6 @@
 		}
 	}
 
-	function getStatusIcon(status: string) {
-		switch (status) {
-			case 'completed':
-				return CheckCircle;
-			case 'running':
-				return Clock;
-			case 'failed':
-				return XCircle;
-			case 'cancelled':
-				return XCircle;
-			default:
-				return AlertCircle;
-		}
-	}
-
-	function getStatusColor(status: string) {
-		switch (status) {
-			case 'completed':
-				return 'text-green-600 dark:text-green-400';
-			case 'failed':
-				return 'text-red-600 dark:text-red-400';
-			case 'cancelled':
-				return 'text-yellow-600 dark:text-yellow-400';
-			case 'running':
-				return 'text-blue-600 dark:text-blue-400';
-			case 'queued':
-				return 'text-gray-600 dark:text-gray-400';
-			default:
-				return 'text-gray-600 dark:text-gray-400';
-		}
-	}
-
-	function formatFileSize(bytes?: number): string {
-		if (!bytes) return t('exportJobs.unknown');
-		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
-	}
-
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleString();
-	}
-
-	function getTimeUntilExpiry(expiresAt: string): string {
-		const now = new Date();
-		const expiry = new Date(expiresAt);
-		const diff = expiry.getTime() - now.getTime();
-
-		if (diff <= 0) return t('exportJobs.expired');
-
-		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-		const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-		if (days > 0) return `${days}d ${hours}h ${t('exportJobs.remaining')}`;
-		return `${hours}h ${t('exportJobs.remaining')}`;
-	}
-
-	function getFormatLabel(format: string): string {
-		if (format === 'GeoJSON') return format;
-		// if (format === 'GPX' || format === 'OwnTracks') return format;
-		return 'JSON';
-	}
-
-	function getExpiryDate(job: ExportJob): Date {
-		return new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000);
-	}
-
-	function formatDateRange(job: ExportJob): string {
-		if (!job.data?.startDate || !job.data?.endDate) {
-			return t('exportJobs.allData');
-		}
-
-		const startDate = new Date(job.data.startDate);
-		const endDate = new Date(job.data.endDate);
-
-		// Format dates as YYYY-MM-DD
-		const startFormatted = startDate.toISOString().split('T')[0];
-		const endFormatted = endDate.toISOString().split('T')[0];
-
-		return `${startFormatted} ${t('exportJobs.to')} ${endFormatted}`;
-	}
-
 	// Export a refresh function for parent
 	export function refreshExportJobs() {
 		return loadExportJobs();
@@ -388,44 +301,50 @@
 		</div>
 	{:else}
 		<div class="space-y-3">
-			{#each filteredExportJobs as job}
+			{#each filteredExportJobs as job (job.id)}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-3">
 							<!-- Status icon -->
-							<div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
+							<div
+								class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20"
+							>
 								<Check class="h-4 w-4 text-green-600 dark:text-green-400" />
 							</div>
 
 							<!-- Job info -->
 							<div class="flex-1">
 								<h4 class="font-medium text-gray-900 dark:text-gray-100">
-									{t('exportJobs.created')}: {formatDate(job.created_at)}
+									{t('exportJobs.created')}: {new Date(job.created_at).toLocaleString()}
 								</h4>
 								<div class="text-xs text-gray-500 dark:text-gray-400">
-									{t('exportJobs.dateRange')}: {formatDateRange(job)}
+									{t('exportJobs.dateRange')}: {job.data?.startDate && job.data?.endDate
+										? `${new Date(job.data.startDate).toISOString().split('T')[0]} ${t('exportJobs.to')} ${new Date(job.data.endDate).toISOString().split('T')[0]}`
+										: t('exportJobs.allData')}
 								</div>
 								{#if job.status === 'completed'}
 									<div class="text-xs text-gray-500 dark:text-gray-400">
-										{#if getExpiryDate(job) > new Date()}
-											{t('exportJobs.linkValidUntil')}: {formatDate(getExpiryDate(job).toISOString())}
+										{#if new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) > new Date()}
+											{t('exportJobs.linkValidUntil')}: {new Date(
+												new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000
+											).toLocaleString()}
 										{:else}
 											{t('exportJobs.linkExpired')}
 										{/if}
 									</div>
 								{/if}
-								{#if job.status === 'running' && getJobETA(job)}
-									<div class="text-xs text-gray-500 dark:text-gray-400">ETA: {getJobETA(job)}</div>
+								{#if job.status === 'running' && getJobETA()}
+									<div class="text-xs text-gray-500 dark:text-gray-400">ETA: {getJobETA()}</div>
 								{/if}
 							</div>
 						</div>
 
 						<!-- Download button -->
-						{#if job.status === 'completed' && getExpiryDate(job) > new Date()}
+						{#if job.status === 'completed' && new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) > new Date()}
 							<button
-								on:click={() => downloadExport(job.id)}
+								onclick={() => downloadExport(job.id)}
 								class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 							>
 								<Download class="h-4 w-4" />
@@ -455,31 +374,31 @@
 						<div class="mb-3">
 							<div class="flex flex-wrap gap-2">
 								{#if job.data.includeLocationData}
-								<span
-									class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-								>
-									{t('exportJobs.locationData')}
-								</span>
-							{/if}
+									<span
+										class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+									>
+										{t('exportJobs.locationData')}
+									</span>
+								{/if}
 								{#if job.data.includeWantToVisit}
-								<span
-									class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-								>
-									{t('exportJobs.wantToVisit')}
-								</span>
+									<span
+										class="inline-flex items-center rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+									>
+										{t('exportJobs.wantToVisit')}
+									</span>
 								{/if}
 								{#if job.data.includeTrips}
-								<span
-									class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-								>
-									{t('exportJobs.trips')}
-								</span>
+									<span
+										class="inline-flex items-center rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+									>
+										{t('exportJobs.trips')}
+									</span>
 								{/if}
 								{#if job.data.format}
 									<span
 										class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200"
 									>
-										{getFormatLabel(job.data.format)}
+										{job.data.format === 'GeoJSON' ? job.data.format : 'JSON'}
 									</span>
 								{/if}
 							</div>
@@ -499,10 +418,16 @@
 					{#if job.result && job.status === 'completed'}
 						<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
 							{#if job.result.file_size}
-								<span class="mr-4">{t('exportJobs.size')}: {formatFileSize(job.result.file_size)}</span>
+								<span class="mr-4"
+									>{t('exportJobs.size')}: {job.result.file_size
+										? `${(job.result.file_size / 1024 / 1024).toFixed(2)} MB`
+										: t('exportJobs.unknown')}</span
+								>
 							{/if}
 							{#if job.completed_at}
-								<span>{t('exportJobs.completed')}: {formatDate(job.completed_at)}</span>
+								<span
+									>{t('exportJobs.completed')}: {new Date(job.completed_at).toLocaleString()}</span
+								>
 							{/if}
 						</div>
 					{/if}

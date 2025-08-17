@@ -1,27 +1,14 @@
 <script lang="ts">
-	import {
-		Import,
-		FileDown,
-		MapPin,
-		Route,
-		Upload,
-	} from 'lucide-svelte';
-	import { toast } from 'svelte-sonner';
+	import { Import, FileDown, MapPin } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
-	import { tick } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
-	import { sessionStore } from '$lib/stores/auth';
-	import { get } from 'svelte/store';
-	import type { Job } from '$lib/types/job-queue.types';
 	import ExportJobs from '$lib/components/ExportJobs.svelte';
+	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
+	import { translate } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { jobCreationService } from '$lib/services/job-creation.service';
-	import { createClient } from '@supabase/supabase-js';
-	import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
-	import { DatePicker } from '@svelte-plugins/datepicker';
-	import { format } from 'date-fns';
-	import { translate } from '$lib/i18n';
-	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
+	import { sessionStore } from '$lib/stores/auth';
 	import { subscribe, getActiveJobsMap } from '$lib/stores/job-store';
 
 	// Use the reactive translation function
@@ -51,8 +38,7 @@
 	// Add export state variables for export job creation
 	let includeLocationDataExport = $state(true);
 	let includeWantToVisitExport = $state(true);
-let includeTripsExport = $state(true);
-
+	let includeTripsExport = $state(true);
 
 	// Flag to trigger export history reload
 	let reloadExportHistoryFlag = $state(0);
@@ -60,18 +46,13 @@ let includeTripsExport = $state(true);
 	// Job store subscription for monitoring export jobs
 	let unsubscribeJobs: (() => void) | null = null;
 
-	let exportJobsComponent: ExportJobs;
-	const autoStart = true;
-
-
-
 	let importFormats = $derived([
 		{
 			value: 'GeoJSON',
 			label: 'GeoJSON',
 			icon: MapPin,
 			description: t('importExport.geoJsonDescription')
-		},
+		}
 		// { value: 'GPX', label: 'GPX', icon: Route, description: t('importExport.gpxDescription')},
 		// {
 		// 	value: 'OwnTracks',
@@ -80,24 +61,6 @@ let includeTripsExport = $state(true);
 		// 	description: t('importExport.ownTracksDescription')
 		// }
 	]);
-
-	function getAcceptedFileTypes(format: string): string {
-		switch (format) {
-			case 'GeoJSON':
-				return '.geojson,.json';
-			// case 'GPX':
-			// 	return '.gpx';
-			// case 'OwnTracks':
-			// 	return '.rec';
-			default:
-				return '*';
-		}
-	}
-
-	function getFormatDescription(format: string): string {
-		const formatInfo = importFormats.find((f) => f.value === format);
-		return formatInfo?.description || '';
-	}
 
 	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -118,19 +81,6 @@ let includeTripsExport = $state(true);
 		return 'GeoJSON'; // Default
 	}
 
-	// Date range helper functions
-	const today = new Date();
-	const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
-	function getDateFromToday(days: number) {
-		return new Date(Date.now() - days * MILLISECONDS_IN_DAY);
-	}
-
-	function formatDate(date: Date | string) {
-		if (!date || isNaN(new Date(date as string).getTime())) return '';
-		return format(new Date(date as string), 'MMM d, yyyy');
-	}
-
-
 	// Import functions
 	async function handleImport() {
 		if (!selectedFile || !importFormat) {
@@ -143,15 +93,19 @@ let includeTripsExport = $state(true);
 			isUploading = true;
 			uploadProgress = 0;
 
-			await jobCreationService.createImportJob(selectedFile, {
-				format: importFormat,
-				includeLocationData,
-				includeWantToVisit,
-				includeTrips
-			}, (progress: number) => {
-				uploadProgress = progress;
-				console.log('📤 Upload progress:', progress + '%');
-			});
+			await jobCreationService.createImportJob(
+				selectedFile,
+				{
+					format: importFormat,
+					includeLocationData,
+					includeWantToVisit,
+					includeTrips
+				},
+				(progress: number) => {
+					uploadProgress = progress;
+					console.log('📤 Upload progress:', progress + '%');
+				}
+			);
 
 			// Reset form
 			selectedFile = null;
@@ -183,13 +137,17 @@ let includeTripsExport = $state(true);
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			const jobsResponse = await serviceAdapter.getJobs({ type: 'data_import' }) as any;
-			const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse?.data || []);
+			const jobsResponse = (await serviceAdapter.getJobs({ type: 'data_import' })) as any;
+			const jobs = Array.isArray(jobsResponse) ? jobsResponse : jobsResponse?.data || [];
 
 			// Find the most recent completed import job
 			const lastCompletedImport = jobs
 				.filter((job: any) => job.status === 'completed')
-				.sort((a: any, b: any) => new Date(b.completed_at || b.updated_at).getTime() - new Date(a.completed_at || a.updated_at).getTime())[0];
+				.sort(
+					(a: any, b: any) =>
+						new Date(b.completed_at || b.updated_at).getTime() -
+						new Date(a.completed_at || a.updated_at).getTime()
+				)[0];
 
 			if (lastCompletedImport) {
 				const date = new Date(lastCompletedImport.completed_at || lastCompletedImport.updated_at);
@@ -205,8 +163,6 @@ let includeTripsExport = $state(true);
 			console.error('Error fetching last successful import:', error);
 		}
 	}
-
-
 
 	// Fetch last successful import date on mount
 	onMount(async () => {
@@ -230,7 +186,9 @@ let includeTripsExport = $state(true);
 		unsubscribeJobs = subscribe(() => {
 			// Get current jobs from store
 			const activeJobs = getActiveJobsMap();
-			const exportJobs = Array.from(activeJobs.values()).filter((job: any) => job.type === 'data_export');
+			const exportJobs = Array.from(activeJobs.values()).filter(
+				(job: any) => job.type === 'data_export'
+			);
 
 			// Only reload export history if there are export job updates
 			if (exportJobs.length > 0) {
@@ -270,13 +228,10 @@ let includeTripsExport = $state(true);
 				toast.error('Invalid date format. Please select valid start and end dates.');
 				return;
 			}
-		} catch (error) {
+		} catch {
 			toast.error('Invalid date format. Please select valid start and end dates.');
 			return;
 		}
-
-		const startDateStr = startDate.toISOString().split('T')[0];
-		const endDateStr = endDate.toISOString().split('T')[0];
 
 		try {
 			await jobCreationService.createExportJob({
@@ -298,111 +253,19 @@ let includeTripsExport = $state(true);
 		} catch (error) {
 			console.error('Export error:', error);
 		}
-
-
 	}
 
 	let localExportStartDate = $state(exportStartDate instanceof Date ? exportStartDate : '');
-let localExportEndDate = $state(exportEndDate instanceof Date ? exportEndDate : '');
+	let localExportEndDate = $state(exportEndDate instanceof Date ? exportEndDate : '');
 
-$effect(() => {
-  exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
-  exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
-});
+	$effect(() => {
+		exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
+		exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
+	});
 
-function handleExportDateRangeChange() {
-  exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
-  exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
-}
-
-	function getJobFileName(job: Job | null): string {
-		if (!job) return 'Unknown file';
-		if (job.data?.fileName) return job.data.fileName as string;
-		if (job.data?.original_filename) return job.data.original_filename as string;
-		if (job.data?.filename) return job.data.filename as string;
-		return 'Unknown file';
-	}
-
-	function getJobStatus(job: Job | null): string {
-		if (!job) return 'Unknown';
-
-		// Check for detailed status from job result
-		if (job.result?.status) return job.result.status as string;
-		if (job.result?.message) return job.result.message as string;
-
-		// Check for processing details
-		if (job.result?.processedCount && job.result?.totalCount) {
-			return `Processing ${job.result.processedCount} of ${job.result.totalCount} items...`;
-		}
-
-		// Handle case where job is completed but status wasn't updated
-		if (job.progress === 100 && job.status === 'queued') {
-			return 'Completed';
-		}
-
-		// Basic status mapping
-		if (job.status === 'queued') return 'Queued for processing...';
-		if (job.status === 'running') return 'Processing...';
-		if (job.status === 'completed') return 'Completed';
-		if (job.status === 'failed') return 'Failed';
-		if (job.status === 'cancelled') return 'Cancelled';
-
-		return job.status || 'Unknown';
-	}
-
-	function getJobProgress(job: Job | null): number {
-		if (!job) return 0;
-		console.log('📊 getJobProgress called for job:', job.id, 'progress:', job.progress);
-		return job.progress || 0;
-	}
-
-	function getJobETA(job: Job | null): string | null {
-		if (!job) return null;
-
-		// Check various possible ETA fields in the result
-		const etaValue = job.result?.eta || job.result?.estimatedTimeRemaining || job.result?.timeRemaining;
-
-		if (etaValue) {
-			// Handle the case where ETA is stored as "1024s" format
-			if (typeof etaValue === 'string' && etaValue.endsWith('s')) {
-				const seconds = parseInt(etaValue);
-				if (!isNaN(seconds)) {
-					return formatTime(seconds);
-				}
-			}
-
-			// If it's just a number (seconds), format it
-			if (!isNaN(Number(etaValue))) {
-				return formatTime(Number(etaValue));
-			}
-			return etaValue as string;
-		}
-
-		// Calculate ETA based on progress
-		if (job.progress && job.progress > 0 && job.progress < 100 && job.started_at) {
-			const elapsed = (Date.now() - new Date(job.started_at).getTime()) / 1000;
-			const estimatedTotal = elapsed / (job.progress / 100);
-			const remaining = estimatedTotal - elapsed;
-			if (remaining > 0) {
-				return `${formatTime(remaining)} remaining`;
-			}
-		}
-		return null;
-	}
-
-	function formatTime(seconds: number): string {
-		if (seconds < 60) {
-			return `${Math.round(seconds)}s`;
-		} else if (seconds < 3600) {
-			const mins = Math.floor(seconds / 60);
-			const secs = Math.round(seconds % 60);
-			return `${mins}m ${secs}s`;
-		} else {
-			const hours = Math.floor(seconds / 3600);
-			const mins = Math.floor((seconds % 3600) / 60);
-			const secs = Math.round(seconds % 60);
-			return `${hours}h ${mins}m ${secs}s`;
-		}
+	function handleExportDateRangeChange() {
+		exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
+		exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
 	}
 </script>
 
@@ -417,10 +280,6 @@ function handleExportDateRangeChange() {
 		</div>
 	</div>
 
-
-
-
-
 	<div class="grid gap-8 md:grid-cols-2">
 		<!-- Import Section -->
 		<div
@@ -428,7 +287,9 @@ function handleExportDateRangeChange() {
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('importExport.importData')}</h2>
+				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					{t('importExport.importData')}
+				</h2>
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
 				{t('importExport.importDescription')}
@@ -440,79 +301,79 @@ function handleExportDateRangeChange() {
 			{/if}
 
 			<div class="flex-1 space-y-4">
-					<div>
-						<label
-							for="fileInput"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
-							>{t('importExport.selectFile')}</label
-						>
-						<div class="relative">
-							<label for="fileInput" class="absolute inset-0 z-10 cursor-pointer"></label>
-                            <input
-								type="file"
-								id="fileInput"
-								bind:this={fileInputEl}
-								accept=".geojson,.json"
-								class="block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-gray-500 file:mr-4 file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-600 hover:file:bg-blue-100 dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-blue-400 dark:hover:file:bg-gray-600"
-                                onchange={handleFileSelect}
-							/>
-						</div>
-						{#if selectedFile}
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-								{t('importExport.selectedFile', { filename: selectedFile.name })}
-								{#if importFormat}
-									| {t('importExport.detectedFormat', { format: importFormat })}
-								{/if}
-							</p>
-						{/if}
-					</div>
-
-					<div class="mt-6">
-						<h3 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-							{t('importExport.supportedFormats')}
-						</h3>
-						<div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-							{#each importFormats as format}
-								<div class="flex items-center gap-2">
-                                    <format.icon class="h-4 w-4" />
-									<span>{format.label} - {format.description}</span>
-								</div>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Upload Progress Bar -->
-					{#if isUploading}
-						<div class="mt-4">
-							<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-								<span>{t('importExport.uploadingFile')}</span>
-								<span>{uploadProgress}%</span>
-							</div>
-							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-								<div
-									class="h-2 rounded-full bg-green-600 transition-all duration-300"
-									style="width: {uploadProgress}%"
-								></div>
-							</div>
-						</div>
-					{/if}
-
-					<!-- Import button only shown if no active job -->
-                    <button
-						type="button"
-                        onclick={handleImport}
-						disabled={isImporting || !selectedFile}
-						class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+				<div>
+					<label
+						for="fileInput"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						>{t('importExport.selectFile')}</label
 					>
-						{#if isImporting}
-							<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-							{t('importExport.importing')}
-						{:else}
-							<Import class="h-4 w-4" />
-							{t('importExport.importDataButton')}
-						{/if}
-					</button>
+					<div class="relative">
+						<label for="fileInput" class="absolute inset-0 z-10 cursor-pointer"></label>
+						<input
+							type="file"
+							id="fileInput"
+							bind:this={fileInputEl}
+							accept=".geojson,.json"
+							class="block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-gray-500 file:mr-4 file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-600 hover:file:bg-blue-100 dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-blue-400 dark:hover:file:bg-gray-600"
+							onchange={handleFileSelect}
+						/>
+					</div>
+					{#if selectedFile}
+						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							{t('importExport.selectedFile', { filename: selectedFile.name })}
+							{#if importFormat}
+								| {t('importExport.detectedFormat', { format: importFormat })}
+							{/if}
+						</p>
+					{/if}
 				</div>
+
+				<div class="mt-6">
+					<h3 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+						{t('importExport.supportedFormats')}
+					</h3>
+					<div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+						{#each importFormats as format (format.label)}
+							<div class="flex items-center gap-2">
+								<format.icon class="h-4 w-4" />
+								<span>{format.label} - {format.description}</span>
+							</div>
+						{/each}
+					</div>
+				</div>
+
+				<!-- Upload Progress Bar -->
+				{#if isUploading}
+					<div class="mt-4">
+						<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+							<span>{t('importExport.uploadingFile')}</span>
+							<span>{uploadProgress}%</span>
+						</div>
+						<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+							<div
+								class="h-2 rounded-full bg-green-600 transition-all duration-300"
+								style="width: {uploadProgress}%"
+							></div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Import button only shown if no active job -->
+				<button
+					type="button"
+					onclick={handleImport}
+					disabled={isImporting || !selectedFile}
+					class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					{#if isImporting}
+						<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+						{t('importExport.importing')}
+					{:else}
+						<Import class="h-4 w-4" />
+						{t('importExport.importDataButton')}
+					{/if}
+				</button>
+			</div>
 		</div>
 
 		<!-- Export Section -->
@@ -521,7 +382,9 @@ function handleExportDateRangeChange() {
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('importExport.exportData')}</h2>
+				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					{t('importExport.exportData')}
+				</h2>
 			</div>
 			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
 				{t('importExport.exportDescription')}
@@ -540,7 +403,9 @@ function handleExportDateRangeChange() {
 								bind:checked={includeLocationData}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.locationData')}</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300"
+								>{t('importExport.locationData')}</span
+							>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -548,7 +413,9 @@ function handleExportDateRangeChange() {
 								bind:checked={includeWantToVisit}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.wantToVisit')}</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300"
+								>{t('importExport.wantToVisit')}</span
+							>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -556,12 +423,15 @@ function handleExportDateRangeChange() {
 								bind:checked={includeTrips}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.trips')}</span>
+							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.trips')}</span
+							>
 						</label>
 					</div>
 				</div>
 				<div class="mt-4">
-					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('importExport.dateRange')}</label>
+					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>{t('importExport.dateRange')}</label
+					>
 					<div class="relative">
 						<DateRangePicker
 							bind:startDate={localExportStartDate}
@@ -573,8 +443,8 @@ function handleExportDateRangeChange() {
 				</div>
 			</div>
 
-            <button
-                onclick={handleExport}
+			<button
+				onclick={handleExport}
 				class="mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 			>
 				<FileDown class="h-4 w-4" />
@@ -592,4 +462,3 @@ function handleExportDateRangeChange() {
 <style>
 	/* No custom styles needed - using SVG icon */
 </style>
-

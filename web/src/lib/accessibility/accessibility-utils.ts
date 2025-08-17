@@ -21,7 +21,9 @@ export class FocusManager {
 			)
 		).filter((el) => {
 			const element = el as HTMLElement;
-			return !element.disabled && element.offsetParent !== null;
+			return (
+				!(element as HTMLElement & { disabled?: boolean }).disabled && element.offsetParent !== null
+			);
 		}) as HTMLElement[];
 	}
 

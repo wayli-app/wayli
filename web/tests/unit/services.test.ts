@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { queryOptimizer } from '$lib/services/database/query-optimizer.service';
 import { errorHandler, ErrorCode } from '$lib/services/error-handler.service';
 import { loggingService, LogLevel } from '$lib/services/logging.service';
-import { queryOptimizer } from '$lib/services/database/query-optimizer.service';
 
 describe('Error Handler Service', () => {
 	describe('createError', () => {
@@ -50,7 +51,11 @@ describe('Error Handler Service', () => {
 		});
 
 		it('should create rate limit errors', () => {
-			const error = errorHandler.createError(ErrorCode.RATE_LIMIT_EXCEEDED, 'Rate limit exceeded', 429);
+			const error = errorHandler.createError(
+				ErrorCode.RATE_LIMIT_EXCEEDED,
+				'Rate limit exceeded',
+				429
+			);
 
 			expect(error.code).toBe(ErrorCode.RATE_LIMIT_EXCEEDED);
 			expect(error.statusCode).toBe(429);
@@ -59,7 +64,11 @@ describe('Error Handler Service', () => {
 		});
 
 		it('should create database errors', () => {
-			const error = errorHandler.createError(ErrorCode.DATABASE_ERROR, 'Database connection failed', 500);
+			const error = errorHandler.createError(
+				ErrorCode.DATABASE_ERROR,
+				'Database connection failed',
+				500
+			);
 
 			expect(error.code).toBe(ErrorCode.DATABASE_ERROR);
 			expect(error.statusCode).toBe(500);

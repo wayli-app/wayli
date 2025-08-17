@@ -9,17 +9,22 @@
 </script>
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { fade } from 'svelte/transition';
+	import { fade } from 'svelte';
 
 	export let open = false;
-
-	const dispatch = createEventDispatcher();
+	export let onClose: (() => void) | undefined = undefined;
 </script>
 
 {#if open}
 	<div class="fixed inset-0 z-50 flex items-center justify-center" transition:fade>
-		<div class="fixed inset-0 bg-black/50" on:click={() => dispatch('close', undefined)} />
+		<div
+			class="fixed inset-0 bg-black/50"
+			on:click={() => {
+				if (onClose) {
+					onClose();
+				}
+			}}
+		/>
 		<div
 			class="relative z-50 w-full max-w-lg rounded-lg bg-white p-6 shadow-lg"
 			transition:fade={{ duration: 200 }}

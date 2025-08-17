@@ -1,13 +1,15 @@
 // web/src/lib/services/job-creation.service.ts
-import { ServiceAdapter } from './api/service-adapter';
 import { get } from 'svelte/store';
-import { sessionStore } from '$lib/stores/auth';
 import { toast } from 'svelte-sonner';
+
+import { sessionStore } from '$lib/stores/auth';
 import { addJobToStore } from '$lib/stores/job-store';
+
+import { ServiceAdapter } from './api/service-adapter';
 
 export interface JobCreationOptions {
 	type: 'data_import' | 'data_export' | 'reverse_geocoding' | 'trip_generation';
-	data: Record<string, any>;
+	data: Record<string, unknown>;
 	successMessage?: string;
 	errorMessage?: string;
 }
@@ -39,16 +41,25 @@ export class JobCreationService {
 	/**
 	 * Create a job with the specified type and data
 	 */
-	async createJob(options: JobCreationOptions): Promise<any> {
+	async createJob(options: JobCreationOptions): Promise<unknown> {
 		try {
 			const serviceAdapter = await this.getServiceAdapter();
 
 			console.log(`🚀 Creating ${options.type} job with data:`, options.data);
 
-			const result = await serviceAdapter.createJob({
+			const result = (await serviceAdapter.createJob({
 				type: options.type,
 				data: options.data
-			}) as any;
+			})) as {
+				id?: string;
+				status?: string;
+				progress?: number;
+				data?: unknown;
+				created_at?: string;
+				updated_at?: string;
+				created_by?: string;
+				priority?: string;
+			};
 
 			if (result?.id) {
 				// Add the job to the store immediately so it appears in notifications
@@ -66,7 +77,8 @@ export class JobCreationService {
 
 				addJobToStore(jobUpdate);
 
-				const successMsg = options.successMessage || `${options.type.replace('_', ' ')} job started successfully!`;
+				const successMsg =
+					options.successMessage || `${options.type.replace('_', ' ')} job started successfully!`;
 				toast.success(successMsg);
 				return result;
 			} else {
@@ -74,7 +86,8 @@ export class JobCreationService {
 			}
 		} catch (error) {
 			console.error(`❌ Error creating ${options.type} job:`, error);
-			const errorMsg = options.errorMessage || `Failed to start ${options.type.replace('_', ' ')} job`;
+			const errorMsg =
+				options.errorMessage || `Failed to start ${options.type.replace('_', ' ')} job`;
 			toast.error(errorMsg);
 			throw error;
 		}
@@ -83,12 +96,16 @@ export class JobCreationService {
 	/**
 	 * Create a data import job
 	 */
-	async createImportJob(file: File, options: {
-		format: string;
-		includeLocationData: boolean;
-		includeWantToVisit: boolean;
-		includeTrips: boolean;
-	}, onUploadProgress?: (progress: number) => void): Promise<any> {
+	async createImportJob(
+		file: File,
+		options: {
+			format: string;
+			includeLocationData: boolean;
+			includeWantToVisit: boolean;
+			includeTrips: boolean;
+		},
+		onUploadProgress?: (progress: number) => void
+	): Promise<{ id: string }> {
 		try {
 			// Get service adapter for file upload
 			const serviceAdapter = await this.getServiceAdapter();
@@ -113,7 +130,7 @@ export class JobCreationService {
 		startDate?: Date;
 		endDate?: Date;
 	}): Promise<any> {
-		const data: Record<string, any> = {
+		const data: Record<string, unknown> = {
 			format: options.format,
 			includeLocationData: options.includeLocationData,
 			includeWantToVisit: options.includeWantToVisit,
@@ -161,9 +178,11 @@ export class JobCreationService {
 
 		if (options.startDate) data.startDate = options.startDate;
 		if (options.endDate) data.endDate = options.endDate;
-		if (options.useCustomHomeAddress !== undefined) data.useCustomHomeAddress = options.useCustomHomeAddress;
+		if (options.useCustomHomeAddress !== undefined)
+			data.useCustomHomeAddress = options.useCustomHomeAddress;
 		if (options.customHomeAddress) data.customHomeAddress = options.customHomeAddress;
-		if (options.clearExistingSuggestions !== undefined) data.clearExistingSuggestions = options.clearExistingSuggestions;
+		if (options.clearExistingSuggestions !== undefined)
+			data.clearExistingSuggestions = options.clearExistingSuggestions;
 
 		return this.createJob({
 			type: 'trip_generation',

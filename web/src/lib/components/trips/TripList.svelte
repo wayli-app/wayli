@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import {
 		Edit,
 		MapPin,
@@ -25,8 +24,7 @@
 		lng: number;
 	}[];
 	export let onDelete: (trip: (typeof trips)[0]) => void;
-
-	const dispatch = createEventDispatcher();
+	export let onMouseEnter: ((trip: (typeof trips)[0]) => void) | undefined = undefined;
 
 	let sortField: keyof (typeof trips)[0] = 'startDate';
 	let sortDirection: 'asc' | 'desc' = 'desc';
@@ -63,7 +61,9 @@
 	}
 
 	function handleRowHover(trip: (typeof trips)[0]) {
-		dispatch('mouseenter', trip);
+		if (onMouseEnter) {
+			onMouseEnter(trip);
+		}
 	}
 </script>
 
@@ -174,43 +174,38 @@
 							{/if}
 						</button>
 					</th>
-					<th class="px-6 py-4 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
-						>Countries</th
-					>
-					<th class="w-32 px-6 py-4 text-right text-sm font-medium text-gray-900 dark:text-gray-100"
-						>Actions</th
-					>
+					<th class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">Countries</th>
+					<th class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">Actions</th>
 				</tr>
 			</thead>
 			<tbody>
-				{#each sortedTrips as trip}
+				{#each sortedTrips as trip (trip.title)}
 					<tr
-						class="border-b border-[rgb(218,218,221)] last:border-0 hover:bg-gray-50"
+						class="border-b border-[rgb(218,218,221)] hover:bg-gray-50 dark:border-[#3f3f46] dark:hover:bg-[#2d2d35]"
 						on:mouseenter={() => handleRowHover(trip)}
-						on:mouseleave={() => dispatch('mouseleave')}
 					>
-						<td class="px-6 py-4">
-							<input type="checkbox" class="rounded border-gray-300" />
+						<td class="w-8 px-6 py-4">
+							<input type="checkbox" class="rounded border-gray-300 dark:border-[#23232a]" />
 						</td>
 						<td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100"
 							>{trip.title}</td
 						>
 						<td class="px-6 py-4">
 							<div class="flex gap-1">
-								{#each trip.labels as label}
+								{#each trip.labels as label (label)}
 									<span
 										class="rounded-full px-2 py-0.5 text-xs font-medium
                     {label === 'Adventure'
 											? 'bg-red-100 text-red-700'
 											: label === 'Nature'
-												? 'bg-emerald-100 text-emerald-700'
+												? 'bg-green-100 text-green-700'
 												: label === 'Roadtrip'
-													? 'bg-green-100 text-green-700'
+													? 'bg-blue-100 text-blue-700'
 													: label === 'Vacation'
-														? 'bg-blue-100 text-blue-700'
+														? 'bg-purple-100 text-purple-700'
 														: label === 'auto-generated'
 															? 'bg-gray-100 text-gray-700'
-															: ''}"
+															: 'bg-gray-100 text-gray-700'}"
 									>
 										{label}
 									</span>
@@ -222,7 +217,7 @@
 						<td class="px-6 py-4 text-sm text-gray-500">{trip.duration}</td>
 						<td class="px-6 py-4">
 							<div class="flex gap-1">
-								{#each trip.countries as country}
+								{#each trip.countries as country (country)}
 									<img
 										src={`https://flagcdn.com/w20/${country.toLowerCase()}.png`}
 										alt={country}

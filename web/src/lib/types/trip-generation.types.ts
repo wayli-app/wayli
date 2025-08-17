@@ -1,3 +1,6 @@
+import type { GeocodedLocation } from './geocoding.types';
+import type { VisitedLocation } from '../services/trip-detection.service';
+
 export interface TripGenerationData {
 	startDate: string;
 	endDate: string;
@@ -10,9 +13,6 @@ export interface TripGenerationData {
 	minHomeDurationHours?: number; // Minimum time user must be home to end a trip
 	minHomeDataPoints?: number; // Minimum number of "home" data points to end a trip
 }
-
-import type { GeocodedLocation } from './geocoding.types';
-import type { VisitedLocation } from '../services/trip-detection.service';
 
 export interface TripExclusion {
 	id: string;
@@ -32,24 +32,41 @@ export interface TrackerDataPoint {
 	};
 	recorded_at: string;
 	country_code?: string;
-	geocode?: {
-		address?: {
-			city?: string;
-			town?: string;
-			village?: string;
-			municipality?: string;
-			suburb?: string;
-			[key: string]: string | undefined;
-		};
-		city?: string;
-		town?: string;
-		village?: string;
-		municipality?: string;
-		suburb?: string;
-		name?: string;
-		display_name?: string;
-		[key: string]: unknown;
-	} | string; // Allow for both object and string (JSON) formats
+	geocode?:
+		| {
+				address?: {
+					city?: string;
+					town?: string;
+					village?: string;
+					municipality?: string;
+					suburb?: string;
+					[key: string]: string | undefined;
+				};
+				city?: string;
+				town?: string;
+				village?: string;
+				municipality?: string;
+				suburb?: string;
+				name?: string;
+				display_name?: string;
+				[key: string]: unknown;
+		  }
+		| string; // Allow for both object and string (JSON) formats
+}
+
+// Interface for data returned by get_user_tracking_data function
+export interface TrackingDataPoint {
+	user_id: string;
+	recorded_at: string;
+	lat: number;
+	lon: number;
+	altitude?: number;
+	accuracy?: number;
+	speed?: number;
+	activity_type?: string;
+	geocode?: unknown;
+	distance?: number;
+	time_spent?: number;
 }
 
 export interface DetectedTrip {
@@ -132,7 +149,6 @@ export interface OvernightStay {
 	endTime: string;
 	durationHours: number;
 	dataPoints: number;
-
 }
 
 export interface TripDetectionConfig {

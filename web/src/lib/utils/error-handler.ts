@@ -1,4 +1,4 @@
-export function handleApiError(error: any, fallbackMessage = 'An error occurred') {
+export function handleApiError(error: unknown, fallbackMessage = 'An error occurred') {
 	if (error instanceof Error) {
 		return new Error(error.message || fallbackMessage);
 	}

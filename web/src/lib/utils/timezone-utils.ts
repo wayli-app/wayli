@@ -13,8 +13,31 @@ export async function getTimezoneFromCoordinates(lat: number, lng: number): Prom
 		// This is a basic approximation - for more accuracy, you'd need a proper timezone database
 		const timezoneOffset = Math.round(lng / 15);
 		const timezoneNames = [
-			'UTC-12', 'UTC-11', 'UTC-10', 'UTC-9', 'UTC-8', 'UTC-7', 'UTC-6', 'UTC-5', 'UTC-4', 'UTC-3', 'UTC-2', 'UTC-1',
-			'UTC', 'UTC+1', 'UTC+2', 'UTC+3', 'UTC+4', 'UTC+5', 'UTC+6', 'UTC+7', 'UTC+8', 'UTC+9', 'UTC+10', 'UTC+11', 'UTC+12'
+			'UTC-12',
+			'UTC-11',
+			'UTC-10',
+			'UTC-9',
+			'UTC-8',
+			'UTC-7',
+			'UTC-6',
+			'UTC-5',
+			'UTC-4',
+			'UTC-3',
+			'UTC-2',
+			'UTC-1',
+			'UTC',
+			'UTC+1',
+			'UTC+2',
+			'UTC+3',
+			'UTC+4',
+			'UTC+5',
+			'UTC+6',
+			'UTC+7',
+			'UTC+8',
+			'UTC+9',
+			'UTC+10',
+			'UTC+11',
+			'UTC+12'
 		];
 
 		// Map to common timezone identifiers
@@ -27,7 +50,7 @@ export async function getTimezoneFromCoordinates(lat: number, lng: number): Prom
 			'UTC-3': 'America/Sao_Paulo',
 			'UTC-2': 'Atlantic/South_Georgia',
 			'UTC-1': 'Atlantic/Azores',
-			'UTC': 'UTC',
+			UTC: 'UTC',
 			'UTC+1': 'Europe/London',
 			'UTC+2': 'Europe/Paris',
 			'UTC+3': 'Europe/Moscow',
@@ -57,11 +80,7 @@ export async function getTimezoneFromCoordinates(lat: number, lng: number): Prom
  * @param format Date format string
  * @returns Formatted date string
  */
-export function formatDateInTimezone(
-	date: string | Date,
-	timezone: string,
-	format: string = 'MMM d, yyyy HH:mm'
-): string {
+export function formatDateInTimezone(date: string | Date, timezone: string): string {
 	try {
 		const dateObj = typeof date === 'string' ? new Date(date) : date;
 
@@ -103,9 +122,8 @@ export function formatDateInTimezone(
 export async function formatDateForLocation(
 	date: string | Date,
 	lat: number,
-	lng: number,
-	format: string = 'MMM d, yyyy HH:mm'
+	lng: number
 ): Promise<string> {
 	const timezone = await getTimezoneFromCoordinates(lat, lng);
-	return formatDateInTimezone(date, timezone, format);
+	return formatDateInTimezone(date, timezone);
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Loader2 } from 'lucide-svelte';
 	import { onMount } from 'svelte';
+
 	import { userStore, sessionStore } from '$lib/stores/auth';
 
 	onMount(() => {

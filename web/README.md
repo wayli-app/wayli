@@ -134,22 +134,26 @@ graph TB
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/your-username/wayli.git
    cd wayli/web
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    cp .env.example .env
    ```
 
    Edit `.env` with your Supabase credentials:
+
    ```env
    PUBLIC_SUPABASE_URL=your_supabase_url
    PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
@@ -157,11 +161,13 @@ graph TB
    ```
 
 4. **Run database migrations**
+
    ```bash
    npx supabase db reset
    ```
 
 5. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -277,23 +283,25 @@ Wayli is built with accessibility as a core principle:
 Wayli uses a secure, layered environment configuration:
 
 ### Client-Safe Configuration
+
 ```typescript
 // src/lib/core/config/environment.ts
 // Only public, client-safe variables
 export function getNominatimConfig() {
-  return {
-    endpoint: 'https://nominatim.wayli.app',
-    rateLimit: 1
-  };
+	return {
+		endpoint: 'https://nominatim.wayli.app',
+		rateLimit: 1
+	};
 }
 ```
 
 ### Server-Only Configuration
+
 ```typescript
 // src/lib/core/config/server-environment.ts
 // Server-only variables from $env/static/private
 export function validateServerEnvironment() {
-  // Validate required environment variables
+	// Validate required environment variables
 }
 ```
 

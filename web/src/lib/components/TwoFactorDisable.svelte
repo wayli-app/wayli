@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { AlertTriangle, X, Lock } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
-	import { supabase } from '$lib/supabase';
+
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { supabase } from '$lib/supabase';
 
 	export let open = false;
-
-	const dispatch = createEventDispatcher();
+	export let onDisabled: (() => void) | undefined = undefined;
+	export let onClose: (() => void) | undefined = undefined;
 
 	let password = '';
 	let isDisabling = false;
@@ -20,7 +20,9 @@
 
 		isDisabling = true;
 		try {
-			const { data: { session } } = await supabase.auth.getSession();
+			const {
+				data: { session }
+			} = await supabase.auth.getSession();
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -28,7 +30,9 @@
 
 			toast.success('Two-factor authentication disabled successfully');
 			// Disable 2FA
-			dispatch('disabled', undefined);
+			if (onDisabled) {
+				onDisabled();
+			}
 			closeModal();
 		} catch (error) {
 			console.error('Error disabling 2FA:', error);
@@ -43,7 +47,9 @@
 	function closeModal() {
 		open = false;
 		password = '';
-		dispatch('close', undefined);
+		if (onClose) {
+			onClose();
+		}
 	}
 </script>
 

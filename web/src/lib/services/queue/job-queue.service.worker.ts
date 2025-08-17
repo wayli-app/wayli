@@ -1,5 +1,6 @@
-import { supabase } from '$lib/core/supabase/worker';
 import { getWorkerConfig } from '$lib/core/config/node-environment';
+import { supabase } from '$lib/core/supabase/worker';
+
 import type { Job, JobType, JobStatus, JobPriority, JobConfig } from '$lib/types/job-queue.types';
 
 export class JobQueueService {
@@ -147,16 +148,16 @@ export class JobQueueService {
 
 	static async failJob(jobId: string, error: string): Promise<void> {
 		// Mark job as failed immediately without retrying
-			const { error: updateError } = await this.supabase
-				.from('jobs')
-				.update({
-					status: 'failed',
+		const { error: updateError } = await this.supabase
+			.from('jobs')
+			.update({
+				status: 'failed',
 				error: error,
-					updated_at: new Date().toISOString()
-				})
-				.eq('id', jobId);
+				updated_at: new Date().toISOString()
+			})
+			.eq('id', jobId);
 
-			if (updateError) throw updateError;
+		if (updateError) throw updateError;
 	}
 
 	static async cancelJob(jobId: string): Promise<void> {

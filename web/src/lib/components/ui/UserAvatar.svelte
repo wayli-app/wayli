@@ -11,17 +11,25 @@
 	export let showFallback = true;
 
 	// Generate initials from user data
-	$: initials = getInitials(user);
+	let initials = getInitials(user);
 
 	// Size classes
-	$: sizeClasses = {
+	const sizeClasses = {
 		sm: 'h-8 w-8 text-sm',
 		md: 'h-10 w-10 text-base',
 		lg: 'h-12 w-12 text-lg',
 		xl: 'h-16 w-16 text-xl'
 	};
 
-	function getInitials(user: any): string {
+	function getInitials(
+		user: {
+			first_name?: string;
+			last_name?: string;
+			full_name?: string;
+			email?: string;
+			avatar_url?: string;
+		} | null
+	): string {
 		if (!user) return '?';
 
 		// Try to get initials from first and last name

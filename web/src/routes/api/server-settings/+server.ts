@@ -1,12 +1,17 @@
-import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
+import { json } from '@sveltejs/kit';
+
+import { getServerSupabaseConfig } from '$lib/core/config/server-environment';
+
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
 	try {
+		// Get Supabase configuration from server environment
+		const supabaseConfig = getServerSupabaseConfig();
+
 		// Create Supabase client for server-side operations
-		const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey);
 
 		// Get server settings
 		const { data: settings, error: settingsError } = await supabase
@@ -14,7 +19,8 @@ export const GET: RequestHandler = async () => {
 			.select('allow_registration')
 			.single();
 
-		if (settingsError && settingsError.code !== 'PGRST116') { // PGRST116 = no rows returned
+		if (settingsError && settingsError.code !== 'PGRST116') {
+			// PGRST116 = no rows returned
 			console.error('❌ [SERVER-SETTINGS] Error fetching settings:', settingsError);
 			return json(
 				{

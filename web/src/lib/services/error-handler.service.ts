@@ -51,7 +51,10 @@ export enum ErrorCode {
 	NOT_FOUND = 'NOT_FOUND',
 	BAD_REQUEST = 'BAD_REQUEST',
 	UNAUTHORIZED = 'UNAUTHORIZED',
-	FORBIDDEN = 'FORBIDDEN'
+	FORBIDDEN = 'FORBIDDEN',
+
+	// Conflict errors
+	CONFLICT_ERROR = 'CONFLICT_ERROR'
 }
 
 export interface AppError extends Error {
@@ -202,7 +205,7 @@ class ErrorHandlerService {
 		const realIp = request.headers.get('x-real-ip');
 		const cfConnectingIp = request.headers.get('cf-connecting-ip');
 
-		return (forwarded?.split(',')[0] || realIp || cfConnectingIp) || undefined;
+		return forwarded?.split(',')[0] || realIp || cfConnectingIp || undefined;
 	}
 
 	createErrorResponse(error: AppError, includeDetails: boolean = false): Response {
@@ -354,6 +357,10 @@ class ErrorHandlerService {
 
 	private isAppError(error: unknown): error is AppError {
 		return error instanceof Error && 'code' in error && 'statusCode' in error;
+	}
+
+	isStructuredError(error: unknown): error is AppError {
+		return this.isAppError(error);
 	}
 }
 

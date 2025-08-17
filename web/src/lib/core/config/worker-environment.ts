@@ -12,7 +12,8 @@ export interface WorkerEnvironmentConfig {
 
 // Default fallback values for development
 const DEFAULT_SUPABASE_URL = 'http://127.0.0.1:54321';
-const DEFAULT_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+const DEFAULT_SERVICE_ROLE_KEY =
+	'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
 /**
  * Validate and return the worker environment config.
@@ -58,7 +59,9 @@ export function validateWorkerEnvironmentConfig(strict: boolean = false): Worker
 		if (strict) {
 			throw new Error(`Worker environment configuration errors: ${errors.join(', ')}`);
 		} else {
-			console.warn('⚠️  Worker environment configuration has issues. Some features may not work correctly.');
+			console.warn(
+				'⚠️  Worker environment configuration has issues. Some features may not work correctly.'
+			);
 		}
 	}
 
