@@ -129,7 +129,7 @@
 				size
 			]} max-h-[90vh] overflow-y-auto"
 			role="document"
-			onclick|stopPropagation
+			onclick={(e) => e.stopPropagation()}
 			onkeydown={handleKeydown}
 		>
 			<!-- Header -->

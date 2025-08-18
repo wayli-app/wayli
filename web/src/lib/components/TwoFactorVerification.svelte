@@ -89,7 +89,7 @@
 		<!-- Modal -->
 		<div
 			class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800"
-			onclick|stopPropagation
+			onclick={(e) => e.stopPropagation()}
 			onkeydown|stopPropagation
 			aria-modal="true"
 			role="dialog"

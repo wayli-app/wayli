@@ -31,17 +31,6 @@ export default defineConfig({
 		// Optimize chunk splitting
 		rollupOptions: {
 			output: {
-				// Manual chunk splitting for better caching
-				manualChunks: {
-					// Vendor chunks
-					vendor: ['svelte', '@sveltejs/kit'],
-					supabase: ['@supabase/supabase-js', '@supabase/ssr'],
-					ui: ['@melt-ui/svelte', 'lucide-svelte', 'clsx', 'tailwind-merge'],
-					utils: ['date-fns', 'lodash-es', 'uuid', 'zod'],
-					maps: ['leaflet', '@turf/turf'],
-					auth: ['otplib', 'qrcode']
-				},
-
 				// Optimize chunk naming
 				chunkFileNames: 'js/[name]-[hash].js',
 				entryFileNames: 'js/[name]-[hash].js',
@@ -61,13 +50,9 @@ export default defineConfig({
 
 		// Optimize build performance
 		target: 'esnext',
-		minify: 'terser',
-		terserOptions: {
-			compress: {
-				drop_console: process.env.NODE_ENV === 'production',
-				drop_debugger: true,
-				pure_funcs: ['console.log', 'console.info', 'console.debug']
-			}
+		minify: 'esbuild',
+		esbuild: {
+			drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
 		},
 
 		// Chunk size warnings
@@ -78,7 +63,6 @@ export default defineConfig({
 	optimizeDeps: {
 		include: [
 			'svelte',
-			'@sveltejs/kit',
 			'@supabase/supabase-js',
 			'@supabase/ssr',
 			'lucide-svelte',

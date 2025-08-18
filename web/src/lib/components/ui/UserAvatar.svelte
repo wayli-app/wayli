@@ -61,7 +61,7 @@
 		src={user.avatar_url}
 		alt="User avatar"
 		class="rounded-full object-cover {sizeClasses[size]}"
-		on:error={() => (showFallback = false)}
+		onerror={() => (showFallback = false)}
 	/>
 {:else}
 	<!-- Generate initials avatar -->

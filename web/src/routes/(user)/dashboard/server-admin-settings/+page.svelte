@@ -12,7 +12,7 @@
 		X,
 		Mail
 	} from 'lucide-svelte';
-	import { onMount, get } from 'svelte';
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import RoleSelector from '$lib/components/RoleSelector.svelte';
@@ -88,8 +88,8 @@
 		if (itemsPerPage !== 10) params.set('limit', itemsPerPage.toString());
 
 		try {
-			const session = get(sessionStore);
-			if (!session) return;
+					const session = $sessionStore;
+		if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getAdminUsers({
@@ -161,8 +161,8 @@
 
 	async function saveSettings() {
 		try {
-			const session = get(sessionStore);
-			if (!session) throw new Error('No session found');
+					const session = $sessionStore;
+		if (!session) throw new Error('No session found');
 
 			const settings = {
 				server_name: serverName,
@@ -296,8 +296,8 @@
 
 	async function loadServerSettings() {
 		try {
-			const session = get(sessionStore);
-			if (!session) return;
+					const session = $sessionStore;
+		if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getServerSettings()) as any;
@@ -411,7 +411,7 @@
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
-			onclick|stopPropagation
+			onclick={(e) => e.stopPropagation()}
 			role="document"
 		>
 			<!-- Modal Header -->
@@ -649,7 +649,7 @@
 								bind:value={searchQuery}
 								placeholder="Search users..."
 								class="w-64 rounded-md border border-[rgb(218,218,221)] bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
-								on:input={handleSearchInput}
+								oninput={handleSearchInput}
 							/>
 						</div>
 						<!-- Items per page selector -->

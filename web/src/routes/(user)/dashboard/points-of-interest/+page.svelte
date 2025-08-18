@@ -267,8 +267,8 @@
 		{#each filteredPOIs as poi (poi.id)}
 			<div
 				class="group relative overflow-hidden rounded-xl border border-[rgb(218,218,221)] bg-white p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
-				on:mouseenter={() => handlePlaceHover(poi)}
-				on:mouseleave={handlePlaceLeave}
+				onmouseenter={() => handlePlaceHover(poi)}
+				onmouseleave={handlePlaceLeave}
 				role="button"
 				tabindex="0"
 				aria-label="Point of interest {poi.name}"

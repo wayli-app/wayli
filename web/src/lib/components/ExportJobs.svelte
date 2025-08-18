@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Download, Check } from 'lucide-svelte';
-	import { onMount, onDestroy, get } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import { translate } from '$lib/i18n';
@@ -210,11 +210,11 @@
 
 	async function loadExportJobs() {
 		try {
-			const session = get(sessionStore);
-			if (!session) {
-				console.warn('No session available for loading export jobs');
-				return;
-			}
+					const session = $sessionStore;
+		if (!session) {
+			console.warn('No session available for loading export jobs');
+			return;
+		}
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getExportJobs()) as ExportJob[] | null;
@@ -244,7 +244,7 @@
 		try {
 			console.log('🚀 Starting download for export job:', jobId);
 
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) {
 				console.error('❌ No session available for download');
 				toast.error('No session available');

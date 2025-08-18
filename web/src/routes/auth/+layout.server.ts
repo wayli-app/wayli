@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 
-import type { PageServerLoad } from './$types';
+import type { LayoutServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { getSession } }) => {
+export const load: LayoutServerLoad = async ({ locals: { getSession } }) => {
 	// Check if user is already authenticated
 	const session = await getSession();
 
@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals: { getSession } }) => {
 		throw redirect(302, '/dashboard/statistics');
 	}
 
-	// User is not authenticated, show signup page
+	// User is not authenticated, show auth page
 	return {
 		session: null
 	};

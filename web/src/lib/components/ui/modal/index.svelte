@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
-	import { fade } from 'svelte';
 
 	export let open = false;
 	export let title = '';
@@ -50,7 +49,7 @@
 		onkeydown={(e) => {
 			if (e.key === 'Escape') handleBackdropClick();
 		}}
-		transition:fade={{ duration: 200 }}
+
 	>
 		<div
 			class="relative w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[
@@ -58,7 +57,7 @@
 			]} my-4 max-h-[calc(100vh-2rem)] overflow-y-auto"
 			role="document"
 			onclick={(e) => e.stopPropagation()}
-			transition:fade={{ duration: 200, delay: 100 }}
+
 		>
 			<!-- Header -->
 			{#if title || showCloseButton}

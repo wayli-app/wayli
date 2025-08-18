@@ -15,7 +15,7 @@
 		BarChart,
 		Check
 	} from 'lucide-svelte';
-	import { onMount, onDestroy, get } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
@@ -734,7 +734,8 @@
 		formError = '';
 	}
 
-	async function submitTrip() {
+	async function submitTrip(event: Event) {
+		event.preventDefault();
 		if (isSubmitting) return;
 
 		formError = '';
@@ -1344,7 +1345,7 @@
 				type="text"
 				placeholder={t('trips.searchTrips')}
 				bind:value={searchQuery}
-				on:input={handleSearchChange}
+				oninput={handleSearchChange}
 				class="w-full rounded-lg border border-gray-300 bg-white py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
@@ -1391,7 +1392,7 @@
 					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
 						{isEditing ? t('trips.editTrip') : t('trips.addNewTrip')}
 					</h2>
-					<form on:submit|preventDefault={submitTrip} class="space-y-5">
+					<form onsubmit={(e) => submitTrip(event)} class="space-y-5">
 						<div>
 							<label
 								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -1809,9 +1810,9 @@
 								class="h-full w-full object-cover {imageLoadingStates.get(trip.id) === true
 									? 'hidden'
 									: ''}"
-								on:load={() => handleImageLoad(trip.id)}
-								on:error={() => handleImageError(trip.id)}
-								on:loadstart={() => startImageLoading(trip.id)}
+								onload={() => handleImageLoad(trip.id)}
+								onerror={() => handleImageError(trip.id)}
+								onloadstart={() => startImageLoading(trip.id)}
 							/>
 						{:else}
 							<div class="flex h-full w-full items-center justify-center">
@@ -1977,7 +1978,7 @@
 			<!-- Scrollable content area -->
 			<div
 				class="min-h-0 flex-1 space-y-6 overflow-y-auto"
-				on:scroll={(e) => {
+				onscroll={(e) => {
 					const target = e.currentTarget;
 					const scrollTop = target.scrollTop;
 					const scrollHeight = target.scrollHeight;

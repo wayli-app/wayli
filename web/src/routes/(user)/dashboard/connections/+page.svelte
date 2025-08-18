@@ -7,6 +7,8 @@
 
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
+	import { supabase } from '$lib/core/supabase/client';
+	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -14,6 +16,53 @@
 	let { data } = $props<{ data: any }>();
 
 	let copiedField = $state('');
+
+	let owntracksApiKey: string | null = null;
+	let owntracksEndpoint: string | null = null;
+
+	async function refreshApiKeyData() {
+		const { data: { user }, error } = await supabase.auth.getUser();
+
+		if (user && !error) {
+			owntracksApiKey = user.user_metadata?.owntracks_api_key || null;
+
+			// Construct the endpoint URL
+			owntracksEndpoint = owntracksApiKey
+				? `${PUBLIC_SUPABASE_URL}/functions/v1/owntracks-points?api_key=${owntracksApiKey}&user_id=${user.id}`
+				: null;
+		}
+	}
+
+	async function generateApiKey() {
+		try {
+			const { data: { user } } = await supabase.auth.getUser();
+			if (!user) {
+				toast.error(t('connections.userNotAuthenticated'));
+				return;
+			}
+
+			const { data, error } = await supabase.functions.invoke('connections-api-key', {
+				body: { action: 'generate' }
+			});
+
+			if (error) {
+				console.error('❌ Error generating API key:', error);
+				toast.error(t('connections.failedToGenerateApiKey'));
+				return;
+			}
+
+			if (data?.success) {
+				toast.success(t('connections.apiKeyGeneratedSuccess'));
+				// Refresh the data to show the new API key
+				await refreshApiKeyData();
+			} else {
+				toast.error(t('connections.failedToGenerateApiKey'));
+			}
+		} catch (error) {
+			console.error('❌ Error generating API key:', error);
+			toast.error(t('connections.failedToGenerateApiKey'));
+		}
+	}
 
 	function copyToClipboard(text: string, fieldName: string) {
 		navigator.clipboard
@@ -30,7 +79,9 @@
 			});
 	}
 
-	onMount(() => {
+	onMount(async () => {
+		await refreshApiKeyData();
+
 		// Show success message if API key was generated
 		if ($page.form?.success) {
 			toast.success(t('connections.apiKeyGeneratedSuccess'));
@@ -86,17 +137,17 @@
 					<div class="flex gap-2">
 						<input
 							type="text"
-							value={data.owntracksEndpoint || t('connections.generateApiKeyFirst')}
+							value={owntracksEndpoint || t('connections.generateApiKeyFirst')}
 							readonly
 							id="owntracksEndpoint"
 							class="flex-1 rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#1a1a1a] dark:text-gray-100"
 						/>
-						{#if data.owntracksEndpoint}
+						{#if owntracksEndpoint}
 							<button
 								type="button"
 								onclick={() =>
-									data.owntracksEndpoint &&
-									copyToClipboard(data.owntracksEndpoint, t('connections.apiEndpoint'))}
+									owntracksEndpoint &&
+									copyToClipboard(owntracksEndpoint, t('connections.apiEndpoint'))}
 								class="flex items-center gap-2 rounded-md border border-[rgb(218,218,221)] px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#3f3f46] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
 							>
 								{#if copiedField === t('connections.apiEndpoint')}
@@ -118,17 +169,17 @@
 					<div class="flex gap-2">
 						<input
 							type="text"
-							value={data.owntracksApiKey || t('connections.noApiKeyGenerated')}
+							value={owntracksApiKey || t('connections.noApiKeyGenerated')}
 							readonly
 							id="owntracksApiKey"
 							class="flex-1 rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#1a1a1a] dark:text-gray-100"
 						/>
-						{#if data.owntracksApiKey}
+						{#if owntracksApiKey}
 							<button
 								type="button"
 								onclick={() =>
-									data.owntracksApiKey &&
-									copyToClipboard(data.owntracksApiKey, t('connections.apiKey'))}
+									owntracksApiKey &&
+									copyToClipboard(owntracksApiKey, t('connections.apiKey'))}
 								class="flex items-center gap-2 rounded-md border border-[rgb(218,218,221)] px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#3f3f46] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
 							>
 								{#if copiedField === t('connections.apiKey')}
@@ -142,18 +193,16 @@
 				</div>
 
 				<!-- Generate API Key Button -->
-				<form method="POST" action="?/generateApiKey" use:enhance>
-					<button
-						type="submit"
-						onclick={() => console.log('Generate API Key button clicked')}
-						class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
-					>
-						<RefreshCw class="h-4 w-4" />
-						{data.owntracksApiKey
-							? t('connections.generateNewApiKey')
-							: t('connections.generateApiKey')}
-					</button>
-				</form>
+				<button
+					type="button"
+					onclick={generateApiKey}
+					class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
+				>
+					<RefreshCw class="h-4 w-4" />
+					{owntracksApiKey
+						? t('connections.generateNewApiKey')
+						: t('connections.generateApiKey')}
+				</button>
 
 				<!-- Instructions -->
 				<div

@@ -176,7 +176,7 @@
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white shadow-2xl dark:bg-gray-800"
-			onclick|stopPropagation
+			onclick={(e) => e.stopPropagation()}
 			role="document"
 		>
 			<!-- Modal Header -->

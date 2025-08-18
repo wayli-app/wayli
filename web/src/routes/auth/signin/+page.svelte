@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn } from 'lucide-svelte';
-	import { onMount, get } from 'svelte';
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import { translate } from '$lib/i18n';
@@ -66,7 +66,7 @@
 
 						// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
 						setTimeout(() => {
-							const currentUser = get(userStore);
+							const currentUser = $userStore;
 							if (currentUser && $page.url.pathname.startsWith('/auth/signin')) {
 								const redirectTo =
 									$page.url.searchParams.get('redirectTo') || '/dashboard/statistics';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Play, Square, Settings, Users } from 'lucide-svelte';
-	import { onMount, onDestroy, get } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	import Button from '$lib/components/ui/button/index.svelte';
 	import Card from '$lib/components/ui/card/index.svelte';

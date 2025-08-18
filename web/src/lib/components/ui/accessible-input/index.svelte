@@ -109,8 +109,8 @@
 			{disabled}
 			{required}
 			{placeholder}
-			{autoComplete}
-			{inputMode}
+			autocomplete={autoComplete}
+			inputmode={inputMode}
 			{pattern}
 			{minLength}
 			{maxLength}
@@ -118,10 +118,10 @@
 			id={inputId}
 			aria-describedby={finalDescribedBy}
 			aria-invalid={error ? 'true' : 'false'}
-			on:input={handleInput}
+			oninput={handleInput}
 			onchange={handleChange}
-			on:focus={handleFocus}
-			on:blur={handleBlur}
+			onfocus={handleFocus}
+			onblur={handleBlur}
 			onkeydown={handleKeydown}
 			class={cn(
 				'ring-offset-background flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-400',

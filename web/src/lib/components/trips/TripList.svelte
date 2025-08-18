@@ -182,7 +182,7 @@
 				{#each sortedTrips as trip (trip.title)}
 					<tr
 						class="border-b border-[rgb(218,218,221)] hover:bg-gray-50 dark:border-[#3f3f46] dark:hover:bg-[#2d2d35]"
-						on:mouseenter={() => handleRowHover(trip)}
+						onmouseenter={() => handleRowHover(trip)}
 					>
 						<td class="w-8 px-6 py-4">
 							<input type="checkbox" class="rounded border-gray-300 dark:border-[#23232a]" />

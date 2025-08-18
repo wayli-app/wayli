@@ -197,8 +197,8 @@
 			date={loc.date}
 			lat={loc.lat}
 			lng={loc.lng}
-			on:mouseenter={handleLocationHover}
-			on:mouseleave={handleLocationLeave}
+			onmouseenter={handleLocationHover}
+			onmouseleave={handleLocationLeave}
 		/>
 	{/each}
 </div>
