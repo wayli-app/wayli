@@ -491,7 +491,7 @@
 	let dataLoadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	// Debounced data loading function
-	function debouncedLoadData(_reset = true) {
+	function debouncedLoadData() {
 		if (dataLoadTimeout) {
 			clearTimeout(dataLoadTimeout);
 		}
@@ -533,7 +533,7 @@
 					hasMap: !!map
 				});
 				lastFilterState = filterStateString;
-				debouncedLoadData(true);
+				debouncedLoadData();
 			}
 		}
 	});

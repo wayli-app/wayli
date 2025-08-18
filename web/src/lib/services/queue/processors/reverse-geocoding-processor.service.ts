@@ -59,7 +59,7 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 					.eq('user_id', userId)
 					.not('location', 'is', null)
 					.not('geocode', 'is', null)
-					.neq('geocode', '{}');
+					.not('geocode', 'eq', '{}');
 
 				if (!geocodedCountError) {
 					const totalPointsInDB = actualTotalPoints || 0;
@@ -227,7 +227,7 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 					.eq('user_id', userId)
 					.not('location', 'is', null)
 					.not('geocode', 'is', null)
-					.neq('geocode', '{}');
+					.not('geocode', 'eq', '{}');
 
 				if (!geocodedCountError) {
 					const totalPointsInDB = actualTotalPoints || 0;

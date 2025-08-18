@@ -12,7 +12,6 @@
 	let iconComponent: unknown = null;
 	let loading = false;
 	let error = false;
-	let currentIconName = '';
 
 	onMount(async () => {
 		if (!name) return;
@@ -33,26 +32,7 @@
 		}
 	});
 
-	$: if (name && name !== currentIconName && !loading) {
-		// Reload icon when name changes
-		(async () => {
-			currentIconName = name;
-			loading = true;
-			error = false;
-
-			try {
-				iconComponent = await loadIcon(name);
-				if (!iconComponent) {
-					error = true;
-				}
-			} catch (err) {
-				console.error(`Failed to load icon: ${name}`, err);
-				error = true;
-			} finally {
-				loading = false;
-			}
-		})();
-	}
+	// No reactive statement needed - icon names are static in this codebase
 </script>
 
 {#if loading}

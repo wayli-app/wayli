@@ -377,27 +377,29 @@
 		}
 	}
 
-	// Reactive statement to ensure UI updates when active job changes
-	$: if (
-		activeReverseGeocodingJob !== previousJobState &&
-		!isInitializing &&
-		!isStatsLoading &&
-		hasInitialized
-	) {
-		console.log('🔄 GeocodingProgress: Job state changed, ensuring stats are up to date');
-		previousJobState = activeReverseGeocodingJob;
+	// Watch for job state changes and update stats when needed
+	$effect(() => {
+		if (
+			activeReverseGeocodingJob !== previousJobState &&
+			!isInitializing &&
+			!isStatsLoading &&
+			hasInitialized
+		) {
+			console.log('🔄 GeocodingProgress: Job state changed, ensuring stats are up to date');
+			previousJobState = activeReverseGeocodingJob;
 
-		// Only refresh if job was cleared (completed/failed)
-		if (activeReverseGeocodingJob === null) {
-			// Force refresh stats when job completes to get updated cache
-			// Use setTimeout to break the reactive cycle
-			setTimeout(() => {
-				loadGeocodingStats();
-				// Also trigger a cache refresh via the statistics API to ensure consistency
-				refreshStatsFromAPI();
-			}, 0);
+			// Only refresh if job was cleared (completed/failed)
+			if (activeReverseGeocodingJob === null) {
+				// Force refresh stats when job completes to get updated cache
+				// Use setTimeout to break the reactive cycle
+				setTimeout(() => {
+					loadGeocodingStats();
+					// Also trigger a cache refresh via the statistics API to ensure consistency
+					refreshStatsFromAPI();
+				}, 0);
+			}
 		}
-	}
+	});
 </script>
 
 <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">

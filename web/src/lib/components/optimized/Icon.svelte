@@ -46,14 +46,7 @@
 		await loadIcon(name);
 	});
 
-	// Reload icon when name changes
-	$: if (name && !iconComponent && !loading) {
-		// Load icon when name changes and no icon is loaded
-		(async () => {
-			iconComponent = null;
-			await loadIcon(name);
-		})();
-	}
+	// No reactive statement needed - icon names are static in this codebase
 </script>
 
 {#if loading}

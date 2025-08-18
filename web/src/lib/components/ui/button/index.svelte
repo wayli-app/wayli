@@ -116,11 +116,11 @@
 		if (isDisabled) return;
 		if (event.key === ' ' || event.key === 'Enter') {
 			// Create a synthetic mouse event for keyboard activation
-			const syntheticEvent = new MouseEvent('click', {
+			// Use a more compatible approach for test environments
+			const syntheticEvent = new Event('click', {
 				bubbles: true,
-				cancelable: true,
-				view: window
-			});
+				cancelable: true
+			}) as MouseEvent;
 			on?.click?.(syntheticEvent);
 		}
 	}
