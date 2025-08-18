@@ -11,7 +11,7 @@
 		class="cursor-pointer rounded p-1.5 transition-colors {view === 'list'
 			? 'bg-gray-100'
 			: 'hover:bg-gray-50'}"
-		on:click={() => (view = 'list')}
+		onclick={() => (view = 'list')}
 		aria-label="List view"
 	>
 		<List class="h-4 w-4 text-gray-600" />
@@ -20,7 +20,7 @@
 		class="cursor-pointer rounded p-1.5 transition-colors {view === 'tile'
 			? 'bg-gray-100'
 			: 'hover:bg-gray-50'}"
-		on:click={() => (view = 'tile')}
+		onclick={() => (view = 'tile')}
 		aria-label="Tile view"
 	>
 		<LayoutGrid class="h-4 w-4 text-gray-600" />

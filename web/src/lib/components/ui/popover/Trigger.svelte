@@ -11,6 +11,6 @@
 	};
 </script>
 
-<div use:useAriaButton={{ label: 'Toggle popover' }} on:click={toggleOpen}>
+<div use:useAriaButton={{ label: 'Toggle popover' }} onclick={toggleOpen}>
 	<slot />
 </div>

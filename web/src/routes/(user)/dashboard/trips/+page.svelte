@@ -1321,14 +1321,14 @@
 		<div class="flex gap-2">
 			<button
 				class="flex cursor-pointer items-center gap-2 rounded-lg bg-green-500 px-4 py-2 font-medium text-white transition-colors hover:bg-green-600"
-				on:click={openSuggestedTripsModal}
+				onclick={openSuggestedTripsModal}
 			>
 				<BarChart class="h-4 w-4" />
 				{t('trips.reviewSuggestedTrips')}
 			</button>
 			<button
 				class="flex cursor-pointer items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-600"
-				on:click={openAddTripModal}
+				onclick={openAddTripModal}
 			>
 				<Plus class="h-4 w-4" />
 				{t('trips.newTrip')}
@@ -1351,7 +1351,7 @@
 		<div class="flex gap-2">
 			{#each filters as filter (filter.value)}
 				<button
-					on:click={() => {
+					onclick={() => {
 						selectedFilter = filter.value;
 						// Reset pagination when filter changes
 						currentPage = 1;
@@ -1385,7 +1385,7 @@
 				<div class="p-8">
 					<button
 						class="absolute top-4 right-4 cursor-pointer text-gray-400 transition-colors hover:text-red-500"
-						on:click={closeTripModal}
+						onclick={closeTripModal}
 						aria-label={t('trips.close')}>&times;</button
 					>
 					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -1466,13 +1466,13 @@
 										id="new-label"
 										type="text"
 										bind:value={newLabel}
-										on:keydown={(e) => e.key === 'Enter' && (e.preventDefault(), addLabel())}
+										onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addLabel())}
 										placeholder={t('trips.addLabelPlaceholder')}
 										class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 									/>
 									<button
 										type="button"
-										on:click={addLabel}
+										onclick={addLabel}
 										class="rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
 									>
 										{t('trips.add')}
@@ -1489,7 +1489,7 @@
 												<span>{label}</span>
 												<button
 													type="button"
-													on:click={() => removeLabel(label)}
+													onclick={() => removeLabel(label)}
 													class="ml-1 hover:text-blue-900 dark:hover:text-blue-100"
 												>
 													<X class="h-3 w-3" />
@@ -1548,7 +1548,7 @@
 										<button
 											type="button"
 											class="text-sm font-medium text-blue-600 underline hover:text-blue-700"
-											on:click={suggestTripImage}
+											onclick={suggestTripImage}
 											disabled={isSuggestingImage}
 										>
 											{isSuggestingImage ? t('trips.suggesting') : t('trips.autoSuggestImage')}
@@ -1563,7 +1563,7 @@
 											<button
 												type="button"
 												class="text-sm font-medium text-blue-600 underline hover:text-blue-700"
-												on:click={suggestTripImage}
+												onclick={suggestTripImage}
 												disabled={isSuggestingImage}
 											>
 												{isSuggestingImage ? t('trips.suggesting') : t('trips.autoSuggestImage')}
@@ -1585,7 +1585,7 @@
 									id="trip-image"
 									type="file"
 									accept="image/*"
-									on:change={handleImageChange}
+									onchange={handleImageChange}
 									class="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
 									disabled={isUploadingImage}
 								/>
@@ -1597,7 +1597,7 @@
 											<button
 												type="button"
 												class="text-blue-600 underline hover:text-blue-700"
-												on:click={suggestTripImage}
+												onclick={suggestTripImage}
 												disabled={isSuggestingImage}
 											>
 												{isSuggestingImage ? t('trips.suggesting') : t('trips.suggestAnImage')}
@@ -1607,7 +1607,7 @@
 											<button
 												type="button"
 												class="text-blue-600 underline hover:text-blue-700"
-												on:click={suggestTripImage}
+												onclick={suggestTripImage}
 												disabled={isSuggestingImage}
 											>
 												{isSuggestingImage
@@ -1667,7 +1667,7 @@
 										<button
 											type="button"
 											class="rounded bg-white/95 px-3 py-1.5 text-xs font-medium text-blue-600 shadow-lg transition-all duration-200 hover:bg-white hover:text-blue-700 dark:bg-gray-800/95 dark:text-blue-400 dark:hover:bg-gray-800"
-											on:click={suggestTripImage}
+											onclick={suggestTripImage}
 											disabled={isSuggestingImage}
 											title="Get a new suggested image based on your travel data"
 										>
@@ -1712,7 +1712,7 @@
 							<button
 								type="button"
 								class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-								on:click={closeTripModal}
+								onclick={closeTripModal}
 								disabled={isSubmitting}>{t('trips.cancel')}</button
 							>
 							<button
@@ -1753,7 +1753,7 @@
 			</p>
 			<button
 				class="cursor-pointer rounded-lg bg-blue-500 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-600"
-				on:click={openAddTripModal}
+				onclick={openAddTripModal}
 			>
 				<Plus class="mr-2 inline h-4 w-4" />
 				{t('trips.createTrip')}
@@ -1770,21 +1770,21 @@
 					<div class="absolute top-3 right-3 z-10 flex gap-2">
 						<button
 							class="cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:bg-blue-100 hover:text-blue-500 dark:bg-gray-700 dark:hover:bg-blue-900/30"
-							on:click={() => refreshTripMetadata(trip)}
+							onclick={() => refreshTripMetadata(trip)}
 							aria-label="Refresh trip metadata"
 						>
 							<RefreshCw class="h-5 w-5" />
 						</button>
 						<button
 							class="cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:bg-blue-100 hover:text-blue-500 dark:bg-gray-700 dark:hover:bg-blue-900/30"
-							on:click={() => openEditTripModal(trip)}
+							onclick={() => openEditTripModal(trip)}
 							aria-label="Edit trip"
 						>
 							<Edit class="h-5 w-5" />
 						</button>
 						<button
 							class="cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-gray-700 dark:hover:bg-red-900/30"
-							on:click={() => confirmDeleteTrip(trip)}
+							onclick={() => confirmDeleteTrip(trip)}
 							aria-label="Delete trip"
 						>
 							<Trash2 class="h-5 w-5" />
@@ -1934,7 +1934,7 @@
 							</span>
 							<button
 								class="flex cursor-pointer items-center gap-1 text-sm font-medium text-blue-500 transition-colors hover:text-blue-600"
-								on:click={() => showTripStatistics(trip)}
+								onclick={() => showTripStatistics(trip)}
 							>
 								<BarChart class="h-4 w-4" />
 								{t('trips.showStatistics')}
@@ -1997,7 +1997,7 @@
 				<div class="flex items-center justify-between">
 					<div></div>
 					<!-- Empty div for spacing -->
-					<GenerateSuggestionsButton on:click={openTripGenerationModal} />
+					<GenerateSuggestionsButton onclick={openTripGenerationModal} />
 				</div>
 
 				{#if isLoadingSuggestedTrips && suggestedTrips.length === 0}
@@ -2024,13 +2024,13 @@
 							<div class="flex gap-2">
 								<button
 									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-									on:click={() => (selectedSuggestedTrips = suggestedTrips.map((t) => t.id))}
+									onclick={() => (selectedSuggestedTrips = suggestedTrips.map((t) => t.id))}
 								>
 									{t('trips.selectAll')}
 								</button>
 								<button
 									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-									on:click={() => (selectedSuggestedTrips = [])}
+									onclick={() => (selectedSuggestedTrips = [])}
 								>
 									{t('trips.clearSelection')}
 								</button>
@@ -2045,7 +2045,7 @@
 											type="checkbox"
 											id={`trip-${trip.id}`}
 											checked={selectedSuggestedTrips.includes(trip.id)}
-											on:change={(e) => {
+											onchange={(e) => {
 												const target = e.target as HTMLInputElement;
 												if (target.checked) {
 													selectedSuggestedTrips = [...selectedSuggestedTrips, trip.id];
@@ -2114,13 +2114,13 @@
 			<!-- Sticky Action Buttons -->
 			<div class="mt-4 flex gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
 				<button
-					on:click={() => (showSuggestedTripsModal = false)}
+					onclick={() => (showSuggestedTripsModal = false)}
 					class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					{t('trips.cancel')}
 				</button>
 				<button
-					on:click={handleRejectTrips}
+					onclick={handleRejectTrips}
 					disabled={selectedSuggestedTrips.length === 0}
 					class="flex flex-1 items-center justify-center rounded-lg bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-600 dark:hover:bg-red-700"
 				>
@@ -2133,7 +2133,7 @@
 					</span>
 				</button>
 				<button
-					on:click={() => {
+					onclick={() => {
 						handleApproveTrips();
 					}}
 					disabled={selectedSuggestedTrips.length === 0}
@@ -2195,11 +2195,11 @@
 				<div class="flex justify-end gap-3">
 					<button
 						class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						on:click={cancelDeleteTrip}>{t('trips.cancel')}</button
+						onclick={cancelDeleteTrip}>{t('trips.cancel')}</button
 					>
 					<button
 						class="cursor-pointer rounded-lg bg-red-500 px-5 py-2 font-medium text-white transition-colors hover:bg-red-600"
-						on:click={deleteTrip}>{t('trips.delete')}</button
+						onclick={deleteTrip}>{t('trips.delete')}</button
 					>
 				</div>
 			</div>
@@ -2339,7 +2339,7 @@
 					<div class="flex justify-end">
 						<button
 							class="cursor-pointer rounded-lg bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700"
-							on:click={() => (isApprovalInProgress = false)}
+							onclick={() => (isApprovalInProgress = false)}
 						>
 							{t('trips.close')}
 						</button>

@@ -79,7 +79,7 @@
 			<button
 				class="cursor-pointer rounded p-1 text-red-600 hover:bg-red-50"
 				aria-label="Delete"
-				on:click={handleDelete}
+				onclick={handleDelete}
 			>
 				<Trash2 class="h-4 w-4" />
 			</button>

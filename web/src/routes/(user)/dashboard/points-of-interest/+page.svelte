@@ -199,14 +199,14 @@
 				class="rounded-md px-4 py-1.5 text-sm font-medium transition-colors {selectedType === type
 					? 'bg-[rgb(37,140,244)] text-white'
 					: 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-				on:click={() => selectType(type)}
+				onclick={() => selectType(type)}
 			>
 				{type}
 			</button>
 		{/each}
 		<button
 			class="flex h-[38px] cursor-pointer items-center gap-2 rounded-md border border-[rgb(218,218,221)] bg-white px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-			on:click={() => (isDatePickerOpen = !isDatePickerOpen)}
+			onclick={() => (isDatePickerOpen = !isDatePickerOpen)}
 			type="button"
 			tabindex="0"
 			aria-haspopup="dialog"
@@ -309,7 +309,7 @@
 				</div>
 				<button
 					class="ml-2 flex-shrink-0 text-gray-400 hover:text-gray-600"
-					on:click={() => toggleFavorite(poi)}
+					onclick={() => toggleFavorite(poi)}
 				>
 					<Heart class="h-5 w-5 {poi.favorite ? 'fill-red-500 text-red-500' : ''}" />
 				</button>

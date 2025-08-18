@@ -45,13 +45,13 @@
 {#if isOpen && user}
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
-		on:click={closeModal}
+		onclick={closeModal}
 		role="presentation"
 		aria-hidden="true"
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
-			on:click|stopPropagation
+			onclick|stopPropagation
 			role="document"
 		>
 			<!-- Modal Header -->
@@ -66,7 +66,7 @@
 					<p class="text-gray-500 dark:text-gray-400">Update the user's details and role.</p>
 				</div>
 				<button
-					on:click={closeModal}
+					onclick={closeModal}
 					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
@@ -160,13 +160,13 @@
 			<!-- Modal Footer -->
 			<div class="mt-8 flex justify-end gap-3">
 				<button
-					on:click={closeModal}
+					onclick={closeModal}
 					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancel
 				</button>
 				<button
-					on:click={saveUser}
+					onclick={saveUser}
 					class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
 				>
 					Save Changes

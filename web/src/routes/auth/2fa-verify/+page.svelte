@@ -128,7 +128,7 @@
 		<!-- Back to signin -->
 		<div class="mb-8">
 			<button
-				on:click={handleBack}
+				onclick={handleBack}
 				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
@@ -213,7 +213,7 @@
 			<!-- Mode Toggle -->
 			<div class="mb-6 text-center">
 				<button
-					on:click={toggleMode}
+					onclick={toggleMode}
 					class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 				>
 					{#if useRecoveryCode}
@@ -226,7 +226,7 @@
 
 			<!-- Verify Button -->
 			<button
-				on:click={handleVerify}
+				onclick={handleVerify}
 				disabled={isVerifying || (useRecoveryCode ? !recoveryCode : verificationCode.length !== 6)}
 				class="w-full cursor-pointer rounded-lg bg-[rgb(37,140,244)] px-4 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
 			>

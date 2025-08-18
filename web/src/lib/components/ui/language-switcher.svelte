@@ -203,12 +203,12 @@
 	</style>
 </svelte:head>
 
-<div class="language-switcher size-{size}" on:keydown={handleKeydown}>
+<div class="language-switcher size-{size}" onkeydown={handleKeydown}>
 	<button
 		bind:this={buttonElement}
 		use:buttonProps
 		class="language-button"
-		on:click={toggleDropdown}
+		onclick={toggleDropdown}
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 		aria-controls="language-dropdown"
@@ -239,8 +239,8 @@
 				class="locale-option"
 				role="option"
 				aria-selected={locale === $currentLocale}
-				on:click={() => selectLocale(locale)}
-				on:keydown={(e) => {
+				onclick={() => selectLocale(locale)}
+				onkeydown={(e) => {
 					if (e.key === 'Enter') {
 						e.preventDefault();
 						selectLocale(locale);

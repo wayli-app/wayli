@@ -81,16 +81,16 @@
 	<!-- Backdrop -->
 	<div
 		class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
-		on:click={handleCancel}
-		on:keydown={(e) => e.key === 'Escape' && handleCancel()}
+		onclick={handleCancel}
+		onkeydown={(e) => e.key === 'Escape' && handleCancel()}
 		role="presentation"
 		aria-hidden="true"
 	>
 		<!-- Modal -->
 		<div
 			class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800"
-			on:click|stopPropagation
-			on:keydown|stopPropagation
+			onclick|stopPropagation
+			onkeydown|stopPropagation
 			aria-modal="true"
 			role="dialog"
 			aria-labelledby="two-factor-modal-title"
@@ -171,7 +171,7 @@
 				<!-- Mode Toggle -->
 				<div class="mb-6 text-center">
 					<button
-						on:click={toggleMode}
+						onclick={toggleMode}
 						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 					>
 						{#if useRecoveryCode}
@@ -185,14 +185,14 @@
 				<!-- Action Buttons -->
 				<div class="flex gap-3">
 					<button
-						on:click={handleBack}
+						onclick={handleBack}
 						class="flex-1 cursor-pointer rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 					>
 						<ArrowLeft class="mr-2 inline h-4 w-4" />
 						Back
 					</button>
 					<button
-						on:click={handleVerify}
+						onclick={handleVerify}
 						disabled={isVerifying ||
 							(useRecoveryCode ? !recoveryCode : verificationCode.length !== 6)}
 						class="flex-1 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -203,7 +203,7 @@
 
 				<div class="mt-4 text-center">
 					<button
-						on:click={handleCancel}
+						onclick={handleCancel}
 						class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
 					>
 						Cancel

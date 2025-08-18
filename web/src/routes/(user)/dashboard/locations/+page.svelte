@@ -141,7 +141,7 @@
 	<div class="flex items-center gap-4">
 		<button
 			class="flex h-[38px] cursor-pointer items-center gap-2 rounded-md border border-[rgb(218,218,221)] bg-white px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-[#23232a] dark:bg-[#23232a] dark:text-gray-200 dark:hover:bg-[#23232a]"
-			on:click={() => (isDatePickerOpen = !isDatePickerOpen)}
+			onclick={() => (isDatePickerOpen = !isDatePickerOpen)}
 		>
 			<Calendar class="h-4 w-4" />
 			Date range

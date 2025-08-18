@@ -16,7 +16,7 @@
 		className
 	)}
 	on:input
-	on:change
+	onchange
 	on:focus
 	on:blur
 	{...$$restProps}

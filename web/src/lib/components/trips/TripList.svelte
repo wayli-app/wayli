@@ -92,7 +92,7 @@
 					<th class="px-6 py-4">
 						<button
 							class="flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100"
-							on:click={() => toggleSort('title')}
+							onclick={() => toggleSort('title')}
 						>
 							Trip Name
 							{#if sortField === 'title'}
@@ -109,7 +109,7 @@
 					<th class="px-6 py-4">
 						<button
 							class="flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100"
-							on:click={() => toggleSort('labels')}
+							onclick={() => toggleSort('labels')}
 						>
 							Labels
 							{#if sortField === 'labels'}
@@ -126,7 +126,7 @@
 					<th class="px-6 py-4">
 						<button
 							class="flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100"
-							on:click={() => toggleSort('distance')}
+							onclick={() => toggleSort('distance')}
 						>
 							Distance
 							{#if sortField === 'distance'}
@@ -143,7 +143,7 @@
 					<th class="px-6 py-4">
 						<button
 							class="flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100"
-							on:click={() => toggleSort('startDate')}
+							onclick={() => toggleSort('startDate')}
 						>
 							Start Date
 							{#if sortField === 'startDate'}
@@ -160,7 +160,7 @@
 					<th class="px-6 py-4">
 						<button
 							class="flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 hover:text-blue-600 dark:text-gray-100"
-							on:click={() => toggleSort('duration')}
+							onclick={() => toggleSort('duration')}
 						>
 							Duration
 							{#if sortField === 'duration'}
@@ -252,7 +252,7 @@
 								<button
 									class="cursor-pointer rounded p-1 text-red-500 hover:bg-gray-100 hover:text-red-600"
 									aria-label="Delete"
-									on:click={() => onDelete(trip)}
+									onclick={() => onDelete(trip)}
 								>
 									<Trash2 class="h-4 w-4" />
 								</button>
@@ -270,7 +270,7 @@
 			class:bg-[rgb(37,140,244)]={view === 'list'}
 			class:text-white={view === 'list'}
 			class:border-[rgb(37,140,244)]={view === 'list'}
-			on:click={() => (view = 'list')}
+			onclick={() => (view = 'list')}
 		>
 			<List class="h-5 w-5" />
 		</button>
@@ -279,7 +279,7 @@
 			class:bg-[rgb(37,140,244)]={view === 'tiles'}
 			class:text-white={view === 'tiles'}
 			class:border-[rgb(37,140,244)]={view === 'tiles'}
-			on:click={() => (view = 'tiles')}
+			onclick={() => (view = 'tiles')}
 		>
 			<LayoutGrid class="h-5 w-5" />
 		</button>

@@ -437,7 +437,7 @@
 							bind:startDate={localExportStartDate}
 							bind:endDate={localExportEndDate}
 							pickLabel={t('importExport.pickDateRange')}
-							on:change={handleExportDateRangeChange}
+							onchange={handleExportDateRangeChange}
 						/>
 					</div>
 				</div>

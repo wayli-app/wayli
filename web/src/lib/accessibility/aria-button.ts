@@ -4,7 +4,7 @@
  * Adds role="button", tabindex=0, and keyboard handlers for Enter/Space.
  *
  * Usage:
- * <div use:useAriaButton={{ label: 'Open menu' }} on:click={...}>...</div>
+ * <div use:useAriaButton={{ label: 'Open menu' }} onclick={...}>...</div>
  *
  * @param node The element to enhance
  * @param options Optional: { label?: string }

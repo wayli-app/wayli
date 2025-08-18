@@ -110,7 +110,7 @@
 	});
 </script>
 
-<svelte:window on:keydown={handleEscapeKey} />
+<svelte:window onkeydown={handleEscapeKey} />
 
 {#if open}
 	<!-- Backdrop -->
@@ -120,7 +120,7 @@
 		aria-modal="true"
 		aria-labelledby={titleId}
 		aria-describedby={descriptionId}
-		on:click={handleBackdropClick}
+		onclick={handleBackdropClick}
 	>
 		<!-- Modal Content -->
 		<div
@@ -129,8 +129,8 @@
 				size
 			]} max-h-[90vh] overflow-y-auto"
 			role="document"
-			on:click|stopPropagation
-			on:keydown={handleKeydown}
+			onclick|stopPropagation
+			onkeydown={handleKeydown}
 		>
 			<!-- Header -->
 			{#if title || showCloseButton}
@@ -143,7 +143,7 @@
 					{#if showCloseButton}
 						<button
 							class="absolute top-4 right-4 cursor-pointer rounded-md p-2 text-gray-400 transition-colors hover:text-red-500 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:outline-none"
-							on:click={() => {
+							onclick={() => {
 								if (onClose) {
 									onClose();
 								}

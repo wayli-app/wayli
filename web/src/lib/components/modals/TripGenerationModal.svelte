@@ -222,7 +222,7 @@
 				id="custom-home-address-toggle"
 				type="checkbox"
 				bind:checked={useCustomHomeAddress}
-				on:change={handleCustomHomeAddressToggle}
+				onchange={handleCustomHomeAddressToggle}
 				class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600"
 			/>
 			<label
@@ -246,7 +246,7 @@
 						type="text"
 						bind:value={customHomeAddressInput}
 						on:input={handleCustomHomeAddressInput}
-						on:keydown={handleCustomHomeAddressKeydown}
+						onkeydown={handleCustomHomeAddressKeydown}
 						placeholder={t('tripGenerationModal.enterCustomHomeAddress')}
 						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
@@ -271,7 +271,7 @@
 								index
 									? 'bg-gray-100 dark:bg-gray-700'
 									: ''}"
-								on:click={() => selectCustomHomeAddress(suggestion)}
+								onclick={() => selectCustomHomeAddress(suggestion)}
 							>
 								<div class="text-sm text-gray-900 dark:text-gray-100">
 									{suggestion.display_name}
@@ -319,13 +319,13 @@
 		<!-- Action Buttons -->
 		<div class="flex gap-3 pt-4">
 			<button
-				on:click={closeModal}
+				onclick={closeModal}
 				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				{t('tripGenerationModal.cancel')}
 			</button>
 			<button
-				on:click={generateTrip}
+				onclick={generateTrip}
 				class="flex flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:bg-blue-600 dark:hover:bg-blue-700"
 			>
 				<Route class="mr-2 h-4 w-4 flex-shrink-0" />

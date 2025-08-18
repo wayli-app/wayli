@@ -370,7 +370,7 @@
 
 			<div class="flex gap-2">
 				<Button
-					on:click={testRealtime}
+					onclick={testRealtime}
 					disabled={loading}
 					variant="outline"
 					size="sm"
@@ -399,7 +399,7 @@
 			<!-- Start/Stop Buttons -->
 			<div class="flex gap-2">
 				<Button
-					on:click={startWorkers}
+					onclick={startWorkers}
 					disabled={loading || status?.isRunning}
 					class="flex items-center gap-2"
 				>
@@ -407,7 +407,7 @@
 					Start Workers
 				</Button>
 				<Button
-					on:click={stopWorkers}
+					onclick={stopWorkers}
 					disabled={loading || !status?.isRunning}
 					variant="destructive"
 					class="flex items-center gap-2"
@@ -416,7 +416,7 @@
 					Stop Workers
 				</Button>
 				<Button
-					on:click={() => (showConfigModal = true)}
+					onclick={() => (showConfigModal = true)}
 					variant="outline"
 					class="flex items-center gap-2"
 				>
@@ -442,7 +442,7 @@
 					class="w-20"
 				/>
 				<Button
-					on:click={updateWorkerCount}
+					onclick={updateWorkerCount}
 					disabled={loading ||
 						!status?.isRunning ||
 						newWorkerCount === status?.config.maxWorkers.toString()}
@@ -513,8 +513,8 @@
 				</div>
 
 				<div class="mt-6 flex justify-end gap-2">
-					<Button on:click={() => (showConfigModal = false)} variant="outline">Cancel</Button>
-					<Button on:click={updateConfig} disabled={loading}>Save Configuration</Button>
+					<Button onclick={() => (showConfigModal = false)} variant="outline">Cancel</Button>
+					<Button onclick={updateConfig} disabled={loading}>Save Configuration</Button>
 				</div>
 			</div>
 		</div>

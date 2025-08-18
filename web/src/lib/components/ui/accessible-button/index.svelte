@@ -102,8 +102,8 @@
 	aria-controls={controls}
 	aria-describedby={describedBy}
 	aria-label={label}
-	on:click={handleClick}
-	on:keydown={handleKeydown}
+	onclick={handleClick}
+	onkeydown={handleKeydown}
 	class={cn(
 		'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
 		buttonVariants.variant[buttonVariant],

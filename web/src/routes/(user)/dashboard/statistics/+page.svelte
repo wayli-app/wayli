@@ -1140,7 +1140,7 @@
 		localEndDate = appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '';
 	});
 
-	// Remove handleDateRangeChange and its on:change binding from DateRangePicker
+	// Remove handleDateRangeChange and its onchange binding from DateRangePicker
 	// Add MutationObserver logic in onMount
 	onMount(() => {
 		let lastText = '';
@@ -1169,7 +1169,7 @@
 
 	// In the DateRangePicker usage:
 	// <DateRangePicker bind:startDate={localStartDate} bind:endDate={localEndDate} pickLabel={t('datePicker.pickDateRange')} />
-	// (remove on:change={handleDateRangeChange})
+	// (remove onchange={handleDateRangeChange})
 </script>
 
 <svelte:head>

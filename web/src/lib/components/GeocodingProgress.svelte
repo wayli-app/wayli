@@ -407,7 +407,7 @@
 		<MapPin class="h-5 w-5 text-blue-500" />
 		<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Geocoding Progress</span>
 		<button
-			on:click={refreshStats}
+			onclick={refreshStats}
 			class="ml-auto rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 			title="Refresh stats"
 		>
@@ -454,7 +454,7 @@
 	{#if showButton && !activeReverseGeocodingJob}
 		<div class="mt-3">
 			<button
-				on:click={startReverseGeocodingJob}
+				onclick={startReverseGeocodingJob}
 				disabled={isLoading || geocodingStats.geocoded >= geocodingStats.total}
 				class="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
 			>

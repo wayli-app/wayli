@@ -36,7 +36,7 @@
 	<!-- Trigger -->
 	<div
 		use:useAriaButton={{ label: 'Toggle popover menu' }}
-		on:click={handleTriggerClick}
+		onclick={handleTriggerClick}
 		aria-expanded={open}
 		aria-haspopup="true"
 		class="cursor-pointer"
@@ -48,8 +48,8 @@
 	{#if open}
 		<div
 			class="fixed inset-0 z-40"
-			on:click={handleClickOutside}
-			on:keydown={handleBackdropKeydown}
+			onclick={handleClickOutside}
+			onkeydown={handleBackdropKeydown}
 			transition:fade={{ duration: 100 }}
 			aria-roledescription="Backdrop"
 			aria-label="Backdrop"

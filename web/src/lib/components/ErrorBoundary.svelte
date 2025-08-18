@@ -136,7 +136,7 @@
 				{/if}
 
 				<div class="error-actions">
-					<button type="button" class="retry-button" on:click={retry} aria-label="Retry loading">
+					<button type="button" class="retry-button" onclick={retry} aria-label="Retry loading">
 						<svg
 							width="16"
 							height="16"
@@ -156,7 +156,7 @@
 					<button
 						type="button"
 						class="reset-button"
-						on:click={reset}
+						onclick={reset}
 						aria-label="Reset error state"
 					>
 						<svg

@@ -1047,7 +1047,7 @@
 							size="md"
 							showLabel={true}
 							position="bottom-left"
-							on:change={handleLanguageChange}
+							onchange={handleLanguageChange}
 						/>
 					</div>
 				</div>

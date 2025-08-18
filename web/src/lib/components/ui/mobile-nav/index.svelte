@@ -80,7 +80,7 @@
 	<!-- Mobile Menu Button -->
 	<button
 		class="min-h-[44px] min-w-[44px] rounded-md p-2 text-gray-400 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none md:hidden dark:hover:text-gray-300"
-		on:click={toggleMenu}
+		onclick={toggleMenu}
 		aria-expanded={isOpen}
 		aria-controls="mobile-menu"
 		aria-label="Toggle navigation menu"
@@ -96,7 +96,7 @@
 	{#if isOpen}
 		<div
 			class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm md:hidden"
-			on:click={closeMenu}
+			onclick={closeMenu}
 			role="presentation"
 			aria-hidden="true"
 		/>
@@ -121,7 +121,7 @@
 					</h2>
 					<button
 						class="min-h-[44px] min-w-[44px] rounded-md p-2 text-gray-400 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:hover:text-gray-300"
-						on:click={closeMenu}
+						onclick={closeMenu}
 						aria-label="Close navigation menu"
 					>
 						<X class="h-6 w-6" />
@@ -136,7 +136,7 @@
 								<a
 									href={item.href}
 									class="flex min-h-[44px] w-full items-center rounded-lg px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
-									on:click={closeMenu}
+									onclick={closeMenu}
 								>
 									{#if item.icon}
 										<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
@@ -146,7 +146,7 @@
 							{:else if item.children}
 								<button
 									class="flex min-h-[44px] w-full items-center justify-between rounded-lg px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
-									on:click={() => toggleDropdown(index)}
+									onclick={() => toggleDropdown(index)}
 									aria-expanded={activeDropdown === index}
 									aria-controls="dropdown-{index}"
 								>
@@ -168,7 +168,7 @@
 											<a
 												href={child.href}
 												class="flex min-h-[44px] w-full items-center rounded-lg px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-gray-400 dark:hover:bg-gray-700"
-												on:click={closeMenu}
+												onclick={closeMenu}
 											>
 												{#if child.icon}
 													<svelte:component this={child.icon} class="mr-3 h-4 w-4" />
@@ -181,7 +181,7 @@
 							{:else if item.action}
 								<button
 									class="flex min-h-[44px] w-full items-center rounded-lg px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
-									on:click={() => handleItemClick(item)}
+									onclick={() => handleItemClick(item)}
 								>
 									{#if item.icon}
 										<svelte:component this={item.icon} class="mr-3 h-5 w-5" />
@@ -197,4 +197,4 @@
 	{/if}
 </nav>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />

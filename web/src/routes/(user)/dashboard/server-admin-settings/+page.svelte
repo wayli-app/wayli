@@ -399,8 +399,8 @@
 {#if showAddUserModal}
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
-		on:click={handleCloseAddUserModal}
-		on:keydown={(e) => {
+		onclick={handleCloseAddUserModal}
+		onkeydown={(e) => {
 			if (e.key === 'Escape' || e.key === 'Enter') {
 				handleCloseAddUserModal();
 			}
@@ -411,7 +411,7 @@
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
-			on:click|stopPropagation
+			onclick|stopPropagation
 			role="document"
 		>
 			<!-- Modal Header -->
@@ -423,7 +423,7 @@
 					<p class="text-gray-500 dark:text-gray-400">Create a new user account.</p>
 				</div>
 				<button
-					on:click={handleCloseAddUserModal}
+					onclick={handleCloseAddUserModal}
 					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
@@ -502,13 +502,13 @@
 			<!-- Modal Footer -->
 			<div class="mt-8 flex justify-end gap-3">
 				<button
-					on:click={handleCloseAddUserModal}
+					onclick={handleCloseAddUserModal}
 					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancel
 				</button>
 				<button
-					on:click={handleAddUser}
+					onclick={handleAddUser}
 					class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
 				>
 					Add User
@@ -522,8 +522,8 @@
 {#if showDeleteConfirm && userToDelete}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-		on:click={handleCloseDeleteConfirm}
-		on:keydown={(e) => {
+		onclick={handleCloseDeleteConfirm}
+		onkeydown={(e) => {
 			if (e.key === 'Escape' || e.key === 'Enter') {
 				handleCloseDeleteConfirm();
 			}
@@ -568,14 +568,14 @@
 			<div class="flex justify-end space-x-3">
 				<button
 					type="button"
-					on:click={handleCloseDeleteConfirm}
+					onclick={handleCloseDeleteConfirm}
 					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
 					Cancel
 				</button>
 				<button
 					type="button"
-					on:click={handleConfirmDelete}
+					onclick={handleConfirmDelete}
 					class="cursor-pointer rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
 				>
 					Delete User
@@ -604,7 +604,7 @@
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
 						? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
-					on:click={() => (activeTab = 'settings')}
+					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
 						<Server class="h-4 w-4" />
@@ -615,7 +615,7 @@
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
 						? 'border-[rgb(37,140,244)] text-[rgb(37,140,244)]'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
-					on:click={() => (activeTab = 'users')}
+					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
 						<UserIcon class="h-4 w-4" />
@@ -655,7 +655,7 @@
 						<!-- Items per page selector -->
 						<select
 							bind:value={itemsPerPage}
-							on:change={handleItemsPerPageChange}
+							onchange={handleItemsPerPageChange}
 							class="rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
 						>
 							<option value={5}>5 per page</option>
@@ -666,7 +666,7 @@
 					</div>
 					<button
 						class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
-						on:click={() => (showAddUserModal = true)}
+						onclick={() => (showAddUserModal = true)}
 					>
 						<UserPlus class="h-4 w-4" />
 						Add User
@@ -761,14 +761,14 @@
 											<div class="flex items-center justify-end gap-2">
 												<button
 													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-													on:click={() => handleEditUser(user)}
+													onclick={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
 													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-													on:click={() => handleDeleteUser(user)}
+													onclick={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
 													<Trash2 class="h-4 w-4" />
@@ -797,7 +797,7 @@
 									<div class="flex items-center space-x-2">
 										<!-- Previous button -->
 										<button
-											on:click={goToPreviousPage}
+											onclick={goToPreviousPage}
 											disabled={!pagination.hasPrev}
 											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
@@ -808,7 +808,7 @@
 										<!-- Page numbers -->
 										{#each getPageNumbers() as pageNum (pageNum)}
 											<button
-												on:click={() => goToPage(pageNum)}
+												onclick={() => goToPage(pageNum)}
 												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
 												currentPage
 													? 'bg-[rgb(37,140,244)] text-white'
@@ -820,7 +820,7 @@
 
 										<!-- Next button -->
 										<button
-											on:click={goToNextPage}
+											onclick={goToNextPage}
 											disabled={!pagination.hasNext}
 											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
@@ -906,7 +906,7 @@
 								<button
 									type="button"
 									id="allowRegistration"
-									on:click={() => (allowRegistration = !allowRegistration)}
+									onclick={() => (allowRegistration = !allowRegistration)}
 									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {allowRegistration
 										? 'bg-[rgb(37,140,244)]'
 										: 'bg-gray-200 dark:bg-gray-700'}"
@@ -936,7 +936,7 @@
 								<button
 									type="button"
 									id="requireEmailVerification"
-									on:click={() => (requireEmailVerification = !requireEmailVerification)}
+									onclick={() => (requireEmailVerification = !requireEmailVerification)}
 									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {requireEmailVerification
 										? 'bg-[rgb(37,140,244)]'
 										: 'bg-gray-200 dark:bg-gray-700'}"
@@ -957,7 +957,7 @@
 					<!-- Save Button -->
 					<div class="mt-6 flex justify-end">
 						<button
-							on:click={saveSettings}
+							onclick={saveSettings}
 							class="rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
 						>
 							{t('serverAdmin.saveSettings')}

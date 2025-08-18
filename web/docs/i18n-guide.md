@@ -310,7 +310,7 @@ The `LanguageSwitcher` component provides a user-friendly way to change language
 <LanguageSwitcher
 	size="md"
 	showLabel={true}
-	on:change={({ detail }) => {
+	onchange={({ detail }) => {
 		console.log('Language changed to:', detail.locale);
 	}}
 />

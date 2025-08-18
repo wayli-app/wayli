@@ -170,13 +170,13 @@
 {#if open}
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
-		on:click={closeModal}
+		onclick={closeModal}
 		role="presentation"
 		aria-hidden="true"
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white shadow-2xl dark:bg-gray-800"
-			on:click|stopPropagation
+			onclick|stopPropagation
 			role="document"
 		>
 			<!-- Modal Header -->
@@ -195,7 +195,7 @@
 					</p>
 				</div>
 				<button
-					on:click={closeModal}
+					onclick={closeModal}
 					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>

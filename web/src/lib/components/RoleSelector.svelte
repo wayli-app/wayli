@@ -26,7 +26,7 @@
 			class="rounded-lg border-2 p-4 text-left transition-all {role === roleOption.id
 				? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
 				: 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'}"
-			on:click={() => (role = roleOption.id as 'admin' | 'user')}
+			onclick={() => (role = roleOption.id as 'admin' | 'user')}
 		>
 			<div class="mb-2 flex items-center">
 				<svelte:component

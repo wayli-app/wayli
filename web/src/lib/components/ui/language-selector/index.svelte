@@ -95,7 +95,7 @@
 	};
 </script>
 
-<svelte:window on:click={handleClickOutside} on:keydown={handleKeydown} />
+<svelte:window onclick={handleClickOutside} onkeydown={handleKeydown} />
 
 <div class="relative inline-block" bind:this={dropdownElement}>
 	<!-- Trigger Button -->
