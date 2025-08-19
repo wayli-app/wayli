@@ -153,12 +153,7 @@
 						Try Again
 					</button>
 
-					<button
-						type="button"
-						class="reset-button"
-						onclick={reset}
-						aria-label="Reset error state"
-					>
+					<button type="button" class="reset-button" onclick={reset} aria-label="Reset error state">
 						<svg
 							width="16"
 							height="16"

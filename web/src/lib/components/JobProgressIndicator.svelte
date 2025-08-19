@@ -80,7 +80,7 @@
 
 	// Get ETA display
 	function getETADisplay(job: JobUpdate): string {
-		// Hide ETA for export jobs
+		// Hide ETA for import jobs
 		if (job.type === 'data_export') {
 			return '';
 		}
@@ -94,7 +94,18 @@
 			return t('jobProgress.queued');
 		}
 
-		// Use server-provided ETA from result.estimatedTimeRemaining if available
+		// Debug logging for ETA calculation
+		if (job.type === 'data_import' && job.status === 'running') {
+			console.log('🔍 [ETA DEBUG] Job data:', {
+				id: job.id,
+				progress: job.progress,
+				result: job.result,
+				eta: job.result?.eta,
+				estimatedTimeRemaining: job.result?.estimatedTimeRemaining
+			});
+		}
+
+		// Use server-provided ETA from result.estimatedTimeRemaining or eta if available
 		if (job.result?.estimatedTimeRemaining) {
 			// Normalize: when server returns numeric seconds, format consistently
 			const etaVal = job.result.estimatedTimeRemaining;
@@ -107,15 +118,47 @@
 			return String(etaVal);
 		}
 
+		// Check for eta field (used by import workers) - PRIORITY 1
+		if (job.result?.eta) {
+			const etaVal = job.result.eta;
+			// Handle "50s" format from import workers
+			if (typeof etaVal === 'string' && etaVal.endsWith('s')) {
+				const seconds = parseInt(etaVal.slice(0, -1), 10);
+				if (!isNaN(seconds)) {
+					return formatSeconds(seconds);
+				}
+			}
+			// Handle numeric ETA values
+			if (typeof etaVal === 'number') {
+				return formatSeconds(etaVal);
+			}
+			return String(etaVal);
+		}
+
 		// For data import, calculate ETA based on progress (export jobs are excluded above)
+		// This is a fallback when the worker doesn't provide ETA - PRIORITY 2
 		if (job.type === 'data_import') {
 			if (job.progress === 0) return t('jobProgress.calculating');
 			if (job.progress === 100) return t('jobProgress.complete');
 
-			// Simple ETA calculation (could be improved with actual timing data)
-			const remaining = 100 - job.progress;
-			const estimatedMinutes = Math.ceil(remaining / 10); // Rough estimate
-			return t('jobProgress.remaining', { minutes: estimatedMinutes });
+			// Only use fallback ETA if worker hasn't provided one
+			// The worker's ETA (job.result.eta) should always take precedence
+			if (!job.result?.eta) {
+				// Better ETA calculation based on typical import rates
+				// Import jobs typically process 1000-2000 features per second
+				// Use a more realistic estimate based on progress
+				const remaining = 100 - job.progress;
+				if (remaining <= 5) return t('jobProgress.lessThanMinute');
+				if (remaining <= 20) return t('jobProgress.fewMinutes');
+
+				// For larger remaining progress, use a more nuanced calculation
+				const estimatedMinutes = Math.max(1, Math.ceil(remaining / 15)); // More realistic divisor
+				return t('jobProgress.remaining', { minutes: estimatedMinutes });
+			}
+
+			// If we reach here, the worker provided an ETA but it wasn't parsed correctly
+			// This shouldn't happen, but fallback to a generic message
+			return t('jobProgress.calculating');
 		}
 
 		// Helper to format seconds as h m s consistently
@@ -329,7 +372,7 @@
 
 {#if visibleJobs.length > 0 || showCompletedJobs.length > 0 || completedExportJobs.length > 0}
 	<!-- Active Jobs -->
-	{#each visibleJobs as job (job.id)}
+	{#each visibleJobs as job (`${job.id}-${job.status}-${job.progress}`)}
 		{@const JobIcon = getJobTypeIcon(job.type)}
 		{@const statusColor = getStatusColor(job.status)}
 		{@const eta = getETADisplay(job)}
@@ -395,7 +438,7 @@
 	{/each}
 
 	<!-- Recently Completed Jobs -->
-	{#each showCompletedJobs as job (job.id)}
+	{#each showCompletedJobs as job (`${job.id}-${job.status}`)}
 		{@const JobIcon = getJobTypeIcon(job.type)}
 		{@const statusColor = getStatusColor(job.status)}
 		{@const jobTypeName = getJobTypeDisplayName(job.type)}
@@ -419,7 +462,7 @@
 	{/each}
 
 	<!-- Completed Export Jobs -->
-	{#each completedExportJobs as job (job.id)}
+	{#each completedExportJobs as job (`${job.id}-${job.status}`)}
 		{@const JobIcon = getJobTypeIcon(job.type)}
 		{@const statusColor = getStatusColor(job.status)}
 		{@const jobTypeName = getJobTypeDisplayName(job.type)}

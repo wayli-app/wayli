@@ -262,7 +262,7 @@ const config = validateServerEnvironmentConfig();
 const url = process.env.PUBLIC_SUPABASE_URL;
 
 // ✅ New way
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { PUBLIC_SUPABASE_URL } from '$lib/core/supabase/client';
 const url = PUBLIC_SUPABASE_URL;
 ```
 

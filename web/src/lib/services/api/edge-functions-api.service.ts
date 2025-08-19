@@ -9,7 +9,8 @@
 
 import type { Session } from '@supabase/supabase-js';
 
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+// Use process.env with fallbacks for build-time compatibility
+const PUBLIC_SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 
 export interface EdgeFunctionResponse<T = unknown> {
 	success: boolean;

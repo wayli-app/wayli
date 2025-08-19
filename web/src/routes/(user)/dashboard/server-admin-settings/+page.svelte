@@ -23,23 +23,19 @@
 	import { sessionStore } from '$lib/stores/auth';
 
 	import type { UserProfile } from '$lib/types/user.types';
-	import type { PageData } from './$types';
 
 	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
-	import { page } from '$app/stores';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	let { data } = $props<{ data: PageData }>();
-
-	// Initialize users from server data
-	let users = $state(data.users || []);
-	let searchQuery = $state($page.url.searchParams.get('search') || '');
-	let debouncedSearchQuery = $state(searchQuery);
-	let currentPage = $state(data.pagination?.page || 1);
-	let itemsPerPage = $state(data.pagination?.limit || 10);
+	// Initialize users from client-side data
+	let users = $state<UserProfile[]>([]);
+	let searchQuery = $state('');
+	let debouncedSearchQuery = $state('');
+	let currentPage = $state(1);
+	let itemsPerPage = $state(10);
 
 	// Initialize server settings
 	let serverName = $state('');
@@ -54,17 +50,31 @@
 	let searchTimeout: ReturnType<typeof setTimeout>;
 	let activeTab = $state('settings'); // Add tab state - default to settings tab
 
-	// Get pagination data from server
-	let pagination = $derived(
-		data.pagination || {
-			page: 1,
-			limit: 10,
-			total: 0,
-			totalPages: 0,
-			hasNext: false,
-			hasPrev: false
+	// Initialize pagination data
+	let pagination = $state({
+		page: 1,
+		limit: 10,
+		total: 0,
+		totalPages: 0,
+		hasNext: false,
+		hasPrev: false
+	});
+
+	// Fetch initial data on mount
+	onMount(async () => {
+		// Set admin flag since this is an admin-only page
+		isAdmin = true;
+
+		// Debug: Show current user info
+		const session = $sessionStore;
+		if (session?.user) {
+			console.log('🔍 [DEBUG] Current user ID:', session.user.id);
+			console.log('🔍 [DEBUG] Current user email:', session.user.email);
+			console.log('🔍 [DEBUG] Current user metadata:', session.user.user_metadata);
 		}
-	);
+
+		await fetchFilteredUsers();
+	});
 
 	// Debounced search update - only trigger when user changes the input
 	function handleSearchInput() {
@@ -88,8 +98,8 @@
 		if (itemsPerPage !== 10) params.set('limit', itemsPerPage.toString());
 
 		try {
-					const session = $sessionStore;
-		if (!session) return;
+			const session = $sessionStore;
+			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getAdminUsers({
@@ -98,9 +108,9 @@
 			})) as any;
 
 			// Edge Functions return { success: true, data: ... }
-			const data = result.data || result;
-			users = data.users || [];
-			pagination = data.pagination || {
+			const responseData = result.data || result;
+			users = responseData.users || [];
+			pagination = responseData.pagination || {
 				page: 1,
 				limit: 10,
 				total: 0,
@@ -108,6 +118,9 @@
 				hasNext: false,
 				hasPrev: false
 			};
+
+			// Check if current user is admin (assuming admin users can access this page)
+			isAdmin = true;
 		} catch (error: any) {
 			console.error('Error fetching filtered users:', error);
 			const errorMessage = error?.message || error?.error || 'Failed to fetch users';
@@ -161,8 +174,8 @@
 
 	async function saveSettings() {
 		try {
-					const session = $sessionStore;
-		if (!session) throw new Error('No session found');
+			const session = $sessionStore;
+			if (!session) throw new Error('No session found');
 
 			const settings = {
 				server_name: serverName,
@@ -296,8 +309,8 @@
 
 	async function loadServerSettings() {
 		try {
-					const session = $sessionStore;
-		if (!session) return;
+			const session = $sessionStore;
+			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getServerSettings()) as any;
@@ -318,7 +331,7 @@
 				allowRegistration,
 				requireEmailVerification
 			});
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error loading server settings:', error);
 			const errorMessage = error?.message || error?.error || 'Failed to load server settings';
 			toast.error('Failed to load server settings', { description: errorMessage });
@@ -335,6 +348,9 @@
 	let newUserFirstName = '';
 	let newUserLastName = '';
 	let newUserRole: 'admin' | 'user' = 'user';
+
+	// Admin state
+	let isAdmin = $state(false);
 
 	function handleCloseAddUserModal() {
 		showAddUserModal = false;
@@ -390,8 +406,8 @@
 	<UserEditModal
 		isOpen={isModalOpen}
 		user={selectedUser}
-		on:close={handleCloseModal}
-		on:save={handleSaveUser}
+		onClose={handleCloseModal}
+		onSave={(user) => handleSaveUser(new CustomEvent('save', { detail: user }))}
 	/>
 {/if}
 
@@ -585,7 +601,7 @@
 	</div>
 {/if}
 
-{#if data && data.isAdmin}
+{#if isAdmin}
 	<div>
 		<!-- Header -->
 		<div class="mb-8">
@@ -596,6 +612,25 @@
 				</h1>
 			</div>
 		</div>
+
+		<!-- Debug Info (Temporary) -->
+		{#if $sessionStore?.user}
+			<div
+				class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
+			>
+				<h3 class="mb-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">
+					🔍 Debug Info (Remove after fixing)
+				</h3>
+				<div class="space-y-1 text-xs text-yellow-700 dark:text-yellow-300">
+					<div><strong>User ID:</strong> {$sessionStore.user.id}</div>
+					<div><strong>Email:</strong> {$sessionStore.user.email}</div>
+					<div>
+						<strong>Metadata Role:</strong>
+						{$sessionStore.user.user_metadata?.role || 'not set'}
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Tab Navigation -->
 		<div class="mb-6 border-b border-gray-200 dark:border-gray-700">

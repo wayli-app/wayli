@@ -2,13 +2,10 @@
 // for information about these interfaces
 declare global {
 	namespace App {
-		interface Locals {
-			supabase: import('@supabase/supabase-js').SupabaseClient;
-			getSession(): Promise<import('@supabase/supabase-js').Session | null>;
-		}
+		// All authentication is now handled client-side
+		// No server-side locals or session handling needed
 		interface PageData {
-			session: import('@supabase/supabase-js').Session | null;
-			user?: import('@supabase/supabase-js').User;
+			// Page data will be loaded client-side
 		}
 		// interface Error {}
 		// interface PageState {}

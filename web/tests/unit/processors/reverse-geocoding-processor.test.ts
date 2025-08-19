@@ -68,6 +68,7 @@ describe('processReverseGeocodingMissing', () => {
 				eq: vi.fn().mockReturnThis(),
 				not: vi.fn().mockReturnThis(),
 				neq: vi.fn().mockReturnThis(),
+				or: vi.fn().mockReturnThis(),
 				range: vi.fn().mockReturnThis(),
 				order: vi.fn().mockReturnThis(),
 				update: vi.fn().mockImplementation(() => {
@@ -143,6 +144,7 @@ describe('processReverseGeocodingMissing', () => {
 			select: vi.fn().mockReturnThis(),
 			eq: vi.fn().mockReturnThis(),
 			not: vi.fn().mockReturnThis(),
+			or: vi.fn().mockReturnThis(),
 			range: vi.fn().mockReturnThis(),
 			order: vi.fn().mockReturnThis(),
 			then: (onFulfilled: any) => {

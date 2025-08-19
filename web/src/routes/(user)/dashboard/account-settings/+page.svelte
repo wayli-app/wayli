@@ -173,7 +173,7 @@
 
 	async function loadTripExclusions() {
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -195,7 +195,7 @@
 
 		isAddingExclusion = true;
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -223,7 +223,7 @@
 	async function handleDeleteExclusion(exclusionId: string) {
 		isDeletingExclusion = true;
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -428,7 +428,7 @@
 		homeAddressSearchError = null;
 
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -512,7 +512,7 @@
 		showExclusionAddressSuggestions = true;
 		exclusionAddressSearchError = null;
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -575,7 +575,7 @@
 
 		isEditingExclusion = true;
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -671,7 +671,7 @@
 		showEditExclusionAddressSuggestions = true;
 		editExclusionAddressSearchError = null;
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -1217,15 +1217,15 @@
 <!-- Two-Factor Authentication Setup Modal -->
 <TwoFactorSetup
 	open={showTwoFactorSetup}
-	on:close={handleTwoFactorSetupClose}
-	on:enabled={handleTwoFactorSetupClose}
+	onClose={handleTwoFactorSetupClose}
+	onEnabled={handleTwoFactorSetupClose}
 />
 
 <!-- Two-Factor Authentication Disable Modal -->
 <TwoFactorDisable
 	open={showTwoFactorDisable}
-	on:close={handleTwoFactorDisableClose}
-	on:disabled={handleTwoFactorDisableClose}
+	onClose={handleTwoFactorDisableClose}
+	onDisabled={handleTwoFactorDisableClose}
 />
 
 <!-- Add Trip Exclusion Modal -->

@@ -14,38 +14,89 @@ serve(async (req) => {
 	}
 
 	try {
+		console.log('🔄 [CONNECTIONS] Request received:', req.method, req.url);
+
 		// Get the authorization header
 		const authHeader = req.headers.get('Authorization');
 		if (!authHeader) {
+			console.error('❌ [CONNECTIONS] No authorization header');
+			return new Response(JSON.stringify({ error: 'No authorization header' }), {
+				status: 401,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+
+		// Parse request body
+		let requestBody;
+		try {
+			requestBody = await req.json();
+			console.log('🔄 [CONNECTIONS] Request body:', requestBody);
+		} catch (parseError) {
+			console.error('❌ [CONNECTIONS] Failed to parse request body:', parseError);
+			return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+				status: 400,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+
+		// Check if action is provided
+		const { action } = requestBody;
+		if (!action) {
+			console.error('❌ [CONNECTIONS] No action specified in request body');
+			return new Response(JSON.stringify({ error: 'Action is required' }), {
+				status: 400,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+
+		// Only handle generate action for now
+		if (action !== 'generate') {
+			console.error('❌ [CONNECTIONS] Invalid action:', action);
 			return new Response(
-				JSON.stringify({ error: 'No authorization header' }),
-				{ status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+				JSON.stringify({ error: 'Invalid action. Only "generate" is supported.' }),
+				{ status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
 			);
 		}
 
-		// Create Supabase client
-		const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-		const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+		// Create Supabase client with service role key
+		const supabaseUrl = Deno.env.get('SUPABASE_URL');
+		const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+		if (!supabaseUrl || !supabaseServiceKey) {
+			console.error('❌ [CONNECTIONS] Missing environment variables:', {
+				hasUrl: !!supabaseUrl,
+				hasServiceKey: !!supabaseServiceKey
+			});
+			return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+				status: 500,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
+		}
+
 		const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-			global: { headers: { Authorization: authHeader } }
+			auth: { autoRefreshToken: false, persistSession: false }
 		});
 
-		// Get the user from the token
-		const { data: { user }, error: userError } = await supabase.auth.getUser();
+		// Verify the JWT token and extract user ID
+		const {
+			data: { user },
+			error: userError
+		} = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
 		if (userError || !user) {
-			return new Response(
-				JSON.stringify({ error: 'Invalid token' }),
-				{ status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-			);
+			console.error('❌ [CONNECTIONS] Failed to get user:', userError);
+			return new Response(JSON.stringify({ error: 'Invalid token' }), {
+				status: 401,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
 		}
 
 		console.log('🔄 [CONNECTIONS] generateApiKey action called for user:', user.email);
 
-		// Generate a new MD5 hash as API key
-		const randomBytes = new Uint8Array(32);
+		// Generate a new API key (32 character hex string)
+		const randomBytes = new Uint8Array(16);
 		crypto.getRandomValues(randomBytes);
 		const apiKey = Array.from(randomBytes)
-			.map(b => b.toString(16).padStart(2, '0'))
+			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 
 		console.log('🔄 [CONNECTIONS] Generated API key:', apiKey.substring(0, 8) + '...');
@@ -69,15 +120,15 @@ serve(async (req) => {
 		console.log('✅ [CONNECTIONS] API key generated and stored successfully');
 		console.log('✅ [CONNECTIONS] Stored API key:', apiKey);
 
-		return new Response(
-			JSON.stringify({ success: true, apiKey }),
-			{ status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-		);
+		return new Response(JSON.stringify({ success: true, apiKey }), {
+			status: 200,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		});
 	} catch (error) {
 		console.error('❌ [CONNECTIONS] Unexpected error in generateApiKey:', error);
-		return new Response(
-			JSON.stringify({ error: 'Internal server error' }),
-			{ status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-		);
+		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		});
 	}
 });

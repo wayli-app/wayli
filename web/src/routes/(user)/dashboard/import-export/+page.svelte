@@ -93,7 +93,7 @@
 			isUploading = true;
 			uploadProgress = 0;
 
-			await jobCreationService.createImportJob(
+			const result = await jobCreationService.createImportJob(
 				selectedFile,
 				{
 					format: importFormat,
@@ -106,6 +106,22 @@
 					console.log('📤 Upload progress:', progress + '%');
 				}
 			);
+
+			// Immediately add the job to the store so it shows in the sidebar
+			if (result?.id) {
+				const { addJobToStore } = await import('$lib/stores/job-store');
+				addJobToStore({
+					id: result.id,
+					type: 'data_import',
+					status: 'queued',
+					progress: 0,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+					result: undefined,
+					error: null
+				});
+				console.log('✅ [IMPORT] Job added to store:', result.id);
+			}
 
 			// Reset form
 			selectedFile = null;
@@ -128,12 +144,15 @@
 
 		// Refresh the last successful import date after a successful import
 		await fetchLastSuccessfulImport();
+
+		// Show success message
+		toast.success(t('importExport.importSuccessful'));
 	}
 
 	// Fetch last successful import date
 	async function fetchLastSuccessfulImport() {
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -437,7 +456,7 @@
 							bind:startDate={localExportStartDate}
 							bind:endDate={localExportEndDate}
 							pickLabel={t('importExport.pickDateRange')}
-							onchange={handleExportDateRangeChange}
+							onChange={handleExportDateRangeChange}
 						/>
 					</div>
 				</div>

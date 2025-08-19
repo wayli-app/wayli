@@ -138,18 +138,6 @@
 				return isRecent;
 			})
 			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-		console.log(
-			'🧹 Filtered export jobs:',
-			filteredExportJobs.map((j) => ({
-				id: j.id,
-				status: j.status,
-				hasDownload: !!(j.result?.file_path || j.result?.downloadUrl)
-			}))
-		);
-		console.log('📊 Total jobs in map:', jobsById.size);
-		console.log('📊 Total jobs in exportJobs:', exportJobs.length);
-		console.log('📊 Total jobs in filteredExportJobs:', filteredExportJobs.length);
 	}
 
 	function convertJobUpdateToExportJob(jobUpdate: JobUpdate): ExportJob {
@@ -210,11 +198,11 @@
 
 	async function loadExportJobs() {
 		try {
-					const session = $sessionStore;
-		if (!session) {
-			console.warn('No session available for loading export jobs');
-			return;
-		}
+			const session = $sessionStore;
+			if (!session) {
+				console.warn('No session available for loading export jobs');
+				return;
+			}
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const result = (await serviceAdapter.getExportJobs()) as ExportJob[] | null;

@@ -32,7 +32,7 @@
 
 	async function handleSignIn(event: Event) {
 		event.preventDefault();
-		loading.set(true);
+		loading = true;
 
 		try {
 			// First, authenticate with Supabase to get a temporary session
@@ -87,7 +87,7 @@
 			console.error('Sign in error:', error);
 			toast.error(error.message || t('auth.signInFailed'));
 		} finally {
-			loading.set(false);
+			loading = false;
 		}
 	}
 
@@ -97,7 +97,7 @@
 			return;
 		}
 
-		loading.set(true);
+		loading = true;
 
 		try {
 			const { error } = await supabase.auth.signInWithOtp({
@@ -109,17 +109,17 @@
 
 			if (error) throw error;
 
-			isMagicLinkSent.set(true);
+			isMagicLinkSent = true;
 			toast.success(t('auth.magicLinkSent'));
 		} catch (error: any) {
 			toast.error(error.message || t('auth.failedToSendMagicLink'));
 		} finally {
-			loading.set(false);
+			loading = false;
 		}
 	}
 
 	function togglePassword() {
-		showPassword.set(!showPassword);
+		showPassword = !showPassword;
 	}
 </script>
 
@@ -164,7 +164,7 @@
 						</p>
 					</div>
 					<button
-						onclick={() => isMagicLinkSent.set(false)}
+						onclick={() => (isMagicLinkSent = false)}
 						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
 					>
 						{t('auth.tryDifferentMethod')}

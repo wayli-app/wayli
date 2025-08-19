@@ -34,9 +34,12 @@ export function translateServer(
 	const template = translations[lang][key] || translations['en'][key] || key;
 
 	// Simple parameter interpolation
-	const result = template.replace(/\{(\w+)\}/g, (match, paramKey) => {
-		return params[paramKey]?.toString() || match;
-	});
+	let result = template;
+	for (const [paramKey, paramValue] of Object.entries(params)) {
+		const placeholder = `{${paramKey}}`;
+		result = result.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), paramValue.toString());
+	}
+
 	if (process.env.NODE_ENV !== 'production') {
 		console.log('[translateServer]', { key, template, params, result });
 	}

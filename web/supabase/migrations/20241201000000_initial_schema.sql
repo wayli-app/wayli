@@ -1568,8 +1568,8 @@ DECLARE
     total_updated INTEGER;
     user_filter TEXT := '';
 BEGIN
-    -- Set a longer statement timeout for this function
-    SET LOCAL statement_timeout = '30m';
+    -- Set a longer statement timeout for this function (fixed syntax)
+    SET LOCAL statement_timeout = '30min';
 
     IF target_user_id IS NOT NULL THEN
         RAISE NOTICE 'Starting distance and time_spent calculation for user % using optimized window function approach...', target_user_id;
@@ -1750,7 +1750,7 @@ DECLARE
     user_filter TEXT := '';
 BEGIN
     -- Set a longer statement timeout for this function
-    SET LOCAL statement_timeout = '30m';
+    SET LOCAL statement_timeout = '30min';
 
     IF target_user_id IS NOT NULL THEN
         RAISE NOTICE 'Starting batched distance calculation for user % (batch size: %)...', target_user_id, batch_size;

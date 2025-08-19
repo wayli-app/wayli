@@ -26,49 +26,19 @@ export const userStore = createAuthStore();
 // Store to track if session store is ready
 export const sessionStoreReady = writable<boolean>(false);
 
-// Initialize session store with current session
+// Initialize session store with session manager
 async function initializeSessionStore() {
 	try {
-		const {
-			data: { session },
-			error
-		} = await supabase.auth.getSession();
-		if (error) {
-			console.error('❌ [SessionStore] Error getting initial session:', error);
-			sessionStore.set(null);
-			userStore.set(null);
-		} else {
-			sessionStore.set(session);
-
-			// Also initialize the user store with the session user
-			if (session?.user) {
-				userStore.set(session.user as AuthStore);
-			} else {
-				userStore.set(null);
-			}
-		}
+		// Session manager will handle the auth state changes
+		// Just mark the store as ready
+		sessionStoreReady.set(true);
 	} catch (error) {
 		console.error('❌ [SessionStore] Failed to initialize session store:', error);
 		sessionStore.set(null);
 		userStore.set(null);
-	} finally {
 		sessionStoreReady.set(true);
 	}
 }
-
-// Subscribe to auth changes to keep both stores in sync and enable redirects
-supabase.auth.onAuthStateChange((event, session) => {
-	// Update session first
-	sessionStore.set(session);
-
-	// Update user store for login/logout flows
-	if (event === 'SIGNED_IN' && session) {
-		userStore.set(session.user as AuthStore);
-	} else if (event === 'SIGNED_OUT' || !session) {
-		userStore.set(null);
-		sessionStore.set(null);
-	}
-});
 
 // Initialize immediately
 initializeSessionStore();

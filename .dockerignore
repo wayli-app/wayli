@@ -1,0 +1,40 @@
+# Dependencies
+web/node_modules
+web/package-lock.json
+
+# Build outputs
+web/.svelte-kit
+web/build
+
+# Development files
+web/.vscode
+web/.env*
+web/.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+
+# IDE files
+.vscode
+.idea
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

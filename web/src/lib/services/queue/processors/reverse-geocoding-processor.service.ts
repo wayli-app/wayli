@@ -1,7 +1,5 @@
 // web/src/lib/services/queue/processors/reverse-geocoding-processor.service.ts
 
-import { cpus } from 'node:os';
-
 import { supabase } from '$lib/core/supabase/worker';
 import { reverseGeocode } from '$lib/services/external/nominatim.service';
 import { JobQueueService } from '$lib/services/queue/job-queue.service.worker';
@@ -44,50 +42,6 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 	try {
 		await checkJobCancellation(job.id);
 
-		console.log(`🔄 Initializing geocoding cache with current database state...`);
-		try {
-			const { count: actualTotalPoints, error: countError } = await supabase
-				.from('tracker_data')
-				.select('*', { count: 'exact', head: true })
-				.eq('user_id', userId)
-				.not('location', 'is', null);
-
-			if (!countError) {
-				const { count: actualGeocodedPoints, error: geocodedCountError } = await supabase
-					.from('tracker_data')
-					.select('*', { count: 'exact', head: true })
-					.eq('user_id', userId)
-					.not('location', 'is', null)
-					.not('geocode', 'is', null)
-					.not('geocode', 'eq', '{}');
-
-				if (!geocodedCountError) {
-					const totalPointsInDB = actualTotalPoints || 0;
-					const totalGeocodedInDB = actualGeocodedPoints || 0;
-					const pointsNeedingGeocoding = totalPointsInDB - totalGeocodedInDB;
-					totalToScan = totalPointsInDB;
-
-					const { error: cacheUpdateError } = await supabase.rpc('update_geocoding_stats_cache', {
-						p_user_id: userId,
-						p_total_points: totalPointsInDB,
-						p_geocoded_points: totalGeocodedInDB,
-						p_points_needing_geocoding: pointsNeedingGeocoding,
-						p_null_or_empty_geocodes: 0,
-						p_retryable_errors: 0,
-						p_non_retryable_errors: 0
-					});
-
-					if (cacheUpdateError) {
-						console.error(`❌ Failed to initialize geocoding cache:`, cacheUpdateError);
-					} else {
-						console.log(`✅ Initialized geocoding statistics cache with current database state`);
-					}
-				}
-			}
-		} catch (cacheError) {
-			console.error(`❌ Error initializing geocoding cache:`, cacheError);
-		}
-
 		// Fetch and analyze points that need geocoding (debug breakdown)
 		let allPoints: Array<{ geocode: unknown }> = [];
 		let offset = 0;
@@ -119,6 +73,22 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 			allPoints?.filter((point) => needsGeocoding(point.geocode)) || [];
 		const trackerDataCount = pointsNeedingGeocoding.length;
 		const totalPoints = trackerDataCount || 0;
+
+		// Count total points to scan for progress calculation
+		const { count: totalPointsInDB, error: countError } = await supabase
+			.from('tracker_data')
+			.select('*', { count: 'exact', head: true })
+			.eq('user_id', userId)
+			.not('location', 'is', null);
+
+		if (!countError) {
+			totalToScan = totalPointsInDB || 0;
+		}
+
+		// Log the total count upfront
+		console.log(
+			`🌍 [REVERSE_GEOCODING] Found ${totalPoints.toLocaleString()} points needing geocoding out of ${totalToScan.toLocaleString()} total points to scan`
+		);
 
 		await JobQueueService.updateJobProgress(job.id, 0, {
 			message: `Found ${totalPoints.toLocaleString()} tracker data points needing geocoding. Starting processing...`,
@@ -152,18 +122,26 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 			BATCH_SIZE,
 			job.id,
 			totalPoints,
+			totalPoints, // Use totalPoints instead of totalToScan for progress calculation
 			startTime,
-			(scanned, processed, success, errors) => {
+			(scanned, processed, success, errors, batchIndex, totalBatches) => {
 				totalScanned += scanned;
 				totalProcessed += processed;
 				totalSuccess += success;
 				totalErrors += errors;
 
-				// Progress is based on scan coverage so it reflects actual job completion reliably
-				const denominator = Math.max(totalToScan || 0, 1);
-				const progress = Math.min(100, Math.round((totalScanned / denominator) * 100));
+				// Progress is based on actual points processed, not database rows scanned
+				// This gives accurate progress for the user since we're only processing points that need geocoding
+				const progress = Math.min(100, Math.round((totalProcessed / totalPoints) * 100));
 
-				// ETA based on moving-average scan throughput to avoid noisy estimates
+				// Debug logging for progress calculation
+				if (totalProcessed % 1000 === 0 || progress % 10 === 0) {
+					console.log(
+						`📊 [PROGRESS] totalProcessed: ${totalProcessed}, totalPoints: ${totalPoints}, progress: ${progress}%, batch: ${batchIndex + 1}/${totalBatches}`
+					);
+				}
+
+				// ETA based on moving-average processing throughput to avoid noisy estimates
 				const now = Date.now();
 				scanSamples.push({ time: now, scanned: totalScanned });
 				// Trim samples to window
@@ -186,7 +164,7 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 					const elapsedSeconds = (now - startTime) / 1000;
 					scanRate = totalScanned > 0 && elapsedSeconds > 0 ? totalScanned / elapsedSeconds : 0;
 				}
-				const remainingScans = Math.max(denominator - totalScanned, 0);
+				const remainingScans = Math.max(totalPoints - totalProcessed, 0);
 				const remainingSeconds = scanRate > 0 ? Math.round(remainingScans / scanRate) : 0;
 				const etaDisplay = formatEta(remainingSeconds);
 
@@ -196,9 +174,9 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 					totalErrors,
 					totalPoints,
 					totalScanned,
-					totalToScan: denominator,
-					currentBatch: Math.ceil(totalProcessed / BATCH_SIZE),
-					totalBatches: Math.ceil(totalPoints / BATCH_SIZE),
+					totalToScan: totalToScan || 0,
+					currentBatch: batchIndex + 1,
+					totalBatches: totalBatches,
 					message: `Processed ${totalProcessed.toLocaleString()}/${totalPoints.toLocaleString()} points (${totalErrors} errors)`,
 					processedCount: totalProcessed,
 					successCount: totalSuccess,
@@ -212,48 +190,6 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 		console.log(
 			`✅ Reverse geocoding completed: ${totalSuccess} successful, ${totalErrors} errors out of ${totalProcessed} total`
 		);
-
-		try {
-			const { count: actualTotalPoints, error: countError } = await supabase
-				.from('tracker_data')
-				.select('*', { count: 'exact', head: true })
-				.eq('user_id', userId)
-				.not('location', 'is', null);
-
-			if (!countError) {
-				const { count: actualGeocodedPoints, error: geocodedCountError } = await supabase
-					.from('tracker_data')
-					.select('*', { count: 'exact', head: true })
-					.eq('user_id', userId)
-					.not('location', 'is', null)
-					.not('geocode', 'is', null)
-					.not('geocode', 'eq', '{}');
-
-				if (!geocodedCountError) {
-					const totalPointsInDB = actualTotalPoints || 0;
-					const totalGeocodedInDB = actualGeocodedPoints || 0;
-					const pointsNeedingGeocoding = totalPointsInDB - totalGeocodedInDB;
-
-					const { error: cacheUpdateError } = await supabase.rpc('update_geocoding_stats_cache', {
-						p_user_id: userId,
-						p_total_points: totalPointsInDB,
-						p_geocoded_points: totalGeocodedInDB,
-						p_points_needing_geocoding: pointsNeedingGeocoding,
-						p_null_or_empty_geocodes: 0,
-						p_retryable_errors: 0,
-						p_non_retryable_errors: totalErrors
-					});
-
-					if (cacheUpdateError) {
-						console.error(`❌ Failed to update geocoding cache:`, cacheUpdateError);
-					} else {
-						console.log(`✅ Updated geocoding statistics cache with correct values`);
-					}
-				}
-			}
-		} catch (cacheError) {
-			console.error(`❌ Error updating geocoding cache:`, cacheError);
-		}
 
 		await JobQueueService.updateJobProgress(job.id, 100, {
 			totalProcessed,
@@ -282,62 +218,105 @@ async function processTrackerDataInBatches(
 	batchSize: number,
 	jobId: string,
 	totalPoints: number,
+	totalToScan: number,
 	startTime: number,
-	progressCallback: (scanned: number, processed: number, success: number, errors: number) => void
+	progressCallback: (scanned: number, processed: number, success: number, errors: number, batchIndex: number, totalBatches: number) => void
 ): Promise<void> {
-	let offset = 0;
 	let totalProcessed = 0;
 
-	const CONCURRENT_REQUESTS = Math.max(8, Math.min(50, cpus().length * 4));
+	// Use fixed concurrency for I/O-bound geocoding requests
+	const CONCURRENT_REQUESTS = 20;
+	console.log(`🚀 Using ${CONCURRENT_REQUESTS} concurrent requests for geocoding`);
+
+	// Use a more robust approach: query all points that need geocoding first
+	console.log(`🔍 Querying all points that need geocoding...`);
+
+	// First, get the count of points that need geocoding
+	const { count: totalPointsNeedingGeocoding, error: countError } = await supabase
+		.from('tracker_data')
+		.select('*', { count: 'exact', head: true })
+		.eq('user_id', userId)
+		.not('location', 'is', null)
+		.or('geocode.is.null,geocode.eq.{}');
+
+	if (countError) throw countError;
+
 	console.log(
-		`🚀 Using ${CONCURRENT_REQUESTS} concurrent requests (${cpus().length} CPU cores available, 4x for I/O-bound tasks)`
+		`📊 Found ${totalPointsNeedingGeocoding?.toLocaleString() || 0} points that need geocoding`
 	);
-	let hasMoreData = true;
 
-	while (hasMoreData) {
-		await checkJobCancellation(jobId);
+	// Use efficient pagination to process all points
+	let offset = 0;
+	const allPointsNeedingGeocoding: Array<{
+		user_id: string;
+		location:
+			| string
+			| {
+					type: string;
+					coordinates: number[];
+					crs?: { type: string; properties: { name: string } };
+			  };
+		geocode: unknown;
+		recorded_at: string;
+		raw_data?: unknown;
+	}> = [];
 
-		const { data: allBatchPoints, error } = await supabase
+	while (true) {
+		const { data: batch, error: batchError } = await supabase
 			.from('tracker_data')
 			.select('user_id, location, geocode, recorded_at, raw_data')
 			.eq('user_id', userId)
 			.not('location', 'is', null)
-			.range(offset, offset + batchSize - 1)
-			.order('recorded_at', { ascending: false });
+			.or('geocode.is.null,geocode.eq.{}')
+			.order('recorded_at', { ascending: false })
+			.range(offset, offset + batchSize - 1);
 
-		if (error) throw error;
+		if (batchError) throw batchError;
 
-		if (!allBatchPoints || allBatchPoints.length === 0) {
-			hasMoreData = false;
-			break;
+		if (!batch || batch.length === 0) {
+			break; // No more data
 		}
 
-		const points = allBatchPoints?.filter((point) => needsGeocoding(point.geocode)) || [];
-		console.log(
-			`🔄 Processing batch of ${points.length} tracker data points (offset: ${offset}, total in batch: ${allBatchPoints.length})`
-		);
-
-		let batchProcessed = 0;
-		let batchSuccess = 0;
-		let batchErrors = 0;
-		if (points.length > 0) {
-			const results = await processPointsInParallel(points, CONCURRENT_REQUESTS, jobId);
-			batchProcessed = results.processed;
-			batchSuccess = results.success;
-			batchErrors = results.errors;
-			totalProcessed += results.processed;
-		}
-		// Always emit progress, even if none needed geocoding
-		progressCallback(allBatchPoints.length, batchProcessed, batchSuccess, batchErrors);
-
+		allPointsNeedingGeocoding.push(...batch);
 		offset += batchSize;
+
+		// Safety check to prevent infinite loops
 		if (offset > 1000000) {
-			console.warn('⚠️ Too many records processed, stopping at 1M');
-			hasMoreData = false;
+			console.warn('⚠️ Too many records, stopping at 1M');
+			break;
 		}
 	}
 
-	console.log(`✅ Finished processing all batches. Total processed: ${totalProcessed}`);
+	if (!allPointsNeedingGeocoding || allPointsNeedingGeocoding.length === 0) {
+		console.log('✅ No points need geocoding');
+		return;
+	}
+
+	const totalPointsToProcess = allPointsNeedingGeocoding.length;
+	console.log(`📊 Found ${totalPointsToProcess.toLocaleString()} points to process in total`);
+
+			// Process in batches
+		const totalBatches = Math.ceil(totalPointsToProcess / batchSize);
+		console.log(`📊 Processing ${totalBatches} batches of ${batchSize} points each`);
+
+		for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+			await checkJobCancellation(jobId);
+
+			const startIndex = batchIndex * batchSize;
+			const batch = allPointsNeedingGeocoding.slice(startIndex, startIndex + batchSize);
+
+			if (batch.length > 0) {
+				const results = await processPointsInParallel(batch, CONCURRENT_REQUESTS, jobId);
+				totalProcessed += results.processed;
+
+				// Emit progress with correct batch information
+				progressCallback(batch.length, results.processed, results.success, results.errors, batchIndex, totalBatches);
+			}
+		}
+
+	console.log(
+		`✅ Finished processing all batches. Total processed: ${totalProcessed.toLocaleString()}`
+	);
 }
 
 async function processPointsInParallel(
@@ -389,7 +368,11 @@ async function processSinglePoint(point: {
 		if (point.raw_data && typeof point.raw_data === 'object' && point.raw_data !== null) {
 			const rawData = point.raw_data as Record<string, unknown>;
 			if ('geocode' in rawData && rawData.geocode) {
-				console.log(`📋 Using existing geocode from raw_data for point at ${point.recorded_at}`);
+				// Only log occasionally for existing geocodes
+				if (Math.random() < 0.01) {
+					// Log ~1% of the time
+					console.log(`📋 Using existing geocode from raw_data for point at ${point.recorded_at}`);
+				}
 				const { error: updateError } = await supabase
 					.from('tracker_data')
 					.update({ geocode: rawData.geocode, updated_at: new Date().toISOString() })
@@ -400,7 +383,6 @@ async function processSinglePoint(point: {
 					await updateGeocodeWithError(point, `Database update error: ${updateError.message}`);
 					return false;
 				}
-				console.log(`✅ Used existing geocode from raw_data`);
 				return true;
 			}
 		}
@@ -456,7 +438,6 @@ async function processSinglePoint(point: {
 			return false;
 		}
 
-		console.log(`✅ Geocoded tracker data point: ${geocodeResult.display_name}`);
 		return true;
 	} catch (error: unknown) {
 		console.error(`❌ Error processing tracker data point:`, (error as Error).message);
@@ -493,7 +474,10 @@ async function updateGeocodeWithError(
 			.eq('recorded_at', point.recorded_at);
 		if (updateError) {
 			console.error(`❌ Failed to update geocode with error:`, updateError);
-		} else {
+		}
+		// Only log occasionally for successful error updates
+		else if (Math.random() < 0.01) {
+			// Log ~1% of the time
 			console.log(
 				`⚠️ Updated geocode with ${retryable ? 'retryable' : 'permanent'} error: ${errorMessage}`
 			);

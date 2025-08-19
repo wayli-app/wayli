@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { spawn, type ChildProcess } from 'child_process';
 import { randomUUID } from 'crypto';
@@ -16,7 +16,7 @@ for (let i = 0; i < numWorkers; i++) {
 
 	console.log(`Starting worker ${i + 1}/${numWorkers} with ID: ${workerId}`);
 
-	const worker = spawn('bun', ['run', 'src/scripts/worker.ts', workerId], {
+	const worker = spawn('node', ['src/scripts/worker.ts', workerId], {
 		stdio: 'inherit'
 	});
 

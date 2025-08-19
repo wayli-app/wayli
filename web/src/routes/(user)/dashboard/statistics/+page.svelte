@@ -102,10 +102,12 @@
 	let locationData = $state<TrackerLocation[]>([]);
 	let currentOffset = $state(0);
 	let totalPoints = $state(0);
+	let hasMoreData = $state(false); // Flag to track if there's more data to load
 
 	// Progress tracking
 	let loadingProgress = $state(0); // 0-100
 	let loadingStage = $state(''); // Current loading stage description
+	let isCountingRecords = $state(false); // Flag to track if we're counting records
 
 	// Add statistics state
 	let statisticsData = $state<StatisticsData | null>(null);
@@ -200,7 +202,7 @@
 			})
 				.bindPopup(createPopupContent(item))
 				.on('click', () => {
-					selectMarker(marker, item);
+					selectMarker(marker);
 					handleMarkerClick(item);
 					currentPopup = marker.getPopup();
 				})
@@ -878,14 +880,14 @@
 
 		return [
 			{
-				id: 1,
+				id: 'total-distance',
 				title: t('statistics.totalDistance'),
 				value: statisticsData.totalDistance ?? '0 km',
 				icon: Navigation,
 				color: 'blue'
 			},
 			{
-				id: 'green',
+				id: 'green-distance',
 				title: t('statistics.distanceTravelledGreen'),
 				value:
 					greenDistance > 0
@@ -895,42 +897,42 @@
 				color: 'green'
 			},
 			{
-				id: 2,
+				id: 'earth-circumferences',
 				title: t('statistics.earthCircumferences'),
 				value: formatEarthCircumferences(statisticsData.earthCircumferences),
 				icon: Globe2,
 				color: 'blue'
 			},
 			{
-				id: 3,
+				id: 'geopoints-tracked',
 				title: t('statistics.geopointsTracked'),
 				value: statisticsData.geopoints?.toLocaleString() ?? '0',
 				icon: MapPin,
 				color: 'blue'
 			},
 			{
-				id: 4,
+				id: 'time-moving',
 				title: t('statistics.timeMoving'),
 				value: statisticsData.timeSpentMoving ?? '0h',
 				icon: Clock,
 				color: 'blue'
 			},
 			{
-				id: 5,
+				id: 'unique-places',
 				title: t('statistics.uniquePlaces'),
 				value: statisticsData.uniquePlaces?.toLocaleString() ?? '0',
 				icon: Flag,
 				color: 'blue'
 			},
 			{
-				id: 6,
+				id: 'countries-visited',
 				title: t('statistics.countriesVisited'),
 				value: statisticsData.countriesVisited?.toString() ?? '0',
 				icon: Globe2,
 				color: 'blue'
 			},
 			{
-				id: 7,
+				id: 'approximate-steps',
 				title: t('statistics.approximateSteps'),
 				value: statisticsData.steps?.toLocaleString() ?? '0',
 				icon: Footprints,
@@ -1135,21 +1137,23 @@
 	);
 	let localEndDate = $state(appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '');
 
+	// Sync appState to local dates
 	$effect(() => {
 		localStartDate = appState.filtersStartDate instanceof Date ? appState.filtersStartDate : '';
 		localEndDate = appState.filtersEndDate instanceof Date ? appState.filtersEndDate : '';
 	});
 
-	// Remove handleDateRangeChange and its onchange binding from DateRangePicker
-	// Add MutationObserver logic in onMount
+	// Use MutationObserver to detect date picker changes and trigger data loads
 	onMount(() => {
 		let lastText = '';
 		const dateField = document.querySelector('.datepicker-statistics-fix .date-field .date');
 		if (!dateField) return;
+
 		const observer = new MutationObserver(() => {
 			const text = dateField.textContent?.trim();
 			if (!text || text === lastText) return;
 			lastText = text;
+
 			// Try to parse the date range
 			const match = text.match(/([A-Za-z]{3,} \d{1,2}, \d{4}) - ([A-Za-z]{3,} \d{1,2}, \d{4})/);
 			if (match) {
@@ -1157,12 +1161,14 @@
 				const start = new Date(startStr);
 				const end = new Date(endStr);
 				if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+					// Update appState directly to trigger the main $effect
 					appState.filtersStartDate = start;
 					appState.filtersEndDate = end;
-					void fetchMapDataAndStatistics(0);
+					// The main $effect will handle the data loading
 				}
 			}
 		});
+
 		observer.observe(dateField, { childList: true, subtree: true, characterData: true });
 		return () => observer.disconnect();
 	});
@@ -1398,7 +1404,7 @@
 		<!-- Loading Placeholders -->
 		<!-- Top section: 4 tiles that span 25% width on larger screens -->
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			{#each Array(8) as i (i)}
+			{#each Array(8) as _loadingItem, index (`loading-stat-${index}`)}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 				>
@@ -1413,7 +1419,7 @@
 
 		<!-- Bottom section: 2 tiles that span 50% width -->
 		<div class="mb-8 flex flex-col gap-6 md:flex-row">
-			{#each Array(2) as i (i)}
+			{#each Array(2) as _bottomItem, index (`loading-bottom-${index}`)}
 				<div
 					class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
 				>
@@ -1422,7 +1428,7 @@
 						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 					</div>
 					<div class="space-y-3">
-						{#each Array(3) as i (i)}
+						{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
 							<div class="flex items-center gap-4">
 								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1440,7 +1446,7 @@
 	{:else}
 		<!-- Actual Statistics Content -->
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			{#each getStatistics() as stat (stat.title)}
+			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
 				{@const IconComponent = stat.icon}
 				<div
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
@@ -1472,7 +1478,7 @@
 							>
 						</div>
 						<div class="space-y-4">
-							{#each statisticsData.countryTimeDistribution as country (country.country_code)}
+							{#each statisticsData.countryTimeDistribution as country, index (`country-${index}-${country.country_code || 'unknown'}`)}
 								<div>
 									<div class="mb-1 flex items-center gap-2">
 										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
@@ -1481,7 +1487,9 @@
 										>
 									</div>
 									<div class="relative w-full">
-										<div class="flex h-4 items-center rounded bg-gray-200 dark:bg-gray-700">
+										<div
+											class="flex h-4 items-center justify-center rounded bg-gray-200 dark:bg-gray-700"
+										>
 											<div
 												class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
 												style="width: {country.percent}%; min-width: 2.5rem;"
@@ -1540,7 +1548,7 @@
 								{#each statisticsData.transport
 									.slice()
 									.filter((mode) => mode.mode !== 'stationary')
-									.sort((a, b) => b.distance - a.distance) as mode (mode.mode)}
+									.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
 									<tr>
 										<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
 											>{translateTransportMode(mode.mode)}</td
@@ -1595,7 +1603,7 @@
 				<tbody>
 					{#each statisticsData.trainStationVisits
 						.slice()
-						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station (station.name)}
+						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
 						<tr>
 							<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
 								>{station.name}</td

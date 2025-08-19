@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
 		}
 
 		// Process the data with transport mode detection
-		const { enhancedData, debug } = processTrackerDataWithTransportMode(allData);
+		const { enhancedData, debug } = processTrackerDataWithTransportMode(allData, count);
 
 		// Calculate statistics if requested
 		let statistics = null;
@@ -188,7 +188,10 @@ Deno.serve(async (req) => {
 });
 
 // Process tracker data with transport mode detection
-function processTrackerDataWithTransportMode(trackerData: TrackerDataPoint[]): {
+function processTrackerDataWithTransportMode(
+	trackerData: TrackerDataPoint[],
+	count: number
+): {
 	enhancedData: TrackerDataPoint[];
 	debug: any;
 } {
@@ -558,7 +561,7 @@ function processTrackerDataWithTransportMode(trackerData: TrackerDataPoint[]): {
 		}
 	);
 
-	return { enhancedData, debug: { total, missingCoords, zeroTimeDiff } };
+	return { enhancedData, debug: { total: count, missingCoords, zeroTimeDiff } };
 }
 
 // Velocity estimation function removed - we only calculate actual velocity from time differences

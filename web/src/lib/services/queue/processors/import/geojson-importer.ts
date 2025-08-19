@@ -1,7 +1,3 @@
-// web/src/lib/services/queue/processors/import/geojson-importer.ts
-
-import { cpus } from 'node:os';
-
 import { supabase } from '$lib/core/supabase/worker';
 import {
 	getCountryForPoint as getCountryForPointExternal,
@@ -95,12 +91,11 @@ async function processFeaturesInParallel(
 	let errorCount = 0;
 	const errorSummary: ErrorSummary = { counts: {}, samples: [] };
 
-	const cpuCores = cpus().length;
-	const CHUNK_SIZE = Math.max(50, Math.min(500, Math.floor(totalFeatures / (cpuCores * 8))));
-	const CONCURRENT_CHUNKS = Math.min(cpuCores * 2, 8);
+	const CHUNK_SIZE = 30;
+	const CONCURRENT_CHUNKS = 8;
 
 	console.log(
-		`🔄 Parallel processing: ${cpuCores} CPU cores, ${CHUNK_SIZE} features per chunk, ${CONCURRENT_CHUNKS} concurrent chunks (optimized for progress updates)`
+		`🔄 Processing: ${CHUNK_SIZE} features per chunk, ${CONCURRENT_CHUNKS} concurrent chunks (optimized for progress updates)`
 	);
 
 	let lastLogTime = lastLogTimeInitial;

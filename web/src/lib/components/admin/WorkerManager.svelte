@@ -66,7 +66,7 @@
 
 	async function loadStatus() {
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session });

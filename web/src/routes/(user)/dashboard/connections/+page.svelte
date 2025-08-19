@@ -5,23 +5,24 @@
 
 	import { translate } from '$lib/i18n';
 
-	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
-	import { supabase } from '$lib/core/supabase/client';
-	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+	import { supabase, PUBLIC_SUPABASE_URL } from '$lib/core/supabase/client';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	let { data } = $props<{ data: any }>();
+	// Removed unused data prop since this page is now fully client-side
 
 	let copiedField = $state('');
 
-	let owntracksApiKey: string | null = null;
-	let owntracksEndpoint: string | null = null;
+	let owntracksApiKey = $state<string | null>(null);
+	let owntracksEndpoint = $state<string | null>(null);
 
 	async function refreshApiKeyData() {
-		const { data: { user }, error } = await supabase.auth.getUser();
+		const {
+			data: { user },
+			error
+		} = await supabase.auth.getUser();
 
 		if (user && !error) {
 			owntracksApiKey = user.user_metadata?.owntracks_api_key || null;
@@ -35,7 +36,9 @@
 
 	async function generateApiKey() {
 		try {
-			const { data: { user } } = await supabase.auth.getUser();
+			const {
+				data: { user }
+			} = await supabase.auth.getUser();
 			if (!user) {
 				toast.error(t('connections.userNotAuthenticated'));
 				return;
@@ -178,8 +181,7 @@
 							<button
 								type="button"
 								onclick={() =>
-									owntracksApiKey &&
-									copyToClipboard(owntracksApiKey, t('connections.apiKey'))}
+									owntracksApiKey && copyToClipboard(owntracksApiKey, t('connections.apiKey'))}
 								class="flex items-center gap-2 rounded-md border border-[rgb(218,218,221)] px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-[#3f3f46] dark:text-gray-300 dark:hover:bg-[#1a1a1a]"
 							>
 								{#if copiedField === t('connections.apiKey')}
@@ -199,9 +201,7 @@
 					class="flex cursor-pointer items-center gap-2 rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
 				>
 					<RefreshCw class="h-4 w-4" />
-					{owntracksApiKey
-						? t('connections.generateNewApiKey')
-						: t('connections.generateApiKey')}
+					{owntracksApiKey ? t('connections.generateNewApiKey') : t('connections.generateApiKey')}
 				</button>
 
 				<!-- Instructions -->

@@ -2,8 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 import { getPexelsConfig } from '$lib/core/config/node-environment';
 
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+// Use process.env with fallbacks for build-time compatibility
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const PUBLIC_SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 
 /**
  * Pexels Image Service

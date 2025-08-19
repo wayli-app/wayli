@@ -21,19 +21,19 @@
 		"test:coverage": "vitest --run --coverage",
 		"test:performance": "vitest --run tests/performance/",
 		"test:security": "vitest --run tests/security/",
-		"test:realtime": "bun run src/scripts/test-realtime.ts",
-		"test:jobs": "bun run src/scripts/test-job-creation.ts",
-		"test:live-updates": "bun run src/scripts/test-live-updates.ts",
-		"test:enhanced-jobs": "bun run src/scripts/test-enhanced-jobs.ts",
-		"test:totp": "bun run src/scripts/test-totp.ts",
-		"test:cache": "bun run src/scripts/test-cache.ts",
-		"test:poi-visits": "bun run src/scripts/test-poi-visit-detection.ts",
-		"worker": "bun run src/scripts/worker.ts",
-		"worker:start": "bun run src/scripts/worker.ts",
-		"worker:dev": "bun --watch src/scripts/worker.ts",
-		"workers": "bun run src/scripts/worker-manager.ts",
-		"workers:start": "bun run src/scripts/worker-manager.ts",
-		"workers:dev": "bun --watch src/scripts/worker-manager.ts",
+		"test:realtime": "node src/scripts/test-realtime.ts",
+		"test:jobs": "node src/scripts/test-job-creation.ts",
+		"test:live-updates": "node src/scripts/test-live-updates.ts",
+		"test:enhanced-jobs": "node src/scripts/test-enhanced-jobs.ts",
+		"test:totp": "node src/scripts/test-totp.ts",
+		"test:cache": "node src/scripts/test-cache.ts",
+		"test:poi-visits": "node src/scripts/test-poi-visit-detection.ts",
+		"worker": "node src/scripts/worker.ts",
+		"worker:start": "node src/scripts/worker.ts",
+		"worker:dev": "node --watch src/scripts/worker.ts",
+		"workers": "node src/scripts/worker-manager.ts",
+		"workers:start": "node src/scripts/worker-manager.ts",
+		"workers:dev": "node --watch src/scripts/worker-manager.ts",
 		"check:separation": "node scripts/check-client-server-separation.js"
 	},
 	"devDependencies": {
@@ -103,5 +103,19 @@
 		"tailwind-merge": "^2.6.0",
 		"uuid": "^11.1.0",
 		"zod": "^4.0.5"
+	},
+	"overrides": {
+		"rollup": {
+			"optionalDependencies": {
+				"@rollup/rollup-linux-x64-gnu": false,
+				"@rollup/rollup-linux-x64-musl": false,
+				"@rollup/rollup-linux-arm64-gnu": false,
+				"@rollup/rollup-linux-arm64-musl": false,
+				"@rollup/rollup-darwin-x64": false,
+				"@rollup/rollup-darwin-arm64": false,
+				"@rollup/rollup-win32-x64-msvc": false,
+				"@rollup/rollup-win32-arm64-msvc": false
+			}
+		}
 	}
 }

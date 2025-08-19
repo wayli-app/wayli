@@ -5,14 +5,13 @@
 	import JobTracker from '$lib/components/JobTracker.svelte';
 	import { changeLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { sessionManager } from '$lib/services/session/session-manager.service';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
 
-	import type { PageData } from './$types';
-
 	import { goto } from '$app/navigation';
 
-	let { data } = $props<{ data: PageData }>();
+	// No server-side data needed - everything is client-side
 
 	let globalJobTracker: JobTracker;
 
@@ -55,34 +54,30 @@
 
 	onMount(async () => {
 		try {
-			// Initialize user store with server data
-			if (data.user) {
-				userStore.set(data.user as any);
+			// Check if user is authenticated using session manager
+			const isAuthenticated = await sessionManager.isAuthenticated();
+			if (!isAuthenticated) {
+				goto('/auth/signin');
+				return;
 			}
 
 			// Load user preferences and apply language
 			await loadUserPreferences();
 		} catch (error) {
-			console.error('❌ [Dashboard] Error initializing user store:', error);
+			console.error('❌ [Dashboard] Error initializing dashboard:', error);
+			goto('/auth/signin');
 		}
 	});
 
 	$effect(() => {
-		if ($userStore !== data.user) {
-			// Update user store when server data changes
-			userStore.set(data.user as any);
-		}
-	});
-
-	$effect(() => {
-		if (!$userStore && !data.user) {
-			// User signed out, redirect to signin
+		// Check authentication status and redirect if needed
+		if (!$userStore && !$sessionStore) {
 			goto('/auth/signin');
 		}
 	});
 </script>
 
-<AppNav isAdmin={data.isAdmin} onSignout={handleSignout}>
+<AppNav isAdmin={$userStore?.user_metadata?.role === 'admin'} onSignout={handleSignout}>
 	<!-- Main content area -->
 	<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
 		<slot />

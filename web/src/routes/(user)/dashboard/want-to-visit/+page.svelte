@@ -193,6 +193,14 @@
 	let selectedTypes = $state<string[]>(['All']); // Array to support multiple selections
 	let showFavouritedOnly = $state(false); // Filter for favourited places only
 
+	// User profile and loading states
+	let userProfile = $state<UserProfile | null>(null);
+	let hasHomeAddress = $state(false);
+	let isLoadingProfile = $state(false);
+
+	// Map markers
+	let markers = $state<any[]>([]);
+
 	// Available types based on marker types - using translation keys
 	let availableTypes = $derived([
 		{ id: 'All', name: t('wantToVisit.markerTypes.all'), icon: MapPin },
@@ -397,7 +405,7 @@
 			inertiaDeceleration: 3000,
 			inertiaMaxSpeed: 3000,
 			worldCopyJump: false,
-			maxBounds: null,
+			maxBounds: undefined,
 			maxBoundsViscosity: 0.0
 		});
 

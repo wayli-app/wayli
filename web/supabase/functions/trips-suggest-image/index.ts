@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
 				// Verify trip ownership
 				const { data: trip, error: tripError } = await supabase
 					.from('trips')
-					.select('id, title, description, start_date, end_date, locations')
+					.select('id, title, description, start_date, end_date, metadata, status')
 					.eq('id', tripId)
 					.eq('user_id', user.id)
 					.single();
@@ -90,20 +90,67 @@ Deno.serve(async (req) => {
 					return errorResponse('Trip not found', 404);
 				}
 
-				// Generate image suggestions based on trip data
-				const suggestions = await generateImageSuggestions(trip);
+				// Check if this is a suggested trip (status='pending') that needs image generation
+				if (trip.status === 'pending' && trip.start_date && trip.end_date) {
+					// Type guard to ensure dates are strings
+					const startDate = String(trip.start_date);
+					const endDate = String(trip.end_date);
 
-				logSuccess('Image suggestions generated successfully', 'TRIPS-SUGGEST-IMAGE', {
-					userId: user.id,
-					tripId,
-					suggestionCount: suggestions.length
-				});
+					logInfo('Generating image for suggested trip based on date range', 'TRIPS-SUGGEST-IMAGE', {
+						userId: user.id,
+						tripId,
+						startDate,
+						endDate
+					});
 
-				return successResponse({
-					trip_id: tripId,
-					suggestions,
-					message: 'Image suggestions generated successfully'
-				});
+					// Analyze user's travel data for the date range
+					const analysis = await analyzeTripLocations(supabase, user.id, startDate, endDate);
+
+					if (!analysis.primaryCountry) {
+						return errorResponse('No travel data found for the specified date range', 404);
+					}
+
+					// Get the best available Pexels API key
+					const apiKey = await getPexelsApiKey(supabase, user.id);
+					if (!apiKey) {
+						return errorResponse(
+							'No Pexels API key available. Please configure your API key in preferences.',
+							400
+						);
+					}
+
+					// Generate image suggestion based on analysis
+					const suggestion = await generateImageSuggestionFromAnalysis(analysis, apiKey);
+
+					logSuccess('Image suggestion generated for suggested trip', 'TRIPS-SUGGEST-IMAGE', {
+						userId: user.id,
+						tripId,
+						primaryCountry: analysis.primaryCountry || 'Unknown',
+						primaryCity: analysis.primaryCity || undefined
+					});
+
+					return successResponse({
+						suggestedImageUrl: suggestion.imageUrl,
+						attribution: suggestion.attribution,
+						analysis: analysis,
+						message: 'Image suggestion generated successfully'
+					});
+				} else {
+					// Regular trip - generate text suggestions
+					const suggestions = await generateImageSuggestions(trip);
+
+					logSuccess('Image suggestions generated successfully', 'TRIPS-SUGGEST-IMAGE', {
+						userId: user.id,
+						tripId,
+						suggestionCount: suggestions.length
+					});
+
+					return successResponse({
+						trip_id: tripId,
+						suggestions,
+						message: 'Image suggestions generated successfully'
+					});
+				}
 			} else if (startDate && endDate) {
 				// New trip image suggestion based on date range
 				logInfo('Suggesting image for new trip based on date range', 'TRIPS-SUGGEST-IMAGE', {
@@ -133,8 +180,8 @@ Deno.serve(async (req) => {
 
 				logSuccess('Image suggestion generated for new trip', 'TRIPS-SUGGEST-IMAGE', {
 					userId: user.id,
-					primaryCountry: analysis.primaryCountry, // This is now the full name
-					primaryCity: analysis.primaryCity
+					primaryCountry: analysis.primaryCountry || 'Unknown', // This is now the full name
+					primaryCity: analysis.primaryCity || undefined
 				});
 
 				return successResponse({
@@ -185,7 +232,7 @@ async function analyzeTripLocations(
 	let distanceTraveled = 0;
 	if (trackerData && trackerData.length > 0) {
 		distanceTraveled = trackerData.reduce(
-			(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+			(sum: number, row: any) => sum + (typeof row.distance === 'number' ? row.distance : 0),
 			0
 		);
 	}
@@ -250,8 +297,14 @@ async function analyzeTripLocations(
 	const countryCodes = Array.from(allCountries);
 	const codeToName: Record<string, string> = {};
 	for (const code of countryCodes) {
-		const { data } = await supabase.rpc('full_country', { country: code });
-		codeToName[code] = (data && typeof data === 'string' && data) || code;
+		try {
+			const { data } = await supabase.rpc('full_country', { country: code });
+			codeToName[code] = (data && typeof data === 'string' && data) || code;
+		} catch (error) {
+			// If the full_country function doesn't exist, just use the code
+			logInfo(`full_country function not available, using country code: ${code}`, 'TRIPS-SUGGEST-IMAGE');
+			codeToName[code] = code;
+		}
 	}
 
 	// Replace codes with names in allCountries and countryStats
@@ -365,11 +418,19 @@ async function generateImageSuggestions(trip: Record<string, unknown>): Promise<
 	const endDate = String(trip.end_date || '');
 
 	// Extract location information if available
-	const locations = (trip.locations as Array<Record<string, unknown>>) || [];
-	const locationNames = locations
-		.map((loc) => String(loc.name || loc.display_name || ''))
-		.filter((name) => name.length > 0)
-		.slice(0, 3); // Take first 3 locations
+	// Note: trips table doesn't have a locations column, so we'll use metadata or other available data
+	const locationNames: string[] = [];
+
+	// Try to get location info from metadata if available
+	if (trip.metadata && typeof trip.metadata === 'object') {
+		const metadata = trip.metadata as Record<string, unknown>;
+		if (metadata.primaryCity && typeof metadata.primaryCity === 'string') {
+			locationNames.push(metadata.primaryCity);
+		}
+		if (metadata.primaryCountry && typeof metadata.primaryCountry === 'string') {
+			locationNames.push(metadata.primaryCountry);
+		}
+	}
 
 	// Generate suggestions based on trip data
 	const suggestions = [];

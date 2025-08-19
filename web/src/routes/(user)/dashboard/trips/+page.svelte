@@ -32,7 +32,7 @@
 
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+	import { PUBLIC_SUPABASE_URL } from '$lib/core/supabase/client';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -109,7 +109,6 @@
 	let showCustomHomeAddressSuggestions = $state(false);
 	let selectedCustomHomeAddress = $state<any | null>(null);
 	let selectedCustomHomeAddressIndex = $state(-1);
-	let customHomeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let customHomeAddressSearchError = $state<string | null>(null);
 
 	let tripGenerationData = $state({
@@ -503,7 +502,7 @@
 		};
 
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -539,7 +538,7 @@
 		suggestedTripsPagination.offset += suggestedTripsPagination.limit;
 
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -589,7 +588,7 @@
 		try {
 			// Clear existing suggestions if checkbox is checked
 			if (tripGenerationData.clearExistingSuggestions) {
-				const session = get(sessionStore);
+				const session = $sessionStore;
 				if (!session) throw new Error('No session found');
 
 				const serviceAdapter = new ServiceAdapter({ session });
@@ -613,14 +612,30 @@
 				jobData.customHomeAddress = tripGenerationData.customHomeAddress;
 			}
 
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
-			await serviceAdapter.createJob({
+			const result = (await serviceAdapter.createJob({
 				type: 'trip_generation',
 				data: jobData
-			});
+			})) as any;
+
+			// Immediately add the job to the store so it shows in the sidebar
+			if (result?.id) {
+				const { addJobToStore } = await import('$lib/stores/job-store');
+				addJobToStore({
+					id: result.id,
+					type: 'trip_generation',
+					status: 'queued',
+					progress: 0,
+					created_at: new Date().toISOString(),
+					updated_at: new Date().toISOString(),
+					result: undefined,
+					error: null
+				});
+				console.log('✅ [TRIPS] Trip generation job added to store:', result.id);
+			}
 
 			let message = 'Trip generation job started!';
 
@@ -879,7 +894,7 @@
 		imagePreview = null; // Clear previous preview
 
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -1019,7 +1034,7 @@
 			// Set flag to prevent reactive reloads
 			isApprovingTrips = true;
 
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -1172,7 +1187,7 @@
 		if (selectedSuggestedTrips.length === 0) return;
 
 		try {
-			const session = get(sessionStore);
+			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
@@ -1193,94 +1208,6 @@
 	}
 
 	// Custom home address geocoding functions
-	function handleCustomHomeAddressInput(event: Event) {
-		const target = event.target as HTMLInputElement;
-		customHomeAddressInput = target.value;
-		tripGenerationData.customHomeAddress = target.value;
-		selectedCustomHomeAddressIndex = -1;
-		selectedCustomHomeAddress = null;
-		if (customHomeAddressSearchTimeout) clearTimeout(customHomeAddressSearchTimeout);
-		if (!customHomeAddressInput.trim()) {
-			customHomeAddressSuggestions = [];
-			showCustomHomeAddressSuggestions = false;
-			return;
-		}
-		customHomeAddressSearchTimeout = setTimeout(() => searchCustomHomeAddressSuggestions(), 300);
-	}
-
-	function handleCustomHomeAddressKeydown(event: CustomEvent<{ event: KeyboardEvent }>) {
-		if (!showCustomHomeAddressSuggestions || customHomeAddressSuggestions.length === 0) return;
-
-		const keyboardEvent = event.detail.event;
-		switch (keyboardEvent.key) {
-			case 'ArrowDown':
-				keyboardEvent.preventDefault();
-				selectedCustomHomeAddressIndex = Math.min(
-					selectedCustomHomeAddressIndex + 1,
-					customHomeAddressSuggestions.length - 1
-				);
-				break;
-			case 'ArrowUp':
-				keyboardEvent.preventDefault();
-				selectedCustomHomeAddressIndex = Math.max(selectedCustomHomeAddressIndex - 1, 0);
-				break;
-			case 'Enter':
-				keyboardEvent.preventDefault();
-				if (
-					selectedCustomHomeAddressIndex >= 0 &&
-					selectedCustomHomeAddressIndex < customHomeAddressSuggestions.length
-				) {
-					selectCustomHomeAddress(customHomeAddressSuggestions[selectedCustomHomeAddressIndex]);
-				}
-				break;
-			case 'Escape':
-				keyboardEvent.preventDefault();
-				showCustomHomeAddressSuggestions = false;
-				selectedCustomHomeAddressIndex = -1;
-				break;
-		}
-	}
-
-	async function searchCustomHomeAddressSuggestions() {
-		if (!customHomeAddressInput.trim() || customHomeAddressInput.trim().length < 3) {
-			customHomeAddressSuggestions = [];
-			showCustomHomeAddressSuggestions = false;
-			customHomeAddressSearchError = null;
-			return;
-		}
-		isCustomHomeAddressSearching = true;
-		showCustomHomeAddressSuggestions = true;
-		customHomeAddressSearchError = null;
-		try {
-			const session = get(sessionStore);
-			if (!session) return;
-
-			const serviceAdapter = new ServiceAdapter({ session });
-			const data = (await serviceAdapter.searchGeocode(customHomeAddressInput.trim())) as any;
-
-			// The Edge Functions service returns the data array directly
-			customHomeAddressSuggestions = Array.isArray(data) ? data : [];
-			showCustomHomeAddressSuggestions = true;
-			if (customHomeAddressSuggestions.length === 0) {
-				customHomeAddressSearchError = t('trips.noAddressesFound');
-			}
-		} catch (error) {
-			console.error('Error searching for custom home address:', error);
-			customHomeAddressSuggestions = [];
-			customHomeAddressSearchError = t('trips.failedToSearchAddress');
-			showCustomHomeAddressSuggestions = true;
-		} finally {
-			isCustomHomeAddressSearching = false;
-		}
-	}
-
-	function selectCustomHomeAddress(suggestion: any) {
-		customHomeAddressInput = suggestion.display_name;
-		tripGenerationData.customHomeAddress = suggestion.display_name;
-		selectedCustomHomeAddress = suggestion;
-		showCustomHomeAddressSuggestions = false;
-		selectedCustomHomeAddressIndex = -1;
-	}
 
 	function handleCustomHomeAddressToggle() {
 		if (!tripGenerationData.useCustomHomeAddress) {
@@ -1467,7 +1394,7 @@
 										id="new-label"
 										type="text"
 										bind:value={newLabel}
-										onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addLabel())}
+										onkeydown={(e) => e?.key === 'Enter' && (e.preventDefault(), addLabel())}
 										placeholder={t('trips.addLabelPlaceholder')}
 										class="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 									/>
@@ -1972,7 +1899,7 @@
 		open={showSuggestedTripsModal}
 		title={t('trips.reviewSuggestedTripsModal')}
 		size="xl"
-		on:close={() => (showSuggestedTripsModal = false)}
+		onClose={() => (showSuggestedTripsModal = false)}
 	>
 		<div class="flex h-full max-h-[70vh] flex-col">
 			<!-- Scrollable content area -->
@@ -1998,7 +1925,7 @@
 				<div class="flex items-center justify-between">
 					<div></div>
 					<!-- Empty div for spacing -->
-					<GenerateSuggestionsButton onclick={openTripGenerationModal} />
+					<GenerateSuggestionsButton onClick={openTripGenerationModal} />
 				</div>
 
 				{#if isLoadingSuggestedTrips && suggestedTrips.length === 0}
@@ -2167,12 +2094,9 @@
 		bind:customHomeAddressSearchError
 		bind:selectedCustomHomeAddress
 		bind:clearExistingSuggestions={tripGenerationData.clearExistingSuggestions}
-		on:close={() => (showTripGenerationModal = false)}
-		on:generate={generateNewTripSuggestions}
-		on:customHomeAddressToggle={handleCustomHomeAddressToggle}
-		on:customHomeAddressInput={handleCustomHomeAddressInput}
-		on:customHomeAddressKeydown={handleCustomHomeAddressKeydown}
-		on:selectCustomHomeAddress={selectCustomHomeAddress}
+		onClose={() => (showTripGenerationModal = false)}
+		onGenerate={generateNewTripSuggestions}
+		onCustomHomeAddressToggle={handleCustomHomeAddressToggle}
 	/>
 
 	<!-- Delete Confirmation Modal -->

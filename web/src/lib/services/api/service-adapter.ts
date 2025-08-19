@@ -202,18 +202,21 @@ export class ServiceAdapter {
 		for (const tripId of suggestedTripIds) {
 			try {
 				const result = await this.suggestTripImages(tripId);
-				// Type guard for result
+				// The Edge Function returns { success: true, data: { ... } }
+				const data = result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
+
+				// Type guard for data
 				const imageUrl =
-					result && typeof result === 'object' && 'suggestedImageUrl' in result
-						? (result as { suggestedImageUrl?: string }).suggestedImageUrl
+					data && typeof data === 'object' && 'suggestedImageUrl' in data
+						? (data as { suggestedImageUrl?: string }).suggestedImageUrl
 						: undefined;
 				const attribution =
-					result && typeof result === 'object' && 'attribution' in result
-						? (result as { attribution?: unknown }).attribution
+					data && typeof data === 'object' && 'attribution' in data
+						? (data as { attribution?: unknown }).attribution
 						: undefined;
 				const analysis =
-					result && typeof result === 'object' && 'analysis' in result
-						? (result as { analysis?: unknown }).analysis
+					data && typeof data === 'object' && 'analysis' in data
+						? (data as { analysis?: unknown }).analysis
 						: undefined;
 				results.push({
 					suggested_trip_id: tripId,

@@ -9,6 +9,7 @@ Most important rules:
 - Prefix all log messages with an appropriate emoji.
 - Always comply with a11y.
 - Use Svelte v5's runes system where applicable.
+- Strictly follow the Svelte v5 documentation. So also use 'onclick' instead of 'on:click', etc.
 
 ## Tech Stack & Project Context
 - Frontend & Backend: SvelteKit

@@ -299,8 +299,8 @@
 				</div>
 				<div class="mt-2 flex items-center gap-1">
 					<div class="text-xs text-gray-400">Rating</div>
-					{#each Array(5) as i (i)}
-						{#if i < poi.rating}
+					{#each Array(5) as _ratingItem, index (`poi-${index}`)}
+						{#if index < poi.rating}
 							<Star class="h-4 w-4 text-yellow-400" />
 						{:else}
 							<Star class="h-4 w-4 text-gray-200" />

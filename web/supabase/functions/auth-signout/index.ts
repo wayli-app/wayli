@@ -16,10 +16,10 @@ serve(async (req) => {
 		// Get the authorization header
 		const authHeader = req.headers.get('Authorization');
 		if (!authHeader) {
-			return new Response(
-				JSON.stringify({ error: 'No authorization header' }),
-				{ status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-			);
+			return new Response(JSON.stringify({ error: 'No authorization header' }), {
+				status: 401,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
 		}
 
 		// Create Supabase client
@@ -30,12 +30,15 @@ serve(async (req) => {
 		});
 
 		// Get the user from the token
-		const { data: { user }, error: userError } = await supabase.auth.getUser();
+		const {
+			data: { user },
+			error: userError
+		} = await supabase.auth.getUser();
 		if (userError || !user) {
-			return new Response(
-				JSON.stringify({ error: 'Invalid token' }),
-				{ status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-			);
+			return new Response(JSON.stringify({ error: 'Invalid token' }), {
+				status: 401,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
 		}
 
 		console.log('🔄 [SIGNOUT] Server-side signout initiated for user:', user.email);
@@ -45,23 +48,23 @@ serve(async (req) => {
 
 		if (error) {
 			console.error('❌ [SIGNOUT] Error signing out:', error);
-			return new Response(
-				JSON.stringify({ error: 'Failed to sign out' }),
-				{ status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-			);
+			return new Response(JSON.stringify({ error: 'Failed to sign out' }), {
+				status: 500,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
 		}
 
 		console.log('✅ [SIGNOUT] User signed out successfully on server');
 
-		return new Response(
-			JSON.stringify({ success: true, message: 'Signed out successfully' }),
-			{ status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-		);
+		return new Response(JSON.stringify({ success: true, message: 'Signed out successfully' }), {
+			status: 200,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		});
 	} catch (error) {
 		console.error('❌ [SIGNOUT] Unexpected error:', error);
-		return new Response(
-			JSON.stringify({ error: 'Internal server error' }),
-			{ status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-		);
+		return new Response(JSON.stringify({ error: 'Internal server error' }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+		});
 	}
 });
