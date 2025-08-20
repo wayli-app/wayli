@@ -83,53 +83,15 @@ export class EdgeFunctionsApiService {
 			}
 		}
 
-		// Special debugging for export-download calls
-		if (functionName.startsWith('export-download')) {
-			console.log('🔍 [EDGE DEBUG] Export download request details:');
-			console.log('🔍 [EDGE DEBUG] URL:', url.toString());
-			console.log('🔍 [EDGE DEBUG] Method:', method);
-			console.log('🔍 [EDGE DEBUG] Headers:', headers);
-			console.log('🔍 [EDGE DEBUG] Session user ID:', session.user.id);
-			console.log('🔍 [EDGE DEBUG] Function name:', functionName);
-			console.log('🔍 [EDGE DEBUG] Query parameters:', params);
-			console.log('🔍 [EDGE DEBUG] Full URL with query:', url.toString());
-			console.log('🔍 [EDGE DEBUG] URL search params:', url.searchParams.toString());
-		}
-
-		console.log(`🌐 [EDGE] Making ${method} request to: ${url.toString()}`);
-
 		const response = await fetch(url.toString(), requestOptions);
-
-		// Special debugging for export-download calls
-		if (functionName.startsWith('export-download')) {
-			console.log('🔍 [EDGE DEBUG] Export download response details:');
-			console.log('🔍 [EDGE DEBUG] Response status:', response.status);
-			console.log('🔍 [EDGE DEBUG] Response status text:', response.statusText);
-			console.log(
-				'🔍 [EDGE DEBUG] Response headers:',
-				Object.fromEntries(response.headers.entries())
-			);
-		}
 
 		if (!response.ok) {
 			const errorText = await response.text();
-			console.error('🌐 [EDGE] Error response:', errorText);
-
-			// Special debugging for export-download calls
-			if (functionName.startsWith('export-download')) {
-				console.error('🔍 [EDGE DEBUG] Export download failed with status:', response.status);
-				console.error('🔍 [EDGE DEBUG] Error response body:', errorText);
-			}
 
 			throw new Error(`Edge Function error: ${response.status} - ${errorText}`);
 		}
 
 		const result: EdgeFunctionResponse<T> = await response.json();
-
-		// Special debugging for export-download calls
-		if (functionName.startsWith('export-download')) {
-			console.log('🔍 [EDGE DEBUG] Export download response body:', result);
-		}
 
 		if (!result.success) {
 			throw new Error(result.error || 'Edge Function returned an error');

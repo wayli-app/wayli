@@ -162,16 +162,16 @@
 		sseService = new SSEService(
 			{
 				onConnected: () => {
-					console.log('🔗 SSE connected for export jobs');
+					// console.log('🔗 SSE connected for export jobs');
 				},
 				onDisconnected: () => {
-					console.log('🔌 SSE disconnected for export jobs');
+					// console.log('🔌 SSE disconnected for export jobs');
 				},
 				onJobUpdate: (jobs: JobUpdate[]) => {
-					console.log('📡 Export jobs update received:', jobs);
+					// console.log('📡 Export jobs update received:', jobs);
 					// Filter to only include export jobs, not import jobs
 					const exportOnlyJobs = jobs.filter((job) => job.type === 'data_export');
-					console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
+					// console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
 					// Convert JobUpdate to ExportJob for compatibility
 					const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
 					updateExportJobs(exportJobs);
@@ -180,7 +180,7 @@
 					console.log('✅ Export jobs completed:', jobs);
 					// Filter to only include export jobs, not import jobs
 					const exportOnlyJobs = jobs.filter((job) => job.type === 'data_export');
-					console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
+					// console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
 					// Convert JobUpdate to ExportJob for compatibility
 					const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
 					updateExportJobs(exportJobs);

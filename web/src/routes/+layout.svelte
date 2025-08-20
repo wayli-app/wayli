@@ -6,7 +6,7 @@
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
 	import { initializeI18n } from '$lib/i18n';
 	import { serviceAdapter } from '$lib/services/service-layer-adapter';
-	import { sessionManager } from '$lib/services/session/session-manager.service';
+	import { sessionManager } from '$lib/services/session';
 	import { initializeTheme } from '$lib/stores/app-state.svelte';
 	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 

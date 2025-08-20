@@ -2,7 +2,7 @@
 // Client-side Supabase client. Only uses public env vars from $env/static/public.
 // Never import secrets or private env vars here.
 
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
 import type { Database } from './types';
 
@@ -25,8 +25,16 @@ if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
 
 /**
  * The client-side Supabase instance for browser use.
+ * Configured with local storage persistence for JWT tokens.
  */
-export const supabase = createBrowserClient<Database>(
+export const supabase = createClient<Database>(
 	PUBLIC_SUPABASE_URL,
-	PUBLIC_SUPABASE_ANON_KEY
+	PUBLIC_SUPABASE_ANON_KEY,
+	{
+		auth: {
+			autoRefreshToken: true,
+			persistSession: true,
+			storageKey: 'wayli-auth'
+		}
+	}
 );

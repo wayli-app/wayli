@@ -5,7 +5,7 @@
 	import JobTracker from '$lib/components/JobTracker.svelte';
 	import { changeLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { sessionManager } from '$lib/services/session/session-manager.service';
+	import { sessionManager } from '$lib/services/session';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
 
@@ -14,6 +14,7 @@
 	// No server-side data needed - everything is client-side
 
 	let globalJobTracker: JobTracker;
+	let isInitializing = true;
 
 	async function handleSignout() {
 		try {
@@ -54,15 +55,31 @@
 
 	onMount(async () => {
 		try {
+			console.log('🚀 [Dashboard] Initializing dashboard...');
+
+			// Wait for session manager to be fully initialized
+			await sessionManager.initialize();
+			console.log('✅ [Dashboard] Session manager initialized');
+
+			// Wait a bit for any pending auth state changes to settle
+			await new Promise(resolve => setTimeout(resolve, 100));
+
 			// Check if user is authenticated using session manager
 			const isAuthenticated = await sessionManager.isAuthenticated();
+			console.log('🔐 [Dashboard] Authentication check result:', isAuthenticated);
+
 			if (!isAuthenticated) {
+				console.log('🚪 [Dashboard] User not authenticated, redirecting to signin');
 				goto('/auth/signin');
 				return;
 			}
 
 			// Load user preferences and apply language
 			await loadUserPreferences();
+
+			// Mark initialization as complete
+			isInitializing = false;
+			console.log('✅ [Dashboard] Dashboard initialization complete');
 		} catch (error) {
 			console.error('❌ [Dashboard] Error initializing dashboard:', error);
 			goto('/auth/signin');
@@ -70,8 +87,12 @@
 	});
 
 	$effect(() => {
+		// Only check authentication after initialization is complete
+		if (isInitializing) return;
+
 		// Check authentication status and redirect if needed
 		if (!$userStore && !$sessionStore) {
+			console.log('🚪 [Dashboard] No user or session found, redirecting to signin');
 			goto('/auth/signin');
 		}
 	});
