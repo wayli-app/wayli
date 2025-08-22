@@ -96,12 +96,16 @@ Deno.serve(async (req) => {
 					const startDate = String(trip.start_date);
 					const endDate = String(trip.end_date);
 
-					logInfo('Generating image for suggested trip based on date range', 'TRIPS-SUGGEST-IMAGE', {
-						userId: user.id,
-						tripId,
-						startDate,
-						endDate
-					});
+					logInfo(
+						'Generating image for suggested trip based on date range',
+						'TRIPS-SUGGEST-IMAGE',
+						{
+							userId: user.id,
+							tripId,
+							startDate,
+							endDate
+						}
+					);
 
 					// Analyze user's travel data for the date range
 					const analysis = await analyzeTripLocations(supabase, user.id, startDate, endDate);
@@ -302,7 +306,10 @@ async function analyzeTripLocations(
 			codeToName[code] = (data && typeof data === 'string' && data) || code;
 		} catch (error) {
 			// If the full_country function doesn't exist, just use the code
-			logInfo(`full_country function not available, using country code: ${code}`, 'TRIPS-SUGGEST-IMAGE');
+			logInfo(
+				`full_country function not available, using country code: ${code}`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
 			codeToName[code] = code;
 		}
 	}

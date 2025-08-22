@@ -42,7 +42,10 @@ export class SessionManagerService {
 		// Set up auth state change listener (only once)
 		if (!this.authListenerSet) {
 			supabase.auth.onAuthStateChange((event, session) => {
-				console.log(`🔐 [SessionManager] Auth state changed: ${event}`, session ? 'session present' : 'no session');
+				console.log(
+					`🔐 [SessionManager] Auth state changed: ${event}`,
+					session ? 'session present' : 'no session'
+				);
 
 				this.updateAuthStores(session);
 
@@ -67,7 +70,10 @@ export class SessionManagerService {
 
 		// Initialize with current session - let auth state change events handle session management
 		try {
-			const { data: { session }, error } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error
+			} = await supabase.auth.getSession();
 			if (error) {
 				console.error('❌ [SessionManager] Error getting initial session:', error);
 				// Don't immediately clear stores - let auth state change handle it
@@ -75,7 +81,9 @@ export class SessionManagerService {
 				console.log('✅ [SessionManager] Initial session found during setup');
 				// Don't manually start session management - auth state change events will handle it
 			} else {
-				console.log('ℹ️ [SessionManager] No initial session found - waiting for auth state changes');
+				console.log(
+					'ℹ️ [SessionManager] No initial session found - waiting for auth state changes'
+				);
 				// Don't clear stores yet - let the auth state change listener handle it
 			}
 		} catch (error) {
@@ -149,7 +157,10 @@ export class SessionManagerService {
 			}
 
 			// Get current session
-			const { data: { session }, error } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error
+			} = await supabase.auth.getSession();
 
 			if (error) {
 				console.error('❌ [SessionManager] Error checking session:', error);
@@ -167,7 +178,8 @@ export class SessionManagerService {
 			const now = Math.floor(Date.now() / 1000);
 			const timeUntilExpiry = expiresAt ? expiresAt - now : 0;
 
-			if (timeUntilExpiry < 600) { // 10 minutes
+			if (timeUntilExpiry < 600) {
+				// 10 minutes
 				console.log('🔄 [SessionManager] Token expires soon, refreshing...');
 
 				const { data, error: refreshError } = await supabase.auth.refreshSession();
@@ -226,7 +238,7 @@ export class SessionManagerService {
 			this.updateLastActivity();
 		};
 
-		activityEvents.forEach(event => {
+		activityEvents.forEach((event) => {
 			document.addEventListener(event, updateActivity, { passive: true });
 		});
 
@@ -283,7 +295,10 @@ export class SessionManagerService {
 	async isAuthenticated(): Promise<boolean> {
 		try {
 			// Check Supabase session directly
-			const { data: { session }, error } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error
+			} = await supabase.auth.getSession();
 			if (error) {
 				console.error('❌ [SessionManager] Error checking Supabase session:', error);
 				return false;
@@ -309,7 +324,10 @@ export class SessionManagerService {
 	 */
 	async getCurrentSession() {
 		try {
-			const { data: { session }, error } = await supabase.auth.getSession();
+			const {
+				data: { session },
+				error
+			} = await supabase.auth.getSession();
 			return error ? null : session;
 		} catch {
 			return null;

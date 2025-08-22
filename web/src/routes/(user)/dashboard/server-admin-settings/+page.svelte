@@ -613,25 +613,6 @@
 			</div>
 		</div>
 
-		<!-- Debug Info (Temporary) -->
-		{#if $sessionStore?.user}
-			<div
-				class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20"
-			>
-				<h3 class="mb-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">
-					🔍 Debug Info (Remove after fixing)
-				</h3>
-				<div class="space-y-1 text-xs text-yellow-700 dark:text-yellow-300">
-					<div><strong>User ID:</strong> {$sessionStore.user.id}</div>
-					<div><strong>Email:</strong> {$sessionStore.user.email}</div>
-					<div>
-						<strong>Metadata Role:</strong>
-						{$sessionStore.user.user_metadata?.role || 'not set'}
-					</div>
-				</div>
-			</div>
-		{/if}
-
 		<!-- Tab Navigation -->
 		<div class="mb-6 border-b border-gray-200 dark:border-gray-700">
 			<nav class="-mb-px flex space-x-8">

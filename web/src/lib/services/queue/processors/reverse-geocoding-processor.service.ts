@@ -220,7 +220,14 @@ async function processTrackerDataInBatches(
 	totalPoints: number,
 	totalToScan: number,
 	startTime: number,
-	progressCallback: (scanned: number, processed: number, success: number, errors: number, batchIndex: number, totalBatches: number) => void
+	progressCallback: (
+		scanned: number,
+		processed: number,
+		success: number,
+		errors: number,
+		batchIndex: number,
+		totalBatches: number
+	) => void
 ): Promise<void> {
 	let totalProcessed = 0;
 
@@ -295,24 +302,31 @@ async function processTrackerDataInBatches(
 	const totalPointsToProcess = allPointsNeedingGeocoding.length;
 	console.log(`📊 Found ${totalPointsToProcess.toLocaleString()} points to process in total`);
 
-			// Process in batches
-		const totalBatches = Math.ceil(totalPointsToProcess / batchSize);
-		console.log(`📊 Processing ${totalBatches} batches of ${batchSize} points each`);
+	// Process in batches
+	const totalBatches = Math.ceil(totalPointsToProcess / batchSize);
+	console.log(`📊 Processing ${totalBatches} batches of ${batchSize} points each`);
 
-		for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-			await checkJobCancellation(jobId);
+	for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+		await checkJobCancellation(jobId);
 
-			const startIndex = batchIndex * batchSize;
-			const batch = allPointsNeedingGeocoding.slice(startIndex, startIndex + batchSize);
+		const startIndex = batchIndex * batchSize;
+		const batch = allPointsNeedingGeocoding.slice(startIndex, startIndex + batchSize);
 
-			if (batch.length > 0) {
-				const results = await processPointsInParallel(batch, CONCURRENT_REQUESTS, jobId);
-				totalProcessed += results.processed;
+		if (batch.length > 0) {
+			const results = await processPointsInParallel(batch, CONCURRENT_REQUESTS, jobId);
+			totalProcessed += results.processed;
 
-				// Emit progress with correct batch information
-				progressCallback(batch.length, results.processed, results.success, results.errors, batchIndex, totalBatches);
-			}
+			// Emit progress with correct batch information
+			progressCallback(
+				batch.length,
+				results.processed,
+				results.success,
+				results.errors,
+				batchIndex,
+				totalBatches
+			);
 		}
+	}
 
 	console.log(
 		`✅ Finished processing all batches. Total processed: ${totalProcessed.toLocaleString()}`

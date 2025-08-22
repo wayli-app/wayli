@@ -203,7 +203,8 @@ export class ServiceAdapter {
 			try {
 				const result = await this.suggestTripImages(tripId);
 				// The Edge Function returns { success: true, data: { ... } }
-				const data = result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
+				const data =
+					result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
 
 				// Type guard for data
 				const imageUrl =

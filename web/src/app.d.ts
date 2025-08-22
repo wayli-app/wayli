@@ -6,6 +6,8 @@ declare global {
 		// No server-side locals or session handling needed
 		interface PageData {
 			// Page data will be loaded client-side
+			// This interface is intentionally empty as data is loaded client-side
+			_clientSide?: boolean;
 		}
 		// interface Error {}
 		// interface PageState {}

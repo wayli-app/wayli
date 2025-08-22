@@ -1,0 +1,48 @@
+# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+
+# Types:
+# feat     (new feature for the user, not a new feature for build script)
+# fix      (bug fix for the user, not a fix to a build script)
+# docs     (changes to the documentation)
+# style    (formatting, missing semi colons, etc; no production code change)
+# refactor (refactoring production code, eg. renaming a variable)
+# perf     (code change that improves performance)
+# test     (adding missing tests, refactoring tests; no production code change)
+# build    (changes to the build system or external dependencies)
+# ci       (changes to CI configuration files and scripts)
+# chore    (updating grunt tasks etc; no production code change)
+# revert   (revert to a previous commit)
+
+# Scopes:
+# web      (web application)
+# api      (API endpoints)
+# db       (database changes)
+# auth     (authentication related)
+# ui       (user interface)
+# worker   (background workers)
+# docker   (docker configuration)
+# ci       (CI/CD pipeline)
+
+# Examples:
+# feat(web): add user dashboard
+# fix(auth): resolve login token expiration issue
+# docs(api): update API documentation
+# style(ui): format component code
+# refactor(worker): improve job processing logic
+# perf(db): optimize database queries
+# test(web): add unit tests for dashboard
+# build(docker): update docker base image
+# ci: add semantic versioning workflow
+# chore: update dependencies
+
+# Breaking changes:
+# Use "BREAKING CHANGE:" in the footer to indicate breaking changes
+# Example:
+# feat(api): change user endpoint response format
+#
+# BREAKING CHANGE: The user endpoint now returns user data in a different format.
+# The 'profile' field has been renamed to 'userProfile' and restructured.

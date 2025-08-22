@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
 	setupRequest,
 	authenticateRequest,
@@ -16,11 +17,32 @@ serve(async (req) => {
 		// Authenticate the request and get user context
 		const { user, supabase } = await authenticateRequest(req);
 
-		// Check if the current user is an admin by checking their metadata
-		if (user.user_metadata?.role !== 'admin') {
-			logError('User is not admin', 'ADMIN-USERS');
+		// Check if the current user is an admin by looking up their role in user_profiles
+		const { data: userProfile, error: profileError } = await supabase
+			.from('user_profiles')
+			.select('role')
+			.eq('id', user.id)
+			.single();
+
+		if (profileError || userProfile?.role !== 'admin') {
+			logError(
+				`User is not admin. Profile: ${JSON.stringify(userProfile)}, Error: ${profileError?.message}`,
+				'ADMIN-USERS'
+			);
 			return errorResponse('Forbidden', 403);
 		}
+
+		// Create a service role client for admin operations
+		const adminSupabase = createClient(
+			Deno.env.get('SUPABASE_URL')!,
+			Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+			{
+				auth: {
+					autoRefreshToken: false,
+					persistSession: false
+				}
+			}
+		);
 
 		const { method } = req;
 		const url = new URL(req.url);
@@ -31,11 +53,11 @@ serve(async (req) => {
 			const limit = parseInt(url.searchParams.get('limit') || '10');
 			const search = url.searchParams.get('search') || '';
 
-			// Fetch all users
+			// Fetch all users using admin client
 			const {
 				data: { users: authUsers },
 				error: authUsersError
-			} = await supabase.auth.admin.listUsers({
+			} = await adminSupabase.auth.admin.listUsers({
 				page: 1,
 				perPage: 1000
 			});
@@ -127,7 +149,7 @@ serve(async (req) => {
 					Math.random().toString(36).toUpperCase().slice(-2) +
 					'1!';
 
-				const { data: createUserData, error } = await supabase.auth.admin.createUser({
+				const { data: createUserData, error } = await adminSupabase.auth.admin.createUser({
 					email,
 					password: tempPassword,
 					email_confirm: true,
@@ -179,7 +201,7 @@ serve(async (req) => {
 
 				// Get the user to update to preserve their existing metadata
 				const { data: userData, error: getUserError } =
-					await supabase.auth.admin.getUserById(userId);
+					await adminSupabase.auth.admin.getUserById(userId);
 				if (getUserError || !userData?.user) {
 					return new Response(JSON.stringify({ error: 'User not found' }), {
 						status: 404,
@@ -190,7 +212,7 @@ serve(async (req) => {
 				const userToUpdate = userData.user;
 
 				// Update the user directly in auth.users
-				const { error: updateAuthError } = await supabase.auth.admin.updateUserById(userId, {
+				const { error: updateAuthError } = await adminSupabase.auth.admin.updateUserById(userId, {
 					email,
 					user_metadata: {
 						...userToUpdate.user_metadata,
@@ -244,7 +266,7 @@ serve(async (req) => {
 				}
 
 				// Delete the user from auth.users
-				const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
+				const { error: deleteAuthError } = await adminSupabase.auth.admin.deleteUser(userId);
 
 				if (deleteAuthError) {
 					return new Response(JSON.stringify({ error: deleteAuthError.message }), {

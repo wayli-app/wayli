@@ -27,14 +27,10 @@ if (!PUBLIC_SUPABASE_URL || !PUBLIC_SUPABASE_ANON_KEY) {
  * The client-side Supabase instance for browser use.
  * Configured with local storage persistence for JWT tokens.
  */
-export const supabase = createClient<Database>(
-	PUBLIC_SUPABASE_URL,
-	PUBLIC_SUPABASE_ANON_KEY,
-	{
-		auth: {
-			autoRefreshToken: true,
-			persistSession: true,
-			storageKey: 'wayli-auth'
-		}
+export const supabase = createClient<Database>(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+	auth: {
+		autoRefreshToken: true,
+		persistSession: true,
+		storageKey: 'wayli-auth'
 	}
-);
+});

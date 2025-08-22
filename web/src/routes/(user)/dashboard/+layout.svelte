@@ -13,6 +13,10 @@
 
 	// No server-side data needed - everything is client-side
 
+	// Admin role state
+	let isAdmin = $state(false);
+	let isCheckingAdmin = $state(true);
+
 	let globalJobTracker: JobTracker;
 	let isInitializing = true;
 
@@ -27,6 +31,36 @@
 		} catch (error) {
 			console.error('❌ [Dashboard] Signout error:', error);
 			window.location.href = '/auth/signout';
+		}
+	}
+
+	// Check if the current user is an admin
+	async function checkAdminRole() {
+		try {
+			if (!$userStore) {
+				isAdmin = false;
+				isCheckingAdmin = false;
+				return;
+			}
+
+			const { data: userProfile, error } = await supabase
+				.from('user_profiles')
+				.select('role')
+				.eq('id', $userStore.id)
+				.single();
+
+			if (error) {
+				console.warn('⚠️ [Dashboard] Could not check admin role:', error.message);
+				isAdmin = false;
+			} else {
+				isAdmin = userProfile?.role === 'admin';
+				console.log('🔐 [Dashboard] Admin role check:', { role: userProfile?.role, isAdmin });
+			}
+		} catch (error) {
+			console.error('❌ [Dashboard] Error checking admin role:', error);
+			isAdmin = false;
+		} finally {
+			isCheckingAdmin = false;
 		}
 	}
 
@@ -62,7 +96,7 @@
 			console.log('✅ [Dashboard] Session manager initialized');
 
 			// Wait a bit for any pending auth state changes to settle
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			// Check if user is authenticated using session manager
 			const isAuthenticated = await sessionManager.isAuthenticated();
@@ -76,6 +110,9 @@
 
 			// Load user preferences and apply language
 			await loadUserPreferences();
+
+			// Check admin role
+			await checkAdminRole();
 
 			// Mark initialization as complete
 			isInitializing = false;
@@ -96,12 +133,30 @@
 			goto('/auth/signin');
 		}
 	});
+
+	// Check admin role whenever user changes
+	$effect(() => {
+		if ($userStore && !isCheckingAdmin) {
+			checkAdminRole();
+		}
+	});
 </script>
 
-<AppNav isAdmin={$userStore?.user_metadata?.role === 'admin'} onSignout={handleSignout}>
+<AppNav {isAdmin} onSignout={handleSignout}>
 	<!-- Main content area -->
 	<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
-		<slot />
+		{#if isCheckingAdmin}
+			<div class="flex h-64 items-center justify-center">
+				<div class="text-center">
+					<div
+						class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"
+					></div>
+					<p class="text-gray-600 dark:text-gray-300">Checking permissions...</p>
+				</div>
+			</div>
+		{:else}
+			<slot />
+		{/if}
 	</div>
 </AppNav>
 
