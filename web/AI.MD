@@ -87,7 +87,10 @@ src/
 │   ├── components/         # Component tests
 │   ├── integration/        # Integration tests
 │   └── accessibility/      # Accessibility tests
-└── static/                 # Static assets
+├── static/                 # Static assets
+├── docker-entrypoint.sh    # Docker container entrypoint script
+├── nginx.conf             # Nginx configuration for production
+└── test-container.sh       # Docker container testing script
 ```
 
 ### Naming Conventions
@@ -349,6 +352,35 @@ export default defineConfig({
   - Default: `wayli.app` and `.wayli.app` (with subdomain support)
 
 **Note**: The `allowedHosts` check prevents host header attacks during development/preview. Since you're using HTTPS in production, this provides minimal additional security benefit.
+
+**Production Deployment**: The Docker container uses nginx to serve static files instead of running a Node.js server, which is much more efficient and production-ready.
+
+**Docker Architecture**: Multi-stage build with nginx for web serving and Node.js for background workers.
+
+### Docker Configuration
+
+**Multi-Stage Architecture**:
+- **`web` stage**: nginx serving static files (port 80)
+- **`worker` stage**: Node.js for background processing
+- **`builder` stage**: Builds the SvelteKit application
+
+**Entrypoint Script**: `docker-entrypoint.sh`
+- Handles worker modes (worker, workers)
+- Provides comprehensive debugging and error handling
+- Validates APP_MODE environment variable
+- Note: Web mode uses nginx directly
+
+**Container Modes**:
+- `APP_MODE=web`: Use nginx stage (static file serving)
+- `APP_MODE=worker`: Background worker process
+- `APP_MODE=workers`: Worker manager process
+
+**Best Practices**:
+- Use nginx for static file serving (much more efficient than Node.js)
+- Separate concerns: web serving vs background processing
+- Validate environment variables in entrypoint scripts
+- Provide clear error messages and debugging information
+- Use non-root users for security
 
 ### Production Deployment
 

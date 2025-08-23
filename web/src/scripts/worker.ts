@@ -4,8 +4,25 @@ import { randomUUID } from 'crypto';
 
 import { JobWorker } from '../lib/services/workers/job-worker.service';
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // Get worker ID from command line arguments or generate one
-const workerId = process.argv[2] || randomUUID();
+const providedId = process.argv[2];
+let workerId: string;
+
+if (providedId && UUID_REGEX.test(providedId)) {
+    // Use provided UUID if it's valid
+    workerId = providedId;
+    console.log(`🔑 Using provided worker ID: ${workerId}`);
+} else {
+    // Generate new UUID if no valid UUID provided
+    workerId = randomUUID();
+    if (providedId) {
+        console.log(`⚠️  Invalid UUID provided: "${providedId}". Generating new UUID instead.`);
+    }
+    console.log(`🆔 Generated new worker ID: ${workerId}`);
+}
 
 console.log(`🚀 Starting standalone worker with ID: ${workerId}`);
 

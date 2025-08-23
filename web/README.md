@@ -331,6 +331,52 @@ export default defineConfig({
 
 **Note**: The `allowedHosts` check prevents host header attacks during development/preview. Since you're using HTTPS in production, this provides minimal additional security benefit.
 
+**Production Deployment**: The Docker container uses nginx to serve static files instead of running a Node.js server, which is much more efficient and production-ready.
+
+**Docker Architecture**: Multi-stage build with nginx for web serving and Node.js for background workers.
+
+## 🐳 Docker
+
+### Container Architecture
+
+The Dockerfile uses a multi-stage build approach:
+
+- **`web` stage**: nginx serving static files (port 80)
+- **`worker` stage**: Node.js for background processing
+- **`builder` stage**: Builds the SvelteKit application
+
+### Container Modes
+
+The Docker container supports multiple modes via the `APP_MODE` environment variable:
+
+- **`APP_MODE=web`**: Use the nginx stage (static file serving)
+- **`APP_MODE=worker`**: Run a background worker process
+- **`APP_MODE=workers`**: Run the worker manager
+
+### Building and Running
+
+```bash
+# Build the container
+docker build -t wayli-web .
+
+# Run web stage (nginx) - serves static files on port 80
+docker run -p 80:80 wayli-web:web
+
+# Run worker stage - background processing
+docker run -e APP_MODE=worker wayli-web:worker
+
+# Run worker manager stage
+docker run -e APP_MODE=workers wayli-web:worker
+```
+
+### Testing
+
+Use the provided test script to verify the container works:
+
+```bash
+./test-container.sh
+```
+
 ### Production Deployment
 
 When deploying to production, you may need to set the `VITE_ALLOWED_HOSTS` environment variable:

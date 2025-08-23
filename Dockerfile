@@ -1,48 +1,62 @@
-# Multi-stage Dockerfile for web app and worker
+# Single-stage Dockerfile for Wayli - supports both web and worker modes
 
-FROM node:20-slim AS builder
+FROM node:20-slim
+
+# Install nginx and wget for health checks
+RUN apt-get update && apt-get install -y \
+    nginx \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy and install dependencies
+# Copy package files and install dependencies
 COPY web/package*.json ./
-
-# Install dependencies with overrides to exclude problematic optional dependencies
 RUN npm install --legacy-peer-deps
 
-# Copy source
+# Copy source code
 COPY web/ ./
 
 # Build SvelteKit app
 RUN npm run build
 
-FROM node:20-slim AS runtime
+# Verify build output
+RUN echo "=== Build Complete ===" && \
+    ls -la build/ && \
+    ls -la static/
 
-WORKDIR /app
+# Copy nginx configuration
+COPY web/nginx.conf /etc/nginx/nginx.conf
 
-# Copy built app and necessary files
-COPY --from=builder /app/.svelte-kit ./svelte-kit
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/*config* ./
-COPY --from=builder /app/supabase ./supabase
+# Copy built app to nginx directory
+RUN cp -r build/* /usr/share/nginx/html/ && \
+    cp -r static /usr/share/nginx/html/
+
+# Copy worker scripts and entrypoint
+COPY web/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY web/src/scripts/worker.ts ./src/scripts/worker.ts
+
+# Make entrypoint script executable
+RUN chmod +x ./docker-entrypoint.sh
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app /var/log/nginx /var/cache/nginx
+
+# Set proper permissions for nginx
+RUN chown -R appuser:appuser /usr/share/nginx/html && \
+    chmod -R 755 /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
 # Default environment
 ENV NODE_ENV=production
-
-# Expose web port (server usage)
-EXPOSE 3000
-
-# Configurable entrypoint via APP_MODE:
-# - APP_MODE=web     → serve built site (vite preview)
-# - APP_MODE=worker  → run background worker
-# - APP_MODE=workers → run worker manager
-
 ENV APP_MODE=web
 
-# Use a small entry script to select mode
-COPY web/src/scripts/worker.ts ./src/scripts/worker.ts
-COPY web/src/scripts/worker-manager.ts ./src/scripts/worker-manager.ts
-
-CMD ["bash", "-lc", "if [ \"$APP_MODE\" = \"worker\" ]; then npm run worker; elif [ \"$APP_MODE\" = \"workers\" ]; then npm run worker-manager; else npm run preview -- --host 0.0.0.0 --port 3000; fi"]
+# Entrypoint script that handles different modes
+ENTRYPOINT ["./docker-entrypoint.sh"]
