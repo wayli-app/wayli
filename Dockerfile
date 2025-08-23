@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy and install dependencies
 COPY web/package*.json ./
-COPY web/.npmrc ./
+
 # Install dependencies with overrides to exclude problematic optional dependencies
 RUN npm install --legacy-peer-deps
 
