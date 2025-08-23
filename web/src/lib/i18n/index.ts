@@ -27,20 +27,13 @@ async function loadMessages(locale: SupportedLocale): Promise<Record<string, str
 		const messages = await response.json();
 		return messages;
 	} catch {
-		// Try dynamic import as fallback
-		try {
-			const messages = await import(`../../../messages/${locale}.json`);
-			const result = messages.default || messages;
-			return result;
-		} catch (dynamicError: unknown) {
-			// If both fetch and dynamic import fail, try fallback to English
-			console.warn(`Failed to load messages for locale ${locale}:`, dynamicError);
-			if (locale !== 'en') {
-				return loadMessages('en');
-			}
-			// Return empty object as fallback
-			return {};
+		// If fetch fails, try fallback to English
+		console.warn(`Failed to fetch messages for locale ${locale}`);
+		if (locale !== 'en') {
+			return loadMessages('en');
 		}
+		// Return empty object as fallback
+		return {};
 	}
 }
 

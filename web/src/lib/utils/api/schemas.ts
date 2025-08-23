@@ -227,14 +227,14 @@ export const workerManagementSchema = z.object({
 		'testRealtime',
 		'getRealtimeConfig'
 	]),
-	config: z.record(z.unknown()).optional()
+	config: z.record(z.string(), z.unknown()).optional()
 });
 
 export const updatePreferencesSchema = z.object({
 	theme: z.enum(['light', 'dark', 'system']).optional(),
 	language: z.enum(['en', 'nl']).optional(),
 	notifications: z.boolean().optional(),
-	privacy: z.record(z.unknown()).optional()
+	privacy: z.record(z.string(), z.unknown()).optional()
 });
 
 // Geocoding schemas
@@ -354,7 +354,7 @@ export const adminWorkerActionSchema = z.object({
 		'testRealtime',
 		'getRealtimeConfig'
 	]),
-	config: z.record(z.unknown()).optional()
+	config: z.record(z.string(), z.unknown()).optional()
 });
 
 // 2FA verification schemas
@@ -413,7 +413,7 @@ export const fileUploadSchema = z.object({
 		.instanceof(File)
 		.refine((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB'),
 	type: z.enum(['image', 'document', 'data']),
-	metadata: z.record(z.unknown()).optional()
+	metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Notification schemas
@@ -434,7 +434,7 @@ export const notificationQuerySchema = paginationSchema.extend({
 export const connectionSchema = z.object({
 	name: z.string().min(1).max(100),
 	type: z.enum(['owntracks', 'strava', 'google_fit', 'apple_health'] as const),
-	config: z.record(z.unknown()),
+	config: z.record(z.string(), z.unknown()),
 	enabled: z.boolean().default(true)
 });
 
@@ -514,7 +514,7 @@ export const locationQuerySchema = paginationSchema.extend({
 export const adminUserUpdateSchema = z.object({
 	role: z.enum(['user', 'admin']).optional(),
 	status: z.enum(['active', 'inactive', 'suspended'] as const).optional(),
-	metadata: z.record(z.unknown()).optional()
+	metadata: z.record(z.string(), z.unknown()).optional()
 });
 
 // Response schemas

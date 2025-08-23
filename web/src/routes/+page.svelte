@@ -163,6 +163,18 @@
 		class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 transition-colors duration-300 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
 	>
 		<div class="container mx-auto px-4 py-16">
+			<!-- Development Status Banner -->
+			<div class="mx-auto mb-8 max-w-4xl">
+				<div class="rounded-xl border-2 border-amber-500 bg-amber-50 p-6 text-center shadow-lg dark:border-amber-400 dark:bg-amber-900/20">
+					<h2 class="mb-3 text-2xl font-bold text-amber-800 dark:text-amber-200">
+						{t('landing.developmentStatus')}
+					</h2>
+					<p class="text-lg text-amber-700 dark:text-amber-300">
+						{t('landing.developmentDescription')}
+					</p>
+				</div>
+			</div>
+
 			<!-- Hero Content -->
 			<div class="mx-auto mb-16 max-w-4xl text-center">
 				<h1
@@ -256,18 +268,27 @@
 				<h2
 					class="mb-4 text-3xl font-bold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 				>
-					{t('landing.readyToStartAdventure')}
+					{t('landing.earlyAccess')}
 				</h2>
 				<p class="mb-6 text-gray-600 transition-colors duration-300 dark:text-gray-400">
-					{t('landing.joinOtherTravelers')}
+					{t('landing.developmentDescription')}
 				</p>
-				<a
-					href="/auth/signup"
-					class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-6 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
-				>
-					{t('landing.createYourAccount')}
-					<ArrowRight class="h-4 w-4" />
-				</a>
+				<div class="flex flex-col justify-center gap-4 sm:flex-row">
+					<a
+						href="/auth/signup"
+						class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-6 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
+					>
+						{t('landing.createYourAccount')}
+						<ArrowRight class="h-4 w-4" />
+					</a>
+					<button
+						disabled
+						class="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-400 dark:border-gray-600 dark:text-gray-500"
+						title="Limited registration during development"
+					>
+						{t('landing.inDevelopment')}
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
