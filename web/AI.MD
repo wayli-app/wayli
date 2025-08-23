@@ -350,6 +350,20 @@ export default defineConfig({
 
 **Note**: The `allowedHosts` check prevents host header attacks during development/preview. Since you're using HTTPS in production, this provides minimal additional security benefit.
 
+### Production Deployment
+
+When deploying to production, you may need to set the `VITE_ALLOWED_HOSTS` environment variable:
+
+```bash
+# For Vercel, add to your environment variables:
+VITE_ALLOWED_HOSTS=wayli.app,staging.wayli.app
+
+# For other platforms, add to your .env file:
+VITE_ALLOWED_HOSTS=wayli.app,staging.wayli.app,dev.wayli.app
+```
+
+This prevents the "Blocked request. This host is not allowed" error when accessing your app from production domains.
+
 ## 📚 Documentation Standards
 
 ### Code Comments
