@@ -2,6 +2,18 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
+/**
+ * Vite Configuration
+ *
+ * Environment Variables:
+ * - VITE_ALLOWED_HOSTS: Comma-separated list of allowed hosts for preview server
+ *   Example: "wayli.app,staging.wayli.app,dev.wayli.app"
+ *
+ * Note: The preview server's allowedHosts check is a security feature to prevent
+ * host header attacks. Since you're using HTTPS in production, this check
+ * provides minimal additional security benefit.
+ */
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -78,6 +90,13 @@ export default defineConfig({
 	// Preview configuration
 	preview: {
 		port: 4173,
-		host: true
+		host: true,
+		allowedHosts: [
+			// Allow localhost for development
+			'localhost',
+			'127.0.0.1',
+			// Allow production domains from environment variable
+			...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',') : []),
+		]
 	}
 });

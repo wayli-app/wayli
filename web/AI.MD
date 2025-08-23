@@ -324,6 +324,32 @@ export function validateWorkerEnvironment() {
 }
 ```
 
+### Vite Configuration
+
+```typescript
+// vite.config.ts
+// Preview server allowed hosts configuration
+export default defineConfig({
+  preview: {
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      // Allow production domains from environment variable
+      ...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',') : []),
+      'wayli.app',
+      '.wayli.app'
+    ]
+  }
+});
+```
+
+**Environment Variables:**
+- `VITE_ALLOWED_HOSTS`: Comma-separated list of allowed hosts for preview server
+  - Example: `VITE_ALLOWED_HOSTS=wayli.app,staging.wayli.app,dev.wayli.app`
+  - Default: `wayli.app` and `.wayli.app` (with subdomain support)
+
+**Note**: The `allowedHosts` check prevents host header attacks during development/preview. Since you're using HTTPS in production, this provides minimal additional security benefit.
+
 ## 📚 Documentation Standards
 
 ### Code Comments
