@@ -25,6 +25,7 @@ COPY --from=builder /app/.svelte-kit ./svelte-kit
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/supabase ./supabase
 
 # Default environment
 ENV NODE_ENV=production
