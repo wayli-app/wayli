@@ -4,6 +4,7 @@ import {
 	handleError,
 	logError
 } from '$lib/utils/errors/error-handler';
+import { createClient } from '@supabase/supabase-js';
 
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -18,9 +19,22 @@ export interface AuthenticatedRequest extends RequestEvent {
 
 export async function requireAuth(event: RequestEvent): Promise<AuthenticatedRequest> {
 	try {
-		const session = await event.locals.getSession();
+		// Create Supabase client for server-side operations
+		const supabase = createClient(
+			process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+			process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+			{
+				auth: {
+					autoRefreshToken: false,
+					persistSession: false
+				}
+			}
+		);
 
-		if (!session?.user) {
+		// Get session from Supabase
+		const { data: { session }, error } = await supabase.auth.getSession();
+
+		if (error || !session?.user) {
 			throw new AuthenticationError('Authentication required');
 		}
 
@@ -62,9 +76,20 @@ export async function requireAdmin(event: RequestEvent): Promise<AuthenticatedRe
 }
 
 export function optionalAuth(event: RequestEvent): Promise<AuthenticatedRequest | RequestEvent> {
-	return event.locals
-		.getSession()
-		.then((session) => {
+	// Create Supabase client for server-side operations
+	const supabase = createClient(
+		process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+		process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+		{
+			auth: {
+				autoRefreshToken: false,
+				persistSession: false
+			}
+		}
+	);
+
+	return supabase.auth.getSession()
+		.then(({ data: { session } }) => {
 			if (session?.user) {
 				return {
 					...event,

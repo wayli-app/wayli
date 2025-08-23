@@ -4,6 +4,7 @@ import { toast } from 'svelte-sonner';
 
 import { sessionStore } from '$lib/stores/auth';
 import { addJobToStore } from '$lib/stores/job-store';
+import type { JobUpdate } from '$lib/services/sse.service';
 
 import { ServiceAdapter } from './api/service-adapter';
 
@@ -63,16 +64,13 @@ export class JobCreationService {
 
 			if (result?.id) {
 				// Add the job to the store immediately so it appears in notifications
-				const jobUpdate = {
+				const jobUpdate: JobUpdate = {
 					id: result.id,
 					type: options.type,
-					status: result.status || 'queued',
+					status: (result.status || 'queued') as 'queued' | 'running' | 'completed' | 'failed' | 'cancelled',
 					progress: result.progress || 0,
-					data: result.data || options.data,
 					created_at: result.created_at || new Date().toISOString(),
-					updated_at: result.updated_at || new Date().toISOString(),
-					created_by: result.created_by,
-					priority: result.priority || 'normal'
+					updated_at: result.updated_at || new Date().toISOString()
 				};
 
 				addJobToStore(jobUpdate);

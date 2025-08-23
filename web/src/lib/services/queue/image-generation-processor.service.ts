@@ -170,9 +170,9 @@ export class ImageGenerationProcessorService {
 	private async updateSuggestedTripImage(suggestedTripId: string, imageUrl: string): Promise<void> {
 		const { error } = await this.supabase
 			.from('trips')
-			.eq('status', 'pending')
 			.update({ image_url: imageUrl })
-			.eq('id', suggestedTripId);
+			.eq('id', suggestedTripId)
+			.eq('status', 'pending');
 
 		if (error) {
 			console.error('❌ Error updating suggested trip with image URL:', error);

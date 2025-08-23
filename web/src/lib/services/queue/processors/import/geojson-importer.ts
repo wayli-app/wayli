@@ -319,7 +319,7 @@ async function processFeatureChunk(
 
 			trackerData.push({
 				user_id: userId,
-				tracker_type: 'import',
+				tracker_type: 'geojson',
 				location: `POINT(${longitude} ${latitude})`,
 				recorded_at: recordedAt,
 				country_code: countryCode,
@@ -330,7 +330,6 @@ async function processFeatureChunk(
 				heading,
 				activity_type: activityType,
 				raw_data: { ...(properties as any), import_source: 'geojson' },
-				tz_diff: getTimezoneDifferenceForPoint(latitude, longitude),
 				created_at: new Date().toISOString()
 			});
 		} else {

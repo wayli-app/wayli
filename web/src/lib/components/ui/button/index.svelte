@@ -25,7 +25,7 @@
 		as?: 'button' | 'a';
 		href?: string;
 		icon?: string;
-		children?: string;
+
 		on?: {
 			click?: (event: MouseEvent) => void;
 			keydown?: (event: KeyboardEvent) => void;
@@ -43,7 +43,6 @@
 		as = 'button',
 		href,
 		icon,
-		children,
 		on,
 		bind,
 		class: parentClass = ''
@@ -147,7 +146,7 @@
 			{#if icon}
 				<span class="mr-2">{icon}</span>
 			{/if}
-			<slot>{children}</slot>
+			<slot />
 		</a>
 	{:else}
 		<button
@@ -169,7 +168,7 @@
 			{#if icon}
 				<span class="mr-2">{icon}</span>
 			{/if}
-			<slot>{children}</slot>
+			<slot />
 		</button>
 	{/if}
 {/key}

@@ -51,9 +51,7 @@
 				},
 				onError: (error) => {
 					if (showToasts) {
-						toast.error('Job monitoring error', {
-							description: error
-						});
+						toast.error('Job monitoring error');
 					}
 				},
 				onJobUpdate: (jobs) => {
@@ -97,17 +95,11 @@
 							const jobTypeInfo = getJobTypeInfo(job.type);
 
 							if (job.status === 'completed') {
-								toast.success(`${jobTypeInfo.title} completed successfully!`, {
-									description: job.result?.message || 'Your job has finished processing.'
-								});
+								toast.success(`${jobTypeInfo.title} completed successfully!`);
 							} else if (job.status === 'failed') {
-								toast.error(`${jobTypeInfo.title} failed`, {
-									description: job.error || 'An error occurred while processing your job.'
-								});
+								toast.error(`${jobTypeInfo.title} failed`);
 							} else if (job.status === 'cancelled') {
-								toast.info(`${jobTypeInfo.title} cancelled`, {
-									description: 'Your job was cancelled.'
-								});
+								toast.info(`${jobTypeInfo.title} cancelled`);
 							}
 						}
 					}
@@ -148,22 +140,14 @@
 
 								// Show specific messages based on job type
 								if (job.type === 'data_export') {
-									toast.success('Export completed successfully!', {
-										description: 'Your export file is ready for download.'
-									});
+									toast.success('Export completed successfully!');
 								} else if (job.type === 'data_import') {
-									toast.success('Import completed successfully!', {
-										description: 'Your data has been imported successfully.'
-									});
+									toast.success('Import completed successfully!');
 								} else if (job.type === 'trip_generation') {
-									toast.success('Trip generation completed!', {
-										description: 'New trip suggestions are ready for review.'
-									});
+									toast.success('Trip generation completed!');
 								} else {
 									// Generic fallback
-									toast.success('Job completed successfully!', {
-										description: job.result?.message || 'Your job has finished processing.'
-									});
+									toast.success('Job completed successfully!');
 								}
 							} else if (
 								job.status === 'failed' &&
@@ -175,21 +159,13 @@
 
 								// Show specific error messages based on job type
 								if (job.type === 'data_export') {
-									toast.error('Export failed', {
-										description: job.error || 'Failed to create export file.'
-									});
+									toast.error('Export failed');
 								} else if (job.type === 'data_import') {
-									toast.error('Import failed', {
-										description: job.error || 'Failed to import data.'
-									});
+									toast.error('Import failed');
 								} else if (job.type === 'trip_generation') {
-									toast.error('Trip generation failed', {
-										description: job.error || 'Failed to generate trip suggestions.'
-									});
+									toast.error('Trip generation failed');
 								} else {
-									toast.error('Job failed', {
-										description: job.error || 'An error occurred while processing your job.'
-									});
+									toast.error('Job failed');
 								}
 							}
 						}

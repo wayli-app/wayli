@@ -11,6 +11,11 @@
 	};
 </script>
 
-<div use:useAriaButton={{ label: 'Toggle popover' }} onclick={toggleOpen}>
+<button
+	use:useAriaButton={{ label: 'Toggle popover' }}
+	onclick={toggleOpen}
+	        onkeydown={(e) => e.key === 'Enter' && toggleOpen()}
+        tabindex="0"
+>
 	<slot />
-</div>
+</button>

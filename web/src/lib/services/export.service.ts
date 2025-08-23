@@ -147,7 +147,7 @@ export class ExportService {
 
 		if (!jobs) return [];
 
-		return jobs.map((job) => {
+		return jobs.map((job: any) => {
 			const options = ((job.data as Record<string, unknown>)?.options ||
 				(job.data as Record<string, unknown>)) as Record<string, unknown>;
 			function safe<T>(key: string, fallback: T): T {

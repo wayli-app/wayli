@@ -9,7 +9,7 @@
 </script>
 
 <script lang="ts">
-	import { fade } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	export let open = false;
 	export let onClose: (() => void) | undefined = undefined;
@@ -24,7 +24,7 @@
 					onClose();
 				}
 			}}
-		/>
+		></div>
 		<div
 			class="relative z-50 w-full max-w-lg rounded-lg bg-white p-6 shadow-lg"
 			transition:fade={{ duration: 200 }}

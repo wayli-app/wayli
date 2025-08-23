@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Play, Square, Settings, Users } from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
+	import { get } from 'svelte/store';
 
 	import Button from '$lib/components/ui/button/index.svelte';
 	import Card from '$lib/components/ui/card/index.svelte';
@@ -41,7 +42,11 @@
 	let loading = false;
 	let error = '';
 	let showConfigModal = false;
-	let realtimeConfig: unknown = null;
+	let realtimeConfig: {
+		supabaseUrl?: string;
+		hasRealtime?: boolean;
+		isEnabled?: boolean;
+	} | null = null;
 	let realtimeTestResult: boolean | null = null;
 	let config = {
 		maxWorkers: '2',
@@ -71,11 +76,11 @@
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = (await serviceAdapter.getAdminWorkers()) as {
-				data: { status: unknown; activeWorkers: unknown[] };
+				data: { status: WorkerStatus; activeWorkers: ActiveWorker[] };
 			};
 
-			status = data.data.status;
-			activeWorkers = data.data.activeWorkers;
+			status = data.data.status as WorkerStatus;
+			activeWorkers = data.data.activeWorkers as ActiveWorker[];
 			if (status) {
 				newWorkerCount = status.config.maxWorkers.toString();
 				config = {
@@ -93,9 +98,9 @@
 
 	function startSSEMonitoring() {
 		// Create SSE service for worker monitoring
-		sseService = SSEService.createJobMonitor({
-			onConnect: () => {},
-			onDisconnect: () => {},
+		sseService = new SSEService({
+			onConnected: () => {},
+			onDisconnected: () => {},
 			onJobUpdate: (jobs: JobUpdate[]) => {
 				console.log('📡 Worker jobs update received:', jobs);
 				// For worker manager, we're more interested in worker status than job updates
@@ -127,8 +132,12 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 			const data = (await serviceAdapter.manageWorkers({ action: 'getRealtimeConfig' })) as {
 				data: { realtimeConfig: unknown };
-			};
-			realtimeConfig = data.data.realtimeConfig;
+			                        };
+                        realtimeConfig = data.data.realtimeConfig as {
+                            supabaseUrl?: string;
+                            hasRealtime?: boolean;
+                            isEnabled?: boolean;
+                        } | null;
 		} catch (err) {
 			console.error('Failed to load realtime config:', err);
 		}
@@ -370,7 +379,7 @@
 
 			<div class="flex gap-2">
 				<Button
-					onclick={testRealtime}
+					on={{ click: testRealtime }}
 					disabled={loading}
 					variant="outline"
 					size="sm"
@@ -399,7 +408,7 @@
 			<!-- Start/Stop Buttons -->
 			<div class="flex gap-2">
 				<Button
-					onclick={startWorkers}
+					on={{ click: startWorkers }}
 					disabled={loading || status?.isRunning}
 					class="flex items-center gap-2"
 				>
@@ -407,7 +416,7 @@
 					Start Workers
 				</Button>
 				<Button
-					onclick={stopWorkers}
+					on={{ click: stopWorkers }}
 					disabled={loading || !status?.isRunning}
 					variant="destructive"
 					class="flex items-center gap-2"
@@ -416,7 +425,7 @@
 					Stop Workers
 				</Button>
 				<Button
-					onclick={() => (showConfigModal = true)}
+					on={{ click: () => (showConfigModal = true) }}
 					variant="outline"
 					class="flex items-center gap-2"
 				>
@@ -442,7 +451,7 @@
 					class="w-20"
 				/>
 				<Button
-					onclick={updateWorkerCount}
+					on={{ click: updateWorkerCount }}
 					disabled={loading ||
 						!status?.isRunning ||
 						newWorkerCount === status?.config.maxWorkers.toString()}
@@ -513,8 +522,8 @@
 				</div>
 
 				<div class="mt-6 flex justify-end gap-2">
-					<Button onclick={() => (showConfigModal = false)} variant="outline">Cancel</Button>
-					<Button onclick={updateConfig} disabled={loading}>Save Configuration</Button>
+					<Button on={{ click: () => (showConfigModal = false) }} variant="outline">Cancel</Button>
+					<Button on={{ click: updateConfig }} disabled={loading}>Save Configuration</Button>
 				</div>
 			</div>
 		</div>

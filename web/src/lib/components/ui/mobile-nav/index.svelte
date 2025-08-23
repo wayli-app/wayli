@@ -7,8 +7,8 @@
 	export let items: Array<{
 		label: string;
 		href?: string;
-		icon?: unknown;
-		children?: Array<{ label: string; href: string; icon?: unknown }>;
+		icon?: any;
+		children?: Array<{ label: string; href: string; icon?: any }>;
 		action?: () => void;
 	}> = [];
 	export let className: string = '';
@@ -65,8 +65,8 @@
 	function handleItemClick(item: {
 		label: string;
 		href?: string;
-		icon?: unknown;
-		children?: Array<{ label: string; href: string; icon?: unknown }>;
+		icon?: any;
+		children?: Array<{ label: string; href: string; icon?: any }>;
 		action?: () => void;
 	}) {
 		if (item.action) {
@@ -99,7 +99,7 @@
 			onclick={closeMenu}
 			role="presentation"
 			aria-hidden="true"
-		/>
+		></div>
 	{/if}
 
 	<!-- Mobile Menu Content -->

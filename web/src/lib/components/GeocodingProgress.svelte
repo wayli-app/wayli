@@ -8,8 +8,10 @@
 	import { sessionStore } from '$lib/stores/auth';
 
 	// Props
-	export let showProgress = true;
-	export let showButton = true;
+	const { showProgress = true, showButton = true } = $props<{
+		showProgress?: boolean;
+		showButton?: boolean;
+	}>();
 
 	// State
 	interface ServiceJob {

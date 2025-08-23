@@ -1319,7 +1319,7 @@
 					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
 						{isEditing ? t('trips.editTrip') : t('trips.addNewTrip')}
 					</h2>
-					<form onsubmit={(e) => submitTrip(event)} class="space-y-5">
+					<form onsubmit={(e) => submitTrip(e)} class="space-y-5">
 						<div>
 							<label
 								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"

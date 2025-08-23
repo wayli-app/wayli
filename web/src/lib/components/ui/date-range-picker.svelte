@@ -54,6 +54,13 @@
 		event.stopPropagation();
 		onClearDates();
 	}
+
+	function handleClearKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			onClearDates();
+		}
+	}
 </script>
 
 <div class="date-filter">
@@ -61,9 +68,7 @@
 		<button
 			type="button"
 			class="date-field"
-			role="button"
 			aria-label={pickLabel}
-			tabindex="0"
 			onclick={toggleDatePicker}
 			class:open={isOpen}
 			style="cursor:pointer;"
@@ -76,17 +81,18 @@
 					{pickLabel}
 				{/if}
 			</div>
-			{#if showClear && startDate}
-				<span
-					role="button"
-					aria-label="Clear dates"
-					tabindex="0"
-					onclick={handleClearClick}
-					style="cursor:pointer;"
-				>
-					<i class="os-icon-x"></i>
-				</span>
-			{/if}
+			                        {#if showClear && startDate}
+                                <span
+                                        class="cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+                                        aria-label="Clear dates"
+                                        onclick={handleClearClick}
+                                        onkeydown={handleClearKeydown}
+                                        role="button"
+                                        tabindex="0"
+                                >
+                                        <i class="os-icon-x"></i>
+                                </span>
+                        {/if}
 		</button>
 	</DatePicker>
 </div>

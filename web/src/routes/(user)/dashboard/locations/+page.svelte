@@ -110,9 +110,9 @@
 		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 	});
 
-	function handleLocationHover(event: CustomEvent<{ lat: number; lng: number }>) {
+	function handleLocationHover(data: { lat: number; lng: number }) {
 		if (!map) return;
-		const { lat, lng } = event.detail;
+		const { lat, lng } = data;
 		map.setView([lat, lng], 15);
 	}
 
@@ -197,8 +197,8 @@
 			date={loc.date}
 			lat={loc.lat}
 			lng={loc.lng}
-			onmouseenter={handleLocationHover}
-			onmouseleave={handleLocationLeave}
+			onMouseEnter={handleLocationHover}
+			onMouseLeave={handleLocationLeave}
 		/>
 	{/each}
 </div>

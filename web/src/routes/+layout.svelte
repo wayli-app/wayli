@@ -52,8 +52,6 @@
 
 <Toaster richColors />
 
-<ErrorBoundary
-	fallback="Something went wrong with the application. Please try refreshing the page."
->
+<ErrorBoundary>
 	<slot />
 </ErrorBoundary>

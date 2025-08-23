@@ -9,7 +9,7 @@
 	export let color: string = 'currentColor';
 	export let strokeWidth = 2;
 
-	let iconComponent: unknown = null;
+	let iconComponent: any = null;
 	let loading = false;
 	let error = false;
 
@@ -39,15 +39,11 @@
 	<div
 		class="icon animate-pulse rounded bg-gray-200 dark:bg-gray-700 {className}"
 		style="width: {size}px; height: {size}px;"
-		{color}
-		{strokeWidth}
-	/>
+	></div>
 {:else if error}
 	<div
 		class="icon flex items-center justify-center text-gray-400 dark:text-gray-600 {className}"
 		style="width: {size}px; height: {size}px;"
-		{color}
-		{strokeWidth}
 	>
 		<svg
 			width={size}

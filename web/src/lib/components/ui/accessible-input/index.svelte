@@ -109,11 +109,11 @@
 			{disabled}
 			{required}
 			{placeholder}
-			autocomplete={autoComplete}
-			inputmode={inputMode}
+			autocomplete={autoComplete as any}
+			inputmode={inputMode as any}
 			{pattern}
-			{minLength}
-			{maxLength}
+			minlength={minLength}
+			maxlength={maxLength}
 			bind:value
 			id={inputId}
 			aria-describedby={finalDescribedBy}

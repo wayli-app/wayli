@@ -182,7 +182,7 @@ export class TwoFactorApiService {
 			}
 
 			// Verify the token
-			const isValid = await TOTPService.verifyTOTPToken(totpSecret, token);
+			const isValid = await TOTPService.verifyCode(token, totpSecret);
 			if (!isValid) {
 				throw errorHandler.createError(ErrorCode.INVALID_CREDENTIALS, 'Invalid 2FA token', 401, {
 					userId

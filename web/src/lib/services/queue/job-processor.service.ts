@@ -27,7 +27,11 @@ export class JobProcessorService {
 			reverse_geocoding_missing: this.processReverseGeocodingMissing.bind(this),
 			data_import: this.processDataImport.bind(this),
 			trip_generation: this.processTripGeneration.bind(this),
-			data_export: this.processDataExport.bind(this)
+			data_export: this.processDataExport.bind(this),
+			geocoding: this.processGeocoding.bind(this),
+			image_generation: this.processImageGeneration.bind(this),
+			poi_detection: this.processPOIDetection.bind(this),
+			trip_detection: this.processTripDetection.bind(this)
 		};
 
 		return processors[jobType];
@@ -528,5 +532,29 @@ export class JobProcessorService {
 			console.error(`❌ Error in data export job:`, error);
 			throw error;
 		}
+	}
+
+	private static async processGeocoding(job: Job): Promise<void> {
+		console.log(`🌍 Processing geocoding job ${job.id}`);
+		// TODO: Implement geocoding processor
+		throw new Error('Geocoding processor not yet implemented');
+	}
+
+	private static async processImageGeneration(job: Job): Promise<void> {
+		console.log(`🖼️ Processing image generation job ${job.id}`);
+		// TODO: Implement image generation processor
+		throw new Error('Image generation processor not yet implemented');
+	}
+
+	private static async processPOIDetection(job: Job): Promise<void> {
+		console.log(`📍 Processing POI detection job ${job.id}`);
+		// TODO: Implement POI detection processor
+		throw new Error('POI detection processor not yet implemented');
+	}
+
+	private static async processTripDetection(job: Job): Promise<void> {
+		console.log(`🗺️ Processing trip detection job ${job.id}`);
+		// TODO: Implement trip detection processor
+		throw new Error('Trip detection processor not yet implemented');
 	}
 }

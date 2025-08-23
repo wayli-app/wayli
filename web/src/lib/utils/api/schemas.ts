@@ -30,9 +30,9 @@ export const jobTypeSchema = z.enum([
 	'image_generation',
 	'poi_detection',
 	'trip_detection'
-] as const);
+]);
 
-export const jobPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent'] as const);
+export const jobPrioritySchema = z.enum(['low', 'normal', 'high', 'urgent']);
 
 export const createJobSchemaCore = z.object({
 	type: z.enum([
@@ -43,10 +43,10 @@ export const createJobSchemaCore = z.object({
 		'image_generation',
 		'poi_detection',
 		'trip_detection'
-	] as const),
+	]),
 	data: z.record(z.string(), z.unknown()),
 	priority: z
-		.enum(['low', 'normal', 'high', 'urgent'] as const)
+		.enum(['low', 'normal', 'high', 'urgent'])
 		.optional()
 		.default('normal')
 });
@@ -63,7 +63,7 @@ export const jobStatusSchema = z.enum([
 	'completed',
 	'failed',
 	'cancelled'
-] as const);
+]);
 
 export const jobQuerySchema = paginationSchema.extend({
 	status: jobStatusSchema.optional(),
@@ -82,7 +82,7 @@ export const tripSchema = z.object({
 	end_date: dateOrDateTime,
 	image_url: z.string().url().optional(),
 	labels: z.array(z.string()).optional(),
-	status: z.enum(['draft', 'approved', 'completed', 'cancelled'] as const).default('draft'),
+	status: z.enum(['draft', 'approved', 'completed', 'cancelled']).default('draft'),
 	metadata: z.record(z.string(), z.unknown()).optional()
 });
 
@@ -97,7 +97,7 @@ export const createTripSchemaCore = z.object({
 		.refine((s) => /^(\d{4}-\d{2}-\d{2})(?:[T ].*)?$/.test(s), 'Invalid date format'),
 	image_url: z.string().url().optional(),
 	labels: z.array(z.string()).optional(),
-	status: z.enum(['draft', 'approved', 'completed', 'cancelled'] as const).default('draft'),
+	status: z.enum(['draft', 'approved', 'completed', 'cancelled']).default('draft'),
 	metadata: z.record(z.string(), z.unknown()).optional()
 });
 export const createTripSchema = {
@@ -111,7 +111,7 @@ export const updateTripSchema = tripSchema.extend({
 });
 
 export const tripQuerySchema = paginationSchema.extend({
-	status: z.enum(['draft', 'approved', 'completed', 'cancelled'] as const).optional(),
+	status: z.enum(['draft', 'approved', 'completed', 'cancelled']).optional(),
 	startDate: z.string().datetime().optional(),
 	endDate: z.string().datetime().optional(),
 	search: z.string().optional()
@@ -126,8 +126,8 @@ export const userProfileSchema = z.object({
 });
 
 export const userQuerySchema = paginationSchema.extend({
-	role: z.enum(['user', 'admin'] as const).optional(),
-	status: z.enum(['active', 'inactive', 'suspended'] as const).optional()
+	role: z.enum(['user', 'admin']).optional(),
+	status: z.enum(['active', 'inactive', 'suspended']).optional()
 });
 
 // Authentication schemas
@@ -170,7 +170,7 @@ export const tripGenerationSchema = z.object({
 
 // Export schemas
 export const exportOptionsSchema = z.object({
-	format: z.enum(['json', 'csv', 'gpx'] as const),
+	format: z.enum(['json', 'csv', 'gpx']),
 	includeLocationData: z.boolean().default(true),
 	includeWantToVisit: z.boolean().default(true),
 	includeTrips: z.boolean().default(true),
@@ -210,7 +210,7 @@ export const geocodingStatsQuerySchema = z.object({
 
 // Import schemas
 export const importRequestSchema = z.object({
-	format: z.enum(['json', 'csv', 'gpx', 'kml'] as const),
+	format: z.enum(['json', 'csv', 'gpx', 'kml']),
 	file: z.instanceof(File).optional(), // For file uploads
 	filePath: z.string().optional() // For server-side processing
 });
@@ -226,13 +226,13 @@ export const workerManagementSchema = z.object({
 		'updateConfig',
 		'testRealtime',
 		'getRealtimeConfig'
-	] as const),
+	]),
 	config: z.record(z.unknown()).optional()
 });
 
 export const updatePreferencesSchema = z.object({
-	theme: z.enum(['light', 'dark', 'system'] as const).optional(),
-	language: z.enum(['en', 'nl'] as const).optional(),
+	theme: z.enum(['light', 'dark', 'system']).optional(),
+	language: z.enum(['en', 'nl']).optional(),
 	notifications: z.boolean().optional(),
 	privacy: z.record(z.unknown()).optional()
 });
@@ -261,7 +261,7 @@ export const workerActionSchema = z.object({
 		'updateConfig',
 		'testRealtime',
 		'getRealtimeConfig'
-	] as const)
+	])
 });
 
 // 2FA schemas
@@ -353,7 +353,7 @@ export const adminWorkerActionSchema = z.object({
 		'updateConfig',
 		'testRealtime',
 		'getRealtimeConfig'
-	] as const),
+	]),
 	config: z.record(z.unknown()).optional()
 });
 
@@ -404,7 +404,7 @@ export const tripGenerationRequestSchema = z.object({
 export const geocodingSearchQuerySchema = z.object({
 	query: z.string().min(3, 'Search query must be at least 3 characters'),
 	limit: z.coerce.number().int().min(1).max(10).default(5),
-	format: z.enum(['json', 'xml'] as const).default('json')
+	format: z.enum(['json', 'xml']).default('json')
 });
 
 // File upload schemas
@@ -412,7 +412,7 @@ export const fileUploadSchema = z.object({
 	file: z
 		.instanceof(File)
 		.refine((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB'),
-	type: z.enum(['image', 'document', 'data'] as const),
+	type: z.enum(['image', 'document', 'data']),
 	metadata: z.record(z.unknown()).optional()
 });
 
@@ -420,14 +420,14 @@ export const fileUploadSchema = z.object({
 export const notificationSchema = z.object({
 	title: z.string().min(1).max(200),
 	message: z.string().min(1).max(1000),
-	type: z.enum(['info', 'success', 'warning', 'error'] as const).default('info'),
+	type: z.enum(['info', 'success', 'warning', 'error']).default('info'),
 	actionUrl: z.string().url().optional(),
 	expiresAt: z.string().datetime().optional()
 });
 
 export const notificationQuerySchema = paginationSchema.extend({
 	read: z.coerce.boolean().optional(),
-	type: z.enum(['info', 'success', 'warning', 'error'] as const).optional()
+	type: z.enum(['info', 'success', 'warning', 'error']).optional()
 });
 
 // Connection schemas
@@ -448,23 +448,23 @@ export const analyticsQuerySchema = z.object({
 	startDate: z.string().datetime(),
 	endDate: z.string().datetime(),
 	metrics: z
-		.array(z.enum(['distance', 'duration', 'transport_modes', 'locations', 'countries'] as const))
+		.array(z.enum(['distance', 'duration', 'transport_modes', 'locations', 'countries']))
 		.min(1),
-	groupBy: z.enum(['day', 'week', 'month'] as const).default('day'),
+	groupBy: z.enum(['day', 'week', 'month']).default('day'),
 	includeBreakdown: z.coerce.boolean().default(false)
 });
 
 // Webhook schemas
 export const webhookSchema = z.object({
 	url: z.string().url('Invalid webhook URL'),
-	events: z.array(z.enum(['location_update', 'trip_created', 'job_completed'] as const)).min(1),
+	events: z.array(z.enum(['location_update', 'trip_created', 'job_completed'])).min(1),
 	secret: z.string().min(16, 'Webhook secret must be at least 16 characters').optional(),
 	enabled: z.boolean().default(true)
 });
 
 export const webhookQuerySchema = paginationSchema.extend({
 	enabled: z.coerce.boolean().optional(),
-	event: z.enum(['location_update', 'trip_created', 'job_completed'] as const).optional()
+	event: z.enum(['location_update', 'trip_created', 'job_completed']).optional()
 });
 
 // Rate limiting schemas
@@ -485,14 +485,14 @@ export const serverSettingsSchema = z.object({
 		.optional(), // 1KB to 100MB
 	maxImportSize: z.number().int().min(1000).max(1000000).optional(), // 1K to 1M records
 	geocodingEnabled: z.boolean().optional(),
-	geocodingProvider: z.enum(['nominatim', 'google', 'mapbox'] as const).optional(),
+	geocodingProvider: z.enum(['nominatim', 'google', 'mapbox']).optional(),
 	workerCount: z.number().int().min(1).max(10).optional()
 });
 
 // Search schemas
 export const searchQuerySchema = z.object({
 	q: z.string().min(1, 'Search query is required'),
-	type: z.enum(['trips', 'locations', 'users'] as const).optional(),
+	type: z.enum(['trips', 'locations', 'users']).optional(),
 	limit: z.coerce.number().int().min(1).max(50).default(10)
 });
 
@@ -512,7 +512,7 @@ export const locationQuerySchema = paginationSchema.extend({
 
 // Admin user update schemas
 export const adminUserUpdateSchema = z.object({
-	role: z.enum(['user', 'admin'] as const).optional(),
+	role: z.enum(['user', 'admin']).optional(),
 	status: z.enum(['active', 'inactive', 'suspended'] as const).optional(),
 	metadata: z.record(z.unknown()).optional()
 });
@@ -521,7 +521,7 @@ export const adminUserUpdateSchema = z.object({
 export const errorResponseSchema = z.object({
 	error: z.string(),
 	message: z.string().optional(),
-	details: z.record(z.unknown()).optional(),
+	details: z.record(z.string(), z.unknown()).optional(),
 	statusCode: z.number().optional()
 });
 

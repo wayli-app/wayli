@@ -209,7 +209,7 @@ export class JobQueueService {
 			cancelled: 0
 		};
 
-		data?.forEach((job) => {
+		data?.forEach((job: { status: string }) => {
 			stats.total++;
 			switch (job.status) {
 				case 'queued':

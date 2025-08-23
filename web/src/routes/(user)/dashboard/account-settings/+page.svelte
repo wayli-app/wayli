@@ -83,10 +83,9 @@
 	let editExclusionAddressSearchError: string | null = $state(null);
 
 	// Language selector handler
-	function handleLanguageChange(event: CustomEvent<{ locale: SupportedLocale }>) {
-		if (preferences) {
-			preferences.language = event.detail.locale;
-		}
+	function handleLanguageChange(data: { locale: SupportedLocale }) {
+		const { locale } = data;
+		changeLocale(locale);
 	}
 
 	async function loadUserData() {
@@ -1047,7 +1046,7 @@
 							size="md"
 							showLabel={true}
 							position="bottom-left"
-							onchange={handleLanguageChange}
+							onChange={handleLanguageChange}
 						/>
 					</div>
 				</div>

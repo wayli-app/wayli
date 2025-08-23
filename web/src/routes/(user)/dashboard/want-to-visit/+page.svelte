@@ -394,7 +394,6 @@
 			zoomControl: true,
 			attributionControl: false,
 			doubleClickZoom: true,
-			tap: true,
 			tapTolerance: 15,
 			touchZoom: true,
 			bounceAtZoomLimits: false,

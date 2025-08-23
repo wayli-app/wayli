@@ -2,11 +2,10 @@
 <script lang="ts">
 	import { ChevronDown, Globe } from 'lucide-svelte';
 
-	import { useAriaButton } from '$lib/accessibility/aria-button';
+
 	import { currentLocale, SUPPORTED_LOCALES, type SupportedLocale } from '$lib/i18n';
 
 	export let size: 'sm' | 'md' | 'lg' = 'md';
-	export let variant: 'button' | 'select' = 'button';
 	export let showLabel = true;
 	export let onChange: ((data: { locale: SupportedLocale }) => void) | undefined = undefined;
 
@@ -14,11 +13,7 @@
 	let buttonElement: HTMLButtonElement;
 	let dropdownElement: HTMLDivElement;
 
-	const buttonProps = useAriaButton({
-		expanded: isOpen,
-		controls: 'language-dropdown',
-		disabled: false
-	});
+
 
 	const localeNames: Record<SupportedLocale, string> = {
 		en: 'English',
@@ -203,10 +198,9 @@
 	</style>
 </svelte:head>
 
-<div class="language-switcher size-{size}" onkeydown={handleKeydown}>
+<div class="language-switcher size-{size}" role="application">
 	<button
 		bind:this={buttonElement}
-		use:buttonProps
 		class="language-button"
 		onclick={toggleDropdown}
 		aria-haspopup="listbox"

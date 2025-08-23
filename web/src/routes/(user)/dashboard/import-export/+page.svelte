@@ -274,8 +274,8 @@
 		}
 	}
 
-	let localExportStartDate = $state(exportStartDate instanceof Date ? exportStartDate : '');
-	let localExportEndDate = $state(exportEndDate instanceof Date ? exportEndDate : '');
+	let localExportStartDate = $derived(exportStartDate instanceof Date ? exportStartDate : '');
+	let localExportEndDate = $derived(exportEndDate instanceof Date ? exportEndDate : '');
 
 	$effect(() => {
 		exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);

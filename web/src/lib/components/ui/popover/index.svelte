@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	import { useAriaButton } from '$lib/accessibility/aria-button';
 

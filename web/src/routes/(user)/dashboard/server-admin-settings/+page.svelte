@@ -343,11 +343,11 @@
 		loadServerSettings();
 	});
 
-	// Add User Modal State
-	let newUserEmail = '';
-	let newUserFirstName = '';
-	let newUserLastName = '';
-	let newUserRole: 'admin' | 'user' = 'user';
+	        // Add User Modal State
+        let newUserEmail = $state('');
+        let newUserFirstName = $state('');
+        let newUserLastName = $state('');
+        let newUserRole = $state<'admin' | 'user'>('user');
 
 	// Admin state
 	let isAdmin = $state(false);
@@ -425,11 +425,13 @@
 		tabindex="0"
 		aria-label="Close modal"
 	>
-		<div
-			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
-			onclick={(e) => e.stopPropagation()}
-			role="document"
-		>
+		                                                <div
+                        class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
+                        onclick={(e) => e.stopPropagation()}
+                        onkeydown={(e) => e.key === 'Escape' && handleCloseAddUserModal()}
+                        role="document"
+                        tabindex="0"
+                >
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>

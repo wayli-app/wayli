@@ -188,7 +188,7 @@ class LoggingService {
 		}
 
 		if (this.config.enableFile) {
-			writePromises.push(this.writeToFile(entry));
+			writePromises.push(this.writeToFile());
 		}
 
 		await Promise.allSettled(writePromises);

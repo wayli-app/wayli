@@ -69,21 +69,21 @@ function detectUserLocale(): SupportedLocale {
 	if (!browser) return DEFAULT_LOCALE;
 
 	// Check for stored preference
-	const stored = localStorage.getItem('wayli-locale');
-	if (stored && SUPPORTED_LOCALES.includes(stored as SupportedLocale)) {
+	const stored = localStorage.getItem('wayli-locale') as SupportedLocale | null;
+	if (stored && SUPPORTED_LOCALES.includes(stored)) {
 		return stored;
 	}
 
 	// Check browser language
-	const browserLang = navigator.language?.split('-')[0];
-	if (browserLang && SUPPORTED_LOCALES.includes(browserLang as SupportedLocale)) {
+	const browserLang = navigator.language?.split('-')[0] as SupportedLocale | undefined;
+	if (browserLang && SUPPORTED_LOCALES.includes(browserLang)) {
 		return browserLang;
 	}
 
 	// Check navigator.languages
 	for (const lang of navigator.languages || []) {
-		const code = lang.split('-')[0];
-		if (SUPPORTED_LOCALES.includes(code as SupportedLocale)) {
+		const code = lang.split('-')[0] as SupportedLocale;
+		if (SUPPORTED_LOCALES.includes(code)) {
 			return code;
 		}
 	}
