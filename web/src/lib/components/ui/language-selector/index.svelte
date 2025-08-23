@@ -36,6 +36,11 @@
 			code: 'nl' as SupportedLocale,
 			name: 'Nederlands',
 			flag: '🇳🇱'
+		},
+		{
+			code: 'es' as SupportedLocale,
+			name: 'Español',
+			flag: '🇪🇸'
 		}
 	] as const;
 

@@ -232,7 +232,7 @@ export const workerManagementSchema = z.object({
 
 export const updatePreferencesSchema = z.object({
 	theme: z.enum(['light', 'dark', 'system']).optional(),
-	language: z.enum(['en', 'nl']).optional(),
+	language: z.enum(['en', 'nl', 'es']).optional(),
 	notifications: z.boolean().optional(),
 	privacy: z.record(z.string(), z.unknown()).optional()
 });

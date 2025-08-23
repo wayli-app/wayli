@@ -77,7 +77,7 @@
 				const preferencesData = (preferencesResult as any).data || preferencesResult;
 				const userLanguage = preferencesData?.language;
 
-				if (userLanguage && ['en', 'nl'].includes(userLanguage)) {
+				if (userLanguage && ['en', 'nl', 'es'].includes(userLanguage)) {
 					await changeLocale(userLanguage as SupportedLocale);
 					console.log('🌍 [Dashboard] Applied user language preference:', userLanguage);
 				}

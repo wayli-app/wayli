@@ -6,7 +6,7 @@ import { writable, derived, get } from 'svelte/store';
 import { browser } from '$app/environment';
 
 // Supported locales
-export const SUPPORTED_LOCALES = ['en', 'nl'] as const;
+export const SUPPORTED_LOCALES = ['en', 'nl', 'es'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 // Default locale
@@ -215,8 +215,15 @@ export function formatDistance(meters: number, locale?: SupportedLocale): string
 			return `${Math.round(feet)} ft`;
 		}
 		return `${miles.toFixed(1)} mi`;
+	} else if (currentLocaleValue === 'es') {
+		// Metric units for Spanish (same as Dutch)
+		if (meters < 1000) {
+			return `${Math.round(meters)} m`;
+		}
+		const km = meters / 1000;
+		return `${km.toFixed(1)} km`;
 	} else {
-		// Metric units for other locales
+		// Metric units for other locales (Dutch, etc.)
 		if (meters < 1000) {
 			return `${Math.round(meters)} m`;
 		}
@@ -242,6 +249,9 @@ export function pluralize(count: number, singular: string, plural: string): stri
 
 	if (locale === 'nl') {
 		// Dutch pluralization rules
+		return count === 1 ? singular : plural;
+	} else if (locale === 'es') {
+		// Spanish pluralization rules
 		return count === 1 ? singular : plural;
 	} else {
 		// English pluralization rules

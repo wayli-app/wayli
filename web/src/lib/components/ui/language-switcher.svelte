@@ -17,12 +17,14 @@
 
 	const localeNames: Record<SupportedLocale, string> = {
 		en: 'English',
-		nl: 'Nederlands'
+		nl: 'Nederlands',
+		es: 'Español'
 	};
 
 	const localeFlags: Record<SupportedLocale, string> = {
 		en: '🇺🇸',
-		nl: '🇳🇱'
+		nl: '🇳🇱',
+		es: '🇪🇸'
 	};
 
 	function toggleDropdown() {

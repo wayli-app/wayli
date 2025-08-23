@@ -6,16 +6,20 @@ on:
   pull_request:
     branches: [main]
 
+# Required permissions for semantic-release and Docker operations
 permissions:
-  packages: write
-  contents: write
-  id-token: write
+  packages: write      # For npm package publishing (if needed)
+  contents: write      # For creating tags and commits
+  id-token: write     # For Docker registry authentication
+  issues: write       # For semantic-release GitHub plugin
+  pull-requests: write # For semantic-release GitHub plugin
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Use Node.js 20.x
         uses: actions/setup-node@v4
         with:
@@ -49,28 +53,34 @@ jobs:
         run: npm run build --if-present
 
       # Only run Docker and release steps on push to main
-      - name: Setup Node.js for semantic-release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: 'npm'
-
       - name: Install semantic-release dependencies
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: web
         run: |
           npm ci
           npm install -g semantic-release @semantic-release/changelog @semantic-release/npm
 
       - name: Run semantic-release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: web
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_ENV: production
-        run: npx semantic-release
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "🔍 [semantic-release] Starting release process..."
+          echo "🔍 [semantic-release] Working directory: $(pwd)"
+          echo "🔍 [semantic-release] Node version: $(node --version)"
+          echo "🔍 [semantic-release] NPM version: $(npm --version)"
+          echo "🔍 [semantic-release] Repository: $GITHUB_REPOSITORY"
+          echo "🔍 [semantic-release] Branch: ${{ github.ref }}"
+          echo "🔍 [semantic-release] Commit: ${{ github.sha }}"
+
+          npx semantic-release --debug
 
       - name: Get version from semantic-release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: web
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
@@ -104,17 +114,5 @@ jobs:
             zehbart/wayli:latest
             zehbart/wayli:${{ env.SHORT_SHA }}
 
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: Release v${{ env.VERSION }}
-          body: |
-            Automated semantic release v${{ env.VERSION }}
-
-            This release was automatically generated based on conventional commit messages.
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Note: GitHub release is automatically created by semantic-release
+      # No need for manual release creation
