@@ -1,4 +1,5 @@
 # Single-stage Dockerfile for Wayli - supports both web and worker modes
+# Kubernetes-compatible with non-root user
 
 FROM node:20-slim
 
@@ -43,14 +44,23 @@ RUN chmod +x ./docker-entrypoint.sh
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Create nginx directories with correct ownership from the start
-RUN mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx && \
-    chown -R appuser:appuser /var/log/nginx /var/cache/nginx /var/lib/nginx && \
-    chmod -R 755 /var/log/nginx /var/cache/nginx /var/lib/nginx
+RUN mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx && \
+    chown -R appuser:appuser /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx && \
+    chmod -R 755 /var/log/nginx /var/cache/nginx /var/lib/nginx && \
+    chmod 755 /run /tmp/nginx
 
 # Set proper permissions for app and nginx files
 RUN chown -R appuser:appuser /app && \
     chown -R appuser:appuser /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
+
+# Create Kubernetes-compatible nginx configuration
+RUN echo 'pid /tmp/nginx/nginx.pid;' >> /etc/nginx/nginx.conf && \
+    echo 'error_log /tmp/nginx/error.log;' >> /etc/nginx/nginx.conf && \
+    echo 'access_log /tmp/nginx/access.log;' >> /etc/nginx/nginx.conf
+
+# Switch to non-root user for Kubernetes compatibility
+USER appuser
 
 # Expose port 80
 EXPOSE 80

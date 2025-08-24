@@ -30,12 +30,12 @@ start_nginx() {
     echo "🌐 Starting nginx..."
 
     # Ensure nginx directories exist (they should already be created with correct ownership)
-    mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx
+    mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx
 
     # Test nginx configuration
     nginx -t
 
-    # Start nginx in foreground
+    # Start nginx in foreground as non-root user (Kubernetes compatible)
     echo "🚀 nginx started successfully"
     exec nginx -g "daemon off;"
 }
