@@ -3,7 +3,7 @@
 FROM node:20-slim
 
 # Install nginx and wget for health checks
-RUN apt-get update && apt-get install -y \
+RUN apt  update && apt  install -y \
     nginx \
     wget \
     && rm -rf /var/lib/apt/lists/*
@@ -39,16 +39,17 @@ COPY web/src/scripts/worker.ts ./src/scripts/worker.ts
 # Make entrypoint script executable
 RUN chmod +x ./docker-entrypoint.sh
 
-# Create nginx directories and set proper permissions
+# Create non-root user first
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Create nginx directories with correct ownership from the start
 RUN mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx && \
-    chown -R www-data:www-data /var/log/nginx /var/cache/nginx /var/lib/nginx
+    chown -R appuser:appuser /var/log/nginx /var/cache/nginx /var/lib/nginx && \
+    chmod -R 755 /var/log/nginx /var/cache/nginx /var/lib/nginx
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser && \
-    chown -R appuser:appuser /app
-
-# Set proper permissions for nginx
-RUN chown -R appuser:appuser /usr/share/nginx/html && \
+# Set proper permissions for app and nginx files
+RUN chown -R appuser:appuser /app && \
+    chown -R appuser:appuser /usr/share/nginx/html && \
     chmod -R 755 /usr/share/nginx/html
 
 # Expose port 80

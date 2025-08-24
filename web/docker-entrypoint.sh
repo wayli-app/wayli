@@ -29,9 +29,8 @@ esac
 start_nginx() {
     echo "🌐 Starting nginx..."
 
-    # Ensure nginx directories exist and have correct permissions
-    mkdir -p /var/log/nginx /var/cache/nginx
-    chown -R appuser:appuser /var/log/nginx /var/cache/nginx
+    # Ensure nginx directories exist (they should already be created with correct ownership)
+    mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx
 
     # Test nginx configuration
     nginx -t
