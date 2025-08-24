@@ -39,9 +39,13 @@ COPY web/src/scripts/worker.ts ./src/scripts/worker.ts
 # Make entrypoint script executable
 RUN chmod +x ./docker-entrypoint.sh
 
+# Create nginx directories and set proper permissions
+RUN mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx && \
+    chown -R www-data:www-data /var/log/nginx /var/cache/nginx /var/lib/nginx
+
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
-    chown -R appuser:appuser /app /var/log/nginx /var/cache/nginx
+    chown -R appuser:appuser /app
 
 # Set proper permissions for nginx
 RUN chown -R appuser:appuser /usr/share/nginx/html && \
