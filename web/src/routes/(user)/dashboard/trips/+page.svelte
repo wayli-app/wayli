@@ -32,7 +32,7 @@
 
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import { PUBLIC_SUPABASE_URL } from '$lib/core/supabase/client';
+	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 	// Use the reactive translation function
 	let t = $derived($translate);

@@ -6,7 +6,8 @@
 	import { translate } from '$lib/i18n';
 
 	import { page } from '$app/stores';
-	import { supabase, PUBLIC_SUPABASE_URL } from '$lib/core/supabase/client';
+	import { supabase } from '$lib/core/supabase/client';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 	// Use the reactive translation function
 	let t = $derived($translate);

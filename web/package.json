@@ -28,17 +28,15 @@
 		"test:totp": "tsx src/scripts/test-totp.ts",
 		"test:cache": "tsx src/scripts/test-cache.ts",
 		"test:poi-visits": "tsx src/scripts/test-poi-visit-detection.ts",
-		"worker": "tsx src/scripts/worker.ts",
-		"worker:start": "tsx src/scripts/worker.ts",
-		"worker:dev": "tsx --watch src/scripts/worker.ts",
-		"check:separation": "node scripts/check-client-server-separation.js"
+			"worker": "tsx src/worker/entry.ts",
+	"worker:start": "tsx src/worker/entry.ts",
+	"worker:dev": "tsx --watch src/worker/entry.ts",
+		"check:separation": "node scripts/check-environment-separation.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
-		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.16.0",
-		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
 		"@testing-library/jest-dom": "^6.6.3",
