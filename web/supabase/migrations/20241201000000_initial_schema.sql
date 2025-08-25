@@ -1858,3 +1858,749 @@ BEGIN
     RAISE NOTICE 'Distance and time_spent calculation completed successfully!';
     RAISE NOTICE 'Updated % records total.', updated_count;
 END $$;
+
+-- ========================================================================
+-- MERGED MIGRATIONS START HERE
+-- ========================================================================
+
+-- ========================================================================
+-- Migration: 20241201000004_fix_statement_timeout.sql
+-- Fix statement_timeout values in existing database functions
+-- This migration recreates functions with the correct PostgreSQL timeout syntax
+-- ========================================================================
+
+-- Recreate update_tracker_distances function with correct timeout
+CREATE OR REPLACE FUNCTION update_tracker_distances(target_user_id UUID DEFAULT NULL)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER;
+    user_filter TEXT := '';
+BEGIN
+    -- Set a longer statement timeout for this function (fixed syntax)
+    SET LOCAL statement_timeout = '30min';
+
+    IF target_user_id IS NOT NULL THEN
+        RAISE NOTICE 'Starting distance and time_spent calculation for user % using optimized window function approach...', target_user_id;
+        user_filter := ' AND t1.user_id = $1';
+    ELSE
+        RAISE NOTICE 'Starting distance and time_spent calculation for ALL users using optimized window function approach...';
+    END IF;
+
+    -- Use a single UPDATE with window functions and JOIN for much better performance
+    WITH distance_and_time_calculations AS (
+        SELECT
+            t1.user_id,
+            t1.recorded_at,
+            t1.location,
+            CASE
+                WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                    0  -- First point for each user
+                ELSE
+                    ST_DistanceSphere(
+                        LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                        t1.location
+                    )
+            END AS calculated_distance,
+            CASE
+                WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                    0  -- First point for each user
+                ELSE
+                    EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+            END AS calculated_time_spent
+        FROM public.tracker_data t1
+        WHERE t1.location IS NOT NULL
+        AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+    )
+    UPDATE public.tracker_data
+    SET
+        distance = dc.calculated_distance,
+        time_spent = dc.calculated_time_spent,
+        speed = LEAST(
+            ROUND((
+                CASE
+                    WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
+                    ELSE 0
+                END
+            )::numeric, 2),
+            9999999999.99
+        ),
+        updated_at = NOW()
+    FROM distance_and_time_calculations dc
+    WHERE tracker_data.user_id = dc.user_id
+    AND tracker_data.recorded_at = dc.recorded_at
+    AND tracker_data.location = dc.location;
+
+    -- Get count of updated records
+    GET DIAGNOSTICS total_updated = ROW_COUNT;
+
+    IF target_user_id IS NOT NULL THEN
+        RAISE NOTICE 'Distance and time_spent calculation complete for user %. Updated % records using window functions.', target_user_id, total_updated;
+    ELSE
+        RAISE NOTICE 'Distance and time_spent calculation complete for ALL users. Updated % records using window functions.', total_updated;
+    END IF;
+
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Recreate update_tracker_distances_batch function with correct timeout
+CREATE OR REPLACE FUNCTION update_tracker_distances_batch(
+    target_user_id UUID DEFAULT NULL,
+    batch_size INTEGER DEFAULT 10000
+)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER := 0;
+    batch_updated INTEGER;
+    offset_val INTEGER := 0;
+    has_more BOOLEAN := true;
+    user_filter TEXT := '';
+BEGIN
+    -- Set a longer statement timeout for this function (fixed syntax)
+    SET LOCAL statement_timeout = '30min';
+
+    IF target_user_id IS NOT NULL THEN
+        RAISE NOTICE 'Starting batched distance calculation for user % (batch size: %)...', target_user_id, batch_size;
+        user_filter := ' AND t1.user_id = $1';
+    ELSE
+        RAISE NOTICE 'Starting batched distance calculation for ALL users (batch size: %)...', batch_size;
+    END IF;
+
+    -- Process data in batches to avoid memory issues
+    WHILE has_more LOOP
+        WITH distance_and_time_calculations AS (
+            SELECT
+                t1.user_id,
+                t1.recorded_at,
+                t1.location,
+                CASE
+                    WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                        0  -- First point for each user
+                    ELSE
+                        ST_DistanceSphere(
+                            LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                            t1.location
+                        )
+                END AS calculated_distance,
+                CASE
+                    WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN
+                        0  -- First point for each user
+                    ELSE
+                        EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+                END AS calculated_time_spent
+            FROM public.tracker_data t1
+            WHERE t1.location IS NOT NULL
+            AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+            ORDER BY t1.user_id, t1.recorded_at
+            LIMIT batch_size OFFSET offset_val
+        )
+        UPDATE public.tracker_data
+        SET
+            distance = dc.calculated_distance,
+            time_spent = dc.calculated_time_spent,
+            speed = LEAST(
+                ROUND((
+                    CASE
+                        WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
+                        ELSE 0
+                    END
+                )::numeric, 2),
+                9999999999.99
+            ),
+            updated_at = NOW()
+        FROM distance_and_time_calculations dc
+        WHERE tracker_data.user_id = dc.user_id
+        AND tracker_data.recorded_at = dc.recorded_at
+        AND tracker_data.location = dc.location;
+
+        -- Get count of updated records in this batch
+        GET DIAGNOSTICS batch_updated = ROW_COUNT;
+
+        total_updated := total_updated + batch_updated;
+        offset_val := offset_val + batch_size;
+
+        -- Check if we have more data to process
+        IF batch_updated < batch_size THEN
+            has_more := false;
+        END IF;
+
+        RAISE NOTICE 'Processed batch: % records updated (total: %)', batch_updated, total_updated;
+
+        -- Small delay to prevent overwhelming the database
+        PERFORM pg_sleep(0.1);
+    END LOOP;
+
+    RAISE NOTICE 'Batched distance calculation complete. Total records updated: %', total_updated;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add helpful comments
+COMMENT ON FUNCTION update_tracker_distances IS 'Updates distance and time_spent columns for all tracker_data records by calculating from previous chronological point. Can target specific user for performance. (Fixed timeout syntax)';
+COMMENT ON FUNCTION update_tracker_distances_batch IS 'Updates distance and time_spent columns in batches for large datasets to avoid timeouts. Can target specific user for performance. (Fixed timeout syntax)';
+
+-- ========================================================================
+-- Migration: 20241201000005_add_full_country_function.sql
+-- Add the full_country function to map ISO 3166-1 alpha-2 country codes to full names
+-- ========================================================================
+
+-- Returns the full country name for a given ISO 3166-1 alpha-2 code
+CREATE OR REPLACE FUNCTION full_country(country text) RETURNS text AS $$
+SELECT value
+FROM json_each_text('{
+  "AF": "Afghanistan",
+  "AL": "Albania",
+  "DZ": "Algeria",
+  "AS": "American Samoa",
+  "AD": "Andorra",
+  "AO": "Angola",
+  "AI": "Anguilla",
+  "AQ": "Antarctica",
+  "AG": "Antigua and Barbuda",
+  "AR": "Argentina",
+  "AM": "Armenia",
+  "AW": "Aruba",
+  "AU": "Australia",
+  "AT": "Austria",
+  "AZ": "Azerbaijan",
+  "BS": "Bahamas",
+  "BH": "Bahrain",
+  "BD": "Bangladesh",
+  "BB": "Barbados",
+  "BY": "Belarus",
+  "BE": "Belgium",
+  "BZ": "Belize",
+  "BJ": "Benin",
+  "BM": "Bermuda",
+  "BT": "Bhutan",
+  "BO": "Bolivia",
+  "BQ": "Bonaire, Sint Eustatius and Saba",
+  "BA": "Bosnia and Herzegovina",
+  "BW": "Botswana",
+  "BV": "Bouvet Island",
+  "BR": "Brazil",
+  "IO": "British Indian Ocean Territory",
+  "BN": "Brunei Darussalam",
+  "BG": "Bulgaria",
+  "BF": "Burkina Faso",
+  "BI": "Burundi",
+  "CV": "Cabo Verde",
+  "KH": "Cambodia",
+  "CM": "Cameroon",
+  "CA": "Canada",
+  "KY": "Cayman Islands",
+  "CF": "Central African Republic",
+  "TD": "Chad",
+  "CL": "Chile",
+  "CN": "China",
+  "CX": "Christmas Island",
+  "CC": "Cocos (Keeling) Islands",
+  "CO": "Colombia",
+  "KM": "Comoros",
+  "CG": "Congo",
+  "CD": "Congo, Democratic Republic of the",
+  "CK": "Cook Islands",
+  "CR": "Costa Rica",
+  "CI": "Côte d''Ivoire",
+  "HR": "Croatia",
+  "CU": "Cuba",
+  "CW": "Curaçao",
+  "CY": "Cyprus",
+  "CZ": "Czech Republic",
+  "DK": "Denmark",
+  "DJ": "Djibouti",
+  "DM": "Dominica",
+  "DO": "Dominican Republic",
+  "EC": "Ecuador",
+  "EG": "Egypt",
+  "SV": "El Salvador",
+  "GQ": "Equatorial Guinea",
+  "ER": "Eritrea",
+  "EE": "Estonia",
+  "SZ": "Eswatini",
+  "ET": "Ethiopia",
+  "FK": "Falkland Islands (Malvinas)",
+  "FO": "Faroe Islands",
+  "FJ": "Fiji",
+  "FI": "Finland",
+  "FR": "France",
+  "GF": "French Guiana",
+  "PF": "French Polynesia",
+  "TF": "French Southern Territories",
+  "GA": "Gabon",
+  "GM": "Gambia",
+  "GE": "Georgia",
+  "DE": "Germany",
+  "GH": "Ghana",
+  "GI": "Gibraltar",
+  "GR": "Greece",
+  "GL": "Greenland",
+  "GD": "Grenada",
+  "GP": "Guadeloupe",
+  "GU": "Guam",
+  "GT": "Guatemala",
+  "GG": "Guernsey",
+  "GN": "Guinea",
+  "GW": "Guinea-Bissau",
+  "GY": "Guyana",
+  "HT": "Haiti",
+  "HM": "Heard Island and McDonald Islands",
+  "VA": "Holy See (Vatican City State)",
+  "HN": "Honduras",
+  "HK": "Hong Kong",
+  "HU": "Hungary",
+  "IS": "Iceland",
+  "IN": "India",
+  "ID": "Indonesia",
+  "IR": "Iran, Islamic Republic of",
+  "IQ": "Iraq",
+  "IE": "Ireland",
+  "IM": "Isle of Man",
+  "IL": "Israel",
+  "IT": "Italy",
+  "JM": "Jamaica",
+  "JP": "Japan",
+  "JE": "Jersey",
+  "JO": "Jordan",
+  "KZ": "Kazakhstan",
+  "KE": "Kenya",
+  "KI": "Kiribati",
+  "KP": "Korea, Democratic People''s Republic of",
+  "KR": "Korea, Republic of",
+  "KW": "Kuwait",
+  "KG": "Kyrgyzstan",
+  "LA": "Lao People''s Democratic Republic",
+  "LV": "Latvia",
+  "LB": "Lebanon",
+  "LS": "Lesotho",
+  "LR": "Liberia",
+  "LY": "Libya",
+  "LI": "Liechtenstein",
+  "LT": "Lithuania",
+  "LU": "Luxembourg",
+  "MO": "Macao",
+  "MK": "North Macedonia",
+  "MG": "Madagascar",
+  "MW": "Malawi",
+  "MY": "Malaysia",
+  "MV": "Maldives",
+  "ML": "Mali",
+  "MT": "Malta",
+  "MH": "Marshall Islands",
+  "MQ": "Martinique",
+  "MR": "Mauritania",
+  "MU": "Mauritius",
+  "YT": "Mayotte",
+  "MX": "Mexico",
+  "FM": "Micronesia, Federated States of",
+  "MD": "Moldova, Republic of",
+  "MC": "Monaco",
+  "MN": "Mongolia",
+  "ME": "Montenegro",
+  "MS": "Montserrat",
+  "MA": "Morocco",
+  "MZ": "Mozambique",
+  "MM": "Myanmar",
+  "NA": "Namibia",
+  "NR": "Nauru",
+  "NP": "Nepal",
+  "NL": "Netherlands",
+  "NC": "New Caledonia",
+  "NZ": "New Zealand",
+  "NI": "Nicaragua",
+  "NE": "Niger",
+  "NG": "Nigeria",
+  "NU": "Niue",
+  "NF": "Norfolk Island",
+  "MP": "Northern Mariana Islands",
+  "NO": "Norway",
+  "OM": "Oman",
+  "PK": "Pakistan",
+  "PW": "Palau",
+  "PS": "Palestine, State of",
+  "PA": "Panama",
+  "PG": "Papua New Guinea",
+  "PY": "Paraguay",
+  "PE": "Peru",
+  "PH": "Philippines",
+  "PN": "Pitcairn",
+  "PL": "Poland",
+  "PT": "Portugal",
+  "PR": "Puerto Rico",
+  "QA": "Qatar",
+  "RE": "Réunion",
+  "RO": "Romania",
+  "RU": "Russian Federation",
+  "RW": "Rwanda",
+  "BL": "Saint Barthélemy",
+  "SH": "Saint Helena, Ascension and Tristan da Cunha",
+  "KN": "Saint Kitts and Nevis",
+  "LC": "Saint Lucia",
+  "MF": "Saint Martin (French part)",
+  "PM": "Saint Pierre and Miquelon",
+  "VC": "Saint Vincent and the Grenadines",
+  "WS": "Samoa",
+  "SM": "San Marino",
+  "ST": "Sao Tome and Principe",
+  "SA": "Saudi Arabia",
+  "SN": "Senegal",
+  "RS": "Serbia",
+  "SC": "Seychelles",
+  "SL": "Sierra Leone",
+  "SG": "Singapore",
+  "SK": "Slovakia",
+  "SI": "Slovenia",
+  "SB": "Solomon Islands",
+  "SO": "Somalia",
+  "ZA": "South Africa",
+  "GS": "South Georgia and the South Sandwich Islands",
+  "SS": "South Sudan",
+  "ES": "Spain",
+  "LK": "Sri Lanka",
+  "SD": "Sudan",
+  "SR": "Suriname",
+  "SJ": "Svalbard and Jan Mayen",
+  "SZ": "Eswatini",
+  "SE": "Sweden",
+  "CH": "Switzerland",
+  "SY": "Syrian Arab Republic",
+  "TW": "Taiwan, Province of China",
+  "TJ": "Tajikistan",
+  "TZ": "Tanzania, United Republic of",
+  "TH": "Thailand",
+  "TL": "Timor-Leste",
+  "TG": "Togo",
+  "TK": "Tokelau",
+  "TO": "Tonga",
+  "TT": "Trinidad and Tobago",
+  "TN": "Tunisia",
+  "TR": "Turkey",
+  "TM": "Turkmenistan",
+  "TC": "Turks and Caicos Islands",
+  "TV": "Tuvalu",
+  "UG": "Uganda",
+  "UA": "Ukraine",
+  "AE": "United Arab Emirates",
+  "GB": "United Kingdom",
+  "US": "United States",
+  "UM": "United States Minor Outlying Islands",
+  "UY": "Uruguay",
+  "UZ": "Uzbekistan",
+  "VU": "Vanuatu",
+  "VE": "Venezuela, Bolivarian Republic of",
+  "VN": "Viet Nam",
+  "VG": "Virgin Islands, British",
+  "VI": "Virgin Islands, U.S.",
+  "WF": "Wallis and Futuna",
+  "EH": "Western Sahara",
+  "YE": "Yemen",
+  "ZM": "Zambia",
+  "ZW": "Zimbabwe"
+}') AS json_data(key, value)
+WHERE key = UPPER(country);
+$$ LANGUAGE sql IMMUTABLE;
+
+-- Add comment for documentation
+COMMENT ON FUNCTION full_country(text) IS 'Maps ISO 3166-1 alpha-2 country codes to full country names';
+
+-- ========================================================================
+-- Migration: 20250812000200_update_tracker_distance_time_precision.sql
+-- Widen distance/time_spent precision and cast before rounding to prevent numeric overflow during imports
+-- ========================================================================
+
+-- Increase precision on distance and time_spent
+ALTER TABLE public.tracker_data
+  ALTER COLUMN distance TYPE numeric(12,2) USING COALESCE(distance, 0)::numeric,
+  ALTER COLUMN time_spent TYPE numeric(12,2) USING COALESCE(time_spent, 0)::numeric;
+
+-- Recreate the bulk update function with safe casts and rounding
+CREATE OR REPLACE FUNCTION update_tracker_distances(target_user_id UUID DEFAULT NULL)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER;
+BEGIN
+    WITH distance_and_time_calculations AS (
+        SELECT
+            t1.user_id,
+            t1.recorded_at,
+            t1.location,
+            CASE
+                WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                ELSE ST_DistanceSphere(
+                    LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                    t1.location
+                )
+            END AS calculated_distance,
+            CASE
+                WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+            END AS calculated_time_spent
+        FROM public.tracker_data t1
+        WHERE t1.location IS NOT NULL
+          AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+    )
+    UPDATE public.tracker_data AS td
+    SET
+        distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+        time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+        speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
+    FROM distance_and_time_calculations dc
+    WHERE td.user_id = dc.user_id
+      AND td.recorded_at = dc.recorded_at
+      AND td.location = dc.location;
+
+    GET DIAGNOSTICS total_updated = ROW_COUNT;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a new optimized batch processing function to prevent timeouts
+CREATE OR REPLACE FUNCTION update_tracker_distances_batch(
+    target_user_id UUID DEFAULT NULL,
+    batch_size INTEGER DEFAULT 10000
+)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER := 0;
+    batch_updated INTEGER;
+    user_filter TEXT := '';
+    has_more_records BOOLEAN := TRUE;
+BEGIN
+    -- Set longer timeout for this function
+    SET statement_timeout = '600s';  -- 10 minutes
+
+    IF target_user_id IS NOT NULL THEN
+        user_filter := ' AND t1.user_id = $1';
+    END IF;
+
+    RAISE NOTICE 'Starting efficient distance calculation for records without distances (batch size: %)', batch_size;
+
+    -- Loop until no more records need processing
+    WHILE has_more_records LOOP
+        -- Process only records that don't have distance calculated yet
+        WITH distance_and_time_calculations AS (
+            SELECT
+                t1.user_id,
+                t1.recorded_at,
+                t1.location,
+                CASE
+                    WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                    ELSE ST_DistanceSphere(
+                        LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                        t1.location
+                    )
+                END AS calculated_distance,
+                CASE
+                    WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                    ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+                END AS calculated_time_spent
+            FROM public.tracker_data t1
+            WHERE t1.location IS NOT NULL
+              AND (t1.distance IS NULL OR t1.distance = 0)  -- Only process records without distance
+              AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+            ORDER BY t1.user_id, t1.recorded_at
+            LIMIT batch_size
+        )
+        UPDATE public.tracker_data AS td
+        SET
+            distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+            time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+            speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
+        FROM distance_and_time_calculations dc
+        WHERE td.user_id = dc.user_id
+          AND td.recorded_at = dc.recorded_at
+          AND td.location = dc.location;
+
+        GET DIAGNOSTICS batch_updated = ROW_COUNT;
+
+        -- If no records were updated, we're done
+        IF batch_updated = 0 THEN
+            has_more_records := FALSE;
+        ELSE
+            total_updated := total_updated + batch_updated;
+            RAISE NOTICE 'Processed batch: % records, total: %', batch_updated, total_updated;
+
+            -- Small delay to prevent overwhelming the database
+            PERFORM pg_sleep(0.1);
+        END IF;
+    END LOOP;
+
+    RAISE NOTICE 'Efficient distance calculation completed: % total records updated', total_updated;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Recreate trigger function with safe casts
+CREATE OR REPLACE FUNCTION trigger_calculate_distance()
+RETURNS TRIGGER AS $$
+DECLARE
+    prev_point RECORD;
+    calculated_distance DOUBLE PRECISION;
+    calculated_time_spent DOUBLE PRECISION;
+    computed_speed DOUBLE PRECISION;
+BEGIN
+    IF NEW.location IS NOT NULL AND (TG_OP = 'INSERT' OR OLD.location IS DISTINCT FROM NEW.location) THEN
+        SELECT location, recorded_at
+          INTO prev_point
+          FROM public.tracker_data
+         WHERE user_id = NEW.user_id
+           AND recorded_at < NEW.recorded_at
+           AND location IS NOT NULL
+         ORDER BY recorded_at DESC
+         LIMIT 1;
+
+        IF prev_point IS NOT NULL THEN
+            calculated_distance := ST_DistanceSphere(prev_point.location, NEW.location);
+            NEW.distance := LEAST(ROUND(calculated_distance::numeric, 2), 9999999999.99);
+
+            calculated_time_spent := EXTRACT(EPOCH FROM (NEW.recorded_at - prev_point.recorded_at));
+            NEW.time_spent := LEAST(ROUND(calculated_time_spent::numeric, 2), 9999999999.99);
+
+            IF calculated_time_spent > 0 THEN
+                computed_speed := calculated_distance / calculated_time_spent;
+                NEW.speed := LEAST(ROUND(computed_speed::numeric, 2), 9999999999.99);
+            ELSE
+                NEW.speed := 0;
+            END IF;
+        ELSE
+            NEW.distance := 0;
+            NEW.time_spent := 0;
+            NEW.speed := 0;
+        END IF;
+
+        NEW.updated_at := NOW();
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ========================================================================
+-- Migration: 20250812000201_add_tracker_data_performance_indexes.sql
+-- Add performance indexes for distance calculation queries
+-- This migration adds composite indexes to improve the performance of the update_tracker_distances_batch function
+-- ========================================================================
+
+-- Composite index for user_id + recorded_at + location (for the main distance calculation query)
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_location
+ON public.tracker_data(user_id, recorded_at)
+WHERE location IS NOT NULL;
+
+-- Composite index for user_id + recorded_at + distance (for finding records without distance)
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_distance
+ON public.tracker_data(user_id, recorded_at)
+WHERE distance IS NULL OR distance = 0;
+
+-- Index for the LAG window function optimization
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_ordered
+ON public.tracker_data(user_id, recorded_at, location)
+WHERE location IS NOT NULL;
+
+-- Add comment explaining the purpose of these indexes
+COMMENT ON INDEX idx_tracker_data_user_timestamp_location IS 'Optimizes distance calculation queries by user and timestamp with location filter';
+COMMENT ON INDEX idx_tracker_data_user_timestamp_distance IS 'Optimizes finding records that need distance calculation';
+COMMENT ON INDEX idx_tracker_data_user_timestamp_ordered IS 'Optimizes LAG window function performance for distance calculations';
+
+-- ========================================================================
+-- Migration: 20250812000202_optimize_distance_calculation_function.sql
+-- Optimize the distance calculation function for better performance and timeout handling
+-- This migration improves the update_tracker_distances_batch function
+-- ========================================================================
+
+-- Optimize the distance calculation function for better performance and timeout handling
+CREATE OR REPLACE FUNCTION update_tracker_distances_batch(
+    target_user_id UUID DEFAULT NULL,
+    batch_size INTEGER DEFAULT 1000  -- Reduced default batch size
+)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER := 0;
+    batch_updated INTEGER;
+    user_filter TEXT := '';
+    has_more_records BOOLEAN := TRUE;
+    start_time TIMESTAMP := clock_timestamp();
+    max_execution_time INTERVAL := INTERVAL '5 minutes';  -- Reduced from 10 minutes
+BEGIN
+    -- Set shorter timeout for this function to prevent long-running operations
+    SET statement_timeout = '300s';  -- 5 minutes
+
+    -- Check if we're approaching the execution time limit
+    IF clock_timestamp() - start_time > max_execution_time THEN
+        RAISE NOTICE 'Function execution time limit approaching, returning partial results';
+        RETURN total_updated;
+    END IF;
+
+    IF target_user_id IS NOT NULL THEN
+        user_filter := ' AND t1.user_id = $1';
+    END IF;
+
+    RAISE NOTICE 'Starting optimized distance calculation for records without distances (batch size: %)', batch_size;
+
+    -- Loop until no more records need processing or time limit reached
+    WHILE has_more_records AND (clock_timestamp() - start_time) < max_execution_time LOOP
+        -- Process only records that don't have distance calculated yet
+        WITH distance_and_time_calculations AS (
+            SELECT
+                t1.user_id,
+                t1.recorded_at,
+                t1.location,
+                CASE
+                    WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                    ELSE ST_DistanceSphere(
+                        LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                        t1.location
+                    )
+                END AS calculated_distance,
+                CASE
+                    WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                    ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+                END AS calculated_time_spent
+            FROM public.tracker_data t1
+            WHERE t1.location IS NOT NULL
+              AND (t1.distance IS NULL OR t1.distance = 0)  -- Only process records without distance
+              AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+            ORDER BY t1.user_id, t1.recorded_at
+            LIMIT batch_size
+        )
+        UPDATE public.tracker_data AS td
+        SET
+            distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+            time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+            speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
+        FROM distance_and_time_calculations dc
+        WHERE td.user_id = dc.user_id
+          AND td.recorded_at = dc.recorded_at
+          AND td.location = dc.location;
+
+        GET DIAGNOSTICS batch_updated = ROW_COUNT;
+
+        -- If no records were updated, we're done
+        IF batch_updated = 0 THEN
+            has_more_records := FALSE;
+        ELSE
+            total_updated := total_updated + batch_updated;
+            RAISE NOTICE 'Processed batch: % records, total: %', batch_updated, total_updated;
+
+            -- Check execution time limit
+            IF (clock_timestamp() - start_time) >= max_execution_time THEN
+                RAISE NOTICE 'Execution time limit reached, returning partial results: % records updated', total_updated;
+                has_more_records := FALSE;
+            ELSE
+                -- Small delay to prevent overwhelming the database
+                PERFORM pg_sleep(0.05);  -- Reduced from 0.1s
+            END IF;
+        END IF;
+    END LOOP;
+
+    RAISE NOTICE 'Optimized distance calculation completed: % total records updated in %',
+                 total_updated,
+                 clock_timestamp() - start_time;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Update the function comment
+COMMENT ON FUNCTION update_tracker_distances_batch IS 'Updates distance and time_spent columns in optimized batches for large datasets. Includes execution time limits and improved performance.';
+
+-- ========================================================================
+-- MERGED MIGRATIONS END HERE
+-- ========================================================================

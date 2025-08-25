@@ -1,28 +1,28 @@
-export interface AppError extends Error {
-	code: string;
-	statusCode: number;
-	isOperational: boolean;
-	context?: Record<string, unknown>;
-}
+// Re-export AppError from services to avoid duplication
+export type { AppError } from '../../services/error-handler.service';
+export { ErrorCode } from '../../services/error-handler.service';
 
 export class BaseError extends Error implements AppError {
-	public readonly code: string;
+	public readonly code: ErrorCode;
 	public readonly statusCode: number;
 	public readonly isOperational: boolean;
 	public readonly context?: Record<string, unknown>;
+	public readonly details?: unknown;
 
 	constructor(
 		message: string,
-		code: string,
+		code: ErrorCode,
 		statusCode: number = 500,
 		isOperational: boolean = true,
-		context?: Record<string, unknown>
+		context?: Record<string, unknown>,
+		details?: unknown
 	) {
 		super(message);
 		this.code = code;
 		this.statusCode = statusCode;
 		this.isOperational = isOperational;
 		this.context = context;
+		this.details = details;
 
 		// Maintains proper stack trace for where our error was thrown (only available on V8)
 		if (Error.captureStackTrace) {
@@ -33,43 +33,43 @@ export class BaseError extends Error implements AppError {
 
 export class ValidationError extends BaseError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, 'VALIDATION_ERROR', 400, true, context);
+		super(message, ErrorCode.VALIDATION_ERROR, 400, true, context);
 	}
 }
 
 export class AuthenticationError extends BaseError {
 	constructor(message: string = 'Authentication required', context?: Record<string, unknown>) {
-		super(message, 'AUTHENTICATION_ERROR', 401, true, context);
+		super(message, ErrorCode.AUTHENTICATION_FAILED, 401, true, context);
 	}
 }
 
 export class AuthorizationError extends BaseError {
 	constructor(message: string = 'Insufficient permissions', context?: Record<string, unknown>) {
-		super(message, 'AUTHORIZATION_ERROR', 403, true, context);
+		super(message, ErrorCode.INSUFFICIENT_PERMISSIONS, 403, true, context);
 	}
 }
 
 export class NotFoundError extends BaseError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, 'NOT_FOUND_ERROR', 404, true, context);
+		super(message, ErrorCode.NOT_FOUND, 404, true, context);
 	}
 }
 
 export class ConflictError extends BaseError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, 'CONFLICT_ERROR', 409, true, context);
+		super(message, ErrorCode.CONFLICT_ERROR, 409, true, context);
 	}
 }
 
 export class ExternalServiceError extends BaseError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, 'EXTERNAL_SERVICE_ERROR', 502, true, context);
+		super(message, ErrorCode.EXTERNAL_SERVICE_ERROR, 502, true, context);
 	}
 }
 
 export class JobError extends BaseError {
 	constructor(message: string, context?: Record<string, unknown>) {
-		super(message, 'JOB_ERROR', 500, true, context);
+		super(message, ErrorCode.JOB_PROCESSING_ERROR, 500, true, context);
 	}
 }
 
@@ -79,10 +79,10 @@ export function handleError(error: unknown): AppError {
 	}
 
 	if (error instanceof Error) {
-		return new BaseError(error.message, 'UNKNOWN_ERROR', 500, false, { originalError: error.name });
+		return new BaseError(error.message, ErrorCode.INTERNAL_SERVER_ERROR, 500, false, { originalError: error.name });
 	}
 
-	return new BaseError(String(error), 'UNKNOWN_ERROR', 500, false);
+	return new BaseError(String(error), ErrorCode.INTERNAL_SERVER_ERROR, 500, false);
 }
 
 export function logError(error: AppError, context?: Record<string, unknown>): void {

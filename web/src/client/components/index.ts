@@ -29,11 +29,11 @@ export * from './admin';
 // Trip components
 export * from './trips';
 
-// Layout components
-export * from './layouts';
+// Layout components (currently empty)
+// export * from './layouts';
 
-// Optimized components
-export * from './optimized';
+// // Optimized components
+// export * from './optimized';
 
 // Connection components
 export * from './connections';
