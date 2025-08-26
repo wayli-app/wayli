@@ -32,7 +32,6 @@
 
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
-	import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -202,13 +201,9 @@
 			return trip.image_url;
 		}
 
-		// If it's a path, construct the full URL using the Supabase URL
+		// If it's a path, return the relative path - edge functions will handle the full URL
 		if (trip.image_url.startsWith('/')) {
-			// For development, use localhost for storage URLs
-			if (PUBLIC_SUPABASE_URL.includes('127.0.0.1') || PUBLIC_SUPABASE_URL.includes('localhost')) {
-				return `http://127.0.0.1:54321${trip.image_url}`;
-			}
-			return `${PUBLIC_SUPABASE_URL}${trip.image_url}`;
+			return trip.image_url;
 		}
 
 		return trip.image_url;
@@ -1233,6 +1228,24 @@
 	onDestroy(() => {
 		// Cleanup handled by global job tracking
 	});
+
+	function getImageUrl(trip: Trip): string {
+		if (!trip.image_url) {
+			return '';
+		}
+
+		// If it's already a full URL, return as is
+		if (trip.image_url.startsWith('http')) {
+			return trip.image_url;
+		}
+
+		// If it's a path, return the relative path - edge functions will handle the full URL
+		if (trip.image_url.startsWith('/')) {
+			return trip.image_url;
+		}
+
+		return trip.image_url;
+	}
 </script>
 
 <svelte:head>

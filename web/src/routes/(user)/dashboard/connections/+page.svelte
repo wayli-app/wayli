@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { Link, Database, RefreshCw, Copy, Check } from 'lucide-svelte';
-	import { onMount } from 'svelte';
-	import { toast } from 'svelte-sonner';
-
-	import { translate } from '$lib/i18n';
-
-	import { page } from '$app/stores';
 	import { supabase } from '$lib/core/supabase/client';
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+	import { toast } from 'svelte-sonner';
+	import { translate } from '$lib/i18n';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { Database, Link, Copy, Check, RefreshCw } from 'lucide-svelte';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -28,9 +25,9 @@ import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 		if (user && !error) {
 			owntracksApiKey = user.user_metadata?.owntracks_api_key || null;
 
-			// Construct the endpoint URL
+			// Construct the endpoint URL - use relative path, edge functions will handle the full URL
 			owntracksEndpoint = owntracksApiKey
-				? `${PUBLIC_SUPABASE_URL}/functions/v1/owntracks-points?api_key=${owntracksApiKey}&user_id=${user.id}`
+				? `/functions/v1/owntracks-points?api_key=${owntracksApiKey}&user_id=${user.id}`
 				: null;
 		}
 	}

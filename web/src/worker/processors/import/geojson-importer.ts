@@ -1,12 +1,12 @@
-import { supabase } from '../shared/supabase/worker';
+import { supabase } from '../../supabase';
 import {
 	getCountryForPoint as getCountryForPointExternal,
 	normalizeCountryCode as normalizeCountryCodeExternal,
 	applyTimezoneCorrectionToTimestamp,
 	getTimezoneDifferenceForPoint
-} from '$lib/services/external/country-reverse-geocoding.service';
-import { JobQueueService } from '../job-queue.service.worker';
-import { checkJobCancellation } from '../shared/utils/job-cancellation';
+} from '../../../lib/services/external/country-reverse-geocoding.service';
+import { JobQueueService } from '../../job-queue.service.worker';
+import { checkJobCancellation } from '../../../lib/utils/job-cancellation';
 
 import type { Feature } from 'geojson';
 

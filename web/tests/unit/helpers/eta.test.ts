@@ -1,7 +1,7 @@
 // web/tests/unit/helpers/eta.test.ts
 import { describe, it, expect } from 'vitest';
 
-import { calculateEstimatedTimeRemaining } from '$lib/services/queue/helpers/eta';
+import { calculateEstimatedTimeRemaining } from '../../../src/worker/helpers/eta';
 
 describe('calculateEstimatedTimeRemaining', () => {
 	it('returns Calculating... when no progress', () => {

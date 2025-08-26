@@ -1,17 +1,33 @@
-// Export all services for easy importing
-export { AuditLoggerService } from './audit-logger.service';
-export { TripImageSuggestionService } from './trip-image-suggestion.service';
-export { TripDetectionService } from './trip-detection.service';
-export { TOTPService } from './totp.service';
-export { UserProfileService } from './user-profile.service';
-export { TripLocationsService } from './trip-locations.service';
-export { WantToVisitService } from './want-to-visit.service';
-export { TripsService } from './trips.service';
-export { StatisticsService } from './statistics.service';
-export { ExportService } from './export.service';
-export { ExportProcessorService } from './export-processor.service';
-export { LocationCacheService } from './location-cache.service';
+// 🖥️ CLIENT SERVICES EXPORTS
+// This file exports all client-side services
 
-// External Services (functions, not classes)
-export { reverseGeocode, forwardGeocode } from './external/nominatim.service';
-export { uploadTripImage } from './external/image-upload.service';
+// Core services
+export * from './service-layer-adapter';
+export * from './session';
+
+// API services
+export * from './api';
+
+// External services
+export * from './external';
+
+// Utility services
+export * from './logging.service';
+export * from './error-handler.service';
+export * from './rate-limit.service';
+export * from './sse.service';
+export * from './job-creation.service';
+export * from './location-cache.service';
+
+// Feature services
+export * from './trip-image-suggestion.service';
+export * from './export.service';
+export * from './export-processor.service';
+export * from './audit-logger.service';
+export * from './user-profile.service';
+export * from './want-to-visit.service';
+export * from './statistics.service';
+export * from './totp.service';
+export * from './trip-detection.service';
+export * from './trip-locations.service';
+export * from './trips.service';

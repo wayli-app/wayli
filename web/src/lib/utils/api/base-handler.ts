@@ -2,6 +2,7 @@
 // Base API handler class for standardized API endpoint patterns
 
 import { createClient } from '@supabase/supabase-js';
+import { config } from '../../config';
 import { z } from 'zod';
 
 import {
@@ -19,10 +20,6 @@ import {
 } from './response';
 
 import type { RequestEvent } from '@sveltejs/kit';
-
-// Use process.env with fallbacks for build-time compatibility
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const PUBLIC_SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
 
 export interface ApiHandlerOptions {
 	requireAuthentication?: boolean;
@@ -101,7 +98,7 @@ export abstract class BaseApiHandler {
 	private async validate(event: RequestEvent | AuthenticatedRequest): Promise<ApiContext> {
 		const context: ApiContext = {
 			event,
-			supabase: createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+			supabase: createClient(config.supabaseUrl, config.supabaseServiceKey)
 		};
 
 		// Add user if authenticated

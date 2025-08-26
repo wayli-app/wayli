@@ -1,6 +1,6 @@
 // web/src/lib/services/queue/helpers/date-ranges.ts
 
-import { supabase as workerSupabase } from '../shared/supabase/worker';
+import { supabase as workerSupabase } from '../supabase';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 

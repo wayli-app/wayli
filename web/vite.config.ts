@@ -22,9 +22,15 @@ export default defineConfig({
 	define: {
 		// Only expose public environment variables to the client
 		'process.env': {
+			PUBLIC_SUPABASE_URL:
+				process.env.PUBLIC_SUPABASE_URL ||
+				'http://127.0.0.1:54321',
 			PUBLIC_SUPABASE_ANON_KEY:
 				process.env.PUBLIC_SUPABASE_ANON_KEY ||
 				'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+			SUPABASE_SERVICE_ROLE_KEY:
+				process.env.SUPABASE_SERVICE_ROLE_KEY ||
+				'default-service-key',
 			NODE_ENV: process.env.NODE_ENV || 'development'
 		}
 	},

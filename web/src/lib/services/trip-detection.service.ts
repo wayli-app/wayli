@@ -1,8 +1,8 @@
 // web/src/lib/services/trip-detection.service.ts
-import { createWorkerClient } from '$lib/core/supabase/worker-client';
-import { haversineDistance } from '$lib/utils/geocoding-utils';
-import { checkJobCancellation } from '$lib/utils/job-cancellation';
-import { translateServer, getPluralSuffix } from '$lib/utils/server-translations';
+import { createWorkerClient } from '../../worker/client';
+import { haversineDistance } from '../utils/geocoding-utils';
+import { checkJobCancellation } from '../utils/job-cancellation';
+import { translateServer, getPluralSuffix } from '../utils/server-translations';
 
 import type {
 	TripExclusion,
@@ -10,7 +10,7 @@ import type {
 	TrackingDataPoint,
 	HomeAddress,
 	DetectedTrip
-} from '$lib/types/trip-generation.types';
+} from '../types/trip-generation.types';
 
 export interface TripDetectionConfig {
 	minTripDurationHours: number;

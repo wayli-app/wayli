@@ -1,16 +1,16 @@
-import { supabase } from '../shared/supabase/worker';
+import { supabase } from './supabase';
 
-import { checkJobCancellation } from '../shared/utils/job-cancellation';
-import { ExportProcessorService } from '../export-processor.service';
-import { forwardGeocode } from '../external/nominatim.service';
-import { TripDetectionService } from '../trip-detection.service';
-import { UserProfileService } from '../user-profile.service';
+import { checkJobCancellation } from '../lib/utils/job-cancellation';
+import { ExportProcessorService } from '../lib/services/export-processor.service';
+import { forwardGeocode } from '../lib/services/external/nominatim.service';
+import { TripDetectionService } from '../lib/services/trip-detection.service';
+import { UserProfileService } from '../lib/services/user-profile.service';
 
 import { findAvailableDateRanges as findAvailableDateRangesHelper } from './helpers/date-ranges';
 import { JobQueueService } from './job-queue.service.worker';
 
-import type { Job, JobType } from '../shared/types/job-queue.types';
-import type { TripGenerationData, HomeAddress } from '../shared/types/trip-generation.types';
+import type { Job, JobType } from '../lib/types/job-queue.types';
+import type { TripGenerationData, HomeAddress } from '../lib/types/trip-generation.types';
 
 export class JobProcessorService {
 	static async processJob(job: Job): Promise<void> {

@@ -1,19 +1,19 @@
 // web/src/lib/services/queue/processors/reverse-geocoding-processor.service.ts
 
-import { supabase } from '../shared/supabase/worker';
-import { reverseGeocode } from '../shared/services/external/nominatim.service';
+import { supabase } from '../supabase';
+import { reverseGeocode } from '../../lib/services/external/nominatim.service';
 import { JobQueueService } from '../job-queue.service.worker';
 import {
 	needsGeocoding,
 	isRetryableError,
 	createPermanentError,
 	createRetryableError
-} from '$lib/utils/geocoding-utils';
-import { checkJobCancellation } from '../shared/utils/job-cancellation';
+} from '../../lib/utils/geocoding-utils';
+import { checkJobCancellation } from '../../lib/utils/job-cancellation';
 
 import { delay } from '../helpers/concurrency';
 
-import type { Job } from '../shared/types/job-queue.types';
+import type { Job } from '../../lib/types/job-queue.types';
 
 export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 	console.log(`🌍 Processing reverse geocoding missing job ${job.id}`);

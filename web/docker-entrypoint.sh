@@ -6,7 +6,7 @@
 # - APP_MODE=worker: Starts a background worker process
 #
 # Author: Wayli Development Team
-# Version: 3.1.0
+# Version: 3.3.0
 
 set -e
 
@@ -25,33 +25,26 @@ case "${APP_MODE:-web}" in
         ;;
 esac
 
-# Function to start nginx
-start_nginx() {
-    echo "🌐 Starting nginx..."
-
-    # Ensure nginx directories exist (they should already be created with correct ownership)
-    mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx
-
-    # Test nginx configuration
-    nginx -t
-
-    # Start nginx in foreground as non-root user (Kubernetes compatible)
-    echo "🚀 nginx started successfully"
-    exec nginx -g "daemon off;"
-}
-
 # Function to start worker
 start_worker() {
     echo "⚙️ Starting worker..."
 
-    # Switch to non-root user for worker processes
-    exec su -c "npm run worker" appuser
+    # Start worker process using npm script (already running as appuser)
+    exec npm run worker
+}
+
+# Function to start web server
+start_web() {
+    echo "🌐 Starting web server..."
+
+    # Use the startup script for web mode
+    exec /usr/local/bin/startup.sh
 }
 
 # Start appropriate service based on APP_MODE
 case "${APP_MODE:-web}" in
     "web")
-        start_nginx
+        start_web
         ;;
     "worker")
         start_worker

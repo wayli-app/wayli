@@ -1,12 +1,20 @@
-// 🖥️ CLIENT SUPABASE CLIENT
-// This file provides a Supabase client configured for client-side code
-// Do not import this in server or worker code
+// src/lib/supabase.ts
+// Client-side Supabase client. Uses runtime configuration from WAYLI_CONFIG.
+// Never import secrets or private env vars here.
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
-import type { Database } from '../types';
+import { createClient } from '@supabase/supabase-js';
+import { config } from './config';
+import type { Database } from './types';
 
-export const supabase: SupabaseClient<Database> = createClient<Database>(
-	PUBLIC_SUPABASE_URL,
-	PUBLIC_SUPABASE_ANON_KEY
-);
+/**
+ * The client-side Supabase instance for browser use.
+ * Configured with local storage persistence for JWT tokens.
+ * The URL and key are determined at runtime from WAYLI_CONFIG.
+ */
+export const supabase = createClient<Database>(config.supabaseUrl, config.supabaseAnonKey, {
+	auth: {
+		autoRefreshToken: true,
+		persistSession: true,
+		storageKey: 'wayli-auth'
+	}
+});

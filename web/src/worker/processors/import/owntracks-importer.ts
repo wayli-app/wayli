@@ -1,13 +1,13 @@
 // web/src/lib/services/queue/processors/import/owntracks-importer.ts
 
-import { supabase } from '../shared/supabase/worker';
+import { supabase } from '../../supabase';
 import {
 	normalizeCountryCode as normalizeCountryCodeExternal,
 	getCountryForPoint as getCountryForPointExternal,
 	applyTimezoneCorrectionToTimestamp
-} from '$lib/services/external/country-reverse-geocoding.service';
-import { JobQueueService } from '../job-queue.service.worker';
-import { checkJobCancellation } from '../shared/utils/job-cancellation';
+} from '../../../lib/services/external/country-reverse-geocoding.service';
+import { JobQueueService } from '../../job-queue.service.worker';
+import { checkJobCancellation } from '../../../lib/utils/job-cancellation';
 
 export async function importOwnTracksWithProgress(
 	content: string,

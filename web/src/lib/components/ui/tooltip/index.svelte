@@ -1,7 +1,7 @@
 <script lang="ts">
 	export let text: string = '';
 	export let position: 'top' | 'bottom' | 'left' | 'right' = 'top';
-	export let delay: number = 200;
+	export const delay: number = 200;
 	export let show: boolean = false;
 
 	let tooltipElement: HTMLDivElement;

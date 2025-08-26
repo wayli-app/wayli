@@ -1,8 +1,8 @@
-import { createWorkerClient } from '../shared/supabase/worker-client';
+import { createWorkerClient } from './client';
 
-import { getTripBannerImage } from '../external/pexels.service';
+import { getTripBannerImage } from '../lib/services/external/pexels.service';
 
-import type { ImageGenerationJob } from '../../types/trip-generation.types';
+import type { ImageGenerationJob } from '../lib/types/trip-generation.types';
 
 export class ImageGenerationProcessorService {
 	private supabase = createWorkerClient();

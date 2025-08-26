@@ -1,7 +1,7 @@
 // web/tests/unit/processors/import/owntracks-importer.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { importOwnTracksWithProgress } from '$lib/services/queue/processors/import/owntracks-importer';
+import { importOwnTracksWithProgress } from '../../../../src/worker/processors/import/owntracks-importer';
 
 const hoisted = vi.hoisted(() => {
 	const mockFrom = vi.fn();
@@ -10,16 +10,16 @@ const hoisted = vi.hoisted(() => {
 	return { mockFrom, mockSupabase, mockApplyTimezoneCorrectionToTimestamp };
 });
 
-vi.mock('$lib/core/supabase/worker', () => ({ supabase: hoisted.mockSupabase }));
-vi.mock('$lib/services/queue/job-queue.service.worker', () => ({
+vi.mock('../../../../src/worker/supabase', () => ({ supabase: hoisted.mockSupabase }));
+vi.mock('../../../../src/worker/job-queue.service.worker', () => ({
 	JobQueueService: { updateJobProgress: vi.fn() }
 }));
-vi.mock('$lib/utils/job-cancellation', () => ({
+vi.mock('../../../../src/lib/utils/job-cancellation', () => ({
 	checkJobCancellation: vi.fn().mockResolvedValue(undefined)
 }));
 
 // Mock the timezone correction function with proper return values
-vi.mock('$lib/services/external/country-reverse-geocoding.service', () => ({
+vi.mock('../../../../src/lib/services/external/country-reverse-geocoding.service', () => ({
 	getCountryForPoint: () => 'XX',
 	normalizeCountryCode: (c: string | null) => c,
 	applyTimezoneCorrectionToTimestamp: hoisted.mockApplyTimezoneCorrectionToTimestamp

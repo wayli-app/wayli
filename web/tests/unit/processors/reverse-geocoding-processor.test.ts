@@ -1,41 +1,41 @@
 // reverse-geocoding-processor.service.spec.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { supabase } from '$lib/core/supabase/worker';
-import { reverseGeocode } from '$lib/services/external/nominatim.service';
-import { JobQueueService } from '$lib/services/queue/job-queue.service.worker';
-import { processReverseGeocodingMissing } from '$lib/services/queue/processors/reverse-geocoding-processor.service';
+import { supabase } from '../../../src/worker/supabase';
+import { reverseGeocode } from '../../../src/lib/services/external/nominatim.service';
+import { JobQueueService } from '../../../src/worker/job-queue.service.worker';
+import { processReverseGeocodingMissing } from '../../../src/worker/processors/reverse-geocoding-processor.service';
 
-import type { Job } from '$lib/types/job-queue.types';
+import type { Job } from '../../../src/lib/types/job-queue.types';
 
 // Import mocked modules (vi.mock is hoisted)
 
 // ---- Mock dependencies ----
-vi.mock('$lib/core/supabase/worker', () => ({
+vi.mock('../../../src/worker/supabase', () => ({
 	supabase: {
 		from: vi.fn(),
 		rpc: vi.fn()
 	}
 }));
 
-vi.mock('$lib/services/queue/job-queue.service.worker', () => ({
+vi.mock('../../../src/worker/job-queue.service.worker', () => ({
 	JobQueueService: {
 		updateJobProgress: vi.fn().mockResolvedValue(undefined)
 	}
 }));
 
-vi.mock('$lib/utils/job-cancellation', () => ({
+vi.mock('../../../src/lib/utils/job-cancellation', () => ({
 	checkJobCancellation: vi.fn().mockResolvedValue(undefined)
 }));
 
-vi.mock('$lib/utils/geocoding-utils', () => ({
+vi.mock('../../../src/lib/utils/geocoding-utils', () => ({
 	needsGeocoding: vi.fn().mockImplementation((geo) => !geo || geo === '{}'),
 	isRetryableError: vi.fn().mockReturnValue(false),
 	createPermanentError: vi.fn().mockReturnValue({ error: true, retryable: false }),
 	createRetryableError: vi.fn().mockReturnValue({ error: true, retryable: true })
 }));
 
-vi.mock('$lib/services/external/nominatim.service', () => ({
+vi.mock('../../../src/lib/services/external/nominatim.service', () => ({
 	reverseGeocode: vi.fn().mockResolvedValue({ display_name: 'Test Location' })
 }));
 

@@ -1,4 +1,4 @@
-import { createWorkerClient } from '$lib/core/supabase/worker-client';
+import { createWorkerClient } from '../../worker/client';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 

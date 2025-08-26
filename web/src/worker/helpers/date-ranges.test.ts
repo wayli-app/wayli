@@ -1,7 +1,7 @@
 // tests/lib/services/queue/helpers/date-ranges.test.ts
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { findAvailableDateRanges } from './helpers/date-ranges';
+import { findAvailableDateRanges } from './date-ranges';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 // Minimal env to satisfy config imported by supabase worker client

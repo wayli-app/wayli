@@ -1,11 +1,11 @@
 import JSZip from 'jszip';
 
-import { supabase } from '$lib/core/supabase/worker';
-import { checkJobCancellation } from '$lib/utils/job-cancellation';
+import { supabase } from '../../worker/supabase';
+import { checkJobCancellation } from '../utils/job-cancellation';
 
 import { ExportService } from './export.service.worker';
 
-import type { Job } from '$lib/types/job-queue.types';
+import type { Job } from '../types/job-queue.types';
 
 // Add TrackerLocation interface at the top
 interface TrackerLocation {

@@ -9,9 +9,13 @@ vi.stubEnv('NODE_ENV', 'test');
 vi.stubEnv('SUPABASE_URL', 'https://test.supabase.co');
 vi.stubEnv('SUPABASE_ANON_KEY', 'test-anon-key');
 vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'test-service-role-key');
+vi.stubEnv('PUBLIC_SUPABASE_ANON_KEY', 'test-anon-key');
+vi.stubEnv('SESSION_SECRET', 'test-session-secret');
+vi.stubEnv('COOKIE_SECRET', 'test-cookie-secret');
+vi.stubEnv('JWT_SECRET', 'test-jwt-secret');
 
 // Mock Supabase client
-vi.mock('$lib/core/supabase/client', () => ({
+vi.mock('$lib/supabase', () => ({
 	supabase: {
 		auth: {
 			getUser: vi.fn(),

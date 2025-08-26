@@ -1,5 +1,5 @@
 import { getWorkerConfig } from '../shared/config/node-environment';
-import { supabase } from '../shared/supabase/worker';
+import { supabase } from './supabase';
 
 import type { Job, JobType, JobStatus, JobPriority, JobConfig } from '../shared/types/job-queue.types';
 

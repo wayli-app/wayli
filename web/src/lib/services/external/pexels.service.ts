@@ -1,10 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-
 import { getPexelsConfig } from '$lib/core/config/node-environment';
-
-// Use process.env with fallbacks for build-time compatibility
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const PUBLIC_SUPABASE_URL = process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
+import { config } from '../../config';
 
 /**
  * Pexels Image Service
@@ -108,7 +104,7 @@ export async function downloadAndUploadImage(
 ): Promise<string | null> {
 	try {
 		// Create server-side Supabase client with service role key
-		const supabase = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
 
 		// Download the image with timeout
 		const controller = new AbortController();

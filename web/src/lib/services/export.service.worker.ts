@@ -1,6 +1,6 @@
-import { supabase } from '$lib/core/supabase/worker';
+import { supabase } from '../../worker/supabase';
 
-import { JobQueueService } from './queue/job-queue.service.worker';
+import { JobQueueService } from '../../worker/job-queue.service.worker';
 
 export interface ExportOptions {
 	format: 'GeoJSON' | 'GPX' | 'OwnTracks';
