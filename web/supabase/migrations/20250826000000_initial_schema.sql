@@ -1034,33 +1034,24 @@ END $$;
 
 -- Create storage buckets for file uploads
 -- Create temp-files bucket for temporary import files
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+INSERT INTO storage.buckets (id, name)
 VALUES (
     'temp-files',
-    'temp-files',
-    false,
-    1073741824, -- 1GB in bytes
-    ARRAY['application/json', 'text/csv', 'application/gpx+xml', 'text/plain', 'application/octet-stream']
+    'temp-files'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Create trip-images bucket for trip images
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+INSERT INTO storage.buckets (id, name)
 VALUES (
     'trip-images',
-    'trip-images',
-    true,
-    10485760, -- 10MB in bytes
-    ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    'trip-images'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Create exports bucket for user data exports
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+INSERT INTO storage.buckets (id, name)
 VALUES (
     'exports',
-    'exports',
-    false,
-    104857600, -- 100MB in bytes
-    ARRAY['application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream']
+    'exports'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Enable RLS on storage.objects with error handling
@@ -1073,15 +1064,17 @@ EXCEPTION
         RAISE NOTICE 'Could not enable RLS on storage.objects: %', SQLERRM;
 END $$;
 
--- Create storage policies with proper error handling
+-- Create storage policies with proper error handling, file size limits, and MIME type restrictions
 DO $$
 BEGIN
-    -- Create storage policies for temp-files bucket
+    -- Create storage policies for temp-files bucket (private, 1GB limit, specific MIME types)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can upload to temp-files') THEN
         CREATE POLICY "Users can upload to temp-files" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'temp-files' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                auth.uid()::text = (storage.foldername(name))[1] AND
+                metadata->>'size'::text::bigint <= 1073741824 AND -- 1GB limit
+                metadata->>'mimetype' IN ('application/json', 'text/csv', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
             );
     END IF;
 
@@ -1101,12 +1094,14 @@ BEGIN
             );
     END IF;
 
-    -- Create storage policies for exports bucket
+    -- Create storage policies for exports bucket (private, 100MB limit, specific MIME types)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can upload to exports') THEN
         CREATE POLICY "Users can upload to exports" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'exports' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                auth.uid()::text = (storage.foldername(name))[1] AND
+                metadata->>'size'::text::bigint <= 104857600 AND -- 100MB limit
+                metadata->>'mimetype' IN ('application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
             );
     END IF;
 
@@ -1126,7 +1121,7 @@ BEGIN
             );
     END IF;
 
-    -- Create storage policies for trip-images bucket (public read, authenticated upload)
+    -- Create storage policies for trip-images bucket (public read, 10MB limit, image MIME types only)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Anyone can view trip-images') THEN
         CREATE POLICY "Anyone can view trip-images" ON storage.objects
             FOR SELECT USING (bucket_id = 'trip-images');
@@ -1136,7 +1131,9 @@ BEGIN
         CREATE POLICY "Authenticated users can upload trip-images" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'trip-images' AND
-                auth.role() = 'authenticated'
+                auth.role() = 'authenticated' AND
+                metadata->>'size'::text::bigint <= 10485760 AND -- 10MB limit
+                metadata->>'mimetype' IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp')
             );
     END IF;
 
@@ -1148,7 +1145,7 @@ BEGIN
             );
     END IF;
 
-    -- Service role can access all storage objects
+    -- Service role can access all storage objects (bypasses all restrictions)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Service role can access all storage') THEN
         CREATE POLICY "Service role can access all storage" ON storage.objects
             FOR ALL USING (auth.role() = 'service_role');
