@@ -30,8 +30,6 @@
 		onJobCompleted = null as ((jobs: JobUpdate[]) => void) | null
 	} = $props();
 
-	// Debug: Log the callback when component is created
-
 	let sseService = $state<SSEService | null>(null);
 	let completedJobIds = $state(new Set<string>()); // Track completed jobs to prevent duplicate toasts
 
@@ -39,152 +37,89 @@
 	export function startMonitoring() {
 		if (sseService) {
 			sseService.disconnect();
+			sseService = null;
 		}
 
-		sseService = new SSEService(
-			{
-				onConnected: () => {
-					// Connection established
-				},
-				onDisconnected: () => {
-					// Connection lost
-				},
-				onError: (error) => {
-					if (showToasts) {
-						toast.error('Job monitoring error');
-					}
-				},
-				onJobUpdate: (jobs) => {
-					// Update active jobs
-					for (const job of jobs) {
-						if (jobType && job.type !== jobType) {
-							continue; // Skip if we're filtering by job type
-						}
+		// Create a new SSE service instance
+		sseService = new SSEService({
+			onConnected: () => {
+				console.log('🔗 JobTracker: Connected to job stream');
+			},
+			onDisconnected: () => {
+				console.log('🔌 JobTracker: Disconnected from job stream');
+			},
+			onError: (error: string) => {
+				console.error('❌ JobTracker: SSE error:', error);
+			},
+			onJobUpdate: (jobs: JobUpdate[]) => {
+				// Update active jobs
+				for (const job of jobs) {
+					// Update the global store
+					updateJobInStore(job);
+				}
 
-						// Update the global store
-						updateJobInStore(job);
-					}
-
-					// Don't remove completed jobs immediately - let the page handle it after delay
-					// Keep completed jobs in active list for a short time so pages can show final state
-
-					// Clean up old completed jobs (older than 30 seconds)
-					const now = Date.now();
-					const currentJobs = getActiveJobsMap();
-					for (const [jobId, job] of currentJobs.entries()) {
-						if (
-							job.status === 'completed' ||
-							job.status === 'failed' ||
-							job.status === 'cancelled'
-						) {
-							const jobTime = new Date(job.updated_at).getTime();
-							if (now - jobTime > 30000) {
-								// 30 seconds
-								removeJobFromStore(jobId);
-							}
+				// Clean up old completed jobs (older than 30 seconds)
+				const now = Date.now();
+				const currentJobs = getActiveJobsMap();
+				for (const [jobId, job] of currentJobs.entries()) {
+					if (
+						job.status === 'completed' ||
+						job.status === 'failed' ||
+						job.status === 'cancelled'
+					) {
+						const jobTime = new Date(job.updated_at).getTime();
+						if (now - jobTime > 30000) {
+							// 30 seconds
+							removeJobFromStore(jobId);
 						}
 					}
+				}
 
-					// Show toast notifications for status changes (not progress updates)
-					for (const job of jobs) {
-						// Get the previous job state to detect status changes
-						const previousJob = currentJobs.get(job.id);
-
-						if (previousJob && previousJob.status !== job.status) {
-							// Status changed - show toast notification
+				// Show toast notifications for status changes
+				for (const job of jobs) {
+					const previousJob = currentJobs.get(job.id);
+					if (previousJob && previousJob.status !== job.status) {
+						if (showToasts) {
 							const jobTypeInfo = getJobTypeInfo(job.type);
-
 							if (job.status === 'completed') {
 								toast.success(`${jobTypeInfo.title} completed successfully!`);
 							} else if (job.status === 'failed') {
 								toast.error(`${jobTypeInfo.title} failed`);
 							} else if (job.status === 'cancelled') {
-								toast.info(`${jobTypeInfo.title} cancelled`);
+								toast.info(`${jobTypeInfo.title} was cancelled`);
 							}
 						}
 					}
+				}
 
-					// Notify parent component
-
-					// Try calling the registered parent method
-					if (onJobUpdate) {
-						try {
-							onJobUpdate(jobs);
-						} catch (error) {
-							console.error('❌ JobTracker: Error calling onJobUpdate callback:', error);
-						}
+				// Notify parent component
+				if (onJobUpdate) {
+					try {
+						onJobUpdate(jobs);
+					} catch (error) {
+						console.error('❌ JobTracker: Error calling onJobUpdate callback:', error);
 					}
-				},
-				onJobCompleted: (jobs) => {
-					// Remove from active jobs
-					for (const job of jobs) {
-						removeJobFromStore(job.id);
-					}
-
-					// Show completion toasts with specific messages based on job type
-					if (showToasts) {
-						for (const job of jobs) {
-							// Only show toast if we haven't already shown one for this job
-							// AND if the job completed very recently (within last 5 seconds)
-							const jobCompletionTime = new Date(job.updated_at).getTime();
-							const now = Date.now();
-							const isRecentCompletion = now - jobCompletionTime < 5000; // 5 seconds
-
-							if (
-								job.status === 'completed' &&
-								!completedJobIds.has(job.id) &&
-								isRecentCompletion
-							) {
-								// Mark this job as completed to prevent duplicate toasts
-								completedJobIds.add(job.id);
-
-								// Show specific messages based on job type
-								if (job.type === 'data_export') {
-									toast.success('Export completed successfully!');
-								} else if (job.type === 'data_import') {
-									toast.success('Import completed successfully!');
-								} else if (job.type === 'trip_generation') {
-									toast.success('Trip generation completed!');
-								} else {
-									// Generic fallback
-									toast.success('Job completed successfully!');
-								}
-							} else if (
-								job.status === 'failed' &&
-								!completedJobIds.has(job.id) &&
-								isRecentCompletion
-							) {
-								// Mark this job as failed to prevent duplicate toasts
-								completedJobIds.add(job.id);
-
-								// Show specific error messages based on job type
-								if (job.type === 'data_export') {
-									toast.error('Export failed');
-								} else if (job.type === 'data_import') {
-									toast.error('Import failed');
-								} else if (job.type === 'trip_generation') {
-									toast.error('Trip generation failed');
-								} else {
-									toast.error('Job failed');
-								}
-							}
-						}
-					}
-
-					// Notify parent component
-					onJobCompleted?.(jobs);
-				},
-				onHeartbeat: () => {
-					// Keep connection alive
 				}
 			},
-			jobType || undefined
-		);
+			onJobCompleted: (jobs: JobUpdate[]) => {
+				// Handle completed jobs
+				for (const job of jobs) {
+					// Mark as completed in our tracking
+					completedJobIds.add(job.id);
 
-		// Add a small delay to allow session to be available
-		setTimeout(() => {
-			sseService?.connect();
-		}, 100);
+					// Remove from active jobs after a delay
+					setTimeout(() => {
+						removeJobFromStore(job.id);
+					}, 5000); // 5 second delay
+				}
+
+				// Notify parent component
+				onJobCompleted?.(jobs);
+			}
+		}, jobType);
+
+		// Connect to the SSE service
+		sseService.connect();
 	}
 
 	export function stopMonitoring() {
@@ -192,7 +127,6 @@
 			sseService.disconnect();
 			sseService = null;
 		}
-		// activeJobs.clear(); // This line is no longer needed as activeJobs is now a store
 	}
 
 	export function getActiveJobs(): JobUpdate[] {
@@ -236,8 +170,6 @@
 		// Clear completed job tracking
 		completedJobIds.clear();
 	});
-
-	// Reactive statement to expose active jobs count
 </script>
 
 <!-- This component doesn't render anything visible, it just provides job tracking functionality -->

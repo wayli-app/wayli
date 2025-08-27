@@ -408,6 +408,7 @@
 	"connections.failedToCopy": "Kopiëren naar klembord mislukt",
 	"connections.apiKeyGeneratedSuccess": "API sleutel succesvol gegenereerd!",
 	"connections.apiKeyGenerationFailed": "API sleutel genereren mislukt",
+	"connections.failedToGenerateApiKey": "API sleutel genereren mislukt",
 	"navigation.accountSettings": "Gebruikersinstellingen",
 	"navigation.serverAdminSettings": "Serverinstellingen",
 	"navigation.signOut": "Uitloggen",

@@ -408,6 +408,7 @@
 	"connections.failedToCopy": "Failed to copy to clipboard",
 	"connections.apiKeyGeneratedSuccess": "API key generated successfully!",
 	"connections.apiKeyGenerationFailed": "Failed to generate API key",
+	"connections.failedToGenerateApiKey": "Failed to generate API key",
 	"navigation.accountSettings": "Account settings",
 	"navigation.serverAdminSettings": "Server admin settings",
 	"navigation.signOut": "Sign out",

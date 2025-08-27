@@ -806,6 +806,9 @@
 			// Complete loading
 			loadingStage = t('statistics.complete');
 			loadingProgress = 100;
+
+			// Add a small delay to ensure the 100% completion is visible
+			await new Promise(resolve => setTimeout(resolve, 500));
 		} catch (err) {
 			console.error('Error fetching map data and statistics:', err);
 			statisticsError = err instanceof Error ? err.message : String(err);
@@ -1309,11 +1312,6 @@
 						</div>
 						<div class="text-sm text-gray-600 dark:text-gray-400">
 							{t('statistics.percentComplete', { percent: loadingProgress })}
-						</div>
-					{/if}
-					{#if totalPoints > 0}
-						<div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-							{locationData.length} of {totalPoints.toLocaleString()} points loaded
 						</div>
 					{/if}
 				</div>

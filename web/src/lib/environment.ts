@@ -13,6 +13,8 @@ export const CLIENT_ENVIRONMENT = {
 	IS_WORKER: false,
 
 	// Supabase URLs (safe for client-side)
+	SUPABASE_URL: process.env.SUPABASE_URL || '',
+	PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL || '',
 	SUPABASE_FUNCTIONS_URL: process.env.SUPABASE_FUNCTIONS_URL || '',
 	SUPABASE_STORAGE_URL: process.env.SUPABASE_STORAGE_URL || '',
 	SUPABASE_GRAPHQL_URL: process.env.SUPABASE_GRAPHQL_URL || '',

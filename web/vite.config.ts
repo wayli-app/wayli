@@ -22,6 +22,10 @@ export default defineConfig({
 	define: {
 		// Only expose public environment variables to the client
 		'process.env': {
+			SUPABASE_URL:
+				process.env.SUPABASE_URL ||
+				process.env.PUBLIC_SUPABASE_URL ||
+				'http://127.0.0.1:54321',
 			PUBLIC_SUPABASE_URL:
 				process.env.PUBLIC_SUPABASE_URL ||
 				'http://127.0.0.1:54321',

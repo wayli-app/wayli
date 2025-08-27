@@ -408,6 +408,7 @@
 	"connections.failedToCopy": "Error al copiar al portapapeles",
 	"connections.apiKeyGeneratedSuccess": "¡Clave de API generada exitosamente!",
 	"connections.apiKeyGenerationFailed": "Error al generar clave de API",
+	"connections.failedToGenerateApiKey": "Error al generar clave de API",
 	"navigation.accountSettings": "Configuración de cuenta",
 	"navigation.serverAdminSettings": "Configuración del administrador del servidor",
 	"navigation.signOut": "Cerrar sesión",
