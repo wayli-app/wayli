@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getPexelsConfig } from '$lib/core/config/node-environment';
+import { getPexelsConfig } from '../../../shared/config/node-environment';
 import { config } from '../../config';
 
 /**

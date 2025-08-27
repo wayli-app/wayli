@@ -1,4 +1,4 @@
-// src/lib/core/config/node-environment.ts
+// src/shared/config/node-environment.ts
 // Node.js/worker/server environment configuration using dotenv and process.env
 // This file should ONLY be imported in Node.js/worker/server code (not in client-side/browser code).
 // Never import this in client-side or SvelteKit load functions.
@@ -55,6 +55,10 @@ export interface NodeEnvironmentConfig {
 		url: string;
 		poolSize: number;
 		ssl: boolean;
+		connectionTimeout: number;
+		queryTimeout: number;
+		retryAttempts: number;
+		retryDelay: number;
 	};
 
 	// Security Configuration
@@ -183,9 +187,13 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	const rateLimitMax = parseInt(mergedEnv.RATE_LIMIT_MAX || '100', 10);
 
 	// Database Configuration
-	const databaseUrl = mergedEnv.DATABASE_URL || '';
-	const poolSize = parseInt(mergedEnv.DB_POOL_SIZE || '10', 10);
-	const ssl = mergedEnv.DB_SSL === 'true';
+	const databaseUrl = mergedEnv.SUPABASE_DB_URL || mergedEnv.DATABASE_URL || '';
+	const poolSize = parseInt(mergedEnv.SUPABASE_DB_POOL_SIZE || mergedEnv.DB_POOL_SIZE || '10', 10);
+	const ssl = mergedEnv.SUPABASE_DB_SSL === 'true' || mergedEnv.DB_SSL === 'true';
+	const connectionTimeout = parseInt(mergedEnv.SUPABASE_DB_CONNECTION_TIMEOUT || mergedEnv.DB_CONNECTION_TIMEOUT || '30000', 10);
+	const queryTimeout = parseInt(mergedEnv.SUPABASE_DB_QUERY_TIMEOUT || mergedEnv.DB_QUERY_TIMEOUT || '30000', 10);
+	const dbRetryAttempts = parseInt(mergedEnv.SUPABASE_DB_RETRY_ATTEMPTS || mergedEnv.DB_RETRY_ATTEMPTS || '3', 10);
+	const dbRetryDelay = parseInt(mergedEnv.SUPABASE_DB_RETRY_DELAY || mergedEnv.DB_RETRY_DELAY || '1000', 10);
 
 	// Security Configuration
 	const jwtSecret = mergedEnv.JWT_SECRET || '';
@@ -251,7 +259,11 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 		database: {
 			url: databaseUrl,
 			poolSize,
-			ssl
+			ssl,
+			connectionTimeout,
+			queryTimeout,
+			retryAttempts: dbRetryAttempts,
+			retryDelay: dbRetryDelay
 		},
 		security: {
 			jwtSecret,

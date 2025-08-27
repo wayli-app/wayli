@@ -70,7 +70,7 @@ export class PreferencesApiService {
 			}
 
 			// Check if server has Pexels API key configured
-			const { getPexelsConfig } = await import('$lib/core/config/node-environment');
+			const { getPexelsConfig } = await import('../../../shared/config/node-environment');
 			const pexelsConfig = getPexelsConfig();
 			const serverPexelsApiKeyAvailable = !!pexelsConfig.apiKey;
 

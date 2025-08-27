@@ -77,7 +77,7 @@ import { validateWorkerEnvironmentConfig } from '$lib/core/config/worker-environ
 
 ```typescript
 // ✅ Safe for Node.js processes
-import { getNodeEnvironmentConfig } from '$lib/core/config/node-environment';
+import { getNodeEnvironmentConfig } from './node-environment';
 ```
 
 ## 🔒 Security Guidelines
@@ -137,7 +137,7 @@ const config = validateWorkerEnvironmentConfig();
 
 ```typescript
 // scripts/migrate.ts
-import { getNodeEnvironmentConfig } from '$lib/core/config/node-environment';
+import { getNodeEnvironmentConfig } from './node-environment';
 
 const config = getNodeEnvironmentConfig();
 // Full configuration with all environment variables

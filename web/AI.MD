@@ -29,7 +29,7 @@ Wayli is a privacy-first, open-source location tracking and trip management appl
 - **Client-safe**: `src/lib/core/config/environment.ts` (public variables only)
 - **Server-only**: `src/lib/core/config/server-environment.ts` (private variables)
 - **Worker**: `src/lib/core/config/worker-environment.ts` (process.env)
-- **Node.js**: `src/lib/core/config/node-environment.ts` (dotenv + process.env)
+- **Node.js**: `src/shared/config/node-environment.ts` (dotenv + process.env)
 - **Pattern**: Clear separation between client and server environments
 - **Benefits**: Security, type safety, clear dependency boundaries
 

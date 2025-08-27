@@ -102,7 +102,7 @@ export class ImageGenerationProcessorService {
 	private async getUserPexelsApiKey(userId: string): Promise<string | undefined> {
 		try {
 			// Check if server has Pexels API key configured
-			const { getPexelsConfig } = await import('$lib/core/config/node-environment');
+			const { getPexelsConfig } = await import('../shared/config/node-environment');
 			const serverApiKey = getPexelsConfig().apiKey;
 
 			// Prioritize server API key
