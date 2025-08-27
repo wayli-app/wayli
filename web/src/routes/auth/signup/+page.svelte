@@ -6,6 +6,7 @@
 	import { translate } from '$lib/i18n';
 	import { userStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { getEdgeFunctionUrl } from '$lib/utils/url-utils';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -40,7 +41,8 @@
 	async function checkServerSettings() {
 		isLoadingSettings = true;
 		try {
-			const response = await fetch('/api/server-settings');
+			// Use Edge Functions with proper base URL
+			const response = await fetch(getEdgeFunctionUrl('server-settings'));
 			if (response.ok) {
 				const result = await response.json();
 				if (result.success && result.data) {
