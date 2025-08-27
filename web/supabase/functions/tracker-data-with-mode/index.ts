@@ -633,16 +633,16 @@ function calculateStatistics(trackerData: TrackerDataPoint[]): any {
 			}
 		}
 
-		// Accumulate totals
-		totalDistance += distance;
-
 		// Use transport mode from enhanced data
 		const mode = point.transport_mode || 'unknown';
 
-		// Only count moving time for non-stationary segments
+		// Only count moving time and distance for non-stationary segments
 		if (mode !== 'stationary') {
 			timeSpentMoving += timeDiff;
+			// Only accumulate distance for non-stationary modes
+			totalDistance += distance;
 		}
+
 		if (!transportModes[mode]) {
 			transportModes[mode] = { distance: 0, time: 0, points: 0 };
 		}
@@ -716,7 +716,7 @@ function calculateStatistics(trackerData: TrackerDataPoint[]): any {
 	// Calculate country distance distribution (replace time-based logic)
 	const countryDistanceMap = new Map<string, number>();
 	for (const p of trackerData) {
-		if (p.country_code) {
+		if (p.country_code && p.transport_mode !== 'stationary') {
 			const dist = typeof p.distance === 'number' && isFinite(p.distance) ? p.distance : 0;
 			countryDistanceMap.set(p.country_code, (countryDistanceMap.get(p.country_code) || 0) + dist);
 		}
@@ -761,7 +761,7 @@ function calculateStatistics(trackerData: TrackerDataPoint[]): any {
 
 	// Calculate activity data
 	activityData.push({
-		label: 'Total Distance',
+		label: 'Moving Distance',
 		distance: Math.round((totalDistance / 1000) * 100) / 100,
 		locations: uniquePlaces.size
 	});

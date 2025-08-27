@@ -1,18 +1,8 @@
 // web/src/lib/services/sse.service.ts
 import { get } from 'svelte/store';
-
-import { sessionStore } from '../stores/auth';
-import { supabase } from '../supabase';
-
+import { supabase } from '$lib/supabase';
+import { sessionStore } from '$lib/stores/auth';
 import { ServiceAdapter } from './api/service-adapter';
-
-export interface SSEEvent {
-	type: 'connected' | 'heartbeat' | 'jobs_update' | 'error';
-	message?: string;
-	jobs?: JobUpdate[];
-	timestamp?: string;
-	error?: string;
-}
 
 export interface JobUpdate {
 	id: string;
@@ -23,6 +13,14 @@ export interface JobUpdate {
 	result?: Record<string, unknown>;
 	updated_at: string;
 	created_at: string;
+}
+
+export interface SSEEvent {
+	type: 'connected' | 'heartbeat' | 'jobs_update' | 'error';
+	message?: string;
+	jobs?: JobUpdate[];
+	timestamp?: string;
+	error?: string;
 }
 
 export interface SSEOptions {

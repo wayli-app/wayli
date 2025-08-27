@@ -9,7 +9,7 @@
 
 import type { Session } from '@supabase/supabase-js';
 
-import { getBaseUrl } from '../../utils/url-utils';
+import { getFunctionsUrl } from '../../utils/url-utils';
 
 export interface EdgeFunctionResponse<T = unknown> {
 	success: boolean;
@@ -23,7 +23,7 @@ export class EdgeFunctionsApiService {
 
 	constructor() {
 		// Use centralized URL utility for proper environment detection
-		this.baseUrl = `${getBaseUrl()}/functions/v1`;
+		this.baseUrl = getFunctionsUrl();
 	}
 
 	/**

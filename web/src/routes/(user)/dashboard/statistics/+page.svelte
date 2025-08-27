@@ -881,7 +881,7 @@
 		return [
 			{
 				id: 'total-distance',
-				title: t('statistics.totalDistance'),
+				title: t('statistics.movingDistance'),
 				value: statisticsData.totalDistance ?? '0 km',
 				icon: Navigation,
 				color: 'blue'

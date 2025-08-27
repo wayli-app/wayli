@@ -349,6 +349,7 @@
 	"statistics.loadingMoreDataFromOffset": "Loading more data from offset {offset}",
 	"statistics.errorLoadingMoreData": "Error loading more data:",
 	"statistics.totalDistance": "Total distance",
+	"statistics.movingDistance": "Moving distance",
 	"statistics.uniquePlaces": "Unique places",
 	"statistics.countriesVisited": "Countries visited",
 	"statistics.timeSpentMoving": "Time spent moving",

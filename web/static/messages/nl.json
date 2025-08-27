@@ -349,6 +349,7 @@
 	"statistics.loadingMoreDataFromOffset": "Meer data laden vanaf offset {offset}",
 	"statistics.errorLoadingMoreData": "Fout bij het laden van meer data:",
 	"statistics.totalDistance": "Totale afstand",
+	"statistics.movingDistance": "Bewegende afstand",
 	"statistics.uniquePlaces": "Unieke plaatsen",
 	"statistics.countriesVisited": "Bezochte landen",
 	"statistics.timeSpentMoving": "Tijd in beweging",

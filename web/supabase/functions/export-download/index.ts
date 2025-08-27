@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 			let downloadUrl = signedUrlData.signedUrl;
 
 			// Use environment variable for public storage URL to work across all environments
-			const storageUrl = Deno.env.get('VITE_SUPABASE_STORAGE_URL');
+			const storageUrl = Deno.env.get('SUPABASE_STORAGE_URL');
 
 			if (storageUrl) {
 				// Replace the hostname in the signed URL with our configured storage URL

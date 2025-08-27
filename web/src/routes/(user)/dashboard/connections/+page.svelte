@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { Database, Link, Copy, Check, RefreshCw } from 'lucide-svelte';
+	import { getEdgeFunctionUrl } from '$lib/utils/url-utils';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -25,10 +26,15 @@
 		if (user && !error) {
 			owntracksApiKey = user.user_metadata?.owntracks_api_key || null;
 
-			// Construct the endpoint URL - use relative path, edge functions will handle the full URL
-			owntracksEndpoint = owntracksApiKey
-				? `/functions/v1/owntracks-points?api_key=${owntracksApiKey}&user_id=${user.id}`
-				: null;
+			// Construct the endpoint URL using the proper utility function
+			if (owntracksApiKey) {
+				owntracksEndpoint = getEdgeFunctionUrl('owntracks-points', {
+					api_key: owntracksApiKey,
+					user_id: user.id
+				});
+			} else {
+				owntracksEndpoint = null;
+			}
 		}
 	}
 

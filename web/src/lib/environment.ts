@@ -2,7 +2,7 @@
 // This file contains environment variables and configuration that are safe
 // to use in client-side code (browser)
 
-import { ENVIRONMENT } from '$lib/shared/environment';
+import { ENVIRONMENT } from '../shared/environment';
 
 export const CLIENT_ENVIRONMENT = {
 	...ENVIRONMENT,
@@ -11,6 +11,11 @@ export const CLIENT_ENVIRONMENT = {
 	IS_CLIENT: true,
 	IS_SERVER: false,
 	IS_WORKER: false,
+
+	// Supabase URLs (safe for client-side)
+	SUPABASE_FUNCTIONS_URL: process.env.SUPABASE_FUNCTIONS_URL || '',
+	SUPABASE_STORAGE_URL: process.env.SUPABASE_STORAGE_URL || '',
+	SUPABASE_GRAPHQL_URL: process.env.SUPABASE_GRAPHQL_URL || '',
 
 	// Client-side feature flags
 	ENABLE_ANALYTICS: process.env.NODE_ENV === 'production',
