@@ -64,7 +64,7 @@ serve(async (req: Request) => {
 		});
 	}
 
-	const servicePath = `/home/deno/functions/${service_name}`;
+	const servicePath = `/home/supabase/functions/${service_name}`;
 	console.error(`serving the request with ${servicePath}`);
 
 	const memoryLimitMb = 150;
