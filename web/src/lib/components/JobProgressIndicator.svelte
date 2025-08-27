@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
-	import { supabase } from '$lib/core/supabase/client';
+	import { supabase } from '$lib/supabase';
 	import { translate } from '$lib/i18n';
 	import { getActiveJobsMap, subscribe, fetchAndPopulateJobs } from '$lib/stores/job-store';
 

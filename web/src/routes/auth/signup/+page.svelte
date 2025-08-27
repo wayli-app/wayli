@@ -237,12 +237,6 @@
 							{t('auth.checkEmailConfirmation')}
 						</p>
 					</div>
-					<button
-						onclick={() => (isEmailSent = false)}
-						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
-					>
-						{t('auth.tryDifferentMethod')}
-					</button>
 				</div>
 			{:else}
 				<form onsubmit={handleSignUp} class="space-y-6">

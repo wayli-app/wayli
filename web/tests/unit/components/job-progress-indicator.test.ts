@@ -22,7 +22,7 @@ vi.mock('$lib/stores/job-store', () => ({
 	fetchAndPopulateJobs: vi.fn().mockResolvedValue(undefined)
 }));
 
-vi.mock('$lib/core/supabase/client', () => ({
+vi.mock('$lib/supabase', () => ({
 	supabase: {
 		auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: 'u' } } } }) },
 		functions: { invoke: vi.fn().mockResolvedValue({ data: {}, error: null }) }

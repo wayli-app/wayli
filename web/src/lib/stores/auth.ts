@@ -29,11 +29,13 @@ export const sessionStoreReady = writable<boolean>(false);
 // Initialize session store with session manager
 async function initializeSessionStore() {
 	try {
+		console.log('🔐 [AuthStore] Initializing auth store...');
 		// Session manager will handle the auth state changes
 		// Just mark the store as ready
 		sessionStoreReady.set(true);
+		console.log('✅ [AuthStore] Auth store ready');
 	} catch (error) {
-		console.error('❌ [SessionStore] Failed to initialize session store:', error);
+		console.error('❌ [AuthStore] Failed to initialize session store:', error);
 		sessionStore.set(null);
 		userStore.set(null);
 		sessionStoreReady.set(true);

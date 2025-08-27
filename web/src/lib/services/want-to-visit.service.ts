@@ -1,4 +1,4 @@
-import { supabase } from '$lib/core/supabase/client';
+import { supabase } from '$lib/supabase';
 
 import type { Place, CreatePlaceData } from '$lib/types/want-to-visit.types';
 

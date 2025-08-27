@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 import { getWorkerSupabaseConfig } from '$lib/core/config/worker-environment';
-import { createWorkerClient } from '$lib/core/supabase/worker-client';
+import { createWorkerClient } from '../../../worker/client';
 
 export interface Migration {
 	version: string;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { supabase } from '$lib/core/supabase/client';
+	import { supabase } from '$lib/supabase';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
 	import { page } from '$app/stores';

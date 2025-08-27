@@ -87,7 +87,7 @@ export function clearCompletedJobs() {
 // Fetch and populate jobs from the server
 export async function fetchAndPopulateJobs() {
 	try {
-		const { supabase } = await import('$lib/core/supabase/client');
+		const { supabase } = await import('$lib/supabase');
 		const {
 			data: { session }
 		} = await supabase.auth.getSession();

@@ -1,4 +1,4 @@
-import { supabase } from '$lib/core/supabase/worker';
+import { createWorkerClient } from '../../worker/client';
 
 export interface TripLocation {
 	id: string;
@@ -38,11 +38,11 @@ export interface GeocodeData {
 }
 
 export class TripLocationsService {
-	private supabase: typeof supabase;
+	private supabase: ReturnType<typeof createWorkerClient>;
 
 	constructor() {
-		// Use the authenticated client from the auth store
-		this.supabase = supabase;
+		// Use the worker client
+		this.supabase = createWorkerClient();
 	}
 
 	// Note: Static client override functionality to be implemented in future version
@@ -53,7 +53,7 @@ export class TripLocationsService {
 
 	// Instance method to switch to worker client
 	useWorkerClient() {
-		this.supabase = supabase;
+		this.supabase = createWorkerClient();
 		console.log('🔧 [TripLocationsService] Switched to worker Supabase client');
 	}
 

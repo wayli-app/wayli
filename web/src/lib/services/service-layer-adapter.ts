@@ -11,7 +11,7 @@
  */
 
 import { serviceManager } from '$lib/architecture/service-layer';
-import { supabase } from '$lib/core/supabase/client';
+import { supabase } from '$lib/supabase';
 
 import { errorHandler } from './error-handler.service';
 import { LocationCacheService } from './location-cache.service';

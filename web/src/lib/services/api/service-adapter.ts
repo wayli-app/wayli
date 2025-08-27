@@ -305,7 +305,7 @@ export class ServiceAdapter {
 
 			console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
 
-			const { supabase } = await import('$lib/core/supabase/client');
+			const { supabase } = await import('$lib/supabase');
 
 			// Upload file with progress tracking using XMLHttpRequest
 			const uploadPromise = new Promise<{ error: unknown }>((resolve) => {
@@ -410,7 +410,7 @@ export class ServiceAdapter {
 	) {
 		try {
 			// Get Supabase client
-			const { supabase } = await import('$lib/core/supabase/client');
+			const { supabase } = await import('$lib/supabase');
 
 			// Generate unique filename
 			const timestamp = Date.now();

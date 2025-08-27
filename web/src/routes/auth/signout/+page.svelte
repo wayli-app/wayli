@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 
 	import { userStore, sessionStore } from '$lib/stores/auth';
-	import { supabase } from '$lib/core/supabase/client';
+	import { supabase } from '$lib/supabase';
 
 	onMount(async () => {
 		console.log('[Signout] Client-side signout page mounted - clearing stores');

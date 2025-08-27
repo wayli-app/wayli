@@ -262,8 +262,6 @@ const config = validateServerEnvironmentConfig();
 const url = process.env.PUBLIC_SUPABASE_URL;
 
 // ✅ New way
-import { PUBLIC_SUPABASE_URL } from '$lib/core/supabase/client';
+import { PUBLIC_SUPABASE_URL } from '$lib/supabase';
 const url = PUBLIC_SUPABASE_URL;
 ```
-
-This centralized configuration system ensures security, type safety, and proper separation of concerns across all parts of the application.

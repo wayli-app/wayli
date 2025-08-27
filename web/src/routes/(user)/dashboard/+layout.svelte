@@ -91,10 +91,7 @@
 		try {
 			console.log('🚀 [Dashboard] Initializing dashboard...');
 
-			// Wait for session manager to be fully initialized
-			await sessionManager.initialize();
-			console.log('✅ [Dashboard] Session manager initialized');
-
+			// Session manager is already initialized in root layout
 			// Wait a bit for any pending auth state changes to settle
 			await new Promise((resolve) => setTimeout(resolve, 100));
 

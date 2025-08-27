@@ -1,7 +1,7 @@
 // web/src/lib/services/session/session-manager.service.ts
 // Global session management service with automatic token refresh and auth state sync
 
-import { supabase } from '$lib/core/supabase/client';
+import { supabase } from '$lib/supabase';
 import { userStore, sessionStore } from '$lib/stores/auth';
 import { goto } from '$app/navigation';
 
@@ -41,7 +41,7 @@ export class SessionManagerService {
 
 		// Set up auth state change listener (only once)
 		if (!this.authListenerSet) {
-			supabase.auth.onAuthStateChange((event, session) => {
+			supabase.auth.onAuthStateChange((event: string, session: any) => {
 				console.log(
 					`🔐 [SessionManager] Auth state changed: ${event}`,
 					session ? 'session present' : 'no session'
@@ -80,22 +80,21 @@ export class SessionManagerService {
 			} = await supabase.auth.getSession();
 			if (error) {
 				console.error('❌ [SessionManager] Error getting initial session:', error);
-				// Clear stores on error
-				this.updateAuthStores(null);
+				// Don't clear stores on error - let auth state change events handle it
 			} else if (session) {
 				console.log('✅ [SessionManager] Initial session found during setup');
 				// Don't manually start session management - auth state change events will handle it
+				// But do update the stores with the found session
+				this.updateAuthStores(session);
 			} else {
 				console.log(
-					'ℹ️ [SessionManager] No initial session found - clearing stores and waiting for auth state changes'
+					'ℹ️ [SessionManager] No initial session found - waiting for auth state changes'
 				);
-				// Clear stores if no session exists
-				this.updateAuthStores(null);
+				// Don't clear stores if no session exists - let auth state change events handle it
 			}
 		} catch (error) {
 			console.error('❌ [SessionManager] Error during session initialization:', error);
-			// Clear stores on error
-			this.updateAuthStores(null);
+			// Don't clear stores on error - let auth state change events handle it
 		}
 
 		// Set up activity tracking

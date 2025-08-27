@@ -9,7 +9,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'dev-session-secret';
 process.env.COOKIE_SECRET = process.env.COOKIE_SECRET || 'dev-cookie-secret';
 // Prevent importing the real worker client/config
-vi.mock('$lib/core/supabase/worker', () => ({ supabase: {} as unknown }));
+vi.mock('$lib/shared/worker-supabase-client', () => ({ supabase: {} as unknown }));
 
 type DateRangesMockOptions = {
 	earliest?: string | null;

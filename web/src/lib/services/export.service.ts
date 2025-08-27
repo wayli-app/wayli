@@ -1,4 +1,4 @@
-import { supabase } from '$lib/core/supabase/server';
+import { supabase } from '$lib/shared/server';
 
 import { JobQueueService } from './queue/job-queue.service.server';
 

@@ -62,17 +62,17 @@
 					} else {
 						// No 2FA enabled, proceed with normal login
 						toast.success(t('auth.signedInSuccessfully'));
-						// The auth state change will handle the redirect automatically
 
-						// Fallback: If auth state change doesn't redirect within 1 second, redirect manually
-						setTimeout(() => {
-							const currentUser = $userStore;
-							if (currentUser && $page.url.pathname.startsWith('/auth/signin')) {
-								const redirectTo =
-									$page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+						// Wait for the auth state change to propagate, then redirect
+						setTimeout(async () => {
+							// Check if we're still on the signin page and have a user
+							const { data: { session } } = await supabase.auth.getSession();
+							if (session?.user && $page.url.pathname.startsWith('/auth/signin')) {
+								const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+								console.log('🔄 [SignIn] Redirecting after successful authentication to:', redirectTo);
 								goto(redirectTo, { replaceState: true });
 							}
-						}, 1000);
+						}, 500); // Reduced timeout for better UX
 					}
 				} catch (twoFactorError: any) {
 					console.error('2FA check error:', twoFactorError);
@@ -163,12 +163,6 @@
 							{t('auth.checkEmailMagicLink')}
 						</p>
 					</div>
-					<button
-						onclick={() => (isMagicLinkSent = false)}
-						class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
-					>
-						{t('auth.tryDifferentMethod')}
-					</button>
 				</div>
 			{:else}
 				<form onsubmit={handleSignIn} class="space-y-6">
