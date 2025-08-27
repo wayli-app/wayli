@@ -14,9 +14,6 @@ if (!supabaseServiceKey) {
 	throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required');
 }
 
-console.log('🔗 [SUPABASE] Using URL:', supabaseUrl);
-console.log('🔑 [SUPABASE] Service key length:', supabaseServiceKey.length);
-
 let supabase;
 try {
 	supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -25,7 +22,6 @@ try {
 			persistSession: false
 		}
 	});
-	console.log('✅ [SUPABASE] Client created successfully');
 } catch (error) {
 	console.error('❌ [SUPABASE] Failed to create client:', error);
 	throw error;
@@ -34,30 +30,38 @@ try {
 export { supabase };
 
 export function createAuthenticatedClient(authToken: string) {
-	return createClient(supabaseUrl, supabaseServiceKey, {
-		global: {
-			headers: {
-				Authorization: `Bearer ${authToken}`
+	try {
+		// Create a client that can verify JWT tokens
+		const client = createClient(supabaseUrl!, supabaseServiceKey!, {
+			auth: {
+				autoRefreshToken: false,
+				persistSession: false
 			}
-		},
-		auth: {
-			autoRefreshToken: false,
-			persistSession: false
-		}
-	});
+		});
+		return client;
+	} catch (error) {
+		console.error('❌ [SUPABASE] Failed to create authenticated client:', error);
+		throw error;
+	}
 }
 
 // Create a client that uses the user's token for database access
 export function createUserClient(authToken: string) {
-	return createClient(supabaseUrl, supabaseServiceKey, {
-		global: {
-			headers: {
-				Authorization: `Bearer ${authToken}`
+	try {
+		const client = createClient(supabaseUrl!, supabaseServiceKey!, {
+			global: {
+				headers: {
+					Authorization: `Bearer ${authToken}`
+				}
+			},
+			auth: {
+				autoRefreshToken: false,
+				persistSession: false
 			}
-		},
-		auth: {
-			autoRefreshToken: false,
-			persistSession: false
-		}
-	});
+		});
+		return client;
+	} catch (error) {
+		console.error('❌ [SUPABASE] Failed to create user client:', error);
+		throw error;
+	}
 }

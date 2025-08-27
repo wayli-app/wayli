@@ -1,7 +1,13 @@
 import { corsHeaders, handleCors } from './cors.ts';
-import { createAuthenticatedClient, createUserClient } from './supabase.ts';
+import { createUserClient } from './supabase.ts';
+import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts';
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+// Define the SupabaseClient type locally to avoid import issues
+interface SupabaseClient {
+	from: (table: string) => any;
+	auth: any;
+	// Add other methods as needed
+}
 
 export interface AuthenticatedContext {
 	user: Record<string, unknown>;
@@ -19,8 +25,6 @@ export interface ApiResponse<T = unknown> {
  * Authenticate the request and return user context
  */
 export async function authenticateRequest(req: Request): Promise<AuthenticatedContext> {
-	console.log('🔐 [AUTH] Starting authentication for request');
-
 	const authHeader = req.headers.get('Authorization');
 	if (!authHeader) {
 		console.error('❌ [AUTH] No authorization header found');
@@ -28,38 +32,39 @@ export async function authenticateRequest(req: Request): Promise<AuthenticatedCo
 	}
 
 	const token = authHeader.replace('Bearer ', '');
-	console.log('🔑 [AUTH] Token extracted, length:', token.length);
 
-	// Use service role client for authentication
-	const authClient = createAuthenticatedClient(token);
-	console.log('🔗 [AUTH] Created authenticated client');
+	// Verify JWT token directly using jose library
+	const JWT_SECRET = Deno.env.get('JWT_SECRET');
+	if (!JWT_SECRET) {
+		console.error('❌ [AUTH] JWT_SECRET environment variable not set');
+		throw new Error('JWT_SECRET not configured');
+	}
 
 	try {
-		const {
-			data: { user },
-			error: authError
-		} = await authClient.auth.getUser();
+		const encoder = new TextEncoder();
+		const secretKey = encoder.encode(JWT_SECRET);
+		const { payload } = await jose.jwtVerify(token, secretKey);
 
-		if (authError) {
-			console.error('❌ [AUTH] Authentication error:', authError);
-			throw new Error(`Authentication failed: ${authError.message}`);
+		// Extract user information from JWT payload
+		const user = {
+			id: payload.sub,
+			email: payload.email,
+			user_metadata: payload.user_metadata || {},
+			...payload
+		};
+
+		if (!user.id) {
+			console.error('❌ [AUTH] No user ID found in JWT payload');
+			throw new Error('Invalid JWT payload');
 		}
-
-		if (!user) {
-			console.error('❌ [AUTH] No user returned from authentication');
-			throw new Error('No user found');
-		}
-
-		console.log('✅ [AUTH] User authenticated successfully:', user.id);
 
 		// Use user client for database access (respects RLS policies)
 		const supabase = createUserClient(token);
-		console.log('🔗 [AUTH] Created user client for database access');
 
 		return { user, supabase };
 	} catch (error) {
-		console.error('❌ [AUTH] Authentication failed:', error);
-		throw error;
+		console.error('❌ [AUTH] JWT verification failed:', error);
+		throw new Error('Invalid JWT token');
 	}
 }
 

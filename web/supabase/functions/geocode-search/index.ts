@@ -1,5 +1,5 @@
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { createAuthenticatedClient } from '../_shared/supabase.ts';
+import { authenticateRequest, successResponse, errorResponse } from '../_shared/utils.ts';
 import { logError } from '../_shared/utils.ts';
 
 const NOMINATIM_ENDPOINT = Deno.env.get('NOMINATIM_ENDPOINT') || 'https://nominatim.wayli.app';
@@ -10,41 +10,9 @@ Deno.serve(async (req) => {
 	if (corsResponse) return corsResponse;
 
 	try {
-		// Get auth token
-		const authHeader = req.headers.get('Authorization');
-		if (!authHeader) {
-			return new Response(
-				JSON.stringify({
-					success: false,
-					error: 'No authorization header'
-				}),
-				{
-					status: 401,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				}
-			);
-		}
-
-		const token = authHeader.replace('Bearer ', '');
-		const supabase = createAuthenticatedClient(token);
-
-		// Verify user is authenticated
-		const {
-			data: { user },
-			error: authError
-		} = await supabase.auth.getUser();
-		if (authError || !user) {
-			return new Response(
-				JSON.stringify({
-					success: false,
-					error: 'Invalid token'
-				}),
-				{
-					status: 401,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				}
-			);
-		}
+		// Authenticate the request
+		const { user } = await authenticateRequest(req);
+		console.log('🔍 [GEOCODE] User authenticated:', user.id);
 
 		// Get query parameters
 		const url = new URL(req.url);
@@ -52,16 +20,7 @@ Deno.serve(async (req) => {
 		const limit = url.searchParams.get('limit') || '10';
 
 		if (!query) {
-			return new Response(
-				JSON.stringify({
-					success: false,
-					error: 'Query parameter "q" is required'
-				}),
-				{
-					status: 400,
-					headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-				}
-			);
+			return errorResponse('Query parameter "q" is required', 400);
 		}
 
 		// Call Nominatim API
@@ -103,26 +62,9 @@ Deno.serve(async (req) => {
 		}));
 
 		// Return in the expected Edge Function response format
-		return new Response(
-			JSON.stringify({
-				success: true,
-				data: transformedResults
-			}),
-			{
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			}
-		);
+		return successResponse(transformedResults);
 	} catch (error) {
 		logError(error, 'GEOCODE_SEARCH');
-		return new Response(
-			JSON.stringify({
-				success: false,
-				error: 'Internal server error'
-			}),
-			{
-				status: 500,
-				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-			}
-		);
+		return errorResponse('Internal server error', 500);
 	}
 });

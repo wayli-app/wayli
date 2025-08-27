@@ -1,19 +1,10 @@
 import { serve } from 'https://deno.land/std@0.131.0/http/server.ts';
 import * as jose from 'https://deno.land/x/jose@v4.14.4/index.ts';
 
-console.log('🚀 main function started');
+console.log('main function started');
 
-// Validate environment variables
 const JWT_SECRET = Deno.env.get('JWT_SECRET');
 const VERIFY_JWT = Deno.env.get('VERIFY_JWT') === 'true';
-
-console.log('🔧 [MAIN] Environment variables:');
-console.log('  - JWT_SECRET:', JWT_SECRET ? '✅ Set' : '❌ Not set');
-console.log('  - VERIFY_JWT:', VERIFY_JWT ? '✅ Enabled' : '❌ Disabled');
-
-if (VERIFY_JWT && !JWT_SECRET) {
-	console.error('❌ [MAIN] JWT verification is enabled but JWT_SECRET is not set');
-}
 
 function getAuthToken(req: Request) {
 	const authHeader = req.headers.get('authorization');
@@ -39,66 +30,65 @@ async function verifyJWT(jwt: string): Promise<boolean> {
 	return true;
 }
 
-console.log('✅ [MAIN] Function setup complete, starting server...');
-
 serve(async (req: Request) => {
-	console.log(`📥 [MAIN] Request: ${req.method} ${req.url}`);
-
-	// Handle CORS preflight
-	if (req.method === 'OPTIONS') {
-		console.log('🔄 [MAIN] Handling CORS preflight');
-		return new Response('ok', {
-			headers: {
-				'Access-Control-Allow-Origin': '*',
-				'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-				'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-			}
-		});
-	}
-
-	// Verify JWT if enabled
-	if (VERIFY_JWT) {
+	if (req.method !== 'OPTIONS' && VERIFY_JWT) {
 		try {
 			const token = getAuthToken(req);
 			const isValidJWT = await verifyJWT(token);
 
 			if (!isValidJWT) {
-				console.log('❌ [MAIN] Invalid JWT token');
 				return new Response(JSON.stringify({ msg: 'Invalid JWT' }), {
 					status: 401,
 					headers: { 'Content-Type': 'application/json' }
 				});
 			}
-			console.log('✅ [MAIN] JWT token verified');
 		} catch (e) {
-			console.error('❌ [MAIN] JWT verification error:', e);
-			const errorMessage = e instanceof Error ? e.message : String(e);
-			return new Response(JSON.stringify({ msg: errorMessage }), {
+			console.error(e);
+			return new Response(JSON.stringify({ msg: e.toString() }), {
 				status: 401,
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
 	}
 
-	// Main function just provides a health check and info
-	const response = {
-		success: true,
-		message: 'Main function is running',
-		timestamp: new Date().toISOString(),
-		note: 'Individual functions should be called directly (e.g., /functions/v1/auth-check-2fa)',
-		availableFunctions: [
-			'auth-check-2fa',
-			'auth-profile',
-			'jobs',
-			'trips',
-			'export-download',
-			'health'
-		]
-	};
+	const url = new URL(req.url);
+	const { pathname } = url;
+	const path_parts = pathname.split('/');
+	const service_name = path_parts[1];
 
-	console.log('✅ [MAIN] Returning success response');
-	return new Response(JSON.stringify(response), {
-		status: 200,
-		headers: { 'Content-Type': 'application/json' }
-	});
+	if (!service_name || service_name === '') {
+		const error = { msg: 'missing function name in request' };
+		return new Response(JSON.stringify(error), {
+			status: 400,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+
+	const servicePath = `/home/deno/functions/${service_name}`;
+	console.error(`serving the request with ${servicePath}`);
+
+	const memoryLimitMb = 150;
+	const workerTimeoutMs = 1 * 60 * 1000;
+	const noModuleCache = false;
+	const importMapPath = null;
+	const envVarsObj = Deno.env.toObject();
+	const envVars = Object.keys(envVarsObj).map((k) => [k, envVarsObj[k]]);
+
+	try {
+		const worker = await EdgeRuntime.userWorkers.create({
+			servicePath,
+			memoryLimitMb,
+			workerTimeoutMs,
+			noModuleCache,
+			importMapPath,
+			envVars
+		});
+		return await worker.fetch(req);
+	} catch (e) {
+		const error = { msg: e.toString() };
+		return new Response(JSON.stringify(error), {
+			status: 500,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
 });
