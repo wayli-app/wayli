@@ -4,25 +4,19 @@
  */
 
 import { CLIENT_ENVIRONMENT } from '../environment';
+import { config } from '../config';
 
 /**
  * Get the base Supabase URL from environment variables
  * Falls back to PUBLIC_SUPABASE_URL if SUPABASE_URL is not available
  */
 function getSupabaseBaseUrl(): string {
-	// Check for specific Supabase URL first
-	if (CLIENT_ENVIRONMENT.SUPABASE_URL) {
-		console.log('🔗 [CONFIG] Using SUPABASE_URL:', CLIENT_ENVIRONMENT.SUPABASE_URL);
-		return CLIENT_ENVIRONMENT.SUPABASE_URL;
+	// Use the working config.ts instead of CLIENT_ENVIRONMENT
+	if (config.supabaseUrl && config.supabaseUrl !== 'http://127.0.0.1:54321') {
+		return config.supabaseUrl;
 	}
 
-	// Fallback to PUBLIC_SUPABASE_URL
-	if (CLIENT_ENVIRONMENT.PUBLIC_SUPABASE_URL) {
-		console.log('🔗 [CONFIG] Using PUBLIC_SUPABASE_URL as fallback:', CLIENT_ENVIRONMENT.PUBLIC_SUPABASE_URL);
-		return CLIENT_ENVIRONMENT.PUBLIC_SUPABASE_URL;
-	}
-
-	// Final fallback for local development
+	// Fallback for local development
 	console.log('🔗 [CONFIG] No environment URLs found, using localhost fallback');
 	return 'http://localhost:54321';
 }
