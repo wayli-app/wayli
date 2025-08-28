@@ -18,5 +18,5 @@ export * from './processors';
 export * from './utils';
 
 // Shared types and constants (safe for all environments)
-export * from '../shared/types';
-export * from '../shared/constants';
+export * from './shared/types';
+export * from './shared/constants';

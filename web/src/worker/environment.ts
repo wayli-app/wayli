@@ -2,7 +2,7 @@
 // This file contains environment variables and configuration that are safe
 // to use in worker code (background processes)
 
-import { ENVIRONMENT } from '../shared/environment';
+import { ENVIRONMENT } from './shared/environment';
 
 export const WORKER_ENVIRONMENT = {
 	...ENVIRONMENT,

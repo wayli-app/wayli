@@ -28,9 +28,9 @@
 		"test:totp": "tsx src/scripts/test-totp.ts",
 		"test:cache": "tsx src/scripts/test-cache.ts",
 		"test:poi-visits": "tsx src/scripts/test-poi-visit-detection.ts",
-		"worker": "tsx src/worker/entry.ts",
-		"worker:start": "tsx src/worker/entry.ts",
-		"worker:dev": "tsx --watch src/worker/entry.ts",
+		"worker": "cd src && tsx worker/entry.ts",
+		"worker:start": "cd src && tsx worker/entry.ts",
+		"worker:dev": "cd src && tsx --watch worker/entry.ts",
 		"check:separation": "node scripts/check-environment-separation.js"
 	},
 	"devDependencies": {

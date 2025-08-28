@@ -3,8 +3,8 @@
 // Do not import this in client or server code
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseConfig } from '../shared/config/node-environment';
-import type { Database } from '../shared/types';
+import { getSupabaseConfig } from './shared/config/node-environment';
+import type { Database } from './shared/types';
 
 const config = getSupabaseConfig();
 

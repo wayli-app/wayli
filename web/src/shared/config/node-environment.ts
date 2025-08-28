@@ -83,14 +83,6 @@ export interface NodeEnvironmentConfig {
 		storagePath: string;
 	};
 
-	// Email Configuration
-	email: {
-		provider: string;
-		apiKey: string;
-		fromAddress: string;
-		templatePath: string;
-	};
-
 	// Monitoring Configuration
 	monitoring: {
 		enabled: boolean;
@@ -216,12 +208,6 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	];
 	const uploadStoragePath = mergedEnv.UPLOAD_STORAGE_PATH || './uploads';
 
-	// Email Configuration
-	const emailProvider = mergedEnv.EMAIL_PROVIDER || 'sendgrid';
-	const emailApiKey = mergedEnv.EMAIL_API_KEY || '';
-	const emailFromAddress = mergedEnv.EMAIL_FROM_ADDRESS || '';
-	const emailTemplatePath = mergedEnv.EMAIL_TEMPLATE_PATH || './templates';
-
 	// Monitoring Configuration
 	const monitoringEnabled = mergedEnv.MONITORING_ENABLED === 'true';
 	const monitoringEndpoint = mergedEnv.MONITORING_ENDPOINT || '';
@@ -280,12 +266,6 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 			maxSize: uploadMaxSize,
 			allowedTypes: uploadAllowedTypes,
 			storagePath: uploadStoragePath
-		},
-		email: {
-			provider: emailProvider,
-			apiKey: emailApiKey,
-			fromAddress: emailFromAddress,
-			templatePath: emailTemplatePath
 		},
 		monitoring: {
 			enabled: monitoringEnabled,
