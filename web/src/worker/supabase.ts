@@ -8,6 +8,12 @@ import type { Database } from '../shared/types';
 
 const config = getWorkerSupabaseConfig();
 
+// Enhanced debugging for connection issues
+console.log('🔧 Creating Supabase client:');
+console.log('  - URL:', config.url);
+console.log('  - Service role key length:', config.serviceRoleKey.length);
+console.log('  - Anon key length:', (config as any).anonKey?.length || 0);
+
 export const supabase: SupabaseClient<Database> = createClient<Database>(
 	config.url,
 	config.serviceRoleKey,
@@ -15,6 +21,11 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
 		auth: {
 			autoRefreshToken: false,
 			persistSession: false
+		},
+		global: {
+			headers: {
+				'User-Agent': 'Wayli-Worker/1.0'
+			}
 		}
 	}
 );

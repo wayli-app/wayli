@@ -72,8 +72,19 @@ export class JobWorker {
 		try {
 			const config = getWorkerSupabaseConfig();
 
+			// Enhanced debugging for Kubernetes troubleshooting
+			console.log('🔧 Worker environment check:');
+			console.log('  - SUPABASE_URL:', config.url ? 'SET' : 'NOT SET');
+			console.log('  - SUPABASE_SERVICE_ROLE_KEY:', config.serviceRoleKey ? 'SET' : 'NOT SET');
+			console.log('  - SUPABASE_ANON_KEY:', (config as any).anonKey ? 'SET' : 'NOT SET');
+
+			// Check if we're in a container environment
+			console.log('  - Container environment:', process.env.KUBERNETES_SERVICE_HOST ? 'Kubernetes' : 'Local');
+			console.log('  - Node environment:', process.env.NODE_ENV || 'undefined');
+			console.log('  - Working directory:', process.cwd());
+
 			if (!config.url) {
-				console.error('❌ PUBLIC_SUPABASE_URL is not set! Worker cannot connect to Supabase.');
+				console.error('❌ SUPABASE_URL is not set! Worker cannot connect to Supabase.');
 			}
 
 			if (!config.serviceRoleKey) {
@@ -85,20 +96,39 @@ export class JobWorker {
 					'🚨 Worker will not be able to retrieve jobs due to missing environment variables!'
 				);
 				console.error(
-					'   Please set PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
+					'   Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
 				);
 			} else {
 				// Test the connection by trying to get job stats with timeout
 				try {
+					console.log('🔍 Testing Supabase connection...');
+					console.log('  - Target URL:', config.url);
+					console.log('  - Service role key length:', config.serviceRoleKey.length);
+
 					const stats = await Promise.race([
 						JobQueueService.getJobStats(),
 						new Promise((_, reject) =>
-							setTimeout(() => reject(new Error('Supabase connection timeout')), 5000)
+							setTimeout(() => reject(new Error('Supabase connection timeout')), 10000)
 						)
 					]);
 					console.log('✅ Supabase connection successful! Job stats:', stats);
 				} catch (error) {
 					console.error('❌ Failed to connect to Supabase:', error);
+
+					// Enhanced error analysis
+					if (error instanceof Error) {
+						console.error('❌ Error type:', error.constructor.name);
+						console.error('❌ Error message:', error.message);
+
+						// Check for specific error types
+						if (error.message.includes('fetch failed')) {
+							console.error('❌ Network error detected - check pod network policies and firewall rules');
+						} else if (error.message.includes('timeout')) {
+							console.error('❌ Connection timeout - check if Supabase is reachable from the pod');
+						} else if (error.message.includes('unauthorized')) {
+							console.error('❌ Authentication error - check service role key permissions');
+						}
+					}
 				}
 			}
 		} catch (error) {
