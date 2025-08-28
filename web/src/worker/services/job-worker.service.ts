@@ -102,7 +102,9 @@ export class JobWorker {
 				// Test the connection by trying to get job stats with timeout
 				try {
 					console.log('🔍 Testing Supabase connection...');
-					console.log('  - Target URL:', config.url);
+					// Get the actual URL from the Supabase client being used
+					const actualUrl = JobQueueService.getSupabaseUrl();
+					console.log('  - Target URL:', actualUrl);
 					console.log('  - Service role key length:', config.serviceRoleKey.length);
 
 					const stats = await Promise.race([

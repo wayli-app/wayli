@@ -15,6 +15,10 @@ export class JobQueueService {
 		return { ...this.config };
 	}
 
+	static getSupabaseUrl(): string {
+		return (this.supabase as any).supabaseUrl || 'unknown';
+	}
+
 	static async createJob(
 		type: JobType,
 		data: Record<string, unknown>,
