@@ -5,13 +5,15 @@
 
 import dotenv from 'dotenv';
 
-// Load environment variables from .env file
+// Load environment variables from .env file (optional)
 // Look for .env file in the project root (web/ directory)
-const envPath = new URL('../../../.env', import.meta.url).pathname;
-const result = dotenv.config({ path: envPath });
-
-if (result.error) {
-	console.warn('⚠️ [dotenv] Error loading .env file:', result.error);
+let result: dotenv.DotenvConfigOutput = { parsed: {} };
+try {
+	const envPath = new URL('../../../.env', import.meta.url).pathname;
+	result = dotenv.config({ path: envPath });
+} catch (error) {
+	// .env file is optional - environment variables can be set via Kubernetes, Docker, etc.
+	console.log('ℹ️ No .env file found - using environment variables from system');
 }
 
 export interface NodeEnvironmentConfig {
@@ -99,12 +101,13 @@ export interface NodeEnvironmentConfig {
  * @returns The validated configuration
  */
 export function validateNodeEnvironmentConfig(
-	config: NodeEnvironmentConfig
+	config: NodeEnvironmentConfig,
+	strict: boolean = false
 ): NodeEnvironmentConfig {
 	const isDev = config.app.nodeEnv === 'development';
 	const errors: string[] = [];
 
-	// Validate Supabase configuration
+	// Always validate Supabase configuration (required for workers)
 	if (!config.supabase.url) {
 		errors.push('SUPABASE_URL is required');
 	}
@@ -115,25 +118,28 @@ export function validateNodeEnvironmentConfig(
 		errors.push('SUPABASE_SERVICE_ROLE_KEY is required');
 	}
 
-	// Validate application configuration
-	if (!config.app.nodeEnv) {
-		errors.push('NODE_ENV is required');
-	}
+	// Only validate other configs if strict mode is enabled
+	if (strict) {
+		// Validate application configuration
+		if (!config.app.nodeEnv) {
+			errors.push('NODE_ENV is required');
+		}
 
-	// Validate security configuration (more lenient in development)
-	if (!config.security.jwtSecret) {
-		errors.push('JWT_SECRET is required');
-	}
-	if (!config.security.sessionSecret && !isDev) {
-		errors.push('SESSION_SECRET is required');
-	}
-	if (!config.security.cookieSecret && !isDev) {
-		errors.push('COOKIE_SECRET is required');
+		// Validate security configuration (more lenient in development)
+		if (!config.security.jwtSecret) {
+			errors.push('JWT_SECRET is required');
+		}
+		if (!config.security.sessionSecret && !isDev) {
+			errors.push('SESSION_SECRET is required');
+		}
+		if (!config.security.cookieSecret && !isDev) {
+			errors.push('COOKIE_SECRET is required');
+		}
 	}
 
 	// Report errors
 	if (errors.length > 0) {
-		if (isDev) {
+		if (isDev && !strict) {
 			console.warn('⚠️  Development mode - some environment variables are missing:', errors);
 		} else {
 			throw new Error(`Configuration errors: ${errors.join(', ')}`);
@@ -276,7 +282,7 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 		}
 	};
 
-	return validateNodeEnvironmentConfig(config);
+	return validateNodeEnvironmentConfig(config, false); // Non-strict validation for workers
 }
 
 /**
@@ -293,6 +299,33 @@ export function getSupabaseConfig() {
  */
 export function getWorkerConfig() {
 	return getNodeEnvironmentConfig().workers;
+}
+
+/**
+ * Gets the Supabase configuration with minimal validation (for workers)
+ * Only validates Supabase connection details, ignores other configs
+ * @returns The Supabase configuration
+ */
+export function getWorkerSupabaseConfig() {
+	const mergedEnv = { ...process.env, ...result.parsed };
+
+	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';
+	const supabaseAnonKey = mergedEnv.SUPABASE_ANON_KEY || mergedEnv.PUBLIC_SUPABASE_ANON_KEY || '';
+	const supabaseServiceRoleKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || '';
+
+	// Only validate Supabase config for workers
+	if (!supabaseUrl) {
+		throw new Error('SUPABASE_URL is required for worker');
+	}
+	if (!supabaseServiceRoleKey) {
+		throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for worker');
+	}
+
+	return {
+		url: supabaseUrl,
+		anonKey: supabaseAnonKey,
+		serviceRoleKey: supabaseServiceRoleKey
+	};
 }
 
 /**
