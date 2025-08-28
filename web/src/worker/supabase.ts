@@ -6,26 +6,39 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getWorkerSupabaseConfig } from '../shared/config/node-environment';
 import type { Database } from '../shared/types';
 
-const config = getWorkerSupabaseConfig();
+// Lazy initialization of Supabase client
+let supabaseClient: SupabaseClient<Database> | null = null;
 
-// Enhanced debugging for connection issues
-console.log('🔧 Creating Supabase client:');
-console.log('  - URL:', config.url);
-console.log('  - Service role key length:', config.serviceRoleKey.length);
-console.log('  - Anon key length:', (config as any).anonKey?.length || 0);
+function getSupabaseClient(): SupabaseClient<Database> {
+	if (!supabaseClient) {
+		const config = getWorkerSupabaseConfig();
 
-export const supabase: SupabaseClient<Database> = createClient<Database>(
-	config.url,
-	config.serviceRoleKey,
-	{
-		auth: {
-			autoRefreshToken: false,
-			persistSession: false
-		},
-		global: {
-			headers: {
-				'User-Agent': 'Wayli-Worker/1.0'
+		console.log('🔧 Creating Supabase client:');
+		console.log('  - URL:', config.url);
+		console.log('  - Service role key length:', config.serviceRoleKey.length);
+		console.log('  - Anon key length:', (config as any).anonKey?.length || 0);
+
+		supabaseClient = createClient<Database>(
+			config.url,
+			config.serviceRoleKey,
+			{
+				auth: {
+					autoRefreshToken: false,
+					persistSession: false
+				},
+				global: {
+					headers: {
+						'User-Agent': 'Wayli-Worker/1.0'
+					}
+				}
 			}
-		}
+		);
+
+		console.log('🔧 Supabase client created with URL:', config.url);
+		console.log('🔧 Supabase client service role key length:', config.serviceRoleKey.length);
 	}
-);
+
+	return supabaseClient;
+}
+
+export const supabase = getSupabaseClient();

@@ -219,6 +219,10 @@ export class JobQueueService {
 		failed: number;
 		cancelled: number;
 	}> {
+		// Debug: Log which Supabase client we're using
+		console.log('🔍 JobQueueService.getJobStats() using Supabase client with URL:',
+			(this.supabase as any).supabaseUrl || 'unknown');
+
 		const { data, error } = await this.supabase.from('jobs').select('status');
 
 		if (error) throw error;

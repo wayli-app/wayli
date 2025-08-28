@@ -155,8 +155,8 @@ export function validateNodeEnvironmentConfig(
  * @returns {NodeEnvironmentConfig}
  */
 export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
-	// Use the merged environment variables
-	const mergedEnv = { ...process.env, ...result.parsed };
+	// Use the merged environment variables (env vars take precedence over .env file)
+	const mergedEnv = { ...result.parsed, ...process.env };
 
 	// Supabase Configuration
 	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';
@@ -307,7 +307,8 @@ export function getWorkerConfig() {
  * @returns The Supabase configuration
  */
 export function getWorkerSupabaseConfig() {
-	const mergedEnv = { ...process.env, ...result.parsed };
+	// Environment variables should take precedence over .env file
+	const mergedEnv = { ...result.parsed, ...process.env };
 
 	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';
 	const supabaseAnonKey = mergedEnv.SUPABASE_ANON_KEY || mergedEnv.PUBLIC_SUPABASE_ANON_KEY || '';
@@ -357,7 +358,7 @@ export function isProduction(): boolean {
  * @returns The Pexels configuration
  */
 export function getPexelsConfig() {
-	const mergedEnv = { ...process.env, ...result.parsed };
+	const mergedEnv = { ...result.parsed, ...process.env };
 	const pexelsApiKey = mergedEnv.PEXELS_API_KEY || '';
 
 	return {
