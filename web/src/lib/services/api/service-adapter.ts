@@ -299,56 +299,22 @@ export class ServiceAdapter {
 		try {
 			// Starting import job creation - removed debug log for consistency
 
-			// Upload file directly to storage with progress tracking
-			const fileName = `${Date.now()}-${file.name}`;
-			const storagePath = `${this.session.user.id}/${fileName}`;
+					// Generate unique filename
+		const fileName = `${Date.now()}-${file.name}`;
+		const storagePath = `${this.session.user.id}/${fileName}`;
 
-			console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
+		console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
 
-			const { supabase } = await import('$lib/supabase');
+		const { supabase } = await import('$lib/supabase');
 
-			// Upload file with progress tracking using XMLHttpRequest
-			const uploadPromise = new Promise<{ error: unknown }>((resolve) => {
-				const xhr = new XMLHttpRequest();
-
-				// Get upload URL from Supabase
-				supabase.storage
-					.from('temp-files')
-					.createSignedUploadUrl(storagePath)
-					.then(({ data, error }) => {
-						if (error) {
-							resolve({ error });
-							return;
-						}
-
-						const uploadUrl = data.signedUrl;
-
-						xhr.upload.addEventListener('progress', (event) => {
-							if (event.lengthComputable && onUploadProgress) {
-								const percentage = Math.round((event.loaded / event.total) * 100);
-								onUploadProgress(percentage);
-							}
-						});
-
-						xhr.addEventListener('load', () => {
-							if (xhr.status >= 200 && xhr.status < 300) {
-								resolve({ error: null });
-							} else {
-								resolve({ error: new Error(`Upload failed with status ${xhr.status}`) });
-							}
-						});
-
-						xhr.addEventListener('error', () => {
-							resolve({ error: new Error('Upload failed') });
-						});
-
-						xhr.open('PUT', uploadUrl);
-						xhr.setRequestHeader('Content-Type', file.type);
-						xhr.send(file);
-					});
+		// ✅ FIXED: Upload directly to Supabase storage instead of using presigned URLs
+		// This will work with your existing RLS policies
+		const { data, error: uploadError } = await supabase.storage
+			.from('temp-files')
+			.upload(storagePath, file, {
+				contentType: file.type,
+				upsert: false
 			});
-
-			const { error: uploadError } = await uploadPromise;
 
 			if (uploadError) {
 				console.error('❌ [SERVICE] File upload failed:', uploadError);
