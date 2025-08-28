@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-import { getSupabaseConfig } from '../../../shared/config/node-environment';
+import { getSupabaseConfig } from '../../shared/config/node-environment';
 
 import type { UserProfile } from '$lib/types/user.types';
 // Supports both SvelteKit and Node/worker environments. By default, uses SvelteKit $env/static/*, but can be configured for Node/worker via setSupabaseClient or setSupabaseConfig.

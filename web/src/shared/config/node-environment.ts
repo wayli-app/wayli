@@ -6,7 +6,9 @@
 import dotenv from 'dotenv';
 
 // Load environment variables from .env file
-const result = dotenv.config();
+// Look for .env file in the project root (web/ directory)
+const envPath = new URL('../../../.env', import.meta.url).pathname;
+const result = dotenv.config({ path: envPath });
 
 if (result.error) {
 	console.warn('⚠️ [dotenv] Error loading .env file:', result.error);

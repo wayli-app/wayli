@@ -1,7 +1,7 @@
-import { getWorkerConfig } from './shared/config/node-environment';
+import { getWorkerConfig } from '../shared/config/node-environment';
 import { supabase } from './supabase';
 
-import type { Job, JobType, JobStatus, JobPriority, JobConfig } from './shared/types/job-queue.types';
+import type { Job, JobType, JobStatus, JobPriority, JobConfig } from '../lib/types/job-queue.types';
 
 export class JobQueueService {
 	private static config: JobConfig = getWorkerConfig();

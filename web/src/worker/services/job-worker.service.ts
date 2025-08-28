@@ -9,7 +9,7 @@ import { getWorkerSupabaseConfig } from '../../shared/config/worker-environment'
 import { JobProcessorService } from '../job-processor.service';
 import { JobQueueService } from '../job-queue.service.worker';
 
-import type { Job } from '../../shared/types/job-queue.types';
+import type { Job } from '../../lib/types/job-queue.types';
 
 export class JobWorker {
 	private workerId: string;
