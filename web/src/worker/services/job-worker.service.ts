@@ -98,44 +98,58 @@ export class JobWorker {
 				console.error(
 					'   Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
 				);
-			} else {
-				// Test the connection by trying to get job stats with timeout
-				try {
-					console.log('🔍 Testing Supabase connection...');
-					// Get the actual URL from the Supabase client being used
-					const actualUrl = JobQueueService.getSupabaseUrl();
-					console.log('  - Target URL:', actualUrl);
-					console.log('  - Service role key length:', config.serviceRoleKey.length);
+				console.error('🚨 Missing required environment variables - exiting with code 1');
+				console.error('   This indicates a critical configuration failure that prevents the worker from starting.');
+				console.error('   Please check your environment variable configuration.');
+				throw new Error('Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY');
+			}
 
-					const stats = await Promise.race([
-						JobQueueService.getJobStats(),
-						new Promise((_, reject) =>
-							setTimeout(() => reject(new Error('Supabase connection timeout')), 10000)
-						)
-					]);
-					console.log('✅ Supabase connection successful! Job stats:', stats);
-				} catch (error) {
-					console.error('❌ Failed to connect to Supabase:', error);
+			// Test the connection by trying to get job stats with timeout
+			try {
+				console.log('🔍 Testing Supabase connection...');
+				// Get the actual URL from the Supabase client being used
+				const actualUrl = JobQueueService.getSupabaseUrl();
+				console.log('  - Target URL:', actualUrl);
+				console.log('  - Service role key length:', config.serviceRoleKey.length);
 
-					// Enhanced error analysis
-					if (error instanceof Error) {
-						console.error('❌ Error type:', error.constructor.name);
-						console.error('❌ Error message:', error.message);
+				const stats = await Promise.race([
+					JobQueueService.getJobStats(),
+					new Promise((_, reject) =>
+						setTimeout(() => reject(new Error('Supabase connection timeout')), 10000)
+					)
+				]);
+				console.log('✅ Supabase connection successful! Job stats:', stats);
+			} catch (error) {
+				console.error('❌ Failed to connect to Supabase:', error);
 
-						// Check for specific error types
-						if (error.message.includes('fetch failed')) {
-							console.error('❌ Network error detected - check pod network policies and firewall rules');
-						} else if (error.message.includes('timeout')) {
-							console.error('❌ Connection timeout - check if Supabase is reachable from the pod');
-						} else if (error.message.includes('unauthorized')) {
-							console.error('❌ Authentication error - check service role key permissions');
-						}
+				// Enhanced error analysis
+				if (error instanceof Error) {
+					console.error('❌ Error type:', error.constructor.name);
+					console.error('❌ Error message:', error.message);
+
+					// Check for specific error types
+					if (error.message.includes('fetch failed')) {
+						console.error('❌ Network error detected - check pod network policies and firewall rules');
+					} else if (error.message.includes('timeout')) {
+						console.error('❌ Connection timeout - check if Supabase is reachable from the pod');
+					} else if (error.message.includes('unauthorized')) {
+						console.error('❌ Authentication error - check service role key permissions');
 					}
 				}
+
+				// Throw error to cause worker to exit with code 1
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+				console.error('🚨 Worker cannot connect to Supabase - exiting with code 1');
+				console.error('   This indicates a critical connection failure that prevents the worker from functioning.');
+				console.error('   Please check your Supabase configuration and network connectivity.');
+				throw new Error(`Worker cannot connect to Supabase: ${errorMessage}`);
 			}
 		} catch (error) {
 			console.error('❌ Failed to load worker environment configuration:', error);
 			console.error('   This could be due to missing or invalid environment variables.');
+
+			// Re-throw the error to cause worker to exit with code 1
+			throw error;
 		}
 	}
 

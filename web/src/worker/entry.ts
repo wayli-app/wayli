@@ -50,12 +50,34 @@ process.on('SIGTERM', async () => {
 // Handle uncaught exceptions
 process.on('uncaughtException', async (error) => {
 	console.error('❌ Uncaught exception:', error);
+
+	// Check if this is a connection-related error
+	if (error instanceof Error) {
+		if (error.message.includes('Missing required environment variables') ||
+			error.message.includes('Worker cannot connect to Supabase') ||
+			error.message.includes('SUPABASE_URL') ||
+			error.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+			console.error('🚨 Critical connection error detected in uncaught exception');
+		}
+	}
+
 	await worker.stop();
 	process.exit(1);
 });
 
 process.on('unhandledRejection', async (reason, promise) => {
 	console.error('❌ Unhandled rejection at:', promise, 'reason:', reason);
+
+	// Check if this is a connection-related error
+	if (reason instanceof Error) {
+		if (reason.message.includes('Missing required environment variables') ||
+			reason.message.includes('Worker cannot connect to Supabase') ||
+			reason.message.includes('SUPABASE_URL') ||
+			reason.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+			console.error('🚨 Critical connection error detected in unhandled rejection');
+		}
+	}
+
 	await worker.stop();
 	process.exit(1);
 });
@@ -70,6 +92,18 @@ async function startWorkerWithRetry(maxRetries = 3, retryDelay = 2000) {
 			return;
 		} catch (error) {
 			console.error(`❌ Attempt ${attempt} failed:`, error);
+
+			// Check if this is a connection error that should cause immediate exit
+			if (error instanceof Error) {
+				if (error.message.includes('Missing required environment variables') ||
+					error.message.includes('Worker cannot connect to Supabase') ||
+					error.message.includes('SUPABASE_URL') ||
+					error.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+					console.error('🚨 Critical connection error detected - exiting immediately');
+					await worker.stop();
+					process.exit(1);
+				}
+			}
 
 			if (attempt < maxRetries) {
 				console.log(`⏳ Retrying in ${retryDelay}ms...`);
