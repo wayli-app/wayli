@@ -1076,25 +1076,32 @@ BEGIN
 END $$;
 
 -- Create storage buckets for file uploads
+-- Note: These buckets are configured with file size limits that match the config.toml settings
+-- - temp-files: 2GiB (for large import files)
+-- - trip-images: 10MiB (for trip images)
+-- - exports: 100MiB (for user data exports)
 -- Create temp-files bucket for temporary import files
-INSERT INTO storage.buckets (id, name)
+INSERT INTO storage.buckets (id, name, file_size_limit)
 VALUES (
     'temp-files',
-    'temp-files'
+    'temp-files',
+    2147483648  -- 2GiB in bytes
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Create trip-images bucket for trip images
-INSERT INTO storage.buckets (id, name)
+INSERT INTO storage.buckets (id, name, file_size_limit)
 VALUES (
     'trip-images',
-    'trip-images'
+    'trip-images',
+    10485760  -- 10MiB in bytes
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Create exports bucket for user data exports
-INSERT INTO storage.buckets (id, name)
+INSERT INTO storage.buckets (id, name, file_size_limit)
 VALUES (
     'exports',
-    'exports'
+    'exports',
+    104857600  -- 100MiB in bytes
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Enable RLS on storage.objects with error handling
@@ -1110,13 +1117,13 @@ END $$;
 -- Create storage policies with proper error handling, file size limits, and MIME type restrictions
 DO $$
 BEGIN
-    -- Create storage policies for temp-files bucket (private, 1GB limit, specific MIME types)
+    -- Create storage policies for temp-files bucket (private, 2GB limit, specific MIME types)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can upload to temp-files') THEN
         CREATE POLICY "Users can upload to temp-files" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'temp-files' AND
                 auth.uid()::text = (storage.foldername(name))[1] AND
-                (metadata->>'size')::bigint <= 1073741824 AND -- 1GB limit
+                (metadata->>'size')::bigint <= 2147483648 AND -- 2GB limit to match bucket configuration
                 metadata->>'mimetype' IN ('application/json', 'text/csv', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
             );
     END IF;
@@ -1175,7 +1182,7 @@ BEGIN
             FOR INSERT WITH CHECK (
                 bucket_id = 'trip-images' AND
                 auth.role() = 'authenticated' AND
-                (metadata->>'size')::bigint <= 1073741824 AND -- 1GB limit
+                (metadata->>'size')::bigint <= 2147483648 AND -- 2GB limit to match bucket configuration
                 metadata->>'mimetype' IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp')
             );
     END IF;

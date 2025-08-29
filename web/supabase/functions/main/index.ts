@@ -67,8 +67,8 @@ serve(async (req: Request) => {
 	const servicePath = `/home/supabase/functions/${service_name}`;
 	console.error(`serving the request with ${servicePath}`);
 
-	const memoryLimitMb = 150;
-	const workerTimeoutMs = 1 * 60 * 1000;
+	const memoryLimitMb = 500; // Increased to handle large file processing and job creation
+	const workerTimeoutMs = 5 * 60 * 1000; // Increased timeout for large file processing
 	const noModuleCache = false;
 	const importMapPath = null;
 	const envVarsObj = Deno.env.toObject();

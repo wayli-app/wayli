@@ -426,6 +426,7 @@
 	"importExport.importing": "Importando... (Esto puede tomar unos minutos para archivos grandes)",
 	"importExport.importDataButton": "Importar datos",
 	"importExport.importSuccessful": "¡Importación exitosa!",
+	"importExport.importFailed": "La importación falló",
 	"importExport.exportDataButton": "Exportar datos",
 	"importExport.pickDateRange": "Selecciona un rango de fechas",
 	"importExport.pleaseSelectFile": "Por favor selecciona un archivo y formato",

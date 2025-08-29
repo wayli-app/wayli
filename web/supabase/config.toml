@@ -108,7 +108,7 @@ file_size_limit = "2GiB"
 # Configure export bucket for user data exports
 [storage.buckets.exports]
 public = false
-file_size_limit = "100MiB"
+file_size_limit = "2GiB"
 allowed_mime_types = ["application/zip", "application/json", "application/gpx+xml", "text/plain"]
 objects_path = "./exports"
 
@@ -122,7 +122,7 @@ objects_path = "./temp-files"
 # Configure trip-images bucket for trip images
 [storage.buckets.trip-images]
 public = true
-file_size_limit = "10MiB"
+file_size_limit = "2GiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 objects_path = "./trip-images"
 

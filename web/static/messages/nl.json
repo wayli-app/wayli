@@ -426,6 +426,7 @@
 	"importExport.importing": "Importeren... (Dit kan enkele minuten duren voor grote bestanden)",
 	"importExport.importDataButton": "Data importeren",
 	"importExport.importSuccessful": "Import succesvol!",
+	"importExport.importFailed": "Import mislukt",
 	"importExport.exportDataButton": "Data exporteren",
 	"importExport.pickDateRange": "Kies een datumbereik",
 	"importExport.pleaseSelectFile": "Selecteer een bestand en formaat",
