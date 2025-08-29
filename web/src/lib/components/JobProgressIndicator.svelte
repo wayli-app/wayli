@@ -222,7 +222,7 @@
 				data: { session }
 			} = await supabase.auth.getSession();
 			if (!session) {
-				toast.error('❌ ' + t('jobProgress.notAuthenticated'));
+				toast.error(t('jobProgress.notAuthenticated'));
 				return;
 			}
 
@@ -235,10 +235,10 @@
 				throw new Error(error.message || 'Failed to cancel job');
 			}
 
-			toast.success('✅ ' + t('jobProgress.jobCancelledSuccessfully'));
+			toast.success(t('jobProgress.jobCancelledSuccessfully'));
 		} catch (error) {
 			console.error('❌ Error cancelling job:', error);
-			toast.error('❌ ' + t('jobProgress.failedToCancelJob'));
+			toast.error(t('jobProgress.failedToCancelJob'));
 		} finally {
 			showCancelConfirm = false;
 			jobToCancel = null;
@@ -258,7 +258,7 @@
 				data: { session }
 			} = await supabase.auth.getSession();
 			if (!session) {
-				toast.error('❌ ' + t('jobProgress.notAuthenticated'));
+				toast.error(t('jobProgress.notAuthenticated'));
 				return;
 			}
 
@@ -278,7 +278,7 @@
 				link.click();
 				document.body.removeChild(link);
 
-				toast.success('✅ ' + t('jobProgress.downloadStarted'));
+				toast.success(t('jobProgress.downloadStarted'));
 
 				// Remove the job from the completed export jobs list
 				completedExportJobs = completedExportJobs.filter((j) => j.id !== job.id);
@@ -291,7 +291,7 @@
 			}
 		} catch (error) {
 			console.error('❌ Error downloading export:', error);
-			toast.error('❌ ' + t('jobProgress.failedToDownloadExport'));
+			toast.error(t('jobProgress.failedToDownloadExport'));
 		}
 	}
 

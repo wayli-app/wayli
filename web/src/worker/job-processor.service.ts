@@ -436,7 +436,7 @@ export class JobProcessorService {
 			try {
 				// Use the optimized batch calculation for this user's data
 				// Start with a smaller batch size to avoid timeouts
-				let batchSize = 1000; // Reduced from 5000
+				let batchSize = 500; // Reduced from 1000 to avoid timeouts
 				const maxRetries = 3;
 				let retryCount = 0;
 				let totalUpdated = 0;
@@ -445,9 +445,10 @@ export class JobProcessorService {
 					try {
 						console.log(`🧮 [IMPORT] Attempting distance calculation with batch size ${batchSize} (attempt ${retryCount + 1}/${maxRetries})`);
 
+						// Try the small batch function first for better performance
 						const { data: distanceResult, error: distanceError } = await supabase.rpc(
-							'update_tracker_distances_batch',
-							{ target_user_id: userId, batch_size: batchSize }
+							'update_tracker_distances_small_batch',
+							{ target_user_id: userId, max_records: batchSize }
 						);
 
 						if (distanceError) {
@@ -464,9 +465,33 @@ export class JobProcessorService {
 
 						// If it's a timeout error, reduce batch size and retry
 						if (distanceError?.code === '57014' && retryCount < maxRetries) {
-							batchSize = Math.max(100, Math.floor(batchSize * 0.5)); // Reduce batch size by half, minimum 100
+							batchSize = Math.max(50, Math.floor(batchSize * 0.5)); // Reduce batch size by half, minimum 50
 							console.log(`🔄 [IMPORT] Reducing batch size to ${batchSize} and retrying...`);
+
+							// If we're still getting timeouts, try the regular batch function
+							if (batchSize <= 100) {
+								console.log(`🔄 [IMPORT] Trying regular batch function with smaller batch size...`);
+							}
 							continue;
+						}
+
+						// If it's not a timeout error, try the regular batch function as fallback
+						if (retryCount === 1) {
+							console.log(`🔄 [IMPORT] Trying regular batch function as fallback...`);
+							try {
+								const { data: fallbackResult, error: fallbackError } = await supabase.rpc(
+									'update_tracker_distances_batch',
+									{ target_user_id: userId, batch_size: Math.min(batchSize, 250) }
+								);
+
+								if (!fallbackError) {
+									totalUpdated = fallbackResult || 0;
+									console.log(`✅ [IMPORT] Fallback distance calculation completed: ${totalUpdated} records updated`);
+									break; // Success with fallback
+								}
+							} catch (fallbackError) {
+								console.warn(`⚠️ [IMPORT] Fallback distance calculation also failed:`, fallbackError);
+							}
 						}
 
 						// If we've exhausted retries or it's not a timeout, log and continue
@@ -485,17 +510,14 @@ export class JobProcessorService {
 					// If no records were updated, create a background job for distance calculation
 					console.log('🔄 [IMPORT] No distances calculated, creating background distance calculation job...');
 					try {
-						const { error: backgroundJobError } = await supabase.from('jobs').insert({
-							user_id: userId,
-							type: 'distance_calculation',
-							status: 'queued',
-							priority: 'low',
-							data: {
-								type: 'distance_calculation',
-								created_by: userId,
-								reason: 'import_fallback'
+						// Use the new function to safely create the job with correct column names
+						const { data: jobResult, error: backgroundJobError } = await supabase.rpc(
+							'create_distance_calculation_job',
+							{
+								target_user_id: userId,
+								job_reason: 'import_fallback'
 							}
-						});
+						);
 
 						if (backgroundJobError) {
 							console.warn('⚠️ Failed to create background distance calculation job:', backgroundJobError);

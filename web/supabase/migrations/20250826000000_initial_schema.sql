@@ -1101,7 +1101,7 @@ INSERT INTO storage.buckets (id, name, file_size_limit)
 VALUES (
     'exports',
     'exports',
-    104857600  -- 100MiB in bytes
+    2147483648  -- 2GiB in bytes
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Enable RLS on storage.objects with error handling
@@ -1150,7 +1150,7 @@ BEGIN
             FOR INSERT WITH CHECK (
                 bucket_id = 'exports' AND
                 auth.uid()::text = (storage.foldername(name))[1] AND
-                (metadata->>'size')::bigint <= 104857600 AND -- 100MB limit
+                (metadata->>'size')::bigint <= 2147483648 AND -- 2GiB limit
                 metadata->>'mimetype' IN ('application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
             );
     END IF;
@@ -1182,7 +1182,7 @@ BEGIN
             FOR INSERT WITH CHECK (
                 bucket_id = 'trip-images' AND
                 auth.role() = 'authenticated' AND
-                (metadata->>'size')::bigint <= 2147483648 AND -- 2GB limit to match bucket configuration
+                (metadata->>'size')::bigint <= 2147483648 AND -- 2GiB limit to match bucket configuration
                 metadata->>'mimetype' IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp')
             );
     END IF;
