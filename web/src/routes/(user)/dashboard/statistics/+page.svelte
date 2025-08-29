@@ -1230,8 +1230,6 @@
 			min-width: 340px;
 			max-width: 95vw;
 			z-index: 3000 !important;
-			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-			border-radius: 12px;
 			margin-top: 8px;
 			overflow-x: auto;
 		}
@@ -1243,10 +1241,6 @@
 				width: 98vw;
 				max-width: 98vw;
 			}
-		}
-		.datepicker-statistics-fix .date-field,
-		.datepicker-statistics-fix .date-field.open {
-			cursor: pointer !important;
 		}
 		.datepicker-statistics-fix .calendars-container {
 			right: 0 !important;

@@ -23,9 +23,7 @@
 	let isImporting = $state(false);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-	// Upload progress state
-	let uploadProgress = $state(0);
-	let isUploading = $state(false);
+
 
 	// Last successful import date
 	let lastSuccessfulImport = $state<string | null>(null);
@@ -90,8 +88,6 @@
 
 		try {
 			isImporting = true;
-			isUploading = true;
-			uploadProgress = 0;
 
 			const result = await jobCreationService.createImportJob(
 				selectedFile,
@@ -101,10 +97,7 @@
 					includeWantToVisit,
 					includeTrips
 				},
-				(progress: number) => {
-					uploadProgress = progress;
-					console.log('📤 Upload progress:', progress + '%');
-				}
+
 			);
 
 			// Immediately add the job to the store so it shows in the sidebar
@@ -138,8 +131,6 @@
 			console.error('Import error:', error);
 		} finally {
 			isImporting = false;
-			isUploading = false;
-			uploadProgress = 0;
 		}
 
 		// Refresh the last successful import date after a successful import
@@ -361,21 +352,7 @@
 					</div>
 				</div>
 
-				<!-- Upload Progress Bar -->
-				{#if isUploading}
-					<div class="mt-4">
-						<div class="mb-2 flex justify-between text-sm text-gray-600 dark:text-gray-400">
-							<span>{t('importExport.uploadingFile')}</span>
-							<span>{uploadProgress}%</span>
-						</div>
-						<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-							<div
-								class="h-2 rounded-full bg-green-600 transition-all duration-300"
-								style="width: {uploadProgress}%"
-							></div>
-						</div>
-					</div>
-				{/if}
+
 
 				<!-- Import button only shown if no active job -->
 				<button
