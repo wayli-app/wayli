@@ -1249,7 +1249,7 @@
 </script>
 
 <svelte:head>
-	<title>Trips - Wayli</title>
+	<title>{t('navigation.trips')} - Wayli</title>
 </svelte:head>
 
 <div class="space-y-6">

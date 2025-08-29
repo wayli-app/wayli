@@ -1902,8 +1902,275 @@ COMMENT ON COLUMN public.tracker_data.tz_diff IS 'Timezone difference from UTC i
 -- MERGED MIGRATIONS END HERE
 -- ========================================================================
 
+-- ========================================================================
+-- Migration: 20250826000001_fix_distance_calculation_timeout.sql
+-- Fix distance calculation timeout issues and column name mismatch
+-- This migration addresses the statement timeout errors and fixes the jobs table usage
+-- ========================================================================
+
+-- ========================================================================
+-- Fix 1: Add missing performance indexes for distance calculation
+-- ========================================================================
+
+-- Create the missing composite indexes if they don't exist
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_location
+ON public.tracker_data(user_id, recorded_at)
+WHERE location IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_distance
+ON public.tracker_data(user_id, recorded_at)
+WHERE distance IS NULL OR distance = 0;
+
+CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_ordered
+ON public.tracker_data(user_id, recorded_at ASC)
+WHERE location IS NOT NULL;
+
+-- ========================================================================
+-- Fix 2: Create a more efficient distance calculation function
+-- ========================================================================
+
+-- Drop the existing function if it exists
+DROP FUNCTION IF EXISTS update_tracker_distances_batch(UUID, INTEGER);
+
+-- Create a new, more efficient distance calculation function
+CREATE OR REPLACE FUNCTION update_tracker_distances_batch(
+    target_user_id UUID DEFAULT NULL,
+    batch_size INTEGER DEFAULT 500  -- Reduced default batch size
+)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER := 0;
+    batch_updated INTEGER;
+    user_filter TEXT := '';
+    has_more_records BOOLEAN := TRUE;
+    start_time TIMESTAMP := clock_timestamp();
+    max_execution_time INTERVAL := INTERVAL '2 minutes';  -- Reduced to 2 minutes
+    current_batch_size INTEGER := batch_size;
+BEGIN
+    -- Set very short timeout for this function to prevent long-running operations
+    SET statement_timeout = '120s';  -- 2 minutes
+
+    -- Check if we're approaching the execution time limit
+    IF clock_timestamp() - start_time > max_execution_time THEN
+        RAISE NOTICE 'Function execution time limit approaching, returning partial results';
+        RETURN total_updated;
+    END IF;
+
+    IF target_user_id IS NOT NULL THEN
+        user_filter := ' AND t1.user_id = $1';
+    END IF;
+
+    RAISE NOTICE 'Starting optimized distance calculation for records without distances (batch size: %)', batch_size;
+
+    -- Loop until no more records need processing or time limit reached
+    WHILE has_more_records AND (clock_timestamp() - start_time) < max_execution_time LOOP
+        -- Process only records that don't have distance calculated yet
+        -- Use a more efficient approach with smaller batches
+        WITH distance_and_time_calculations AS (
+            SELECT
+                t1.user_id,
+                t1.recorded_at,
+                t1.location,
+                CASE
+                    WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                    ELSE ST_DistanceSphere(
+                        LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                        t1.location
+                    )
+                END AS calculated_distance,
+                CASE
+                    WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                    ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+                END AS calculated_time_spent
+            FROM public.tracker_data t1
+            WHERE t1.location IS NOT NULL
+              AND (t1.distance IS NULL OR t1.distance = 0)  -- Only process records without distance
+              AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+            ORDER BY t1.user_id, t1.recorded_at
+            LIMIT current_batch_size
+        )
+        UPDATE public.tracker_data AS td
+        SET
+            distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+            time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+            speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
+        FROM distance_and_time_calculations dc
+        WHERE td.user_id = dc.user_id
+          AND td.recorded_at = dc.recorded_at
+          AND td.location = dc.location;
+
+        GET DIAGNOSTICS batch_updated = ROW_COUNT;
+
+        -- If no records were updated, we're done
+        IF batch_updated = 0 THEN
+            has_more_records := FALSE;
+        ELSE
+            total_updated := total_updated + batch_updated;
+            RAISE NOTICE 'Processed batch: % records, total: %', batch_updated, total_updated;
+
+            -- Check execution time limit
+            IF (clock_timestamp() - start_time) >= max_execution_time THEN
+                RAISE NOTICE 'Execution time limit reached, returning partial results: % records updated', total_updated;
+                has_more_records := FALSE;
+            ELSE
+                -- Reduce batch size progressively to prevent timeouts
+                IF current_batch_size > 100 THEN
+                    current_batch_size := GREATEST(100, current_batch_size - 50);
+                    RAISE NOTICE 'Reducing batch size to % for next iteration', current_batch_size;
+                END IF;
+
+                -- Small delay to prevent overwhelming the database
+                PERFORM pg_sleep(0.01);  -- Reduced from 0.05s
+            END IF;
+        END IF;
+    END LOOP;
+
+    RAISE NOTICE 'Optimized distance calculation completed: % total records updated in %',
+                 total_updated,
+                 clock_timestamp() - start_time;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Update the function comment
+COMMENT ON FUNCTION update_tracker_distances_batch IS 'Updates distance and time_spent columns in optimized batches for large datasets. Includes execution time limits and improved performance with progressive batch size reduction.';
+
+-- ========================================================================
+-- Fix 3: Create a lightweight distance calculation function for small batches
+-- ========================================================================
+
+-- Create a lightweight function for very small batches (useful for real-time updates)
+CREATE OR REPLACE FUNCTION update_tracker_distances_small_batch(
+    target_user_id UUID DEFAULT NULL,
+    max_records INTEGER DEFAULT 100  -- Very small batch size
+)
+RETURNS INTEGER AS $$
+DECLARE
+    total_updated INTEGER := 0;
+BEGIN
+    -- Set very short timeout
+    SET statement_timeout = '30s';  -- 30 seconds
+
+    -- Simple, fast update for small batches
+    WITH distance_and_time_calculations AS (
+        SELECT
+            t1.user_id,
+            t1.recorded_at,
+            t1.location,
+            CASE
+                WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                ELSE ST_DistanceSphere(
+                    LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
+                    t1.location
+                )
+            END AS calculated_distance,
+            CASE
+                WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
+                ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+            END AS calculated_time_spent
+        FROM public.tracker_data t1
+        WHERE t1.location IS NOT NULL
+          AND (t1.distance IS NULL OR t1.distance = 0)
+          AND (target_user_id IS NULL OR t1.user_id = target_user_id)
+        ORDER BY t1.user_id, t1.recorded_at
+        LIMIT max_records
+    )
+    UPDATE public.tracker_data AS td
+    SET
+        distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+        time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+        speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
+    FROM distance_and_time_calculations dc
+    WHERE td.user_id = dc.user_id
+      AND td.recorded_at = dc.recorded_at
+      AND td.location = dc.location;
+
+    GET DIAGNOSTICS total_updated = ROW_COUNT;
+    RETURN total_updated;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION update_tracker_distances_small_batch IS 'Lightweight distance calculation function for small batches with very short timeout (30s).';
+
+-- ========================================================================
+-- Fix 4: Add RLS policies for the jobs table if they don't exist
+-- ========================================================================
+
+-- Enable RLS on jobs table
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policy for jobs table
+DROP POLICY IF EXISTS "Users can view their own jobs" ON public.jobs;
+CREATE POLICY "Users can view their own jobs" ON public.jobs
+    FOR SELECT USING (auth.uid() = created_by);
+
+DROP POLICY IF EXISTS "Users can insert their own jobs" ON public.jobs;
+CREATE POLICY "Users can insert their own jobs" ON public.jobs
+    FOR INSERT WITH CHECK (auth.uid() = created_by);
+
+DROP POLICY IF EXISTS "Users can update their own jobs" ON public.jobs;
+CREATE POLICY "Users can update their own jobs" ON public.jobs
+    FOR UPDATE USING (auth.uid() = created_by);
+
+-- ========================================================================
+-- Fix 5: Create a function to safely create distance calculation jobs
+-- ========================================================================
+
+-- Create a function to safely create distance calculation jobs
+CREATE OR REPLACE FUNCTION create_distance_calculation_job(
+    target_user_id UUID,
+    job_reason TEXT DEFAULT 'import_fallback'
+)
+RETURNS UUID AS $$
+DECLARE
+    job_id UUID;
+BEGIN
+    -- Insert the job using the correct column name (created_by instead of user_id)
+    INSERT INTO public.jobs (
+        type,
+        status,
+        priority,
+        data,
+        created_by
+    ) VALUES (
+        'distance_calculation',
+        'queued',
+        'low',
+        jsonb_build_object(
+            'type', 'distance_calculation',
+            'target_user_id', target_user_id,
+            'reason', job_reason,
+            'created_at', now()
+        ),
+        target_user_id
+    ) RETURNING id INTO job_id;
+
+    RETURN job_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION create_distance_calculation_job IS 'Safely creates a distance calculation job using the correct column names.';
+
+-- ========================================================================
+-- Fix 6: Grant necessary permissions
+-- ========================================================================
+
+-- Grant execute permission on the new functions
+GRANT EXECUTE ON FUNCTION update_tracker_distances_batch(UUID, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_tracker_distances_small_batch(UUID, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_distance_calculation_job(UUID, TEXT) TO authenticated;
+
+-- Grant necessary permissions on the jobs table
+GRANT SELECT, INSERT, UPDATE ON public.jobs TO authenticated;
+
+-- ========================================================================
+-- Distance calculation timeout fixes completed
+-- ========================================================================
+
+
+
 -- Execute the distance and time_spent calculation for all existing records
--- This is placed at the end to ensure all functions are created first
+-- This is placed at the end to ensure all functions are properly created first
 -- This might take a while for large datasets
 DO $$
 DECLARE

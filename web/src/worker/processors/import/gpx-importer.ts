@@ -4,7 +4,8 @@ import { supabase } from '../../supabase';
 import {
 	getCountryForPoint as getCountryForPointExternal,
 	normalizeCountryCode as normalizeCountryCodeExternal,
-	applyTimezoneCorrectionToTimestamp
+	applyTimezoneCorrectionToTimestamp,
+	getTimezoneDifferenceForPoint
 } from '../../../lib/services/external/country-reverse-geocoding.service';
 import { JobQueueService } from '../../job-queue.service.worker';
 import { checkJobCancellation } from '../../../lib/utils/job-cancellation';
@@ -66,6 +67,9 @@ export async function importGPXWithProgress(
 					recordedAt = applyTimezoneCorrectionToTimestamp(waypoint.time, lat, lon);
 				}
 
+				// Calculate timezone difference for this location
+				const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
+
 				const { error } = await supabase.from('tracker_data').upsert(
 					{
 						user_id: userId,
@@ -73,6 +77,7 @@ export async function importGPXWithProgress(
 						location: `POINT(${lon} ${lat})`,
 						recorded_at: recordedAt,
 						country_code: countryCode,
+						tz_diff: tzDiff,  // Add timezone difference
 						raw_data: {
 							name: waypoint.name || `GPX Waypoint ${i + 1}`,
 							description: waypoint.desc || `Imported from ${fileName}`,
@@ -143,6 +148,9 @@ export async function importGPXWithProgress(
 						recordedAt = applyTimezoneCorrectionToTimestamp(point.time, lat, lon);
 					}
 
+					// Calculate timezone difference for this location
+					const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
+
 					const { error } = await supabase.from('tracker_data').upsert(
 						{
 							user_id: userId,
@@ -150,6 +158,7 @@ export async function importGPXWithProgress(
 							location: `POINT(${lon} ${lat})`,
 							recorded_at: recordedAt,
 							country_code: countryCode,
+							tz_diff: tzDiff,  // Add timezone difference
 							raw_data: { import_source: 'gpx', data_type: 'track_point' },
 							created_at: new Date().toISOString()
 						},

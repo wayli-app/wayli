@@ -106,8 +106,52 @@
 
 	// Progress tracking
 	let loadingProgress = $state(0); // 0-100
+	let targetProgress = $state(0); // Target progress value
 	let loadingStage = $state(''); // Current loading stage description
 	let isCountingRecords = $state(false); // Flag to track if we're counting records
+	let progressAnimationId = $state<NodeJS.Timeout | null>(null); // For smooth progress animation
+
+	// Smooth progress animation function
+	function animateProgress(target: number, duration: number = 800) {
+		console.log(`🎯 Progress animation: ${loadingProgress}% → ${target}% over ${duration}ms`);
+
+		// Clear any existing animation
+		if (progressAnimationId) {
+			clearTimeout(progressAnimationId);
+		}
+
+		const start = loadingProgress;
+		const change = target - start;
+		const startTime = Date.now();
+
+				function updateProgress() {
+			const elapsed = Date.now() - startTime;
+			const progress = Math.min(elapsed / duration, 1);
+
+			// Use smoother easing function for better visual appeal
+			const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+			const currentProgress = start + (change * easeOutCubic);
+
+			// Round to whole numbers for cleaner display
+			loadingProgress = Math.round(currentProgress);
+
+			if (progress < 1) {
+				progressAnimationId = setTimeout(updateProgress, 16); // ~60fps
+			} else {
+				loadingProgress = target;
+				progressAnimationId = null;
+			}
+		}
+
+		updateProgress();
+	}
+
+	// Clean up animation on component unmount
+	onDestroy(() => {
+		if (progressAnimationId) {
+			clearTimeout(progressAnimationId);
+		}
+	});
 
 	// Add statistics state
 	let statisticsData = $state<StatisticsData | null>(null);
@@ -569,7 +613,8 @@
 		try {
 			isCountingRecords = true;
 			loadingStage = t('statistics.countingRecords');
-			loadingProgress = 10;
+			console.log(`📊 Progress stage: ${loadingStage} - animating to 10%`);
+			animateProgress(10, 400);
 
 			const startDate = appState.filtersStartDate
 				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
@@ -612,13 +657,15 @@
 				})) as { total?: number; hasMore?: boolean };
 
 				const total = result.total || 0;
-				loadingProgress = 20;
+				console.log(`📊 Progress stage: Found ${total} records - animating to 20%`);
+				animateProgress(20, 400);
 				loadingStage = t('statistics.foundRecords', { count: total.toLocaleString() });
 				return total;
 			}
 
 			const total = count || 0;
-			loadingProgress = 20;
+			console.log(`📊 Progress stage: Found ${total} records - animating to 20%`);
+			animateProgress(20, 400);
 			loadingStage = t('statistics.foundRecords', { count: total.toLocaleString() });
 
 			return total;
@@ -640,20 +687,21 @@
 		}
 
 		try {
-			// Set loading states - map loading for initial loads and date range changes, not for "load more"
-			if (loadMoreOffset === 0) {
-				isLoading = true;
-				isInitialLoad = false;
-			}
-			statisticsLoading = true;
-			statisticsError = '';
+					// Set loading states - map loading for initial loads and date range changes, not for "load more"
+		if (loadMoreOffset === 0) {
+			isLoading = true;
+			isInitialLoad = false;
+		}
+		statisticsLoading = true;
+		statisticsError = '';
 
-			// If this is the initial load, get the total count first for progress indication
-			if (loadMoreOffset === 0) {
-				loadingStage = t('statistics.gettingRecordCount');
-				loadingProgress = 5;
-				totalPoints = await getTotalCount();
-			}
+		// If this is the initial load, get the total count first for progress indication
+		if (loadMoreOffset === 0) {
+			loadingStage = t('statistics.gettingRecordCount');
+			console.log(`📊 Progress stage: ${loadingStage} - animating to 5%`);
+			animateProgress(5, 600);
+			totalPoints = await getTotalCount();
+		}
 
 			const startDate = appState.filtersStartDate
 				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
@@ -681,10 +729,27 @@
 				throw new Error('User not authenticated');
 			}
 
-			// Update progress for data fetching
-			loadingStage =
-				loadMoreOffset === 0 ? t('statistics.loadingInitialData') : t('statistics.loadingMoreData');
-			loadingProgress = loadMoreOffset === 0 ? 30 : 60;
+					// Update progress for data fetching
+		loadingStage =
+			loadMoreOffset === 0 ? t('statistics.loadingInitialData') : t('statistics.loadingMoreData');
+		console.log(`📊 Progress stage: ${loadingStage} - animating to ${loadMoreOffset === 0 ? 30 : 60}%`);
+		animateProgress(loadMoreOffset === 0 ? 30 : 60, 800);
+
+		// Add intermediate progress updates for smoother animation
+		if (loadMoreOffset === 0) {
+			console.log('🔄 Adding intermediate progress updates for smoother animation');
+			// Add a small delay and then animate to 40%
+			setTimeout(() => {
+				console.log('📈 Intermediate progress: animating to 40%');
+				animateProgress(40, 600);
+			}, 200);
+
+			// Add another intermediate step
+			setTimeout(() => {
+				console.log('📈 Intermediate progress: animating to 50%');
+				animateProgress(50, 600);
+			}, 600);
+		}
 
 			const serviceAdapter = new ServiceAdapter({ session });
 
@@ -716,9 +781,26 @@
 				throw new Error((result as any).error || 'Failed to fetch data');
 			}
 
-			// Update progress for data processing
-			loadingStage = t('statistics.processingData');
-			loadingProgress = loadMoreOffset === 0 ? 70 : 80;
+					// Update progress for data processing
+		loadingStage = t('statistics.processingData');
+		console.log(`📊 Progress stage: ${loadingStage} - animating to ${loadMoreOffset === 0 ? 70 : 80}%`);
+		animateProgress(loadMoreOffset === 0 ? 70 : 80, 800);
+
+		// Add intermediate progress updates for smoother animation
+		if (loadMoreOffset === 0) {
+			console.log('🔄 Adding intermediate progress updates for data processing');
+			// Add a small delay and then animate to 75%
+			setTimeout(() => {
+				console.log('📈 Intermediate progress: animating to 75%');
+				animateProgress(75, 600);
+			}, 300);
+
+			// Add another intermediate step
+			setTimeout(() => {
+				console.log('📈 Intermediate progress: animating to 78%');
+				animateProgress(78, 600);
+			}, 500);
+		}
 
 			// Process statistics if they were included in the response
 			if (needsNewStatistics && result.statistics) {
@@ -729,10 +811,27 @@
 				};
 			}
 
-			// Transform and set location data for map
-			if (result.locations) {
-				loadingStage = t('statistics.transformingData');
-				loadingProgress = loadMoreOffset === 0 ? 85 : 90;
+					// Transform and set location data for map
+		if (result.locations) {
+			loadingStage = t('statistics.transformingData');
+			console.log(`📊 Progress stage: ${loadingStage} - animating to ${loadMoreOffset === 0 ? 85 : 90}%`);
+			animateProgress(loadMoreOffset === 0 ? 85 : 90, 800);
+
+					// Add intermediate progress updates for smoother animation
+		if (loadMoreOffset === 0) {
+			console.log('🔄 Adding intermediate progress updates for data transformation');
+			// Add a small delay and then animate to 87%
+			setTimeout(() => {
+				console.log('📈 Intermediate progress: animating to 87%');
+				animateProgress(87, 600);
+			}, 200);
+
+			// Add another intermediate step
+			setTimeout(() => {
+				console.log('📈 Intermediate progress: animating to 89%');
+				animateProgress(89, 600);
+			}, 400);
+		}
 
 				const transformedLocations: TrackerLocation[] = (result.locations as unknown[]).map(
 					(location, index) => {
@@ -803,12 +902,28 @@
 				currentOffset = locationData.length;
 			}
 
-			// Complete loading
-			loadingStage = t('statistics.complete');
-			loadingProgress = 100;
+					// Complete loading
+		loadingStage = t('statistics.complete');
+		console.log(`📊 Progress stage: ${loadingStage}`);
 
-			// Add a small delay to ensure the 100% completion is visible
-			await new Promise(resolve => setTimeout(resolve, 500));
+		// Add intermediate step before 100% for smoother animation
+		console.log('🔄 Adding final intermediate progress updates');
+		animateProgress(95, 600);
+
+		// Add another intermediate step
+		setTimeout(() => {
+			console.log('📈 Intermediate progress: animating to 97%');
+			animateProgress(97, 600);
+		}, 200);
+
+		// Small delay before final step
+		await new Promise(resolve => setTimeout(resolve, 300));
+
+		console.log('📈 Final progress: animating to 100%');
+		animateProgress(100, 1000);
+
+		// Add a small delay to ensure the 100% completion is visible
+		await new Promise(resolve => setTimeout(resolve, 500));
 		} catch (err) {
 			console.error('Error fetching map data and statistics:', err);
 			statisticsError = err instanceof Error ? err.message : String(err);
@@ -816,7 +931,7 @@
 				statisticsData = null;
 			}
 			loadingStage = t('statistics.errorOccurred');
-			loadingProgress = 0;
+			animateProgress(0, 300);
 		} finally {
 			// Reset loading states
 			if (loadMoreOffset === 0) {
@@ -825,7 +940,7 @@
 			statisticsLoading = false;
 			// Reset progress after a short delay
 			setTimeout(() => {
-				loadingProgress = 0;
+				animateProgress(0, 500);
 				loadingStage = '';
 			}, 1000);
 		}
@@ -1259,6 +1374,7 @@
 			}
 		}
 	</style>
+	<title>{t('navigation.statistics')} - Wayli</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -1276,6 +1392,7 @@
 					bind:startDate={localStartDate}
 					bind:endDate={localEndDate}
 					pickLabel={t('datePicker.pickDateRange')}
+					showClear={false}
 				/>
 			</div>
 		</div>
@@ -1300,12 +1417,12 @@
 					{#if loadingProgress > 0}
 						<div class="mb-2 h-2 w-64 rounded-full bg-gray-200 dark:bg-gray-700">
 							<div
-								class="h-2 rounded-full bg-blue-500 transition-all duration-300 ease-out"
-								style="width: {loadingProgress}%"
+								class="h-2 rounded-full bg-blue-500 transition-all duration-500 ease-out"
+								style="width: {Math.round(loadingProgress)}%"
 							></div>
 						</div>
 						<div class="text-sm text-gray-600 dark:text-gray-400">
-							{t('statistics.percentComplete', { percent: loadingProgress })}
+							{t('statistics.percentComplete', { percent: Math.round(loadingProgress) })}
 						</div>
 					{/if}
 				</div>

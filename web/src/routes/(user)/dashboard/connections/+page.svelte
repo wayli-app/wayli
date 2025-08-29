@@ -105,6 +105,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{t('connections.title')} - Wayli</title>
+</svelte:head>
+
 <div>
 	<!-- Header -->
 	<div class="mb-8">

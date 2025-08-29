@@ -4,7 +4,8 @@ import { supabase } from '../../supabase';
 import {
 	normalizeCountryCode as normalizeCountryCodeExternal,
 	getCountryForPoint as getCountryForPointExternal,
-	applyTimezoneCorrectionToTimestamp
+	applyTimezoneCorrectionToTimestamp,
+	getTimezoneDifferenceForPoint
 } from '../../../lib/services/external/country-reverse-geocoding.service';
 import { JobQueueService } from '../../job-queue.service.worker';
 import { checkJobCancellation } from '../../../lib/utils/job-cancellation';
@@ -83,6 +84,9 @@ export async function importOwnTracksWithProgress(
 
 					const recordedAt = applyTimezoneCorrectionToTimestamp(timestamp * 1000, lat, lon);
 
+					// Calculate timezone difference for this location
+					const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
+
 					const { error } = await supabase.from('tracker_data').upsert(
 						{
 							user_id: userId,
@@ -90,6 +94,7 @@ export async function importOwnTracksWithProgress(
 							location: `POINT(${lon} ${lat})`,
 							recorded_at: recordedAt,
 							country_code: countryCode,
+							tz_diff: tzDiff,  // Add timezone difference
 							altitude: parts[3] ? parseFloat(parts[3]) : null,
 							accuracy: parts[4] ? parseFloat(parts[4]) : null,
 							speed: parts[6] ? parseFloat(parts[6]) : null,

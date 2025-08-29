@@ -501,12 +501,12 @@
 <!-- Cancel Confirmation Modal -->
 {#if showCancelConfirm && jobToCancel}
 	<div
-		class="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important;"
+		class="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 999999 !important;"
 	>
 		<div
 			class="relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
-			style="position: relative !important; z-index: 100000 !important;"
+			style="position: relative !important; z-index: 1000000 !important;"
 		>
 			<div class="mb-4">
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Cancel Job</h3>

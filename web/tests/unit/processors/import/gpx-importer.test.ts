@@ -22,6 +22,19 @@ vi.mock('../../../../src/lib/utils/job-cancellation', () => ({
 vi.mock('../../../../src/lib/services/external/country-reverse-geocoding.service', () => ({
 	getCountryForPoint: () => 'XX',
 	normalizeCountryCode: (c: string | null) => c,
+	getTimezoneDifferenceForPoint: (lat: number, lon: number) => {
+		// Mock timezone difference based on coordinates
+		if (lat === 40.7128 && lon === -74.006) {
+			// NYC area - UTC-5
+			return -5;
+		} else if (lat === 48.8566 && lon === 2.3522) {
+			// Paris area - UTC+1
+			return 1;
+		} else {
+			// Default to UTC
+			return 0;
+		}
+	},
 	applyTimezoneCorrectionToTimestamp: hoisted.mockApplyTimezoneCorrectionToTimestamp
 }));
 

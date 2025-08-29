@@ -317,6 +317,9 @@ async function processFeatureChunk(
 					? ((properties as any).activity_type as string)
 					: null;
 
+			// Calculate timezone difference for this location
+			const tzDiff = getTimezoneDifferenceForPoint(latitude, longitude);
+
 			trackerData.push({
 				user_id: userId,
 				tracker_type: 'geojson',
@@ -329,6 +332,7 @@ async function processFeatureChunk(
 				speed,
 				heading,
 				activity_type: activityType,
+				tz_diff: tzDiff,  // Add timezone difference
 				raw_data: { ...(properties as any), import_source: 'geojson' },
 				created_at: new Date().toISOString()
 			});

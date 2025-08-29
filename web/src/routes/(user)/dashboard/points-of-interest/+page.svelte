@@ -176,6 +176,7 @@
 
 <svelte:head>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+	<title>{t('pointsOfInterest')} - Wayli</title>
 </svelte:head>
 
 <div>

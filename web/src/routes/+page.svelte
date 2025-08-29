@@ -65,6 +65,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{t('wayli')} - {t('wayliSubtitle')}</title>
+</svelte:head>
+
 <!-- Loading State -->
 {#if !messagesLoaded}
 	<div

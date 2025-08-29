@@ -400,6 +400,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{t('serverAdmin.title')} - Wayli</title>
+</svelte:head>
+
 <svelte:window />
 
 {#if isModalOpen && selectedUser}

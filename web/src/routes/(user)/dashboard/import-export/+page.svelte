@@ -281,6 +281,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{t('importExport.title')} - Wayli</title>
+</svelte:head>
+
 <div>
 	<!-- Header -->
 	<div class="mb-8">
@@ -436,6 +440,7 @@
 							bind:endDate={localExportEndDate}
 							pickLabel={t('importExport.pickDateRange')}
 							onChange={handleExportDateRangeChange}
+							showClear={false}
 						/>
 					</div>
 				</div>

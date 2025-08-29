@@ -552,28 +552,30 @@ export class JobProcessorService {
 				`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`
 			);
 
-			// Create auto-reverse geocoding job for newly imported data
-			try {
-				console.log('🔄 Creating auto-reverse geocoding job for imported data...');
-				const { error: reverseGeocodingError } = await supabase.from('jobs').insert({
-					created_by: userId,
-					type: 'reverse_geocoding_missing',
-					status: 'queued',
-					priority: 'normal',
-					data: {
-						type: 'reverse_geocoding_missing',
-						created_by: userId
-					}
-				});
-
-				if (reverseGeocodingError) {
-					console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
-				} else {
-					console.log('✅ Auto-reverse geocoding job created successfully');
-				}
-			} catch (error) {
-				console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
+				// Create auto-reverse geocoding job for newly imported data
+	try {
+		console.log('🔄 Creating auto-reverse geocoding job for imported data...');
+		const { error: reverseGeocodingError } = await supabase.from('jobs').insert({
+			created_by: userId,
+			type: 'reverse_geocoding_missing',
+			status: 'queued',
+			priority: 'normal',
+			data: {
+				type: 'reverse_geocoding_missing',
+				created_by: userId
 			}
+		});
+
+		if (reverseGeocodingError) {
+			console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
+		} else {
+			console.log('✅ Auto-reverse geocoding job created successfully');
+		}
+	} catch (error) {
+		console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
+	}
+
+
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {
@@ -631,6 +633,8 @@ export class JobProcessorService {
 		// TODO: Implement POI detection processor
 		throw new Error('POI detection processor not yet implemented');
 	}
+
+
 
 	private static async processTripDetection(job: Job): Promise<void> {
 		console.log(`🗺️ Processing trip detection job ${job.id}`);
