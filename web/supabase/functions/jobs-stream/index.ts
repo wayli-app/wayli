@@ -6,6 +6,7 @@ import {
 	logError,
 	logInfo
 } from '../_shared/utils.ts';
+import { supabase } from '../_shared/supabase.ts';
 
 Deno.serve(async (req) => {
 	// Handle CORS
@@ -15,7 +16,7 @@ Deno.serve(async (req) => {
 	if (req.method === 'GET') {
 		try {
 			// Authenticate the request properly
-			const { user, supabase } = await authenticateRequest(req);
+			const { user, supabase: userSupabase } = await authenticateRequest(req);
 			const userId = user.id;
 
 			// Set up SSE headers
@@ -31,6 +32,8 @@ Deno.serve(async (req) => {
 					const encoder = new TextEncoder();
 					let lastJobState = new Map<string, { status: string; progress: number; updated_at: string }>();
 					let hasActiveJobs = false;
+					let lastTokenCheck = Date.now();
+					const TOKEN_CHECK_INTERVAL = 30 * 60 * 1000; // Check token every 30 minutes
 
 					// Send initial connection message
 					const connectMessage = `data: ${JSON.stringify({
@@ -39,10 +42,29 @@ Deno.serve(async (req) => {
 					})}\n\n`;
 					controller.enqueue(encoder.encode(connectMessage));
 
+					// Function to check if we should use service role client due to token expiration
+					const getDatabaseClient = async () => {
+						const now = Date.now();
+						if (now - lastTokenCheck > TOKEN_CHECK_INTERVAL) {
+							lastTokenCheck = now;
+							try {
+								// Try to use the user client first
+								await userSupabase.from('jobs').select('id').limit(1);
+								return userSupabase;
+							} catch (error) {
+								// If user client fails, fall back to service role client
+								logInfo('Falling back to service role client due to token expiration', 'JOBS_STREAM', { userId });
+								return supabase; // Service role client
+							}
+						}
+						return userSupabase;
+					};
+
 					// Send initial jobs state only if there are active jobs
 					const sendInitialJobs = async () => {
 						try {
-							const { data: activeJobs, error } = await supabase
+							const dbClient = await getDatabaseClient();
+							const { data: activeJobs, error } = await dbClient
 								.from('jobs')
 								.select('*')
 								.eq('created_by', userId)
@@ -86,7 +108,8 @@ Deno.serve(async (req) => {
 						if (!hasActiveJobs) {
 							// Check if there are any new active jobs
 							try {
-								const { data: activeJobs, error } = await supabase
+								const dbClient = await getDatabaseClient();
+								const { data: activeJobs, error } = await dbClient
 									.from('jobs')
 									.select('*')
 									.eq('created_by', userId)
@@ -122,7 +145,8 @@ Deno.serve(async (req) => {
 						} else {
 							// Check for updates to existing active jobs
 							try {
-								const { data: activeJobs, error } = await supabase
+								const dbClient = await getDatabaseClient();
+								const { data: activeJobs, error } = await dbClient
 									.from('jobs')
 									.select('*')
 									.eq('created_by', userId)

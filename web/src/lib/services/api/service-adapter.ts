@@ -303,63 +303,84 @@ export class ServiceAdapter {
 		const fileName = `${Date.now()}-${file.name}`;
 		const storagePath = `${this.session.user.id}/${fileName}`;
 
-		console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
+						console.log('📤 [SERVICE] Uploading file to storage:', storagePath);
 
 		const { supabase } = await import('$lib/supabase');
 
-		// ✅ FIXED: Upload directly to Supabase storage instead of using presigned URLs
-		// This will work with your existing RLS policies
+		// ✅ FIXED: Convert File to Blob to ensure correct Content-Type and metadata
+		// This prevents the multipart/form-data issue that violates RLS policies
+		console.log('🔍 [SERVICE] Converting File to Blob for upload');
+		const arrayBuffer = await file.arrayBuffer();
+		const fileBlob = new Blob([arrayBuffer], { type: file.type });
+
+		console.log('🔍 [SERVICE] Upload options:', {
+			storagePath,
+			fileType: file.type,
+			fileSize: file.size,
+			blobType: fileBlob.type,
+			metadata: {
+				mimetype: file.type,
+				size: file.size.toString()
+			}
+		});
+
+		// ✅ FIXED: Upload directly to Supabase storage with proper metadata
+		// This ensures the RLS policy can validate the upload correctly
 		const { data, error: uploadError } = await supabase.storage
 			.from('temp-files')
-			.upload(storagePath, file, {
+			.upload(storagePath, fileBlob, {
 				contentType: file.type,
-				upsert: false
-			});
-
-			if (uploadError) {
-				console.error('❌ [SERVICE] File upload failed:', uploadError);
-				const message =
-					typeof uploadError === 'object' && uploadError && 'message' in uploadError
-						? (uploadError as { message: string }).message
-						: String(uploadError);
-				throw new Error(`File upload failed: ${message}`);
-			}
-
-			console.log('✅ [SERVICE] File uploaded successfully');
-
-			// Create import job via edge function
-			const response = await supabase.functions.invoke('import', {
-				body: {
-					storage_path: storagePath,
-					file_name: file.name,
-					file_size: file.size,
-					format: format
+				upsert: false,
+				metadata: {
+					mimetype: file.type,
+					size: file.size.toString()
 				}
 			});
 
-			if (response.error) {
-				console.error('❌ [SERVICE] Import job creation failed:', response.error);
-				throw new Error(`Import job creation failed: ${response.error.message}`);
+		if (uploadError) {
+			console.error('❌ [SERVICE] File upload failed:', uploadError);
+			const message =
+				typeof uploadError === 'object' && uploadError && 'message' in uploadError
+					? (uploadError as { message: string }).message
+					: String(uploadError);
+			throw new Error(`File upload failed: ${message}`);
+		}
+
+		console.log('✅ [SERVICE] File uploaded successfully');
+
+		// Create import job via edge function
+		const response = await supabase.functions.invoke('import', {
+			body: {
+				storage_path: storagePath,
+				file_name: file.name,
+				file_size: file.size,
+				format: format
 			}
+		});
 
-			const result = response.data as {
-				success: boolean;
-				data: { success: boolean; data: { jobId: string }; message: string };
-				message: string;
-			};
+		if (response.error) {
+			console.error('❌ [SERVICE] Import job creation failed:', response.error);
+			throw new Error(`Import job creation failed: ${response.error.message}`);
+		}
 
-			if (!result.success) {
-				throw new Error(`Import job creation failed: ${result.message || 'Unknown error'}`);
-			}
+		const result = response.data as {
+			success: boolean;
+			data: { success: boolean; data: { jobId: string }; message: string };
+			message: string;
+		};
 
-			// The Edge Function response is nested: { success: true, data: { success: true, data: { jobId: string } } }
-			const jobData = result.data;
-			if (!jobData.success || !jobData.data?.jobId) {
-				throw new Error(`Import job creation failed: Invalid response structure`);
-			}
+		if (!result.success) {
+			throw new Error(`Import job creation failed: ${result.message || 'Unknown error'}`);
+		}
 
-			console.log('✅ [SERVICE] Import job created successfully:', jobData.data.jobId);
-			return { jobId: jobData.data.jobId };
+		// The Edge Function response is nested: { success: true, data: { success: true, data: { jobId: string } } }
+		const jobData = result.data;
+		if (!jobData.success || !jobData.data?.jobId) {
+			throw new Error(`Import job creation failed: Invalid response structure`);
+		}
+
+		console.log('✅ [SERVICE] Import job created successfully:', jobData.data.jobId);
+		return { jobId: jobData.data.jobId };
 		} catch (error) {
 			console.error('❌ [SERVICE] Error in createImportJob:', error);
 			throw error;
@@ -384,12 +405,21 @@ export class ServiceAdapter {
 
 			console.log(`📁 [SERVICE-ADAPTER] Uploading to storage: ${fileName}`);
 
+			// ✅ FIXED: Convert File to Blob to ensure correct Content-Type header
+			// This prevents the multipart/form-data issue that violates RLS policies
+			const arrayBuffer = await file.arrayBuffer();
+			const fileBlob = new Blob([arrayBuffer], { type: file.type });
+
 			// Upload file directly to storage
 			const { error: uploadError } = await supabase.storage
 				.from('temp-files')
-				.upload(fileName, file, {
+				.upload(fileName, fileBlob, {
 					contentType: file.type,
-					upsert: false
+					upsert: false,
+					metadata: { // Explicitly set metadata for RLS policy
+						mimetype: file.type,
+						size: file.size.toString()
+					}
 				});
 
 			if (uploadError) {

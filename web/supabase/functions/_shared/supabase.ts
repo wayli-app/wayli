@@ -1,7 +1,8 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
 // Validate environment variables
 if (!supabaseUrl) {
@@ -14,7 +15,12 @@ if (!supabaseServiceKey) {
 	throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required');
 }
 
-let supabase;
+if (!supabaseAnonKey) {
+	console.error('❌ SUPABASE_ANON_KEY environment variable is not set');
+	throw new Error('SUPABASE_ANON_KEY environment variable is required');
+}
+
+let supabase: SupabaseClient;
 try {
 	supabase = createClient(supabaseUrl, supabaseServiceKey, {
 		auth: {

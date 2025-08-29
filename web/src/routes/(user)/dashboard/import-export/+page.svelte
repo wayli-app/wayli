@@ -127,17 +127,19 @@
 			if (fileInputEl) {
 				fileInputEl.value = '';
 			}
+
+			// Refresh the last successful import date after a successful import
+			await fetchLastSuccessfulImport();
+
+			// Show success message
+			toast.success(t('importExport.importSuccessful'));
 		} catch (error) {
 			console.error('Import error:', error);
+			// Show error message
+			toast.error(t('importExport.importFailed') || 'Import failed');
 		} finally {
 			isImporting = false;
 		}
-
-		// Refresh the last successful import date after a successful import
-		await fetchLastSuccessfulImport();
-
-		// Show success message
-		toast.success(t('importExport.importSuccessful'));
 	}
 
 	// Fetch last successful import date

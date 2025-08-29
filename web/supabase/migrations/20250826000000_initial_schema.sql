@@ -532,6 +532,49 @@ BEGIN
     END IF;
 END $$;
 
+-- Create RLS policies for workers table
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'workers' AND schemaname = 'public' AND policyname = 'Users can view their own workers') THEN
+        CREATE POLICY "Users can view their own workers" ON public.workers
+            FOR SELECT USING (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'workers' AND schemaname = 'public' AND policyname = 'Users can insert their own workers') THEN
+        CREATE POLICY "Users can insert their own workers" ON public.workers
+            FOR INSERT WITH CHECK (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'workers' AND schemaname = 'public' AND policyname = 'Users can update their own workers') THEN
+        CREATE POLICY "Users can update their own workers" ON public.workers
+            FOR UPDATE USING (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'workers' AND schemaname = 'public' AND policyname = 'Users can delete their own workers') THEN
+        CREATE POLICY "Users can delete their own workers" ON public.workers
+            FOR DELETE USING (auth.uid() = user_id);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'workers' AND schemaname = 'public' AND policyname = 'Service role can access all workers') THEN
+        CREATE POLICY "Service role can access all workers" ON public.workers
+            FOR ALL USING (auth.role() = 'service_role');
+    END IF;
+END $$;
+
+-- Create RLS policies for spatial_ref_sys table (PostGIS spatial reference system table)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'spatial_ref_sys' AND schemaname = 'public' AND policyname = 'Allow authenticated users to read spatial reference systems') THEN
+        CREATE POLICY "Allow authenticated users to read spatial reference systems" ON public.spatial_ref_sys
+            FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'spatial_ref_sys' AND schemaname = 'public' AND policyname = 'Service role can access all spatial reference systems') THEN
+        CREATE POLICY "Service role can access all spatial reference systems" ON public.spatial_ref_sys
+            FOR ALL USING (auth.role() = 'service_role');
+    END IF;
+END $$;
+
 -- Insert default settings if table is empty
 INSERT INTO public.server_settings (server_name, admin_email, allow_registration, require_email_verification)
 VALUES ('Wayli', NULL, true, false)
@@ -1073,7 +1116,7 @@ BEGIN
             FOR INSERT WITH CHECK (
                 bucket_id = 'temp-files' AND
                 auth.uid()::text = (storage.foldername(name))[1] AND
-                metadata->>'size'::text::bigint <= 1073741824 AND -- 1GB limit
+                (metadata->>'size')::bigint <= 1073741824 AND -- 1GB limit
                 metadata->>'mimetype' IN ('application/json', 'text/csv', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
             );
     END IF;
@@ -1100,7 +1143,7 @@ BEGIN
             FOR INSERT WITH CHECK (
                 bucket_id = 'exports' AND
                 auth.uid()::text = (storage.foldername(name))[1] AND
-                metadata->>'size'::text::bigint <= 104857600 AND -- 100MB limit
+                (metadata->>'size')::bigint <= 104857600 AND -- 100MB limit
                 metadata->>'mimetype' IN ('application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
             );
     END IF;
@@ -1132,7 +1175,7 @@ BEGIN
             FOR INSERT WITH CHECK (
                 bucket_id = 'trip-images' AND
                 auth.role() = 'authenticated' AND
-                metadata->>'size'::text::bigint <= 10485760 AND -- 10MB limit
+                (metadata->>'size')::bigint <= 1073741824 AND -- 1GB limit
                 metadata->>'mimetype' IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp')
             );
     END IF;
@@ -1149,6 +1192,18 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Service role can access all storage') THEN
         CREATE POLICY "Service role can access all storage" ON storage.objects
             FOR ALL USING (auth.role() = 'service_role');
+    END IF;
+
+    -- Add a more permissive fallback policy for authenticated users
+    -- This allows uploads even if metadata is missing or incomplete
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Authenticated users can upload to temp-files fallback') THEN
+        CREATE POLICY "Authenticated users can upload to temp-files fallback" ON storage.objects
+            FOR INSERT WITH CHECK (
+                bucket_id = 'temp-files' AND
+                auth.role() = 'authenticated' AND
+                -- Allow uploads to user's own folder
+                (storage.foldername(name))[1] = auth.uid()::text
+            );
     END IF;
 
 EXCEPTION

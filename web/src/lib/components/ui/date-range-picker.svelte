@@ -105,9 +105,10 @@
 		display: inline-flex;
 		gap: 8px;
 		min-width: 100px;
-		padding: 16px;
+		padding: 8px 12px;
 		transition: all 0.2s ease-in-out;
 		cursor: pointer;
+		height: fit-content;
 	}
 
 	.date-field:hover {

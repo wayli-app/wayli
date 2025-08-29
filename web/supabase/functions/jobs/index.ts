@@ -128,7 +128,51 @@ Deno.serve(async (req) => {
 				userId: user.id,
 				jobId: jobId
 			});
-			return successResponse({ message: 'Job cancelled successfully' });
+
+			// Always create a reverse geocoding job after cancelling an import job
+			if (job.type === 'data_import') {
+				try {
+					logInfo('Creating reverse geocoding job after import cancellation', 'JOBS', {
+						userId: user.id,
+						cancelledJobId: jobId
+					});
+
+					const { data: geocodingJob, error: geocodingError } = await supabase
+						.from('jobs')
+						.insert({
+							created_by: user.id,
+							type: 'reverse_geocoding',
+							status: 'queued',
+							data: {
+								reason: 'Import job cancelled - automatic geocoding',
+								cancelledImportJobId: jobId
+							}
+						})
+						.select()
+						.single();
+
+					if (geocodingError) {
+						logError(geocodingError, 'JOBS');
+						// Don't fail the cancellation, just log the error
+						console.error('❌ [JOBS] Failed to create geocoding job after import cancellation:', geocodingError);
+					} else {
+						logSuccess('Reverse geocoding job created successfully after import cancellation', 'JOBS', {
+							userId: user.id,
+							cancelledJobId: jobId,
+							geocodingJobId: geocodingJob.id
+						});
+					}
+				} catch (error) {
+					logError(error, 'JOBS');
+					// Don't fail the cancellation, just log the error
+					console.error('❌ [JOBS] Error creating geocoding job after import cancellation:', error);
+				}
+			}
+
+			return successResponse({
+				message: 'Job cancelled successfully',
+				geocodingJobCreated: job.type === 'data_import'
+			});
 		}
 
 		return errorResponse('Method not allowed', 405);
