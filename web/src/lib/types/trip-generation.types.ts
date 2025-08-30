@@ -1,17 +1,30 @@
 import type { GeocodedLocation } from './geocoding.types';
-import type { VisitedLocation } from '../services/trip-detection.service';
+
+// Define VisitedLocation interface locally to avoid circular dependencies
+export interface VisitedLocation {
+	cityName: string;
+	countryName: string;
+	countryCode: string;
+	stateName?: string;
+	durationHours: number;
+	dataPoints: number;
+	coordinates: {
+		lat: number;
+		lng: number;
+	};
+	tz_diff?: number; // Timezone difference from UTC in hours
+}
 
 export interface TripGenerationData {
 	startDate: string;
 	endDate: string;
 	useCustomHomeAddress: boolean;
 	customHomeAddress?: string;
-	// New configuration options
+	// Configuration options
 	minTripDurationHours?: number;
-	maxDistanceFromHomeKm?: number;
 	minDataPointsPerDay?: number;
-	minHomeDurationHours?: number; // Minimum time user must be home to end a trip
-	minHomeDataPoints?: number; // Minimum number of "home" data points to end a trip
+	// Note: minHomeDurationHours and minHomeDataPoints are no longer used
+	// The new algorithm uses minAwayDurationHours and minStatusConfirmationPoints
 }
 
 export interface TripExclusion {
@@ -151,13 +164,8 @@ export interface OvernightStay {
 	dataPoints: number;
 }
 
-export interface TripDetectionConfig {
-	minTripDurationHours: number;
-	maxDistanceFromHomeKm: number;
-	minDataPointsPerDay: number;
-	homeRadiusKm: number;
-	clusteringRadiusMeters: number;
-}
+// TripDetectionConfig interface is now defined in trip-detection.service.ts
+// with updated fields: minAwayDurationHours, minStatusConfirmationPoints, chunkSize
 
 export interface HomeAddress {
 	display_name: string;

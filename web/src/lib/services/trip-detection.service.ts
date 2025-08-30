@@ -13,18 +13,16 @@ import type {
 } from '../types/trip-generation.types';
 
 export interface TripDetectionConfig {
-	minTripDurationHours: number;
-	maxDistanceFromHomeKm: number;
-	minDataPointsPerDay: number;
-	homeRadiusKm: number;
-	clusteringRadiusMeters: number;
-	minHomeDurationHours: number; // Minimum time user must be home to end a trip
-	minHomeDataPoints: number; // Minimum number of data points that must be "home" to end a trip
+	minTripDurationHours: number; // Minimum trip duration to reduce noise
+	minDataPointsPerDay: number; // Minimum data points per day to ensure sufficient tracking
+	homeRadiusKm: number; // Radius in km to consider user "at home"
+	minStatusConfirmationPoints: number; // Points needed to confirm home/away status
+	chunkSize: number; // Number of points to process in each chunk
 }
 
 export interface DateRange {
-	startDate: string;
-	endDate: string;
+	startDate?: string; // Optional - undefined means start from first data point
+	endDate?: string;   // Optional - undefined means continue until last data point
 }
 
 export interface VisitedLocation {
@@ -38,16 +36,26 @@ export interface VisitedLocation {
 		lat: number;
 		lng: number;
 	};
+	tz_diff?: number; // Timezone difference from UTC in hours
+}
+
+export interface TripState {
+	homePoints: TrackerDataPoint[]; // Accumulated home points for status confirmation
+	awayPoints: TrackerDataPoint[]; // Accumulated away points for status confirmation
+	currentTripStart: string | null; // Current trip start timestamp
+	currentTripEnd: string | null; // Current trip end timestamp
+	currentTripLocations: VisitedLocation[];
+	lastHomePoint: TrackerDataPoint | null; // Last confirmed home point
+	lastAwayPoint: TrackerDataPoint | null; // Last confirmed away point
+	tripDataPoints: number; // Total number of data points processed during current trip
 }
 
 const DEFAULT_CONFIG: TripDetectionConfig = {
-	minTripDurationHours: 24,
-	maxDistanceFromHomeKm: 50,
-	minDataPointsPerDay: 3,
-	homeRadiusKm: 10,
-	clusteringRadiusMeters: 1000,
-	minHomeDurationHours: 1, // User must be home for at least 1 hour to end a trip
-	minHomeDataPoints: 5 // User must have at least 5 "home" data points to end a trip
+	minTripDurationHours: 24, // Minimum trip duration to reduce noise
+	minDataPointsPerDay: 5, // Minimum data points per day to ensure sufficient tracking
+	homeRadiusKm: 30, // Radius in km to consider user "at home"
+	minStatusConfirmationPoints: 10, // Points needed to confirm home/away status
+	chunkSize: 1000 // Process 1000 points at a time
 };
 
 export class TripDetectionService {
@@ -66,18 +74,34 @@ export class TripDetectionService {
 		const finalConfig = { ...DEFAULT_CONFIG, ...config };
 
 		console.log('🚀 Starting trip detection for user:', userId);
+		console.log('⚙️ Configuration:', finalConfig);
+		console.log('🔍 Debug: Method parameters:', { userId, jobId, hasProgressCallback: !!progressCallback, dateRangesCount: providedDateRanges?.length });
 
 		// Step 1: Determine date ranges to process
-		const dateRanges = providedDateRanges || (await this.determineDateRanges(userId));
+		// If no date ranges provided, determine them based on available data
+		let dateRanges: DateRange[];
+		if (providedDateRanges && providedDateRanges.length > 0) {
+			dateRanges = providedDateRanges;
+		} else {
+			// Extract start/end dates from the first and last provided ranges if they exist
+			const firstRange = providedDateRanges?.[0];
+			const lastRange = providedDateRanges?.[providedDateRanges.length - 1];
+
+			dateRanges = await this.determineDateRanges(
+				userId,
+				firstRange?.startDate,
+				lastRange?.endDate
+			);
+		}
 		console.log(`📅 Found ${dateRanges.length} date ranges to process`);
 
 		// Log the date ranges being processed
 		dateRanges.forEach((range, index) => {
-			console.log(`📅 Range ${index + 1}: ${range.startDate} to ${range.endDate}`);
+			console.log(`📅 Range ${index + 1}: ${range.startDate || 'undefined'} to ${range.endDate || 'undefined'}`);
 		});
 
 		if (progressCallback) {
-			progressCallback(10, `Found ${dateRanges.length} date ranges to process`);
+			progressCallback(5, `Found ${dateRanges.length} date ranges to process`);
 		}
 
 		// Step 2: Get user's home address, trip exclusions, and language preference
@@ -85,7 +109,7 @@ export class TripDetectionService {
 		console.log('🏠 Home address:', homeAddress?.display_name || 'Not set');
 		console.log('🚫 Trip exclusions:', tripExclusions.length);
 
-		// Step 3: Process each date range
+		// Step 3: Process each date range with chunk processing
 		const allTrips: DetectedTrip[] = [];
 		let processedRanges = 0;
 
@@ -93,379 +117,77 @@ export class TripDetectionService {
 			// Check for cancellation before processing each date range
 			await checkJobCancellation(jobId);
 
+			// Double-check that this date range doesn't already have trips
+			const hasExistingTrips = await this.hasExistingTripsInDateRange(userId, dateRange);
+			if (hasExistingTrips) {
+				console.log(`⏭️ Skipping date range ${dateRange.startDate} to ${dateRange.endDate} - already has trips`);
+				processedRanges++;
+				continue;
+			}
+
 			if (progressCallback) {
-				const progress = 10 + Math.round((processedRanges / dateRanges.length) * 80);
+				const progress = 5 + Math.round((processedRanges / dateRanges.length) * 5); // 5-10% for date range setup
 				progressCallback(
 					progress,
-					`Processing date range: ${dateRange.startDate} to ${dateRange.endDate}`
+					`Processing date range ${processedRanges + 1}/${dateRanges.length}: ${dateRange.startDate || 'undefined'} to ${dateRange.endDate || 'undefined'}`
 				);
 			}
 
-			console.log(`🔄 Processing date range: ${dateRange.startDate} to ${dateRange.endDate}`);
+			console.log(`🔄 Processing date range: ${dateRange.startDate || 'undefined'} to ${dateRange.endDate || 'undefined'}`);
 
-			const trips = await this.processDateRange(
+			const trips = await this.processDateRangeInChunks(
 				userId,
 				dateRange,
 				homeAddress,
 				tripExclusions,
 				finalConfig,
 				language,
-				(dayProgress: number, message: string) => {
-					// Calculate overall progress based on current date range and day progress within it
-					const dateRangeProgress = processedRanges / dateRanges.length;
-					const dayProgressWithinRange = dayProgress / 100;
-					const overallProgress =
-						10 + Math.round((dateRangeProgress + dayProgressWithinRange / dateRanges.length) * 80);
-
-					// Ensure progress never goes backwards (minimum 10% for initial setup)
-					const minProgress = 10 + Math.round((processedRanges / dateRanges.length) * 80);
-					const finalProgress = Math.max(overallProgress, minProgress);
-
-					if (progressCallback) {
-						progressCallback(finalProgress, message);
-					}
-				},
+				progressCallback,
 				jobId
 			);
 
 			allTrips.push(...trips);
 			processedRanges++;
+
+			console.log(`✅ Completed date range ${processedRanges}/${dateRanges.length}, found ${trips.length} trips`);
 		}
 
 		if (progressCallback) {
-			progressCallback(95, `Detected ${allTrips.length} trips, preparing to save...`);
+			progressCallback(100, `Trip detection completed. Found ${allTrips.length} total trips.`);
 		}
 
-		// Step 4: Save ALL trips to database. Exclusion cities are already treated as HOME in detection,
-		// so we do not filter trips here to avoid dropping valid HOME-AWAY-HOME segments.
-		const savedTrips = await this.saveTripsToDatabase(allTrips, userId);
-
-		if (progressCallback) {
-			progressCallback(100, `Trip detection completed: ${savedTrips.length} trips saved`);
+		const skippedRanges = dateRanges.length - processedRanges;
+		console.log(`🎉 Trip detection completed! Found ${allTrips.length} total trips.`);
+		if (skippedRanges > 0) {
+			console.log(`⏭️ Skipped ${skippedRanges} date ranges that already had trips`);
 		}
 
-		console.log(`✅ Trip detection completed: ${savedTrips.length} trips detected`);
-		return savedTrips;
-	}
-
-	/**
-	 * Determine date ranges to process, excluding existing trips and suggested trips
-	 */
-	private async determineDateRanges(userId: string): Promise<DateRange[]> {
-		// Get all tracker data dates
-		const { data: trackerData } = await this.supabase
-			.from('tracker_data')
-			.select('recorded_at')
-			.eq('user_id', userId)
-			.not('country_code', 'is', null) // Ignore records with NULL country codes when determining trip date ranges
-			.order('recorded_at', { ascending: true });
-
-		if (!trackerData || trackerData.length === 0) {
-			return [];
-		}
-
-		const allDates = trackerData.map(
-			(point) => new Date(point.recorded_at).toISOString().split('T')[0]
-		);
-		const firstDate = allDates[0];
-		const lastDate = allDates[allDates.length - 1];
-
-		// Get existing trips and suggested trips to exclude their date ranges
-		const { data: existingTrips } = await this.supabase
-			.from('trips')
-			.select('start_date, end_date')
-			.eq('user_id', userId);
-
-		const { data: existingSuggestedTrips } = await this.supabase
-			.from('trips')
-			.select('start_date, end_date')
-			.eq('user_id', userId)
-			.eq('status', 'pending');
-
-		const excludedRanges = [...(existingTrips || []), ...(existingSuggestedTrips || [])];
-
-		// Create date ranges, excluding existing trips
-		const dateRanges: DateRange[] = [];
-		let currentStart = firstDate;
-
-		for (const excludedRange of excludedRanges) {
-			const excludedStart = excludedRange.start_date;
-			const excludedEnd = excludedRange.end_date;
-
-			// If there's a gap before the excluded range, add it
-			if (currentStart < excludedStart) {
-				dateRanges.push({
-					startDate: currentStart,
-					endDate: new Date(new Date(excludedStart).getTime() - 24 * 60 * 60 * 1000)
-						.toISOString()
-						.split('T')[0]
-				});
+		// Save detected trips to the database
+		if (allTrips.length > 0) {
+			if (progressCallback) {
+				progressCallback(90, `Saving ${allTrips.length} detected trips to database...`);
 			}
 
-			// Move current start to after the excluded range
-			currentStart = new Date(new Date(excludedEnd).getTime() + 24 * 60 * 60 * 1000)
-				.toISOString()
-				.split('T')[0];
-		}
-
-		// Add the remaining range if any
-		if (currentStart <= lastDate) {
-			dateRanges.push({
-				startDate: currentStart,
-				endDate: lastDate
-			});
-		}
-
-		return dateRanges.filter((range) => range.startDate <= range.endDate);
-	}
-
-	/**
-	 * Filter out trips that are primarily spent in excluded cities (>50% of time)
-	 */
-	private filterTripsInExcludedCities(
-		trips: DetectedTrip[],
-		tripExclusions: TripExclusion[]
-	): DetectedTrip[] {
-		return trips.filter((trip) => {
-			// Get all visited locations for this trip
-			const visitedLocations = trip.metadata?.visitedLocations || [];
-
-			if (visitedLocations.length === 0) {
-				console.log(`⚠️ Trip "${trip.title}" has no visited locations, keeping it`);
-				return true;
-			}
-
-			// Calculate total duration and duration in excluded cities
-			let totalDuration = 0;
-			let excludedDuration = 0;
-
-			for (const location of visitedLocations) {
-				totalDuration += location.durationHours;
-
-				// Check if this location is in an excluded city
-				const isExcluded = tripExclusions.some((exclusion) => {
-					const exclusionCityName =
-						exclusion.location?.address?.city ||
-						exclusion.location?.address?.town ||
-						exclusion.location?.address?.village ||
-						exclusion.location?.address?.municipality;
-
-					return (
-						exclusionCityName &&
-						location.cityName &&
-						location.cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
-					);
-				});
-
-				if (isExcluded) {
-					excludedDuration += location.durationHours;
-					console.log(
-						`🚫 Trip "${trip.title}": Location "${location.cityName}" is excluded, adding ${location.durationHours}h to excluded duration`
-					);
-				}
-			}
-
-			// Calculate percentage of time spent in excluded cities
-			const excludedPercentage = totalDuration > 0 ? (excludedDuration / totalDuration) * 100 : 0;
-
-			// Keep trip if less than 50% of time was spent in excluded cities
-			if (excludedPercentage >= 50) {
-				console.log(
-					`❌ Removing trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`
-				);
-				return false;
-			} else {
-				console.log(
-					`✅ Keeping trip "${trip.title}" - ${excludedPercentage.toFixed(1)}% of time spent in excluded cities`
-				);
-				return true;
-			}
-		});
-	}
-
-	/**
-	 * Get user's home address, trip exclusions, and language preference
-	 */
-	private async getUserSettings(userId: string): Promise<{
-		homeAddress: HomeAddress | null;
-		tripExclusions: TripExclusion[];
-		language: string;
-	}> {
-		// Get home address from user_profiles and trip exclusions/language from user_preferences
-		console.log(`🔍 Fetching user settings for user: ${userId}`);
-
-		const [homeAddressResult, userPreferencesResult] = await Promise.all([
-			this.supabase.from('user_profiles').select('home_address').eq('id', userId).single(),
-			this.supabase
-				.from('user_preferences')
-				.select('trip_exclusions, language')
-				.eq('id', userId)
-				.single()
-		]);
-
-		console.log(`🔍 Home address result:`, homeAddressResult);
-		console.log(`🔍 User preferences result:`, userPreferencesResult);
-
-		if (homeAddressResult.error) {
-			console.error('❌ Error fetching user profile (home address):', homeAddressResult.error);
-		}
-
-		if (userPreferencesResult.error) {
-			console.error('❌ Error fetching user preferences:', userPreferencesResult.error);
-		}
-
-		// Parse home address if it's a JSON string
-		let homeAddress = homeAddressResult.data?.home_address || null;
-		if (homeAddress && typeof homeAddress === 'string') {
 			try {
-				homeAddress = JSON.parse(homeAddress);
+				await this.saveTripsToDatabase(allTrips, userId);
+				console.log(`💾 Successfully saved ${allTrips.length} trips to database`);
+
+				if (progressCallback) {
+					progressCallback(95, `Successfully saved ${allTrips.length} trips to database`);
+				}
 			} catch (error) {
-				console.error('❌ Error parsing home address JSON:', error);
-				homeAddress = null;
+				console.error('❌ Failed to save trips to database:', error);
+				// Don't throw error here, we still want to return the detected trips
 			}
 		}
 
-		// Fallback: infer home from historical data to enable HOME-AWAY-HOME when no home is configured
-		if (!homeAddress) {
-			console.log('🏠 No configured home address found – inferring from tracker data...');
-			homeAddress = await this.inferHomeAddress(userId);
-			if (homeAddress) {
-				console.log(
-					`✅ Inferred home: ${homeAddress.display_name} (${homeAddress.coordinates?.lat?.toFixed(4)}, ${homeAddress.coordinates?.lng?.toFixed(4)})`
-				);
-			} else {
-				console.log('⚠️ Unable to infer home address from data');
-			}
-		}
-
-		// Parse trip exclusions - they might be stored as JSON string
-		let tripExclusions = userPreferencesResult.data?.trip_exclusions || [];
-
-		// If it's a string, try to parse it as JSON
-		if (typeof tripExclusions === 'string') {
-			try {
-				tripExclusions = JSON.parse(tripExclusions);
-				console.log(`🔧 Parsed trip exclusions from JSON string`);
-			} catch (error) {
-				console.error('❌ Error parsing trip exclusions JSON:', error);
-				tripExclusions = [];
-			}
-		}
-
-		// Get user language preference, default to 'en'
-		const language = userPreferencesResult.data?.language || 'en';
-
-		console.log(`🚫 Raw trip exclusions data:`, userPreferencesResult.data);
-		console.log(
-			`🚫 Trip exclusions loaded:`,
-			tripExclusions.map((ex: TripExclusion) => {
-				const cityName =
-					ex.location?.address?.city ||
-					ex.location?.address?.town ||
-					ex.location?.address?.village ||
-					ex.location?.address?.municipality ||
-					'Unknown';
-				return `${ex.name}: "${cityName}" (${ex.location?.address?.country || 'Unknown'})`;
-			})
-		);
-		console.log(`🌍 User language preference:`, language);
-
-		return { homeAddress, tripExclusions, language };
+		return allTrips;
 	}
 
 	/**
-	 * Infer a reasonable home location from historical data by selecting the most frequently
-	 * visited city across the dataset and averaging its coordinates.
+	 * Process a date range in chunks of points instead of day by day
 	 */
-	private async inferHomeAddress(userId: string): Promise<HomeAddress | null> {
-		try {
-			const { data: trackerData, error } = await this.supabase
-				.from('tracker_data')
-				.select('recorded_at, location, geocode')
-				.eq('user_id', userId)
-				.order('recorded_at', { ascending: true });
-
-			if (error || !trackerData || trackerData.length === 0) {
-				return null;
-			}
-
-			// Reduce to per-day visited location to avoid overweighting high-frequency days
-			const dayMap = new Map<
-				string,
-				{ lat: number; lng: number; city: string; country?: string; cc?: string }
-			>();
-			for (const point of trackerData as TrackerDataPoint[]) {
-				const dateStr = new Date(point.recorded_at).toISOString().split('T')[0];
-				if (dayMap.has(dateStr)) continue;
-				const loc = this.getVisitedLocation([point]);
-				if (loc) {
-					dayMap.set(dateStr, {
-						lat: loc.coordinates.lat,
-						lng: loc.coordinates.lng,
-						city: loc.cityName,
-						country: loc.countryName,
-						cc: loc.countryCode
-					});
-				}
-			}
-
-			if (dayMap.size === 0) return null;
-
-			// Count most common city
-			const cityCounts = new Map<string, number>();
-			for (const { city } of dayMap.values()) {
-				cityCounts.set(city, (cityCounts.get(city) || 0) + 1);
-			}
-			let bestCity = '';
-			let bestCount = 0;
-			for (const [city, count] of cityCounts) {
-				if (count > bestCount) {
-					bestCity = city;
-					bestCount = count;
-				}
-			}
-
-			if (!bestCity) return null;
-
-			// Average coordinates for the chosen city
-			let sumLat = 0;
-			let sumLng = 0;
-			let n = 0;
-			let country = 'Unknown';
-			let cc: string | undefined;
-			for (const entry of dayMap.values()) {
-				if (entry.city === bestCity) {
-					sumLat += entry.lat;
-					sumLng += entry.lng;
-					n += 1;
-					country = entry.country || country;
-					cc = entry.cc || cc;
-				}
-			}
-
-			if (n === 0) return null;
-
-			const avgLat = sumLat / n;
-			const avgLng = sumLng / n;
-
-			return {
-				display_name: `${bestCity}${country ? `, ${country}` : ''}`,
-				coordinates: { lat: avgLat, lng: avgLng },
-				address: {
-					city: bestCity,
-					country: country || undefined,
-					country_code: cc?.toLowerCase()
-				}
-			};
-		} catch {
-			return null;
-		}
-	}
-
-	/**
-	 * Process a single date range for trip detection
-	 */
-	private async processDateRange(
+	private async processDateRangeInChunks(
 		userId: string,
 		dateRange: DateRange,
 		homeAddress: HomeAddress | null,
@@ -475,313 +197,722 @@ export class TripDetectionService {
 		progressCallback?: (progress: number, message: string) => void,
 		jobId?: string
 	): Promise<DetectedTrip[]> {
-		// Initialize trip detection state
-		let currentTripStart: string | null = null;
-		let currentTripEnd: string | null = null;
-		let currentTripLocations: VisitedLocation[] = [];
-		let lastHomeDate: string | null = null;
-		let consecutiveAwayDays = 0; // Track consecutive away days for debugging
-		let consecutiveHomeDays = 0;
-		let homeStartTime: Date | null = null; // Track when user started being home
-		let totalHomeHours = 0; // Track total hours user has been home
-		let totalHomeDataPoints = 0; // Track total "home" data points
-		const detectedTrips: DetectedTrip[] = [];
+		const trips: DetectedTrip[] = [];
+		let currentOffset = 0;
+		let hasMoreData = true;
+		let tripState: TripState = {
+			homePoints: [],
+			awayPoints: [],
+			currentTripStart: null,
+			currentTripEnd: null,
+			currentTripLocations: [],
+			lastHomePoint: null,
+			lastAwayPoint: null,
+			tripDataPoints: 0
+		};
 
-		// Process data day by day using streaming
-		const startDate = new Date(dateRange.startDate);
-		const endDate = new Date(dateRange.endDate);
-		const currentDate = new Date(startDate);
-		const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-		let processedDays = 0;
+		// First, determine the total number of data points to process
+		const totalDataPoints = await this.getTotalDataPointsForDateRange(userId, dateRange);
+		const totalBatches = Math.ceil(totalDataPoints / config.chunkSize);
 
-		while (currentDate <= endDate) {
-			// Check for cancellation every 10 days or at the start
-			if (processedDays % 10 === 0 || processedDays === 0) {
-				await checkJobCancellation(jobId);
-			}
+		console.log(`🔄 Processing date range in chunks of ${config.chunkSize} points`);
+		console.log(`📊 Total data points: ${totalDataPoints}, Total batches: ${totalBatches}`);
 
-			const dateStr = currentDate.toISOString().split('T')[0];
-
-			// Update progress every day or at the end
-			if (processedDays % 1 === 0 || currentDate >= endDate) {
-				const progress = Math.round((processedDays / totalDays) * 100);
-				if (progressCallback) {
-					progressCallback(
-						progress,
-						`Processing day ${dateStr} (${processedDays}/${totalDays} days)`
-					);
-				}
-				// Add a small delay to make progress updates more visible
-				await new Promise((resolve) => setTimeout(resolve, 100));
-			}
-
-			// Fetch data for this specific day
-			const dayData = await this.fetchDataForDay(userId, dateStr);
-
-			if (dayData.length > 0) {
-				// Determine if user is home on this day
-				const isHome = this.isUserHome(dayData, homeAddress, tripExclusions, config);
-				const visitedLocation = this.getVisitedLocation(dayData);
-
-				console.log(
-					`📅 ${dateStr}: ${isHome ? '🏠 HOME' : '✈️ AWAY'} (${dayData.length} data points)`
-				);
-
-				if (isHome) {
-					// User is home today
-					lastHomeDate = dateStr;
-					consecutiveHomeDays++;
-					consecutiveAwayDays = 0;
-
-					// Count home data points for this day (home means within radius OR in home/exclusion city)
-					const homeCityName = (homeAddress?.address?.city || '').toLowerCase();
-					const homeDataPointsToday = dayData.filter((point) => {
-						// Check radius
-						let isHome = false;
-						if (homeAddress?.coordinates) {
-							const distance =
-								haversineDistance(
-									point.location.coordinates[1],
-									point.location.coordinates[0],
-									homeAddress.coordinates.lat,
-									homeAddress.coordinates.lng
-								) / 1000;
-							if (distance <= config.homeRadiusKm) isHome = true;
-						}
-						const { cityName } = this.extractDestinationInfo(point);
-						const inHomeCity = cityName && homeCityName && cityName.toLowerCase() === homeCityName;
-						const inExcludedCity =
-							cityName &&
-							tripExclusions.some((exclusion) => {
-								const exclusionCityName =
-									exclusion.location?.address?.city ||
-									exclusion.location?.address?.town ||
-									exclusion.location?.address?.village ||
-									exclusion.location?.address?.municipality;
-								return (
-									exclusionCityName &&
-									cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
-								);
-							});
-						return isHome || inHomeCity || inExcludedCity;
-					}).length;
-
-					totalHomeDataPoints += homeDataPointsToday;
-
-					// Start tracking home time if not already tracking
-					if (homeStartTime === null) {
-						homeStartTime = new Date(currentDate);
-						console.log(`🏠 Started tracking home time: ${dateStr}`);
-					}
-
-					// Calculate total home hours (assuming 24 hours per day for simplicity)
-					// In a more sophisticated implementation, you'd calculate actual hours from GPS data
-					totalHomeHours = consecutiveHomeDays * 24;
-
-					// End trip as soon as first HOME day after being away has >= minHomeDataPoints
-					if (
-						currentTripStart &&
-						currentTripLocations.length > 0 &&
-						homeDataPointsToday >= config.minHomeDataPoints
-					) {
-						// Set the end date to the last day we were away (before coming home)
-						const tripEndDate = new Date(currentDate);
-						tripEndDate.setDate(tripEndDate.getDate() - consecutiveHomeDays);
-						currentTripEnd = tripEndDate.toISOString().split('T')[0];
-
-						console.log(
-							`🏁 Ending trip: ${currentTripStart} to ${currentTripEnd} (${currentTripLocations.length} locations) - User home for ${totalHomeHours} hours with ${totalHomeDataPoints} home data points`
-						);
-
-						// Only consider it a trip if we've been away for at least 1 day
-						if (currentTripLocations.length >= 1) {
-							const trip = await this.createTripFromLocations(
-								currentTripStart,
-								currentTripEnd,
-								currentTripLocations,
-								homeAddress,
-								userId,
-								language
-							);
-							if (trip) {
-								detectedTrips.push(trip);
-								console.log(`✅ Trip detected: ${trip.title}`);
-							}
-						}
-
-						currentTripStart = null;
-						currentTripEnd = null;
-						currentTripLocations = [];
-						homeStartTime = null;
-						totalHomeHours = 0;
-						totalHomeDataPoints = 0;
-					}
-				} else {
-					// User is away today
-					consecutiveAwayDays++;
-					consecutiveHomeDays = 0;
-
-					// Reset home tracking when user goes away
-					homeStartTime = null;
-					totalHomeHours = 0;
-					totalHomeDataPoints = 0;
-
-					if (!currentTripStart) {
-						// Start of a new trip - use the last home date as start
-						// Only start a trip if we have a proper home-away pattern
-						if (lastHomeDate) {
-							currentTripStart = lastHomeDate;
-							console.log(
-								`🚀 Starting trip: ${currentTripStart} (last home: ${lastHomeDate}, consecutive away: ${consecutiveAwayDays})`
-							);
-						} else {
-							// If no last home date, use current date as start
-							currentTripStart = dateStr;
-							console.log(
-								`🚀 Starting trip without known home: ${currentTripStart} (consecutive away: ${consecutiveAwayDays})`
-							);
-						}
-					}
-
-					// Add this day's location to the trip
-					if (visitedLocation) {
-						currentTripLocations.push(visitedLocation);
-						console.log(
-							`📍 Added location: ${visitedLocation.cityName}, ${visitedLocation.countryName}`
-						);
-					}
-				}
-			} else {
-				console.log(`📅 ${dateStr}: No data`);
-			}
-
-			// Move to next day
-			currentDate.setDate(currentDate.getDate() + 1);
-			processedDays++;
+		if (progressCallback) {
+			progressCallback(0, `Starting to process ${totalBatches} batches of data`);
 		}
 
-		// Handle case where trip ends without returning home
-		// Create this trip if we have a proper home-away pattern, even without returning home
-		if (currentTripStart && currentTripLocations.length > 0) {
-			console.log(
-				`🏁 Ending incomplete trip: ${currentTripStart} to ${endDate.toISOString().split('T')[0]} (${currentTripLocations.length} locations)`
-			);
+		while (hasMoreData) {
+			// Check for cancellation
+			await checkJobCancellation(jobId);
 
-			const trip = await this.createTripFromLocations(
-				currentTripStart,
-				endDate.toISOString().split('T')[0],
-				currentTripLocations,
-				homeAddress,
+			// Fetch chunk of data points
+			const dataPoints = await this.fetchDataChunk(
 				userId,
-				language
+				dateRange.startDate,
+				dateRange.endDate,
+				config.chunkSize,
+				currentOffset
 			);
-			if (trip) {
-				detectedTrips.push(trip);
-				console.log(`✅ Trip detected: ${trip.title}`);
+
+			if (dataPoints.length === 0) {
+				console.log('📭 No more data points to process');
+				hasMoreData = false;
+				break;
+			}
+
+			console.log(`📊 Processing chunk: ${dataPoints.length} points (offset: ${currentOffset})`);
+
+			// Process this chunk and update trip state
+			const { newTrips, updatedTripState, shouldContinue } = await this.processDataChunk(
+				dataPoints,
+				tripState,
+				homeAddress,
+				tripExclusions,
+				config,
+				language,
+				dateRange
+			);
+
+			// Add new trips
+			trips.push(...newTrips);
+
+			// Update trip state for next chunk
+			tripState = updatedTripState;
+
+			// Check if we should continue processing
+			if (!shouldContinue) {
+				console.log('🛑 Stopping chunk processing (trip completed or no more data needed)');
+				hasMoreData = false;
+				break;
+			}
+
+			// Move to next chunk
+			currentOffset += dataPoints.length;
+
+			// Update progress based on actual batches processed
+			if (progressCallback) {
+				const currentBatch = Math.floor(currentOffset / config.chunkSize) + 1;
+				const batchProgress = Math.min((currentBatch / totalBatches) * 80, 80); // 80% for batch processing
+				const overallProgress = Math.round(10 + batchProgress); // 10% for setup + 80% for processing, ensure integer
+				progressCallback(
+					overallProgress,
+					`Processing batch ${currentBatch}/${totalBatches} (${currentOffset}/${totalDataPoints} points), found ${trips.length} trips`
+				);
+			}
+
+			// Add small delay to prevent overwhelming the system
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+
+		// Finalize any incomplete trip
+		if (tripState.currentTripStart) {
+			// If we never got back home, set the end to the last processed point
+			if (!tripState.currentTripEnd) {
+				// Find the last point we processed to set as trip end
+				// This is a fallback for trips that never return home
+				const lastProcessedPoint = await this.getLastProcessedPoint(userId, dateRange.endDate);
+				if (lastProcessedPoint) {
+					tripState.currentTripEnd = lastProcessedPoint.recorded_at;
+					console.log(`🏁 Finalizing incomplete trip at last processed point: ${tripState.currentTripEnd}`);
+				}
+			}
+
+			const finalTrip = await this.finalizeTrip(tripState, homeAddress, tripExclusions, config, language);
+			if (finalTrip) {
+				trips.push(finalTrip);
 			}
 		}
 
-		console.log(`✅ Detected ${detectedTrips.length} trips in date range`);
-		return detectedTrips;
+		console.log(`✅ Completed processing date range. Found ${trips.length} trips.`);
+		return trips;
+	}
+
+			/**
+	 * Check if a date range already has trips
+	 */
+	private async hasExistingTripsInDateRange(userId: string, dateRange: DateRange): Promise<boolean> {
+		try {
+			// Use a more reliable approach: check if any existing trip overlaps with this date range
+			const { data: existingTrips, error } = await this.supabase
+				.from('trips')
+				.select('id')
+				.eq('user_id', userId)
+				.in('status', ['confirmed', 'suggested', 'pending'])
+				.or(`start_date.lte.${dateRange.endDate || '9999-12-31'},end_date.gte.${dateRange.startDate || '1900-01-01'}`);
+
+			if (error) {
+				console.error('❌ Error checking for existing trips in date range:', error);
+				return false; // Assume no conflicts if we can't check
+			}
+
+			return (existingTrips?.length || 0) > 0;
+		} catch (error) {
+			console.error('❌ Exception checking for existing trips in date range:', error);
+			return false; // Assume no conflicts if we can't check
+		}
 	}
 
 	/**
-	 * Fetch data for a specific day
+	 * Get the total number of data points for a specific date range
 	 */
-	private async fetchDataForDay(userId: string, dateStr: string): Promise<TrackerDataPoint[]> {
+	private async getTotalDataPointsForDateRange(userId: string, dateRange: DateRange): Promise<number> {
 		try {
-			console.log(`🔍 Fetching tracker data for ${dateStr} (user: ${userId})`);
+			let query = this.supabase
+				.from('tracker_data')
+				.select('recorded_at', { count: 'exact', head: true })
+				.eq('user_id', userId);
 
-			const { data: trackerData, error } = await this.supabase
+			// Apply date filters only if dates are provided
+			if (dateRange.startDate) {
+				query = query.gte('recorded_at', dateRange.startDate);
+			}
+			if (dateRange.endDate) {
+				query = query.lte('recorded_at', dateRange.endDate);
+			}
+
+			const { count, error } = await query;
+
+			if (error) {
+				console.error('❌ Error counting data points for date range:', error);
+				return 1000; // Fallback to reasonable default
+			}
+
+			return count || 0;
+		} catch (error) {
+			console.error('❌ Exception counting data points for date range:', error);
+			return 1000; // Fallback to reasonable default
+		}
+	}
+
+	/**
+	 * Save detected trips to the trips table
+	 */
+	private async saveTripsToDatabase(trips: DetectedTrip[], userId: string): Promise<void> {
+		if (trips.length === 0) {
+			console.log('📝 No trips to save to database');
+			return;
+		}
+
+		console.log(`💾 Saving ${trips.length} detected trips to trips table with status 'pending'...`);
+
+		// Debug: Log metadata values to identify the decimal issue
+		trips.forEach((trip, index) => {
+			console.log(`🔍 Trip ${index + 1} metadata debug:`);
+			console.log(`  - overnightStays:`, trip.metadata.overnightStays, `(type: ${typeof trip.metadata.overnightStays})`);
+			console.log(`  - dataPoints:`, trip.dataPoints, `(type: ${typeof trip.dataPoints})`);
+			console.log(`  - totalDurationHours:`, trip.metadata.totalDurationHours, `(type: ${typeof trip.metadata.totalDurationHours})`);
+		});
+
+		try {
+			// Convert DetectedTrip objects to trips table format (only include fields that exist in the table)
+			const tripsToInsert = trips.map(trip => ({
+				id: trip.id,
+				user_id: userId,
+				title: trip.title,
+				description: trip.description,
+				start_date: trip.startDate.split('T')[0], // Convert to date only
+				end_date: trip.endDate.split('T')[0], // Convert to date only
+				status: 'pending', // All detected trips start as pending (suggested)
+				image_url: null,
+				labels: ['suggested'], // Mark as suggested trip
+				metadata: {
+					// Store the additional trip data in metadata since they don't exist as separate columns
+					cityName: trip.metadata.homeCity || 'Unknown',
+					confidence: 0.8,
+					point_count: trip.dataPoints || 0, // Frontend expects this field name
+					overnightStays: Math.round(Number(trip.metadata.overnightStays) || 0),
+					distanceFromHome: 0.0,
+					distance_traveled: 0.0, // Frontend expects this field name
+					image_attribution: null, // Frontend expects this field
+					detected_trip_id: trip.id,
+					detection_method: 'automatic',
+					detected_at: new Date().toISOString(),
+					// Ensure numeric values are properly typed
+					totalDurationHours: Number(trip.metadata.totalDurationHours || 0),
+					visitedCities: trip.metadata.visitedCities || [],
+					visitedCountries: trip.metadata.visitedCountries || [],
+					visitedCountryCodes: trip.metadata.visitedCountryCodes || [],
+					visitedLocations: trip.metadata.visitedLocations || [],
+					isMultiCountryTrip: Boolean(trip.metadata.isMultiCountryTrip),
+					isMultiCityTrip: Boolean(trip.metadata.isMultiCityTrip),
+					tripType: trip.metadata.tripType || 'city',
+					primaryLocation: trip.metadata.primaryLocation || 'Unknown',
+					primaryCountry: trip.metadata.primaryCountry || 'Unknown',
+					primaryCountryCode: trip.metadata.primaryCountryCode || 'Unknown',
+					homeCountry: trip.metadata.homeCountry || 'Unknown',
+					homeCountryCode: trip.metadata.homeCountryCode || 'Unknown',
+					cityDurations: trip.metadata.cityDurations || {},
+					isDomestic: Boolean(trip.metadata.isDomestic),
+					// Add timezone information from trip metadata
+					timezone_info: trip.metadata.timezone_info || 'UTC'
+				},
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString()
+			}));
+
+			// Debug: Log what's being sent to the database
+			console.log(`🔍 Database insert debug - First trip metadata:`, JSON.stringify(tripsToInsert[0]?.metadata, null, 2));
+
+			// Insert trips into the trips table
+			const { data: insertedTrips, error } = await this.supabase
+				.from('trips')
+				.insert(tripsToInsert)
+				.select();
+
+			if (error) {
+				console.error('❌ Error saving trips to trips table:', error);
+				throw error;
+			}
+
+			console.log(`✅ Successfully saved ${insertedTrips?.length || 0} trips to trips table`);
+
+			// Log the saved trips for debugging
+			insertedTrips?.forEach((trip, index) => {
+				console.log(`  📍 Trip ${index + 1}: ${trip.title} (${trip.start_date} to ${trip.end_date})`);
+			});
+
+		} catch (error) {
+			console.error('❌ Failed to save trips to trips table:', error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Fetch a chunk of data points for the given date range
+	 * Handles undefined dates by fetching all data
+	 */
+	private async fetchDataChunk(
+		userId: string,
+		startDate: string | undefined,
+		endDate: string | undefined,
+		chunkSize: number,
+		offset: number
+	): Promise<TrackerDataPoint[]> {
+		try {
+			let query = this.supabase
 				.from('tracker_data')
 				.select('*')
 				.eq('user_id', userId)
-				.gte('recorded_at', `${dateStr}T00:00:00Z`)
-				.lt('recorded_at', `${dateStr}T23:59:59Z`)
-				.not('country_code', 'is', null) // Ignore records with NULL country codes when determining trip dates
 				.order('recorded_at', { ascending: true });
 
+			// Apply date filters only if dates are provided
+			if (startDate) {
+				query = query.gte('recorded_at', startDate);
+			}
+			if (endDate) {
+				query = query.lte('recorded_at', endDate);
+			}
+
+			const { data, error } = await query.range(offset, offset + chunkSize - 1);
+
 			if (error) {
-				console.error(`❌ Database error fetching data for ${dateStr}:`, {
-					error: error.message,
-					code: error.code,
-					details: error.details,
-					hint: error.hint
-				});
+				console.error('❌ Error fetching data chunk:', error);
 				return [];
 			}
 
-			const dataCount = trackerData?.length || 0;
-			console.log(`✅ Successfully fetched ${dataCount} data points for ${dateStr}`);
-			return trackerData || [];
+			return data || [];
 		} catch (error) {
-			console.error(`❌ Unexpected error fetching data for ${dateStr}:`, {
-				message: error instanceof Error ? error.message : 'Unknown error',
-				stack: error instanceof Error ? error.stack : undefined,
-				userId,
-				dateStr
-			});
+			console.error('❌ Exception fetching data chunk:', error);
 			return [];
 		}
 	}
 
 	/**
-	 * Determine if user is home on a given day
+	 * Process a chunk of data points and update trip state
 	 */
-	private isUserHome(
-		dayData: TrackerDataPoint[],
+	private async processDataChunk(
+		dataPoints: TrackerDataPoint[],
+		tripState: TripState,
+		homeAddress: HomeAddress | null,
+		tripExclusions: TripExclusion[],
+		config: TripDetectionConfig,
+		language: string,
+		dateRange: DateRange
+	): Promise<{
+		newTrips: DetectedTrip[];
+		updatedTripState: TripState;
+		shouldContinue: boolean;
+	}> {
+		const newTrips: DetectedTrip[] = [];
+		let updatedTripState = { ...tripState };
+		let shouldContinue = true;
+
+		for (const point of dataPoints) {
+			// Determine if this point is home or away
+			const isHome = await this.isUserHome(point, homeAddress, tripExclusions, config);
+
+			// Log status changes periodically
+			if (dataPoints.indexOf(point) % 1000 === 0) {
+				const city = this.getCityFromPoint(point);
+				console.log(`📍 Point ${dataPoints.indexOf(point)}: ${isHome ? '🏠 HOME' : '✈️ AWAY'} in ${city || 'Unknown'}`);
+			}
+
+			if (isHome) {
+				// User is at home
+				updatedTripState.homePoints.push(point);
+				updatedTripState.lastHomePoint = point;
+
+				// Check if we have enough home points to confirm status
+				if (updatedTripState.homePoints.length >= config.minStatusConfirmationPoints) {
+					// If we were on a trip, this ends it
+					if (updatedTripState.currentTripStart && !updatedTripState.currentTripEnd) {
+						// Set trip end to the last away point (before returning home)
+						const lastAwayPoint = updatedTripState.awayPoints[updatedTripState.awayPoints.length - 1];
+						if (lastAwayPoint) {
+							updatedTripState.currentTripEnd = lastAwayPoint.recorded_at;
+							console.log(`🏠 User returned home, ending trip at: ${updatedTripState.currentTripEnd}`);
+
+							// Finalize the completed trip
+							const trip = await this.finalizeTrip(
+								updatedTripState,
+								homeAddress,
+								tripExclusions,
+								config,
+								language
+							);
+							if (trip) {
+								newTrips.push(trip);
+								console.log(`✅ Trip completed: ${trip.startDate} to ${trip.endDate}`);
+							}
+						}
+
+						// Reset trip state for next trip
+						updatedTripState = {
+							homePoints: [point], // Keep current home point
+							awayPoints: [],
+							currentTripStart: null,
+							currentTripEnd: null,
+							currentTripLocations: [],
+							lastHomePoint: point,
+							lastAwayPoint: null,
+							tripDataPoints: 0
+						};
+					}
+				}
+			} else {
+				// User is away from home
+				updatedTripState.awayPoints.push(point);
+				updatedTripState.lastAwayPoint = point;
+
+				// Check if we have enough away points to confirm status
+				if (updatedTripState.awayPoints.length >= config.minStatusConfirmationPoints) {
+					// Check if we've been away long enough to start a trip
+					const awayDuration = this.calculateDuration(
+						updatedTripState.awayPoints[0].recorded_at,
+						point.recorded_at
+					);
+
+					if (awayDuration >= config.minTripDurationHours && !updatedTripState.currentTripStart) {
+						// Start a new trip from the last home point
+						if (updatedTripState.lastHomePoint) {
+							updatedTripState.currentTripStart = updatedTripState.lastHomePoint.recorded_at;
+							console.log(`🚀 Starting new trip at: ${updatedTripState.currentTripStart}`);
+						}
+					}
+				}
+
+										// If we're on a trip, add this location and increment data point counter
+		if (updatedTripState.currentTripStart) {
+			// Increment the trip data point counter for every GPS point processed
+			updatedTripState.tripDataPoints = (updatedTripState.tripDataPoints || 0) + 1;
+
+			const location = await this.processLocation(point, homeAddress, tripExclusions, config);
+			if (location) {
+				// Set the actual data points for this location (not just 1)
+				location.dataPoints = 1; // Each location represents 1 GPS point
+				updatedTripState.currentTripLocations.push(location);
+
+			} else {
+				// Log when location processing fails (occasionally to avoid spam)
+				if (Math.random() < 0.001) {
+					const city = this.getCityFromPoint(point);
+					console.log(`❌ Failed to process location: city=${city}, coords=${JSON.stringify(this.getCoordinatesFromPoint(point))}`);
+				}
+			}
+
+					// Log trip progress periodically (only when we have locations and every 100)
+					if (updatedTripState.currentTripLocations.length > 0 && updatedTripState.currentTripLocations.length % 100 === 0) {
+						console.log(`🗺️ Trip in progress: ${updatedTripState.currentTripLocations.length} locations, started: ${updatedTripState.currentTripStart}`);
+					}
+				}
+			}
+		}
+
+		// Check if we should continue processing
+		// Stop if we've reached the end date or if we have a complete trip
+		const lastPoint = dataPoints[dataPoints.length - 1];
+		if (lastPoint && dateRange.endDate) {
+			const lastPointDate = new Date(lastPoint.recorded_at).toISOString().split('T')[0];
+			const rangeEndDate = new Date(dateRange.endDate).toISOString().split('T')[0];
+
+			if (lastPointDate >= rangeEndDate) {
+				shouldContinue = false;
+			}
+		}
+
+		// Finalize any incomplete trip if we're at the end of data
+		if (!shouldContinue && updatedTripState.currentTripStart && !updatedTripState.currentTripEnd) {
+			// Set trip end to the last data point if we never got back home
+			updatedTripState.currentTripEnd = lastPoint.recorded_at;
+			console.log(`🏁 Finalizing incomplete trip at end of data: ${updatedTripState.currentTripEnd}`);
+
+			// Finalize the incomplete trip
+			const trip = await this.finalizeTrip(
+				updatedTripState,
+				homeAddress,
+				tripExclusions,
+				config,
+				language
+			);
+			if (trip) {
+				newTrips.push(trip);
+				console.log(`✅ Incomplete trip finalized: ${trip.startDate} to ${trip.endDate}`);
+			}
+		}
+
+		return { newTrips, updatedTripState, shouldContinue };
+	}
+
+	/**
+	 * Finalize a trip and create the DetectedTrip object
+	 */
+	private async finalizeTrip(
+		tripState: TripState,
+		homeAddress: HomeAddress | null,
+		tripExclusions: TripExclusion[],
+		config: TripDetectionConfig,
+		language: string
+	): Promise<DetectedTrip | null> {
+		if (!tripState.currentTripStart || !tripState.currentTripEnd) {
+			return null;
+		}
+
+		// Calculate trip duration using actual GPS timestamps
+		const duration = this.calculateDuration(tripState.currentTripStart, tripState.currentTripEnd);
+
+		// Validate minimum trip duration (increase threshold to reduce noise)
+		if (duration < config.minTripDurationHours) {
+			console.log(`⏰ Trip too short (${duration.toFixed(1)}h), skipping`);
+			return null;
+		}
+
+		// Validate minimum data points (use actual processed data points)
+		const totalDataPoints = tripState.tripDataPoints || 0;
+		if (totalDataPoints < config.minDataPointsPerDay * 2) { // Require more data points
+			console.log(`📊 Trip has too few data points (${totalDataPoints}), skipping`);
+			return null;
+		}
+
+		// Additional filtering: skip very short trips or trips with too few locations
+		if (tripState.currentTripLocations.length < 3) {
+			console.log(`📍 Trip has too few locations (${tripState.currentTripLocations.length}), skipping`);
+			return null;
+		}
+
+		// Generate a proper UUID for the trip
+		const tripId = crypto.randomUUID();
+
+
+
+		// Calculate duration spent in each city (minimum 2 hours to count as "visited")
+		const cityDurations = new Map<string, number>();
+
+		// Count data points for each city (1 data point ≈ 1 hour estimate)
+		for (const location of tripState.currentTripLocations) {
+			const city = location.cityName;
+			const currentDuration = cityDurations.get(city) || 0;
+			cityDurations.set(city, currentDuration + 1);
+		}
+
+		// Filter cities that were visited for at least 2 hours and sort by duration (descending)
+		const visitedCities = Array.from(cityDurations.entries())
+			.filter(([city, duration]) => duration >= 3)
+			.sort(([, durationA], [, durationB]) => durationB - durationA) // Sort by duration descending
+			.map(([city]) => city);
+
+		// Determine if this is a domestic or international trip
+		const homeCountry = homeAddress?.address?.country || 'Unknown';
+		const isDomestic = tripState.currentTripLocations.every(loc =>
+			loc.countryName === homeCountry || loc.countryName === 'Unknown'
+		);
+
+		// Generate smart trip title based on the rules
+		let tripTitle = 'Trip to Unknown';
+		if (visitedCities.length === 0) {
+			tripTitle = 'Trip to Unknown';
+		} else if (isDomestic) {
+			if (visitedCities.length === 1) {
+				tripTitle = `Trip to ${visitedCities[0]}`;
+			} else {
+				// Check if primary city dominates the trip (>50% of time)
+				const primaryCity = visitedCities[0];
+				const primaryCityDuration = cityDurations.get(primaryCity) || 0;
+				const totalDuration = tripState.tripDataPoints || 1;
+				const primaryCityPercentage = (primaryCityDuration / totalDuration) * 100;
+
+				if (primaryCityPercentage >= 50) {
+					// Primary city dominates, use single city title
+					tripTitle = `Trip to ${primaryCity}`;
+				} else {
+					// Multi-city domestic trip
+					const cityList = visitedCities.slice(0, 3).join(', ');
+					tripTitle = `Multi-city trip: ${cityList}`;
+				}
+			}
+		} else {
+			// International trip
+			const visitedCountries = Array.from(new Set(tripState.currentTripLocations.map(loc => loc.countryName)))
+				.filter(country => country !== 'Unknown');
+
+			if (visitedCountries.length > 1) {
+				// Multi-country trip
+				const countryList = visitedCountries.slice(0, 3).join(', ');
+				tripTitle = `Multi-country trip: ${countryList}`;
+			} else if (visitedCountries.length === 1) {
+				// Single country international trip
+				const primaryCity = visitedCities[0];
+				const primaryCityDuration = cityDurations.get(primaryCity) || 0;
+				const totalDuration = tripState.tripDataPoints || 1;
+				const primaryCityPercentage = (primaryCityDuration / totalDuration) * 100;
+
+				if (primaryCityPercentage < 50) {
+					// Less than 50% time in primary city, use country name
+					tripTitle = `Trip to ${visitedCountries[0]}`;
+				} else {
+					// More than 50% time in primary city, use city name
+					tripTitle = `Trip to ${primaryCity}`;
+				}
+			} else {
+				// Fallback for unknown countries
+				const primaryCity = visitedCities[0];
+				tripTitle = `Trip to ${primaryCity}`;
+			}
+		}
+
+		// Create the trip
+		const trip: DetectedTrip = {
+			id: tripId,
+			user_id: '', // Will be set by caller
+			startDate: tripState.currentTripStart,
+			endDate: tripState.currentTripEnd,
+			title: tripTitle,
+			description: this.getLocalizedTripDescription(tripState.currentTripStart, tripState.currentTripEnd, language),
+			location: {
+				type: 'Point',
+				coordinates: [0, 0] // Will be set properly later
+			},
+			cityName: tripState.currentTripLocations[0]?.cityName || 'Unknown',
+			dataPoints: tripState.tripDataPoints || 0,
+			overnightStays: 0, // Will be calculated later
+			distanceFromHome: 0, // Will be calculated later
+			status: 'pending',
+			metadata: {
+				totalDurationHours: duration,
+				visitedCities: visitedCities, // Only cities visited for at least 2 hours
+				visitedCountries: Array.from(new Set(tripState.currentTripLocations.map(loc => loc.countryName))), // Unique countries only
+				visitedCountryCodes: Array.from(new Set(tripState.currentTripLocations.map(loc => loc.countryCode))), // Unique country codes only
+				visitedLocations: tripState.currentTripLocations, // Required by interface, but could be optimized later
+				isMultiCountryTrip: new Set(tripState.currentTripLocations.map(loc => loc.countryCode)).size > 1,
+				isMultiCityTrip: visitedCities.length > 1,
+				tripType: isDomestic ? 'city' : 'multi-country',
+				primaryLocation: visitedCities[0] || 'Unknown',
+				primaryCountry: tripState.currentTripLocations[0]?.countryName || 'Unknown',
+				primaryCountryCode: tripState.currentTripLocations[0]?.countryCode || 'Unknown',
+				homeCity: homeAddress?.address?.city || 'Unknown',
+				homeCountry: homeAddress?.address?.country || 'Unknown',
+				homeCountryCode: homeAddress?.address?.country_code || 'Unknown',
+				cityDurations: Object.fromEntries(cityDurations), // Store duration for each city
+				isDomestic: isDomestic,
+				// Add timezone information
+				timezone_info: this.getTimezoneInfo(tripState.currentTripLocations)
+			},
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+
+		console.log(`✅ Finalized trip: ${trip.startDate} to ${trip.endDate} (${duration.toFixed(1)}h, ${tripState.currentTripLocations.length} locations)`);
+
+		// Debug: Log metadata values to identify the decimal issue
+		console.log(`🔍 Trip metadata debug:`);
+		console.log(`  - cityDurations:`, Object.fromEntries(cityDurations));
+		console.log(`  - visitedCities:`, visitedCities);
+		console.log(`  - tripDataPoints:`, tripState.tripDataPoints);
+		console.log(`  - overnightStays:`, trip.overnightStays, `(type: ${typeof trip.overnightStays})`);
+		console.log(`  - Full trip metadata:`, JSON.stringify(trip.metadata, null, 2));
+
+		return trip;
+	}
+
+		/**
+	 * Determine if a user is at home based on location and exclusions
+	 */
+	private async isUserHome(
+		point: TrackerDataPoint,
 		homeAddress: HomeAddress | null,
 		tripExclusions: TripExclusion[],
 		config: TripDetectionConfig
-	): boolean {
-		// Check if any location is within home radius
-		if (homeAddress?.coordinates) {
-			for (const point of dayData) {
-				const distance =
-					haversineDistance(
-						point.location.coordinates[1], // lat
-						point.location.coordinates[0], // lng
-						homeAddress.coordinates.lat,
-						homeAddress.coordinates.lng
-					) / 1000; // Convert to km
+	): Promise<boolean> {
+		const cityName = this.getCityFromPoint(point);
+		const pointCoords = this.getCoordinatesFromPoint(point);
 
-				if (distance <= config.homeRadiusKm) {
+		// Check if point is in an excluded city (always considered "home")
+		for (const exclusion of tripExclusions) {
+			// City name matching
+			if (exclusion.exclusion_type === 'city' && cityName === exclusion.value) {
+				if (Math.random() < 0.001) console.log(`✅ Home detected via city exclusion: ${cityName} matches ${exclusion.value}`);
+				return true;
+			}
+
+			// Location-based exclusion using coordinates
+			if (exclusion.location?.coordinates?.lat && exclusion.location?.coordinates?.lng && pointCoords) {
+				const exclusionCoords = exclusion.location.coordinates;
+				const distance = haversineDistance(
+					exclusionCoords.lat,
+					exclusionCoords.lng,
+					pointCoords.lat,
+					pointCoords.lng
+				);
+
+				// Use a reasonable radius for exclusion zones (5km default)
+				const exclusionRadius = 5; // km
+				if (distance <= exclusionRadius) {
+					if (Math.random() < 0.001) console.log(`✅ Home detected via location exclusion: ${distance.toFixed(2)}km from ${exclusion.name} (${exclusion.value})`);
 					return true;
 				}
 			}
 		}
 
-		// Check if any location is in excluded cities (treat as home)
-		for (const point of dayData) {
-			const { cityName } = this.extractDestinationInfo(point);
-			if (cityName) {
-				console.log(`🔍 Checking city "${cityName}" against trip exclusions...`);
-				const matchingExclusion = tripExclusions.find((exclusion) => {
-					const exclusionCityName =
-						exclusion.location?.address?.city ||
-						exclusion.location?.address?.town ||
-						exclusion.location?.address?.village ||
-						exclusion.location?.address?.municipality;
+		// FALLBACK: If geocode data is empty but we have country code, check if user is in Netherlands
+		// This is a temporary fix until geocode data is properly populated
+		if (!cityName && point.country_code === 'NL') {
+			// Check if home address is in Netherlands
+			if (homeAddress?.address?.country === 'Netherlands' || homeAddress?.address?.country === 'Nederland') {
+				if (Math.random() < 0.001) console.log(`✅ Home detected via country fallback: NL country code matches home country`);
+				return true;
+			}
+		}
 
-					return (
-						exclusionCityName &&
-						cityName &&
-						cityName.toLowerCase().includes(exclusionCityName.toLowerCase())
-					);
-				});
+		// Check if user is in their home city (city name match with fallbacks)
+		if (homeAddress?.address?.city && cityName) {
+			const homeCity = homeAddress.address.city.toLowerCase();
+			const currentCity = cityName.toLowerCase();
 
-				if (matchingExclusion) {
-					const exclusionCityName =
-						matchingExclusion.location?.address?.city ||
-						matchingExclusion.location?.address?.town ||
-						matchingExclusion.location?.address?.village ||
-						matchingExclusion.location?.address?.municipality;
-					console.log(
-						`🏠 User considered home due to trip exclusion: "${cityName}" matches exclusion "${exclusionCityName}"`
-					);
+			// Exact match
+			if (currentCity === homeCity) {
+				if (Math.random() < 0.001) console.log(`✅ Home detected via exact city match: ${cityName} matches home city ${homeAddress.address.city}`);
+				return true;
+			}
+
+			// Check if current city contains home city or vice versa (for partial matches)
+			if (currentCity.includes(homeCity) || homeCity.includes(currentCity)) {
+				if (Math.random() < 0.001) console.log(`✅ Home detected via partial city match: ${cityName} partially matches home city ${homeAddress.address.city}`);
+				return true;
+			}
+
+			// Check municipality as fallback
+			if (homeAddress.address.municipality && homeAddress.address.municipality.toLowerCase() === currentCity) {
+				if (Math.random() < 0.001) console.log(`✅ Home detected via municipality match: ${cityName} matches home municipality ${homeAddress.address.municipality}`);
+				return true;
+			}
+		}
+
+		// Check radius-based home detection
+		if (homeAddress?.coordinates?.lat && homeAddress?.coordinates?.lng) {
+			const pointCoords = this.getCoordinatesFromPoint(point);
+			if (pointCoords) {
+				const distance = haversineDistance(
+					homeAddress.coordinates.lat,
+					homeAddress.coordinates.lng,
+					pointCoords.lat,
+					pointCoords.lng
+				);
+
+				if (Math.random() < 0.001) console.log(`  - Distance from home: ${distance.toFixed(2)}km (threshold: ${config.homeRadiusKm}km)`);
+
+				if (distance <= config.homeRadiusKm) {
+					if (Math.random() < 0.001) console.log(`✅ Home detected via radius: ${distance.toFixed(2)}km <= ${config.homeRadiusKm}km`);
 					return true;
-				} else {
-					console.log(`❌ City "${cityName}" does not match any trip exclusions`);
 				}
 			}
 		}
@@ -790,415 +921,519 @@ export class TripDetectionService {
 	}
 
 	/**
-	 * Extract destination information from a tracker data point
+	 * Extract city name from a tracker data point
 	 */
-	private extractDestinationInfo(point: TrackerDataPoint): {
-		cityName: string | null;
-		countryCode: string | null;
-		countryName: string | null;
-		stateName: string | null;
-	} {
-		if (!point.geocode)
-			return { cityName: null, countryCode: null, countryName: null, stateName: null };
+	private getCityFromPoint(point: TrackerDataPoint): string | null {
+		let geocode: any = null;
 
-		let geocode;
-		try {
-			geocode = typeof point.geocode === 'string' ? JSON.parse(point.geocode) : point.geocode;
-		} catch {
-			return { cityName: null, countryCode: null, countryName: null, stateName: null };
+		// Handle different geocode data formats
+		if (typeof point.geocode === 'string') {
+			try {
+				geocode = JSON.parse(point.geocode);
+			} catch (e) {
+				// If parsing fails, try to use the string directly
+				geocode = { display_name: point.geocode };
+			}
+		} else if (typeof point.geocode === 'object' && point.geocode !== null) {
+			geocode = point.geocode;
 		}
 
-		if (!geocode || typeof geocode !== 'object') {
-			return { cityName: null, countryCode: null, countryName: null, stateName: null };
+		if (geocode) {
+			// Check various city fields
+			if (geocode.city) return geocode.city;
+			if (geocode.town) return geocode.town;
+			if (geocode.village) return geocode.village;
+			if (geocode.municipality) return geocode.municipality;
+			if (geocode.suburb) return geocode.suburb;
+
+			// Check address object
+			if (geocode.address?.city) return geocode.address.city;
+			if (geocode.address?.town) return geocode.address.town;
+			if (geocode.address?.village) return geocode.address.village;
+
+			// Check display_name as fallback
+			if (geocode.display_name) {
+				// Try to extract city from display_name (e.g., "Amsterdam, Noord-Holland, Netherlands")
+				const parts = geocode.display_name.split(', ');
+				if (parts.length > 0) {
+					return parts[0]; // First part is usually the city
+				}
+			}
+
+			// Additional fallback: check for any location-related field
+			if (geocode.name) return geocode.name;
+			if (geocode.locality) return geocode.locality;
+			if (geocode.place) return geocode.place;
 		}
 
-		// Try to extract city name from various possible locations
-		const cityName =
-			geocode?.address?.city ||
-			geocode?.city ||
-			geocode?.address?.town ||
-			geocode?.town ||
-			geocode?.address?.village ||
-			geocode?.village ||
-			geocode?.address?.municipality ||
-			geocode?.municipality ||
-			geocode?.address?.suburb ||
-			geocode?.suburb ||
-			null;
+		// Debug logging for city extraction (only occasionally to avoid spam)
+		if (Math.random() < 0.001) { // 0.1% chance to log
+			console.log(`🏙️ City extraction debug:`);
+			console.log(`  - Geocode type:`, typeof point.geocode);
+			console.log(`  - Geocode data:`, point.geocode);
+			console.log(`  - Parsed geocode:`, geocode);
+			console.log(`  - Country code:`, point.country_code);
+		}
 
-		// Extract country information
-		const countryCode = geocode?.address?.country_code || geocode?.country_code || null;
-		const countryName = geocode?.address?.country || geocode?.country || null;
-		const stateName = geocode?.address?.state || geocode?.state || null;
-
-		return {
-			cityName: cityName ? cityName.trim() : null,
-			countryCode: countryCode ? countryCode.toUpperCase() : null,
-			countryName: countryName ? countryName.trim() : null,
-			stateName: stateName ? stateName.trim() : null
-		};
+		return null;
 	}
 
 	/**
-	 * Extract country name from a tracker data point
+	 * Extract coordinates from a tracker data point
 	 */
-	private extractCountryName(point: TrackerDataPoint): string | null {
-		if (!point.geocode) return null;
-
-		let geocode;
-		try {
-			geocode = typeof point.geocode === 'string' ? JSON.parse(point.geocode) : point.geocode;
-		} catch {
-			return null;
+	private getCoordinatesFromPoint(point: TrackerDataPoint): { lat: number; lng: number } | null {
+		// Try to get coordinates from location.coordinates
+		if (point.location?.coordinates && point.location.coordinates.length >= 2) {
+			return {
+				lng: point.location.coordinates[0], // Longitude is first
+				lat: point.location.coordinates[1]  // Latitude is second
+			};
 		}
 
-		if (!geocode || typeof geocode !== 'object') {
-			return null;
-		}
-
-		return geocode?.address?.country || geocode?.country || null;
+		return null;
 	}
 
 	/**
-	 * Get visited location information for a day
+	 * Process a location point and create a VisitedLocation
 	 */
-	private getVisitedLocation(dayData: TrackerDataPoint[]): VisitedLocation | null {
-		if (dayData.length === 0) return null;
-
-		// Find the most common city and country for this day
-		const destinationInfos = dayData.map((point) => this.extractDestinationInfo(point));
-
-		const cityNames = destinationInfos
-			.map((info) => info.cityName)
-			.filter((city) => city && city !== 'Unknown' && city !== 'Unknown Location');
-
-		const countryCodes = destinationInfos
-			.map((info) => info.countryCode)
-			.filter((code) => code && code !== 'Unknown');
-
-		const countryNames = destinationInfos
-			.map((info) => info.countryName)
-			.filter((country) => country && country !== 'Unknown');
-
-		const mostCommonCity = this.getMostCommonValue(cityNames);
-		const mostCommonCountryCode = this.getMostCommonValue(countryCodes);
-		const mostCommonCountry = this.getMostCommonValue(countryNames);
-
-		if (!mostCommonCity && !mostCommonCountry) {
-			return null;
-		}
-
-		// Calculate average coordinates
-		const avgLat =
-			dayData.reduce((sum, point) => sum + point.location.coordinates[1], 0) / dayData.length;
-		const avgLng =
-			dayData.reduce((sum, point) => sum + point.location.coordinates[0], 0) / dayData.length;
-
-		return {
-			cityName: mostCommonCity || 'Unknown City',
-			countryName: mostCommonCountry || 'Unknown Country',
-			countryCode: mostCommonCountryCode || 'UN',
-			durationHours: 24, // One day
-			dataPoints: dayData.length,
-			coordinates: { lat: avgLat, lng: avgLng }
-		};
-	}
-
-	/**
-	 * Create a trip from visited locations
-	 */
-	private async createTripFromLocations(
-		startDate: string,
-		endDate: string,
-		visitedLocations: VisitedLocation[],
+	private async processLocation(
+		point: TrackerDataPoint,
 		homeAddress: HomeAddress | null,
-		userId: string,
-		language: string
-	): Promise<DetectedTrip | null> {
-		if (visitedLocations.length === 0) return null;
+		tripExclusions: TripExclusion[],
+		config: TripDetectionConfig
+	): Promise<VisitedLocation | null> {
+		// Get city and coordinates from the point
+		const cityName = this.getCityFromPoint(point);
+		const coordinates = this.getCoordinatesFromPoint(point);
 
-		// Calculate trip duration
+		// Basic validation
+		if (!cityName || !coordinates) {
+			return null;
+		}
+
+		// Create visited location
+		const location: VisitedLocation = {
+			cityName: cityName,
+			countryName: 'Unknown', // Will be set from geocode data later
+			countryCode: point.country_code || '',
+			stateName: undefined, // Will be set from geocode data later
+			durationHours: 0, // Will be calculated when clustering
+			dataPoints: 0, // Will be set by caller based on actual GPS points
+			coordinates: coordinates,
+			tz_diff: (point as any).tz_diff // Capture timezone difference
+		};
+
+		return location;
+	}
+
+	/**
+ * Calculate duration between two timestamps in hours
+ */
+private calculateDuration(startTimestamp: string, endTimestamp: string): number {
+	const start = new Date(startTimestamp).getTime();
+	const end = new Date(endTimestamp).getTime();
+	const durationMs = end - start;
+	return durationMs / (1000 * 60 * 60); // Convert to hours
+}
+
+	/**
+	 * Get localized trip description based on user's language preference
+	 */
+	private getLocalizedTripDescription(startDate: string, endDate: string, language: string): string {
 		const start = new Date(startDate);
 		const end = new Date(endDate);
-		const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+		const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-		if (durationHours < 24) {
-			return null; // Skip trips shorter than 24 hours
-		}
-
-		// Analyze visited locations
-		const visitedCities = [...new Set(visitedLocations.map((loc) => loc.cityName))];
-		const visitedCountries = [...new Set(visitedLocations.map((loc) => loc.countryName))];
-		const visitedCountryCodes = [...new Set(visitedLocations.map((loc) => loc.countryCode))];
-
-		// Find primary location (most time spent)
-		const primaryLocation = visitedLocations.reduce((prev, current) =>
-			prev.durationHours > current.durationHours ? prev : current
-		);
-
-		// Get home country code for comparison
-		const homeCountryCode = homeAddress?.address?.country_code?.toUpperCase() || null;
-
-		// Determine trip type and title
-		const isMultiCountryTrip = visitedCountryCodes.length > 1;
-		const isMultiCityTrip = visitedCities.length > 1;
-		const isInternationalTrip =
-			visitedCountryCodes.length > 1 ||
-			(visitedCountryCodes.length === 1 &&
-				homeCountryCode &&
-				primaryLocation.countryCode !== homeCountryCode);
-
-		// Find the most visited city/country for better titles
-		const cityTimeMap = new Map<string, number>();
-		const countryTimeMap = new Map<string, number>();
-
-		for (const location of visitedLocations) {
-			const cityKey = `${location.cityName}, ${location.countryName}`;
-			cityTimeMap.set(cityKey, (cityTimeMap.get(cityKey) || 0) + location.durationHours);
-			countryTimeMap.set(
-				location.countryName,
-				(countryTimeMap.get(location.countryName) || 0) + location.durationHours
-			);
-		}
-
-		// Find the most visited city and country
-		let mostVisitedCity = '';
-		let mostVisitedCityHours = 0;
-		for (const [city, hours] of cityTimeMap) {
-			if (hours > mostVisitedCityHours) {
-				mostVisitedCity = city;
-				mostVisitedCityHours = hours;
-			}
-		}
-
-		let mostVisitedCountry = '';
-		let mostVisitedCountryHours = 0;
-		for (const [country, hours] of countryTimeMap) {
-			if (hours > mostVisitedCountryHours) {
-				mostVisitedCountry = country;
-				mostVisitedCountryHours = hours;
-			}
-		}
-
-		// Check if user spent more than 50% of time in one city
-		const totalTripHours = visitedLocations.reduce((sum, loc) => sum + loc.durationHours, 0);
-		const cityPercentage = mostVisitedCityHours / totalTripHours;
-		const hasPrimaryCity = cityPercentage > 0.5;
-
-		let title: string;
-		let tripType: 'city' | 'country' | 'multi-city' | 'multi-country' = 'city';
-
-		if (isInternationalTrip) {
-			if (isMultiCountryTrip) {
-				title = `Multi-country trip: ${visitedCountries.slice(0, 3).join(' → ')}${visitedCountries.length > 3 ? '...' : ''}`;
-				tripType = 'multi-country';
-			} else {
-				// International trip to one country
-				if (hasPrimaryCity) {
-					const [cityName, countryName] = mostVisitedCity.split(', ');
-					title = `Trip to ${countryName}, ${cityName}`;
-				} else {
-					title = `Trip to ${primaryLocation.countryName}`;
-				}
-				tripType = 'country';
-			}
-		} else {
-			if (isMultiCityTrip) {
-				title = `Multi-city trip: ${visitedCities.slice(0, 3).join(' → ')}${visitedCities.length > 3 ? '...' : ''}`;
-				tripType = 'multi-city';
-			} else {
-				title = `Trip to ${primaryLocation.cityName}`;
-				tripType = 'city';
-			}
-		}
-
-		// Calculate total distance traveled during the trip
-		let totalDistanceTraveled = 0;
-
-		// Get all GPS points for this trip period
-		const { data: tripPoints, error: pointsError } = await this.supabase.rpc(
-			'get_user_tracking_data',
-			{
-				user_uuid: userId,
-				start_date: startDate,
-				end_date: endDate
-			}
-		);
-
-		if (!pointsError && tripPoints && tripPoints.length > 0) {
-			// Check if points have distance column (from updated get_user_tracking_data function)
-			const hasDistanceColumn = tripPoints.some(
-				(point: TrackingDataPoint) => typeof point.distance === 'number'
-			);
-
-			if (hasDistanceColumn) {
-				// Use pre-calculated distances from database
-				totalDistanceTraveled = tripPoints.reduce((total: number, point: TrackingDataPoint) => {
-					const pointDistance =
-						typeof point.distance === 'number' && isFinite(point.distance) ? point.distance : 0;
-					return total + pointDistance / 1000; // Convert meters to kilometers
-				}, 0);
-			} else {
-				// Fallback to manual calculation for backward compatibility
-				for (let i = 1; i < tripPoints.length; i++) {
-					const prev = tripPoints[i - 1];
-					const curr = tripPoints[i];
-
-					if (prev.lat && prev.lon && curr.lat && curr.lon) {
-						const segmentDistance =
-							haversineDistance(prev.lat, prev.lon, curr.lat, curr.lon) / 1000; // Convert to km
-						totalDistanceTraveled += segmentDistance;
-					}
-				}
-			}
-		}
-
-		// Also calculate distance from home to destination for reference
-		let distanceFromHome = 0;
-		if (homeAddress?.coordinates) {
-			distanceFromHome =
-				haversineDistance(
-					homeAddress.coordinates.lat,
-					homeAddress.coordinates.lng,
-					primaryLocation.coordinates.lat,
-					primaryLocation.coordinates.lng
-				) / 1000; // Convert to km
-		}
-
-		return {
-			id: '', // Will be set when saved to database
-			user_id: '', // Will be set when saved to database
-			startDate,
-			endDate,
-			title,
-			description: translateServer(
-				'tripDetection.autoGenerated',
-				{
-					locationCount: visitedLocations.length,
-					plural: getPluralSuffix(visitedLocations.length, language)
-				},
-				language
-			),
-			location: {
-				type: 'Point',
-				coordinates: [primaryLocation.coordinates.lng, primaryLocation.coordinates.lat]
-			},
-			cityName: primaryLocation.cityName,
-
-			dataPoints: visitedLocations.reduce((sum, loc) => sum + loc.dataPoints, 0),
-			overnightStays: visitedLocations.length,
-			distanceFromHome,
-			status: 'pending',
-			metadata: {
-				totalDurationHours: durationHours,
-				visitedCities,
-				visitedCountries,
-				visitedCountryCodes,
-				visitedLocations,
-				isMultiCountryTrip,
-				isMultiCityTrip,
-				tripType,
-				primaryLocation: primaryLocation.cityName,
-				primaryCountry: primaryLocation.countryName,
-				primaryCountryCode: primaryLocation.countryCode,
-				mostVisitedCountry,
-				homeCity: this.extractCityNameFromHomeAddress(homeAddress),
-				homeCountry: this.extractCountryNameFromHomeAddress(homeAddress),
-				homeCountryCode: homeAddress?.address?.country_code?.toUpperCase() || 'UN',
-				isInternationalTrip,
-				distance_traveled: totalDistanceTraveled,
-				distance_from_home: distanceFromHome
-			},
-			created_at: new Date().toISOString(),
-			updated_at: new Date().toISOString()
+		// Default to English if language not supported
+		const messages = {
+			en: `Trip of ${daysDiff} day${daysDiff === 1 ? '' : 's'} detected.`,
+			nl: `Reis van ${daysDiff} dag${daysDiff === 1 ? '' : 'en'} gedetecteerd.`,
+			es: `Viaje de ${daysDiff} día${daysDiff === 1 ? '' : 's'} detectado.`
 		};
+
+		return messages[language as keyof typeof messages] || messages.en;
 	}
 
 	/**
-	 * Extract city name from home address
+	 * Get average timezone difference for trip locations
+	 * Used for converting UTC timestamps to local time
 	 */
-	private extractCityNameFromHomeAddress(homeAddress: HomeAddress | null): string {
-		if (!homeAddress?.address) return 'Unknown';
-		return (
-			homeAddress.address.city ||
-			homeAddress.address.town ||
-			homeAddress.address.village ||
-			'Unknown'
-		);
-	}
-
-	/**
-	 * Extract country name from home address
-	 */
-	private extractCountryNameFromHomeAddress(homeAddress: HomeAddress | null): string {
-		if (!homeAddress?.address) return 'Unknown';
-		return homeAddress.address.country || 'Unknown';
-	}
-
-	/**
-	 * Get most common value from array
-	 */
-	private getMostCommonValue<T>(array: T[]): T | undefined {
-		if (array.length === 0) return undefined;
-
-		const counts = new Map<T, number>();
-		let maxCount = 0;
-		let mostCommon: T | undefined;
-
-		for (const item of array) {
-			const count = (counts.get(item) || 0) + 1;
-			counts.set(item, count);
-
-			if (count > maxCount) {
-				maxCount = count;
-				mostCommon = item;
-			}
+	private getAverageTzDiff(locations: VisitedLocation[]): number {
+		if (!locations || locations.length === 0) {
+			return 0; // Default to UTC
 		}
 
-		return mostCommon;
+		// Filter out undefined/null tz_diff values
+		const validTzDiffs = locations
+			.map(loc => loc.tz_diff)
+			.filter(tz => tz !== undefined && tz !== null);
+
+		if (validTzDiffs.length === 0) {
+			return 0; // Default to UTC
+		}
+
+		// Calculate average timezone difference
+		const sum = validTzDiffs.reduce((acc, tz) => acc + tz, 0);
+		return sum / validTzDiffs.length;
 	}
 
 	/**
-	 * Save trips to database
+	 * Get timezone information for trip locations
+	 * Returns a summary of timezone differences encountered during the trip
 	 */
-	private async saveTripsToDatabase(
-		trips: DetectedTrip[],
-		userId: string
-	): Promise<DetectedTrip[]> {
-		if (trips.length === 0) return [];
+	private getTimezoneInfo(locations: VisitedLocation[]): string {
+	if (!locations || locations.length === 0) {
+		return 'UTC';
+	}
 
-		const tripsToSave = trips.map((trip) => ({
-			user_id: userId,
-			start_date: trip.startDate,
-			end_date: trip.endDate,
-			title: trip.title,
-			description: trip.description,
-			status: 'pending', // All detected trips are pending suggestions
-			labels: ['suggested'], // Mark as suggested
-			metadata: {
-				...trip.metadata,
-				suggested: true,
-				point_count: trip.dataPoints,
-				distance_traveled: trip.distanceFromHome,
-				visited_places_count: trip.dataPoints,
-				overnight_stays: trip.overnightStays,
-				location: trip.location,
-				city_name: trip.cityName,
-				confidence: 0.8 // Default confidence for detected trips
+	// Get unique timezone differences
+	const timezoneDiffs = new Set<number>();
+	locations.forEach(location => {
+		if (location.tz_diff !== undefined && location.tz_diff !== null) {
+			timezoneDiffs.add(location.tz_diff);
+		}
+	});
+
+	if (timezoneDiffs.size === 0) {
+		return 'UTC';
+	}
+
+	if (timezoneDiffs.size === 1) {
+		const tzDiff = Array.from(timezoneDiffs)[0];
+		return this.formatTimezoneOffset(tzDiff);
+	}
+
+	// Multiple timezones - show range
+	const sortedDiffs = Array.from(timezoneDiffs).sort((a, b) => a - b);
+	const minTz = this.formatTimezoneOffset(sortedDiffs[0]);
+	const maxTz = this.formatTimezoneOffset(sortedDiffs[sortedDiffs.length - 1]);
+	return `${minTz} to ${maxTz}`;
+}
+
+/**
+ * Format timezone offset in a user-friendly way
+ */
+	private formatTimezoneOffset(tzDiff: number): string {
+		if (tzDiff === 0) return 'UTC';
+
+		const sign = tzDiff > 0 ? '+' : '-';
+		const hours = Math.abs(Math.floor(tzDiff));
+		const minutes = Math.abs(Math.round((tzDiff % 1) * 60));
+
+		if (minutes === 0) {
+			return `UTC${sign}${hours}`;
+		}
+
+		return `UTC${sign}${hours}:${minutes.toString().padStart(2, '0')}`;
+	}
+
+/**
+ * Format timestamp with timezone information
+ * Converts UTC timestamp to local timezone based on tz_diff
+ */
+private formatTimestampWithTimezone(timestamp: string, tz_diff?: number): string {
+	if (!tz_diff) {
+		return timestamp; // Return as-is if no timezone info
+	}
+
+	try {
+		const date = new Date(timestamp);
+		const utcTime = date.getTime();
+		const localTime = utcTime + (tz_diff * 60 * 60 * 1000); // Convert to local time
+		const localDate = new Date(localTime);
+
+		// Format with timezone offset
+		const offsetHours = Math.abs(tz_diff);
+		const offsetSign = tz_diff >= 0 ? '+' : '-';
+		const offsetStr = `${offsetSign}${offsetHours.toString().padStart(2, '0')}:00`;
+
+		return localDate.toISOString().replace('Z', offsetStr);
+	} catch (error) {
+		console.warn('⚠️ Error formatting timestamp with timezone:', error);
+		return timestamp; // Fallback to original timestamp
+	}
+}
+
+	/**
+	 * Determine which date ranges to process (exclude existing trips)
+	 * Handles undefined start/end dates by using first/last data points
+	 */
+	private async determineDateRanges(userId: string, providedStartDate?: string, providedEndDate?: string): Promise<DateRange[]> {
+		try {
+			// Get existing trips to avoid duplicates (including pending trips from previous runs)
+			const { data: existingTrips, error: tripsError } = await this.supabase
+				.from('trips')
+				.select('start_date, end_date, status')
+				.eq('user_id', userId)
+				.in('status', ['confirmed', 'suggested', 'pending']);
+
+			if (tripsError) {
+				console.error('❌ Error fetching existing trips:', tripsError);
+				return [];
 			}
-		}));
 
-		const { data: savedTrips, error } = await this.supabase
-			.from('trips')
-			.insert(tripsToSave)
-			.select();
+			// Get user's data range to determine actual start/end dates
+			const { data: dataRange, error: rangeError } = await this.supabase
+				.from('tracker_data')
+				.select('recorded_at')
+				.eq('user_id', userId)
+				.order('recorded_at', { ascending: true });
 
-		if (error) {
-			console.error('❌ Error saving trips to database:', error);
+			if (rangeError || !dataRange || dataRange.length === 0) {
+				console.error('❌ Error fetching data range:', rangeError);
+				return [];
+			}
+
+			// Determine effective start and end dates
+			const firstDataPoint = dataRange[0];
+			const lastDataPoint = dataRange[dataRange.length - 1];
+
+			const effectiveStartDate = providedStartDate || firstDataPoint.recorded_at;
+			const effectiveEndDate = providedEndDate || lastDataPoint.recorded_at;
+
+			console.log(`📅 Effective date range: ${effectiveStartDate} to ${effectiveEndDate}`);
+			console.log(`📅 First data point: ${firstDataPoint.recorded_at}`);
+			console.log(`📅 Last data point: ${lastDataPoint.recorded_at}`);
+
+			// If we have a specific date range, return it directly
+			if (providedStartDate && providedEndDate) {
+				return [{
+					startDate: providedStartDate,
+					endDate: providedEndDate
+				}];
+			}
+
+			// Create date ranges, excluding dates with existing trips
+			const ranges: DateRange[] = [];
+			let currentDate = new Date(effectiveStartDate);
+			let skippedDates = 0;
+
+			console.log(`📅 Checking ${existingTrips?.length || 0} existing trips for date conflicts`);
+
+			while (currentDate <= new Date(effectiveEndDate)) {
+				const dateStr = currentDate.toISOString().split('T')[0];
+
+				// Check if this date has existing trips
+				const hasExistingTrips = existingTrips?.some(trip => {
+					const tripStart = new Date(trip.start_date);
+					const tripEnd = new Date(trip.end_date);
+					const checkDate = new Date(dateStr);
+					return checkDate >= tripStart && checkDate <= tripEnd;
+				});
+
+				if (!hasExistingTrips) {
+					// Find the next date with existing trips or end of data
+					let rangeEnd = new Date(currentDate);
+					rangeEnd.setDate(rangeEnd.getDate() + 30); // Default 30-day range
+
+					// Adjust range end if there are existing trips
+					if (existingTrips) {
+						for (const trip of existingTrips) {
+							const tripStart = new Date(trip.start_date);
+							if (tripStart > currentDate && tripStart < rangeEnd) {
+								rangeEnd = new Date(tripStart);
+								rangeEnd.setDate(rangeEnd.getDate() - 1);
+								break;
+							}
+						}
+					}
+
+					// Ensure range doesn't exceed effective end date
+					if (rangeEnd > new Date(effectiveEndDate)) {
+						rangeEnd = new Date(effectiveEndDate);
+					}
+
+					// Only add range if it has meaningful duration (at least 1 day)
+					if (rangeEnd > currentDate) {
+						ranges.push({
+							startDate: currentDate.toISOString().split('T')[0],
+							endDate: rangeEnd.toISOString().split('T')[0]
+						});
+					}
+
+					currentDate = new Date(rangeEnd);
+					currentDate.setDate(currentDate.getDate() + 1);
+				} else {
+					skippedDates++;
+					currentDate.setDate(currentDate.getDate() + 1);
+				}
+			}
+
+			if (skippedDates > 0) {
+				console.log(`⏭️ Skipped ${skippedDates} dates that already have trips`);
+			}
+
+			console.log(`📅 Created ${ranges.length} date ranges to process`);
+			return ranges;
+		} catch (error) {
+			console.error('❌ Error determining date ranges:', error);
 			return [];
 		}
+	}
 
-		console.log(`✅ Saved ${savedTrips?.length || 0} suggested trips to database`);
-		return savedTrips || [];
+	/**
+	 * Get the last processed data point for a user (used for finalizing incomplete trips)
+	 */
+	private async getLastProcessedPoint(userId: string, endDate?: string): Promise<TrackerDataPoint | null> {
+		try {
+			let query = this.supabase
+				.from('tracker_data')
+				.select('*')
+				.eq('user_id', userId)
+				.order('recorded_at', { ascending: false })
+				.limit(1);
+
+			// Apply end date filter if provided
+			if (endDate) {
+				query = query.lte('recorded_at', endDate);
+			}
+
+			const { data, error } = await query.single();
+
+			if (error) {
+				console.warn('⚠️ Could not fetch last processed point:', error);
+				return null;
+			}
+
+			return data;
+		} catch (error) {
+			console.error('❌ Error fetching last processed point:', error);
+			return null;
+		}
+	}
+
+	/**
+	 * Get user settings (home address, trip exclusions, language)
+	 */
+	private async getUserSettings(userId: string): Promise<{
+		homeAddress: HomeAddress | null;
+		tripExclusions: TripExclusion[];
+		language: string;
+	}> {
+		try {
+			// Get home address from user_profiles
+			const { data: homeAddress, error: homeError } = await this.supabase
+				.from('user_profiles')
+				.select('home_address')
+				.eq('id', userId)
+				.single();
+
+			// Get trip exclusions and language from user_preferences
+			const { data: userPreferences, error: preferencesError } = await this.supabase
+				.from('user_preferences')
+				.select('trip_exclusions, language')
+				.eq('id', userId)
+				.single();
+
+			if (homeError) console.warn('⚠️ Could not fetch home address:', homeError);
+			if (preferencesError) console.warn('⚠️ Could not fetch user preferences:', preferencesError);
+
+			// Debug logging for user settings
+			console.log(`🏠 User settings debug:`);
+			console.log(`  - Home address:`, homeAddress?.home_address);
+			console.log(`  - Trip exclusions:`, userPreferences?.trip_exclusions);
+			console.log(`  - Language:`, userPreferences?.language);
+			console.log(`  - Raw userPreferences:`, userPreferences);
+
+			// Validate and clean trip exclusions
+			let tripExclusions = userPreferences?.trip_exclusions || [];
+			console.log(`  - Raw trip exclusions:`, tripExclusions);
+			console.log(`  - Trip exclusions type:`, typeof tripExclusions);
+			console.log(`  - Trip exclusions is array:`, Array.isArray(tripExclusions));
+
+			if (Array.isArray(tripExclusions)) {
+				// Filter valid exclusions and convert to the expected format
+				tripExclusions = tripExclusions
+					.filter(ex => ex && typeof ex === 'object' && ex.name && ex.location)
+					.map((ex: any) => ({
+						id: ex.id || crypto.randomUUID(),
+						name: ex.name,
+						exclusion_type: 'city' as const, // Default to city exclusion
+						value: ex.name, // Use name as value for city matching
+						location: ex.location,
+						created_at: ex.created_at || new Date().toISOString(),
+						updated_at: ex.updated_at || new Date().toISOString()
+					}));
+				console.log(`  - Cleaned trip exclusions:`, tripExclusions.length, 'valid items');
+				tripExclusions.forEach((ex: any, i: number) => {
+					console.log(`    - Exclusion ${i}:`, ex);
+				});
+			}
+
+			// Process home address to ensure it has the expected structure
+			let processedHomeAddress: HomeAddress | null = null;
+			if (homeAddress?.home_address) {
+				const rawHomeAddress = homeAddress.home_address;
+				if (typeof rawHomeAddress === 'string') {
+					// If it's just a string, create a basic HomeAddress object
+					processedHomeAddress = {
+						display_name: rawHomeAddress,
+						coordinates: undefined,
+						address: undefined
+					};
+				} else if (typeof rawHomeAddress === 'object' && rawHomeAddress !== null) {
+					// Handle the actual structure from the database
+					const raw = rawHomeAddress as any;
+
+					// Extract coordinates from the coordinates field
+					let coordinates: { lat: number; lng: number } | undefined;
+					if (raw.coordinates?.lat && raw.coordinates?.lng) {
+						coordinates = {
+							lat: raw.coordinates.lat,
+							lng: raw.coordinates.lng
+						};
+					} else if (raw.lat && raw.lon) {
+						// Fallback to lat/lon fields
+						coordinates = {
+							lat: raw.lat,
+							lng: raw.lon
+						};
+					}
+
+					// Extract address information
+					let address: any = undefined;
+					if (raw.address) {
+						address = {
+							city: raw.address.city,
+							state: raw.address.state,
+							country: raw.address.country,
+							country_code: raw.address.country_code,
+							municipality: raw.address.municipality
+						};
+					}
+
+					processedHomeAddress = {
+						display_name: raw.display_name || 'Unknown location',
+						coordinates: coordinates,
+						address: address
+					};
+				}
+
+				// Debug logging for home address parsing
+				console.log(`🏠 Home address parsing debug:`);
+				console.log(`  - Raw home address:`, rawHomeAddress);
+				console.log(`  - Processed home address:`, processedHomeAddress);
+				if (processedHomeAddress?.address) {
+					console.log(`  - Home address.city:`, processedHomeAddress.address.city);
+					console.log(`  - Home address.country:`, processedHomeAddress.address.country);
+				}
+				if (processedHomeAddress?.coordinates) {
+					console.log(`  - Home coordinates:`, processedHomeAddress.coordinates);
+				}
+			}
+
+			return {
+				homeAddress: processedHomeAddress,
+				tripExclusions: tripExclusions,
+				language: userPreferences?.language || 'en'
+			};
+		} catch (error) {
+			console.error('❌ Error fetching user settings:', error);
+			return {
+				homeAddress: null,
+				tripExclusions: [],
+				language: 'en'
+			};
+		}
 	}
 }

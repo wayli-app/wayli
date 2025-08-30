@@ -162,10 +162,9 @@ export const tripGenerationSchema = z.object({
 	useCustomHomeAddress: z.boolean().default(false),
 	customHomeAddress: z.string().optional(),
 	minTripDurationHours: z.number().min(0.5).max(168).default(2),
-	maxDistanceFromHomeKm: z.number().min(1).max(10000).default(100),
-	minDataPointsPerDay: z.number().min(1).max(1000).default(10),
-	minHomeDurationHours: z.number().min(0.1).max(168).default(1), // Minimum time user must be home to end a trip
-	minHomeDataPoints: z.number().min(1).max(1000).default(5) // Minimum number of "home" data points to end a trip
+	minDataPointsPerDay: z.number().min(1).max(1000).default(10)
+	// Note: minHomeDurationHours and minHomeDataPoints are no longer used
+	// The new algorithm uses minAwayDurationHours and minStatusConfirmationPoints
 });
 
 // Export schemas

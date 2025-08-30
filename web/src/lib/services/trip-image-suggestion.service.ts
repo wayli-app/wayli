@@ -107,14 +107,24 @@ export class TripImageSuggestionService {
 			);
 
 			// Find primary city (most visited)
-			const primaryCity = Object.keys(cityStats).reduce(
-				(a, b) => (cityStats[a] > cityStats[b] ? a : b),
-				''
-			);
+			const primaryCity = Object.keys(cityStats).length > 0
+				? Object.keys(cityStats).reduce(
+					(a, b) => (cityStats[a] > cityStats[b] ? a : b),
+					''
+				)
+				: undefined;
+
+			// Log city dominance for debugging
+			if (primaryCity && trackerData.length > 0) {
+				const primaryCityCount = cityStats[primaryCity] || 0;
+				const cityDominance = (primaryCityCount / trackerData.length) * 100;
+
+				console.log(`🏙️ Primary city: ${primaryCity} (${primaryCityCount}/${trackerData.length} points, ${cityDominance.toFixed(1)}% dominance)`);
+			}
 
 			return {
 				primaryCountry,
-				primaryCity: primaryCity || undefined,
+				primaryCity: primaryCity,
 				allCountries: Array.from(allCountries),
 				allCities: Array.from(allCities),
 				countryStats,
@@ -146,22 +156,30 @@ export class TripImageSuggestionService {
 
 			console.log('Trip analysis:', analysis);
 
-			// Try to get an image based on the primary city first
+			// Always use city search if primaryCity exists
 			if (analysis.primaryCity) {
-				console.log(`Suggesting image for primary city: ${analysis.primaryCity}`);
-				const cityImage = await getTripBannerImageWithAttribution(analysis.primaryCity, userApiKey);
+				console.log(`🏙️ Using city-focused search for ${analysis.primaryCity}`);
+
+				const cityImage = await getTripBannerImageWithAttribution(
+					analysis.primaryCity,
+					userApiKey,
+					analysis.primaryCountry,
+					true // isCityFocused = true
+				);
 				if (cityImage) {
-					console.log(`Successfully got city image: ${cityImage.imageUrl}`);
+					console.log(`✅ Successfully got city image: ${cityImage.imageUrl}`);
 					return cityImage;
 				}
-				console.log('City image suggestion failed, trying country...');
+				console.log('⚠️ City image suggestion failed, falling back to country search...');
 			}
 
-			// Fallback to country-based image
-			console.log(`Suggesting image for primary country: ${analysis.primaryCountry}`);
+			// Country-focused search: Either no primaryCity or city search failed
+			console.log(`🌍 Using country-focused search for ${analysis.primaryCountry}`);
 			const countryImage = await getTripBannerImageWithAttribution(
 				analysis.primaryCountry,
-				userApiKey
+				userApiKey,
+				analysis.primaryCountry,
+				false // isCityFocused = false
 			);
 			if (countryImage) {
 				console.log(`Successfully got country image: ${countryImage.imageUrl}`);
@@ -170,7 +188,7 @@ export class TripImageSuggestionService {
 
 			// Final fallback to generic travel image
 			console.log('Using generic travel image as fallback');
-			const travelImage = await getTripBannerImageWithAttribution('travel', userApiKey);
+			const travelImage = await getTripBannerImageWithAttribution('travel', userApiKey, undefined, false);
 			if (travelImage) {
 				console.log(`Successfully got travel image: ${travelImage.imageUrl}`);
 				return travelImage;

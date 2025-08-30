@@ -9,7 +9,7 @@ import type { JobUpdate } from '$lib/services/sse.service';
 import { ServiceAdapter } from './api/service-adapter';
 
 export interface JobCreationOptions {
-	type: 'data_import' | 'data_export' | 'reverse_geocoding' | 'trip_generation';
+	type: 'data_import' | 'data_export' | 'reverse_geocoding_missing' | 'trip_generation';
 	data: Record<string, unknown>;
 	successMessage?: string;
 	errorMessage?: string;
@@ -155,7 +155,7 @@ export class JobCreationService {
 	 */
 	async createReverseGeocodingJob(): Promise<any> {
 		return this.createJob({
-			type: 'reverse_geocoding',
+			type: 'reverse_geocoding_missing',
 			data: {},
 			successMessage: 'Reverse geocoding job started!',
 			errorMessage: 'Failed to start reverse geocoding job'

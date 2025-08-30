@@ -350,6 +350,55 @@ async function analyzeTripLocations(
 	};
 }
 
+// Helper function to clean country names for better search results
+function cleanCountryNameForSearch(countryName: string): string {
+	const politicalIndicators = [
+		'Republic of the', 'Republic of', 'Democratic Republic of the', 'Democratic Republic of',
+		'Islamic Republic of', 'People\'s Republic of', 'United Republic of', 'Federated States of',
+		'Commonwealth of', 'Kingdom of', 'Principality of', 'Grand Duchy of', 'State of',
+		'Territory of', 'Province of China', 'Federation', 'Union'
+	];
+
+	const suffixIndicators = [
+		'Islands', 'Island', 'Territories'
+	];
+
+	let cleaned = countryName.trim();
+
+	// Remove political indicators from the beginning
+	for (const indicator of politicalIndicators) {
+		const regex = new RegExp(`^${indicator}\\s+`, 'i');
+		if (regex.test(cleaned)) {
+			cleaned = cleaned.replace(regex, '').trim();
+			break;
+		}
+	}
+
+	// Remove suffix indicators from the end
+	for (const indicator of suffixIndicators) {
+		const regex = new RegExp(`\\s+${indicator}$`, 'i');
+		if (regex.test(cleaned)) {
+			cleaned = cleaned.replace(regex, '').trim();
+			break;
+		}
+	}
+
+	// Handle special patterns
+	cleaned = cleaned.replace(/,\s*Province of China$/i, '');
+
+	// Remove leading "the" if it remains after removing political indicators
+	cleaned = cleaned.replace(/^the\s+/i, '').trim();
+
+	// Handle special cases
+	const specialCases: Record<string, string> = {
+		'United States': 'USA', 'United Kingdom': 'UK', 'Russian Federation': 'Russia',
+		'Czech Republic': 'Czechia', 'Timor-Leste': 'East Timor', 'Côte d\'Ivoire': 'Ivory Coast',
+		'Myanmar': 'Burma'
+	};
+
+	return specialCases[cleaned] || cleaned;
+}
+
 // Helper function to generate image suggestion from analysis
 async function generateImageSuggestionFromAnalysis(
 	analysis: { primaryCountry: string; primaryCity?: string; isMultiCity: boolean },
@@ -367,11 +416,11 @@ async function generateImageSuggestionFromAnalysis(
 	let searchTerm = 'landscape';
 
 	if (analysis.isMultiCity && analysis.primaryCountry) {
-		searchTerm = `${analysis.primaryCountry}`;
+		searchTerm = cleanCountryNameForSearch(analysis.primaryCountry);
 	} else if (analysis.primaryCity) {
 		searchTerm = `${analysis.primaryCity} city`;
 	} else if (analysis.primaryCountry) {
-		searchTerm = `${analysis.primaryCountry} landscape`;
+		searchTerm = `${cleanCountryNameForSearch(analysis.primaryCountry)} landscape`;
 	}
 
 	// Search for images on Pexels

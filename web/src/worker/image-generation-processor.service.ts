@@ -59,7 +59,8 @@ export class ImageGenerationProcessorService {
 			const userApiKey = await this.getUserPexelsApiKey(job.user_id);
 
 			// Generate image for the city
-			const imageUrl = await getTripBannerImage(job.cityName, userApiKey);
+			// Worker doesn't have city dominance data, so default to country-focused search
+			const imageUrl = await getTripBannerImage(job.cityName, userApiKey, undefined, false);
 
 			if (imageUrl) {
 				// Update suggested trip with image URL

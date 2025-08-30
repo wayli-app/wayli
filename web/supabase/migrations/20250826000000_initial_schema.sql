@@ -23,6 +23,16 @@ CREATE TABLE IF NOT EXISTS public.trips (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
+-- Add constraint to allow 'pending' status for suggested trips
+ALTER TABLE public.trips
+ADD CONSTRAINT trips_status_check
+CHECK (status IN ('active', 'planned', 'completed', 'cancelled', 'pending', 'rejected'));
+
+-- Add comment explaining the status values
+COMMENT ON COLUMN public.trips.status IS 'Trip status: active, planned, completed, cancelled, pending (suggested), rejected';
+COMMENT ON COLUMN public.trips.labels IS 'Array of labels including "suggested" for trips created from suggestions';
+COMMENT ON COLUMN public.trips.metadata IS 'Trip metadata including dataPoints, visitedCities, visitedCountries, etc.';
+
 
 
 
@@ -164,43 +174,9 @@ CREATE TABLE IF NOT EXISTS public.server_settings (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create suggested_trips table for trip review workflow
-CREATE TABLE IF NOT EXISTS public.suggested_trips (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT,
-    location GEOMETRY(POINT, 4326) NOT NULL,
-    city_name TEXT NOT NULL,
-    confidence DECIMAL(3,2) NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
-    data_points INTEGER NOT NULL DEFAULT 0,
-    overnight_stays INTEGER NOT NULL DEFAULT 0,
-    distance_from_home DECIMAL(10,2),
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'created')),
-    metadata JSONB DEFAULT '{}',
-    image_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Note: suggested_trips table removed - using trips table with 'pending' status instead
 
--- Create image_generation_jobs table for rate-limited image generation
-CREATE TABLE IF NOT EXISTS public.image_generation_jobs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    suggested_trip_id UUID REFERENCES public.suggested_trips(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    city_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed')),
-    priority INTEGER NOT NULL DEFAULT 1,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    max_attempts INTEGER NOT NULL DEFAULT 3,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at TIMESTAMP WITH TIME ZONE,
-    error TEXT,
-    image_url TEXT
-);
+-- Note: image_generation_jobs table removed - was tied to suggested_trips table
 
 -- Create indexes for better performance
 
@@ -239,16 +215,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_user_timestamp ON public.audit_logs(us
 CREATE INDEX IF NOT EXISTS idx_audit_logs_type_timestamp ON public.audit_logs(event_type, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_severity_timestamp ON public.audit_logs(severity, timestamp DESC);
 
--- Create indexes for enhanced trip detection tables
-CREATE INDEX IF NOT EXISTS idx_suggested_trips_user_id ON public.suggested_trips(user_id);
-CREATE INDEX IF NOT EXISTS idx_suggested_trips_status ON public.suggested_trips(status);
-CREATE INDEX IF NOT EXISTS idx_suggested_trips_dates ON public.suggested_trips(start_date, end_date);
-CREATE INDEX IF NOT EXISTS idx_suggested_trips_location ON public.suggested_trips USING GIST(location);
-
-CREATE INDEX IF NOT EXISTS idx_image_generation_jobs_user_id ON public.image_generation_jobs(user_id);
-CREATE INDEX IF NOT EXISTS idx_image_generation_jobs_status ON public.image_generation_jobs(status);
-CREATE INDEX IF NOT EXISTS idx_image_generation_jobs_priority ON public.image_generation_jobs(priority, created_at);
-CREATE INDEX IF NOT EXISTS idx_image_generation_jobs_suggested_trip ON public.image_generation_jobs(suggested_trip_id);
+-- Note: Indexes for suggested_trips and image_generation_jobs removed
 
 -- Create spatial indexes for PostGIS
 CREATE INDEX IF NOT EXISTS idx_tracker_data_location ON public.tracker_data USING GIST(location);
@@ -263,8 +230,7 @@ ALTER TABLE public.tracker_data ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.server_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.suggested_trips ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.image_generation_jobs ENABLE ROW LEVEL SECURITY;
+-- Note: RLS for suggested_trips and image_generation_jobs removed
 
 -- Create RLS policies for all tables
 
@@ -484,53 +450,7 @@ BEGIN
     END IF;
 END $$;
 
--- Create RLS policies for suggested_trips table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can view their own suggested trips') THEN
-        CREATE POLICY "Users can view their own suggested trips" ON public.suggested_trips
-            FOR SELECT USING (auth.uid() = user_id);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can update their own suggested trips') THEN
-        CREATE POLICY "Users can update their own suggested trips" ON public.suggested_trips
-            FOR UPDATE USING (auth.uid() = user_id);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can insert their own suggested trips') THEN
-        CREATE POLICY "Users can insert their own suggested trips" ON public.suggested_trips
-            FOR INSERT WITH CHECK (auth.uid() = user_id);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'suggested_trips' AND schemaname = 'public' AND policyname = 'Users can delete their own suggested trips') THEN
-        CREATE POLICY "Users can delete their own suggested trips" ON public.suggested_trips
-            FOR DELETE USING (auth.uid() = user_id);
-    END IF;
-END $$;
-
--- Create RLS policies for image_generation_jobs table
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can view their own image generation jobs') THEN
-        CREATE POLICY "Users can view their own image generation jobs" ON public.image_generation_jobs
-            FOR SELECT USING (auth.uid() = user_id);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can update their own image generation jobs') THEN
-        CREATE POLICY "Users can update their own image generation jobs" ON public.image_generation_jobs
-            FOR UPDATE USING (auth.uid() = user_id);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can insert their own image generation jobs') THEN
-        CREATE POLICY "Users can insert their own image generation jobs" ON public.image_generation_jobs
-            FOR INSERT WITH CHECK (auth.uid() = user_id);
-    END IF;
-
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'image_generation_jobs' AND schemaname = 'public' AND policyname = 'Users can delete their own image generation jobs') THEN
-        CREATE POLICY "Users can delete their own image generation jobs" ON public.image_generation_jobs
-            FOR DELETE USING (auth.uid() = user_id);
-    END IF;
-END $$;
+-- Note: RLS policies for suggested_trips and image_generation_jobs removed
 
 -- Create RLS policies for workers table
 DO $$
@@ -1055,25 +975,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers for updated_at on enhanced trip detection tables
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_suggested_trips_updated_at') THEN
-        CREATE TRIGGER update_suggested_trips_updated_at
-            BEFORE UPDATE ON public.suggested_trips
-            FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-    END IF;
-END $$;
-
--- Create trigger to update image_generation_jobs updated_at timestamp
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_image_generation_jobs_updated_at') THEN
-        CREATE TRIGGER update_image_generation_jobs_updated_at
-            BEFORE UPDATE ON public.image_generation_jobs
-            FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-    END IF;
-END $$;
+-- Note: Triggers for suggested_trips and image_generation_jobs removed
 
 -- Create storage buckets for file uploads
 -- Note: These buckets are configured with file size limits that match the config.toml settings
@@ -1528,88 +1430,9 @@ END $$;
 -- MERGED MIGRATIONS START HERE
 -- ========================================================================
 
--- ========================================================================
--- Migration: 20241201000002_make_confidence_nullable.sql
--- Make confidence column nullable in suggested_trips table
--- Since we removed the confidence logic, this column should be optional
--- ========================================================================
+-- Note: Old migration sections for suggested_trips removed - now using trips table with 'pending' status
 
-ALTER TABLE public.suggested_trips
-ALTER COLUMN confidence DROP NOT NULL;
-
--- Add a comment to explain the change
-COMMENT ON COLUMN public.suggested_trips.confidence IS 'Trip confidence score (0-1). Made nullable since confidence logic was removed.';
-
--- ========================================================================
--- Migration: 20241201000003_refactor_trip_suggestions.sql
--- Refactor trip suggestions to use trips table with status='pending'
--- This removes the need for a separate suggested_trips table
--- ========================================================================
-
--- First, migrate existing suggested trips to the trips table
-INSERT INTO public.trips (
-    id,
-    user_id,
-    title,
-    description,
-    start_date,
-    end_date,
-    status,
-    image_url,
-    labels,
-    metadata,
-    created_at,
-    updated_at
-)
-SELECT
-    id,
-    user_id,
-    title,
-    description,
-    start_date,
-    end_date,
-    CASE
-        WHEN status = 'approved' THEN 'active'
-        WHEN status = 'rejected' THEN 'rejected'
-        ELSE 'pending'
-    END as status,
-    image_url,
-    ARRAY['suggested'] as labels,
-    jsonb_build_object(
-        'suggested_from', id,
-        'point_count', data_points,
-        'distance_traveled', distance_from_home,
-        'visited_places_count', data_points,
-        'overnight_stays', overnight_stays,
-        'location', ST_AsGeoJSON(location)::jsonb,
-        'city_name', city_name,
-        'confidence', confidence,
-        'suggested', true,
-        'image_attribution', metadata->>'image_attribution'
-    ) as metadata,
-    created_at,
-    updated_at
-FROM public.suggested_trips
-WHERE status IN ('pending', 'approved', 'rejected');
-
--- Update the trips table to allow 'pending' and 'rejected' status values
-ALTER TABLE public.trips
-DROP CONSTRAINT IF EXISTS trips_status_check;
-
-ALTER TABLE public.trips
-ADD CONSTRAINT trips_status_check
-CHECK (status IN ('active', 'planned', 'completed', 'cancelled', 'pending', 'rejected'));
-
--- Drop the suggested_trips table and related objects
-DROP TABLE IF EXISTS public.suggested_trips CASCADE;
-
--- Drop the image_generation_jobs table as it's no longer needed
-DROP TABLE IF EXISTS public.image_generation_jobs CASCADE;
-
--- Add comment to trips table to document the new status values
-COMMENT ON COLUMN public.trips.status IS 'Trip status: active, planned, completed, cancelled, pending (suggested), rejected';
-COMMENT ON COLUMN public.trips.labels IS 'Array of labels including "suggested" for trips created from suggestions';
-COMMENT ON COLUMN public.trips.metadata IS 'Trip metadata including suggested_from, point_count, distance_traveled, etc.';
+-- Note: Migration sections for suggested_trips removed - now using trips table with 'pending' status
 
 -- ========================================================================
 -- Migration: 20241201000003_populate_distance_column.sql

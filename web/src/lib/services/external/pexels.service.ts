@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { getPexelsConfig } from '../../shared/config/node-environment';
+import { getPexelsConfig } from '../../../shared/config/node-environment';
 import { config } from '../../config';
+import { cleanCountryNameForSearch } from '../../utils/country-name-cleaner';
 
 /**
  * Pexels Image Service
@@ -177,9 +178,11 @@ export async function downloadAndUploadImage(
  */
 export async function getTripBannerImage(
 	cityName: string,
-	userApiKey?: string
+	userApiKey?: string,
+	countryName?: string,
+	isCityFocused: boolean = false
 ): Promise<string | null> {
-	const result = await getTripBannerImageWithAttribution(cityName, userApiKey);
+	const result = await getTripBannerImageWithAttribution(cityName, userApiKey, countryName, isCityFocused);
 	return result?.imageUrl || null;
 }
 
@@ -203,8 +206,17 @@ function getRandomPhotoFromSearchResult(
 
 export async function getTripBannerImageWithAttribution(
 	cityName: string,
-	userApiKey?: string
+	userApiKey?: string,
+	countryName?: string,
+	isCityFocused: boolean = false
 ): Promise<TripImageResult | null> {
+	// Clean country name for better search results if provided
+	const cleanedCountryName = countryName ? cleanCountryNameForSearch(countryName) : null;
+
+	// Determine search strategy based on focus type
+	const searchStrategy = isCityFocused ? 'city' : 'country';
+	console.log(`🔍 Pexels search strategy: ${searchStrategy}-focused for "${cityName}"${cleanedCountryName ? ` (${cleanedCountryName})` : ''}`);
+
 	const imageSources: Array<{
 		getter: () => Promise<string | null>;
 		source: 'pexels' | 'picsum' | 'placeholder';
@@ -214,15 +226,21 @@ export async function getTripBannerImageWithAttribution(
 			pexelsUrl: string;
 		} | null>;
 	}> = [
-		// Primary: Pexels API search
+		// Primary: Strategy-based search
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages(
-					`${cityName} city landscape`,
-					1,
-					15,
-					userApiKey
-				);
+				let searchQuery: string;
+
+				if (isCityFocused) {
+					// City-focused: Prioritize city-specific searches
+					searchQuery = `${cityName} city landscape`;
+				} else {
+					// Country-focused: Use country name for better results
+					searchQuery = cleanedCountryName ? `${cleanedCountryName} landscape` : `${cityName} landscape`;
+				}
+
+				console.log(`🔍 Searching Pexels with query: "${searchQuery}"`);
+				const searchResult = await searchPexelsImages(searchQuery, 1, 15, userApiKey);
 				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
 				if (randomPhoto) {
 					return randomPhoto.src.large;
@@ -248,19 +266,38 @@ export async function getTripBannerImageWithAttribution(
 				return null;
 			}
 		},
-		// Fallback 1: Generic city landscape
+		// Fallback 1: Strategy-appropriate fallback
 		{
 			getter: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 15, userApiKey);
+				let searchQuery: string;
+
+				if (isCityFocused) {
+					// City-focused: Try city travel search as fallback
+					searchQuery = `${cityName} travel`;
+				} else {
+					// Country-focused: Try country travel search
+					searchQuery = cleanedCountryName ? `${cleanedCountryName} travel` : `${cityName} travel`;
+				}
+
+				console.log(`🔍 Fallback search: "${searchQuery}"`);
+				const searchResult = await searchPexelsImages(searchQuery, 1, 15, userApiKey);
 				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
 				if (randomPhoto) {
 					return randomPhoto.src.large;
 				}
 				return null;
 			},
-			source: 'pexels',
+			source: 'pexels' as const,
 			getAttribution: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} landscape`, 1, 15, userApiKey);
+				let searchQuery: string;
+
+				if (isCityFocused) {
+					searchQuery = `${cityName} travel`;
+				} else {
+					searchQuery = cleanedCountryName ? `${cleanedCountryName} travel` : `${cityName} travel`;
+				}
+
+				const searchResult = await searchPexelsImages(searchQuery, 1, 15, userApiKey);
 				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
 				if (randomPhoto) {
 					return {
@@ -272,31 +309,7 @@ export async function getTripBannerImageWithAttribution(
 				return null;
 			}
 		},
-		// Fallback 2: Country-based search
-		{
-			getter: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 15, userApiKey);
-				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
-				if (randomPhoto) {
-					return randomPhoto.src.large;
-				}
-				return null;
-			},
-			source: 'pexels',
-			getAttribution: async () => {
-				const searchResult = await searchPexelsImages(`${cityName} travel`, 1, 15, userApiKey);
-				const randomPhoto = getRandomPhotoFromSearchResult(searchResult);
-				if (randomPhoto) {
-					return {
-						photographer: randomPhoto.photographer,
-						photographerUrl: randomPhoto.photographer_url,
-						pexelsUrl: randomPhoto.url
-					};
-				}
-				return null;
-			}
-		},
-		// Fallback 3: Generic travel image
+		// Fallback 2: Generic travel image
 		{
 			getter: async () => {
 				const searchResult = await searchPexelsImages('travel landscape', 1, 15, userApiKey);
@@ -320,7 +333,7 @@ export async function getTripBannerImageWithAttribution(
 				return null;
 			}
 		},
-		// Fallback 4: Generic city image
+		// Fallback 3: Generic city image
 		{
 			getter: async () => {
 				const searchResult = await searchPexelsImages('city landscape', 1, 15, userApiKey);
@@ -344,12 +357,12 @@ export async function getTripBannerImageWithAttribution(
 				return null;
 			}
 		},
-		// Fallback 5: Picsum with proper MIME type
+		// Fallback 4: Picsum with proper MIME type
 		{
 			getter: () => Promise.resolve(`https://picsum.photos/800/400.jpg?random=${Date.now()}`),
 			source: 'picsum'
 		},
-		// Fallback 6: Alternative placeholder service
+		// Fallback 5: Alternative placeholder service
 		{
 			getter: () =>
 				Promise.resolve(
@@ -357,7 +370,7 @@ export async function getTripBannerImageWithAttribution(
 				),
 			source: 'placeholder'
 		},
-		// Fallback 7: Another placeholder service
+		// Fallback 6: Another placeholder service
 		{
 			getter: () =>
 				Promise.resolve(
@@ -427,23 +440,26 @@ export async function getTripBannerImageWithAttribution(
  */
 export async function getMultipleTripBannerImages(
 	cities: string[],
-	userApiKey?: string
+	userApiKey?: string,
+	countryNames?: Record<string, string>
 ): Promise<Record<string, string>> {
 	const results: Record<string, string> = {};
 
-	// Process cities sequentially to avoid overwhelming the service
-	for (const city of cities) {
-		try {
-			const imageUrl = await getTripBannerImage(city, userApiKey);
-			if (imageUrl) {
-				results[city] = imageUrl;
+			// Process cities sequentially to avoid overwhelming the service
+		for (const city of cities) {
+			try {
+				const countryName = countryNames?.[city];
+				// For multiple cities, we assume country-focused search since we don't have city dominance data
+				const imageUrl = await getTripBannerImage(city, userApiKey, countryName, false);
+				if (imageUrl) {
+					results[city] = imageUrl;
+				}
+				// Add a small delay between requests
+				await new Promise((resolve) => setTimeout(resolve, 200));
+			} catch (error) {
+				console.error(`❌ Error getting image for ${city}:`, error);
 			}
-			// Add a small delay between requests
-			await new Promise((resolve) => setTimeout(resolve, 200));
-		} catch (error) {
-			console.error(`❌ Error getting image for ${city}:`, error);
 		}
-	}
 
 	return results;
 }

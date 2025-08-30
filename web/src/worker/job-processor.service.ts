@@ -69,7 +69,6 @@ export class JobProcessorService {
 			useCustomHomeAddress,
 			customHomeAddress,
 			minTripDurationHours,
-			maxDistanceFromHomeKm,
 			minDataPointsPerDay
 		} = job.data as unknown as TripGenerationData;
 
@@ -254,12 +253,12 @@ export class JobProcessorService {
 			// Configure detection parameters
 			const config = {
 				minTripDurationHours: minTripDurationHours || 24,
-				maxDistanceFromHomeKm: maxDistanceFromHomeKm || 50,
 				minDataPointsPerDay: minDataPointsPerDay || 3,
 				homeRadiusKm: 10,
 				clusteringRadiusMeters: 1000,
-				minHomeDurationHours: 1, // User must be home for at least 1 hour to end a trip
-				minHomeDataPoints: 5 // User must have at least 5 "home" data points to end a trip
+				minAwayDurationHours: 24, // User must be away for at least 24 hours to start a trip
+				minStatusConfirmationPoints: 10, // Need 10 points to confirm home/away status
+				chunkSize: 1000 // Process 1000 points at a time
 			};
 
 			// Use the new trip detection service with the determined date ranges

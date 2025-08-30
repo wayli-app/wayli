@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
 						.from('jobs')
 						.insert({
 							created_by: user.id,
-							type: 'reverse_geocoding',
+							type: 'reverse_geocoding_missing',
 							status: 'queued',
 							data: {
 								reason: 'Import job cancelled - automatic geocoding',

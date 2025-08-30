@@ -1597,7 +1597,7 @@
 									</div>
 									<div class="relative w-full">
 										<div
-											class="flex h-4 items-center justify-center rounded bg-gray-200 dark:bg-gray-700"
+											class="flex h-4 items-center justify-start rounded bg-gray-200 dark:bg-gray-700"
 										>
 											<div
 												class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"

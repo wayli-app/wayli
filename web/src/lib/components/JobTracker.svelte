@@ -13,7 +13,7 @@
 				return { title: 'Data Import' };
 			case 'data_export':
 				return { title: 'Data Export' };
-			case 'reverse_geocoding':
+			case 'reverse_geocoding_missing':
 				return { title: 'Reverse Geocoding' };
 			case 'trip_generation':
 				return { title: 'Trip Generation' };

@@ -330,6 +330,22 @@
 			</div>
 		{/if}
 
+		<!-- Clear Existing Suggestions Checkbox -->
+		<div class="flex items-center gap-3">
+			<input
+				id="clear-existing-suggestions"
+				type="checkbox"
+				bind:checked={clearExistingSuggestions}
+				class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
+			/>
+			<label
+				for="clear-existing-suggestions"
+				class="text-sm text-gray-700 dark:text-gray-300"
+			>
+				{t('tripGenerationModal.clearExistingSuggestions')}
+			</label>
+		</div>
+
 		<!-- Action Buttons -->
 		<div class="flex gap-3 pt-4">
 			<button
