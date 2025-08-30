@@ -293,19 +293,6 @@ All API responses follow this structure:
 
 ## 🌍 Environment Configuration
 
-### Client-Side Configuration
-
-```typescript
-// src/lib/core/config/environment.ts
-// ONLY public, client-safe variables
-export function getNominatimConfig() {
-	return {
-		endpoint: 'https://nominatim.wayli.app',
-		rateLimit: 1
-	};
-}
-```
-
 ### Server-Side Configuration
 
 ```typescript
