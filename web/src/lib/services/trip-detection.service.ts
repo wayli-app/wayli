@@ -689,21 +689,40 @@ export class TripDetectionService {
 	 * Fetch data for a specific day
 	 */
 	private async fetchDataForDay(userId: string, dateStr: string): Promise<TrackerDataPoint[]> {
-		const { data: trackerData, error } = await this.supabase
-			.from('tracker_data')
-			.select('*')
-			.eq('user_id', userId)
-			.gte('recorded_at', `${dateStr}T00:00:00Z`)
-			.lt('recorded_at', `${dateStr}T23:59:59Z`)
-			.not('country_code', 'is', null) // Ignore records with NULL country codes when determining trip dates
-			.order('recorded_at', { ascending: true });
+		try {
+			console.log(`🔍 Fetching tracker data for ${dateStr} (user: ${userId})`);
 
-		if (error) {
-			console.error(`❌ Error fetching data for ${dateStr}:`, error);
+			const { data: trackerData, error } = await this.supabase
+				.from('tracker_data')
+				.select('*')
+				.eq('user_id', userId)
+				.gte('recorded_at', `${dateStr}T00:00:00Z`)
+				.lt('recorded_at', `${dateStr}T23:59:59Z`)
+				.not('country_code', 'is', null) // Ignore records with NULL country codes when determining trip dates
+				.order('recorded_at', { ascending: true });
+
+			if (error) {
+				console.error(`❌ Database error fetching data for ${dateStr}:`, {
+					error: error.message,
+					code: error.code,
+					details: error.details,
+					hint: error.hint
+				});
+				return [];
+			}
+
+			const dataCount = trackerData?.length || 0;
+			console.log(`✅ Successfully fetched ${dataCount} data points for ${dateStr}`);
+			return trackerData || [];
+		} catch (error) {
+			console.error(`❌ Unexpected error fetching data for ${dateStr}:`, {
+				message: error instanceof Error ? error.message : 'Unknown error',
+				stack: error instanceof Error ? error.stack : undefined,
+				userId,
+				dateStr
+			});
 			return [];
 		}
-
-		return trackerData || [];
 	}
 
 	/**

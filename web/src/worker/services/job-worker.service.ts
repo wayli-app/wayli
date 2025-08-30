@@ -20,6 +20,9 @@ export class JobWorker {
 	private pollInterval: number = 5000; // 5 seconds default
 	private cancellationCheckIntervalMs: number = 10000; // 10 seconds default
 	private jobCancelled: boolean = false;
+	private lastHeartbeat: string = new Date().toISOString();
+	private totalJobsProcessed: number = 0;
+	private activeJobs: Set<string> = new Set();
 
 	constructor(workerId?: string) {
 		this.workerId = workerId || randomUUID();
@@ -206,6 +209,9 @@ export class JobWorker {
 
 	private async pollForJobs(): Promise<void> {
 		try {
+			// Update heartbeat
+			this.lastHeartbeat = new Date().toISOString();
+
 			// If we're already processing a job, don't get another one
 			if (this.currentJob) {
 				console.log(
@@ -241,6 +247,9 @@ export class JobWorker {
 
 	private async processJob(job: Job): Promise<void> {
 		try {
+			// Track active job
+			this.activeJobs.add(job.id);
+
 			await JobProcessorService.processJob(job);
 
 			// Check if job was cancelled during processing
@@ -267,6 +276,11 @@ export class JobWorker {
 			const errorMessage = (error as Error)?.message || 'Unknown error';
 			await this.failJob(job.id, errorMessage);
 		} finally {
+			// Remove from active jobs and increment counter
+			if (this.currentJob) {
+				this.activeJobs.delete(this.currentJob.id);
+				this.totalJobsProcessed++;
+			}
 			this.currentJob = null;
 			this.jobCancelled = false;
 		}
@@ -307,5 +321,65 @@ export class JobWorker {
 		// Unregister worker in the database (if you have a workers table)
 		// This could be used for monitoring and management
 		console.log(`🗑️ Worker ${this.workerId} unregistered`);
+	}
+
+	/**
+	 * Check worker health and Supabase connectivity
+	 */
+	async checkHealth(): Promise<{ healthy: boolean; details: Record<string, any> }> {
+		const health = {
+			workerId: this.workerId,
+			timestamp: new Date().toISOString(),
+			healthy: true,
+			details: {
+				supabase: { connected: false, error: null as string | null },
+				jobQueue: { connected: false, error: null as string | null },
+				lastHeartbeat: this.lastHeartbeat,
+				activeJobs: this.activeJobs.size,
+				totalJobsProcessed: this.totalJobsProcessed
+			}
+		};
+
+		try {
+			// Test Supabase connection through JobQueueService
+			const stats = await JobQueueService.getJobStats();
+			health.details.supabase.connected = true;
+		} catch (error) {
+			health.details.supabase.error = error instanceof Error ? error.message : 'Unknown error';
+			health.healthy = false;
+		}
+
+		try {
+			// Test job queue connection
+			const job = await JobQueueService.getNextJob(this.workerId);
+			// If we can get a job (even if it's null), the connection is working
+			health.details.jobQueue.connected = true;
+		} catch (error) {
+			health.details.jobQueue.error = error instanceof Error ? error.message : 'Unknown error';
+			health.healthy = false;
+		}
+
+		return health;
+	}
+
+	/**
+	 * Update the worker's last heartbeat timestamp
+	 */
+	updateLastHeartbeat(): void {
+		this.lastHeartbeat = new Date().toISOString();
+	}
+
+	/**
+	 * Increment the total jobs processed count
+	 */
+	incrementTotalJobsProcessed(): void {
+		this.totalJobsProcessed++;
+	}
+
+	/**
+	 * Get the current active jobs count
+	 */
+	getActiveJobsCount(): number {
+		return this.activeJobs.size;
 	}
 }

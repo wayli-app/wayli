@@ -16,6 +16,24 @@ const DEFAULT_SERVICE_ROLE_KEY =
 	'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
 
 /**
+ * Get the appropriate Supabase URL for workers
+ * In production, workers should prefer internal URLs if available
+ */
+function getWorkerSupabaseUrl(): string {
+	// Check for worker-specific internal URL first (for production)
+	const internalUrl = process.env.WORKER_SUPABASE_URL || process.env.INTERNAL_SUPABASE_URL;
+	if (internalUrl) {
+		console.log('🔗 Using internal Supabase URL for worker:', internalUrl);
+		return internalUrl;
+	}
+
+	// Fall back to public URL
+	const publicUrl = process.env.PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+	console.log('🔗 Using public Supabase URL for worker:', publicUrl);
+	return publicUrl;
+}
+
+/**
  * Validate and return the worker environment config.
  * Throws in strict mode if required variables are missing.
  * @param strict - If true, throw on missing/invalid config
@@ -28,21 +46,22 @@ export function validateWorkerEnvironmentConfig(strict: boolean = false): Worker
 			strict,
 			isServer: typeof window === 'undefined',
 			hasPublicUrl: !!process.env.PUBLIC_SUPABASE_URL,
+			hasInternalUrl: !!process.env.WORKER_SUPABASE_URL || !!process.env.INTERNAL_SUPABASE_URL,
 			hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
 		});
 	}
 
 	const errors: string[] = [];
 
-	// Read from process.env for worker environment
-	const supabaseUrl = process.env.PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+	// Get the appropriate Supabase URL for workers
+	const supabaseUrl = getWorkerSupabaseUrl();
 	const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || DEFAULT_SERVICE_ROLE_KEY;
 
 	// Validate environment variables
 	if (!supabaseUrl) {
-		errors.push('PUBLIC_SUPABASE_URL is not defined');
+		errors.push('No valid Supabase URL found (checked WORKER_SUPABASE_URL, INTERNAL_SUPABASE_URL, PUBLIC_SUPABASE_URL)');
 	} else if (!supabaseUrl.startsWith('http')) {
-		errors.push('PUBLIC_SUPABASE_URL must be a valid URL starting with http:// or https://');
+		errors.push('Supabase URL must be a valid URL starting with http:// or https://');
 	}
 
 	if (!serviceRoleKey) {
@@ -73,8 +92,10 @@ export function validateWorkerEnvironmentConfig(strict: boolean = false): Worker
 	};
 
 	if (process.env.NODE_ENV === 'development') {
+		const hasInternalUrl = !!(process.env.WORKER_SUPABASE_URL || process.env.INTERNAL_SUPABASE_URL);
 		console.log('[WorkerEnvironment] Configuration validated successfully:', {
 			url: config.supabase.url,
+			urlType: hasInternalUrl ? 'internal' : 'public',
 			serviceKeyLength: config.supabase.serviceRoleKey.length
 		});
 	}
