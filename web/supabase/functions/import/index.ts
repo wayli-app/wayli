@@ -31,6 +31,16 @@ Deno.serve(async (req) => {
 		logInfo('Starting authentication', 'IMPORT');
 		let user, supabase;
 
+		// Log request details for debugging
+		const authHeader = req.headers.get('Authorization');
+		logInfo('Request details', 'IMPORT', {
+			method: req.method,
+			url: req.url,
+			hasAuthHeader: !!authHeader,
+			authHeaderLength: authHeader?.length || 0,
+			userAgent: req.headers.get('User-Agent') || 'unknown'
+		});
+
 		try {
 			const authResult = await authenticateRequest(req);
 			user = authResult.user;

@@ -54,7 +54,9 @@ export function createAuthenticatedClient(authToken: string) {
 // Create a client that uses the user's token for database access
 export function createUserClient(authToken: string) {
 	try {
-		const client = createClient(supabaseUrl!, supabaseServiceKey!, {
+		// Create a client that uses the user's JWT token for authentication
+		// This ensures RLS policies are respected
+		const client = createClient(supabaseUrl!, supabaseAnonKey!, {
 			global: {
 				headers: {
 					Authorization: `Bearer ${authToken}`

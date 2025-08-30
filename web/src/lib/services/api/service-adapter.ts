@@ -356,6 +356,9 @@ export class ServiceAdapter {
 					file_name: file.name,
 					file_size: file.size,
 					format: format
+				},
+				headers: {
+					Authorization: `Bearer ${this.session?.access_token}`
 				}
 			});
 
