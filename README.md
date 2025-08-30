@@ -16,8 +16,8 @@ Wayli is an open source geospatial tracking and trip analysis platform. It helps
 
 ## Quick Start
 ```bash
-git clone https://github.com/YOUR_USERNAME/wayli.git
-cd wayli
+git clone https://github.com/wayli-app/wayli.git
+cd wayli/web
 npm install
 npm run dev
 ```

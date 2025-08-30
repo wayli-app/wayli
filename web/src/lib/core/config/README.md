@@ -10,10 +10,6 @@ The environment configuration follows a layered approach:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Environment Layers                       │
 ├─────────────────────────────────────────────────────────────┤
-│  Client-Side (Browser)                                      │
-│  ├── environment.ts (Public variables only)                 │
-│  └── $env/static/public                                     │
-├─────────────────────────────────────────────────────────────┤
 │  Server-Side (SvelteKit)                                    │
 │  ├── server-environment.ts (Private variables)              │
 │  └── $env/static/private                                    │
@@ -26,19 +22,11 @@ The environment configuration follows a layered approach:
 
 ## 📁 File Structure
 
-### `environment.ts` - Client-Safe Configuration
-
-- **Purpose**: Public, client-safe configuration only
-- **Usage**: Client-side components, SvelteKit load functions, stores
-- **Variables**: Public API endpoints, client-side feature flags
-- **Security**: No secrets, no private variables
-
-```typescript
-// ✅ Safe for client-side
-import { getNominatimConfig } from '$lib/core/config/environment';
-
-// ❌ Never import server configs in client code
-// import { validateServerEnvironment } from '$lib/core/config/server-environment';
+```
+src/lib/core/config/
+├── server-environment.ts (Private variables)              │
+├── worker-environment.ts (process.env)                    │
+└── node-environment.ts (dotenv + process.env)             │
 ```
 
 ### `server-environment.ts` - Server-Side Configuration
@@ -104,11 +92,8 @@ import { getNodeEnvironmentConfig } from '../../shared/config/node-environment';
 
 ```typescript
 // src/routes/+page.svelte
-import { getNominatimConfig } from '$lib/core/config/environment';
-
-const config = getNominatimConfig();
-// config.endpoint = 'https://nominatim.wayli.app'
-// config.rateLimit = 1
+// Note: Nominatim configuration is now handled directly in the service
+// No client-side config needed at this time
 ```
 
 ### Server-Side Configuration
@@ -169,99 +154,4 @@ WORKER_POLL_INTERVAL=5000
 JOB_TIMEOUT=300000
 RETRY_ATTEMPTS=3
 RETRY_DELAY=1000
-```
-
-## 🧪 Testing
-
-### Environment Variable Testing
-
-```typescript
-// tests/unit/config.test.ts
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { validateServerEnvironmentConfig } from '$lib/core/config/server-environment';
-
-describe('Server Environment Config', () => {
-	const originalEnv = process.env;
-
-	beforeEach(() => {
-		vi.resetModules();
-		process.env = { ...originalEnv };
-	});
-
-	afterEach(() => {
-		process.env = originalEnv;
-	});
-
-	it('should validate required environment variables', () => {
-		process.env.PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
-		process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
-
-		const config = validateServerEnvironmentConfig(true);
-		expect(config.supabase.url).toBe('https://test.supabase.co');
-		expect(config.supabase.serviceRoleKey).toBe('test-service-key');
-	});
-});
-```
-
-## 🚨 Common Issues
-
-### Build Errors
-
-If you see build errors like:
-
-```
-Error: Cannot import '$env/static/private' in client-side code
-```
-
-**Solution**: Move the import to a server-side file or use the appropriate client-safe config.
-
-### Runtime Errors
-
-If you see runtime errors like:
-
-```
-ReferenceError: process is not defined
-```
-
-**Solution**: Use SvelteKit's `$env/static/*` imports instead of `process.env` in SvelteKit code.
-
-### Security Warnings
-
-If you see security warnings like:
-
-```
-Warning: Sensitive environment variable exposed to client
-```
-
-**Solution**: Ensure you're using the correct config file for your context.
-
-## 📚 Related Documentation
-
-- [SvelteKit Environment Variables](https://kit.svelte.dev/docs/modules#$env-static-private)
-- [Supabase Environment Setup](https://supabase.com/docs/guides/getting-started/environment-variables)
-- [Node.js Environment Variables](https://nodejs.org/api/process.html#processenv)
-
-## 🔄 Migration Guide
-
-### From Direct Environment Imports
-
-```typescript
-// ❌ Old way
-import { PUBLIC_SUPABASE_URL } from '$env/static/public';
-import { SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private';
-
-// ✅ New way
-import { validateServerEnvironmentConfig } from '$lib/core/config/server-environment';
-const config = validateServerEnvironmentConfig();
-```
-
-### From Process.env in SvelteKit
-
-```typescript
-// ❌ Old way
-const url = process.env.PUBLIC_SUPABASE_URL;
-
-// ✅ New way
-import { PUBLIC_SUPABASE_URL } from '$lib/supabase';
-const url = PUBLIC_SUPABASE_URL;
 ```

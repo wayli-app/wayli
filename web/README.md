@@ -285,14 +285,8 @@ Wayli uses a secure, layered environment configuration:
 ### Client-Safe Configuration
 
 ```typescript
-// src/lib/core/config/environment.ts
-// Only public, client-safe variables
-export function getNominatimConfig() {
-	return {
-		endpoint: 'https://nominatim.wayli.app',
-		rateLimit: 1
-	};
-}
+// Note: Nominatim configuration is now handled directly in the service
+// No client-side config needed at this time
 ```
 
 ### Server-Only Configuration

@@ -8,6 +8,10 @@ export interface WorkerEnvironmentConfig {
 		url: string;
 		serviceRoleKey: string;
 	};
+	nominatim: {
+		endpoint: string;
+		rateLimit: number;
+	};
 }
 
 // Default fallback values for development
@@ -88,6 +92,10 @@ export function validateWorkerEnvironmentConfig(strict: boolean = false): Worker
 		supabase: {
 			url: supabaseUrl,
 			serviceRoleKey: serviceRoleKey
+		},
+		nominatim: {
+			endpoint: process.env.NOMINATIM_ENDPOINT || 'https://nominatim.wayli.app',
+			rateLimit: parseInt(process.env.NOMINATIM_RATE_LIMIT || '100', 10) || 100
 		}
 	};
 
@@ -114,4 +122,9 @@ export function getWorkerSupabaseConfig() {
 // Helper function for strict validation when needed
 export function getWorkerSupabaseConfigStrict() {
 	return validateWorkerEnvironmentConfig(true).supabase;
+}
+
+// Helper function to get Nominatim configuration for workers
+export function getWorkerNominatimConfig() {
+	return workerEnv.nominatim;
 }

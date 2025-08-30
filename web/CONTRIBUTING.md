@@ -16,7 +16,7 @@ Thank you for your interest in contributing to Wayli! This guide will help you g
 1. **Fork and Clone**
 
    ```bash
-   git clone https://github.com/YOUR_USERNAME/wayli.git
+   git clone https://github.com/wayli-app/wayli.git
    cd wayli/web
    ```
 
@@ -246,8 +246,8 @@ import { useAriaModal } from '$lib/accessibility/aria-modal';
 Follow the environment separation pattern:
 
 ```typescript
-// Client-safe (public variables only)
-import { getNominatimConfig } from '$lib/core/config/environment';
+// Note: Nominatim configuration is now handled directly in the service
+// No client-side config needed at this time
 
 // Server-only (private variables)
 import { validateServerEnvironment } from '$lib/core/config/server-environment';

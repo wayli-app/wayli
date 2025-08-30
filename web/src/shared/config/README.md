@@ -10,10 +10,6 @@ The environment configuration follows a layered approach:
 ┌─────────────────────────────────────────────────────────────┐
 │                    Environment Layers                       │
 ├─────────────────────────────────────────────────────────────┤
-│  Client-Side (Browser)                                      │
-│  ├── environment.ts (Public variables only)                 │
-│  └── $env/static/public                                     │
-├─────────────────────────────────────────────────────────────┤
 │  Server-Side (SvelteKit)                                    │
 │  ├── server-environment.ts (Private variables)              │
 │  └── $env/static/private                                    │
@@ -26,20 +22,7 @@ The environment configuration follows a layered approach:
 
 ## 📁 File Structure
 
-### `environment.ts` - Client-Safe Configuration
 
-- **Purpose**: Public, client-safe configuration only
-- **Usage**: Client-side components, SvelteKit load functions, stores
-- **Variables**: Public API endpoints, client-side feature flags
-- **Security**: No secrets, no private variables
-
-```typescript
-// ✅ Safe for client-side
-import { getNominatimConfig } from '$lib/core/config/environment';
-
-// ❌ Never import server configs in client code
-// import { validateServerEnvironment } from '$lib/core/config/server-environment';
-```
 
 ### `server-environment.ts` - Server-Side Configuration
 
@@ -104,11 +87,8 @@ import { getNodeEnvironmentConfig } from './node-environment';
 
 ```typescript
 // src/routes/+page.svelte
-import { getNominatimConfig } from '$lib/core/config/environment';
-
-const config = getNominatimConfig();
-// config.endpoint = 'https://nominatim.wayli.app'
-// config.rateLimit = 1
+// Note: Nominatim configuration is now handled directly in the service
+// No client-side config needed at this time
 ```
 
 ### Server-Side Configuration

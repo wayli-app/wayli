@@ -1,9 +1,5 @@
-import { getNominatimConfig } from '$lib/core/config/environment';
-
-const config = getNominatimConfig();
-const MIN_INTERVAL = 1000 / config.rateLimit;
-
-let lastRequestTime = 0;
+// web/src/lib/services/external/nominatim.service.ts
+// Nominatim service for both client and worker use
 
 export interface NominatimResponse {
 	display_name: string;
@@ -18,6 +14,18 @@ export interface NominatimSearchResponse {
 	address?: Record<string, string>;
 	[key: string]: unknown;
 }
+
+// Get configuration - prioritize environment variables, fallback to default
+const config = {
+	endpoint: process.env?.NOMINATIM_ENDPOINT || 'https://nominatim.wayli.app',
+	rateLimit: parseInt(process.env?.NOMINATIM_RATE_LIMIT || '1000', 10)
+};
+
+console.log(`🌍 [NOMINATIM] Using endpoint: ${config.endpoint}`);
+
+const MIN_INTERVAL = 1000 / config.rateLimit;
+
+let lastRequestTime = 0;
 
 export async function reverseGeocode(lat: number, lon: number): Promise<NominatimResponse> {
 	// Rate limiting
