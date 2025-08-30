@@ -21,6 +21,41 @@ export const supabase = createClient<Database>(config.supabaseUrl, config.supaba
 		persistSession: true,
 		storageKey: 'wayli-auth',
 		detectSessionInUrl: true
+	},
+	global: {
+		fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+			// Get the current session to include authorization header
+			// Use localStorage directly to avoid recursive calls
+			const storageKey = 'wayli-auth';
+			const sessionData = localStorage.getItem(storageKey);
+
+			let accessToken: string | null = null;
+			if (sessionData) {
+				try {
+					const parsed = JSON.parse(sessionData);
+					accessToken = parsed?.access_token || null;
+				} catch {
+					// Ignore parsing errors
+				}
+			}
+
+			// Clone the init object to avoid mutating the original
+			const modifiedInit = { ...init };
+
+			// Add authorization header for all requests if we have a session
+			if (accessToken) {
+				// Ensure headers object exists
+				if (!modifiedInit.headers) {
+					modifiedInit.headers = {};
+				}
+
+				// Add authorization header
+				(modifiedInit.headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
+			}
+
+			// Call the original fetch with modified headers
+			return fetch(input, modifiedInit);
+		}
 	}
 });
 
