@@ -174,7 +174,7 @@ export class TripsService {
 			const { data: trips, error } = await this.supabase
 				.from('trips')
 				.select('*')
-				.or(`title.ilike.%${query}%,description.ilike.%${query}%`)
+				.or(`title.ilike.%${query}%,description.ilike.%${query}%,labels.cs.{${query}}`)
 				.order('created_at', { ascending: false });
 
 			if (error) throw error;

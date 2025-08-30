@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
 			// Add search filter if provided
 			if (search) {
-				query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+				query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,labels.cs.{${search}}`);
 			}
 
 			// Add pagination

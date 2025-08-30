@@ -2246,29 +2246,10 @@
 						<p class="text-sm text-blue-800 dark:text-blue-200">{approvalProgress.message}</p>
 					</div>
 
-					{#if approvalProgress.step === 'generating-images' && approvalProgress.imageProgress.total > 0}
-						<div class="mt-3">
-							<div class="mb-1 flex justify-between text-xs text-blue-700 dark:text-blue-300">
-								<span>{t('trips.imageGenerationProgress')}</span>
-								<span
-									>{approvalProgress.imageProgress.processed}/{approvalProgress.imageProgress
-										.total}</span
-								>
-							</div>
-							<div class="h-1.5 w-full rounded-full bg-blue-200 dark:bg-blue-800">
-								<div
-									class="h-1.5 rounded-full bg-blue-600 transition-all duration-300 ease-out"
-									style="width: {(approvalProgress.imageProgress.processed /
-										approvalProgress.imageProgress.total) *
-										100}%"
-								></div>
-							</div>
-							{#if approvalProgress.imageProgress.currentTrip}
-								<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
-									{t('trips.lastProcessed', { title: approvalProgress.imageProgress.currentTrip })}
-								</p>
-							{/if}
-						</div>
+					{#if approvalProgress.imageProgress.currentTrip}
+						<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+							{t('trips.lastProcessed', { title: approvalProgress.imageProgress.currentTrip })}
+						</p>
 					{/if}
 				</div>
 

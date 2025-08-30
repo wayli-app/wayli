@@ -756,12 +756,15 @@ export class TripDetectionService {
 				const totalDuration = tripState.tripDataPoints || 1;
 				const primaryCityPercentage = (primaryCityDuration / totalDuration) * 100;
 
-				if (primaryCityPercentage < 50) {
-					// Less than 50% time in primary city, use country name
+				if (visitedCities.length > 1) {
+					// Multiple cities visited abroad - use country name
 					tripTitle = `Trip to ${visitedCountries[0]}`;
-				} else {
-					// More than 50% time in primary city, use city name
+				} else if (primaryCityPercentage >= 50) {
+					// Single city dominates the trip - use city name
 					tripTitle = `Trip to ${primaryCity}`;
+				} else {
+					// Multiple cities but no single city dominates - use country name
+					tripTitle = `Trip to ${visitedCountries[0]}`;
 				}
 			} else {
 				// Fallback for unknown countries
