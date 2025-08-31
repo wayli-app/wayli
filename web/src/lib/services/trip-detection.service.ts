@@ -48,6 +48,7 @@ export interface TripState {
 	currentTripLocations: VisitedLocation[];
 	lastHomePoint: TrackerDataPoint | null; // Last confirmed home point
 	lastAwayPoint: TrackerDataPoint | null; // Last confirmed away point
+	tripDataPoints: number; // Total number of data points processed for this trip
 }
 
 const DEFAULT_CONFIG: TripDetectionConfig = {
@@ -180,7 +181,8 @@ export class TripDetectionService {
 			currentTripEnd: null,
 			currentTripLocations: [],
 			lastHomePoint: null,
-			lastAwayPoint: null
+			lastAwayPoint: null,
+			tripDataPoints: 0
 		};
 
 		console.log(`🔄 Processing date range in chunks of ${config.chunkSize} points`);
@@ -356,7 +358,8 @@ export class TripDetectionService {
 							currentTripEnd: null,
 							currentTripLocations: [],
 							lastHomePoint: point,
-							lastAwayPoint: null
+							lastAwayPoint: null,
+							tripDataPoints: updatedTripState.tripDataPoints + 1
 						};
 					}
 				}
@@ -505,6 +508,11 @@ export class TripDetectionService {
         // Check if point is in an excluded city (always considered "home")
         for (const exclusion of tripExclusions) {
             const cityName = this.getCityFromPoint(point);
+            // Handle new format: exclusion.name contains city name
+            if (exclusion.name && cityName === exclusion.name) {
+                return true;
+            }
+            // Handle old format: exclusion.exclusion_type === 'city' && exclusion.value
             if (exclusion.exclusion_type === 'city' && cityName === exclusion.value) {
                 return true;
             }
@@ -694,34 +702,40 @@ export class TripDetectionService {
 		language: string;
 	}> {
 		try {
-			// Get home address
+			// Get home address from user_profiles using 'id' column
 			const { data: homeAddress, error: homeError } = await this.supabase
 				.from('user_profiles')
 				.select('home_address')
-				.eq('user_id', userId)
+				.eq('id', userId)
 				.single();
 
-			// Get trip exclusions
-			const { data: tripExclusions, error: exclusionsError } = await this.supabase
-				.from('trip_exclusions')
-				.select('*')
-				.eq('user_id', userId);
-
-			// Get language preference
-			const { data: userProfile, error: profileError } = await this.supabase
-				.from('user_profiles')
-				.select('language')
-				.eq('user_id', userId)
+			// Get trip exclusions and language from user_preferences
+			const { data: userPreferences, error: preferencesError } = await this.supabase
+				.from('user_preferences')
+				.select('trip_exclusions, language')
+				.eq('id', userId)
 				.single();
 
 			if (homeError) console.warn('⚠️ Could not fetch home address:', homeError);
-			if (exclusionsError) console.warn('⚠️ Could not fetch trip exclusions:', exclusionsError);
-			if (profileError) console.warn('⚠️ Could not fetch user profile:', profileError);
+			if (preferencesError) console.warn('⚠️ Could not fetch user preferences:', preferencesError);
+
+			// Parse trip exclusions from JSON column
+			let tripExclusions: any[] = [];
+			if (userPreferences?.trip_exclusions) {
+				try {
+					tripExclusions = typeof userPreferences.trip_exclusions === 'string'
+						? JSON.parse(userPreferences.trip_exclusions)
+						: userPreferences.trip_exclusions;
+				} catch (parseError) {
+					console.warn('⚠️ Could not parse trip exclusions:', parseError);
+					tripExclusions = [];
+				}
+			}
 
 			return {
 				homeAddress: homeAddress?.home_address || null,
 				tripExclusions: tripExclusions || [],
-				language: userProfile?.language || 'en'
+				language: userPreferences?.language || 'en'
 			};
 		} catch (error) {
 			console.error('❌ Error fetching user settings:', error);
