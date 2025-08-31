@@ -712,9 +712,9 @@ export class TripDetectionService {
 			.map(([city]) => city);
 
 		// Determine if this is a domestic or international trip
-		const homeCountry = homeAddress?.address?.country || 'Unknown';
+		const homeCountryCode = homeAddress?.address?.country_code || 'Unknown';
 		const isDomestic = tripState.currentTripLocations.every(loc =>
-			loc.countryName === homeCountry || loc.countryName === 'Unknown'
+			loc.countryCode === homeCountryCode || loc.countryCode === 'Unknown'
 		);
 
 		// Generate smart trip title based on the rules
@@ -742,14 +742,14 @@ export class TripDetectionService {
 			}
 		} else {
 			// International trip
-			const visitedCountries = Array.from(new Set(tripState.currentTripLocations.map(loc => loc.countryName)))
-				.filter(country => country !== 'Unknown');
+			const visitedCountryCodes = Array.from(new Set(tripState.currentTripLocations.map(loc => loc.countryCode)))
+				.filter(code => code !== 'Unknown');
 
-			if (visitedCountries.length > 1) {
+			if (visitedCountryCodes.length > 1) {
 				// Multi-country trip
-				const countryList = visitedCountries.slice(0, 3).join(', ');
+				const countryList = visitedCountryCodes.slice(0, 3).join(', ');
 				tripTitle = `Multi-country trip: ${countryList}`;
-			} else if (visitedCountries.length === 1) {
+			} else if (visitedCountryCodes.length === 1) {
 				// Single country international trip
 				const primaryCity = visitedCities[0];
 				const primaryCityDuration = cityDurations.get(primaryCity) || 0;
@@ -757,14 +757,14 @@ export class TripDetectionService {
 				const primaryCityPercentage = (primaryCityDuration / totalDuration) * 100;
 
 				if (visitedCities.length > 1) {
-					// Multiple cities visited abroad - use country name
-					tripTitle = `Trip to ${visitedCountries[0]}`;
+					// Multiple cities visited abroad - use country code (will be converted to name later)
+					tripTitle = `Trip to ${visitedCountryCodes[0]}`;
 				} else if (primaryCityPercentage >= 50) {
 					// Single city dominates the trip - use city name
 					tripTitle = `Trip to ${primaryCity}`;
 				} else {
-					// Multiple cities but no single city dominates - use country name
-					tripTitle = `Trip to ${visitedCountries[0]}`;
+					// Multiple cities but no single city dominates - use country code
+					tripTitle = `Trip to ${visitedCountryCodes[0]}`;
 				}
 			} else {
 				// Fallback for unknown countries
