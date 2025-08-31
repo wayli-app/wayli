@@ -315,6 +315,11 @@ describe('TripDetectionService', () => {
 			expect(trip?.metadata.visitedCities).toContain('Rotterdam');
 			expect(trip?.metadata.visitedCities).toContain('Utrecht');
 			expect(trip?.metadata.homeCountryCode).toBe('Unknown');
+
+			// Test smart trip title generation
+			console.log('Generated trip title:', trip?.title);
+			expect(trip?.title).toBeTruthy();
+			expect(typeof trip?.title).toBe('string');
 		});
 
 		it('should reject trips that are too short', async () => {
@@ -347,6 +352,83 @@ describe('TripDetectionService', () => {
 			const trip = await (service as any).finalizeTrip(tripState, homeAddress, tripExclusions, config, language);
 
 			expect(trip).toBeNull(); // Should be rejected due to short duration
+		});
+
+		it('should generate smart trip titles correctly', async () => {
+			// Test 1: Single city trip
+			const singleCityTripState: TripState = {
+				homePoints: [],
+				awayPoints: [],
+				currentTripStart: '2024-01-01T10:00:00Z',
+				currentTripEnd: '2024-01-01T22:00:00Z',
+				currentTripLocations: [
+					{
+						cityName: 'Amsterdam',
+						countryName: 'Netherlands',
+						countryCode: 'NL',
+						durationHours: 12,
+						dataPoints: 5,
+						coordinates: { lat: 52.3676, lng: 4.9041 }
+					}
+				],
+				lastHomePoint: null,
+				lastAwayPoint: null,
+				tripDataPoints: 5
+			};
+
+			const homeAddress = {
+				display_name: 'Test Home',
+				coordinates: { lat: 52.3676, lng: 4.9041 },
+				address: {
+					city: 'Amsterdam',
+					country: 'Netherlands',
+					country_code: 'NL'
+				}
+			};
+			const tripExclusions: any[] = [];
+			const config = { minTripDurationHours: 1, minDataPointsPerDay: 1 } as any;
+			const language = 'en';
+
+			const service = new TripDetectionService();
+			const singleCityTrip = await (service as any).finalizeTrip(singleCityTripState, homeAddress, tripExclusions, config, language);
+
+			expect(singleCityTrip).toBeTruthy();
+			expect(singleCityTrip?.title).toBe('Trip to Amsterdam');
+
+			// Test 2: Multi-city trip in same country
+			const multiCityTripState: TripState = {
+				homePoints: [],
+				awayPoints: [],
+				currentTripStart: '2024-01-01T10:00:00Z',
+				currentTripEnd: '2024-01-01T22:00:00Z',
+				currentTripLocations: [
+					{
+						cityName: 'Amsterdam',
+						countryName: 'Netherlands',
+						countryCode: 'NL',
+						durationHours: 6,
+						dataPoints: 3,
+						coordinates: { lat: 52.3676, lng: 4.9041 }
+					},
+					{
+						cityName: 'Rotterdam',
+						countryName: 'Netherlands',
+						countryCode: 'NL',
+						durationHours: 6,
+						dataPoints: 3,
+						coordinates: { lat: 51.9225, lng: 4.4792 }
+					}
+				],
+				lastHomePoint: null,
+				lastAwayPoint: null,
+				tripDataPoints: 6
+			};
+
+			// Use the same home address for the multi-city test
+			const multiCityTrip = await (service as any).finalizeTrip(multiCityTripState, homeAddress, tripExclusions, config, language);
+
+			expect(multiCityTrip).toBeTruthy();
+			expect(multiCityTrip?.title).toBe('Trip to Amsterdam, Rotterdam'); // Home country trips show city names
 		});
 	});
 
