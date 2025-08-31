@@ -742,32 +742,47 @@ export class TripDetectionService {
 			}
 		} else {
 			// International trip
-			const visitedCountryCodes = Array.from(new Set(tripState.currentTripLocations.map(loc => loc.countryCode)))
-				.filter(code => code !== 'Unknown');
+			// Calculate time spent in each country (excluding home country)
+			const countryDurations = new Map<string, number>();
+			const homeCountryCode = homeAddress?.address?.country_code || 'Unknown';
+			
+			for (const location of tripState.currentTripLocations) {
+				if (location.countryCode && location.countryCode !== 'Unknown' && location.countryCode !== homeCountryCode) {
+					const currentDuration = countryDurations.get(location.countryCode) || 0;
+					countryDurations.set(location.countryCode, currentDuration + location.durationHours);
+				}
+			}
+			
+			// Only count countries visited for more than 24 hours
+			const visitedCountryCodes = Array.from(countryDurations.entries())
+				.filter(([code, duration]) => duration >= 24)
+				.map(([code]) => code);
 
 			if (visitedCountryCodes.length > 1) {
-				// Multi-country trip
-				const countryList = visitedCountryCodes.slice(0, 3).join(', ');
-				tripTitle = `Multi-country trip: ${countryList}`;
+				// Multi-country trip - get country names from codes
+				const countryNames = await this.getCountryNamesFromCodes(visitedCountryCodes);
+				const countryList = countryNames.slice(0, 3).join(', ');
+				tripTitle = `Trip to ${countryList}`;
 			} else if (visitedCountryCodes.length === 1) {
 				// Single country international trip
+				const countryName = await this.getCountryNameFromCode(visitedCountryCodes[0]);
 				const primaryCity = visitedCities[0];
 				const primaryCityDuration = cityDurations.get(primaryCity) || 0;
 				const totalDuration = tripState.tripDataPoints || 1;
 				const primaryCityPercentage = (primaryCityDuration / totalDuration) * 100;
 
 				if (visitedCities.length > 1) {
-					// Multiple cities visited abroad - use country code (will be converted to name later)
-					tripTitle = `Trip to ${visitedCountryCodes[0]}`;
+					// Multiple cities visited abroad - use country name
+					tripTitle = `Trip to ${countryName}`;
 				} else if (primaryCityPercentage >= 50) {
 					// Single city dominates the trip - use city name
 					tripTitle = `Trip to ${primaryCity}`;
 				} else {
-					// Multiple cities but no single city dominates - use country code
-					tripTitle = `Trip to ${visitedCountryCodes[0]}`;
+					// Multiple cities but no single city dominates - use country name
+					tripTitle = `Trip to ${countryName}`;
 				}
 			} else {
-				// Fallback for unknown countries
+				// Fallback for unknown countries or insufficient duration
 				const primaryCity = visitedCities[0];
 				tripTitle = `Trip to ${primaryCity}`;
 			}
@@ -1437,6 +1452,37 @@ private formatTimestampWithTimezone(timestamp: string, tz_diff?: number): string
 				tripExclusions: [],
 				language: 'en'
 			};
+		}
+	}
+
+	/**
+	 * Get country names from a list of country codes
+	 */
+	private async getCountryNamesFromCodes(codes: string[]): Promise<string[]> {
+		const countryNames: string[] = [];
+		for (const code of codes) {
+			const name = await this.getCountryNameFromCode(code);
+			countryNames.push(name);
+		}
+		return countryNames;
+	}
+
+	/**
+	 * Get country name from a country code using the full_country function
+	 */
+	private async getCountryNameFromCode(code: string): Promise<string> {
+		try {
+			const { data, error } = await this.supabase
+				.rpc('full_country', { country: code });
+
+			if (error) {
+				console.warn(`⚠️ Could not find country name for code: ${code}`, error);
+				return code; // Return code as fallback
+			}
+			return data || code; // Return name or code as fallback
+		} catch (error) {
+			console.error('❌ Error fetching country name from code:', error);
+			return code; // Return code as fallback
 		}
 	}
 }
