@@ -32,18 +32,32 @@
 
 	let sseService = $state<SSEService | null>(null);
 	let completedJobIds = $state(new Set<string>()); // Track completed jobs to prevent duplicate toasts
+	let pollingInterval = $state<NodeJS.Timeout | null>(null); // Fallback polling
 
 	// Expose methods for parent components
 	export function startMonitoring() {
+		console.log('🔗 JobTracker: Starting monitoring...');
 		if (sseService) {
+			console.log('🔗 JobTracker: Disconnecting existing SSE service');
 			sseService.disconnect();
 			sseService = null;
 		}
+
+		console.log('🔗 JobTracker: About to create SSE service...');
 
 		// Create a new SSE service instance
 		sseService = new SSEService({
 			onConnected: () => {
 				console.log('🔗 JobTracker: Connected to job stream');
+				// Immediately fetch any existing jobs to ensure we don't miss any
+				setTimeout(async () => {
+					try {
+						const { fetchAndPopulateJobs } = await import('$lib/stores/job-store');
+						await fetchAndPopulateJobs();
+					} catch (error) {
+						console.error('❌ JobTracker: Error fetching initial jobs:', error);
+					}
+				}, 100);
 			},
 			onDisconnected: () => {
 				console.log('🔌 JobTracker: Disconnected from job stream');
@@ -107,6 +121,9 @@
 					// Mark as completed in our tracking
 					completedJobIds.add(job.id);
 
+					// Immediately update the job status in the store so UI reflects the change
+					updateJobInStore(job);
+
 					// Remove from active jobs after a delay
 					setTimeout(() => {
 						removeJobFromStore(job.id);
@@ -120,12 +137,39 @@
 
 		// Connect to the SSE service
 		sseService.connect();
+
+		// Start fallback polling in case SSE fails
+		startPollingFallback();
+	}
+
+	// Fallback polling function for when SSE is not available
+	async function startPollingFallback() {
+		// Clear any existing polling interval
+		if (pollingInterval) {
+			clearInterval(pollingInterval);
+		}
+
+		// Poll every 2 seconds to catch progress updates
+		pollingInterval = setInterval(async () => {
+			try {
+				const { fetchAndPopulateJobs } = await import('$lib/stores/job-store');
+				await fetchAndPopulateJobs();
+			} catch (error) {
+				console.error('❌ JobTracker: Error in fallback polling:', error);
+			}
+		}, 2000);
 	}
 
 	export function stopMonitoring() {
 		if (sseService) {
 			sseService.disconnect();
 			sseService = null;
+		}
+
+		// Clear polling interval
+		if (pollingInterval) {
+			clearInterval(pollingInterval);
+			pollingInterval = null;
 		}
 	}
 
@@ -169,6 +213,12 @@
 		stopMonitoring();
 		// Clear completed job tracking
 		completedJobIds.clear();
+
+		// Clear polling interval
+		if (pollingInterval) {
+			clearInterval(pollingInterval);
+			pollingInterval = null;
+		}
 	});
 </script>
 

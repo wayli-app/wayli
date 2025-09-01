@@ -314,7 +314,7 @@
 		)
 	);
 
-	// Watch for changes and update state
+		// Watch for changes and update state
 	$effect(() => {
 		// Update visible jobs
 		visibleJobs = activeJobsList;

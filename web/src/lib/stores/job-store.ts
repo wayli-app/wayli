@@ -26,9 +26,11 @@ export function getActiveJobsMap(): Map<string, JobUpdate> {
 // Helper functions to manage the store
 export function addJobToStore(job: JobUpdate) {
 	try {
+		console.log('🔍 Store: Adding job to store:', job.id, job.type, job.status, job.progress);
 		const newJobs = new Map(_activeJobs);
 		newJobs.set(job.id, job);
 		_activeJobs = newJobs;
+		console.log('🔍 Store: Total jobs in store after add:', _activeJobs.size);
 		notifySubscribers();
 	} catch (error) {
 		console.error('❌ Store: Error in addJobToStore:', error);
@@ -37,9 +39,11 @@ export function addJobToStore(job: JobUpdate) {
 
 export function updateJobInStore(job: JobUpdate) {
 	try {
+		console.log('🔍 Store: Updating job in store:', job.id, job.type, job.status, job.progress);
 		const newJobs = new Map(_activeJobs);
 		newJobs.set(job.id, job);
 		_activeJobs = newJobs;
+		console.log('🔍 Store: Total jobs in store after update:', _activeJobs.size);
 		notifySubscribers();
 	} catch (error) {
 		console.error('❌ Store: Error in updateJobInStore:', error);

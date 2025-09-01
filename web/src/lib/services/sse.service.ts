@@ -36,7 +36,7 @@ export class SSEService {
 	private eventSource: EventSource | null = null;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
-	private reconnectDelay = 1000;
+	private reconnectDelay = 500; // Faster reconnection
 	private isConnecting = false;
 	private isDisconnected = false;
 	private options: SSEOptions;
@@ -247,12 +247,11 @@ export class SSEService {
 				console.error('❌ SSE error:', event.error);
 				this.options.onError?.(event.error || 'Unknown SSE error');
 				break;
-
-			default:
 		}
 	}
 
 	private handleJobUpdates(jobs: JobUpdate[]): void {
+
 		// Handle empty jobs array as completion signal - only if we have tracked jobs that are likely completed
 		if (jobs.length === 0 && this.lastJobUpdate.size > 0) {
 			// Only treat as completion if we have jobs that were at high progress

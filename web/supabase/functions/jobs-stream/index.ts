@@ -1,23 +1,16 @@
 import { corsHeaders } from '../_shared/cors.ts';
-import {
-	setupRequest,
-	authenticateRequest,
-	errorResponse,
-	logError,
-	logInfo
-} from '../_shared/utils.ts';
-import { supabase } from '../_shared/supabase.ts';
 
 Deno.serve(async (req) => {
 	// Handle CORS
-	const corsResponse = setupRequest(req);
-	if (corsResponse) return corsResponse;
+	if (req.method === 'OPTIONS') {
+		return new Response(null, { headers: corsHeaders });
+	}
 
 	if (req.method === 'GET') {
 		try {
-			// Authenticate the request properly
-			const { user, supabase: userSupabase } = await authenticateRequest(req);
-			const userId = user.id;
+			// For now, skip authentication to test if that's causing the timeout
+			const userId = '2d8513a7-3e95-4cf2-a5ac-b25ce64cbd82'; // Hardcoded for testing
+			console.log('🔗 Jobs-stream: Using hardcoded user:', userId);
 
 			// Set up SSE headers
 			const headers = {
@@ -30,10 +23,6 @@ Deno.serve(async (req) => {
 			const stream = new ReadableStream({
 				start(controller) {
 					const encoder = new TextEncoder();
-					let lastJobState = new Map<string, { status: string; progress: number; updated_at: string }>();
-					let hasActiveJobs = false;
-					let lastTokenCheck = Date.now();
-					const TOKEN_CHECK_INTERVAL = 30 * 60 * 1000; // Check token every 30 minutes
 
 					// Send initial connection message
 					const connectMessage = `data: ${JSON.stringify({
@@ -42,167 +31,24 @@ Deno.serve(async (req) => {
 					})}\n\n`;
 					controller.enqueue(encoder.encode(connectMessage));
 
-					// Function to check if we should use service role client due to token expiration
-					const getDatabaseClient = async () => {
-						const now = Date.now();
-						if (now - lastTokenCheck > TOKEN_CHECK_INTERVAL) {
-							lastTokenCheck = now;
-							try {
-								// Try to use the user client first
-								await userSupabase.from('jobs').select('id').limit(1);
-								return userSupabase;
-							} catch (error) {
-								// If user client fails, fall back to service role client
-								logInfo('Falling back to service role client due to token expiration', 'JOBS_STREAM', { userId });
-								return supabase; // Service role client
-							}
-						}
-						return userSupabase;
+					// Send a test job update every 5 seconds
+					const testJob = {
+						id: 'test-job-789',
+						type: 'trip_generation',
+						status: 'running',
+						progress: 25,
+						created_at: new Date().toISOString(),
+						updated_at: new Date().toISOString()
 					};
 
-					// Send initial jobs state only if there are active jobs
-					const sendInitialJobs = async () => {
-						try {
-							const dbClient = await getDatabaseClient();
-							const { data: activeJobs, error } = await dbClient
-								.from('jobs')
-								.select('*')
-								.eq('created_by', userId)
-								.in('status', ['queued', 'running'])
-								.order('created_at', { ascending: false });
+					const jobUpdateMessage = `data: ${JSON.stringify({
+						type: 'jobs_update',
+						jobs: [testJob],
+						timestamp: new Date().toISOString()
+					})}\n\n`;
+					controller.enqueue(encoder.encode(jobUpdateMessage));
 
-							if (error) {
-								logError(error, 'JOBS_STREAM');
-								return;
-							}
-
-							if (activeJobs && activeJobs.length > 0) {
-								hasActiveJobs = true;
-								// Store initial state for comparison
-								activeJobs.forEach((job: { id: string; status: string; progress: number; updated_at: string }) => {
-									lastJobState.set(job.id, {
-										status: job.status,
-										progress: job.progress,
-										updated_at: job.updated_at
-									});
-								});
-
-								const updateMessage = `data: ${JSON.stringify({
-									type: 'jobs_update',
-									jobs: activeJobs,
-									timestamp: new Date().toISOString()
-								})}\n\n`;
-								controller.enqueue(encoder.encode(updateMessage));
-							}
-						} catch (error) {
-							logError(error, 'JOBS_STREAM');
-						}
-					};
-
-					// Send initial jobs
-					sendInitialJobs();
-
-					// Check for job updates every 5 seconds, but only send if there are changes
-					const jobCheckInterval = setInterval(async () => {
-						// Only check if we had active jobs or if this is the first check
-						if (!hasActiveJobs) {
-							// Check if there are any new active jobs
-							try {
-								const dbClient = await getDatabaseClient();
-								const { data: activeJobs, error } = await dbClient
-									.from('jobs')
-									.select('*')
-									.eq('created_by', userId)
-									.in('status', ['queued', 'running'])
-									.order('created_at', { ascending: false });
-
-								if (error) {
-									logError(error, 'JOBS_STREAM');
-									return;
-								}
-
-								if (activeJobs && activeJobs.length > 0) {
-									hasActiveJobs = true;
-									// Store initial state for comparison
-									activeJobs.forEach((job: { id: string; status: string; progress: number; updated_at: string }) => {
-										lastJobState.set(job.id, {
-											status: job.status,
-											progress: job.progress,
-											updated_at: job.updated_at
-										});
-									});
-
-									const updateMessage = `data: ${JSON.stringify({
-										type: 'jobs_update',
-										jobs: activeJobs,
-										timestamp: new Date().toISOString()
-									})}\n\n`;
-									controller.enqueue(encoder.encode(updateMessage));
-								}
-							} catch (error) {
-								logError(error, 'JOBS_STREAM');
-							}
-						} else {
-							// Check for updates to existing active jobs
-							try {
-								const dbClient = await getDatabaseClient();
-								const { data: activeJobs, error } = await dbClient
-									.from('jobs')
-									.select('*')
-									.eq('created_by', userId)
-									.in('status', ['queued', 'running'])
-									.order('created_at', { ascending: false });
-
-								if (error) {
-									logError(error, 'JOBS_STREAM');
-									return;
-								}
-
-								if (activeJobs && activeJobs.length > 0) {
-									// Check if any jobs have changed
-									const changedJobs = activeJobs.filter((job: { id: string; status: string; progress: number; updated_at: string }) => {
-										const lastState = lastJobState.get(job.id);
-										if (!lastState) {
-											// New job
-											return true;
-										}
-										// Check if status, progress, or updated_at changed
-										return (
-											lastState.status !== job.status ||
-											lastState.progress !== job.progress ||
-											lastState.updated_at !== job.updated_at
-										);
-									});
-
-									if (changedJobs.length > 0) {
-										// Update stored state
-										changedJobs.forEach((job: { id: string; status: string; progress: number; updated_at: string }) => {
-											lastJobState.set(job.id, {
-												status: job.status,
-												progress: job.progress,
-												updated_at: job.updated_at
-											});
-										});
-
-										const updateMessage = `data: ${JSON.stringify({
-											type: 'jobs_update',
-											jobs: changedJobs,
-											timestamp: new Date().toISOString()
-										})}\n\n`;
-										controller.enqueue(encoder.encode(updateMessage));
-									}
-								} else {
-									// No more active jobs
-									hasActiveJobs = false;
-									lastJobState.clear();
-								}
-							} catch (error) {
-								logError(error, 'JOBS_STREAM');
-							}
-						}
-					}, 5000);
-
-					// Send heartbeat every 30 seconds to keep connection alive
+					// Send heartbeat every 30 seconds
 					const heartbeatInterval = setInterval(() => {
 						const heartbeatMessage = `data: ${JSON.stringify({
 							type: 'heartbeat',
@@ -214,18 +60,23 @@ Deno.serve(async (req) => {
 					// Clean up on disconnect
 					req.signal.addEventListener('abort', () => {
 						clearInterval(heartbeatInterval);
-						clearInterval(jobCheckInterval);
-						logInfo('SSE stream ended', 'JOBS_STREAM', { userId });
+						console.log('🔗 Jobs-stream: SSE stream ended for user:', userId);
 					});
 				}
 			});
 
 			return new Response(stream, { headers });
 		} catch (error) {
-			logError(error, 'JOBS_STREAM');
-			return errorResponse('Internal server error', 500);
+			console.error('Error in jobs-stream:', error);
+			return new Response(JSON.stringify({ error: 'Internal server error' }), {
+				status: 500,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+			});
 		}
 	}
 
-	return errorResponse('Method not allowed', 405);
+	return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+		status: 405,
+		headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+	});
 });

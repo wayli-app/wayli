@@ -354,9 +354,10 @@ export class TripDetectionService {
 				const range = processingRanges[i];
 
 				// Update progress: Processing current date range
+				const rangeProgress = Math.round((i / processingRanges.length) * 60);
 				this.updateProgress({
 					phase: 'processing_batches',
-					progress: 20 + Math.round((i / processingRanges.length) * 60), // 20-80% for date range processing
+					progress: 20 + rangeProgress, // 20-80% for date range processing
 					message: `Processing date range ${i + 1}/${processingRanges.length}: ${range.startDate} to ${range.endDate}`,
 					details: {
 						currentDateRange: `${range.startDate} to ${range.endDate}`,
@@ -365,7 +366,7 @@ export class TripDetectionService {
 					}
 				});
 
-				try {
+								try {
 					const trips = await this.processDateRange(userId, range, homeLocations, language, i, processingRanges.length);
 					allTrips.push(...trips);
 				} catch (error) {
@@ -501,9 +502,15 @@ export class TripDetectionService {
 					// Update progress every 100 points processed
 					if (i % 100 === 0) {
 						totalProcessedPoints += i;
+						const rangeProgress = Math.round((dateRangeIndex / totalDateRanges) * 60);
+						const batchProgress = Math.min(10, Math.round((offset / (offset + batchSize)) * 10));
+
+						// Ensure progress only goes forward and stays within bounds
+						const currentProgress = Math.min(80, 20 + rangeProgress + batchProgress);
+
 						this.updateProgress({
 							phase: 'processing_batches',
-							progress: 20 + Math.round((dateRangeIndex / totalDateRanges) * 60) + Math.round((offset / (offset + batchSize)) * 10),
+							progress: currentProgress,
 							message: `Processing data points: ${totalProcessedPoints} processed in current date range`,
 							details: {
 								currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,

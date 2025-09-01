@@ -581,6 +581,8 @@
 
 	async function generateNewTripSuggestions() {
 		try {
+			console.log('🔍 [TRIPS] Starting trip generation with data:', tripGenerationData);
+
 			// Clear existing suggestions if checkbox is checked
 			if (tripGenerationData.clearExistingSuggestions) {
 				const session = $sessionStore;
@@ -611,25 +613,47 @@
 			if (!session) throw new Error('No session found');
 
 			const serviceAdapter = new ServiceAdapter({ session });
+			console.log('🔍 [TRIPS] About to create job with data:', jobData);
+
 			const result = (await serviceAdapter.createJob({
 				type: 'trip_generation',
 				data: jobData
 			})) as any;
 
-			// Immediately add the job to the store so it shows in the sidebar
+			// Note: Job will be picked up by SSE stream automatically
 			if (result?.id) {
+				console.log('✅ [TRIPS] Trip generation job created:', result.id);
+				console.log('🔍 [TRIPS] Job result:', result);
+
+				// Immediately add the job to the store so it appears in the sidebar
 				const { addJobToStore } = await import('$lib/stores/job-store');
-				addJobToStore({
+
+				// Use the actual job data from the result if available, otherwise use defaults
+				const jobUpdate = {
 					id: result.id,
 					type: 'trip_generation',
-					status: 'queued',
-					progress: 0,
-					created_at: new Date().toISOString(),
-					updated_at: new Date().toISOString(),
-					result: undefined,
-					error: null
-				});
-				console.log('✅ [TRIPS] Trip generation job added to store:', result.id);
+					status: result.status || 'queued',
+					progress: result.progress || 0,
+					created_at: result.created_at || new Date().toISOString(),
+					updated_at: result.updated_at || new Date().toISOString(),
+					result: result.result || null,
+					error: result.error || null
+				};
+				addJobToStore(jobUpdate);
+				console.log('🔍 [TRIPS] Immediately added job to store:', jobUpdate);
+
+				// Check if the job is immediately available in the store
+				const currentJobs = getActiveJobsMap();
+				console.log('🔍 [TRIPS] Current jobs in store:', currentJobs.size);
+				console.log('🔍 [TRIPS] Looking for job:', result.id);
+
+				// Wait a moment and check again
+				setTimeout(() => {
+					const jobsAfterDelay = getActiveJobsMap();
+					console.log('🔍 [TRIPS] Jobs in store after delay:', jobsAfterDelay.size);
+					const foundJob = jobsAfterDelay.get(result.id);
+					console.log('🔍 [TRIPS] Found job after delay:', foundJob);
+				}, 1000);
 			}
 
 			let message = 'Trip generation job started!';
@@ -661,8 +685,7 @@
 			showTripGenerationModal = false;
 			showSuggestedTripsModal = false;
 
-			// Check for any other active jobs after a short delay
-			setTimeout(async () => {}, 2000);
+			// The SSE stream will automatically pick up the new job within 1 second
 		} catch {
 			// Error generating trip suggestions
 			toast.error(t('trips.failedToGenerateNewTripSuggestions'));

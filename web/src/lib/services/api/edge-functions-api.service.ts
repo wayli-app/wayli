@@ -342,6 +342,7 @@ export class EdgeFunctionsApiService {
 	async getJobStream(session: Session) {
 		// For SSE, we need to return the raw response - no filtering, frontend will filter
 		const url = new URL(`${this.baseUrl}/jobs-stream`);
+		console.log('🔗 EdgeFunctionsApiService: Connecting to:', url.toString());
 
 		const response = await fetch(url.toString(), {
 			method: 'GET',

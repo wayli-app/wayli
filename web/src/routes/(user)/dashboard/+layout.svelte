@@ -37,7 +37,9 @@
 	// Check if the current user is an admin
 	async function checkAdminRole() {
 		try {
+			console.log('🔐 [Dashboard] Starting admin role check, userStore:', !!$userStore);
 			if (!$userStore) {
+				console.log('🔐 [Dashboard] No userStore, skipping admin check');
 				isAdmin = false;
 				isCheckingAdmin = false;
 				return;
@@ -108,8 +110,18 @@
 			// Load user preferences and apply language
 			await loadUserPreferences();
 
-			// Check admin role
-			await checkAdminRole();
+			// Check admin role with timeout
+			const adminCheckPromise = checkAdminRole();
+			const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second timeout
+
+			await Promise.race([adminCheckPromise, timeoutPromise]);
+
+			// If we hit the timeout, force completion
+			if (isCheckingAdmin) {
+				console.warn('⚠️ [Dashboard] Admin role check timed out, proceeding anyway');
+				isCheckingAdmin = false;
+				isAdmin = false;
+			}
 
 			// Mark initialization as complete
 			isInitializing = false;

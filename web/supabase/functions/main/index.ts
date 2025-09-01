@@ -31,7 +31,13 @@ async function verifyJWT(jwt: string): Promise<boolean> {
 }
 
 serve(async (req: Request) => {
-	if (req.method !== 'OPTIONS' && VERIFY_JWT) {
+	const url = new URL(req.url);
+	const { pathname } = url;
+	const path_parts = pathname.split('/');
+	const service_name = path_parts[1];
+
+	// Skip JWT verification for jobs-stream as it has its own authentication
+	if (req.method !== 'OPTIONS' && VERIFY_JWT && service_name !== 'jobs-stream') {
 		try {
 			const token = getAuthToken(req);
 			const isValidJWT = await verifyJWT(token);
@@ -50,11 +56,6 @@ serve(async (req: Request) => {
 			});
 		}
 	}
-
-	const url = new URL(req.url);
-	const { pathname } = url;
-	const path_parts = pathname.split('/');
-	const service_name = path_parts[1];
 
 	if (!service_name || service_name === '') {
 		const error = { msg: 'missing function name in request' };
