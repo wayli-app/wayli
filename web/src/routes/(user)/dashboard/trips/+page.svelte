@@ -543,6 +543,7 @@
 			})) as any;
 
 			if (result && result.trips && Array.isArray(result.trips)) {
+				// Add new trips to existing ones (backend already sorts them)
 				suggestedTrips = [...suggestedTrips, ...result.trips];
 				suggestedTripsPagination.total = result.total || 0;
 				suggestedTripsPagination.hasMore =

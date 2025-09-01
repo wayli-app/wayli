@@ -24,12 +24,13 @@ Deno.serve(async (req) => {
 			const limit = parseInt(params.get('limit') || '10');
 			const offset = parseInt(params.get('offset') || '0');
 
-			// Get suggested trips from trips table with status='pending'
+			// Get suggested trips from trips table with status='pending', sorted by start_date descending
 			const { data: suggestedTrips, error: tripsError } = await supabase
 				.from('trips')
 				.select('*')
 				.eq('user_id', user.id)
 				.eq('status', 'pending')
+				.order('start_date', { ascending: false })
 				.range(offset, offset + limit - 1);
 
 			if (tripsError) {
