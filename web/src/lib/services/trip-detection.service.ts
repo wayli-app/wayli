@@ -80,14 +80,49 @@ export interface UserLocationState {
 	}[];
 }
 
+// Progress tracking interface
+export interface TripDetectionProgress {
+	phase: 'initializing' | 'fetching_data' | 'processing_batches' | 'saving_trips' | 'completed';
+	progress: number; // 0-100
+	message: string;
+	details?: {
+		currentBatch?: number;
+		totalBatches?: number;
+		processedPoints?: number;
+		totalPoints?: number;
+		detectedTrips?: number;
+		currentDateRange?: string;
+		totalDateRanges?: number;
+	};
+}
+
 export class TripDetectionService {
 	private supabase: SupabaseClient;
 	private userState: UserLocationState | null = null;
 	private userId: string | null = null;
 	private homeLocationsCache: Map<string, { locations: Location[]; language: string }> = new Map();
+	private jobId: string | null = null;
+	private progressCallback?: (progress: TripDetectionProgress) => void;
 
 	constructor(supabaseUrl: string, supabaseKey: string) {
 		this.supabase = createClient(supabaseUrl, supabaseKey);
+	}
+
+	/**
+	 * Set job ID and progress callback for progress tracking
+	 */
+	setProgressTracking(jobId: string, progressCallback: (progress: TripDetectionProgress) => void): void {
+		this.jobId = jobId;
+		this.progressCallback = progressCallback;
+	}
+
+	/**
+	 * Update progress and call the progress callback if available
+	 */
+	private updateProgress(progress: TripDetectionProgress): void {
+		if (this.progressCallback) {
+			this.progressCallback(progress);
+		}
 	}
 
 	/**
@@ -251,17 +286,41 @@ export class TripDetectionService {
 	 */
 	async detectTrips(userId: string, startDate?: string, endDate?: string): Promise<DetectedTrip[]> {
 		try {
+			// Update progress: Initialization phase
+			this.updateProgress({
+				phase: 'initializing',
+				progress: 5,
+				message: 'Initializing trip detection...',
+				details: {}
+			});
+
 			// Set userId for use in other methods
 			this.userId = userId;
 
 			// Clear cache for this user to ensure fresh home address data
 			this.clearHomeLocationsCache(userId);
 
+			// Update progress: Fetching data phase
+			this.updateProgress({
+				phase: 'fetching_data',
+				progress: 10,
+				message: 'Fetching excluded date ranges and home locations...',
+				details: {}
+			});
+
 			// 1. Get excluded date ranges (approved/rejected trips)
 			const excludedRanges = await this.getExcludedDateRanges(userId);
 
 			// 2. Get user's home locations (home address + trip exclusions)
 			const { locations: homeLocations, language } = await this.getUserHomeLocations(userId);
+
+			// Update progress: Creating processing ranges
+			this.updateProgress({
+				phase: 'fetching_data',
+				progress: 15,
+				message: 'Creating processing date ranges...',
+				details: {}
+			});
 
 			// 3. Create processing date ranges, excluding the excluded ranges
 			const processingRanges = this.createProcessingDateRanges(
@@ -271,8 +330,22 @@ export class TripDetectionService {
 			);
 
 			if (processingRanges.length === 0) {
+				this.updateProgress({
+					phase: 'completed',
+					progress: 100,
+					message: 'No data to process',
+					details: { detectedTrips: 0 }
+				});
 				return [];
 			}
+
+			// Update progress: Starting data processing
+			this.updateProgress({
+				phase: 'processing_batches',
+				progress: 20,
+				message: `Starting to process ${processingRanges.length} date ranges...`,
+				details: { totalDateRanges: processingRanges.length }
+			});
 
 			// 4. Process each date range and detect trips
 			const allTrips: DetectedTrip[] = [];
@@ -280,8 +353,20 @@ export class TripDetectionService {
 			for (let i = 0; i < processingRanges.length; i++) {
 				const range = processingRanges[i];
 
+				// Update progress: Processing current date range
+				this.updateProgress({
+					phase: 'processing_batches',
+					progress: 20 + Math.round((i / processingRanges.length) * 60), // 20-80% for date range processing
+					message: `Processing date range ${i + 1}/${processingRanges.length}: ${range.startDate} to ${range.endDate}`,
+					details: {
+						currentDateRange: `${range.startDate} to ${range.endDate}`,
+						totalDateRanges: processingRanges.length,
+						detectedTrips: allTrips.length
+					}
+				});
+
 				try {
-					const trips = await this.processDateRange(userId, range, homeLocations, language);
+					const trips = await this.processDateRange(userId, range, homeLocations, language, i, processingRanges.length);
 					allTrips.push(...trips);
 				} catch (error) {
 					console.error(
@@ -291,6 +376,14 @@ export class TripDetectionService {
 					// Continue with next range instead of failing completely
 				}
 			}
+
+			// Update progress: Processing complete
+			this.updateProgress({
+				phase: 'completed',
+				progress: 100,
+				message: `Trip detection completed: ${allTrips.length} trips detected`,
+				details: { detectedTrips: allTrips.length }
+			});
 
 			return allTrips;
 		} catch (error) {
@@ -306,7 +399,9 @@ export class TripDetectionService {
 		userId: string,
 		dateRange: DateRange,
 		homeLocations: Location[],
-		language: string
+		language: string,
+		dateRangeIndex: number,
+		totalDateRanges: number
 	): Promise<DetectedTrip[]> {
 		// Initialize state and results
 		const trips: DetectedTrip[] = [];
@@ -324,6 +419,19 @@ export class TripDetectionService {
 		const batchSize = 1000;
 		let offset = 0;
 		let hasMoreData = true;
+		let totalProcessedPoints = 0;
+
+		// Update progress: Starting batch processing for this date range
+		this.updateProgress({
+			phase: 'processing_batches',
+			progress: 20 + Math.round((dateRangeIndex / totalDateRanges) * 60),
+			message: `Processing data batches for ${dateRange.startDate} to ${dateRange.endDate}...`,
+			details: {
+				currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
+				totalDateRanges: totalDateRanges,
+				currentBatch: 1
+			}
+		});
 
 		while (hasMoreData) {
 			try {
@@ -382,16 +490,33 @@ export class TripDetectionService {
 						// Reset userState after trip creation
 						this.userState = {
 							currentState: 'home',
-							stateStartTime: this.userState.nextStateStartTime!,
-							dataPointsInState: this.userState.nextStateDataPoints!,
-							lastHomeStateStartTime: this.userState.nextStateStartTime!,
+							stateStartTime: this.userState!.nextStateStartTime!,
+							dataPointsInState: this.userState!.nextStateDataPoints!,
+							lastHomeStateStartTime: this.userState!.nextStateStartTime!,
 							nextStateDataPoints: 0,
 							visitedCities: []
 						};
 					}
 
-					// Log the point and current state
+					// Update progress every 100 points processed
+					if (i % 100 === 0) {
+						totalProcessedPoints += i;
+						this.updateProgress({
+							phase: 'processing_batches',
+							progress: 20 + Math.round((dateRangeIndex / totalDateRanges) * 60) + Math.round((offset / (offset + batchSize)) * 10),
+							message: `Processing data points: ${totalProcessedPoints} processed in current date range`,
+							details: {
+								currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
+								totalDateRanges: totalDateRanges,
+								processedPoints: totalProcessedPoints,
+								currentBatch: Math.floor(offset / batchSize) + 1
+							}
+						});
+					}
 				}
+
+				// Update total processed points after batch completion
+				totalProcessedPoints += validPoints.length;
 
 				// Check if we have more data
 				if (batch.length < batchSize) {

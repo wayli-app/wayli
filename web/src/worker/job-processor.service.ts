@@ -630,7 +630,16 @@ export class JobProcessorService {
 				process.env.SUPABASE_SERVICE_ROLE_KEY!
 			);
 
-			// Use the new trip detection V2 service (will use default date range)
+			// Set up progress tracking
+			tripDetectionService.setProgressTracking(job.id, async (progress) => {
+				await JobQueueService.updateJobProgress(job.id, progress.progress, {
+					message: progress.message,
+					phase: progress.phase,
+					details: progress.details
+				});
+			});
+
+			// Use the trip detection service (will use default date range)
 			const detectedTrips = await tripDetectionService.detectTrips(userId);
 
 			console.log(`✅ Trip detection completed: ${detectedTrips.length} trips detected`);
