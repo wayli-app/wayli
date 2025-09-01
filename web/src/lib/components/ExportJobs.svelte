@@ -11,8 +11,7 @@
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	// Props
-	let { reloadExportHistoryFlag = 0 } = $props();
+	// No props needed - component listens directly to job store
 
 	interface ExportJob {
 		id: string;
@@ -58,13 +57,7 @@
 		}, 100);
 	});
 
-	// Watch for reload flag changes and reload export history
-	$effect(() => {
-		if (reloadExportHistoryFlag > 0) {
-			console.log('🔄 Reload flag changed, reloading export history...');
-			loadExportJobs();
-		}
-	});
+	// Component automatically refreshes via SSE updates - no reload flag needed
 
 	onDestroy(() => {
 		if (sseService) {

@@ -10,6 +10,7 @@
 	import { jobCreationService } from '$lib/services/job-creation.service';
 	import { sessionStore } from '$lib/stores/auth';
 	import { subscribe, getActiveJobsMap } from '$lib/stores/job-store';
+	import { state as appState } from '$lib/stores/app-state.svelte';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -30,16 +31,17 @@
 
 	// Export state
 	let exportFormat = $state('JSON');
-	let exportStartDate = $state<Date | null>(null);
-	let exportEndDate = $state<Date | null>(null);
+	let exportStartDate = $state<Date | undefined>(undefined);
+	let exportEndDate = $state<Date | undefined>(undefined);
+
+
 
 	// Add export state variables for export job creation
 	let includeLocationDataExport = $state(true);
 	let includeWantToVisitExport = $state(true);
 	let includeTripsExport = $state(true);
 
-	// Flag to trigger export history reload
-	let reloadExportHistoryFlag = $state(0);
+	// No reload flag needed - ExportJobs component handles its own updates
 
 	// Job store subscription for monitoring export jobs
 	let unsubscribeJobs: (() => void) | null = null;
@@ -180,6 +182,8 @@
 	onMount(async () => {
 		await fetchLastSuccessfulImport();
 		startJobMonitoring();
+
+		// No need for MutationObserver - the bind: directive should handle the syncing automatically
 	});
 
 	// Cleanup SSE service on destroy
@@ -202,21 +206,14 @@
 				(job: any) => job.type === 'data_export'
 			);
 
-			// Only reload export history if there are export job updates
+			// ExportJobs component automatically handles updates via SSE
 			if (exportJobs.length > 0) {
-				console.log('📊 Export job update detected, reloading export history...');
-				reloadExportHistory();
+				console.log('📊 Export job update detected');
 			}
 		});
 	}
 
-	// Reload export history by triggering a reload in the ExportJobs component
-	function reloadExportHistory() {
-		console.log('🔄 Triggering export history reload...');
-		// Increment the flag to trigger a reload
-		reloadExportHistoryFlag++;
-		console.log('🔄 Reload flag incremented to:', reloadExportHistoryFlag);
-	}
+	// ExportJobs component handles its own updates via SSE - no manual reload needed
 
 	// Export functions
 	async function handleExport() {
@@ -225,25 +222,9 @@
 			return;
 		}
 
-		// Convert Date objects to ISO strings for the API
-		// Always ensure we have proper Date objects, regardless of what the DatePicker returns
-		let startDate: Date;
-		let endDate: Date;
-
-		try {
-			// Convert to Date objects if they're not already
-			startDate = exportStartDate instanceof Date ? exportStartDate : new Date(exportStartDate);
-			endDate = exportEndDate instanceof Date ? exportEndDate : new Date(exportEndDate);
-
-			// Validate the dates
-			if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-				toast.error('Invalid date format. Please select valid start and end dates.');
-				return;
-			}
-		} catch {
-			toast.error('Invalid date format. Please select valid start and end dates.');
-			return;
-		}
+		// We know these are Date objects at this point
+		const startDate = exportStartDate;
+		const endDate = exportEndDate;
 
 		try {
 			await jobCreationService.createExportJob({
@@ -257,8 +238,8 @@
 
 			// Reset form
 			exportFormat = 'JSON';
-			exportStartDate = null;
-			exportEndDate = null;
+			exportStartDate = undefined;
+			exportEndDate = undefined;
 			includeLocationDataExport = true;
 			includeWantToVisitExport = true;
 			includeTripsExport = true;
@@ -267,17 +248,35 @@
 		}
 	}
 
-	let localExportStartDate = $derived(exportStartDate instanceof Date ? exportStartDate : '');
-	let localExportEndDate = $derived(exportEndDate instanceof Date ? exportEndDate : '');
+	let localExportStartDate = $state<Date | undefined>(undefined);
+	let localExportEndDate = $state<Date | undefined>(undefined);
 
+	// Initialize from app state if available
 	$effect(() => {
-		exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
-		exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
+		if (appState.filtersStartDate instanceof Date && !localExportStartDate) {
+			localExportStartDate = appState.filtersStartDate;
+		}
+		if (appState.filtersEndDate instanceof Date && !localExportEndDate) {
+			localExportEndDate = appState.filtersEndDate;
+		}
+	});
+
+	// Sync local dates to export dates
+	$effect(() => {
+		exportStartDate = localExportStartDate;
+		exportEndDate = localExportEndDate;
 	});
 
 	function handleExportDateRangeChange() {
-		exportStartDate = localExportStartDate === '' ? null : (localExportStartDate as Date);
-		exportEndDate = localExportEndDate === '' ? null : (localExportEndDate as Date);
+		// Ensure the dates are properly synced when the picker changes
+		if (localExportStartDate instanceof Date) {
+			exportStartDate = localExportStartDate;
+			appState.filtersStartDate = localExportStartDate;
+		}
+		if (localExportEndDate instanceof Date) {
+			exportEndDate = localExportEndDate;
+			appState.filtersEndDate = localExportEndDate;
+		}
 	}
 </script>
 
@@ -434,7 +433,7 @@
 					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 						>{t('importExport.dateRange')}</label
 					>
-					<div class="relative">
+					<div class="relative datepicker-import-export-fix">
 						<DateRangePicker
 							bind:startDate={localExportStartDate}
 							bind:endDate={localExportEndDate}
@@ -458,10 +457,31 @@
 
 	<!-- Export Jobs Section -->
 	<div class="mt-8">
-		<ExportJobs {reloadExportHistoryFlag} />
+		<ExportJobs />
 	</div>
 </div>
 
 <style>
-	/* No custom styles needed - using SVG icon */
+	/* Datepicker positioning fixes */
+	.datepicker-import-export-fix .date-filter {
+		position: static !important;
+	}
+	.datepicker-import-export-fix .datepicker-dropdown {
+		position: absolute !important;
+		right: 0 !important;
+		left: auto !important;
+		min-width: 340px;
+		max-width: 95vw;
+		z-index: 3000 !important;
+		margin-top: 8px;
+		overflow-x: auto;
+	}
+	@media (max-width: 600px) {
+		.datepicker-import-export-fix .datepicker-dropdown {
+			left: 0 !important;
+			right: auto !important;
+			min-width: 0;
+			width: 98vw;
+		}
+	}
 </style>

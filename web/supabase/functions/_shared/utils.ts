@@ -55,26 +55,14 @@ export async function authenticateRequest(req: Request): Promise<AuthenticatedCo
 		throw new Error('Invalid token format');
 	}
 
-	// Log environment variables for debugging (without exposing sensitive values)
-	console.log('🔍 [AUTH] Environment check:', {
-		hasSupabaseUrl: !!Deno.env.get('SUPABASE_URL'),
-		hasServiceKey: !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
-		hasAnonKey: !!Deno.env.get('SUPABASE_ANON_KEY'),
-		tokenLength: token.length,
-		tokenPrefix: token.substring(0, 20) + '...'
-	});
-
 	try {
 		// Verify the JWT token using Supabase's built-in verification
-		console.log('🔍 [AUTH] Attempting JWT verification with token length:', token.length);
 		const { data: { user }, error } = await supabase.auth.getUser(token);
 
 		if (error || !user) {
 			console.error('❌ [AUTH] JWT verification failed:', error);
 			throw new Error('Invalid or expired JWT token');
 		}
-
-		console.log('✅ [AUTH] JWT verification successful for user:', user.id);
 
 		// Additional security checks
 		if (!user.id || typeof user.id !== 'string') {

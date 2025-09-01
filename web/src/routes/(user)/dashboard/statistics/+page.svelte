@@ -113,8 +113,6 @@
 
 	// Smooth progress animation function
 	function animateProgress(target: number, duration: number = 800) {
-		console.log(`🎯 Progress animation: ${loadingProgress}% → ${target}% over ${duration}ms`);
-
 		// Clear any existing animation
 		if (progressAnimationId) {
 			clearTimeout(progressAnimationId);
@@ -253,7 +251,6 @@
 				.addTo(map);
 			markers.push(marker);
 		}
-		console.log('🗺️ [Statistics] Total markers added:', markers.length);
 	}
 
 	// --- Geocode fetching function ---
@@ -737,16 +734,13 @@
 
 		// Add intermediate progress updates for smoother animation
 		if (loadMoreOffset === 0) {
-			console.log('🔄 Adding intermediate progress updates for smoother animation');
 			// Add a small delay and then animate to 40%
 			setTimeout(() => {
-				console.log('📈 Intermediate progress: animating to 40%');
 				animateProgress(40, 600);
 			}, 200);
 
 			// Add another intermediate step
 			setTimeout(() => {
-				console.log('📈 Intermediate progress: animating to 50%');
 				animateProgress(50, 600);
 			}, 600);
 		}
@@ -788,7 +782,6 @@
 
 		// Add intermediate progress updates for smoother animation
 		if (loadMoreOffset === 0) {
-			console.log('🔄 Adding intermediate progress updates for data processing');
 			// Add a small delay and then animate to 75%
 			setTimeout(() => {
 				console.log('📈 Intermediate progress: animating to 75%');

@@ -60,8 +60,9 @@ Deno.serve(async (req) => {
 			// Get storage bucket name from environment variable
 			const storageBucket = Deno.env.get('VITE_SUPABASE_STORAGE_BUCKET') || 'exports';
 
-			// Generate signed URL for download using public Supabase URL
-			const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+			// Generate signed URL using the internal Supabase client (which can access storage)
+			// Use the actual supabase client, not the typed interface
+			const { data: signedUrlData, error: signedUrlError } = await (supabase as any).storage
 				.from(storageBucket)
 				.createSignedUrl(filePath, 3600, { download: true }); // 1 hour expiry
 
@@ -70,31 +71,30 @@ Deno.serve(async (req) => {
 				return errorResponse('Failed to generate download link', 500);
 			}
 
-			// Ensure the signed URL uses the public Supabase URL, not internal addresses
+			// Transform the internal URL to a public URL that the frontend can access
 			let downloadUrl = signedUrlData.signedUrl;
 
-			// Use environment variable for public storage URL to work across all environments
-			const storageUrl = Deno.env.get('SUPABASE_STORAGE_URL');
+			// Get the public Supabase URL for the frontend
+			const publicSupabaseUrl = Deno.env.get('PUBLIC_SUPABASE_URL') || 'http://127.0.0.1:54321';
 
-			if (storageUrl) {
-				// Replace the hostname in the signed URL with our configured storage URL
+			// If the signed URL contains internal hostnames, replace them with the public URL
+			if (downloadUrl.includes('kong:8000') || downloadUrl.includes('localhost:54321')) {
 				const urlObj = new URL(downloadUrl);
-				urlObj.hostname = new URL(storageUrl).hostname;
-				urlObj.protocol = new URL(storageUrl).protocol;
-				urlObj.port = new URL(storageUrl).port || '';
+				const publicUrlObj = new URL(publicSupabaseUrl);
+
+				// Replace the hostname and port with the public URL
+				urlObj.hostname = publicUrlObj.hostname;
+				urlObj.port = publicUrlObj.port || '';
 				downloadUrl = urlObj.toString();
 
-				logInfo('Generated public download URL using environment variable', 'EXPORT-DOWNLOAD', {
+				logInfo('Transformed internal URL to public URL', 'EXPORT-DOWNLOAD', {
 					originalUrl: signedUrlData.signedUrl,
-					publicUrl: downloadUrl,
-					storageUrl: storageUrl,
-					storageBucket: storageBucket
+					transformedUrl: downloadUrl,
+					publicSupabaseUrl: publicSupabaseUrl
 				});
 			} else {
-				// For relative URLs, just use the signed URL as-is since it should already be correct
-				logInfo('Using signed URL as-is (no environment variable set)', 'EXPORT-DOWNLOAD', {
-					signedUrl: downloadUrl,
-					storageBucket: storageBucket
+				logInfo('Using signed URL as-is (already public)', 'EXPORT-DOWNLOAD', {
+					downloadUrl: downloadUrl
 				});
 			}
 

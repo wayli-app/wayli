@@ -160,7 +160,6 @@
 					<div
 						class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"
 					></div>
-					<p class="text-gray-600 dark:text-gray-300">Checking permissions...</p>
 				</div>
 			</div>
 		{:else}
