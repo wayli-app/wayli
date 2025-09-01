@@ -2020,7 +2020,7 @@
 												<span
 													>{t('trips.end')}: {format(new Date(trip.end_date), 'MMM d, yyyy')}</span
 												>
-												<span>{trip.metadata?.point_count || 0} {t('trips.dataPoints')}</span>
+												<span>{trip.metadata?.dataPoints || 0} {t('trips.dataPoints')}</span>
 											</div>
 										</div>
 									</div>

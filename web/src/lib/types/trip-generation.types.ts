@@ -103,7 +103,6 @@ export interface DetectedTrip {
 		visitedCities: string[];
 		visitedCountries: string[];
 		visitedCountryCodes: string[];
-		visitedLocations: VisitedLocation[];
 		isMultiCountryTrip: boolean;
 		isMultiCityTrip: boolean;
 		tripType: 'city' | 'country' | 'multi-city' | 'multi-country';

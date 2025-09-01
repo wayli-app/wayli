@@ -248,64 +248,37 @@ export class JobProcessorService {
 			}
 
 			// Use trip detection service
-			const tripDetectionService = new TripDetectionService();
+			const tripDetectionService = new TripDetectionService(
+				process.env.SUPABASE_URL!,
+				process.env.SUPABASE_SERVICE_ROLE_KEY!
+			);
 
-			// Configure detection parameters
-			const config = {
-				minTripDurationHours: minTripDurationHours || 24,
-				minDataPointsPerDay: minDataPointsPerDay || 3,
-				homeRadiusKm: 10,
-				clusteringRadiusMeters: 1000,
-				minAwayDurationHours: 24, // User must be away for at least 24 hours to start a trip
-				minStatusConfirmationPoints: 10, // Need 10 points to confirm home/away status
-				chunkSize: 1000 // Process 1000 points at a time
-			};
-
-			// Use the new trip detection service with the determined date ranges
+			// Use the new trip detection V2 service with the determined date ranges
 			const detectedTrips = await tripDetectionService.detectTrips(
 				userId,
-				config,
-				job.id,
-				async (progress: number, message: string) => {
-					// Track samples for moving-average ETA
-					const now = Date.now();
-					progressSamples.push({ time: now, progress });
-					while (progressSamples.length > 1 && progressSamples[0].time < now - PROGRESS_WINDOW_MS) {
-						progressSamples.shift();
-					}
-
-					// Compute rate (percentage points per second)
-					let rate = 0;
-					if (progressSamples.length >= 2) {
-						const first = progressSamples[0];
-						const last = progressSamples[progressSamples.length - 1];
-						const dp = Math.max(0, last.progress - first.progress);
-						const dt = (last.time - first.time) / 1000;
-						if (dp > 0 && dt > 0) rate = dp / dt;
-					}
-					if (rate === 0 && progress > 0) {
-						const elapsed = (now - startTime) / 1000;
-						if (elapsed > 0) rate = progress / elapsed;
-					}
-
-					const remainingPct = Math.max(0, 100 - progress);
-					const remainingSeconds = rate > 0 ? Math.round(remainingPct / rate) : 0;
-					const etaDisplay = formatEta(remainingSeconds);
-
-					await JobQueueService.updateJobProgress(job.id, progress, {
-						message,
-						userStartDate: startDate,
-						userEndDate: endDate,
-						estimatedTimeRemaining: etaDisplay,
-						etaSeconds: remainingSeconds
-					});
-				},
-				dateRanges
+				startDate,
+				endDate
 			);
 
 			console.log(`✅ Trip detection completed: ${detectedTrips.length} trips detected`);
 
-			// The trips are already saved to the database by the TripDetectionService
+			// Save detected trips to the database
+			if (detectedTrips.length > 0) {
+				console.log(`💾 Saving ${detectedTrips.length} detected trips to database...`);
+
+				const { data: savedTrips, error: saveError } = await supabase
+					.from('trips')
+					.insert(detectedTrips)
+					.select();
+
+				if (saveError) {
+					console.error('❌ Error saving trips to database:', saveError);
+					throw new Error(`Failed to save trips to database: ${saveError.message}`);
+				}
+
+				console.log(`✅ Successfully saved ${savedTrips?.length || 0} trips to database`);
+			}
+
 			const totalTime = Date.now() - startTime;
 			console.log(
 				`✅ Trip detection completed: ${detectedTrips.length} trips detected in ${totalTime}ms`
@@ -637,7 +610,66 @@ export class JobProcessorService {
 
 	private static async processTripDetection(job: Job): Promise<void> {
 		console.log(`🗺️ Processing trip detection job ${job.id}`);
-		// TODO: Implement trip detection processor
-		throw new Error('Trip detection processor not yet implemented');
+		console.log(`👤 Job created by user: ${job.created_by}`);
+
+		const startTime = Date.now();
+		const userId = job.created_by;
+
+		try {
+			// Check for cancellation before starting
+			await checkJobCancellation(job.id);
+
+			// Update initial progress
+			await JobQueueService.updateJobProgress(job.id, 10, {
+				message: 'Starting trip detection...'
+			});
+
+			// Use trip detection service
+			const tripDetectionService = new TripDetectionService(
+				process.env.SUPABASE_URL!,
+				process.env.SUPABASE_SERVICE_ROLE_KEY!
+			);
+
+			// Use the new trip detection V2 service (will use default date range)
+			const detectedTrips = await tripDetectionService.detectTrips(userId);
+
+			console.log(`✅ Trip detection completed: ${detectedTrips.length} trips detected`);
+
+			// Save detected trips to the database
+			if (detectedTrips.length > 0) {
+				console.log(`💾 Saving ${detectedTrips.length} detected trips to database...`);
+
+				const { data: savedTrips, error: saveError } = await supabase
+					.from('trips')
+					.insert(detectedTrips)
+					.select();
+
+				if (saveError) {
+					console.error('❌ Error saving trips to database:', saveError);
+					throw new Error(`Failed to save trips to database: ${saveError.message}`);
+				}
+
+				console.log(`✅ Successfully saved ${savedTrips?.length || 0} trips to database`);
+			}
+
+			const totalTime = Date.now() - startTime;
+			console.log(
+				`✅ Trip detection completed: ${detectedTrips.length} trips detected in ${totalTime}ms`
+			);
+
+			await JobQueueService.updateJobProgress(job.id, 100, {
+				message: `Successfully detected ${detectedTrips.length} trips`,
+				suggestedTripsCount: detectedTrips.length,
+				totalTime: `${Math.round(totalTime / 1000)}s`
+			});
+		} catch (error: unknown) {
+			// Check if the error is due to cancellation
+			if (error instanceof Error && error.message === 'Job was cancelled') {
+				console.log(`🛑 Trip detection job ${job.id} was cancelled`);
+				return;
+			}
+			console.error(`❌ Error in trip detection job:`, error);
+			throw error;
+		}
 	}
 }
