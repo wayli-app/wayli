@@ -76,6 +76,8 @@ export interface TrackerDataPoint {
 	location?: { type: string; coordinates: number[]; crs?: { type: string; properties: { name: string } } }; // GeoJSON Point object
 	coordinates?: number[]; // GeoJSON coordinates array [lon, lat] (fallback)
 	speed?: number; // Speed in m/s from database
+	distance?: number; // Distance in meters from previous point
+	tz_diff?: number; // Timezone difference from UTC in hours
 	type?: string;
 	class?: string;
 	addresstype?: string;
@@ -346,6 +348,8 @@ export class ClientStatisticsService {
 				country_code,
 				location,
 				speed,
+				distance,
+				tz_diff,
 				geocode->properties->>type,
 				geocode->properties->>class,
 				geocode->properties->>addresstype,

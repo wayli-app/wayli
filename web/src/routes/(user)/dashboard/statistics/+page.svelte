@@ -54,7 +54,7 @@
 		transport_mode: string;
 		detectionReason?: TransportDetectionReason | string;
 		velocity?: number;
-		distance_from_prev?: number;
+		distance?: number;
 		geocode?: any;
 		tz_diff?: number;
 	}
@@ -599,6 +599,21 @@
 		return `${hours.toFixed(1)}h`;
 	}
 
+	// Format date with timezone information
+	function formatDateWithTimezone(recordedAt: string, tzDiff?: number): string {
+		const utcDate = new Date(recordedAt);
+
+		// If we have timezone difference, calculate local time
+		if (tzDiff !== undefined && tzDiff !== null) {
+			const localTime = new Date(utcDate.getTime() + (tzDiff * 60 * 60 * 1000));
+			const timezoneOffset = tzDiff >= 0 ? `+${tzDiff}` : `${tzDiff}`;
+			return `${localTime.toLocaleString()} (UTC${timezoneOffset})`;
+		}
+
+		// Fallback to UTC if no timezone info
+		return `${utcDate.toLocaleString()} (UTC)`;
+	}
+
 	// Initialize on mount
 	onMount(async () => {
 		initializeService();
@@ -860,7 +875,7 @@
 					<div class="grid grid-cols-2 gap-2">
 						<div>
 							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.date')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">{new Date(selectedPoint.recorded_at).toLocaleString()}</div>
+							<div class="text-gray-800 dark:text-gray-200">{formatDateWithTimezone(selectedPoint.recorded_at, selectedPoint.tz_diff)}</div>
 						</div>
 						<div>
 							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.mode')}:</span>
@@ -885,7 +900,7 @@
 						<div>
 							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupDistance')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
-								{selectedPoint.distance_from_prev ? `${(selectedPoint.distance_from_prev / 1000).toFixed(2)} km` : 'N/A'}
+								{selectedPoint.distance ? `${(selectedPoint.distance / 1000).toFixed(2)} km` : 'N/A'}
 							</div>
 						</div>
 						<div>
