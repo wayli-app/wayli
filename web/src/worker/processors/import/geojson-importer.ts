@@ -7,6 +7,7 @@ import {
 } from '../../../lib/services/external/country-reverse-geocoding.service';
 import { JobQueueService } from '../../job-queue.service.worker';
 import { checkJobCancellation } from '../../../lib/utils/job-cancellation';
+import { isGeoJSONGeocode } from '../../../lib/utils/geojson-converter';
 
 import type { Feature } from 'geojson';
 
@@ -237,6 +238,16 @@ async function processFeatureChunk(
 
 		if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
 			const [longitude, latitude] = feature.geometry.coordinates;
+
+			// Skip points with null or invalid coordinates
+			if (longitude === null || latitude === null || isNaN(longitude) || isNaN(latitude)) {
+				skipped++;
+				errorSummary.counts['null coordinates'] = (errorSummary.counts['null coordinates'] || 0) + 1;
+				if (errorSummary.samples.length < 10)
+					errorSummary.samples.push({ idx: chunkStart + i, reason: 'null coordinates' });
+				continue;
+			}
+
 			const properties = feature.properties || {};
 
 			let recordedAt = new Date().toISOString();
@@ -280,10 +291,21 @@ async function processFeatureChunk(
 
 			countryCode = safeNormalizeCountryCode(countryCode);
 
-			let reverseGeocode = null;
-			if ((properties as Record<string, unknown>).geodata) {
-				reverseGeocode = (properties as Record<string, unknown>).geodata;
-			}
+			// Store the complete GeoJSON feature in the geocode column
+			const geocodeFeature = {
+				type: 'Feature',
+				geometry: {
+					type: 'Point',
+					coordinates: [longitude, latitude]
+				},
+				properties: {
+					// Store all original properties from the imported GeoJSON
+					...(properties as Record<string, unknown>),
+					// Add import metadata
+					imported_at: new Date().toISOString(),
+					import_source: 'geojson'
+				}
+			};
 
 			const altitude =
 				typeof (properties as Record<string, unknown>).altitude === 'number'
@@ -326,14 +348,13 @@ async function processFeatureChunk(
 				location: `POINT(${longitude} ${latitude})`,
 				recorded_at: recordedAt,
 				country_code: countryCode,
-				geocode: reverseGeocode,
+				geocode: geocodeFeature,
 				altitude,
 				accuracy,
 				speed,
 				heading,
 				activity_type: activityType,
 				tz_diff: tzDiff,  // Add timezone difference
-				raw_data: { ...(properties as any), import_source: 'geojson' },
 				created_at: new Date().toISOString()
 			});
 		} else {
@@ -351,7 +372,8 @@ async function processFeatureChunk(
 		try {
 			const { error } = await supabase.from('tracker_data').upsert(trackerData, {
 				onConflict: 'user_id,location,recorded_at',
-				ignoreDuplicates: false
+				ignoreDuplicates: false,
+				defaultToNull: false
 			});
 
 			if (!error) {
@@ -377,7 +399,8 @@ async function processFeatureChunk(
 					try {
 						const { error: singleError } = await supabase.from('tracker_data').upsert(data, {
 							onConflict: 'user_id,location,recorded_at',
-							ignoreDuplicates: false
+							ignoreDuplicates: false,
+							defaultToNull: false
 						});
 						if (!singleError) {
 							imported++;
@@ -404,7 +427,8 @@ async function processFeatureChunk(
 				try {
 					const { error: singleError } = await supabase.from('tracker_data').upsert(data, {
 						onConflict: 'user_id,location,recorded_at',
-						ignoreDuplicates: false
+						ignoreDuplicates: false,
+						defaultToNull: false
 					});
 					if (!singleError) {
 						imported++;

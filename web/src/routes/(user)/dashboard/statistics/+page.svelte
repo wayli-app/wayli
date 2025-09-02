@@ -1,5 +1,5 @@
 <script lang="ts">
-	console.log('🚀 Statistics page script loaded');
+	console.log('🚀 New Statistics page script loaded');
 
 	import { format } from 'date-fns';
 	import {
@@ -14,29 +14,30 @@
 		Footprints,
 		Train,
 		BarChart,
-		Import
+		Import,
+		AlertTriangle,
+		X
 	} from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 	import { getCountryNameReactive, translate } from '$lib/i18n';
-	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { state as appState } from '$lib/stores/app-state.svelte';
 	import { supabase } from '$lib/supabase';
+	import { ClientStatisticsService } from '$lib/services/client-statistics.service';
 	import {
 		getTransportDetectionReasonLabel,
 		type TransportDetectionReason
 	} from '$lib/types/transport-detection-reasons';
 
 	import type { Map as LeafletMap } from 'leaflet';
-
 	import { browser } from '$app/environment';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	// Add these interfaces at the top of the file
+	// Interfaces
 	interface TrackerLocation {
 		id: string;
 		name: string;
@@ -54,17 +55,8 @@
 		detectionReason?: TransportDetectionReason | string;
 		velocity?: number;
 		distance_from_prev?: number;
-		geocode?: GeocodeData | string | null;
-		tz_diff?: number; // Timezone difference from UTC in hours
-	}
-
-	interface GeocodeData {
-		display_name?: string;
-		name?: string;
-		amenity?: string;
-		city?: string;
-		error?: boolean;
-		[key: string]: unknown;
+		geocode?: any;
+		tz_diff?: number;
 	}
 
 	interface StatisticsData {
@@ -84,36 +76,50 @@
 		}>;
 		countryTimeDistribution?: Array<{ country_code: string; percent: number }>;
 		trainStationVisits?: Array<{ name: string; count: number }>;
-		_dateRange?: string; // Internal property to track when statistics were calculated
+		geocodingStats?: {
+			total: number;
+			geocoded: number;
+			successRate: number;
+		};
 	}
 
+	// Map state
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer = $state<any>(null);
-	let markers = $state<any[]>([]);
-	let polylines = $state<any[]>([]);
-	let selectedMarkers = $state<any[]>([]);
-	let currentPopup = $state<any>(null);
-	let isEditMode = $state(false);
+	let isInitializing = $state(true);
+	let mapMarkers: any[] = $state([]);
+	let selectedPoint: any = $state(null);
+
+	// Loading and progress state
 	let isLoading = $state(false);
 	let isInitialLoad = $state(true);
-	let isInitializing = $state(true); // Flag to prevent reactive statement during initial setup
-	let locationData = $state<TrackerLocation[]>([]);
-	let currentOffset = $state(0);
-	let totalPoints = $state(0);
-	let hasMoreData = $state(false); // Flag to track if there's more data to load
+	let loadingProgress = $state(0);
+	let loadingStage = $state('');
+	let progressAnimationId = $state<NodeJS.Timeout | null>(null);
 
-	// Progress tracking
-	let loadingProgress = $state(0); // 0-100
-	let targetProgress = $state(0); // Target progress value
-	let loadingStage = $state(''); // Current loading stage description
-	let isCountingRecords = $state(false); // Flag to track if we're counting records
-	let progressAnimationId = $state<NodeJS.Timeout | null>(null); // For smooth progress animation
+	// Statistics state
+	let statisticsData = $state<StatisticsData | null>(null);
+	let statisticsLoading = $state(false);
+	let statisticsError = $state('');
 
-	// Smooth progress animation function
+	// Warning state
+	let showLargeDatasetWarning = $state(false);
+	let totalPointsCount = $state(0);
+	let userConfirmedLargeDataset = $state(false);
+
+	// Service instance
+	let statisticsService = $state<ClientStatisticsService | null>(null);
+
+	// Helper to ensure a value is a Date object
+	function getDateObject(val: any) {
+		if (!val) return null;
+		return val instanceof Date ? val : new Date(val);
+	}
+
+	// Smooth progress animation function (reused from original)
 	function animateProgress(target: number, duration: number = 800) {
-		// Clear any existing animation
 		if (progressAnimationId) {
 			clearTimeout(progressAnimationId);
 		}
@@ -122,19 +128,15 @@
 		const change = target - start;
 		const startTime = Date.now();
 
-				function updateProgress() {
+		function updateProgress() {
 			const elapsed = Date.now() - startTime;
 			const progress = Math.min(elapsed / duration, 1);
-
-			// Use smoother easing function for better visual appeal
 			const easeOutCubic = 1 - Math.pow(1 - progress, 3);
 			const currentProgress = start + (change * easeOutCubic);
-
-			// Round to whole numbers for cleaner display
 			loadingProgress = Math.round(currentProgress);
 
 			if (progress < 1) {
-				progressAnimationId = setTimeout(updateProgress, 16); // ~60fps
+				progressAnimationId = setTimeout(updateProgress, 16);
 			} else {
 				loadingProgress = target;
 				progressAnimationId = null;
@@ -151,468 +153,18 @@
 		}
 	});
 
-	// Add statistics state
-	let statisticsData = $state<StatisticsData | null>(null);
-	let statisticsLoading = $state(false);
-	let statisticsError = $state('');
-
-	// Helper to ensure a value is a Date object
-	function getDateObject(val: any) {
-		if (!val) return null;
-		return val instanceof Date ? val : new Date(val);
-	}
-
-	function addMarkersToMap(data: TrackerLocation[], reset = true) {
-		if (!map || !L) {
-			console.log('❌ [Statistics] Map or L not available');
-			return;
-		}
-
-		// Clear existing polylines and markers only if resetting
-		if (reset) {
-			polylines.forEach((polyline: any) => {
-				if (map) map.removeLayer(polyline);
-			});
-			polylines = [];
-			markers.forEach((marker: any) => {
-				if (map) map.removeLayer(marker);
-			});
-			markers = [];
-		}
-
-		// Color map for transport modes
-		const modeColors: Record<string, string> = {
-			car: '#ef4444', // red
-			train: '#a21caf', // purple
-			airplane: '#000000', // black
-			cycling: '#f59e42', // orange
-			walking: '#10b981', // green
-			unknown: '#6b7280' // gray
-		};
-
-		// Sort data by recorded_at timestamp for sequential rendering
-		const sortedData = data
-			.filter((item) => {
-				const hasValidCoords =
-					item.coordinates &&
-					typeof item.coordinates.lat === 'number' &&
-					typeof item.coordinates.lng === 'number';
-				if (!hasValidCoords) {
-					console.log(
-						'❌ [Statistics] Filtered out item with invalid coordinates:',
-						item.coordinates
-					);
-				}
-				return hasValidCoords;
-			})
-			.sort((a, b) => {
-				const dateA = new Date(a.recorded_at || a.created_at).getTime();
-				const dateB = new Date(b.recorded_at || b.created_at).getTime();
-				return dateA - dateB;
-			});
-
-		// Draw lines between consecutive points
-		if (sortedData.length > 1) {
-			for (let i = 0; i < sortedData.length - 1; i++) {
-				const curr = sortedData[i];
-				const next = sortedData[i + 1];
-				const lineCoordinates: [number, number][] = [
-					[curr.coordinates.lat, curr.coordinates.lng],
-					[next.coordinates.lat, next.coordinates.lng]
-				];
-				const mode = next.transport_mode || 'unknown';
-				const polyline = L.polyline(lineCoordinates as [number, number][], {
-					color: modeColors[mode] || '#6b7280',
-					weight: 2,
-					opacity: 0.8
-				}).addTo(map);
-				polylines.push(polyline);
-			}
-		}
-
-		// Add markers for location data points with transport mode colors
-		for (const item of sortedData) {
-			const transportMode = item.transport_mode || 'unknown';
-			const markerColor = modeColors[transportMode] || '#6b7280';
-			const marker = L.circleMarker([item.coordinates.lat, item.coordinates.lng], {
-				radius: 3,
-				fillColor: markerColor,
-				color: 'transparent',
-				weight: 0,
-				opacity: 1,
-				fillOpacity: 0.8
-			})
-				.bindPopup(createPopupContent(item))
-				.on('click', () => {
-					selectMarker(marker);
-					handleMarkerClick(item);
-					currentPopup = marker.getPopup();
-				})
-				.addTo(map);
-			markers.push(marker);
+	// Initialize the statistics service
+	function initializeService() {
+		if (!statisticsService) {
+			statisticsService = new ClientStatisticsService();
 		}
 	}
 
-	// --- Geocode fetching function ---
-	async function fetchGeocodeForPoint(item: TrackerLocation) {
+	// Check if dataset is large and show warning
+	async function checkDatasetSize(): Promise<boolean> {
+		if (!statisticsService) return false;
+
 		try {
-			// Get current session
-			const {
-				data: { session },
-				error: sessionError
-			} = await supabase.auth.getSession();
-			if (sessionError || !session) {
-				throw new Error('User not authenticated');
-			}
-
-			const serviceAdapter = new ServiceAdapter({ session });
-
-			// Use the tracker-data-with-mode endpoint to get geocode data for this specific point
-			const result = (await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
-				startDate: item.recorded_at.split('T')[0],
-				endDate: item.recorded_at.split('T')[0],
-				limit: 1,
-				offset: 0,
-				includeStatistics: false
-			})) as any;
-
-			// Find the matching point
-			const matchingPoint = result.locations?.find(
-				(loc: any) =>
-					loc.recorded_at === item.recorded_at &&
-					loc.location?.coordinates?.[1] === item.coordinates.lat &&
-					loc.location?.coordinates?.[0] === item.coordinates.lng
-			);
-
-			return matchingPoint?.geocode || null;
-		} catch (error) {
-			console.error('Error fetching geocode:', error);
-			return null;
-		}
-	}
-
-	// --- Create popup content with timezone-aware time ---
-	async function createPopupContentWithTimezone(item: TrackerLocation): Promise<string> {
-		const date = item.recorded_at || item.created_at;
-		// Use the new timezone-aware formatting function that uses tz_diff
-		const formattedDate = formatTimestampWithTimezone(date, item.tz_diff);
-
-		const transportMode = item.transport_mode || 'unknown';
-
-		let content = `
-			<div class="p-2 max-w-lg">
-				<!-- Header with location name -->
-				<div class="mb-2">
-					<h3 class="font-bold text-sm text-gray-900 leading-tight">${item.name || 'Data Point'}</h3>
-				</div>
-				<!-- Point details in a more compact layout -->
-				<div class="space-y-1 mb-2">
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Date:</span>
-						<span class="font-medium text-gray-900 text-xs">${formattedDate}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">${t('statistics.popupMode')}</span>
-						<span class="font-medium text-gray-900 text-xs">${translateTransportMode(transportMode)}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Reason:</span>
-						<span class="font-medium text-gray-900 text-xs">${item.detectionReason ? getTransportDetectionReasonLabel(item.detectionReason) : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Coordinates:</span>
-						<span class="font-medium text-gray-900 text-xs">${typeof item.coordinates?.lat === 'number' && typeof item.coordinates?.lng === 'number' ? `${item.coordinates.lat.toFixed(6)}, ${item.coordinates.lng.toFixed(6)}` : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Velocity:</span>
-						<span class="font-medium text-gray-900 text-xs">${item.velocity !== null && item.velocity !== undefined ? (typeof item.velocity === 'number' ? item.velocity.toFixed(2) + ' km/h' : item.velocity + ' km/h') : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Distance from prev:</span>
-						<span class="font-medium text-gray-900 text-xs">${typeof item.distance_from_prev === 'number' ? item.distance_from_prev.toFixed(1) + ' m' : 'N/A'}</span>
-					</div>
-				</div>
-				<!-- Geocode section -->
-				${item.geocode === 'loading' ? `<div class='mt-1 p-1 bg-blue-50 rounded text-blue-700 text-xs'>Loading geocode...</div>` : ''}
-				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && (!('error' in item.geocode) || !(item.geocode as GeocodeData).error) ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
-				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && (item.geocode as GeocodeData).error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
-			</div>
-		`;
-		return content;
-	}
-
-	// --- Marker click handler ---
-	async function handleMarkerClick(item: TrackerLocation) {
-		if (!item.geocode) {
-			item.geocode = 'loading';
-			// Re-render tooltip with loading state
-			if (currentPopup) {
-				currentPopup.setContent(createPopupContent(item));
-			}
-
-			try {
-				const geocode = await fetchGeocodeForPoint(item);
-				item.geocode = geocode;
-				// Re-render tooltip with geocode data and timezone-aware time
-				if (currentPopup) {
-					const timezoneAwareContent = await createPopupContentWithTimezone(item);
-					currentPopup.setContent(timezoneAwareContent);
-				}
-			} catch (error) {
-				console.error('Failed to fetch geocode:', error);
-				item.geocode = { error: true };
-				if (currentPopup) {
-					const timezoneAwareContent = await createPopupContentWithTimezone(item);
-					currentPopup.setContent(timezoneAwareContent);
-				}
-			}
-		} else {
-			// Update popup with timezone-aware time even if geocode is already loaded
-			if (currentPopup) {
-				const timezoneAwareContent = await createPopupContentWithTimezone(item);
-				currentPopup.setContent(timezoneAwareContent);
-			}
-		}
-	}
-
-	// --- Format reverse geocode function ---
-	function formatReverseGeocode(rg: GeocodeData | string | null): string {
-		let data = rg;
-		if (typeof rg === 'string') {
-			try {
-				data = JSON.parse(rg);
-			} catch {
-				return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${rg}</pre>`;
-			}
-		}
-
-		if (data && typeof data === 'object' && 'error' in data && typeof data.error !== 'undefined') {
-			return `<div class='bg-red-50 border border-red-200 rounded-lg p-2 text-xs'>
-				<div class='text-red-800 font-semibold mb-1 text-xs'>Geocoding Error</div>
-				<div class='text-red-700 text-xs'>${(data as GeocodeData).error_message || 'Unknown error occurred during geocoding'}</div>
-				<div class='text-red-600 text-xs mt-1'>Timestamp: ${(data as GeocodeData).timestamp || 'Unknown'}</div>
-			</div>`;
-		}
-
-		const props = (data as GeocodeData).properties || (data as GeocodeData).address || data;
-		if (!props || typeof props !== 'object') {
-			return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${JSON.stringify(rg, null, 2)}</pre>`;
-		}
-
-		const allFields = Object.entries(props)
-			.filter(([, value]) => value !== null && value !== undefined && value !== '')
-			.map(([key, value]) => {
-				const formattedKey = key
-					.replace(/([A-Z])/g, ' $1')
-					.replace(/^./, (str) => str.toUpperCase())
-					.replace(/_/g, ' ')
-					.trim();
-				return [formattedKey, value];
-			})
-			.sort(([a], [b]) => (a as string).localeCompare(b as string));
-
-		// Always append class and type if present on the geocode object itself
-		const extraRows: string[] = [];
-		if ((data as GeocodeData).class) {
-			extraRows.push(
-				`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Class:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).class}</td></tr>`
-			);
-		}
-		if ((data as GeocodeData).type) {
-			extraRows.push(
-				`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>Type:</td><td class='text-gray-900 py-0.5 text-xs'>${(data as GeocodeData).type}</td></tr>`
-			);
-		}
-
-		const rows =
-			allFields
-				.map(
-					([k, v]) =>
-						`<tr><td class='pr-2 text-gray-600 align-top py-0.5 text-xs font-medium'>${k}:</td><td class='text-gray-900 py-0.5 text-xs'>${v}</td></tr>`
-				)
-				.join('') + extraRows.join('');
-
-		if (rows) {
-			return `<table class='bg-gray-50 rounded-lg p-2 w-full border border-gray-200'><tbody>${rows}</tbody></table>`;
-		}
-
-		return `<pre class='bg-gray-100 rounded-lg p-2 text-xs overflow-x-auto border border-gray-200'>${JSON.stringify(props, null, 2)}</pre>`;
-	}
-
-	// --- Updated tooltip content ---
-	function createPopupContent(item: TrackerLocation) {
-		const date = item.recorded_at || item.created_at;
-		const formattedDate = formatTimestampWithTimezone(date, item.tz_diff);
-		const transportMode = item.transport_mode || 'unknown';
-
-		let content = `
-			<div class="p-2 max-w-lg">
-				<!-- Header with location name -->
-				<div class="mb-2">
-					<h3 class="font-bold text-sm text-gray-900 leading-tight">${item.name || 'Data Point'}</h3>
-				</div>
-				<!-- Point details in a more compact layout -->
-				<div class="space-y-1 mb-2">
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Date:</span>
-						<span class="font-medium text-gray-900 text-xs">${formattedDate}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">${t('statistics.popupMode')}</span>
-						<span class="font-medium text-gray-900 text-xs">${translateTransportMode(transportMode)}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Reason:</span>
-						<span class="font-medium text-gray-900 text-xs">${item.detectionReason ? getTransportDetectionReasonLabel(item.detectionReason) : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Coordinates:</span>
-						<span class="font-medium text-gray-900 text-xs">${typeof item.coordinates?.lat === 'number' && typeof item.coordinates?.lng === 'number' ? `${item.coordinates.lat.toFixed(6)}, ${item.coordinates.lng.toFixed(6)}` : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Velocity:</span>
-						<span class="font-medium text-gray-900 text-xs">${item.velocity !== null && item.velocity !== undefined ? (typeof item.velocity === 'number' ? item.velocity.toFixed(2) + ' km/h' : item.velocity + ' km/h') : 'N/A'}</span>
-					</div>
-					<div class="flex justify-between items-center py-0.5">
-						<span class="text-gray-600 text-xs">Distance from prev:</span>
-						<span class="font-medium text-gray-900 text-xs">${typeof item.distance_from_prev === 'number' ? item.distance_from_prev.toFixed(1) + ' m' : 'N/A'}</span>
-					</div>
-				</div>
-				<!-- Geocode section -->
-				${item.geocode === 'loading' ? `<div class='mt-1 p-1 bg-blue-50 rounded text-blue-700 text-xs'>Loading geocode...</div>` : ''}
-				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && (!('error' in item.geocode) || !(item.geocode as GeocodeData).error) ? `<div class='mt-1'><span class='block text-gray-700 font-semibold mb-1 text-xs'>Location Details:</span>${formatReverseGeocode(item.geocode)}</div>` : ''}
-				${item.geocode && typeof item.geocode === 'object' && item.geocode !== null && 'error' in item.geocode && (item.geocode as GeocodeData).error ? `<div class='mt-1 p-1 bg-red-50 rounded text-red-700 text-xs'>Failed to load geocode</div>` : ''}
-			</div>
-		`;
-		return content;
-	}
-
-	function clearMapMarkers() {
-		markers.forEach((marker: any) => {
-			if (map) {
-				map.removeLayer(marker);
-			}
-		});
-		markers = [];
-
-		polylines.forEach((polyline: any) => {
-			if (map) {
-				map.removeLayer(polyline);
-			}
-		});
-		polylines = [];
-
-		// Clear selected markers
-		selectedMarkers = [];
-	}
-
-	function selectMarker(marker: any) {
-		if (!isEditMode) return;
-
-		if (selectedMarkers.includes(marker)) {
-			// Deselect
-			selectedMarkers = selectedMarkers.filter((m: any) => m !== marker);
-			marker.setStyle({ radius: 3, fillOpacity: 0.6 });
-		} else {
-			// Select
-			selectedMarkers.push(marker);
-			marker.setStyle({ radius: 5, fillOpacity: 0.9, weight: 2, color: '#ff0000' });
-		}
-	}
-
-	function fitMapToMarkers() {
-		if (!map || (markers.length === 0 && polylines.length === 0)) return;
-
-		const allLayers = [...markers, ...polylines];
-		const group = L.featureGroup(allLayers);
-		map.fitBounds(group.getBounds(), { padding: [20, 20] });
-	}
-
-	// Track last filter state to prevent infinite loops
-	let lastFilterState = $state('');
-	let hasLoadedInitialData = $state(false);
-	let dataLoadTimeout: ReturnType<typeof setTimeout> | null = null;
-
-	// Debounced data loading function
-	function debouncedLoadData() {
-		if (dataLoadTimeout) {
-			clearTimeout(dataLoadTimeout);
-		}
-		dataLoadTimeout = setTimeout(() => {
-			if (map && !isLoading) {
-				console.log('🔄 Debounced data load triggered');
-				fetchMapDataAndStatistics(0);
-			}
-		}, 300); // 300ms debounce
-	}
-
-	// Initialize lastFilterState with current date range to prevent reactive statement from firing on initial load
-	$effect(() => {
-		if (appState.filtersStartDate && appState.filtersEndDate && !lastFilterState) {
-			const initialFilterState = {
-				startDate: getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0] || '',
-				endDate: getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0] || ''
-			};
-			lastFilterState = JSON.stringify(initialFilterState);
-		}
-	});
-
-	// Single consolidated effect for date changes
-	$effect(() => {
-		if (browser && !isInitializing && hasLoadedInitialData && map && !isLoading) {
-			const filterState = {
-				startDate: getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0] || '',
-				endDate: getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0] || ''
-			};
-
-			const filterStateString = JSON.stringify(filterState);
-
-			// Only reload if we have some filter applied and the state actually changed
-			// Only load when a full range is selected (both start and end present)
-			if (filterState.startDate && filterState.endDate && filterStateString !== lastFilterState) {
-				console.log('🔍 State changed, triggering debounced data load:', {
-					oldState: lastFilterState,
-					newState: filterStateString,
-					hasMap: !!map
-				});
-				lastFilterState = filterStateString;
-				debouncedLoadData();
-			}
-		}
-	});
-
-	// Helper function to translate transport mode names
-	function translateTransportMode(mode: string): string {
-		switch (mode?.toLowerCase()) {
-			case 'car':
-				return t('statistics.car');
-			case 'train':
-				return t('statistics.train');
-			case 'airplane':
-			case 'plane':
-				return t('statistics.airplane');
-			case 'cycling':
-			case 'bike':
-				return t('statistics.cycling');
-			case 'walking':
-			case 'walk':
-				return t('statistics.walking');
-			case 'stationary':
-				return t('statistics.stationary');
-			case 'unknown':
-			default:
-				return t('statistics.unknown');
-		}
-	}
-
-	// Function to get total count of records for progress indication
-	async function getTotalCount(): Promise<number> {
-		try {
-			isCountingRecords = true;
-			loadingStage = t('statistics.countingRecords');
-			console.log(`📊 Progress stage: ${loadingStage} - animating to 10%`);
-			animateProgress(10, 400);
-
 			const startDate = appState.filtersStartDate
 				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
 				: '';
@@ -628,77 +180,41 @@
 				throw new Error('User not authenticated');
 			}
 
-			// Use direct Supabase query for more reliable count
-			let countQuery = supabase.from('tracker_data').select('*', { count: 'exact', head: true });
+			totalPointsCount = await statisticsService.getTotalCount(session.user.id, startDate, endDate);
 
-			// Apply date filters
-			if (startDate) {
-				countQuery = countQuery.gte('recorded_at', startDate);
-			}
-			if (endDate) {
-				countQuery = countQuery.lte('recorded_at', endDate + ' 23:59:59');
+			if (totalPointsCount > 100000) {
+				showLargeDatasetWarning = true;
+				return false; // Don't proceed until user confirms
 			}
 
-			const { count, error: countError } = await countQuery;
-
-			if (countError) {
-				console.error('Error getting count from database:', countError);
-				// Fallback to Edge Function
-				const serviceAdapter = new ServiceAdapter({ session });
-				const result = (await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
-					startDate,
-					endDate,
-					limit: 100,
-					offset: 0,
-					includeStatistics: false
-				})) as { total?: number; hasMore?: boolean };
-
-				const total = result.total || 0;
-				console.log(`📊 Progress stage: Found ${total} records - animating to 20%`);
-				animateProgress(20, 400);
-				loadingStage = t('statistics.foundRecords', { count: total.toLocaleString() });
-				return total;
-			}
-
-			const total = count || 0;
-			console.log(`📊 Progress stage: Found ${total} records - animating to 20%`);
-			animateProgress(20, 400);
-			loadingStage = t('statistics.foundRecords', { count: total.toLocaleString() });
-
-			return total;
-		} catch (err) {
-			console.error('Error getting total count:', err);
-			// Return 0 for new users or when there's an error, don't throw
-			return 0;
-		} finally {
-			isCountingRecords = false;
+			return true; // Proceed with loading
+		} catch (error) {
+			console.error('❌ Error checking dataset size:', error);
+			toast.error('Failed to check dataset size');
+			return false;
 		}
 	}
 
-	// Function to fetch both map data and statistics from the edge function
-	async function fetchMapDataAndStatistics(loadMoreOffset: number = 0): Promise<void> {
-		// Prevent duplicate calls
-		if (isLoading && loadMoreOffset === 0) {
-			console.log('🔄 Data loading already in progress, skipping duplicate call');
-			return;
+	// Handle user confirmation for large dataset
+	function handleLargeDatasetConfirmation(proceed: boolean) {
+		showLargeDatasetWarning = false;
+		if (proceed) {
+			userConfirmedLargeDataset = true;
+			loadStatisticsData();
+		}
+	}
+
+	// Main function to load statistics data using the new service
+	async function loadStatisticsData(): Promise<void> {
+		if (!statisticsService) {
+			initializeService();
 		}
 
 		try {
-					// Set loading states - map loading for initial loads and date range changes, not for "load more"
-		if (loadMoreOffset === 0) {
 			isLoading = true;
 			isInitialLoad = false;
-		}
-		statisticsLoading = true;
-		statisticsError = '';
-
-		// If this is the initial load, get the total count first for progress indication
-		if (loadMoreOffset === 0) {
-			loadingStage = t('statistics.gettingRecordCount');
-			console.log(`📊 Progress stage: ${loadingStage} - animating to 5%`);
-			animateProgress(5, 600);
-			totalPoints = await getTotalCount();
-		}
+			statisticsLoading = true;
+			statisticsError = '';
 
 			const startDate = appState.filtersStartDate
 				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
@@ -707,271 +223,91 @@
 				? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
 				: '';
 
-			// Don't fetch data if no date range is set
 			if (!startDate && !endDate) {
 				console.log('📅 No date range set, skipping data fetch');
 				return;
 			}
 
-			console.log('📅 Date range being sent to API:', { startDate, endDate });
-
-			// Get current user's session
 			const {
 				data: { session },
 				error: sessionError
 			} = await supabase.auth.getSession();
 			if (sessionError || !session) {
-				console.error('Session error:', sessionError);
-				console.error('Session data:', session);
 				throw new Error('User not authenticated');
 			}
 
-					// Update progress for data fetching
-		loadingStage =
-			loadMoreOffset === 0 ? t('statistics.loadingInitialData') : t('statistics.loadingMoreData');
-		console.log(`📊 Progress stage: ${loadingStage} - animating to ${loadMoreOffset === 0 ? 30 : 60}%`);
-		animateProgress(loadMoreOffset === 0 ? 30 : 60, 800);
+			console.log('📊 Starting client-side statistics processing...');
 
-		// Add intermediate progress updates for smoother animation
-		if (loadMoreOffset === 0) {
-			// Add a small delay and then animate to 40%
-			setTimeout(() => {
-				animateProgress(40, 600);
-			}, 200);
-
-			// Add another intermediate step
-			setTimeout(() => {
-				animateProgress(50, 600);
-			}, 600);
-		}
-
-			const serviceAdapter = new ServiceAdapter({ session });
-
-			type TrackerApiResponse = {
-				total?: number;
-				locations?: TrackerLocation[];
-				hasMore?: boolean;
-				statistics?: StatisticsData;
-			};
-
-			// Optimize: Make a single API call to get both data and statistics
-			// Only include statistics on initial load (not when loading more data)
-			const shouldIncludeStatistics = loadMoreOffset === 0;
-			const currentDateRange = `${startDate}_${endDate}`;
-			const needsNewStatistics =
-				shouldIncludeStatistics &&
-				(!statisticsData || statisticsData._dateRange !== currentDateRange);
-
-			let result = (await serviceAdapter.edgeFunctionsService.getTrackerDataWithMode(session, {
+			// Load and process data with progress tracking
+			const statistics = await statisticsService!.loadAndProcessData(
+				session.user.id,
 				startDate,
 				endDate,
-				limit: 5000,
-				offset: loadMoreOffset,
-				includeStatistics: needsNewStatistics // Include statistics only when needed
-			})) as TrackerApiResponse;
-
-			// Check if the result indicates an error
-			if (result && typeof result === 'object' && 'success' in result && !result.success) {
-				throw new Error((result as any).error || 'Failed to fetch data');
-			}
-
-					// Update progress for data processing
-		loadingStage = t('statistics.processingData');
-		console.log(`📊 Progress stage: ${loadingStage} - animating to ${loadMoreOffset === 0 ? 70 : 80}%`);
-		animateProgress(loadMoreOffset === 0 ? 70 : 80, 800);
-
-		// Add intermediate progress updates for smoother animation
-		if (loadMoreOffset === 0) {
-			// Add a small delay and then animate to 75%
-			setTimeout(() => {
-				console.log('📈 Intermediate progress: animating to 75%');
-				animateProgress(75, 600);
-			}, 300);
-
-			// Add another intermediate step
-			setTimeout(() => {
-				console.log('📈 Intermediate progress: animating to 78%');
-				animateProgress(78, 600);
-			}, 500);
-		}
-
-			// Process statistics if they were included in the response
-			if (needsNewStatistics && result.statistics) {
-				// Store the date range with the statistics to track when they were calculated
-				statisticsData = {
-					...result.statistics,
-					_dateRange: currentDateRange
-				};
-			}
-
-					// Transform and set location data for map
-		if (result.locations) {
-			loadingStage = t('statistics.transformingData');
-			console.log(`📊 Progress stage: ${loadingStage} - animating to ${loadMoreOffset === 0 ? 85 : 90}%`);
-			animateProgress(loadMoreOffset === 0 ? 85 : 90, 800);
-
-					// Add intermediate progress updates for smoother animation
-		if (loadMoreOffset === 0) {
-			console.log('🔄 Adding intermediate progress updates for data transformation');
-			// Add a small delay and then animate to 87%
-			setTimeout(() => {
-				console.log('📈 Intermediate progress: animating to 87%');
-				animateProgress(87, 600);
-			}, 200);
-
-			// Add another intermediate step
-			setTimeout(() => {
-				console.log('📈 Intermediate progress: animating to 89%');
-				animateProgress(89, 600);
-			}, 400);
-		}
-
-				const transformedLocations: TrackerLocation[] = (result.locations as unknown[]).map(
-					(location, index) => {
-						const loc = location as Record<string, unknown>;
-
-						return {
-							id: `${loc.user_id}_${loc.recorded_at}_${loadMoreOffset + index}`,
-							name:
-								loc.geocode && typeof loc.geocode === 'object' && 'display_name' in loc.geocode
-									? (loc.geocode as GeocodeData).display_name || 'Unknown Location'
-									: 'Unknown Location',
-							description:
-								loc.geocode && typeof loc.geocode === 'object' && 'name' in loc.geocode
-									? (loc.geocode as GeocodeData).name || ''
-									: '',
-							type: 'tracker',
-							coordinates: (() => {
-								const coords = (loc.location as { coordinates?: number[] })?.coordinates;
-								if (coords && coords.length >= 2) {
-									const result = {
-										lat: coords[1] || 0,
-										lng: coords[0] || 0
-									};
-									return result;
-								} else {
-									return { lat: 0, lng: 0 };
-								}
-							})(),
-							city:
-								loc.geocode && typeof loc.geocode === 'object' && 'city' in loc.geocode
-									? (loc.geocode as GeocodeData).city || ''
-									: '',
-							created_at: String(loc.created_at),
-							updated_at: String(loc.updated_at),
-							recorded_at: String(loc.recorded_at),
-							altitude: loc.altitude as number | undefined,
-							accuracy: loc.accuracy as number | undefined,
-							speed: loc.speed as number | undefined,
-							transport_mode: String(loc.transport_mode || 'unknown'),
-							detectionReason: loc.detectionReason as TransportDetectionReason | string | undefined,
-							velocity: loc.velocity as number | undefined,
-							distance_from_prev: loc.distance_from_prev as number | undefined,
-							geocode: loc.geocode as GeocodeData | string | null,
-							tz_diff: loc.tz_diff as number | undefined
-						};
+				// Progress callback
+				(progress) => {
+					loadingStage = progress.stage;
+					animateProgress(progress.percentage);
+					console.log(`📊 Progress: ${progress.percentage}% - ${progress.stage}`);
+				},
+				// Error callback
+				(error, canRetry) => {
+					console.error('❌ Error during processing:', error);
+					statisticsError = error.message;
+					if (canRetry) {
+						toast.error(`Processing error: ${error.message}. You can retry.`);
+					} else {
+						toast.error(`Processing failed: ${error.message}`);
 					}
-				);
-
-				if (loadMoreOffset === 0) {
-					// Initial load - replace all data
-					locationData = transformedLocations;
-					addMarkersToMap(transformedLocations, true);
-					if (transformedLocations.length > 0) {
-						fitMapToMarkers();
-					}
-				} else {
-					// Load more - append to existing data
-					locationData = [...locationData, ...transformedLocations];
-					addMarkersToMap(transformedLocations, false);
 				}
+			);
 
-				// Only update totalPoints if we have a valid total from the result
-				// This prevents overwriting the count from getTotalCount() with 0
-				if (result.total && result.total > 0) {
-					totalPoints = result.total;
-				}
-				hasMoreData = result.hasMore || false;
-				currentOffset = locationData.length;
+			// Get formatted statistics for display
+			statisticsData = statisticsService!.getFormattedStatistics();
+
+			console.log('✅ Statistics processing complete:', statisticsData);
+
+			// Draw data points on map
+			const rawDataPoints = (statisticsService as any).rawDataPoints;
+			if (rawDataPoints && rawDataPoints.length > 0) {
+				drawDataPointsOnMap(rawDataPoints);
 			}
 
-					// Complete loading
-		loadingStage = t('statistics.complete');
-		console.log(`📊 Progress stage: ${loadingStage}`);
-
-		// Add intermediate step before 100% for smoother animation
-		console.log('🔄 Adding final intermediate progress updates');
-		animateProgress(95, 600);
-
-		// Add another intermediate step
-		setTimeout(() => {
-			console.log('📈 Intermediate progress: animating to 97%');
-			animateProgress(97, 600);
-		}, 200);
-
-		// Small delay before final step
-		await new Promise(resolve => setTimeout(resolve, 300));
-
-		console.log('📈 Final progress: animating to 100%');
-		animateProgress(100, 1000);
-
-		// Add a small delay to ensure the 100% completion is visible
-		await new Promise(resolve => setTimeout(resolve, 500));
-		} catch (err) {
-			console.error('Error fetching map data and statistics:', err);
-			statisticsError = err instanceof Error ? err.message : String(err);
-			if (loadMoreOffset === 0) {
-				statisticsData = null;
-			}
-			loadingStage = t('statistics.errorOccurred');
-			animateProgress(0, 300);
-		} finally {
-			// Reset loading states
-			if (loadMoreOffset === 0) {
-				isLoading = false;
-			}
-			statisticsLoading = false;
-			// Reset progress after a short delay
-			setTimeout(() => {
-				animateProgress(0, 500);
-				loadingStage = '';
-			}, 1000);
-		}
-	}
-
-	// Function to load more data points
-	async function loadMoreData() {
-		if (isLoading) return;
-
-		isLoading = true;
-		try {
-			console.log(t('statistics.loadingMoreDataFromOffset', { offset: currentOffset }));
-			await fetchMapDataAndStatistics(currentOffset);
 		} catch (error) {
-			console.error(t('statistics.errorLoadingMoreData'), error);
-			toast.error('Failed to load more data');
+			console.error('❌ Error loading statistics:', error);
+			statisticsError = error instanceof Error ? error.message : 'Unknown error';
+			toast.error('Failed to load statistics');
 		} finally {
 			isLoading = false;
+			statisticsLoading = false;
 		}
 	}
 
-	// Move this to the top-level scope, outside of getStatistics
-	function formatEarthCircumferences(value: number | undefined): string {
-		if (value == null) return '';
-		if (typeof value === 'string') value = parseFloat(value);
-		if (value > 0 && value < 0.001) {
-			return value.toExponential(2) + 'x';
-		} else if (value < 1 && value > 0) {
-			return value.toFixed(4) + 'x';
-		} else {
-			return value.toFixed(3) + 'x';
+	// Retry loading with resume capability
+	async function retryLoading(): Promise<void> {
+		if (statisticsService && statisticsService.isCurrentlyProcessing()) {
+			console.log('🔄 Already processing, cannot retry');
+			return;
+		}
+
+		statisticsError = '';
+		await loadStatisticsData();
+	}
+
+	// Handle date range changes
+	async function handleDateRangeChange() {
+		// Reset state
+		userConfirmedLargeDataset = false;
+		statisticsData = null;
+		statisticsError = '';
+
+		// Check dataset size first
+		const canProceed = await checkDatasetSize();
+		if (canProceed) {
+			await loadStatisticsData();
 		}
 	}
 
-	// Move greenModes to a higher scope
-	const greenModes = ['walking', 'cycling', 'train'];
-
-	// Function to get statistics for display
+	// Get statistics for display (reused from original)
 	function getStatistics() {
 		if (!statisticsData) return [];
 
@@ -1051,198 +387,6 @@
 			}
 		];
 	}
-
-	// Function to format segment duration
-	function formatSegmentDuration(seconds: number): string {
-		if (!seconds || isNaN(seconds)) return '0:00';
-		const h = Math.floor(seconds / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		if (h > 0) {
-			return `${h}:${m.toString().padStart(2, '0')}`;
-		}
-		return `${m}:00`;
-	}
-
-	// Country name translation is now handled by the centralized i18n system
-
-	// Helper to get flag emoji from country code
-	function getFlagEmoji(countryCode: string): string {
-		if (!countryCode || countryCode.length !== 2) return '';
-		const codePoints = countryCode
-			.toUpperCase()
-			.split('')
-			.map((char) => 0x1f1e6 + char.charCodeAt(0) - 65);
-		return String.fromCodePoint(...codePoints);
-	}
-	// Format timestamp with timezone information using tz_diff
-	function formatTimestampWithTimezone(timestamp: string | Date, tzDiff?: number): string {
-		if (!timestamp) return 'Unknown date';
-
-		const date = new Date(timestamp);
-		if (isNaN(date.getTime())) return 'Invalid date';
-
-		// Format the date part
-		const formattedDate = format(date, 'MMM d, yyyy, HH:mm');
-
-		// If we have timezone difference, add it to the timestamp
-		if (tzDiff !== undefined && tzDiff !== null) {
-			// Format timezone offset as +HH:MM or -HH:MM
-			const sign = tzDiff >= 0 ? '+' : '-';
-			const absHours = Math.abs(tzDiff);
-			const wholeHours = Math.floor(absHours);
-			const minutesOffset = Math.round((absHours - wholeHours) * 60);
-
-			const timezoneString = `${sign}${String(wholeHours).padStart(2, '0')}:${String(minutesOffset).padStart(2, '0')}`;
-
-			return `${formattedDate}${timezoneString}`;
-		}
-
-		// Fallback to date without timezone if tz_diff is not available
-		return formattedDate;
-	}
-
-	onDestroy(() => {
-		clearMapMarkers();
-		if (dataLoadTimeout) {
-			clearTimeout(dataLoadTimeout);
-		}
-	});
-
-	onMount(async () => {
-		console.log('🗺️ Statistics page onMount started');
-
-		L = (await import('leaflet')).default;
-		if (map) return;
-
-		// Small delay to ensure container is ready
-		await new Promise((resolve) => setTimeout(resolve, 100));
-
-		map = L.map(mapContainer, {
-			center: [20, 0], // Default center of the world
-			zoom: 2, // Default zoom level to show the world
-			zoomControl: true,
-			attributionControl: false
-		});
-
-		// Invalidate map size to ensure proper rendering
-		setTimeout(() => {
-			if (map) {
-				map.invalidateSize();
-			}
-		}, 200);
-
-		function getTileLayerUrl() {
-			const isDark = document.documentElement.classList.contains('dark');
-			return isDark
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-		}
-
-		function getAttribution() {
-			const isDark = document.documentElement.classList.contains('dark');
-			return isDark
-				? '&copy; <a href="https://carto.com/attributions">CARTO</a>'
-				: '© OpenStreetMap contributors';
-		}
-
-		currentTileLayer = L.tileLayer(getTileLayerUrl(), {
-			attribution: getAttribution()
-		}).addTo(map) as any;
-
-		// --- Theme switching observer ---
-		const updateMapTheme = () => {
-			if (!map || !L) return;
-			const isDark = document.documentElement.classList.contains('dark');
-			const newUrl = getTileLayerUrl();
-			const newAttribution = getAttribution();
-			if (currentTileLayer && (currentTileLayer as any)._url !== newUrl) {
-				map.removeLayer(currentTileLayer);
-				currentTileLayer = L.tileLayer(newUrl, { attribution: newAttribution }).addTo(map) as any;
-			}
-			// Update legend text color
-			const legend = document.getElementById('transport-mode-legend');
-			if (legend) {
-				const title = legend.querySelector('div.font-semibold');
-				if (title) {
-					title.classList.toggle('text-gray-700', !isDark);
-					title.classList.toggle('dark:text-gray-200', isDark);
-					title.classList.toggle('text-white', isDark);
-				}
-				// Set all legend text to white in dark mode
-				legend.classList.toggle('text-white', isDark);
-				legend.classList.toggle('text-gray-700', !isDark);
-				legend.classList.toggle('bg-white', !isDark);
-				legend.classList.toggle('dark:bg-gray-800', isDark);
-			}
-		};
-		const observer = new MutationObserver(updateMapTheme);
-		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-		// Initial theme sync
-		updateMapTheme();
-
-		// Add transport mode legend to the map
-		const legendId = 'transport-mode-legend';
-		let legend = document.getElementById(legendId);
-		if (!legend) {
-			legend = document.createElement('div');
-			legend.id = legendId;
-			legend.className =
-				'leaflet-control leaflet-bar bg-white dark:bg-gray-800 p-3 rounded shadow text-gray-900 dark:text-gray-100';
-			legend.style.position = 'absolute';
-			legend.style.top = '90px';
-			legend.style.left = '10px';
-			legend.style.zIndex = '1000';
-			legend.innerHTML = `
-				<div class="font-semibold mb-2 text-xs text-gray-900 dark:text-gray-100">${t('statistics.modeColors')}</div>
-				<div class="flex flex-col gap-1">
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#ef4444;"></span>${t('statistics.car')}</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#a21caf;"></span>${t('statistics.train')}</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#000000;"></span>${t('statistics.airplane')}</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#f59e42;"></span>${t('statistics.cycling')}</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#10b981;"></span>${t('statistics.walking')}</div>
-					<div class="flex items-center gap-2 text-gray-900 dark:text-gray-100"><span style="display:inline-block;width:16px;height:4px;background:#6b7280;"></span>${t('statistics.unknown')}</div>
-				</div>
-			`;
-			map.getContainer().appendChild(legend);
-		}
-
-		// Set default date range to last 7 days if not already set
-		if (!appState.filtersStartDate || !appState.filtersEndDate) {
-			const today = new Date();
-			const sevenDaysAgo = new Date();
-			sevenDaysAgo.setDate(today.getDate() - 6); // Last 7 days includes today and 6 days before
-			appState.filtersStartDate = sevenDaysAgo;
-			appState.filtersEndDate = today;
-			console.log('📅 Set default date range:', { start: sevenDaysAgo, end: today });
-
-			await fetchMapDataAndStatistics(0); // Allow cache for initial load
-		} else {
-			console.log('📅 Using existing date range:', {
-				start: appState.filtersStartDate,
-				end: appState.filtersEndDate
-			});
-
-			// Debug: Check if the date range makes sense
-			const startDate = appState.filtersStartDate;
-			const endDate = appState.filtersEndDate;
-			console.log('📅 Date range debug:', {
-				startDate: startDate?.toISOString(),
-				endDate: endDate?.toISOString(),
-				startDateType: typeof startDate,
-				endDateType: typeof endDate,
-				isStartDateValid: startDate instanceof Date && !isNaN(startDate.getTime()),
-				isEndDateValid: endDate instanceof Date && !isNaN(endDate.getTime())
-			});
-
-			// Load initial data only if dates are already set
-			await fetchMapDataAndStatistics(0); // Allow cache for initial load
-		}
-
-		// Mark initialization as complete
-		isInitializing = false;
-		hasLoadedInitialData = true;
-	});
-
 	let localStartDate = $state(
 		appState.filtersStartDate instanceof Date ? appState.filtersStartDate : ''
 	);
@@ -1284,9 +428,271 @@
 		return () => observer.disconnect();
 	});
 
-	// In the DateRangePicker usage:
-	// <DateRangePicker bind:startDate={localStartDate} bind:endDate={localEndDate} pickLabel={t('datePicker.pickDateRange')} />
-	// (remove onchange={handleDateRangeChange})
+	// Helper functions (reused from original)
+	const greenModes = ['walking', 'cycling'];
+
+	function formatEarthCircumferences(circumferences?: number): string {
+		if (!circumferences || circumferences === 0) return '0';
+		if (circumferences < 0.01) return '< 0.01';
+		return circumferences.toFixed(2);
+	}
+
+	// Translate transport mode to display name
+	function translateTransportMode(mode: string): string {
+		// Remove 'transport.' prefix if present
+		const cleanMode = mode.replace('transport.', '');
+
+		const modeTranslations: Record<string, string> = {
+			walking: t('transport.walking'),
+			cycling: t('transport.cycling'),
+			car: t('transport.car'),
+			train: t('transport.train'),
+			airplane: t('transport.airplane'),
+			stationary: t('transport.stationary'),
+			unknown: t('transport.unknown')
+		};
+		return modeTranslations[cleanMode] || cleanMode;
+	}
+
+	// Get flag emoji for country code
+	function getFlagEmoji(countryCode: string): string {
+		const codePoints = countryCode
+			.toUpperCase()
+			.split('')
+			.map(char => 127397 + char.charCodeAt(0));
+		return String.fromCodePoint(...codePoints);
+	}
+
+	// Transport mode colors
+	const transportModeColors: Record<string, string> = {
+		car: '#dc2626',      // Red
+		train: '#7c3aed',    // Purple
+		airplane: '#000000', // Black
+		cycling: '#ea580c',  // Orange
+		walking: '#16a34a',  // Green
+		unknown: '#6b7280'   // Grey
+	};
+
+	// Get color for transport mode
+	function getTransportModeColor(mode: string): string {
+		const cleanMode = mode.replace('transport.', '');
+		return transportModeColors[cleanMode] || transportModeColors.unknown;
+	}
+
+	// Clear existing map markers
+	function clearMapMarkers() {
+		if (!map || !L) return;
+		mapMarkers.forEach(marker => {
+			map.removeLayer(marker);
+		});
+		mapMarkers = [];
+	}
+
+	// Draw data points on map
+	function drawDataPointsOnMap(dataPoints: any[]) {
+		if (!map || !L || !dataPoints.length) return;
+
+		console.log('🗺️ Drawing', dataPoints.length, 'data points on map');
+
+		// Clear existing markers
+		clearMapMarkers();
+
+		// Sort points by recorded_at timestamp to ensure proper order
+		const sortedPoints = [...dataPoints].sort((a, b) =>
+			new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+		);
+
+		// Draw lines between consecutive points
+		for (let i = 0; i < sortedPoints.length - 1; i++) {
+			const currentPoint = sortedPoints[i];
+			const nextPoint = sortedPoints[i + 1];
+
+			if (currentPoint.lat && currentPoint.lon && nextPoint.lat && nextPoint.lon) {
+				const currentLat = parseFloat(currentPoint.lat);
+				const currentLon = parseFloat(currentPoint.lon);
+				const nextLat = parseFloat(nextPoint.lat);
+				const nextLon = parseFloat(nextPoint.lon);
+
+				if (!isNaN(currentLat) && !isNaN(currentLon) && !isNaN(nextLat) && !isNaN(nextLon)) {
+					// Use the transport mode of the current point for the line color
+					const mode = currentPoint.transport_mode || 'unknown';
+					const color = getTransportModeColor(mode);
+
+					// Create polyline between consecutive points
+					const polyline = L.polyline(
+						[[currentLat, currentLon], [nextLat, nextLon]],
+						{
+							color: color,
+							weight: 3,
+							opacity: 0.7
+						}
+					);
+
+					// Add to map
+					polyline.addTo(map);
+					mapMarkers.push(polyline);
+				}
+			}
+		}
+
+		// Group points by transport mode for markers
+		const pointsByMode: Record<string, any[]> = {};
+		sortedPoints.forEach(point => {
+			const mode = point.transport_mode || 'unknown';
+			if (!pointsByMode[mode]) {
+				pointsByMode[mode] = [];
+			}
+			pointsByMode[mode].push(point);
+		});
+
+		// Draw markers for each transport mode
+		Object.entries(pointsByMode).forEach(([mode, points]) => {
+			const color = getTransportModeColor(mode);
+
+			points.forEach(point => {
+				if (point.lat && point.lon) {
+					const lat = parseFloat(point.lat);
+					const lon = parseFloat(point.lon);
+
+					if (!isNaN(lat) && !isNaN(lon)) {
+						// Create circle marker
+						const marker = L.circleMarker([lat, lon], {
+							radius: 4,
+							fillColor: color,
+							color: color,
+							weight: 1,
+							opacity: 0.8,
+							fillOpacity: 0.6
+						});
+
+						// Add click handler
+						marker.on('click', () => {
+							selectedPoint = point;
+						});
+
+						// Add to map
+						marker.addTo(map);
+						mapMarkers.push(marker);
+					}
+				}
+			});
+		});
+
+		// Fit map to show all points
+		if (mapMarkers.length > 0) {
+			const group = (L as any).featureGroup(mapMarkers);
+			map.fitBounds(group.getBounds().pad(0.1));
+		}
+	}
+
+	// Close point details popup
+	function closePointDetails() {
+		selectedPoint = null;
+	}
+
+	// Format segment duration
+	function formatSegmentDuration(hours: number): string {
+		if (hours < 1) {
+			const minutes = Math.round(hours * 60);
+			return `${minutes}m`;
+		}
+		return `${hours.toFixed(1)}h`;
+	}
+
+	// Initialize on mount
+	onMount(async () => {
+		initializeService();
+		await initializeMap();
+
+		// Set default date range to past 7 days if no date range is set
+		if (!appState.filtersStartDate && !appState.filtersEndDate) {
+			const endDate = new Date();
+			const startDate = new Date();
+			startDate.setDate(endDate.getDate() - 6); // Last 7 days includes today and 6 days before
+
+			appState.filtersStartDate = startDate;
+			appState.filtersEndDate = endDate;
+			console.log('📅 Set default date range:', { start: startDate, end: endDate });
+		}
+
+		await handleDateRangeChange();
+		isInitializing = false;
+	});
+
+	// Reactive statement for date range changes
+	$effect(() => {
+		if (!isInitializing && (appState.filtersStartDate || appState.filtersEndDate)) {
+			handleDateRangeChange();
+		}
+	});
+
+	// Initialize map
+	async function initializeMap() {
+		if (!browser || !mapContainer) return;
+
+		try {
+			L = (await import('leaflet')).default;
+			if (map) return;
+
+			// Small delay to ensure container is ready
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			map = L.map(mapContainer, {
+				center: [20, 0], // Default center of the world
+				zoom: 2, // Default zoom level to show the world
+				zoomControl: true,
+				attributionControl: false
+			});
+
+			// Invalidate map size to ensure proper rendering
+			setTimeout(() => {
+				if (map) {
+					map.invalidateSize();
+				}
+			}, 200);
+
+			function getTileLayerUrl() {
+				const isDark = document.documentElement.classList.contains('dark');
+				return isDark
+					? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+					: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+			}
+
+			function getAttribution() {
+				const isDark = document.documentElement.classList.contains('dark');
+				return isDark
+					? '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+					: '© OpenStreetMap contributors';
+			}
+
+			currentTileLayer = L.tileLayer(getTileLayerUrl(), {
+				attribution: getAttribution()
+			}).addTo(map) as any;
+
+			// Theme switching observer
+			const updateMapTheme = () => {
+				if (!map || !L) return;
+				const isDark = document.documentElement.classList.contains('dark');
+				const newUrl = getTileLayerUrl();
+				const newAttribution = getAttribution();
+				if (currentTileLayer && (currentTileLayer as any)._url !== newUrl) {
+					map.removeLayer(currentTileLayer);
+					currentTileLayer = L.tileLayer(newUrl, { attribution: newAttribution }).addTo(map) as any;
+				}
+			};
+			const observer = new MutationObserver(updateMapTheme);
+			observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+			// Initial theme sync
+			updateMapTheme();
+
+			console.log('🗺️ Map initialized successfully');
+		} catch (error) {
+			console.error('❌ Error initializing map:', error);
+		}
+	}
+
+
 </script>
 
 <svelte:head>
@@ -1297,33 +703,19 @@
 		crossorigin=""
 	/>
 	<style>
-		.custom-marker {
-			background: transparent !important;
-			border: none !important;
-		}
-
-		/* Override the CSS variable for dark mode */
-		:global(.dark) {
-			--color-white: var(--color-gray-800);
-		}
-		/* Calendar icon now uses SVG - no custom CSS needed */
-
-		/* Map interaction fixes */
 		.leaflet-container {
 			pointer-events: auto !important;
 			touch-action: manipulation !important;
 		}
-
 		.leaflet-pane {
 			pointer-events: auto !important;
 		}
-
 		.leaflet-control {
 			pointer-events: auto !important;
 		}
 
-		/* Ensure map container doesn't interfere with mouse events */
-		.map-container {
+				/* Ensure map container doesn't interfere with mouse events */
+				.map-container {
 			pointer-events: auto !important;
 			touch-action: manipulation !important;
 		}
@@ -1367,12 +759,50 @@
 			}
 		}
 	</style>
-	<title>{t('navigation.statistics')} - Wayli</title>
 </svelte:head>
 
-<div class="space-y-6">
+<!-- Large Dataset Warning Modal -->
+{#if showLargeDatasetWarning}
+	<div class="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50">
+		<div class="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+			<div class="mb-4 flex items-center">
+				<AlertTriangle class="mr-3 h-6 w-6 text-yellow-500" />
+				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					Large Dataset Warning
+				</h3>
+			</div>
+			<div class="mb-6 text-sm text-gray-600 dark:text-gray-400">
+				<p class="mb-2">
+					You have <strong>{totalPointsCount.toLocaleString()}</strong> data points in the selected date range.
+				</p>
+				<p class="mb-2">
+					Processing this much data may take several minutes and could slow down your browser.
+				</p>
+				<p>
+					Consider selecting a smaller date range for better performance, or proceed if you want to process all data.
+				</p>
+			</div>
+			<div class="flex justify-end space-x-3">
+				<button
+					onclick={() => handleLargeDatasetConfirmation(false)}
+					class="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+				>
+					Cancel
+				</button>
+				<button
+					onclick={() => handleLargeDatasetConfirmation(true)}
+					class="rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
+				>
+					Proceed Anyway
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Header -->
 	<!-- Header -->
-	<div class="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+	<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
 		<div class="flex min-w-0 items-center gap-2">
 			<BarChart class="h-8 w-8 flex-shrink-0 text-blue-600 dark:text-gray-400" />
 			<h1 class="text-3xl font-bold whitespace-nowrap text-gray-900 dark:text-gray-100">
@@ -1391,335 +821,345 @@
 		</div>
 	</div>
 
+<div class="space-y-6">
 	<!-- Map -->
-	<div
-		class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900 {isEditMode
-			? 'cursor-pointer ring-4 ring-blue-400'
-			: ''}"
-		style={isEditMode ? 'cursor: pointer;' : ''}
-	>
-		{#if isLoading}
-			<div
-				class="absolute inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70"
-			>
-				<Loader2 class="h-16 w-16 animate-spin text-blue-500 dark:text-blue-300" />
-				<div class="mt-4 text-center">
-					<div class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
-						{loadingStage || t('statistics.loading')}
-					</div>
-					{#if loadingProgress > 0}
-						<div class="mb-2 h-2 w-64 rounded-full bg-gray-200 dark:bg-gray-700">
-							<div
-								class="h-2 rounded-full bg-blue-500 transition-all duration-500 ease-out"
-								style="width: {Math.round(loadingProgress)}%"
-							></div>
-						</div>
-						<div class="text-sm text-gray-600 dark:text-gray-400">
-							{t('statistics.percentComplete', { percent: Math.round(loadingProgress) })}
-						</div>
-					{/if}
-				</div>
-			</div>
-		{/if}
-		{#if isEditMode}
-			<div
-				class="absolute top-0 left-0 z-[1100] w-full bg-blue-500 py-2 text-center font-semibold text-white shadow-lg"
-			>
-				Edit mode: Click points to select. Use the buttons to delete or create a trip.
-			</div>
-		{/if}
+	<div class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900">
 		<div
 			bind:this={mapContainer}
-			class="map-container h-full w-full"
+			class="h-full w-full rounded-lg"
 			style="pointer-events: auto; touch-action: manipulation;"
 		></div>
 
-		<!-- No Data Message -->
-		{#if !isLoading && !isInitialLoad && locationData.length === 0}
-			<div
-				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
-				style="pointer-events: none;"
-			>
-				<div class="text-center" style="pointer-events: none;">
-					<MapPin
-						class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500"
-						style="pointer-events: none;"
-					/>
-					<h3
-						class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300"
-						style="pointer-events: none;"
+		<!-- Map Legend -->
+		<div class="absolute top-24 left-4 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3">
+			<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('statistics.modeColors')}</h4>
+			<div class="space-y-1">
+				{#each Object.entries(transportModeColors) as [mode, color]}
+					<div class="flex items-center space-x-2">
+						<div class="w-3 h-3 rounded-full" style="background-color: {color}"></div>
+						<span class="text-xs text-gray-600 dark:text-gray-400">{translateTransportMode(mode)}</span>
+					</div>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Point Details Popup -->
+		{#if selectedPoint}
+			<div class="absolute top-4 right-4 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm w-80">
+				<div class="flex justify-between items-start mb-3">
+					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('statistics.pointDetails')}</h4>
+					<button
+						onclick={closePointDetails}
+						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 					>
+						<X class="w-4 h-4" />
+					</button>
+				</div>
+
+				<div class="space-y-2 text-xs">
+					<div class="grid grid-cols-2 gap-2">
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.date')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">{new Date(selectedPoint.recorded_at).toLocaleString()}</div>
+						</div>
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.mode')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">{translateTransportMode(selectedPoint.transport_mode || 'unknown')}</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-2">
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.coordinates')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.lat}, {selectedPoint.lon}</div>
+						</div>
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupSpeed')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">
+								{selectedPoint.speed ? `${(selectedPoint.speed * 3.6).toFixed(1)} km/h` : 'N/A'}
+							</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-2">
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupDistance')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">
+								{selectedPoint.distance_from_prev ? `${(selectedPoint.distance_from_prev / 1000).toFixed(2)} km` : 'N/A'}
+							</div>
+						</div>
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.type')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.type || 'N/A'}</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-2">
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.class')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.class || 'N/A'}</div>
+						</div>
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.country')}:</span>
+							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.country_code || 'N/A'}</div>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-2 gap-2">
+						<div>
+							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupReason')}</span>
+							<div class="text-gray-800 dark:text-gray-200">
+								{selectedPoint.detection_reason ? getTransportDetectionReasonLabel(selectedPoint.detection_reason as TransportDetectionReason) : 'N/A'}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- No Data Message -->
+		{#if !isLoading && !isInitialLoad && (!statisticsData || Object.keys(statisticsData).length === 0)}
+			<div class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80">
+				<div class="text-center">
+					<MapPin class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
+					<h3 class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300">
 						{t('statistics.noDataMessage')}
 					</h3>
-					<p class="mb-4 text-sm text-gray-500 dark:text-gray-400" style="pointer-events: none;">
+					<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
 						{t('statistics.noDataMessage')}
 					</p>
 					<a
 						href="/dashboard/import-export"
 						class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-						style="pointer-events: auto;"
 					>
-						<Import class="h-4 w-4" style="pointer-events: none;" />
+						<Import class="h-4 w-4" />
 						Import Data
 					</a>
 				</div>
 			</div>
 		{/if}
-
-		<!-- Selection Info -->
-		{#if isEditMode && selectedMarkers.length > 0}
-			<div class="absolute bottom-4 left-4 z-[1001] rounded bg-white p-3 shadow dark:bg-gray-800">
-				<div class="text-sm text-gray-700 dark:text-gray-300">
-					{selectedMarkers.length} point{selectedMarkers.length !== 1 ? 's' : ''} selected
-				</div>
-			</div>
-		{/if}
-
-		<!-- Load More Button -->
-		{#if locationData.length < totalPoints}
-			<div class="absolute right-4 bottom-4 z-[1001] flex flex-col gap-2">
-				<button
-					onclick={() => loadMoreData()}
-					disabled={isLoading}
-					class="rounded bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-				>
-					{#if isLoading}
-						<Loader2 class="mr-1 inline h-4 w-4 animate-spin" />
-						{#if loadingStage}
-							<span class="text-xs text-gray-500">{loadingStage}</span>
-						{/if}
-					{:else}
-						{t('statistics.loadMore')} (+5,000) ({locationData.length.toLocaleString()}/{totalPoints.toLocaleString()})
-					{/if}
-				</button>
-			</div>
-		{/if}
 	</div>
-
-	<!-- Stats -->
-	{#if statisticsError}
-		<div class="mb-8 py-8 text-center font-semibold text-red-600 dark:text-red-400">
-			{t('statistics.errorLoadingStatistics')}
-			{statisticsError}
-		</div>
-	{:else if statisticsLoading}
-		<!-- Loading Placeholders -->
-		<!-- Top section: 4 tiles that span 25% width on larger screens -->
-		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			{#each Array(8) as _loadingItem, index (`loading-stat-${index}`)}
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-				>
-					<div class="flex items-center gap-2">
-						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-						<div class="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-					</div>
-					<div class="mt-1 h-6 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-				</div>
-			{/each}
-		</div>
-
-		<!-- Bottom section: 2 tiles that span 50% width -->
-		<div class="mb-8 flex flex-col gap-6 md:flex-row">
-			{#each Array(2) as _bottomItem, index (`loading-bottom-${index}`)}
-				<div
-					class="w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
-				>
-					<div class="mb-3 flex items-center gap-2">
-						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-					</div>
-					<div class="space-y-3">
-						{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
-							<div class="flex items-center gap-4">
-								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-								<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{/each}
-		</div>
-	{:else if !statisticsData || Object.keys(statisticsData).length === 0}
-		<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
-			No statistics available for this period.
-		</div>
-	{:else}
-		<!-- Actual Statistics Content -->
-		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
-				{@const IconComponent = stat.icon}
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-				>
-					<div class="flex items-center gap-2">
-						<IconComponent class="h-5 w-5 text-{stat.color}-500" />
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
-					</div>
-					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-						{stat.value}
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
-
-	<!-- Country Time Distribution and Modes of Transport: Side by Side -->
-	{#if statisticsData && !statisticsLoading && !statisticsError}
-		<div class="mb-8 flex flex-col gap-6 md:flex-row">
-			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
-				<div class="w-full md:w-1/2">
-					<div
-						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-					>
+		<!-- Loading State -->
+		{#if statisticsLoading}
+			<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+				{#each Array(8) as _, index (`loading-${index}`)}
+					<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
 						<div class="mb-3 flex items-center gap-2">
-							<Globe2 class="h-5 w-5 text-blue-500" />
-							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-								>{t('statistics.countryTimeDistribution')}</span
-							>
+							<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+							<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						</div>
-						<div class="space-y-4">
-							{#each statisticsData.countryTimeDistribution as country, index (`country-${index}-${country.country_code || 'unknown'}`)}
-								<div>
-									<div class="mb-1 flex items-center gap-2">
-										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
-										<span class="text-base text-gray-700 dark:text-gray-300"
-											>{$getCountryNameReactive(country.country_code)}</span
-										>
-									</div>
-									<div class="relative w-full">
-										<div
-											class="flex h-4 items-center justify-start rounded bg-gray-200 dark:bg-gray-700"
-										>
-											<div
-												class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
-												style="width: {country.percent}%; min-width: 2.5rem;"
-											>
-												<span class="w-full text-center">{country.percent}%</span>
-											</div>
-										</div>
-									</div>
+						<div class="space-y-3">
+							{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
+								<div class="flex items-center gap-4">
+									<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+									<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+									<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-							{t('statistics.ofSelectedPeriod')}
-						</div>
 					</div>
-				</div>
-			{/if}
-
-			{#if statisticsData.transport && statisticsData.transport.length > 0}
-				<div class="w-full md:w-1/2">
-					<div
-						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-					>
-						<div class="mb-3 flex items-center gap-2">
-							<Route class="h-5 w-5 text-blue-500" />
-							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-								>{t('statistics.transportModes')}</span
-							>
-						</div>
-						<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-							<thead>
-								<tr>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>{t('statistics.mode')}</th
-									>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>{t('statistics.distanceKm')}</th
-									>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>{t('statistics.time')}</th
-									>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>{t('statistics.percentOfTotal')}</th
-									>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-										>{t('statistics.points')}</th
-									>
-								</tr>
-							</thead>
-							<tbody>
-								{#each statisticsData.transport
-									.slice()
-									.filter((mode) => mode.mode !== 'stationary')
-									.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
-									<tr>
-										<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
-											>{translateTransportMode(mode.mode)}</td
-										>
-										<td
-											class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
-											>{mode.distance}</td
-										>
-										<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-											>{formatSegmentDuration(mode.time || 0)}</td
-										>
-										<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-											>{mode.percentage || 0}%</td
-										>
-										<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-											>{mode.points || 0}</td
-										>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</div>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- Train Station Visits Table -->
-	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
-		<div
-			class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
-		>
-			<div class="mb-3 flex items-center gap-2">
-				<Train class="h-5 w-5 text-blue-500" />
-				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100"
-					>{t('statistics.trainStationVisits')}</span
-				>
+				{/each}
 			</div>
-			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-				<thead>
-					<tr>
-						<th
-							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-							>Station</th
-						>
-						<th
-							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-							>Visits</th
-						>
-					</tr>
-				</thead>
-				<tbody>
-					{#each statisticsData.trainStationVisits
-						.slice()
-						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
+		{:else if !statisticsData || Object.keys(statisticsData).length === 0}
+			<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
+				No statistics available for this period.
+			</div>
+		{:else}
+			<!-- Actual Statistics Content -->
+			<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+				{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
+					{@const IconComponent = stat.icon}
+					<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+						<div class="flex items-center gap-2">
+							<IconComponent class="h-5 w-5 text-{stat.color}-500" />
+							<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
+						</div>
+						<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
+							{stat.value}
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- Country Time Distribution and Modes of Transport: Side by Side -->
+		{#if statisticsData && !statisticsLoading && !statisticsError}
+			<div class="mb-8 flex flex-col gap-6 md:flex-row">
+				{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
+					<div class="w-full md:w-1/2">
+						<div class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+							<div class="mb-3 flex items-center gap-2">
+								<Globe2 class="h-5 w-5 text-blue-500" />
+								<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+									{t('statistics.countryTimeDistribution')}
+								</span>
+							</div>
+							<div class="space-y-4">
+								{#each statisticsData.countryTimeDistribution as country, index (`country-${index}-${country.country_code || 'unknown'}`)}
+									<div>
+										<div class="mb-1 flex items-center gap-2">
+											<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
+											<span class="text-base text-gray-700 dark:text-gray-300">
+												{$getCountryNameReactive(country.country_code)}
+											</span>
+										</div>
+										<div class="relative w-full">
+											<div class="flex h-4 items-center justify-center rounded bg-gray-200 dark:bg-gray-700">
+												<div
+													class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
+													style="width: {country.percent}%; min-width: 2.5rem;"
+												>
+													<span class="w-full text-center">{country.percent}%</span>
+												</div>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+							<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+								{t('statistics.ofSelectedPeriod')}
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				{#if statisticsData.transport && statisticsData.transport.length > 0}
+					<div class="w-full md:w-1/2">
+						<div class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+							<div class="mb-3 flex items-center gap-2">
+								<Route class="h-5 w-5 text-blue-500" />
+								<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+									{t('statistics.transportModes')}
+								</span>
+							</div>
+							<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+								<thead>
+									<tr>
+										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+											{t('statistics.mode')}
+										</th>
+										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+											{t('statistics.distanceKm')}
+										</th>
+										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+											{t('statistics.time')}
+										</th>
+										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+											{t('statistics.percentOfTotal')}
+										</th>
+										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+											{t('statistics.points')}
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each statisticsData.transport
+										.slice()
+										.filter((mode) => mode.mode !== 'stationary')
+										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
+										<tr>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+												{translateTransportMode(mode.mode)}
+											</td>
+											<td class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300">
+												{mode.distance} km
+											</td>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
+												{formatSegmentDuration(mode.time || 0)}
+											</td>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
+												{mode.percentage}%
+											</td>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
+												{mode.points || 0}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				{/if}
+			</div>
+		{/if}
+
+		<!-- Train Station Visits Table -->
+		{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
+			<div class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800">
+				<div class="mb-3 flex items-center gap-2">
+					<Train class="h-5 w-5 text-blue-500" />
+					<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+						{t('statistics.trainStationVisits')}
+					</span>
+				</div>
+				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+					<thead>
 						<tr>
-							<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
-								>{station.name}</td
-							>
-							<td
-								class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
-								>{station.count}</td
-							>
+							<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+								Station
+							</th>
+							<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
+								Visits
+							</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-			<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-				within 300 meters of a station, at least 1 hour apart
+					</thead>
+					<tbody>
+						{#each statisticsData.trainStationVisits
+							.slice()
+							.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
+							<tr>
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+									{station.name}
+								</td>
+								<td class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300">
+									{station.count}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+					within 300 meters of a station, at least 1 hour apart
+				</div>
+			</div>
+		{/if}
+
+		<!-- Error Display -->
+		{#if statisticsError}
+			<div class="mb-8 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+				<div class="flex items-center">
+					<X class="mr-3 h-5 w-5 text-red-500" />
+					<div>
+						<h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+							Error loading statistics
+						</h3>
+						<p class="mt-1 text-sm text-red-700 dark:text-red-300">
+							{statisticsError}
+						</p>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+	<!-- Loading Overlay -->
+	{#if isLoading}
+		<div class="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70">
+			<Loader2 class="h-16 w-16 animate-spin text-blue-500 dark:text-blue-300" />
+			<div class="mt-4 text-center">
+				<div class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
+					{loadingStage || t('statistics.loading')}
+				</div>
+				{#if loadingProgress > 0}
+					<div class="mb-2 h-2 w-64 rounded-full bg-gray-200 dark:bg-gray-700">
+						<div
+							class="h-2 rounded-full bg-blue-500 transition-all duration-500 ease-out"
+							style="width: {Math.round(loadingProgress)}%"
+						></div>
+					</div>
+					<div class="text-sm text-gray-600 dark:text-gray-400">
+						{t('statistics.percentComplete', { percent: Math.round(loadingProgress) })}
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}

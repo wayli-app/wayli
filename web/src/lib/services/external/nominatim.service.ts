@@ -21,18 +21,22 @@ const config = {
 	rateLimit: parseInt(process.env?.NOMINATIM_RATE_LIMIT || '1000', 10)
 };
 
-console.log(`🌍 [NOMINATIM] Using endpoint: ${config.endpoint}`);
-
-const MIN_INTERVAL = 1000 / config.rateLimit;
+// Rate limiting configuration
+const MIN_INTERVAL = config.rateLimit > 0 ? 1000 / config.rateLimit : 0;
+const RATE_LIMIT_ENABLED = config.rateLimit > 0;
 
 let lastRequestTime = 0;
 
 export async function reverseGeocode(lat: number, lon: number): Promise<NominatimResponse> {
-	// Rate limiting
-	const now = Date.now();
-	const wait = Math.max(0, lastRequestTime + MIN_INTERVAL - now);
-	if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-	lastRequestTime = Date.now();
+	// Rate limiting (only if enabled and rate limit > 0)
+	if (RATE_LIMIT_ENABLED) {
+		const now = Date.now();
+		const wait = Math.max(0, lastRequestTime + MIN_INTERVAL - now);
+		if (wait > 0 && isFinite(wait)) {
+			await new Promise((resolve) => setTimeout(resolve, wait));
+		}
+		lastRequestTime = Date.now();
+	}
 
 	// Validate coordinates before making request
 	if (
@@ -104,11 +108,15 @@ export async function reverseGeocode(lat: number, lon: number): Promise<Nominati
 }
 
 export async function forwardGeocode(query: string): Promise<NominatimSearchResponse | null> {
-	// Rate limiting
-	const now = Date.now();
-	const wait = Math.max(0, lastRequestTime + MIN_INTERVAL - now);
-	if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
-	lastRequestTime = Date.now();
+	// Rate limiting (only if enabled and rate limit > 0)
+	if (RATE_LIMIT_ENABLED) {
+		const now = Date.now();
+		const wait = Math.max(0, lastRequestTime + MIN_INTERVAL - now);
+		if (wait > 0 && isFinite(wait)) {
+			await new Promise((resolve) => setTimeout(resolve, wait));
+		}
+		lastRequestTime = Date.now();
+	}
 
 	// Validate query
 	if (!query || typeof query !== 'string' || query.trim().length === 0) {

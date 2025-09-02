@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
     role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator')),
     avatar_url TEXT,
     home_address JSONB, -- Store geocoded location data
-    geocoding_stats JSONB DEFAULT '{}', -- Cached geocoding statistics to avoid expensive recalculations
+
     two_factor_enabled BOOLEAN DEFAULT false,
     two_factor_secret TEXT,
     two_factor_recovery_codes TEXT[],
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 COMMENT ON COLUMN public.user_profiles.two_factor_enabled IS 'Whether 2FA is enabled for this user';
 COMMENT ON COLUMN public.user_profiles.two_factor_secret IS 'TOTP secret for 2FA authentication';
 COMMENT ON COLUMN public.user_profiles.two_factor_recovery_codes IS 'Array of recovery codes for 2FA backup';
-COMMENT ON COLUMN public.user_profiles.geocoding_stats IS 'Cached geocoding statistics to avoid expensive recalculations';
+
 
 -- Create tracker_data table for OwnTracks and other tracking apps
 CREATE TABLE IF NOT EXISTS public.tracker_data (
@@ -90,7 +90,6 @@ CREATE TABLE IF NOT EXISTS public.tracker_data (
     battery_level INTEGER, -- Battery level percentage
     is_charging BOOLEAN,
     activity_type TEXT, -- 'walking', 'driving', 'cycling', etc.
-    raw_data JSONB, -- Store original data from tracking app
     geocode JSONB, -- Store geocoded data from Nominatim
     tz_diff DECIMAL(4, 1), -- Timezone difference from UTC in hours (e.g., +2.0, -5.0)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -189,7 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_visit_start ON public.poi_visit_lo
 CREATE INDEX IF NOT EXISTS idx_poi_visit_logs_visit_end ON public.poi_visit_logs(visit_end);
 CREATE INDEX IF NOT EXISTS idx_user_preferences_id ON public.user_preferences(id);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_id ON public.user_profiles(id);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_geocoding_stats ON public.user_profiles USING GIN (geocoding_stats);
+
 CREATE INDEX IF NOT EXISTS idx_tracker_data_user_id ON public.tracker_data(user_id);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_timestamp ON public.tracker_data(recorded_at);
 CREATE INDEX IF NOT EXISTS idx_tracker_data_device_id ON public.tracker_data(device_id);
@@ -481,19 +480,19 @@ BEGIN
     END IF;
 END $$;
 
--- Create RLS policies for spatial_ref_sys table (PostGIS spatial reference system table)
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'spatial_ref_sys' AND schemaname = 'public' AND policyname = 'Allow authenticated users to read spatial reference systems') THEN
-        CREATE POLICY "Allow authenticated users to read spatial reference systems" ON public.spatial_ref_sys
-            FOR SELECT USING (auth.role() = 'authenticated');
-    END IF;
+-- -- Create RLS policies for spatial_ref_sys table (PostGIS spatial reference system table)
+-- DO $$
+-- BEGIN
+--     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'spatial_ref_sys' AND schemaname = 'public' AND policyname = 'Allow authenticated users to read spatial reference systems') THEN
+--         CREATE POLICY "Allow authenticated users to read spatial reference systems" ON public.spatial_ref_sys
+--             FOR SELECT USING (auth.role() = 'authenticated');
+--     END IF;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'spatial_ref_sys' AND schemaname = 'public' AND policyname = 'Service role can access all spatial reference systems') THEN
-        CREATE POLICY "Service role can access all spatial reference systems" ON public.spatial_ref_sys
-            FOR ALL USING (auth.role() = 'service_role');
-    END IF;
-END $$;
+--     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'spatial_ref_sys' AND schemaname = 'public' AND policyname = 'Service role can access all spatial reference systems') THEN
+--         CREATE POLICY "Service role can access all spatial reference systems" ON public.spatial_ref_sys
+--             FOR ALL USING (auth.role() = 'service_role');
+--     END IF;
+-- END $$;
 
 -- Insert default settings if table is empty
 INSERT INTO public.server_settings (server_name, admin_email, allow_registration, require_email_verification)
@@ -563,7 +562,6 @@ BEGIN
         last_name,
         full_name,
         role,
-        geocoding_stats,
         created_at,
         updated_at
     ) VALUES (
@@ -572,16 +570,6 @@ BEGIN
         last_name,
         full_name,
         user_role,
-        jsonb_build_object(
-            'total_points', 0,
-            'geocoded_points', 0,
-            'points_needing_geocoding', 0,
-            'null_or_empty_geocodes', 0,
-            'retryable_errors', 0,
-            'non_retryable_errors', 0,
-            'last_calculated', NOW()::TEXT,
-            'cache_version', '1.0'
-        ),
         NOW(),
         NOW()
     );
@@ -596,21 +584,6 @@ BEGIN
         NOW(),
         NOW()
     );
-
-    -- Temporarily comment out audit logging to isolate the issue
-    -- PERFORM log_audit_event(
-    --     'user_registered',
-    --     'New user registered: ' || NEW.email,
-    --     'low',
-    --     jsonb_build_object(
-    --         'user_id', NEW.id,
-    --         'email', NEW.email,
-    --         'role', user_role,
-    --         'first_name', first_name,
-    --         'last_name', last_name,
-    --         'full_name', full_name
-    --     )
-    -- );
 
     RETURN NEW;
 END;
@@ -1224,144 +1197,8 @@ BEGIN
     END IF;
 END $$;
 
--- Geocoding Statistics Cache Functions and Triggers
--- Create function to update geocoding statistics cache
-CREATE OR REPLACE FUNCTION update_geocoding_stats_cache(
-    p_user_id UUID,
-    p_total_points INTEGER DEFAULT NULL,
-    p_geocoded_points INTEGER DEFAULT NULL,
-    p_points_needing_geocoding INTEGER DEFAULT NULL,
-    p_null_or_empty_geocodes INTEGER DEFAULT NULL,
-    p_retryable_errors INTEGER DEFAULT NULL,
-    p_non_retryable_errors INTEGER DEFAULT NULL,
-    p_last_calculated TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-)
-RETURNS VOID AS $$
-BEGIN
-    UPDATE public.user_profiles
-    SET geocoding_stats = jsonb_build_object(
-        'total_points', COALESCE(p_total_points, (geocoding_stats->>'total_points')::INTEGER),
-        'geocoded_points', COALESCE(p_geocoded_points, (geocoding_stats->>'geocoded_points')::INTEGER),
-        'points_needing_geocoding', COALESCE(p_points_needing_geocoding, (geocoding_stats->>'points_needing_geocoding')::INTEGER),
-        'null_or_empty_geocodes', COALESCE(p_null_or_empty_geocodes, (geocoding_stats->>'null_or_empty_geocodes')::INTEGER),
-        'retryable_errors', COALESCE(p_retryable_errors, (geocoding_stats->>'retryable_errors')::INTEGER),
-        'non_retryable_errors', COALESCE(p_non_retryable_errors, (geocoding_stats->>'non_retryable_errors')::INTEGER),
-        'last_calculated', p_last_calculated::TEXT,
-        'cache_version', '1.0'
-    ),
-    updated_at = NOW()
-    WHERE id = p_user_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create function to increment geocoding statistics when new points are added
-CREATE OR REPLACE FUNCTION increment_geocoding_stats_on_insert()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Only update if the new point has a location and no geocode
-    IF NEW.location IS NOT NULL AND (NEW.geocode IS NULL OR (NEW.geocode = '{}'::jsonb)) THEN
-        UPDATE public.user_profiles
-        SET geocoding_stats = jsonb_set(
-            jsonb_set(
-                COALESCE(geocoding_stats, '{}'::jsonb),
-                '{points_needing_geocoding}',
-                to_jsonb(COALESCE((geocoding_stats->>'points_needing_geocoding')::INTEGER, 0) + 1)
-            ),
-            '{total_points}',
-            to_jsonb(COALESCE((geocoding_stats->>'total_points')::INTEGER, 0) + 1)
-        ),
-        updated_at = NOW()
-        WHERE id = NEW.user_id;
-    ELSIF NEW.location IS NOT NULL THEN
-        -- Point has location and geocode, just increment total
-        UPDATE public.user_profiles
-        SET geocoding_stats = jsonb_set(
-            COALESCE(geocoding_stats, '{}'::jsonb),
-            '{total_points}',
-            to_jsonb(COALESCE((geocoding_stats->>'total_points')::INTEGER, 0) + 1)
-        ),
-        updated_at = NOW()
-        WHERE id = NEW.user_id;
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger to update geocoding stats when tracker_data is inserted
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_increment_geocoding_stats_on_insert') THEN
-        CREATE TRIGGER trigger_increment_geocoding_stats_on_insert
-            AFTER INSERT ON public.tracker_data
-            FOR EACH ROW
-            EXECUTE FUNCTION increment_geocoding_stats_on_insert();
-    END IF;
-END $$;
-
--- Create function to update geocoding statistics when geocode is updated
-CREATE OR REPLACE FUNCTION update_geocoding_stats_on_geocode_update()
-RETURNS TRIGGER AS $$
-DECLARE
-    old_needs_geocoding BOOLEAN;
-    new_needs_geocoding BOOLEAN;
-BEGIN
-    -- Determine if old geocode needed geocoding
-    old_needs_geocoding := (OLD.geocode IS NULL OR OLD.geocode = '{}'::jsonb OR
-                           (OLD.geocode ? 'error' AND OLD.geocode->>'error' = 'true' AND
-                            OLD.geocode->>'error_message' NOT LIKE '%unable to geocode%' AND
-                            OLD.geocode->>'error_message' NOT LIKE '%all nominatim endpoints failed%'));
-
-    -- Determine if new geocode needs geocoding
-    new_needs_geocoding := (NEW.geocode IS NULL OR NEW.geocode = '{}'::jsonb OR
-                           (NEW.geocode ? 'error' AND NEW.geocode->>'error' = 'true' AND
-                            NEW.geocode->>'error_message' NOT LIKE '%unable to geocode%' AND
-                            NEW.geocode->>'error_message' NOT LIKE '%all nominatim endpoints failed%'));
-
-    -- Only update if the status changed
-    IF old_needs_geocoding != new_needs_geocoding THEN
-        IF new_needs_geocoding THEN
-            -- Point now needs geocoding, increment counter
-            UPDATE public.user_profiles
-            SET geocoding_stats = jsonb_set(
-                COALESCE(geocoding_stats, '{}'::jsonb),
-                '{points_needing_geocoding}',
-                to_jsonb(COALESCE((geocoding_stats->>'points_needing_geocoding')::INTEGER, 0) + 1)
-            ),
-            updated_at = NOW()
-            WHERE id = NEW.user_id;
-        ELSE
-            -- Point no longer needs geocoding, decrement counter and increment geocoded
-            UPDATE public.user_profiles
-            SET geocoding_stats = jsonb_set(
-                jsonb_set(
-                    COALESCE(geocoding_stats, '{}'::jsonb),
-                    '{points_needing_geocoding}',
-                    to_jsonb(GREATEST(COALESCE((geocoding_stats->>'points_needing_geocoding')::INTEGER, 0) - 1, 0))
-                ),
-                '{geocoded_points}',
-                to_jsonb(COALESCE((geocoding_stats->>'geocoded_points')::INTEGER, 0) + 1)
-            ),
-            updated_at = NOW()
-            WHERE id = NEW.user_id;
-        END IF;
-    END IF;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create trigger to update geocoding stats when geocode is updated
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_geocoding_stats_on_geocode_update') THEN
-        CREATE TRIGGER trigger_update_geocoding_stats_on_geocode_update
-            AFTER UPDATE ON public.tracker_data
-            FOR EACH ROW
-            WHEN (OLD.geocode IS DISTINCT FROM NEW.geocode)
-            EXECUTE FUNCTION update_geocoding_stats_on_geocode_update();
-    END IF;
-END $$;
+-- Note: Geocoding statistics functions removed - statistics are now calculated client-side
+-- for better performance and simpler maintenance
 
 -- Ensure the first user is an admin
 -- This migration checks if there's only one user and makes them admin if they aren't already
@@ -1487,17 +1324,9 @@ BEGIN
     )
     UPDATE public.tracker_data
     SET
-        distance = dc.calculated_distance,
-        time_spent = dc.calculated_time_spent,
-        speed = LEAST(
-            ROUND((
-                CASE
-                    WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
-                    ELSE 0
-                END
-            )::numeric, 2),
-            9999999999.99
-        ),
+        distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+        time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+        speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99),
         updated_at = NOW()
     FROM distance_and_time_calculations dc
     WHERE tracker_data.user_id = dc.user_id
@@ -1671,17 +1500,9 @@ BEGIN
         )
         UPDATE public.tracker_data
         SET
-            distance = dc.calculated_distance,
-            time_spent = dc.calculated_time_spent,
-            speed = LEAST(
-                ROUND((
-                    CASE
-                        WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
-                        ELSE 0
-                    END
-                )::numeric, 2),
-                9999999999.99
-            ),
+            distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+            time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+            speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99),
             updated_at = NOW()
         FROM distance_and_time_calculations dc
         WHERE tracker_data.user_id = dc.user_id
@@ -2062,17 +1883,9 @@ BEGIN
     )
     UPDATE public.tracker_data
     SET
-        distance = dc.calculated_distance,
-        time_spent = dc.calculated_time_spent,
-        speed = LEAST(
-            ROUND((
-                CASE
-                    WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
-                    ELSE 0
-                END
-            )::numeric, 2),
-            9999999999.99
-        ),
+        distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+        time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+        speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99),
         updated_at = NOW()
     FROM distance_and_time_calculations dc
     WHERE tracker_data.user_id = dc.user_id
@@ -2145,17 +1958,9 @@ BEGIN
         )
         UPDATE public.tracker_data
         SET
-            distance = dc.calculated_distance,
-            time_spent = dc.calculated_time_spent,
-            speed = LEAST(
-                ROUND((
-                    CASE
-                        WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent)
-                        ELSE 0
-                    END
-                )::numeric, 2),
-                9999999999.99
-            ),
+            distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
+            time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
+            speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99),
             updated_at = NOW()
         FROM distance_and_time_calculations dc
         WHERE tracker_data.user_id = dc.user_id

@@ -218,8 +218,12 @@ describe('TripDetectionService', () => {
 
 			const point = {
 				geocode: {
-					address: { city: 'Amsterdam', country_code: 'nl' },
-				coordinates: { lat: 52.3676, lng: 4.9041 }
+					properties: {
+						address: { city: 'Amsterdam', country_code: 'nl' }
+					},
+					geometry: {
+						coordinates: [4.9041, 52.3676] // [lng, lat] format
+					}
 				}
 			};
 
@@ -237,8 +241,12 @@ describe('TripDetectionService', () => {
 
 			const point = {
 				geocode: {
-					address: { city: 'Amstelveen', country_code: 'nl' }, // Different city
-					coordinates: { lat: 52.3000, lng: 4.8500 } // Within 50km of Amsterdam
+					properties: {
+						address: { city: 'Amstelveen', country_code: 'nl' } // Different city
+					},
+					geometry: {
+						coordinates: [4.8500, 52.3000] // Within 50km of Amsterdam [lng, lat]
+					}
 				}
 			};
 
@@ -256,8 +264,12 @@ describe('TripDetectionService', () => {
 
 			const point = {
 				geocode: {
-					address: { city: 'Rotterdam', country_code: 'nl' }, // Different city
-					coordinates: { lat: 51.9225, lng: 4.4792 } // More than 50km from Amsterdam
+					properties: {
+						address: { city: 'Rotterdam', country_code: 'nl' } // Different city
+					},
+					geometry: {
+						coordinates: [4.4792, 51.9225] // More than 50km from Amsterdam [lng, lat]
+					}
 				}
 			};
 
@@ -275,8 +287,12 @@ describe('TripDetectionService', () => {
 
 			const point = {
 				geocode: {
-					address: {}, // No city name
-					coordinates: { lat: 52.3000, lng: 4.8500 } // Within 50km
+					properties: {
+						address: {} // No city name
+					},
+					geometry: {
+						coordinates: [4.8500, 52.3000] // Within 50km [lng, lat]
+					}
 				}
 			};
 
@@ -457,8 +473,12 @@ describe('TripDetectionService', () => {
 			const point1 = {
 				recorded_at: '2024-01-01T08:00:00Z',
 				geocode: {
-					address: { city: 'Amsterdam', country_code: 'nl' },
-					coordinates: { lat: 52.3676, lng: 4.9041 }
+					properties: {
+						address: { city: 'Amsterdam', country_code: 'nl' }
+					},
+					geometry: {
+						coordinates: [4.9041, 52.3676] // [lng, lat]
+					}
 				}
 			};
 
@@ -466,8 +486,12 @@ describe('TripDetectionService', () => {
 			const point2 = {
 				recorded_at: '2024-01-01T10:00:00Z',
 				geocode: {
-					address: { city: 'Amsterdam', country_code: 'nl' },
-					coordinates: { lat: 52.3676, lng: 4.9041 }
+					properties: {
+						address: { city: 'Amsterdam', country_code: 'nl' }
+					},
+					geometry: {
+						coordinates: [4.9041, 52.3676] // [lng, lat]
+					}
 				}
 			};
 
@@ -475,9 +499,13 @@ describe('TripDetectionService', () => {
 			const point3 = {
 				recorded_at: '2024-01-01T14:00:00Z',
 				geocode: {
-					address: { city: 'Amsterdam', country_code: 'nl' },
-						coordinates: { lat: 52.3676, lng: 4.9041 }
+					properties: {
+						address: { city: 'Amsterdam', country_code: 'nl' }
+					},
+					geometry: {
+						coordinates: [4.9041, 52.3676] // [lng, lat]
 					}
+				}
 			};
 
 			// Add first point

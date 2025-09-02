@@ -6,8 +6,7 @@ import type { ImageGenerationJob } from '../lib/types/trip-generation.types';
 
 export class ImageGenerationProcessorService {
 	private supabase = createWorkerClient();
-	private static readonly RATE_LIMIT_DELAY = 2000; // 2 seconds between requests
-	private static readonly MAX_REQUESTS_PER_HOUR = 200;
+	private static readonly RATE_LIMIT_DELAY = 1000; // 1 second between requests
 
 	/**
 	 * Process pending image generation jobs with rate limiting

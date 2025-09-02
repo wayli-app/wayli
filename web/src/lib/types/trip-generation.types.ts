@@ -1,4 +1,5 @@
 import type { GeocodedLocation } from './geocoding.types';
+import type { GeocodeGeoJSONFeature } from '../utils/geojson-converter';
 
 // Define VisitedLocation interface locally to avoid circular dependencies
 export interface VisitedLocation {
@@ -46,7 +47,9 @@ export interface TrackerDataPoint {
 	recorded_at: string;
 	country_code?: string;
 	geocode?:
+		| GeocodeGeoJSONFeature // New GeoJSON format
 		| {
+				// Legacy format for backward compatibility
 				address?: {
 					city?: string;
 					town?: string;
@@ -64,7 +67,7 @@ export interface TrackerDataPoint {
 				display_name?: string;
 				[key: string]: unknown;
 		  }
-		| string; // Allow for both object and string (JSON) formats
+		| string; // Allow for string (JSON) formats
 }
 
 // Interface for data returned by get_user_tracking_data function

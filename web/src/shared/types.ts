@@ -207,7 +207,6 @@ export interface Database {
 					role: string;
 					avatar_url: string | null;
 					home_address: Record<string, unknown> | null;
-					geocoding_stats: Record<string, unknown>;
 					two_factor_enabled: boolean;
 					two_factor_secret: string | null;
 					two_factor_recovery_codes: string[] | null;
@@ -222,7 +221,6 @@ export interface Database {
 					role?: string;
 					avatar_url?: string | null;
 					home_address?: Record<string, unknown> | null;
-					geocoding_stats?: Record<string, unknown>;
 					two_factor_enabled?: boolean;
 					two_factor_secret?: string | null;
 					two_factor_recovery_codes?: string[] | null;
@@ -237,7 +235,6 @@ export interface Database {
 					role?: string;
 					avatar_url?: string | null;
 					home_address?: Record<string, unknown> | null;
-					geocoding_stats?: Record<string, unknown>;
 					two_factor_enabled?: boolean;
 					two_factor_secret?: string | null;
 					two_factor_recovery_codes?: string[] | null;

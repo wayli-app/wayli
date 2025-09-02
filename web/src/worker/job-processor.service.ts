@@ -427,74 +427,90 @@ export class JobProcessorService {
 				// Start with a smaller batch size to avoid timeouts
 				let batchSize = 500; // Reduced from 1000 to avoid timeouts
 				const maxRetries = 3;
-				let retryCount = 0;
 				let totalUpdated = 0;
+				let batchNumber = 1;
 
-				while (retryCount < maxRetries) {
-					try {
-						console.log(`🧮 [IMPORT] Attempting distance calculation with batch size ${batchSize} (attempt ${retryCount + 1}/${maxRetries})`);
+				// Continue processing until no more records need distance calculation
+				while (true) {
+					let retryCount = 0;
+					let batchUpdated = 0;
 
-						// Try the small batch function first for better performance
-						const { data: distanceResult, error: distanceError } = await supabase.rpc(
-							'update_tracker_distances_small_batch',
-							{ target_user_id: userId, max_records: batchSize }
-						);
+					while (retryCount < maxRetries) {
+						try {
+							console.log(`🧮 [IMPORT] Attempting distance calculation batch ${batchNumber} with batch size ${batchSize} (attempt ${retryCount + 1}/${maxRetries})`);
 
-						if (distanceError) {
-							throw distanceError;
-						}
+							// Try the small batch function first for better performance
+							const { data: distanceResult, error: distanceError } = await supabase.rpc(
+								'update_tracker_distances_small_batch',
+								{ target_user_id: userId, max_records: batchSize }
+							);
 
-						totalUpdated = distanceResult || 0;
-						console.log(`✅ [IMPORT] Distance calculation completed: ${totalUpdated} records updated`);
-						break; // Success, exit retry loop
-
-					} catch (distanceError: any) {
-						retryCount++;
-						console.warn(`⚠️ [IMPORT] Distance calculation attempt ${retryCount} failed:`, distanceError);
-
-						// If it's a timeout error, reduce batch size and retry
-						if (distanceError?.code === '57014' && retryCount < maxRetries) {
-							batchSize = Math.max(50, Math.floor(batchSize * 0.5)); // Reduce batch size by half, minimum 50
-							console.log(`🔄 [IMPORT] Reducing batch size to ${batchSize} and retrying...`);
-
-							// If we're still getting timeouts, try the regular batch function
-							if (batchSize <= 100) {
-								console.log(`🔄 [IMPORT] Trying regular batch function with smaller batch size...`);
+							if (distanceError) {
+								throw distanceError;
 							}
-							continue;
-						}
 
-						// If it's not a timeout error, try the regular batch function as fallback
-						if (retryCount === 1) {
-							console.log(`🔄 [IMPORT] Trying regular batch function as fallback...`);
-							try {
-								const { data: fallbackResult, error: fallbackError } = await supabase.rpc(
-									'update_tracker_distances_batch',
-									{ target_user_id: userId, batch_size: Math.min(batchSize, 250) }
-								);
+							batchUpdated = distanceResult || 0;
+							console.log(`✅ [IMPORT] Distance calculation batch ${batchNumber} completed: ${batchUpdated} records updated`);
+							break; // Success, exit retry loop
 
-								if (!fallbackError) {
-									totalUpdated = fallbackResult || 0;
-									console.log(`✅ [IMPORT] Fallback distance calculation completed: ${totalUpdated} records updated`);
-									break; // Success with fallback
+						} catch (distanceError: any) {
+							retryCount++;
+							console.warn(`⚠️ [IMPORT] Distance calculation batch ${batchNumber} attempt ${retryCount} failed:`, distanceError);
+
+							// If it's a timeout error, reduce batch size and retry
+							if (distanceError?.code === '57014' && retryCount < maxRetries) {
+								batchSize = Math.max(50, Math.floor(batchSize * 0.5)); // Reduce batch size by half, minimum 50
+								console.log(`🔄 [IMPORT] Reducing batch size to ${batchSize} and retrying...`);
+
+								// If we're still getting timeouts, try the regular batch function
+								if (batchSize <= 100) {
+									console.log(`🔄 [IMPORT] Trying regular batch function with smaller batch size...`);
 								}
-							} catch (fallbackError) {
-								console.warn(`⚠️ [IMPORT] Fallback distance calculation also failed:`, fallbackError);
+								continue;
 							}
-						}
 
-						// If we've exhausted retries or it's not a timeout, log and continue
-						if (retryCount >= maxRetries) {
-							console.error('❌ [IMPORT] Distance calculation failed after all retries:', distanceError);
-						} else {
-							console.error('❌ [IMPORT] Distance calculation failed with non-timeout error:', distanceError);
+							// If it's not a timeout error, try the regular batch function as fallback
+							if (retryCount === 1) {
+								console.log(`🔄 [IMPORT] Trying regular batch function as fallback...`);
+								try {
+									const { data: fallbackResult, error: fallbackError } = await supabase.rpc(
+										'update_tracker_distances_batch',
+										{ target_user_id: userId, batch_size: Math.min(batchSize, 250) }
+									);
+
+									if (!fallbackError) {
+										batchUpdated = fallbackResult || 0;
+										console.log(`✅ [IMPORT] Fallback distance calculation batch ${batchNumber} completed: ${batchUpdated} records updated`);
+										break; // Success with fallback
+									}
+								} catch (fallbackError) {
+									console.warn(`⚠️ [IMPORT] Fallback distance calculation batch ${batchNumber} also failed:`, fallbackError);
+								}
+							}
+
+							// If we've exhausted retries or it's not a timeout, log and continue
+							if (retryCount >= maxRetries) {
+								console.error(`❌ [IMPORT] Distance calculation batch ${batchNumber} failed after all retries:`, distanceError);
+							} else {
+								console.error(`❌ [IMPORT] Distance calculation batch ${batchNumber} failed with non-timeout error:`, distanceError);
+							}
+							break;
 						}
+					}
+
+					totalUpdated += batchUpdated;
+
+					// If no records were updated in this batch, we're done
+					if (batchUpdated === 0) {
+						console.log(`✅ [IMPORT] No more records need distance calculation. Total updated: ${totalUpdated} records`);
 						break;
 					}
+
+					batchNumber++;
 				}
 
 				if (totalUpdated > 0) {
-					console.log(`✅ [IMPORT] Successfully updated distances for ${totalUpdated} records`);
+					console.log(`✅ [IMPORT] Successfully updated distances for ${totalUpdated} records in ${batchNumber - 1} batches`);
 				} else {
 					// If no records were updated, create a background job for distance calculation
 					console.log('🔄 [IMPORT] No distances calculated, creating background distance calculation job...');

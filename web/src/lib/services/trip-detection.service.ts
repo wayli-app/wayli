@@ -458,7 +458,7 @@ export class TripDetectionService {
 
 				// Filter out points without city names
 				const validPoints = batch.filter(
-					(point) => point.geocode?.address?.city && point.geocode.address.city.trim() !== ''
+					(point) => point.geocode?.properties?.address?.city && point.geocode.properties.address.city.trim() !== ''
 				);
 
 				if (validPoints.length === 0) {
@@ -608,12 +608,13 @@ export class TripDetectionService {
 		}
 
 		// Method 2: Radius-based detection (fallback)
-		if (location.coordinates && point.geocode?.coordinates) {
+		if (location.coordinates && point.geocode?.geometry?.coordinates) {
+			const [lon, lat] = point.geocode.geometry.coordinates;
 			const distance = this.calculateDistance(
 				location.coordinates.lat,
 				location.coordinates.lng,
-				point.geocode.coordinates.lat,
-				point.geocode.coordinates.lng
+				lat,
+				lon
 			);
 			return distance <= 50; // 50km radius as requested
 		}
@@ -642,11 +643,11 @@ export class TripDetectionService {
 	 */
 	private getCityFromPoint(point: any): string | null {
 		// Try different possible locations for city name
-		if (point.geocode?.address?.city) {
-			return point.geocode.address.city;
+		if (point.geocode?.properties?.address?.city) {
+			return point.geocode.properties.address.city;
 		}
-		if (point.geocode?.city) {
-			return point.geocode.city;
+		if (point.geocode?.properties?.city) {
+			return point.geocode.properties.city;
 		}
 
 		return null;
@@ -1137,7 +1138,9 @@ export class TripDetectionService {
 		const cityName = this.getCityFromPoint(point) || 'Unknown';
 
 		// Get coordinates from the point
-		const coordinates = point.geocode?.coordinates || { lat: 0, lng: 0 };
+		const coordinates = point.geocode?.geometry?.coordinates
+			? { lat: point.geocode.geometry.coordinates[1], lng: point.geocode.geometry.coordinates[0] }
+			: { lat: 0, lng: 0 };
 
 		// Determine country code from coordinates using countries.geojson
 		let countryCode = 'Unknown';
@@ -1148,16 +1151,16 @@ export class TripDetectionService {
 					countryCode = detectedCountry;
 				} else {
 					// Fallback to geocode data if coordinates don't match any country
-					countryCode = point.geocode?.address?.country_code || 'Unknown';
+					countryCode = point.geocode?.properties?.address?.country_code || 'Unknown';
 				}
 			} catch (error) {
 				console.error('❌ Error calling country detection function:', error);
 				// Fallback to geocode data if available
-				countryCode = point.geocode?.address?.country_code || 'Unknown';
+				countryCode = point.geocode?.properties?.address?.country_code || 'Unknown';
 			}
 		} else {
 			// Fallback to geocode data if coordinates are not available
-			countryCode = point.geocode?.address?.country_code || 'Unknown';
+			countryCode = point.geocode?.properties?.address?.country_code || 'Unknown';
 		}
 
 		// Check if we already have this location

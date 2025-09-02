@@ -1,4 +1,5 @@
 import { createWorkerClient } from '../../worker/client';
+import type { GeocodeGeoJSONFeature } from '../utils/geojson-converter';
 
 export interface TripLocation {
 	id: string;
@@ -16,7 +17,7 @@ export interface TripLocation {
 	is_charging?: boolean;
 	activity_type?: string;
 	raw_data?: Record<string, unknown>;
-	geocode?: GeocodeData | string | null;
+	geocode?: GeocodeData | GeocodeGeoJSONFeature | string | null;
 	created_at: string;
 	updated_at: string;
 	// Additional fields for compatibility with statistics page
@@ -29,6 +30,27 @@ export interface TripLocation {
 }
 
 export interface GeocodeData {
+	// New GeoJSON format
+	type?: 'Feature';
+	geometry?: {
+		type: 'Point';
+		coordinates: [number, number];
+	};
+	properties?: {
+		display_name?: string;
+		address?: Record<string, string>;
+		place_id?: string;
+		osm_type?: string;
+		osm_id?: string;
+		geocoded_at?: string;
+		geocoding_provider?: string;
+		geocoding_error?: string;
+		geocoding_status?: 'success' | 'failed';
+		retryable?: boolean;
+		permanent?: boolean;
+		[key: string]: unknown;
+	};
+	// Legacy format for backward compatibility
 	display_name?: string;
 	name?: string;
 	amenity?: string;

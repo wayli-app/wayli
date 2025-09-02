@@ -167,25 +167,22 @@ export class TripExclusionsApiService {
 			// Add to exclusions array
 			const updatedExclusions = [...currentExclusions, newExclusion];
 
-			// Upsert user preferences with new exclusions
-			const { error: upsertError } = await this.supabase.from('user_preferences').upsert(
-				{
-					id: userId,
+			// Update user preferences with new exclusions
+			const { error: updateError } = await this.supabase
+				.from('user_preferences')
+				.update({
 					trip_exclusions: updatedExclusions,
 					updated_at: new Date().toISOString()
-				},
-				{
-					onConflict: 'id'
-				}
-			);
+				})
+				.eq('id', userId);
 
-			if (upsertError) {
-				console.error('❌ [TripExclusionsAPI] Error upserting user preferences:', upsertError);
+			if (updateError) {
+				console.error('❌ [TripExclusionsAPI] Error updating user preferences:', updateError);
 				throw errorHandler.createError(
 					ErrorCode.DATABASE_ERROR,
 					'Failed to save trip exclusion',
 					500,
-					upsertError,
+					updateError,
 					{ userId }
 				);
 			}
@@ -272,25 +269,22 @@ export class TripExclusionsApiService {
 
 			currentExclusions[exclusionIndex] = updatedExclusion;
 
-			// Upsert user preferences with updated exclusions
-			const { error: upsertError } = await this.supabase.from('user_preferences').upsert(
-				{
-					id: userId,
+			// Update user preferences with updated exclusions
+			const { error: updateError } = await this.supabase
+				.from('user_preferences')
+				.update({
 					trip_exclusions: currentExclusions,
 					updated_at: new Date().toISOString()
-				},
-				{
-					onConflict: 'id'
-				}
-			);
+				})
+				.eq('id', userId);
 
-			if (upsertError) {
-				console.error('❌ [TripExclusionsAPI] Error upserting user preferences:', upsertError);
+			if (updateError) {
+				console.error('❌ [TripExclusionsAPI] Error updating user preferences:', updateError);
 				throw errorHandler.createError(
 					ErrorCode.DATABASE_ERROR,
 					'Failed to update trip exclusion',
 					500,
-					upsertError,
+					updateError,
 					{ userId }
 				);
 			}
@@ -357,25 +351,22 @@ export class TripExclusionsApiService {
 				);
 			}
 
-			// Upsert user preferences with updated exclusions
-			const { error: upsertError } = await this.supabase.from('user_preferences').upsert(
-				{
-					id: userId,
+			// Update user preferences with updated exclusions
+			const { error: updateError } = await this.supabase
+				.from('user_preferences')
+				.update({
 					trip_exclusions: updatedExclusions,
 					updated_at: new Date().toISOString()
-				},
-				{
-					onConflict: 'id'
-				}
-			);
+				})
+				.eq('id', userId);
 
-			if (upsertError) {
-				console.error('❌ [TripExclusionsAPI] Error upserting user preferences:', upsertError);
+			if (updateError) {
+				console.error('❌ [TripExclusionsAPI] Error updating user preferences:', updateError);
 				throw errorHandler.createError(
 					ErrorCode.DATABASE_ERROR,
 					'Failed to delete trip exclusion',
 					500,
-					upsertError,
+					updateError,
 					{ userId }
 				);
 			}

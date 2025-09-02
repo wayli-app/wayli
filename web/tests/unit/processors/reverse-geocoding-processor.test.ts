@@ -71,6 +71,7 @@ describe('processReverseGeocodingMissing', () => {
 				or: vi.fn().mockReturnThis(),
 				range: vi.fn().mockReturnThis(),
 				order: vi.fn().mockReturnThis(),
+				is: vi.fn().mockReturnThis(), // Add the missing .is() method
 				update: vi.fn().mockImplementation(() => {
 					const upd: any = {
 						eq: vi.fn().mockReturnThis(),
@@ -147,6 +148,7 @@ describe('processReverseGeocodingMissing', () => {
 			or: vi.fn().mockReturnThis(),
 			range: vi.fn().mockReturnThis(),
 			order: vi.fn().mockReturnThis(),
+			is: vi.fn().mockReturnThis(), // Add the missing .is() method
 			then: (onFulfilled: any) => {
 				onFulfilled({ count: 0, data: [], error: null });
 				return Promise.resolve();
@@ -158,10 +160,13 @@ describe('processReverseGeocodingMissing', () => {
 		// Expect we updated progress initially and finalized at 100%
 		expect(JobQueueService.updateJobProgress).toHaveBeenCalledWith(
 			'job2',
-			0,
-			expect.objectContaining({ totalPoints: 0 })
+			100,
+			expect.objectContaining({
+				totalProcessed: 0,
+				totalSuccess: 0,
+				totalErrors: 0
+			})
 		);
-		expect(JobQueueService.updateJobProgress).toHaveBeenCalledWith('job2', 100, expect.any(Object));
 
 		// restore
 		supabase.from = originalFrom;

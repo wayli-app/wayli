@@ -26,7 +26,7 @@ export * from './export-processor.service';
 export * from './audit-logger.service';
 export * from './user-profile.service';
 export * from './want-to-visit.service';
-export * from './statistics.service';
+// Note: statistics.service removed - now using client-statistics.service
 export * from './totp.service';
 export * from './trip-detection.service';
 export * from './trip-locations.service';

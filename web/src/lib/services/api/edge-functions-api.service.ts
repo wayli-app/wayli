@@ -490,26 +490,7 @@ export class EdgeFunctionsApiService {
 	}
 
 	// Tracker Data API Methods
-	async getTrackerDataWithMode(
-		session: Session,
-		options?: {
-			startDate?: string;
-			endDate?: string;
-			limit?: number;
-			offset?: number;
-			includeStatistics?: boolean;
-		}
-	) {
-		const params: Record<string, string> = {};
-		if (options?.startDate) params.start_date = options.startDate;
-		if (options?.endDate) params.end_date = options.endDate;
-		if (options?.limit) params.limit = options.limit.toString();
-		if (options?.offset) params.offset = options.offset.toString();
-		if (options?.includeStatistics)
-			params.include_statistics = options.includeStatistics.toString();
-
-		return this.makeRequest('tracker-data-with-mode', { session, params });
-	}
+	// Note: getTrackerDataWithMode method removed - now using client-side processing
 
 	// POI Visits API Methods
 	async detectPOIVisits(
@@ -540,21 +521,7 @@ export class EdgeFunctionsApiService {
 	}
 
 	// Statistics API Methods
-	async getGeocodingStats(
-		session: Session,
-		options?: {
-			startDate?: string;
-			endDate?: string;
-			forceRefresh?: string;
-		}
-	) {
-		const params: Record<string, string> = {};
-		if (options?.startDate) params.start_date = options.startDate;
-		if (options?.endDate) params.end_date = options.endDate;
-		if (options?.forceRefresh) params.forceRefresh = options.forceRefresh;
-
-		return this.makeRequest('statistics-geocoding-stats', { session, params });
-	}
+	// Note: getGeocodingStats method removed - now using client-side processing
 
 	// Health Check
 	async healthCheck() {

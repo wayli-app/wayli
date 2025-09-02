@@ -79,47 +79,61 @@ export async function importOwnTracksWithProgress(
 				const lat = parseFloat(parts[1]);
 				const lon = parseFloat(parts[2]);
 
-				if (!isNaN(timestamp) && !isNaN(lat) && !isNaN(lon)) {
-					const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
-
-					const recordedAt = applyTimezoneCorrectionToTimestamp(timestamp * 1000, lat, lon);
-
-					// Calculate timezone difference for this location
-					const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
-
-					const { error } = await supabase.from('tracker_data').upsert(
-						{
-							user_id: userId,
-							tracker_type: 'import',
-							location: `POINT(${lon} ${lat})`,
-							recorded_at: recordedAt,
-							country_code: countryCode,
-							tz_diff: tzDiff,  // Add timezone difference
-							altitude: parts[3] ? parseFloat(parts[3]) : null,
-							accuracy: parts[4] ? parseFloat(parts[4]) : null,
-							speed: parts[6] ? parseFloat(parts[6]) : null,
-							heading: parts[7] ? parseFloat(parts[7]) : null,
-							raw_data: {
-								import_source: 'owntracks',
-								data_type: 'location_point',
-								event: parts[8] || null,
-								vertical_accuracy: parts[5] ? parseFloat(parts[5]) : null
-							},
-							created_at: new Date().toISOString()
-						},
-						{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false }
-					);
-
-					if (!error) importedCount++;
-					else {
-						if ((error as { code?: string }).code === '23505') skippedCount++;
-						else {
-							errorCount++;
-							console.error(`❌ Error inserting OwnTracks line ${i}:`, error);
-						}
-					}
-				} else {
+				// Skip points with null or invalid coordinates
+				if (isNaN(timestamp) || isNaN(lat) || isNaN(lon) || lat === null || lon === null) {
 					skippedCount++;
+					console.log(`⚠️ Skipping OwnTracks line ${i}: invalid coordinates (lat: ${lat}, lon: ${lon})`);
+					continue;
+				}
+
+				const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
+
+				const recordedAt = applyTimezoneCorrectionToTimestamp(timestamp * 1000, lat, lon);
+
+				// Calculate timezone difference for this location
+				const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
+
+				// Create GeoJSON feature for the OwnTracks point
+				const geocodeFeature = {
+					type: 'Feature',
+					geometry: {
+						type: 'Point',
+						coordinates: [lon, lat]
+					},
+					properties: {
+						import_source: 'owntracks',
+						data_type: 'location_point',
+						event: parts[8] || null,
+						vertical_accuracy: parts[5] ? parseFloat(parts[5]) : null,
+						imported_at: new Date().toISOString()
+					}
+				};
+
+				const { error } = await supabase.from('tracker_data').upsert(
+					{
+						user_id: userId,
+						tracker_type: 'import',
+						location: `POINT(${lon} ${lat})`,
+						recorded_at: recordedAt,
+						country_code: countryCode,
+						tz_diff: tzDiff,  // Add timezone difference
+						altitude: parts[3] ? parseFloat(parts[3]) : null,
+						accuracy: parts[4] ? parseFloat(parts[4]) : null,
+						speed: parts[6] ? parseFloat(parts[6]) : null,
+						heading: parts[7] ? parseFloat(parts[7]) : null,
+						geocode: geocodeFeature,
+						created_at: new Date().toISOString()
+					} as any,
+					{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false, defaultToNull: false }
+				);
+
+				if (!error) importedCount++;
+				else {
+					if ((error as { code?: string }).code === '23505') skippedCount++;
+					else {
+						errorCount++;
+						console.error(`❌ Error inserting OwnTracks line ${i}:`, error);
+					}
 				}
 			} else {
 				skippedCount++;

@@ -468,14 +468,8 @@ export class ServiceAdapter {
 
 	/**
 	 * Statistics Operations
+	 * Note: getGeocodingStats method removed - now using client-side processing
 	 */
-	async getGeocodingStats(options?: {
-		startDate?: string;
-		endDate?: string;
-		forceRefresh?: string;
-	}) {
-		return this.edgeFunctionsService.getGeocodingStats(this.session, options);
-	}
 
 	/**
 	 * Admin Operations

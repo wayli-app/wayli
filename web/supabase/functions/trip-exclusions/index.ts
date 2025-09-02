@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
 					updated_at: new Date().toISOString()
 				},
 				{
-					onConflict: 'id'
+					onConflict: 'id',
+					defaultToNull: false
 				}
 			);
 
@@ -127,7 +128,8 @@ Deno.serve(async (req) => {
 					updated_at: new Date().toISOString()
 				},
 				{
-					onConflict: 'id'
+					onConflict: 'id',
+					defaultToNull: false
 				}
 			);
 
@@ -176,7 +178,8 @@ Deno.serve(async (req) => {
 					updated_at: new Date().toISOString()
 				},
 				{
-					onConflict: 'id'
+					onConflict: 'id',
+					defaultToNull: false
 				}
 			);
 

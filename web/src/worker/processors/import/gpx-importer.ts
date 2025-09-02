@@ -57,51 +57,65 @@ export async function importGPXWithProgress(
 			const lat = parseFloat(waypoint['@_lat']);
 			const lon = parseFloat(waypoint['@_lon']);
 
-			if (!isNaN(lat) && !isNaN(lon)) {
-				const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
-
-				let recordedAt = waypoint.time || new Date().toISOString();
-
-				// Apply timezone correction if we have a timestamp
-				if (waypoint.time) {
-					recordedAt = applyTimezoneCorrectionToTimestamp(waypoint.time, lat, lon);
-				}
-
-				// Calculate timezone difference for this location
-				const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
-
-				const { error } = await supabase.from('tracker_data').upsert(
-					{
-						user_id: userId,
-						tracker_type: 'import',
-						location: `POINT(${lon} ${lat})`,
-						recorded_at: recordedAt,
-						country_code: countryCode,
-						tz_diff: tzDiff,  // Add timezone difference
-						raw_data: {
-							name: waypoint.name || `GPX Waypoint ${i + 1}`,
-							description: waypoint.desc || `Imported from ${fileName}`,
-							category: 'waypoint',
-							import_source: 'gpx',
-							data_type: 'waypoint'
-						},
-						created_at: new Date().toISOString()
-					},
-					{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false }
-				);
-
-				if (!error) {
-					importedCount++;
-				} else {
-					const err = error as { code?: string };
-					if (err.code === '23505') skippedCount++;
-					else {
-						errorCount++;
-						console.error(`❌ Error inserting waypoint ${i}:`, error);
-					}
-				}
-			} else {
+			// Skip points with null or invalid coordinates
+			if (isNaN(lat) || isNaN(lon) || lat === null || lon === null) {
 				skippedCount++;
+				console.log(`⚠️ Skipping waypoint ${i + 1}: invalid coordinates (lat: ${lat}, lon: ${lon})`);
+				continue;
+			}
+
+			const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
+
+			let recordedAt = waypoint.time || new Date().toISOString();
+
+			// Apply timezone correction if we have a timestamp
+			if (waypoint.time) {
+				recordedAt = applyTimezoneCorrectionToTimestamp(waypoint.time, lat, lon);
+			}
+
+			// Calculate timezone difference for this location
+			const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
+
+			// Create GeoJSON feature for the waypoint
+			const geocodeFeature = {
+				type: 'Feature',
+				geometry: {
+					type: 'Point',
+					coordinates: [lon, lat]
+				},
+				properties: {
+					name: waypoint.name || `GPX Waypoint ${i + 1}`,
+					description: waypoint.desc || `Imported from ${fileName}`,
+					category: 'waypoint',
+					import_source: 'gpx',
+					data_type: 'waypoint',
+					imported_at: new Date().toISOString()
+				}
+			};
+
+			const { error } = await supabase.from('tracker_data').upsert(
+				{
+					user_id: userId,
+					tracker_type: 'import',
+					location: `POINT(${lon} ${lat})`,
+					recorded_at: recordedAt,
+					country_code: countryCode,
+					tz_diff: tzDiff,  // Add timezone difference
+					geocode: geocodeFeature,
+					created_at: new Date().toISOString()
+				} as any,
+				{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false, defaultToNull: false }
+			);
+
+			if (!error) {
+				importedCount++;
+			} else {
+				const err = error as { code?: string };
+				if (err.code === '23505') skippedCount++;
+				else {
+					errorCount++;
+					console.error(`❌ Error inserting waypoint ${i}:`, error);
+				}
 			}
 
 			if (i % 10 === 0 || i === waypoints.length - 1) {
@@ -138,44 +152,61 @@ export async function importGPXWithProgress(
 				const lat = parseFloat(point['@_lat']);
 				const lon = parseFloat(point['@_lon']);
 
-				if (!isNaN(lat) && !isNaN(lon)) {
-					const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
-
-					let recordedAt = point.time || new Date().toISOString();
-
-					// Apply timezone correction if we have a timestamp
-					if (point.time) {
-						recordedAt = applyTimezoneCorrectionToTimestamp(point.time, lat, lon);
-					}
-
-					// Calculate timezone difference for this location
-					const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
-
-					const { error } = await supabase.from('tracker_data').upsert(
-						{
-							user_id: userId,
-							tracker_type: 'import',
-							location: `POINT(${lon} ${lat})`,
-							recorded_at: recordedAt,
-							country_code: countryCode,
-							tz_diff: tzDiff,  // Add timezone difference
-							raw_data: { import_source: 'gpx', data_type: 'track_point' },
-							created_at: new Date().toISOString()
-						},
-						{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false }
-					);
-
-					if (!error) importedCount++;
-					else {
-						const err = error as { code?: string };
-						if (err.code === '23505') skippedCount++;
-						else {
-							errorCount++;
-							console.error(`❌ Error inserting track point ${j} in track ${i}:`, error);
-						}
-					}
-				} else {
+				// Skip points with null or invalid coordinates
+				if (isNaN(lat) || isNaN(lon) || lat === null || lon === null) {
 					skippedCount++;
+					console.log(`⚠️ Skipping waypoint ${i + 1}: invalid coordinates (lat: ${lat}, lon: ${lon})`);
+					continue;
+				}
+
+				const countryCode = safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
+
+				let recordedAt = point.time || new Date().toISOString();
+
+				// Apply timezone correction if we have a timestamp
+				if (point.time) {
+					recordedAt = applyTimezoneCorrectionToTimestamp(point.time, lat, lon);
+				}
+
+				// Calculate timezone difference for this location
+				const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
+
+				// Create GeoJSON feature for the track point
+				const geocodeFeature = {
+					type: 'Feature',
+					geometry: {
+						type: 'Point',
+						coordinates: [lon, lat]
+					},
+					properties: {
+						import_source: 'gpx',
+						data_type: 'track_point',
+						imported_at: new Date().toISOString()
+					}
+				};
+
+				const { error } = await supabase.from('tracker_data').upsert(
+					{
+						user_id: userId,
+						tracker_type: 'import',
+						location: `POINT(${lon} ${lat})`,
+						recorded_at: recordedAt,
+						country_code: countryCode,
+						tz_diff: tzDiff,  // Add timezone difference
+						geocode: geocodeFeature,
+						created_at: new Date().toISOString()
+					} as any,
+					{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false, defaultToNull: false }
+				);
+
+				if (!error) importedCount++;
+				else {
+					const err = error as { code?: string };
+					if (err.code === '23505') skippedCount++;
+					else {
+						errorCount++;
+						console.error(`❌ Error inserting track point ${j} in track ${i}:`, error);
+					}
 				}
 			}
 

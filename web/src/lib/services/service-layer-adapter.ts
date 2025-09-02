@@ -17,7 +17,7 @@ import { errorHandler } from './error-handler.service';
 import { LocationCacheService } from './location-cache.service';
 import { logger } from './logging.service';
 import { rateLimitService } from './rate-limit.service';
-import { StatisticsService } from './statistics.service';
+// Note: StatisticsService removed - now using ClientStatisticsService
 import { TripsService } from './trips.service';
 import { WantToVisitService } from './want-to-visit.service';
 
@@ -63,7 +63,7 @@ export class ServiceLayerAdapter {
 
 		// Client-safe application services
 		this.services.set('trips', new TripsService(supabase));
-		this.services.set('statistics', new StatisticsService());
+		// Note: StatisticsService removed - now using ClientStatisticsService
 		this.services.set('wantToVisit', new WantToVisitService());
 	}
 
@@ -153,10 +153,11 @@ export async function getTripsService() {
 
 /**
  * Get the statistics service
+ * Note: StatisticsService removed - now using ClientStatisticsService
  */
-export function getStatisticsService() {
-	return serviceAdapter.getService<StatisticsService>('statistics');
-}
+// export function getStatisticsService() {
+// 	return serviceAdapter.getService<StatisticsService>('statistics');
+// }
 
 /**
  * Get the location cache service (static utility)

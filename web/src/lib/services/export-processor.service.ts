@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 
 import { supabase } from '../../worker/supabase';
 import { checkJobCancellation } from '../utils/job-cancellation';
+import { isGeoJSONGeocode, getDisplayNameFromGeoJSON, getAddressFromGeoJSON } from '../utils/geojson-converter';
 
 import { ExportService } from './export.service.worker';
 
@@ -245,7 +246,6 @@ export class ExportProcessorService {
 		let batchNum = 0;
 		let firstFeature = true;
 		let geojson = '{"type":"FeatureCollection","features":[';
-		const geocodeArray: (Record<string, unknown> | null)[] = [];
 
 		while (true) {
 			let query = this.supabase.from('tracker_data').select('*').eq('user_id', userId);
@@ -263,8 +263,19 @@ export class ExportProcessorService {
 			if (!locations || locations.length === 0) break;
 
 			const features = locations.map((location: TrackerLocation) => {
-				// Add geocode to the array (null if missing)
-				geocodeArray.push(location.geocode ?? null);
+				// Handle geocode data - if it's in GeoJSON format, extract the properties
+				let geocodeProperties = null;
+				if (location.geocode) {
+					if (isGeoJSONGeocode(location.geocode)) {
+						// Extract properties from GeoJSON geocode
+						const geocodeGeoJSON = location.geocode as Record<string, unknown>;
+						geocodeProperties = geocodeGeoJSON.properties || null;
+					} else {
+						// Legacy format - use as is
+						geocodeProperties = location.geocode;
+					}
+				}
+
 				return JSON.stringify({
 					type: 'Feature',
 					geometry: {
@@ -281,7 +292,7 @@ export class ExportProcessorService {
 						is_charging: location.is_charging,
 						activity_type: location.activity_type,
 						country_code: location.country_code,
-						geocode: location.geocode ?? null
+						geocode: geocodeProperties
 					}
 				});
 			});
@@ -297,10 +308,7 @@ export class ExportProcessorService {
 			if (locations.length < batchSize) break;
 		}
 
-		geojson += ']';
-		// Add geocode array at the top level
-		geojson += ',"geocode":' + JSON.stringify(geocodeArray);
-		geojson += '}';
+		geojson += ']}';
 		console.log('[ExportWorker] exportLocationData done', { totalFetched, batches: batchNum });
 		return geojson;
 	}

@@ -274,13 +274,13 @@ async function analyzeTripLocations(
 				const geocode =
 					typeof point.geocode === 'string' ? JSON.parse(point.geocode) : point.geocode;
 
-				if (geocode && geocode.address) {
+				if (geocode && geocode.properties && geocode.properties.address) {
 					const city =
-						geocode.address.city ||
-						geocode.address.town ||
-						geocode.address.village ||
-						geocode.address.suburb ||
-						geocode.address.neighbourhood;
+						geocode.properties.address.city ||
+						geocode.properties.address.town ||
+						geocode.properties.address.village ||
+						geocode.properties.address.suburb ||
+						geocode.properties.address.neighbourhood;
 
 					if (city) {
 						const cityKey = city.toLowerCase().trim();
