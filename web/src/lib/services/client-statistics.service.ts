@@ -802,8 +802,8 @@ export class ClientStatisticsService {
 			let lastVisit = -Infinity;
 
 			for (const timestamp of timestamps) {
-				if (timestamp - lastVisit > 3600 * 1000) {
-					// 1 hour in milliseconds
+				if (timestamp - lastVisit > 1800 * 1000) {
+					// 0.5 hour in milliseconds
 					count++;
 					lastVisit = timestamp;
 				}
@@ -843,13 +843,15 @@ export class ClientStatisticsService {
 		}));
 
 		// Convert country time distribution to array
+		// Calculate total time spent in all countries
+		const totalCountryTime = Array.from(this.statistics.countryTimeDistribution.values())
+			.reduce((sum, time) => sum + time, 0);
+
 		const countryTimeDistribution = Array.from(
 			this.statistics.countryTimeDistribution.entries()
 		).map(([country, time]) => ({
 			country_code: country,
-			percent: Math.min(100, Math.round(
-				this.statistics.timeSpentMoving > 0 ? (time / this.statistics.timeSpentMoving) * 100 : 0
-			))
+			percent: totalCountryTime > 0 ? Math.round((time / totalCountryTime) * 100) : 0
 		}));
 
 		// Convert train station visits to array

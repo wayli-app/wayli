@@ -119,9 +119,15 @@
 	}
 
 	// Smooth progress animation function (reused from original)
-	function animateProgress(target: number, duration: number = 800) {
+	function animateProgress(target: number, duration: number = 800, immediate: boolean = false) {
 		if (progressAnimationId) {
 			clearTimeout(progressAnimationId);
+		}
+
+		// If immediate is true or we're starting from 0, set immediately without animation
+		if (immediate || (loadingProgress === 0 && target > 0)) {
+			loadingProgress = target;
+			return;
 		}
 
 		const start = loadingProgress;
@@ -215,6 +221,7 @@
 			isInitialLoad = false;
 			statisticsLoading = true;
 			statisticsError = '';
+			loadingProgress = 0; // Reset progress to 0 for new loading session
 
 			const startDate = appState.filtersStartDate
 				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
@@ -1019,12 +1026,12 @@
 											</span>
 										</div>
 										<div class="relative w-full">
-											<div class="flex h-4 items-center justify-center rounded bg-gray-200 dark:bg-gray-700">
+											<div class="h-4 rounded bg-gray-200 dark:bg-gray-700">
 												<div
 													class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
 													style="width: {country.percent}%; min-width: 2.5rem;"
 												>
-													<span class="w-full text-center">{country.percent}%</span>
+													<span>{country.percent}%</span>
 												</div>
 											</div>
 										</div>

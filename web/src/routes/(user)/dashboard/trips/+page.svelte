@@ -1832,7 +1832,7 @@
 							</div>
 							<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
 								<MapPin class="h-4 w-4" />
-								<span>{trip.metadata?.point_count ?? 0} {t('trips.points')}</span>
+								<span>{trip.metadata?.dataPoints ?? 0} {t('trips.points')}</span>
 							</div>
 
 							<!-- Pexels attribution -->
