@@ -284,30 +284,130 @@ export class ClientStatisticsService {
 				totalBatches
 			});
 
-			// Load data in batches
-			while (this.currentOffset < this.totalCount) {
-				const currentBatch = Math.floor(this.currentOffset / this.batchSize) + 1;
+			// Check if we should use smart sampling for large datasets
+			if (this.totalCount > 2000) {
+				console.log(`🧠 Using smart sampling for large dataset (${this.totalCount} points)`);
 
 				onProgress?.({
-					percentage: Math.round((batchesCompleted / totalBatches) * 100),
-					stage: `Loading batch ${currentBatch} of ${totalBatches}...`,
-					pointsLoaded,
+					percentage: 50,
+					stage: 'Loading sampled data...',
+					pointsLoaded: 0,
 					totalPoints: this.totalCount,
-					currentBatch,
-					totalBatches
+					currentBatch: 1,
+					totalBatches: 1
 				});
 
-				const batchData = await this.loadBatch(userId, startDate, endDate);
-				if (batchData.length === 0) break;
+				try {
+					// Load sampled data in chunks for better performance
+					const allSampledData: TrackerDataPoint[] = [];
+					const chunkSize = 1000;
+					let currentOffset = 0;
+					let hasMore = true;
 
-				// Process the batch
-				this.processBatch(batchData);
-				pointsLoaded += batchData.length;
-				this.currentOffset += this.batchSize;
-				batchesCompleted++;
+					while (hasMore) {
+						const chunkData = await this.loadSmartSampledData(userId, startDate, endDate, currentOffset, chunkSize, this.totalCount);
+						allSampledData.push(...chunkData);
 
-				// Small delay to prevent overwhelming the browser
-				await new Promise((resolve) => setTimeout(resolve, 10));
+						onProgress?.({
+							percentage: 50 + (currentOffset / this.totalCount) * 25,
+							stage: 'Loading sampled data...',
+							pointsLoaded: allSampledData.length,
+							totalPoints: this.totalCount,
+							currentBatch: Math.floor(currentOffset / chunkSize) + 1,
+							totalBatches: Math.ceil(this.totalCount / chunkSize)
+						});
+
+						// Check if we have more data to load
+						hasMore = chunkData.length === chunkSize;
+						currentOffset += chunkSize;
+
+						// Safety check to prevent infinite loops
+						if (currentOffset > this.totalCount) {
+							hasMore = false;
+						}
+					}
+
+					onProgress?.({
+						percentage: 75,
+						stage: 'Processing sampled data...',
+						pointsLoaded: allSampledData.length,
+						totalPoints: this.totalCount,
+						currentBatch: 1,
+						totalBatches: 1
+					});
+
+					// Process the sampled data
+					this.processBatch(allSampledData);
+					pointsLoaded = allSampledData.length;
+					batchesCompleted = 1;
+				} catch (samplingError) {
+					console.error('❌ Smart sampling failed, falling back to regular batch loading:', samplingError);
+
+					// Fallback to regular batch loading
+					onProgress?.({
+						percentage: 0,
+						stage: 'Falling back to regular loading...',
+						pointsLoaded: 0,
+						totalPoints: this.totalCount,
+						currentBatch: 0,
+						totalBatches
+					});
+
+					// Reset offset for regular loading
+					this.currentOffset = 0;
+
+					// Load data in batches
+					while (this.currentOffset < this.totalCount) {
+						const currentBatch = Math.floor(this.currentOffset / this.batchSize) + 1;
+
+						onProgress?.({
+							percentage: Math.round((batchesCompleted / totalBatches) * 100),
+							stage: `Loading batch ${currentBatch} of ${totalBatches}...`,
+							pointsLoaded,
+							totalPoints: this.totalCount,
+							currentBatch,
+							totalBatches
+						});
+
+						const batchData = await this.loadBatch(userId, startDate, endDate);
+						if (batchData.length === 0) break;
+
+						// Process the batch
+						this.processBatch(batchData);
+						pointsLoaded += batchData.length;
+						this.currentOffset += this.batchSize;
+						batchesCompleted++;
+
+						// Small delay to prevent overwhelming the browser
+						await new Promise((resolve) => setTimeout(resolve, 10));
+					}
+				}
+			} else {
+				// Load data in batches for smaller datasets
+				while (this.currentOffset < this.totalCount) {
+					const currentBatch = Math.floor(this.currentOffset / this.batchSize) + 1;
+
+					onProgress?.({
+						percentage: Math.round((batchesCompleted / totalBatches) * 100),
+						stage: `Loading batch ${currentBatch} of ${totalBatches}...`,
+						pointsLoaded,
+						totalPoints: this.totalCount,
+						currentBatch,
+						totalBatches
+					});
+
+					const batchData = await this.loadBatch(userId, startDate, endDate);
+					if (batchData.length === 0) break;
+
+					// Process the batch
+					this.processBatch(batchData);
+					pointsLoaded += batchData.length;
+					this.currentOffset += this.batchSize;
+					batchesCompleted++;
+
+					// Small delay to prevent overwhelming the browser
+					await new Promise((resolve) => setTimeout(resolve, 10));
+				}
 			}
 
 			// Finalize statistics
@@ -376,6 +476,93 @@ export class ClientStatisticsService {
 		}
 
 		return (data as any) || [];
+	}
+
+	/**
+	 * Load data using smart sampling for large datasets
+	 */
+	private async loadSmartSampledData(
+		userId: string,
+		startDate?: string,
+		endDate?: string,
+		offset: number = 0,
+		limit: number = 1000,
+		totalCount?: number
+	): Promise<TrackerDataPoint[]> {
+		try {
+			// Get session for authentication
+			const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+			if (sessionError || !session) {
+				throw new Error('User not authenticated');
+			}
+
+			// Call the smart sampling Edge Function
+			const response = await fetch(`${this.getFunctionsUrl()}/tracker-data-smart`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${session.access_token}`
+				},
+				body: JSON.stringify({
+					userId,
+					startDate,
+					endDate,
+					maxPointsThreshold: 1000,  // More aggressive threshold
+					offset,
+					limit,
+					totalCount  // Pass the already calculated total count
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			const result = await response.json();
+
+			if (result.error) {
+				throw new Error(result.error);
+			}
+
+			console.log(`🧠 Smart sampling result:`, {
+				returnedCount: result.metadata?.returnedCount || 0,
+				totalCount: result.metadata?.totalCount || 0,
+				samplingApplied: result.metadata?.samplingApplied || false,
+				samplingLevel: result.metadata?.samplingLevel || 'unknown',
+				samplingParams: result.metadata?.samplingParams || {}
+			});
+
+			// Transform the data to match the expected format
+			return (result.data || []).map((point: any) => ({
+				recorded_at: point.recorded_at,
+				time_spent: point.time_spent,
+				country_code: point.country_code,
+				location: point.location,
+				speed: point.speed,
+				distance: point.distance,
+				tz_diff: point.tz_diff,
+				type: point.geocode?.properties?.type,
+				class: point.geocode?.properties?.class,
+				addresstype: point.geocode?.properties?.addresstype,
+				city: point.geocode?.properties?.address?.city,
+				village: point.geocode?.properties?.address?.village
+			}));
+
+		} catch (error) {
+			console.error('❌ Error loading smart sampled data:', error);
+			// Fallback to regular loading if smart sampling fails
+			console.log('🔄 Falling back to regular batch loading...');
+			throw error; // Let the calling method handle the fallback
+		}
+	}
+
+	/**
+	 * Get the functions URL for Edge Function calls
+	 */
+	private getFunctionsUrl(): string {
+		// Use environment variable or default to local development
+		const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+		return `${supabaseUrl}/functions/v1`;
 	}
 
 	/**

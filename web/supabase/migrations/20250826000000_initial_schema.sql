@@ -1994,6 +1994,219 @@ COMMENT ON FUNCTION update_tracker_distances IS 'Updates distance and time_spent
 COMMENT ON FUNCTION update_tracker_distances_batch IS 'Updates distance and time_spent columns in batches for large datasets to avoid timeouts. Can target specific user for performance. (Fixed timeout syntax)';
 
 -- ========================================================================
+-- Function: sample_tracker_data_if_needed
+-- Intelligently samples tracker data when point count exceeds threshold
+-- ========================================================================
+CREATE OR REPLACE FUNCTION sample_tracker_data_if_needed(
+    p_target_user_id UUID,
+    p_start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    p_end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    p_max_points_threshold INTEGER DEFAULT 1000,
+    p_min_distance_meters DECIMAL DEFAULT 500,
+    p_min_time_minutes DECIMAL DEFAULT 5,
+    p_max_points_per_hour INTEGER DEFAULT 30,
+    p_offset INTEGER DEFAULT 0,
+    p_limit INTEGER DEFAULT 1000
+)
+RETURNS TABLE (
+    result_user_id UUID,
+    result_tracker_type TEXT,
+    result_device_id TEXT,
+    result_recorded_at TIMESTAMP WITH TIME ZONE,
+    result_location GEOMETRY(POINT, 4326),
+    result_country_code VARCHAR(2),
+    result_altitude DECIMAL(8, 2),
+    result_accuracy DECIMAL(8, 2),
+    result_speed DECIMAL(12, 2),
+    result_distance DECIMAL(8, 2),
+    result_time_spent DECIMAL(8, 2),
+    result_heading DECIMAL(5, 2),
+    result_battery_level INTEGER,
+    result_is_charging BOOLEAN,
+    result_activity_type TEXT,
+    result_geocode JSONB,
+    result_tz_diff DECIMAL(4, 1),
+    result_created_at TIMESTAMP WITH TIME ZONE,
+    result_updated_at TIMESTAMP WITH TIME ZONE,
+    result_is_sampled BOOLEAN,
+    result_total_count BIGINT
+) AS $$
+DECLARE
+    total_point_count BIGINT;
+    min_distance_degrees DECIMAL;
+    min_time_interval INTERVAL;
+BEGIN
+    -- Convert meters to degrees (approximate: 1 degree ≈ 111,000 meters)
+    min_distance_degrees := p_min_distance_meters / 111000.0;
+
+    -- Convert minutes to interval
+    min_time_interval := (p_min_time_minutes || ' minutes')::INTERVAL;
+
+    -- First, count total points in the date range
+    SELECT COUNT(*)
+    INTO total_point_count
+    FROM public.tracker_data
+    WHERE user_id = p_target_user_id
+    AND location IS NOT NULL
+    AND (p_start_date IS NULL OR recorded_at >= p_start_date)
+    AND (p_end_date IS NULL OR recorded_at <= p_end_date);
+
+    -- If point count is below threshold OR no sampling parameters are set, return all points
+    IF total_point_count <= p_max_points_threshold OR (p_min_distance_meters = 0 AND p_min_time_minutes = 0) THEN
+        RETURN QUERY
+        SELECT
+            td.user_id as result_user_id,
+            td.tracker_type as result_tracker_type,
+            td.device_id as result_device_id,
+            td.recorded_at as result_recorded_at,
+            td.location as result_location,
+            td.country_code as result_country_code,
+            td.altitude as result_altitude,
+            td.accuracy as result_accuracy,
+            td.speed as result_speed,
+            td.distance as result_distance,
+            td.time_spent as result_time_spent,
+            td.heading as result_heading,
+            td.battery_level as result_battery_level,
+            td.is_charging as result_is_charging,
+            td.activity_type as result_activity_type,
+            td.geocode as result_geocode,
+            td.tz_diff as result_tz_diff,
+            td.created_at as result_created_at,
+            td.updated_at as result_updated_at,
+            false as result_is_sampled,
+            total_point_count as result_total_count
+        FROM public.tracker_data td
+        WHERE td.user_id = p_target_user_id
+        AND td.location IS NOT NULL
+        AND (p_start_date IS NULL OR td.recorded_at >= p_start_date)
+        AND (p_end_date IS NULL OR td.recorded_at <= p_end_date)
+        ORDER BY td.recorded_at
+        LIMIT p_limit OFFSET p_offset;
+    ELSE
+        -- Apply intelligent sampling
+        RETURN QUERY
+        WITH ranked_points AS (
+            SELECT
+                td.user_id as result_user_id,
+                td.tracker_type as result_tracker_type,
+                td.device_id as result_device_id,
+                td.recorded_at as result_recorded_at,
+                td.location as result_location,
+                td.country_code as result_country_code,
+                td.altitude as result_altitude,
+                td.accuracy as result_accuracy,
+                td.speed as result_speed,
+                td.distance as result_distance,
+                td.time_spent as result_time_spent,
+                td.heading as result_heading,
+                td.battery_level as result_battery_level,
+                td.is_charging as result_is_charging,
+                td.activity_type as result_activity_type,
+                td.geocode as result_geocode,
+                td.tz_diff as result_tz_diff,
+                td.created_at as result_created_at,
+                td.updated_at as result_updated_at,
+                -- Calculate distance from previous point
+                CASE
+                    WHEN LAG(td.location) OVER (ORDER BY td.recorded_at) IS NULL THEN 0
+                    ELSE ST_DistanceSphere(
+                        LAG(td.location) OVER (ORDER BY td.recorded_at),
+                        td.location
+                    )
+                END as distance_from_prev,
+                -- Calculate time from previous point
+                CASE
+                    WHEN LAG(td.recorded_at) OVER (ORDER BY td.recorded_at) IS NULL THEN INTERVAL '0 seconds'
+                    ELSE td.recorded_at - LAG(td.recorded_at) OVER (ORDER BY td.recorded_at)
+                END as time_from_prev,
+                -- Calculate points per hour in sliding window
+                COUNT(*) OVER (
+                    ORDER BY td.recorded_at
+                    RANGE BETWEEN INTERVAL '1 hour' PRECEDING AND CURRENT ROW
+                ) as points_in_hour,
+                -- Row number for sampling
+                ROW_NUMBER() OVER (ORDER BY td.recorded_at) as row_num
+            FROM public.tracker_data td
+            WHERE td.user_id = p_target_user_id
+            AND td.location IS NOT NULL
+            AND (p_start_date IS NULL OR td.recorded_at >= p_start_date)
+            AND (p_end_date IS NULL OR td.recorded_at <= p_end_date)
+        ),
+        sampled_points AS (
+            SELECT
+                rp.result_user_id,
+                rp.result_tracker_type,
+                rp.result_device_id,
+                rp.result_recorded_at,
+                rp.result_location,
+                rp.result_country_code,
+                rp.result_altitude,
+                rp.result_accuracy,
+                rp.result_speed,
+                rp.result_distance,
+                rp.result_time_spent,
+                rp.result_heading,
+                rp.result_battery_level,
+                rp.result_is_charging,
+                rp.result_activity_type,
+                rp.result_geocode,
+                rp.result_tz_diff,
+                rp.result_created_at,
+                rp.result_updated_at,
+                rp.distance_from_prev,
+                rp.time_from_prev,
+                rp.points_in_hour,
+                rp.row_num,
+                -- Keep first and last points
+                CASE
+                    WHEN rp.row_num = 1 OR rp.row_num = total_point_count THEN true
+                    -- Keep points with significant movement
+                    WHEN rp.distance_from_prev >= p_min_distance_meters THEN true
+                    -- Keep points with significant time gap
+                    WHEN rp.time_from_prev >= min_time_interval THEN true
+                    -- Keep points if we're under the hourly limit
+                    WHEN rp.points_in_hour <= p_max_points_per_hour THEN true
+                    -- Sample remaining points (keep every nth point)
+                    WHEN rp.row_num % CEIL(total_point_count::DECIMAL / p_max_points_threshold) = 0 THEN true
+                    ELSE false
+                END as should_keep
+            FROM ranked_points rp
+        )
+        SELECT
+            sp.result_user_id,
+            sp.result_tracker_type,
+            sp.result_device_id,
+            sp.result_recorded_at,
+            sp.result_location,
+            sp.result_country_code,
+            sp.result_altitude,
+            sp.result_accuracy,
+            sp.result_speed,
+            sp.result_distance,
+            sp.result_time_spent,
+            sp.result_heading,
+            sp.result_battery_level,
+            sp.result_is_charging,
+            sp.result_activity_type,
+            sp.result_geocode,
+            sp.result_tz_diff,
+            sp.result_created_at,
+            sp.result_updated_at,
+            true as result_is_sampled,
+            total_point_count as result_total_count
+        FROM sampled_points sp
+        WHERE sp.should_keep = true
+        ORDER BY sp.result_recorded_at
+        LIMIT p_limit OFFSET p_offset;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add comment for the function
+COMMENT ON FUNCTION sample_tracker_data_if_needed IS 'Intelligently samples tracker data when point count exceeds threshold. Uses dynamic spatial-temporal sampling with configurable parameters that become more aggressive for larger datasets.';
+
+-- ========================================================================
 -- Migration: 20241201000005_add_full_country_function.sql
 -- Add the full_country function to map ISO 3166-1 alpha-2 country codes to full names
 -- ========================================================================
