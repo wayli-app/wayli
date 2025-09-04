@@ -1,13 +1,12 @@
 -- Basic Tables and Extensions Migration
 -- This migration creates the core database extensions and basic application tables
-CREATE SCHEMA IF NOT EXISTS postgis;
 
-SET search_path TO postgis;
 -- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "postgis";
+CREATE SCHEMA IF NOT EXISTS gis;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA gis;
+CREATE EXTENSION IF NOT EXISTS "postgis" WITH SCHEMA gis;
 
-SET search_path TO public;
+SET search_path TO public, gis;
 
 -- Create trips table
 CREATE TABLE IF NOT EXISTS public.trips (
@@ -28,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.trips (
 -- Add constraint to allow 'pending' status for suggested trips
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conname = 'trips_status_check'

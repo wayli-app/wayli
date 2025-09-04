@@ -1,13 +1,18 @@
 -- Distance Calculations Migration
 -- This migration creates functions for calculating distances between tracking points
 
+SET search_path TO public, gis;
+
 -- Function to calculate stable speed using multiple points and outlier filtering
 CREATE OR REPLACE FUNCTION calculate_stable_speed(
     user_id_param UUID,
     recorded_at_param TIMESTAMPTZ,
     window_size INTEGER DEFAULT 5
 )
-RETURNS DECIMAL AS $$
+RETURNS DECIMAL
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
     speed_result DECIMAL := 0;
     point_count INTEGER;
@@ -16,14 +21,13 @@ DECLARE
     avg_speed DECIMAL;
     outlier_threshold DECIMAL;
 BEGIN
-    SET search_path = public;
 
     -- Get points in window around the target point
     WITH point_window AS (
         SELECT
             location,
             recorded_at,
-            ST_DistanceSphere(
+            public.st_distancesphere(
                 LAG(location) OVER (ORDER BY recorded_at),
                 location
             ) AS distance,
@@ -97,11 +101,14 @@ BEGIN
 
     RETURN ROUND(speed_result, 2);
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Enhanced function to update distance and time_spent for all tracker_data records using stable speed calculation
 CREATE OR REPLACE FUNCTION update_tracker_distances(target_user_id UUID DEFAULT NULL)
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
     total_updated INTEGER := 0;
     batch_size INTEGER := 1000;
@@ -109,7 +116,6 @@ DECLARE
     has_more_records BOOLEAN := TRUE;
     user_filter TEXT := '';
 BEGIN
-    SET search_path = public;
     SET LOCAL statement_timeout = '30min';
 
     IF target_user_id IS NOT NULL THEN
@@ -129,7 +135,7 @@ BEGIN
                 t1.location,
                 CASE
                     WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
-                    ELSE ST_DistanceSphere(
+                    ELSE public.st_distancesphere(
                         LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
                         t1.location
                     )
@@ -149,13 +155,12 @@ BEGIN
         SET
             distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
             time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
-            -- Use enhanced stable speed calculation instead of simple division
-            speed = LEAST(ROUND(calculate_stable_speed(td.user_id, td.recorded_at, 5)::numeric, 2), 9999999999.99),
+            -- Calculate simple speed (distance / time)
+            speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) * 3.6 ELSE 0 END)::numeric, 2), 9999999999.99),
             updated_at = NOW()
         FROM distance_and_time_calculations dc
         WHERE td.user_id = dc.user_id
-          AND td.recorded_at = dc.recorded_at
-          AND td.location = dc.location;
+          AND td.recorded_at = dc.recorded_at;
 
         GET DIAGNOSTICS batch_updated = ROW_COUNT;
 
@@ -175,21 +180,24 @@ BEGIN
 
     RETURN total_updated;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Enhanced function to automatically calculate distance and time_spent for new/updated records
 CREATE OR REPLACE FUNCTION trigger_calculate_distance()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
     prev_point RECORD;
     calculated_distance DECIMAL;
     calculated_time_spent DECIMAL;
     stable_speed DECIMAL;
 BEGIN
-    SET search_path = public;
 
-    -- Only calculate if location is provided and it's an INSERT or location changed
-    IF NEW.location IS NOT NULL AND (TG_OP = 'INSERT' OR OLD.location IS DISTINCT FROM NEW.location) THEN
+    -- Only calculate if location is provided
+    -- For INSERT operations, always calculate. For UPDATE, always recalculate to be safe
+    IF NEW.location IS NOT NULL THEN
         -- Find the previous point for this user based on recorded_at
         SELECT
             location,
@@ -204,15 +212,19 @@ BEGIN
 
         IF prev_point IS NOT NULL THEN
             -- Calculate distance from previous point
-            calculated_distance := ST_DistanceSphere(prev_point.location, NEW.location);
+            calculated_distance := public.st_distancesphere(prev_point.location, NEW.location);
             NEW.distance := calculated_distance;
 
             -- Calculate time spent (time difference in seconds from previous point)
             calculated_time_spent := EXTRACT(EPOCH FROM (NEW.recorded_at - prev_point.recorded_at));
             NEW.time_spent := calculated_time_spent;
 
-            -- Use enhanced stable speed calculation
-            stable_speed := calculate_stable_speed(NEW.user_id, NEW.recorded_at, 5);
+            -- Calculate simple speed (distance / time)
+            IF calculated_time_spent > 0 THEN
+                stable_speed := (calculated_distance / calculated_time_spent) * 3.6; -- Convert m/s to km/h
+            ELSE
+                stable_speed := 0;
+            END IF;
             NEW.speed := LEAST(ROUND(stable_speed::numeric, 2), 9999999999.99);
         ELSE
             -- First point for this user - set distance and time_spent to 0
@@ -227,7 +239,7 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create trigger to automatically calculate distance for new records
 DROP TRIGGER IF EXISTS tracker_data_distance_trigger ON public.tracker_data;
@@ -238,30 +250,36 @@ CREATE TRIGGER tracker_data_distance_trigger
 
 -- Helper functions for managing triggers during bulk operations
 CREATE OR REPLACE FUNCTION disable_tracker_data_trigger()
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     ALTER TABLE public.tracker_data DISABLE TRIGGER tracker_data_distance_trigger;
     RAISE NOTICE 'Disabled tracker_data_distance_trigger for bulk operations';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION enable_tracker_data_trigger()
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     ALTER TABLE public.tracker_data ENABLE TRIGGER tracker_data_distance_trigger;
     RAISE NOTICE 'Enabled tracker_data_distance_trigger';
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Function to safely perform bulk import with optimized distance calculation
 CREATE OR REPLACE FUNCTION perform_bulk_import_with_distance_calculation(target_user_id UUID)
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
     updated_count INTEGER;
 BEGIN
-    SET search_path = public;
     RAISE NOTICE 'Starting bulk import optimization for user %...', target_user_id;
 
     -- Disable trigger for better performance during import
@@ -276,14 +294,17 @@ BEGIN
     RAISE NOTICE 'Bulk import optimization complete for user %. Updated % records.', target_user_id, updated_count;
     RETURN updated_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Function to update distances in batches for large datasets
 CREATE OR REPLACE FUNCTION update_tracker_distances_batch(
     target_user_id UUID DEFAULT NULL,
     batch_size INTEGER DEFAULT 1000  -- Reduced default batch size
 )
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
     total_updated INTEGER := 0;
     batch_updated INTEGER;
@@ -292,7 +313,6 @@ DECLARE
     start_time TIMESTAMP := clock_timestamp();
     max_execution_time INTERVAL := INTERVAL '5 minutes';  -- Reduced from 10 minutes
 BEGIN
-    SET search_path = public;
     -- Set shorter timeout for this function to prevent long-running operations
     SET statement_timeout = '300s';  -- 5 minutes
 
@@ -318,7 +338,7 @@ BEGIN
                 t1.location,
                 CASE
                     WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
-                    ELSE ST_DistanceSphere(
+                    ELSE public.st_distancesphere(
                         LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
                         t1.location
                     )
@@ -341,8 +361,7 @@ BEGIN
             speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
         FROM distance_and_time_calculations dc
         WHERE td.user_id = dc.user_id
-          AND td.recorded_at = dc.recorded_at
-          AND td.location = dc.location;
+          AND td.recorded_at = dc.recorded_at;
 
         GET DIAGNOSTICS batch_updated = ROW_COUNT;
 
@@ -369,18 +388,20 @@ BEGIN
                  clock_timestamp() - start_time;
     RETURN total_updated;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create a lightweight function for very small batches (useful for real-time updates)
 CREATE OR REPLACE FUNCTION update_tracker_distances_small_batch(
     target_user_id UUID DEFAULT NULL,
     max_records INTEGER DEFAULT 100  -- Very small batch size
 )
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 DECLARE
     total_updated INTEGER := 0;
 BEGIN
-    SET search_path = public;
     -- Set very short timeout
     SET statement_timeout = '30s';  -- 30 seconds
 
@@ -392,7 +413,7 @@ BEGIN
             t1.location,
             CASE
                 WHEN LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
-                ELSE ST_DistanceSphere(
+                ELSE public.st_distancesphere(
                     LAG(t1.location) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at),
                     t1.location
                 )
@@ -422,7 +443,7 @@ BEGIN
     GET DIAGNOSTICS total_updated = ROW_COUNT;
     RETURN total_updated;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Add helpful comments
 COMMENT ON FUNCTION calculate_stable_speed IS 'Calculates stable speed using multiple points and outlier filtering for noise reduction';

@@ -25,7 +25,8 @@ export type JobType =
 	| 'geocoding'
 	| 'image_generation'
 	| 'poi_detection'
-	| 'trip_detection';
+	| 'trip_detection'
+	| 'distance_calculation';
 export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
 

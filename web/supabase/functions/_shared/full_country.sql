@@ -1,6 +1,6 @@
 -- /web/supabase/functions/_shared/full_country.sql
 -- Returns the full country name for a given ISO 3166-1 alpha-2 code
-CREATE OR REPLACE FUNCTION full_country(country text) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION full_country(country text, set search_path = '') RETURNS text AS $$
 SELECT value
 FROM json_each_text('{
   "AF": "Afghanistan",

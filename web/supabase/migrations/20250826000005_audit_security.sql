@@ -1,6 +1,8 @@
 -- Audit and Security Migration
 -- This migration creates audit logging and security monitoring systems
 
+SET search_path TO public, gis;
+
 -- Create audit_logs table for security monitoring
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 -- Add constraints if they don't exist
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conname = 'audit_logs_severity_check'
@@ -46,11 +49,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_severity_timestamp ON public.audit_log
 
 -- Function to automatically clean up old audit logs
 CREATE OR REPLACE FUNCTION cleanup_old_audit_logs(retention_days INTEGER DEFAULT 90)
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
-    SET search_path = public;
     DELETE FROM public.audit_logs
     WHERE timestamp < NOW() - INTERVAL '1 day' * retention_days;
 
@@ -58,7 +64,7 @@ BEGIN
 
     RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Function to get audit statistics
 CREATE OR REPLACE FUNCTION get_audit_statistics(
@@ -70,9 +76,12 @@ RETURNS TABLE (
     events_by_type JSONB,
     events_by_severity JSONB,
     events_by_user JSONB
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     RETURN QUERY
     WITH stats AS (
         SELECT
@@ -99,21 +108,24 @@ BEGIN
         COALESCE(stats.events_by_user, '{}'::jsonb)
     FROM stats;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Function to update audit_logs updated_at timestamp
 CREATE OR REPLACE FUNCTION public.update_audit_logs_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create trigger to update audit_logs updated_at timestamp
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_audit_logs_updated_at') THEN
         CREATE TRIGGER update_audit_logs_updated_at
             BEFORE UPDATE ON public.audit_logs
@@ -147,9 +159,12 @@ CREATE OR REPLACE FUNCTION log_audit_event(
     p_severity TEXT DEFAULT 'low',
     p_metadata JSONB DEFAULT '{}'
 )
-RETURNS VOID AS $$
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     INSERT INTO public.audit_logs (
         user_id,
         event_type,
@@ -166,13 +181,16 @@ BEGIN
         NOW()
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Trigger for user role changes
 CREATE OR REPLACE FUNCTION audit_user_role_change()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     IF OLD.role IS DISTINCT FROM NEW.role THEN
         PERFORM log_audit_event(
             'user_role_change',
@@ -187,11 +205,12 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Create trigger for user role change auditing
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'audit_user_role_change_trigger') THEN
         CREATE TRIGGER audit_user_role_change_trigger
             AFTER UPDATE ON public.user_profiles
@@ -209,9 +228,12 @@ RETURNS TABLE (
     events_by_type JSONB,
     events_by_severity JSONB,
     last_activity TIMESTAMP WITH TIME ZONE
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     RETURN QUERY
     SELECT
         COUNT(*) as total_events,
@@ -229,7 +251,7 @@ BEGIN
         GROUP BY event_type, severity
     ) user_stats;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Grant permissions
 GRANT SELECT ON public.recent_security_events TO authenticated;

@@ -31,7 +31,8 @@ export class JobProcessorService {
 			geocoding: this.processGeocoding.bind(this),
 			image_generation: this.processImageGeneration.bind(this),
 			poi_detection: this.processPOIDetection.bind(this),
-			trip_detection: this.processTripDetection.bind(this)
+			trip_detection: this.processTripDetection.bind(this),
+			distance_calculation: this.processDistanceCalculation.bind(this)
 		};
 
 		return processors[jobType];
@@ -538,6 +539,17 @@ export class JobProcessorService {
 				// Don't fail the import, just log the error
 			}
 
+			// Remove duplicate tracking points
+			console.log('🧹 Removing duplicate tracking points...');
+			try {
+				const { removeDuplicateTrackingPoints } = await import('./processors/import/geojson-importer');
+				const { removed } = await removeDuplicateTrackingPoints(userId);
+				console.log(`✅ Removed ${removed} duplicate tracking points`);
+			} catch (dedupeError) {
+				console.warn('⚠️ Failed to remove duplicates:', dedupeError);
+				// Don't fail the import, just log the warning
+			}
+
 			// Update final progress
 			const elapsedSeconds = (Date.now() - startTime) / 1000;
 			await JobQueueService.updateJobProgress(job.id, 100, {
@@ -711,6 +723,44 @@ export class JobProcessorService {
 				return;
 			}
 			console.error(`❌ Error in trip detection job:`, error);
+			throw error;
+		}
+	}
+
+	private static async processDistanceCalculation(job: Job): Promise<void> {
+		try {
+			console.log(`🧮 Processing distance calculation job ${job.id}`);
+
+			await JobQueueService.updateJobProgress(job.id, 0, {
+				message: 'Starting distance calculation...'
+			});
+
+			const targetUserId = job.data.target_user_id as string;
+
+			// Call the database function to update distances
+			const { data, error } = await supabase.rpc('update_tracker_distances', {
+				target_user_id: targetUserId || null
+			});
+
+			if (error) {
+				console.error(`❌ Error in distance calculation:`, error);
+				throw new Error(`Distance calculation failed: ${error.message}`);
+			}
+
+			const updatedCount = data || 0;
+			console.log(`✅ Distance calculation completed: ${updatedCount} records updated`);
+
+			await JobQueueService.updateJobProgress(job.id, 100, {
+				message: `Successfully updated distances for ${updatedCount} records`,
+				updatedCount
+			});
+		} catch (error: unknown) {
+			// Check if the error is due to cancellation
+			if (error instanceof Error && error.message === 'Job was cancelled') {
+				console.log(`🛑 Distance calculation job ${job.id} was cancelled`);
+				return;
+			}
+			console.error(`❌ Error in distance calculation job:`, error);
 			throw error;
 		}
 	}

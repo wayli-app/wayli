@@ -109,23 +109,20 @@ export async function importOwnTracksWithProgress(
 					}
 				};
 
-				const { error } = await supabase.from('tracker_data').upsert(
-					{
-						user_id: userId,
-						tracker_type: 'import',
-						location: `POINT(${lon} ${lat})`,
-						recorded_at: recordedAt,
-						country_code: countryCode,
-						tz_diff: tzDiff,  // Add timezone difference
-						altitude: parts[3] ? parseFloat(parts[3]) : null,
-						accuracy: parts[4] ? parseFloat(parts[4]) : null,
-						speed: parts[6] ? parseFloat(parts[6]) : null,
-						heading: parts[7] ? parseFloat(parts[7]) : null,
-						geocode: geocodeFeature,
-						created_at: new Date().toISOString()
-					} as any,
-					{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false, defaultToNull: false }
-				);
+				const { error } = await supabase.from('tracker_data').insert({
+					user_id: userId,
+					tracker_type: 'import',
+					location: `POINT(${lon} ${lat})`,
+					recorded_at: recordedAt,
+					country_code: countryCode,
+					tz_diff: tzDiff,  // Add timezone difference
+					altitude: parts[3] ? parseFloat(parts[3]) : null,
+					accuracy: parts[4] ? parseFloat(parts[4]) : null,
+					speed: parts[6] ? parseFloat(parts[6]) : null,
+					heading: parts[7] ? parseFloat(parts[7]) : null,
+					geocode: geocodeFeature,
+					created_at: new Date().toISOString()
+				} as any);
 
 				if (!error) importedCount++;
 				else {

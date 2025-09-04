@@ -1,6 +1,8 @@
 -- Final Setup Migration
 -- This migration handles final setup tasks like admin user promotion
 
+SET search_path TO public, gis;
+
 -- Ensure the first user is an admin
 -- This migration checks if there's only one user and makes them admin if they aren't already
 DO $$
@@ -9,7 +11,7 @@ DECLARE
     first_user_id UUID;
     first_user_role TEXT;
 BEGIN
-    SET search_path = public;
+    SET search_path = public, gis;
     -- Count total users
     SELECT COUNT(*) INTO user_count FROM auth.users;
 

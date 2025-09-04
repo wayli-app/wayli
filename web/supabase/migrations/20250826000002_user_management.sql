@@ -1,6 +1,8 @@
 -- User Management Migration
 -- This migration creates user-related tables and authentication functions
 
+SET search_path TO public, gis;
+
 -- Create user_preferences table
 CREATE TABLE IF NOT EXISTS public.user_preferences (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
 -- Add role constraint if it doesn't exist
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conname = 'user_profiles_role_check'
@@ -77,7 +80,11 @@ CREATE INDEX IF NOT EXISTS idx_want_to_visit_places_created_at ON public.want_to
 
 -- Function to handle new user creation and assign admin role to first user
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 DECLARE
     user_count INTEGER;
     user_role TEXT;
@@ -86,7 +93,6 @@ DECLARE
     last_name TEXT;
     full_name TEXT;
 BEGIN
-    SET search_path = public;
     -- Count existing users
     SELECT COUNT(*) INTO user_count FROM auth.users;
 
@@ -164,11 +170,12 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Create trigger for new user registration
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'on_auth_user_created') THEN
         CREATE TRIGGER on_auth_user_created
             AFTER INSERT ON auth.users
@@ -178,17 +185,20 @@ END $$;
 
 -- Function to update user_profiles updated_at timestamp
 CREATE OR REPLACE FUNCTION public.update_user_profiles_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create trigger to update user_profiles updated_at timestamp
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_user_profiles_updated_at') THEN
         CREATE TRIGGER update_user_profiles_updated_at
             BEFORE UPDATE ON public.user_profiles
@@ -198,17 +208,20 @@ END $$;
 
 -- Function to update want_to_visit_places updated_at timestamp
 CREATE OR REPLACE FUNCTION update_want_to_visit_places_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Create trigger to update want_to_visit_places updated_at timestamp
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_want_to_visit_places_updated_at') THEN
         CREATE TRIGGER trigger_update_want_to_visit_places_updated_at
             BEFORE UPDATE ON public.want_to_visit_places
@@ -219,18 +232,21 @@ END $$;
 
 -- Function to check if user is admin
 CREATE OR REPLACE FUNCTION is_user_admin(user_uuid UUID)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 DECLARE
     user_role TEXT;
 BEGIN
-    SET search_path = public;
     SELECT role INTO user_role
     FROM public.user_profiles
     WHERE id = user_uuid;
 
     RETURN user_role = 'admin';
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Function to get server settings
 CREATE OR REPLACE FUNCTION get_server_settings()
@@ -239,9 +255,12 @@ RETURNS TABLE (
     admin_email TEXT,
     allow_registration BOOLEAN,
     require_email_verification BOOLEAN
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     RETURN QUERY
     SELECT
         ss.server_name,
@@ -251,7 +270,7 @@ BEGIN
     FROM public.server_settings ss
     LIMIT 1;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Grant access to authenticated users
 GRANT SELECT ON public.server_settings TO authenticated;

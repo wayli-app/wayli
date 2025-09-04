@@ -437,7 +437,8 @@ export class ClientStatisticsService {
 				geocode->properties->>type,
 				geocode->properties->>class,
 				geocode->properties->>addresstype,
-				COALESCE(geocode->properties->>city, geocode->properties->address->>city) as city,
+				geocode->properties->>city,
+				geocode->properties->address->>city,
 				geocode->properties->address->>village
 			`)
 			.eq('user_id', userId)
@@ -459,7 +460,13 @@ export class ClientStatisticsService {
 			throw new Error(`Failed to load batch: ${error.message}`);
 		}
 
-		return (data as any) || [];
+		// Process the data to handle COALESCE logic for city field
+		const processedData = (data as any[])?.map(point => ({
+			...point,
+			city: point.city || point.address_city || null
+		})) || [];
+
+		return processedData;
 	}
 
 	/**

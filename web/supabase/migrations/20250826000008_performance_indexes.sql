@@ -1,6 +1,8 @@
 -- Performance Indexes Migration
 -- This migration creates additional performance indexes for optimized queries
 
+SET search_path TO public, gis;
+
 -- Composite indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_tracker_data_user_timestamp_location
 ON public.tracker_data(user_id, recorded_at)

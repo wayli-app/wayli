@@ -1,6 +1,8 @@
 -- Tracking Data Migration
 -- This migration creates the tracker_data table and related spatial functions
 
+SET search_path TO public, gis;
+
 -- Create tracker_data table for OwnTracks and other tracking apps
 CREATE TABLE IF NOT EXISTS public.tracker_data (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -22,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.tracker_data (
     tz_diff DECIMAL(4, 1), -- Timezone difference from UTC in hours (e.g., +2.0, -5.0)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    PRIMARY KEY (user_id, location, recorded_at)
+    PRIMARY KEY (user_id, recorded_at)
 );
 
 -- Create poi_visit_logs table for detailed visit records
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.poi_visit_logs (
 -- Add constraints if they don't exist
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
         WHERE conname = 'poi_visit_logs_confidence_score_check'
@@ -89,26 +92,29 @@ RETURNS TABLE (
     lat DOUBLE PRECISION,
     lon DOUBLE PRECISION,
     distance_meters DOUBLE PRECISION
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     RETURN QUERY
     SELECT
         td.user_id,
         td.recorded_at,
-        ST_Y(td.location::geometry) as lat,
-        ST_X(td.location::geometry) as lon,
-        ST_DistanceSphere(td.location, ST_SetSRID(ST_MakePoint(center_lon, center_lat), 4326)) as distance_meters
+        gis.ST_Y(td.location::gis.geometry) as lat,
+        gis.ST_X(td.location::gis.geometry) as lon,
+        public.st_distancesphere(td.location, gis.ST_SetSRID(gis.ST_MakePoint(center_lon, center_lat), 4326)) as distance_meters
     FROM public.tracker_data td
     WHERE td.user_id = user_uuid
-      AND ST_DWithin(
-          td.location::geography,
-          ST_SetSRID(ST_MakePoint(center_lon, center_lat), 4326)::geography,
+      AND gis.ST_DWithin(
+          td.location::gis.geography,
+          gis.ST_SetSRID(gis.ST_MakePoint(center_lon, center_lat), 4326)::gis.geography,
           radius_meters
       )
     ORDER BY td.recorded_at;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Function to get user tracking data with optional filters
 CREATE OR REPLACE FUNCTION get_user_tracking_data(
@@ -129,15 +135,18 @@ RETURNS TABLE (
     geocode JSONB,
     distance DECIMAL,
     time_spent DECIMAL
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     RETURN QUERY
     SELECT
         td.user_id,
         td.recorded_at,
-        ST_Y(td.location::geometry) as lat,
-        ST_X(td.location::geometry) as lon,
+        gis.ST_Y(td.location::gis.geometry) as lat,
+        gis.ST_X(td.location::gis.geometry) as lon,
         td.altitude,
         td.accuracy,
         td.speed,
@@ -152,7 +161,7 @@ BEGIN
     ORDER BY td.recorded_at ASC -- Changed to ASC for proper distance calculation
     LIMIT limit_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Function: sample_tracker_data_if_needed
 -- Intelligently samples tracker data when point count exceeds threshold
@@ -189,13 +198,16 @@ RETURNS TABLE (
     result_updated_at TIMESTAMP WITH TIME ZONE,
     result_is_sampled BOOLEAN,
     result_total_count BIGINT
-) AS $$
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 DECLARE
     total_point_count BIGINT;
     min_distance_degrees DECIMAL;
     min_time_interval INTERVAL;
 BEGIN
-    SET search_path = public;
     -- Convert meters to degrees (approximate: 1 degree ≈ 111,000 meters)
     min_distance_degrees := p_min_distance_meters / 111000.0;
 
@@ -270,7 +282,7 @@ BEGIN
                 -- Calculate distance from previous point
                 CASE
                     WHEN LAG(td.location) OVER (ORDER BY td.recorded_at) IS NULL THEN 0
-                    ELSE ST_DistanceSphere(
+                    ELSE public.st_distancesphere(
                         LAG(td.location) OVER (ORDER BY td.recorded_at),
                         td.location
                     )
@@ -361,15 +373,19 @@ BEGIN
         LIMIT p_limit OFFSET p_offset;
     END IF;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- Add comment for the function
 COMMENT ON FUNCTION sample_tracker_data_if_needed IS 'Intelligently samples tracker data when point count exceeds threshold. Uses dynamic spatial-temporal sampling with configurable parameters that become more aggressive for larger datasets.';
 
 -- Function to get full country name for ISO codes
-CREATE OR REPLACE FUNCTION full_country(country text) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION full_country(country text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = ''
+AS $$
 BEGIN
-    SET search_path = public;
     RETURN (
         SELECT value
         FROM json_each_text('{
@@ -625,7 +641,45 @@ BEGIN
         WHERE key = UPPER(country)
     );
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$;
 
 -- Add comment for documentation
 COMMENT ON FUNCTION full_country(text) IS 'Maps ISO 3166-1 alpha-2 country codes to full country names';
+
+-- Function to remove duplicate tracking points
+-- Keeps the most recent record for each unique (user_id, recorded_at) combination
+CREATE OR REPLACE FUNCTION remove_duplicate_tracking_points(target_user_id UUID DEFAULT NULL)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+    deleted_count INTEGER := 0;
+BEGIN
+    -- Delete duplicates, keeping the most recent record (highest created_at)
+    -- Since the table doesn't have an id column, we use ctid (row identifier)
+    WITH duplicates AS (
+        SELECT
+            ctid,
+            ROW_NUMBER() OVER (
+                PARTITION BY user_id, recorded_at
+                ORDER BY created_at DESC, ctid DESC
+            ) as rn
+        FROM public.tracker_data
+        WHERE (target_user_id IS NULL OR user_id = target_user_id)
+    )
+    DELETE FROM public.tracker_data
+    WHERE ctid IN (
+        SELECT ctid
+        FROM duplicates
+        WHERE rn > 1
+    );
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+    RETURN deleted_count;
+END;
+$$;
+
+-- Add comment for documentation
+COMMENT ON FUNCTION remove_duplicate_tracking_points(UUID) IS 'Removes duplicate tracking points, keeping the most recent record for each unique (user_id, recorded_at) combination';

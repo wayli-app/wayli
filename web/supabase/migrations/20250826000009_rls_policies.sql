@@ -1,6 +1,8 @@
 -- RLS Policies Migration
 -- This migration creates Row Level Security policies for all application tables
 
+SET search_path TO public, gis;
+
 -- Enable RLS on all tables
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.poi_visit_logs ENABLE ROW LEVEL SECURITY;
@@ -16,6 +18,7 @@ ALTER TABLE public.want_to_visit_places ENABLE ROW LEVEL SECURITY;
 -- Create RLS policies for trips table
 DO $$
 BEGIN
+    SET search_path = public, gis;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'trips' AND schemaname = 'public' AND policyname = 'Users can view their own trips') THEN
         CREATE POLICY "Users can view their own trips" ON public.trips
             FOR SELECT USING (auth.uid() = user_id);

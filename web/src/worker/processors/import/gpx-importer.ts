@@ -93,19 +93,16 @@ export async function importGPXWithProgress(
 				}
 			};
 
-			const { error } = await supabase.from('tracker_data').upsert(
-				{
-					user_id: userId,
-					tracker_type: 'import',
-					location: `POINT(${lon} ${lat})`,
-					recorded_at: recordedAt,
-					country_code: countryCode,
-					tz_diff: tzDiff,  // Add timezone difference
-					geocode: geocodeFeature,
-					created_at: new Date().toISOString()
-				} as any,
-				{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false, defaultToNull: false }
-			);
+			const { error } = await supabase.from('tracker_data').insert({
+				user_id: userId,
+				tracker_type: 'import',
+				location: `POINT(${lon} ${lat})`,
+				recorded_at: recordedAt,
+				country_code: countryCode,
+				tz_diff: tzDiff,  // Add timezone difference
+				geocode: geocodeFeature,
+				created_at: new Date().toISOString()
+			} as any);
 
 			if (!error) {
 				importedCount++;
@@ -196,7 +193,7 @@ export async function importGPXWithProgress(
 						geocode: geocodeFeature,
 						created_at: new Date().toISOString()
 					} as any,
-					{ onConflict: 'user_id,location,recorded_at', ignoreDuplicates: false, defaultToNull: false }
+					{ onConflict: 'user_id,recorded_at', ignoreDuplicates: false, defaultToNull: false }
 				);
 
 				if (!error) importedCount++;

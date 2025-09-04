@@ -5,7 +5,9 @@
 -- Note: These buckets are configured with file size limits that match the config.toml settings
 -- - temp-files: 2GiB (for large import files)
 -- - trip-images: 10MiB (for trip images)
--- - exports: 100MiB (for user data exports)
+-- - exports: 2GiB (for user data exports)
+
+SET search_path TO public, gis;
 
 -- Create temp-files bucket for temporary import files
 INSERT INTO storage.buckets (id, name, file_size_limit)
@@ -20,7 +22,7 @@ INSERT INTO storage.buckets (id, name, file_size_limit)
 VALUES (
     'trip-images',
     'trip-images',
-    10485760  -- 10MiB in bytes
+    104857600  -- 100MiB in bytes
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Create exports bucket for user data exports
@@ -34,6 +36,7 @@ VALUES (
 -- Enable RLS on storage.objects with error handling
 DO $$
 BEGIN
+    SET search_path = public, gis;
     ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 EXCEPTION
     WHEN OTHERS THEN
@@ -44,6 +47,7 @@ END $$;
 -- Create storage policies with proper error handling, file size limits, and MIME type restrictions
 DO $$
 BEGIN
+    SET search_path = public, gis;
     -- Create storage policies for temp-files bucket (private, 2GB limit, specific MIME types)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Users can upload to temp-files') THEN
         CREATE POLICY "Users can upload to temp-files" ON storage.objects
@@ -148,12 +152,15 @@ END $$;
 
 -- Function to clean up expired export files
 CREATE OR REPLACE FUNCTION cleanup_expired_exports()
-RETURNS INTEGER AS $$
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
 DECLARE
     deleted_count INTEGER := 0;
     expired_job RECORD;
 BEGIN
-    SET search_path = public;
     -- Find expired export jobs
     FOR expired_job IN
         SELECT id, (data->>'file_path') as file_path
@@ -174,7 +181,7 @@ BEGIN
 
     RETURN deleted_count;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Grant execute permission to service role
 GRANT EXECUTE ON FUNCTION cleanup_expired_exports() TO service_role;

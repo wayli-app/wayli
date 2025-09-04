@@ -370,11 +370,7 @@ async function processFeatureChunk(
 
 	if (trackerData.length > 0) {
 		try {
-			const { error } = await supabase.from('tracker_data').upsert(trackerData, {
-				onConflict: 'user_id,location,recorded_at',
-				ignoreDuplicates: false,
-				defaultToNull: false
-			});
+					const { error } = await supabase.from('tracker_data').insert(trackerData);
 
 			if (!error) {
 				imported = trackerData.length;
@@ -394,61 +390,24 @@ async function processFeatureChunk(
 						});
 					}
 				}
-			} else {
-				for (const data of trackerData) {
-					try {
-						const { error: singleError } = await supabase.from('tracker_data').upsert(data, {
-							onConflict: 'user_id,location,recorded_at',
-							ignoreDuplicates: false,
-							defaultToNull: false
-						});
-						if (!singleError) {
-							imported++;
-						} else if ((singleError as any).code === '23505') {
-							skipped++;
-						} else {
-							errors++;
-							const code = (singleError as any).code || 'unknown';
-							errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + 1;
-							if (errorSummary.samples.length < 10)
-								errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}` });
-						}
-					} catch {
-						errors++;
-						const msg = 'upsert throw';
-						errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + 1;
-						if (errorSummary.samples.length < 10)
-							errorSummary.samples.push({ idx: chunkStart, reason: msg });
-					}
-				}
-			}
-		} catch {
-			for (const data of trackerData) {
-				try {
-					const { error: singleError } = await supabase.from('tracker_data').upsert(data, {
-						onConflict: 'user_id,location,recorded_at',
-						ignoreDuplicates: false,
-						defaultToNull: false
-					});
-					if (!singleError) {
-						imported++;
-					} else if ((singleError as any).code === '23505') {
-						skipped++;
 					} else {
-						errors++;
-						const code = (singleError as any).code || 'unknown';
-						errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + 1;
-						if (errorSummary.samples.length < 10)
-							errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}` });
-					}
-				} catch (err: any) {
-					errors++;
-					const msg = err?.message || 'upsert throw';
-					errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + 1;
-					if (errorSummary.samples.length < 10)
-						errorSummary.samples.push({ idx: chunkStart, reason: msg });
-				}
-			}
+			console.log(`❌ Batch insert failed with error:`, error);
+			// For insert failures, we'll handle duplicates during deduplication phase
+			errors += trackerData.length;
+			const code = (error as any).code || 'unknown';
+			const message = (error as any).message || 'unknown error';
+			errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + trackerData.length;
+			if (errorSummary.samples.length < 10)
+				errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}: ${message}` });
+		}
+		} catch (outerError: any) {
+			console.log(`❌ Outer batch processing error:`, outerError);
+			// For outer errors, we'll handle duplicates during deduplication phase
+			errors += trackerData.length;
+			const msg = outerError?.message || 'outer processing error';
+			errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + trackerData.length;
+			if (errorSummary.samples.length < 10)
+				errorSummary.samples.push({ idx: chunkStart, reason: msg });
 		}
 	}
 
@@ -470,5 +429,32 @@ function safeNormalizeCountryCode(countryCode: string | null): string | null {
 	} catch (error) {
 		console.warn('Failed to normalize country code:', error);
 		return null;
+	}
+}
+
+/**
+ * Remove duplicate tracking points for a user based on user_id and recorded_at
+ * Keeps the most recent record for each unique (user_id, recorded_at) combination
+ */
+export async function removeDuplicateTrackingPoints(userId: string): Promise<{ removed: number }> {
+	try {
+		console.log(`🧹 Removing duplicate tracking points for user ${userId}...`);
+
+		const { data, error } = await supabase.rpc('remove_duplicate_tracking_points', {
+			target_user_id: userId
+		});
+
+		if (error) {
+			console.error(`❌ Error removing duplicates:`, error);
+			throw error;
+		}
+
+		const removed = data || 0;
+		console.log(`✅ Removed ${removed} duplicate tracking points`);
+
+		return { removed };
+	} catch (error) {
+		console.error(`❌ Failed to remove duplicates:`, error);
+		throw error;
 	}
 }
