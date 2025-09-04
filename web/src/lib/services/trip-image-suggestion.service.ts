@@ -79,13 +79,14 @@ export class TripImageSuggestionService {
 						const geocode =
 							typeof point.geocode === 'string' ? JSON.parse(point.geocode) : point.geocode;
 
-						if (geocode && geocode.properties && geocode.properties.address) {
+						if (geocode && geocode.properties) {
 							const city =
-								geocode.properties.address.city ||
-								geocode.properties.address.town ||
-								geocode.properties.address.village ||
-								geocode.properties.address.suburb ||
-								geocode.properties.address.neighbourhood;
+								geocode.properties.city ||
+								geocode.properties.address?.city ||
+								geocode.properties.address?.town ||
+								geocode.properties.address?.village ||
+								geocode.properties.address?.suburb ||
+								geocode.properties.address?.neighbourhood;
 
 							if (city) {
 								const cityKey = city.toLowerCase().trim();

@@ -86,6 +86,7 @@ DECLARE
     last_name TEXT;
     full_name TEXT;
 BEGIN
+    SET search_path = public;
     -- Count existing users
     SELECT COUNT(*) INTO user_count FROM auth.users;
 
@@ -179,6 +180,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.update_user_profiles_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
+    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
@@ -198,6 +200,7 @@ END $$;
 CREATE OR REPLACE FUNCTION update_want_to_visit_places_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
+    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
@@ -220,6 +223,7 @@ RETURNS BOOLEAN AS $$
 DECLARE
     user_role TEXT;
 BEGIN
+    SET search_path = public;
     SELECT role INTO user_role
     FROM public.user_profiles
     WHERE id = user_uuid;
@@ -237,6 +241,7 @@ RETURNS TABLE (
     require_email_verification BOOLEAN
 ) AS $$
 BEGIN
+    SET search_path = public;
     RETURN QUERY
     SELECT
         ss.server_name,

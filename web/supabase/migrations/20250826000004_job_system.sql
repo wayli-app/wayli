@@ -93,6 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_workers_updated_at ON public.workers(updated_at);
 CREATE OR REPLACE FUNCTION public.update_workers_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
+    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
@@ -117,6 +118,7 @@ RETURNS UUID AS $$
 DECLARE
     job_id UUID;
 BEGIN
+    SET search_path = public;
     -- Insert the job using the correct column name (created_by instead of user_id)
     INSERT INTO public.jobs (
         type,

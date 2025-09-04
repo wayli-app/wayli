@@ -50,6 +50,7 @@ RETURNS INTEGER AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
+    SET search_path = public;
     DELETE FROM public.audit_logs
     WHERE timestamp < NOW() - INTERVAL '1 day' * retention_days;
 
@@ -71,6 +72,7 @@ RETURNS TABLE (
     events_by_user JSONB
 ) AS $$
 BEGIN
+    SET search_path = public;
     RETURN QUERY
     WITH stats AS (
         SELECT
@@ -103,6 +105,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.update_audit_logs_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
+    SET search_path = public;
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
@@ -146,6 +149,7 @@ CREATE OR REPLACE FUNCTION log_audit_event(
 )
 RETURNS VOID AS $$
 BEGIN
+    SET search_path = public;
     INSERT INTO public.audit_logs (
         user_id,
         event_type,
@@ -168,6 +172,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION audit_user_role_change()
 RETURNS TRIGGER AS $$
 BEGIN
+    SET search_path = public;
     IF OLD.role IS DISTINCT FROM NEW.role THEN
         PERFORM log_audit_event(
             'user_role_change',
@@ -206,6 +211,7 @@ RETURNS TABLE (
     last_activity TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
+    SET search_path = public;
     RETURN QUERY
     SELECT
         COUNT(*) as total_events,

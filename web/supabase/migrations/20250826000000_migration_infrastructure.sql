@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.database_migrations (
 CREATE OR REPLACE FUNCTION exec_sql(sql TEXT)
 RETURNS VOID AS $$
 BEGIN
+    SET search_path = public;
     EXECUTE sql;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

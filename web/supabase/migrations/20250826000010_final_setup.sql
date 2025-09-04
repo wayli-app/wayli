@@ -9,6 +9,7 @@ DECLARE
     first_user_id UUID;
     first_user_role TEXT;
 BEGIN
+    SET search_path = public;
     -- Count total users
     SELECT COUNT(*) INTO user_count FROM auth.users;
 

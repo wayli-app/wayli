@@ -153,6 +153,7 @@ DECLARE
     deleted_count INTEGER := 0;
     expired_job RECORD;
 BEGIN
+    SET search_path = public;
     -- Find expired export jobs
     FOR expired_job IN
         SELECT id, (data->>'file_path') as file_path

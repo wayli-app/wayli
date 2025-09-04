@@ -458,7 +458,10 @@ export class TripDetectionService {
 
 				// Filter out points without city names
 				const validPoints = batch.filter(
-					(point) => point.geocode?.properties?.address?.city && point.geocode.properties.address.city.trim() !== ''
+					(point) => {
+						const city = point.geocode?.properties?.city || point.geocode?.properties?.address?.city;
+						return city && city.trim() !== '';
+					}
 				);
 
 				if (validPoints.length === 0) {

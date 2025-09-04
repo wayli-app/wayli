@@ -91,6 +91,7 @@ RETURNS TABLE (
     distance_meters DOUBLE PRECISION
 ) AS $$
 BEGIN
+    SET search_path = public;
     RETURN QUERY
     SELECT
         td.user_id,
@@ -130,6 +131,7 @@ RETURNS TABLE (
     time_spent DECIMAL
 ) AS $$
 BEGIN
+    SET search_path = public;
     RETURN QUERY
     SELECT
         td.user_id,
@@ -193,6 +195,7 @@ DECLARE
     min_distance_degrees DECIMAL;
     min_time_interval INTERVAL;
 BEGIN
+    SET search_path = public;
     -- Convert meters to degrees (approximate: 1 degree ≈ 111,000 meters)
     min_distance_degrees := p_min_distance_meters / 111000.0;
 
@@ -365,8 +368,11 @@ COMMENT ON FUNCTION sample_tracker_data_if_needed IS 'Intelligently samples trac
 
 -- Function to get full country name for ISO codes
 CREATE OR REPLACE FUNCTION full_country(country text) RETURNS text AS $$
-SELECT value
-FROM json_each_text('{
+BEGIN
+    SET search_path = public;
+    RETURN (
+        SELECT value
+        FROM json_each_text('{
   "AF": "Afghanistan",
   "AL": "Albania",
   "DZ": "Algeria",
@@ -616,8 +622,10 @@ FROM json_each_text('{
   "ZM": "Zambia",
   "ZW": "Zimbabwe"
 }') AS json_data(key, value)
-WHERE key = UPPER(country);
-$$ LANGUAGE sql IMMUTABLE;
+        WHERE key = UPPER(country)
+    );
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Add comment for documentation
 COMMENT ON FUNCTION full_country(text) IS 'Maps ISO 3166-1 alpha-2 country codes to full country names';

@@ -439,10 +439,10 @@ export class JobProcessorService {
 						try {
 							console.log(`🧮 [IMPORT] Attempting distance calculation batch ${batchNumber} with batch size ${batchSize} (attempt ${retryCount + 1}/${maxRetries})`);
 
-							// Try the small batch function first for better performance
+							// Use the enhanced distance calculation function for better accuracy
 							const { data: distanceResult, error: distanceError } = await supabase.rpc(
-								'update_tracker_distances_small_batch',
-								{ target_user_id: userId, max_records: batchSize }
+								'update_tracker_distances',
+								{ target_user_id: userId }
 							);
 
 							if (distanceError) {

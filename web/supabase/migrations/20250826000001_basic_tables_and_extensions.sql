@@ -1,9 +1,13 @@
 -- Basic Tables and Extensions Migration
 -- This migration creates the core database extensions and basic application tables
+CREATE SCHEMA IF NOT EXISTS postgis;
 
+SET search_path TO postgis;
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
+
+SET search_path TO public;
 
 -- Create trips table
 CREATE TABLE IF NOT EXISTS public.trips (

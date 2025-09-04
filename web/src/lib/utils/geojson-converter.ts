@@ -14,6 +14,9 @@ export interface GeocodeGeoJSONFeature extends Feature<Point> {
 		place_id?: string;
 		osm_type?: string;
 		osm_id?: string;
+		// Extracted location fields for direct access
+		city?: string | null;
+		country?: string | null;
 		// Metadata fields
 		geocoded_at: string;
 		geocoding_provider: string;
@@ -37,6 +40,18 @@ export function convertNominatimToGeoJSON(
 	lon: number,
 	nominatimResponse: NominatimResponse
 ): GeocodeGeoJSONFeature {
+	// Extract city and country from address for direct access
+	let extractedCity: string | null = null;
+	let extractedCountry: string | null = null;
+
+	if (nominatimResponse.address && typeof nominatimResponse.address === 'object') {
+		const address = nominatimResponse.address as Record<string, string>;
+		// Try different possible city fields
+		extractedCity = address.city || address.town || address.village || address.municipality || address.suburb || null;
+		// Try different possible country fields
+		extractedCountry = address.country || address.country_name || null;
+	}
+
 	return {
 		type: 'Feature',
 		geometry: {
@@ -46,6 +61,9 @@ export function convertNominatimToGeoJSON(
 		properties: {
 			// Include all Nominatim response data as properties
 			...nominatimResponse,
+			// Add extracted city and country directly to properties
+			city: extractedCity,
+			country: extractedCountry,
 			// Add metadata for tracking
 			geocoded_at: new Date().toISOString(),
 			geocoding_provider: 'nominatim'
@@ -132,16 +150,48 @@ export function mergeGeocodingWithExisting(
 	// Start with the new geocoding data
 	const newGeocodeGeoJSON = convertNominatimToGeoJSON(lat, lon, nominatimResponse);
 
-	// If there's no existing geocode data, return the new data
+	// Extract city and country from address for direct access
+	let extractedCity: string | null = null;
+	let extractedCountry: string | null = null;
+
+	if (nominatimResponse.address && typeof nominatimResponse.address === 'object') {
+		const address = nominatimResponse.address as Record<string, string>;
+		// Try different possible city fields
+		extractedCity = address.city || address.town || address.village || address.municipality || address.suburb || null;
+		// Try different possible country fields
+		extractedCountry = address.country || address.country_name || null;
+	}
+
+	// If there's no existing geocode data, return the new data with extracted fields
 	if (!existingGeocode || typeof existingGeocode !== 'object') {
-		return newGeocodeGeoJSON;
+		const properties = {
+			...newGeocodeGeoJSON.properties,
+			// Add extracted city and country directly to properties
+			city: extractedCity,
+			country: extractedCountry
+		};
+
+		return {
+			...newGeocodeGeoJSON,
+			properties
+		} as GeocodeGeoJSONFeature;
 	}
 
 	const existing = existingGeocode as Record<string, unknown>;
 
-	// If existing data is not a GeoJSON Feature, return the new data
+	// If existing data is not a GeoJSON Feature, return the new data with extracted fields
 	if (existing.type !== 'Feature' || !existing.properties) {
-		return newGeocodeGeoJSON;
+		const properties = {
+			...newGeocodeGeoJSON.properties,
+			// Add extracted city and country directly to properties
+			city: extractedCity,
+			country: extractedCountry
+		};
+
+		return {
+			...newGeocodeGeoJSON,
+			properties
+		} as GeocodeGeoJSONFeature;
 	}
 
 	const existingProperties = existing.properties as Record<string, unknown>;
@@ -152,6 +202,9 @@ export function mergeGeocodingWithExisting(
 		...existingProperties,
 		// Add/update geocoding-specific properties
 		...newGeocodeGeoJSON.properties,
+		// Add extracted city and country directly to properties
+		city: extractedCity,
+		country: extractedCountry,
 		// Ensure we keep the original import metadata
 		imported_at: existingProperties.imported_at,
 		import_source: existingProperties.import_source,

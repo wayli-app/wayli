@@ -4,8 +4,11 @@
 import { supabase } from '$lib/supabase';
 import {
 	detectEnhancedMode,
-	haversine,
-	type EnhancedModeContext,
+	createEnhancedModeContext,
+	type EnhancedModeContext
+} from '$lib/utils/enhanced-transport-mode';
+import { haversine } from '$lib/utils/multi-point-speed';
+import {
 	isAtTrainStation,
 	getTrainStationName,
 	isAtAirport,
@@ -173,26 +176,7 @@ export class ClientStatisticsService {
 	 * Initialize transport mode detection context
 	 */
 	private initializeTransportContext(): EnhancedModeContext {
-		return {
-			currentMode: 'unknown',
-			lastSpeed: 0,
-
-			// Train tracking
-			trainStations: [],
-			isInTrainJourney: false,
-
-			// Airport tracking (Phase 1)
-			airports: [],
-			isInAirplaneJourney: false,
-
-			// Speed and history tracking (Phase 1)
-			averageSpeed: 0,
-			speedHistory: [],
-			modeHistory: [],
-
-			// Distance tracking (Phase 1)
-			totalDistanceTraveled: 0
-		};
+		return createEnhancedModeContext();
 	}
 
 	/**
@@ -453,7 +437,7 @@ export class ClientStatisticsService {
 				geocode->properties->>type,
 				geocode->properties->>class,
 				geocode->properties->>addresstype,
-				geocode->properties->address->>city,
+				COALESCE(geocode->properties->>city, geocode->properties->address->>city) as city,
 				geocode->properties->address->>village
 			`)
 			.eq('user_id', userId)
@@ -544,7 +528,7 @@ export class ClientStatisticsService {
 				type: point.geocode?.properties?.type,
 				class: point.geocode?.properties?.class,
 				addresstype: point.geocode?.properties?.addresstype,
-				city: point.geocode?.properties?.address?.city,
+				city: point.geocode?.properties?.city || point.geocode?.properties?.address?.city,
 				village: point.geocode?.properties?.address?.village
 			}));
 
