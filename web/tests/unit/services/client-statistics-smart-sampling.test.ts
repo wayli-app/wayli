@@ -36,7 +36,7 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 		service = new ClientStatisticsService(mockSupabase);
 	});
 
-	it('should use smart sampling for large datasets (>2000 points)', async () => {
+	it('should use smart sampling for large datasets (>1000 points)', async () => {
 		// Mock session
 		mockSupabase.auth.getSession.mockResolvedValue({
 			data: { session: { access_token: 'test-token' } },
@@ -82,13 +82,17 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({
-					'Authorization': 'Bearer test-token'
+					'Authorization': 'Bearer test-token',
+					'Content-Type': 'application/json'
 				}),
 				body: JSON.stringify({
 					userId: 'test-user-id',
 					startDate: '2024-01-01',
 					endDate: '2024-01-31',
-					maxPointsThreshold: 2000
+					maxPointsThreshold: 1000,
+					offset: 0,
+					limit: 1000,
+					totalCount: 5000
 				})
 			})
 		);
@@ -145,7 +149,7 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 		);
 	});
 
-	it('should use regular loading for small datasets (<=2000 points)', async () => {
+	it('should use regular loading for small datasets (<=1000 points)', async () => {
 		// Mock getTotalCount to return small number
 		vi.spyOn(service as any, 'getTotalCount').mockResolvedValue(1000);
 

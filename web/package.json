@@ -31,7 +31,13 @@
 		"worker": "cd src && tsx worker/entry.ts",
 		"worker:start": "cd src && tsx worker/entry.ts",
 		"worker:dev": "cd src && tsx --watch worker/entry.ts",
-		"check:separation": "node scripts/check-environment-separation.js"
+		"check:separation": "node scripts/check-environment-separation.js",
+		"migrate": "tsx scripts/run-migrations.ts",
+		"migrate:build": "tsc scripts/run-migrations.ts --outDir dist/scripts --target es2022 --module esnext --moduleResolution bundler",
+		"migrate:run": "node dist/scripts/run-migrations.js",
+		"migrate:test": "tsx scripts/test-migration-system.ts",
+		"migrate:bootstrap": "tsx scripts/bootstrap-migration-infrastructure.ts",
+		"migrate:setup": "tsx scripts/setup-infrastructure.ts"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
