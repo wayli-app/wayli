@@ -1,3 +1,17 @@
+# [1.2.0](https://github.com/wayli-app/wayli/compare/v1.1.43...v1.2.0) (2025-10-02)
+
+
+### Bug Fixes
+
+* Fix database warnings. ([d05ad09](https://github.com/wayli-app/wayli/commit/d05ad09cd713a42b5532ff4b8b64c6733c10eaa6))
+* Improve transport mode detection. ([a87a690](https://github.com/wayli-app/wayli/commit/a87a69040ba969dc9e49c9b5788092754662c2aa))
+
+
+### Features
+
+* Implement Supabase Realtime properly. ([1a7e22e](https://github.com/wayli-app/wayli/commit/1a7e22e819382efbf0fda6c524e7f17e628c46f3))
+* More docs and fixes. ([740f158](https://github.com/wayli-app/wayli/commit/740f1583a959b5ceb2d29802e8b2b90c77b10a74))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
