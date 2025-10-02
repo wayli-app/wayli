@@ -1,5 +1,5 @@
 // web/src/lib/stores/job-store.ts
-import type { JobUpdate } from '$lib/services/sse.service';
+import type { JobUpdate } from '$lib/services/job-realtime.service';
 
 // Simple variable for active jobs
 let _activeJobs = new Map<string, JobUpdate>();

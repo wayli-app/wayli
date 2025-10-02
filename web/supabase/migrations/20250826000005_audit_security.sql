@@ -173,7 +173,7 @@ BEGIN
         metadata,
         timestamp
     ) VALUES (
-        auth.uid(),
+        (SELECT auth.uid()),
         p_event_type,
         p_severity,
         p_description,

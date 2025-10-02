@@ -36,7 +36,7 @@ ALTER TABLE public.database_migrations ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policy - only service role can access migrations table
 CREATE POLICY "Service role can manage migrations" ON public.database_migrations
-    FOR ALL USING (auth.role() = 'service_role');
+    FOR ALL USING ((SELECT auth.role()) = 'service_role');
 
 -- Grant permissions to service_role
 GRANT ALL ON public.database_migrations TO service_role;

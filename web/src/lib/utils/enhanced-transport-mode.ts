@@ -5,10 +5,11 @@ import type { DetectionContext, PointData } from '../types/transport-detection.t
 import { TransportModeDetector } from '../services/transport-mode-detector.service';
 
 // Import all rules
-import { SpeedBracketRule, MultiPointSpeedRule, HighSpeedContinuityRule, SpeedSimilarityRule } from '../rules/speed-rules';
+import { SpeedBracketRule, MultiPointSpeedRule, HighSpeedContinuityRule, SpeedSimilarityRule, PhysicalPossibilityValidationRule, AccelerationValidationRule, FinalSanityCheckRule } from '../rules/speed-rules';
 import { HighwayOverrideRule, TrainStationRule, AirportRule, GeographicContextRule } from '../rules/geographic-rules';
-import { TrainJourneyContinuationRule, AirplaneJourneyContinuationRule, ModeContinuityRule, GradualTransitionRule, ModeContinuityFallbackRule, DefaultRule } from '../rules/journey-rules';
-import { BothStationsDetectedRule, FinalStationOnlyRule, StartingStationOnlyRule, TrainSpeedWithoutStationRule, TrainJourneyEndRule } from '../rules/train-detection-rules';
+import { TrainJourneyContinuationRule, AirplaneJourneyContinuationRule, ModeContinuityRule, GradualTransitionRule, ModeContinuityFallbackRule, DefaultRule, MinimumModeDurationRule } from '../rules/journey-rules';
+import { BothStationsDetectedRule, FinalStationOnlyRule, StartingStationOnlyRule, TrainSpeedWithoutStationRule, TrainJourneyEndRule, UnrealisticTrainSegmentRule } from '../rules/train-detection-rules';
+import { SpeedPatternTrainDetectionRule, SpeedPatternCarDetectionRule } from '../rules/speed-pattern-rules';
 
 // Import utility functions
 import {
@@ -18,6 +19,7 @@ import {
 	getAirportName,
 	isOnHighwayOrMotorway
 } from './transport-mode';
+import { haversine } from './multi-point-speed';
 
 /**
  * Enhanced transport mode context with all necessary state
@@ -83,26 +85,48 @@ export interface EnhancedModeContext {
 function initializeDetector(): TransportModeDetector {
 	const detector = new TransportModeDetector();
 
-	// Add all rules in priority order
-	detector.addRule(new HighwayOverrideRule());
-	detector.addRule(new BothStationsDetectedRule());
-	detector.addRule(new TrainStationRule());
-	detector.addRule(new AirportRule());
-	detector.addRule(new FinalStationOnlyRule());
-	detector.addRule(new StartingStationOnlyRule());
-	detector.addRule(new TrainJourneyContinuationRule());
-	detector.addRule(new AirplaneJourneyContinuationRule());
-	detector.addRule(new TrainSpeedWithoutStationRule());
-	detector.addRule(new TrainJourneyEndRule());
-	detector.addRule(new MultiPointSpeedRule());
-	detector.addRule(new SpeedBracketRule());
-	detector.addRule(new HighSpeedContinuityRule());
-	detector.addRule(new SpeedSimilarityRule());
-	detector.addRule(new GeographicContextRule());
-	detector.addRule(new ModeContinuityRule());
-	detector.addRule(new GradualTransitionRule());
-	detector.addRule(new ModeContinuityFallbackRule());
-	detector.addRule(new DefaultRule());
+	// Add all rules in priority order (highest to lowest)
+	// GEOGRAPHIC CONTEXT LAYER (96-100) - Highest priority
+	detector.addRule(new HighwayOverrideRule());                    // 100
+	detector.addRule(new TrainStationRule());                       // 97 - Geographic context beats physics
+	detector.addRule(new AirportRule());                            // 96 - Geographic context beats physics
+
+	// PHYSICS ENFORCEMENT LAYER (95)
+	detector.addRule(new FinalSanityCheckRule());                   // 95 - Safety net for impossible modes (now with geographic awareness)
+	detector.addRule(new BothStationsDetectedRule());               // 95
+
+	// TRAIN JOURNEY MANAGEMENT (80-85)
+	detector.addRule(new FinalStationOnlyRule());                   // 85
+	detector.addRule(new StartingStationOnlyRule());                // 80
+
+	// JOURNEY CONTINUATION LAYER (70-75)
+	detector.addRule(new AirplaneJourneyContinuationRule());        // 75
+	detector.addRule(new SpeedPatternTrainDetectionRule());         // 75
+	detector.addRule(new SpeedPatternCarDetectionRule());           // 74
+	detector.addRule(new AccelerationValidationRule());             // 71 NEW - Detects impossible accelerations
+	detector.addRule(new TrainJourneyContinuationRule());           // 70
+	detector.addRule(new HighSpeedContinuityRule());                // 70
+
+	// PHYSICAL VALIDATION LAYER (68-69)
+	detector.addRule(new PhysicalPossibilityValidationRule());      // 69 UPDATED - Validates physical limits (moved up)
+	detector.addRule(new MinimumModeDurationRule());                // 68 UPDATED - Now checks physics before enforcing continuity
+
+	// SIMILARITY & PATTERN LAYER (60-66)
+	detector.addRule(new UnrealisticTrainSegmentRule());            // 66 NEW - Filters unrealistic short train segments
+	detector.addRule(new TrainJourneyEndRule());                    // 65
+	detector.addRule(new SpeedSimilarityRule());                    // 65
+	detector.addRule(new TrainSpeedWithoutStationRule());           // 60
+
+	// SPEED ANALYSIS LAYER (50-55)
+	detector.addRule(new MultiPointSpeedRule());                    // 55
+	detector.addRule(new SpeedBracketRule());                       // 50
+
+	// FALLBACK LAYER (10-30)
+	detector.addRule(new GeographicContextRule());                  // 30
+	detector.addRule(new ModeContinuityRule());                     // 30
+	detector.addRule(new GradualTransitionRule());                  // 25
+	detector.addRule(new ModeContinuityFallbackRule());             // 15
+	detector.addRule(new DefaultRule());                            // 10
 
 	return detector;
 }
@@ -154,6 +178,14 @@ export function detectEnhancedMode(
 	};
 
 	// Update point history
+	// If point history is empty or doesn't contain a point matching previous coordinates,
+	// add the previous point first to enable 2-point speed calculation
+	if (context.pointHistory.length === 0 ||
+		Math.abs(context.pointHistory[context.pointHistory.length - 1].lat - prevLat) > 0.0001 ||
+		Math.abs(context.pointHistory[context.pointHistory.length - 1].lng - prevLng) > 0.0001) {
+		context.pointHistory.push(previous);
+	}
+
 	context.pointHistory.push(current);
 	while (context.pointHistory.length > 20) { // Keep last 20 points
 		context.pointHistory.shift();
@@ -275,12 +307,14 @@ export function detectEnhancedMode(
 	// Update average speed
 	context.averageSpeed = context.speedHistory.reduce((a, b) => a + b, 0) / context.speedHistory.length;
 
-	// Update distance tracking
+	// Update distance tracking using Haversine for accuracy
 	if (context.lastKnownCoordinates) {
-		const distance = Math.sqrt(
-			Math.pow(currLat - context.lastKnownCoordinates.lat, 2) +
-			Math.pow(currLng - context.lastKnownCoordinates.lng, 2)
-		) * 111000; // Rough conversion to meters
+		const distance = haversine(
+			context.lastKnownCoordinates.lat,
+			context.lastKnownCoordinates.lng,
+			currLat,
+			currLng
+		);
 		context.totalDistanceTraveled += distance;
 	}
 	context.lastKnownCoordinates = { lat: currLat, lng: currLng, timestamp: Date.now() };

@@ -72,6 +72,7 @@ beforeEach(() => {
 	hoisted.mockFrom.mockImplementation((table: string) => {
 		if (table === 'tracker_data') {
 			return {
+				insert: vi.fn().mockResolvedValue({ data: null, error: null }),
 				upsert: vi.fn().mockResolvedValue({ data: null, error: null })
 			};
 		}

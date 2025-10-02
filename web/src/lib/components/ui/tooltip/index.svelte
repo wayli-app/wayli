@@ -74,6 +74,8 @@
 	onmouseenter={handleMouseEnter}
 	onmouseleave={handleMouseLeave}
 	class="relative inline-block"
+	role="tooltip"
+	aria-label={text}
 >
 	<slot />
 </div>

@@ -5,7 +5,7 @@
 
 	import { translate } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+	import { JobRealtimeService, type JobUpdate } from '$lib/services/job-realtime.service';
 	import { sessionStore } from '$lib/stores/auth';
 
 	// Use the reactive translation function
@@ -43,7 +43,7 @@
 	let exportJobs = $state<ExportJob[]>([]);
 	let filteredExportJobs = $state<ExportJob[]>([]);
 	let loading = $state(true);
-	let sseService = $state<SSEService | null>(null);
+	let realtimeService = $state<JobRealtimeService | null>(null);
 
 	// Track jobs by ID to ensure uniqueness
 	let jobsById = $state<Map<string, ExportJob>>(new Map());
@@ -52,16 +52,16 @@
 		// Small delay to ensure session is available
 		setTimeout(async () => {
 			await loadExportJobs();
-			// Always start SSE monitoring to get real-time updates for all export jobs
-			startSSEMonitoring();
+			// Always start Realtime monitoring to get real-time updates for all export jobs
+			startRealtimeMonitoring();
 		}, 100);
 	});
 
-	// Component automatically refreshes via SSE updates - no reload flag needed
+	// Component automatically refreshes via Realtime updates - no reload flag needed
 
 	onDestroy(() => {
-		if (sseService) {
-			sseService.disconnect();
+		if (realtimeService) {
+			realtimeService.disconnect();
 		}
 	});
 
@@ -150,43 +150,38 @@
 		};
 	}
 
-	function startSSEMonitoring() {
-		// Create SSE service for export job monitoring
-		sseService = new SSEService(
-			{
-				onConnected: () => {
-					// console.log('🔗 SSE connected for export jobs');
-				},
-				onDisconnected: () => {
-					// console.log('🔌 SSE disconnected for export jobs');
-				},
-				onJobUpdate: (jobs: JobUpdate[]) => {
-					// console.log('📡 Export jobs update received:', jobs);
-					// Filter to only include export jobs, not import jobs
-					const exportOnlyJobs = jobs.filter((job) => job.type === 'data_export');
-					// console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
-					// Convert JobUpdate to ExportJob for compatibility
-					const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
-					updateExportJobs(exportJobs);
-				},
-				onJobCompleted: (jobs: JobUpdate[]) => {
-					console.log('✅ Export jobs completed:', jobs);
-					// Filter to only include export jobs, not import jobs
-					const exportOnlyJobs = jobs.filter((job) => job.type === 'data_export');
-					// console.log('🔍 Filtered to export jobs only:', exportOnlyJobs.length, 'of', jobs.length);
-					// Convert JobUpdate to ExportJob for compatibility
-					const exportJobs = exportOnlyJobs.map(convertJobUpdateToExportJob);
-					updateExportJobs(exportJobs);
-				},
-				onError: (error: string) => {
-					console.error('❌ Export jobs SSE error:', error);
-					toast.error(`Export monitoring error: ${error}`);
+	function startRealtimeMonitoring() {
+		// Create Realtime service for export job monitoring
+		realtimeService = new JobRealtimeService({
+			onConnected: () => {
+				console.log('🔗 Realtime connected for export jobs');
+			},
+			onDisconnected: () => {
+				console.log('🔌 Realtime disconnected for export jobs');
+			},
+			onError: (error: string) => {
+				console.error('❌ Export jobs Realtime error:', error);
+				toast.error(`Export monitoring error: ${error}`);
+			},
+			onJobUpdate: (job: JobUpdate) => {
+				// Filter to only include export jobs, not import jobs
+				if (job.type === 'data_export') {
+					console.log('📡 Export job update received:', job.id, job.status, job.progress);
+					const exportJob = convertJobUpdateToExportJob(job);
+					updateExportJobs([exportJob]);
 				}
 			},
-			'data_export'
-		);
+			onJobCompleted: (job: JobUpdate) => {
+				// Filter to only include export jobs, not import jobs
+				if (job.type === 'data_export') {
+					console.log('✅ Export job completed:', job.id);
+					const exportJob = convertJobUpdateToExportJob(job);
+					updateExportJobs([exportJob]);
+				}
+			}
+		});
 
-		sseService.connect();
+		realtimeService.connect();
 	}
 
 	async function loadExportJobs() {

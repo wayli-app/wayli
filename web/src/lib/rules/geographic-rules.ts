@@ -35,13 +35,30 @@ export class HighwayOverrideRule implements DetectionRule {
  */
 export class TrainStationRule implements DetectionRule {
 	name = 'Train Station Detection';
-	priority = 90;
+	priority = 97; // Higher than FinalSanityCheckRule - geographic context beats physics
 
 	canApply(context: DetectionContext): boolean {
-		return context.atTrainStation && context.currentSpeed >= 30;
+		// Apply when at train station, regardless of speed
+		// This allows detection of train mode when boarding/alighting
+		return context.atTrainStation;
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
+		// If stationary at a train station, assume boarding/starting train journey
+		if (context.currentSpeed < 30) {
+			return {
+				mode: 'train',
+				confidence: 0.85,
+				reason: `At train station (${context.stationName}) - boarding or alighting`,
+				metadata: {
+					geographicContext: 'train_station',
+					stationName: context.stationName,
+					speed: context.currentSpeed,
+					state: 'stationary_at_station'
+				}
+			};
+		}
+
 		return {
 			mode: 'train',
 			confidence: 0.9,
@@ -60,7 +77,7 @@ export class TrainStationRule implements DetectionRule {
  */
 export class AirportRule implements DetectionRule {
 	name = 'Airport Detection';
-	priority = 85;
+	priority = 96; // Higher than FinalSanityCheckRule - geographic context beats physics
 
 	canApply(context: DetectionContext): boolean {
 		return context.atAirport && context.currentSpeed >= 200;

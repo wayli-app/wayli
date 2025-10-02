@@ -898,7 +898,7 @@
 						<div>
 							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupSpeed')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
-								{selectedPoint.speed ? `${(selectedPoint.speed * 3.6).toFixed(1)} km/h` : 'N/A'}
+								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
 							</div>
 						</div>
 					</div>

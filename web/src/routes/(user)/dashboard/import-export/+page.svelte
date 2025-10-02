@@ -186,7 +186,7 @@
 		// No need for MutationObserver - the bind: directive should handle the syncing automatically
 	});
 
-	// Cleanup SSE service on destroy
+	// Cleanup job store subscription on destroy
 	onDestroy(() => {
 		if (unsubscribeJobs) {
 			unsubscribeJobs();
@@ -206,14 +206,14 @@
 				(job: any) => job.type === 'data_export'
 			);
 
-			// ExportJobs component automatically handles updates via SSE
+			// ExportJobs component automatically handles updates via Supabase Realtime
 			if (exportJobs.length > 0) {
 				console.log('📊 Export job update detected');
 			}
 		});
 	}
 
-	// ExportJobs component handles its own updates via SSE - no manual reload needed
+	// ExportJobs component handles its own updates via Supabase Realtime - no manual reload needed
 
 	// Export functions
 	async function handleExport() {
@@ -430,8 +430,8 @@
 					</div>
 				</div>
 				<div class="mt-4">
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>{t('importExport.dateRange')}</label
+					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						>{t('importExport.dateRange')}</span
 					>
 					<div class="relative datepicker-import-export-fix">
 						<DateRangePicker
@@ -462,26 +462,5 @@
 </div>
 
 <style>
-	/* Datepicker positioning fixes */
-	.datepicker-import-export-fix .date-filter {
-		position: static !important;
-	}
-	.datepicker-import-export-fix .datepicker-dropdown {
-		position: absolute !important;
-		right: 0 !important;
-		left: auto !important;
-		min-width: 340px;
-		max-width: 95vw;
-		z-index: 3000 !important;
-		margin-top: 8px;
-		overflow-x: auto;
-	}
-	@media (max-width: 600px) {
-		.datepicker-import-export-fix .datepicker-dropdown {
-			left: 0 !important;
-			right: auto !important;
-			min-width: 0;
-			width: 98vw;
-		}
-	}
+	/* Styles removed - were not being applied to scoped components */
 </style>

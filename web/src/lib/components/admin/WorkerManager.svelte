@@ -7,7 +7,7 @@
 	import Card from '$lib/components/ui/card/index.svelte';
 	import Input from '$lib/components/ui/input/index.svelte';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
-	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
+	import { type JobUpdate } from '$lib/services/job-realtime.service';
 	import { sessionStore } from '$lib/stores/auth';
 
 	interface WorkerStatus {

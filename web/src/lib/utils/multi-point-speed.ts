@@ -38,6 +38,43 @@ export function calculateMultiPointSpeed(
 	points: PointData[],
 	windowSize: number = SPEED_CALCULATION_CONFIG.DEFAULT_WINDOW_SIZE
 ): number {
+	// Check if points have pre-calculated speeds (from database)
+	const pointsWithSpeed = points.filter(p => p.speed !== undefined && p.speed !== null && p.speed > 0);
+
+	// If we have enough points with pre-calculated speeds, use those instead of calculating from coordinates
+	if (pointsWithSpeed.length >= Math.min(3, points.length)) {
+		const recentSpeeds = pointsWithSpeed.slice(-windowSize).map(p => p.speed!);
+
+		// Filter outliers
+		const speeds = recentSpeeds.filter(s => s > 0 && s < SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD);
+		if (speeds.length === 0) return 0;
+
+		// Calculate weighted average (more weight on recent speeds)
+		let weightedSum = 0;
+		let totalWeight = 0;
+		speeds.forEach((speed, index) => {
+			const weight = Math.pow(SPEED_CALCULATION_CONFIG.WEIGHT_DECAY, speeds.length - 1 - index);
+			weightedSum += speed * weight;
+			totalWeight += weight;
+		});
+
+		return totalWeight > 0 ? Math.min(weightedSum / totalWeight, SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD) : 0;
+	}
+
+	// Fallback: Calculate from coordinates and timestamps
+	// Handle case with only 2 points (simple speed calculation)
+	if (points.length === 2) {
+		const [prev, curr] = points;
+		const distance = haversine(prev.lat, prev.lng, curr.lat, curr.lng);
+		const timeDiff = (curr.timestamp - prev.timestamp) / 1000; // seconds
+		if (timeDiff > 0 && distance > SPEED_CALCULATION_CONFIG.MIN_DISTANCE_THRESHOLD) {
+			const speedMs = distance / timeDiff;
+			const speedKmh = speedMs * 3.6;
+			return Math.min(speedKmh, SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD);
+		}
+		return 0;
+	}
+
 	if (points.length < SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE) {
 		return 0;
 	}

@@ -411,11 +411,14 @@ export class JobProcessorService {
 					throw new Error(`Unsupported format: ${format}`);
 			}
 
-			// Calculate distance and time_spent for imported data
-			console.log(`🧮 [IMPORT] Calculating distance and time_spent for imported data...`);
+			// Create background job for distance calculation
+			// The trigger is disabled during bulk imports for performance, so we need
+			// to calculate distances afterward. This is handled asynchronously to avoid
+			// blocking the import completion.
+			console.log('🔄 [IMPORT] Creating background distance calculation job...');
 
 			await JobQueueService.updateJobProgress(job.id, 95, {
-				message: `🧮 Calculating distances and time spent...`,
+				message: `Creating background job for distance calculation...`,
 				fileName,
 				format,
 				totalProcessed: importedCount,
@@ -424,118 +427,21 @@ export class JobProcessorService {
 			});
 
 			try {
-				// Use the optimized batch calculation for this user's data
-				// Start with a smaller batch size to avoid timeouts
-				let batchSize = 500; // Reduced from 1000 to avoid timeouts
-				const maxRetries = 3;
-				let totalUpdated = 0;
-				let batchNumber = 1;
-
-				// Continue processing until no more records need distance calculation
-				while (true) {
-					let retryCount = 0;
-					let batchUpdated = 0;
-
-					while (retryCount < maxRetries) {
-						try {
-							console.log(`🧮 [IMPORT] Attempting distance calculation batch ${batchNumber} with batch size ${batchSize} (attempt ${retryCount + 1}/${maxRetries})`);
-
-							// Use the enhanced distance calculation function for better accuracy
-							const { data: distanceResult, error: distanceError } = await supabase.rpc(
-								'update_tracker_distances',
-								{ target_user_id: userId }
-							);
-
-							if (distanceError) {
-								throw distanceError;
-							}
-
-							batchUpdated = distanceResult || 0;
-							console.log(`✅ [IMPORT] Distance calculation batch ${batchNumber} completed: ${batchUpdated} records updated`);
-							break; // Success, exit retry loop
-
-						} catch (distanceError: any) {
-							retryCount++;
-							console.warn(`⚠️ [IMPORT] Distance calculation batch ${batchNumber} attempt ${retryCount} failed:`, distanceError);
-
-							// If it's a timeout error, reduce batch size and retry
-							if (distanceError?.code === '57014' && retryCount < maxRetries) {
-								batchSize = Math.max(50, Math.floor(batchSize * 0.5)); // Reduce batch size by half, minimum 50
-								console.log(`🔄 [IMPORT] Reducing batch size to ${batchSize} and retrying...`);
-
-								// If we're still getting timeouts, try the regular batch function
-								if (batchSize <= 100) {
-									console.log(`🔄 [IMPORT] Trying regular batch function with smaller batch size...`);
-								}
-								continue;
-							}
-
-							// If it's not a timeout error, try the regular batch function as fallback
-							if (retryCount === 1) {
-								console.log(`🔄 [IMPORT] Trying regular batch function as fallback...`);
-								try {
-									const { data: fallbackResult, error: fallbackError } = await supabase.rpc(
-										'update_tracker_distances_batch',
-										{ target_user_id: userId, batch_size: Math.min(batchSize, 250) }
-									);
-
-									if (!fallbackError) {
-										batchUpdated = fallbackResult || 0;
-										console.log(`✅ [IMPORT] Fallback distance calculation batch ${batchNumber} completed: ${batchUpdated} records updated`);
-										break; // Success with fallback
-									}
-								} catch (fallbackError) {
-									console.warn(`⚠️ [IMPORT] Fallback distance calculation batch ${batchNumber} also failed:`, fallbackError);
-								}
-							}
-
-							// If we've exhausted retries or it's not a timeout, log and continue
-							if (retryCount >= maxRetries) {
-								console.error(`❌ [IMPORT] Distance calculation batch ${batchNumber} failed after all retries:`, distanceError);
-							} else {
-								console.error(`❌ [IMPORT] Distance calculation batch ${batchNumber} failed with non-timeout error:`, distanceError);
-							}
-							break;
-						}
+				const { data: jobResult, error: backgroundJobError } = await supabase.rpc(
+					'create_distance_calculation_job',
+					{
+						target_user_id: userId,
+						job_reason: 'post_import'
 					}
+				);
 
-					totalUpdated += batchUpdated;
-
-					// If no records were updated in this batch, we're done
-					if (batchUpdated === 0) {
-						console.log(`✅ [IMPORT] No more records need distance calculation. Total updated: ${totalUpdated} records`);
-						break;
-					}
-
-					batchNumber++;
-				}
-
-				if (totalUpdated > 0) {
-					console.log(`✅ [IMPORT] Successfully updated distances for ${totalUpdated} records in ${batchNumber - 1} batches`);
+				if (backgroundJobError) {
+					console.warn('⚠️ Failed to create background distance calculation job:', backgroundJobError);
 				} else {
-					// If no records were updated, create a background job for distance calculation
-					console.log('🔄 [IMPORT] No distances calculated, creating background distance calculation job...');
-					try {
-						// Use the new function to safely create the job with correct column names
-						const { data: jobResult, error: backgroundJobError } = await supabase.rpc(
-							'create_distance_calculation_job',
-							{
-								target_user_id: userId,
-								job_reason: 'import_fallback'
-							}
-						);
-
-						if (backgroundJobError) {
-							console.warn('⚠️ Failed to create background distance calculation job:', backgroundJobError);
-						} else {
-							console.log('✅ Background distance calculation job created successfully');
-						}
-					} catch (error) {
-						console.warn('⚠️ Failed to create background distance calculation job:', error);
-					}
+					console.log('✅ Background distance calculation job created successfully');
 				}
-			} catch (distanceError) {
-				console.error('❌ [IMPORT] Distance calculation error:', distanceError);
+			} catch (error) {
+				console.warn('⚠️ Failed to create background distance calculation job:', error);
 				// Don't fail the import, just log the error
 			}
 
@@ -736,23 +642,91 @@ export class JobProcessorService {
 			});
 
 			const targetUserId = job.data.target_user_id as string;
+			const BATCH_SIZE = 1000; // Process 1000 records per batch
 
-			// Call the database function to update distances
-			const { data, error } = await supabase.rpc('update_tracker_distances', {
-				target_user_id: targetUserId || null
-			});
+			// Count total records for accurate progress tracking
+			// We count ALL records with location (not just those needing distance)
+			// because we process everything in chronological order
+			console.log(`🔍 Counting total records for user ${targetUserId}...`);
+			const { count, error: countError } = await supabase
+				.from('tracker_data')
+				.select('*', { count: 'exact', head: true })
+				.eq('user_id', targetUserId)
+				.not('location', 'is', null);
 
-			if (error) {
-				console.error(`❌ Error in distance calculation:`, error);
-				throw new Error(`Distance calculation failed: ${error.message}`);
+			if (countError) {
+				console.error('❌ Error counting records:', countError);
+				throw new Error(`Failed to count records: ${countError.message}`);
 			}
 
-			const updatedCount = data || 0;
-			console.log(`✅ Distance calculation completed: ${updatedCount} records updated`);
+			const totalRecords = count || 0;
+			console.log(`📊 Total records to process: ${totalRecords}`);
+
+			if (totalRecords === 0) {
+				console.log('⏭️  No records to process');
+				await JobQueueService.updateJobProgress(job.id, 100, {
+					message: 'No records to process',
+					totalRecords: 0,
+					recordsProcessed: 0
+				});
+				return;
+			}
+
+			let offset = 0;
+			let totalProcessed = 0;
+
+			// Process in chronological batches using offset
+			while (offset < totalRecords) {
+				// Check for cancellation before each batch
+				await checkJobCancellation(job.id);
+
+				const startTime = Date.now();
+				console.log(`🧮 Processing batch at offset ${offset}/${totalRecords}...`);
+
+				// Call new V2 function which uses chronological offset-based processing
+				const { data: updatedCount, error } = await supabase.rpc(
+					'calculate_distances_batch_v2',
+					{
+						p_user_id: targetUserId,
+						p_offset: offset,
+						p_limit: BATCH_SIZE
+					}
+				);
+
+				const elapsed = Date.now() - startTime;
+
+				if (error) {
+					console.error(`❌ Error in batch processing:`, error);
+					throw new Error(`Batch processing failed: ${error.message}`);
+				}
+
+				// Calculate how many records were in this batch
+				const recordsInBatch = Math.min(BATCH_SIZE, totalRecords - offset);
+				offset += recordsInBatch;
+				totalProcessed += recordsInBatch;
+
+				console.log(`⏱️  Batch took ${(elapsed / 1000).toFixed(1)}s`);
+				console.log(`✅ Batch complete: ${updatedCount || 0} records updated, ${offset}/${totalRecords} total processed`);
+
+				// Update progress (cap at 95% until final completion)
+				const progressPercent = Math.min(95, Math.round((offset / totalRecords) * 100));
+				await JobQueueService.updateJobProgress(job.id, progressPercent, {
+					message: `Processing distances... ${offset}/${totalRecords} records`,
+					recordsProcessed: offset,
+					totalRecords,
+					recordsUpdated: updatedCount || 0
+				});
+
+				// Small delay between batches to avoid overwhelming the database
+				await new Promise(resolve => setTimeout(resolve, 50));
+			}
+
+			console.log(`✅ Distance calculation completed: ${totalProcessed} records processed`);
 
 			await JobQueueService.updateJobProgress(job.id, 100, {
-				message: `Successfully updated distances for ${updatedCount} records`,
-				updatedCount
+				message: `Successfully processed ${totalProcessed} records`,
+				totalRecords,
+				recordsProcessed: totalProcessed
 			});
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation

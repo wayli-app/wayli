@@ -53,7 +53,12 @@
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
 			onclick={(e) => e.stopPropagation()}
-			role="document"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') closeModal();
+			}}
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
 		>
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
@@ -150,8 +155,8 @@
 					</div>
 
 					<div>
-						<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Role</label
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Role</span
 						>
 						<RoleSelector bind:role />
 					</div>

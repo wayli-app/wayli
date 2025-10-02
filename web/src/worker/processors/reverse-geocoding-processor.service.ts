@@ -33,7 +33,7 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 	}
 
 	const startTime = Date.now();
-	const BATCH_SIZE = 1000;
+	const BATCH_SIZE = 100; // Process 100 records per batch for more frequent progress updates
 	const userId = job.created_by;
 
 	let totalProcessed = 0;
@@ -182,8 +182,8 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 					progress = Math.min(100, Math.round(progressCalc));
 				}
 
-				// Debug logging for progress calculation
-				if (totalProcessed % 1000 === 0 || progress % 10 === 0) {
+				// Debug logging and progress update (every 100 records for more frequent updates)
+				if (totalProcessed % 100 === 0 || progress % 5 === 0) {
 					console.log(
 						`📊 [PROGRESS] totalProcessed: ${totalProcessed}, actualPointsToProcess: ${actualPointsToProcess}, progress: ${progress}%, batch: ${batchIndex + 1}/${totalBatches}`
 					);

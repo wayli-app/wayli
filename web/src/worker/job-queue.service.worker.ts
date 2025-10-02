@@ -130,9 +130,20 @@ export class JobQueueService {
 		};
 		if (result) update.result = result;
 
-		const { error } = await this.supabase.from('jobs').update(update).eq('id', jobId);
+		console.log(`📊 Updating job ${jobId} progress to ${progress}%`, result ? `with result: ${JSON.stringify(result)}` : '');
 
-		if (error) throw error;
+		const { error, data } = await this.supabase
+			.from('jobs')
+			.update(update)
+			.eq('id', jobId)
+			.select();
+
+		if (error) {
+			console.error(`❌ Error updating job progress:`, error);
+			throw error;
+		}
+
+		console.log(`✅ Job progress updated successfully`, data ? `(${data.length} rows)` : '');
 	}
 
 	static async completeJob(jobId: string, result?: Record<string, unknown>): Promise<void> {

@@ -4,7 +4,7 @@ import { toast } from 'svelte-sonner';
 
 import { sessionStore } from '$lib/stores/auth';
 import { addJobToStore } from '$lib/stores/job-store';
-import type { JobUpdate } from '$lib/services/sse.service';
+import type { JobUpdate } from '$lib/services/job-realtime.service';
 
 import { ServiceAdapter } from './api/service-adapter';
 

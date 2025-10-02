@@ -420,7 +420,7 @@ BEGIN
             END AS calculated_distance,
             CASE
                 WHEN LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at) IS NULL THEN 0
-                ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.recorded_at)))
+                ELSE EXTRACT(EPOCH FROM (t1.recorded_at - LAG(t1.recorded_at) OVER (PARTITION BY t1.user_id ORDER BY t1.recorded_at)))
             END AS calculated_time_spent
         FROM public.tracker_data t1
         WHERE t1.location IS NOT NULL
@@ -433,12 +433,11 @@ BEGIN
     SET
         distance = LEAST(ROUND(dc.calculated_distance::numeric, 2), 9999999999.99),
         time_spent = LEAST(ROUND(dc.calculated_time_spent::numeric, 2), 9999999999.99),
-        -- Use enhanced stable speed calculation instead of simple division
-        speed = LEAST(ROUND(calculate_stable_speed(td.user_id, td.recorded_at, 5)::numeric, 2), 9999999999.99)
+        -- Use simple speed calculation for performance (removed expensive calculate_stable_speed call)
+        speed = LEAST(ROUND((CASE WHEN dc.calculated_time_spent > 0 THEN (dc.calculated_distance / dc.calculated_time_spent) ELSE 0 END)::numeric, 2), 9999999999.99)
     FROM distance_and_time_calculations dc
     WHERE td.user_id = dc.user_id
-      AND td.recorded_at = dc.recorded_at
-      AND td.location = dc.location;
+      AND td.recorded_at = dc.recorded_at;
 
     GET DIAGNOSTICS total_updated = ROW_COUNT;
     RETURN total_updated;

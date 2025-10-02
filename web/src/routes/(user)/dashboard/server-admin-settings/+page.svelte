@@ -429,13 +429,14 @@
 		tabindex="0"
 		aria-label="Close modal"
 	>
-		                                                <div
-                        class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => e.key === 'Escape' && handleCloseAddUserModal()}
-                        role="document"
-                        tabindex="0"
-                >
+		<div
+			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && handleCloseAddUserModal()}
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+		>
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>
@@ -515,7 +516,7 @@
 				</div>
 
 				<div>
-					<label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label
+					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span
 					>
 					<RoleSelector bind:role={newUserRole} />
 				</div>

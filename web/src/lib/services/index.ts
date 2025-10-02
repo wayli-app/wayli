@@ -15,7 +15,6 @@ export * from './external';
 export * from './logging.service';
 export * from './error-handler.service';
 export * from './rate-limit.service';
-export * from './sse.service';
 export * from './job-creation.service';
 export * from './location-cache.service';
 

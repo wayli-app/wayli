@@ -7,13 +7,13 @@
 	import { translate } from '$lib/i18n';
 	import { getActiveJobsMap, subscribe, fetchAndPopulateJobs } from '$lib/stores/job-store';
 
-	import type { JobUpdate } from '$lib/services/sse.service';
+	import type { JobUpdate } from '$lib/services/job-realtime.service';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
 	// State
-	let activeJobs = $state(getActiveJobsMap());
+	let activeJobs = $state<Map<string, JobUpdate>>(new Map());
 	let visibleJobs = $state<JobUpdate[]>([]);
 	let showCompletedJobs = $state<JobUpdate[]>([]);
 	let completedJobTimers = $state(new Map<string, NodeJS.Timeout>());
@@ -24,17 +24,30 @@
 
 	// Subscribe to store changes
 	onMount(() => {
+		console.log('📊 JobProgressIndicator: Component mounted');
+
+		// Initial load from store
+		activeJobs = new Map(getActiveJobsMap());
+		console.log('📊 JobProgressIndicator: Initial jobs loaded:', activeJobs.size);
+
 		// Fetch and populate jobs on page load
-		fetchAndPopulateJobs().catch((error) => {
+		fetchAndPopulateJobs().then(() => {
+			// Update local state after fetch completes
+			activeJobs = new Map(getActiveJobsMap());
+			console.log('📊 JobProgressIndicator: Jobs fetched and loaded:', activeJobs.size);
+		}).catch((error) => {
 			console.error('❌ JobProgressIndicator: Error fetching jobs on mount:', error);
 		});
 
 		const unsubscribeJobs = subscribe(() => {
 			const newJobs = getActiveJobsMap();
-			activeJobs = newJobs;
+			console.log('📊 JobProgressIndicator: Store updated, jobs count:', newJobs.size);
+			// Create a new Map to trigger reactivity
+			activeJobs = new Map(newJobs);
 		});
 
 		return () => {
+			console.log('📊 JobProgressIndicator: Component unmounting');
 			unsubscribeJobs();
 			// Clear all timers
 			completedJobTimers.forEach((timer) => clearTimeout(timer));

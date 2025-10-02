@@ -53,9 +53,11 @@ BEGIN
         CREATE POLICY "Users can upload to temp-files" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'temp-files' AND
-                auth.uid()::text = (storage.foldername(name))[1] AND
-                (metadata->>'size')::bigint <= 2147483648 AND -- 2GB limit to match bucket configuration
-                metadata->>'mimetype' IN ('application/json', 'text/csv', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
+                (SELECT auth.uid())::text = (storage.foldername(name))[1] AND
+                -- Size check: allow if metadata not present OR size is within limit
+                (metadata IS NULL OR (metadata->>'size') IS NULL OR (metadata->>'size')::bigint <= 2147483648) AND
+                -- MIME type check: allow if metadata not present OR mimetype is in list
+                (metadata IS NULL OR (metadata->>'mimetype') IS NULL OR metadata->>'mimetype' IN ('application/json', 'text/csv', 'application/gpx+xml', 'text/plain', 'application/octet-stream'))
             );
     END IF;
 
@@ -63,7 +65,7 @@ BEGIN
         CREATE POLICY "Users can view their own temp-files" ON storage.objects
             FOR SELECT USING (
                 bucket_id = 'temp-files' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                (SELECT auth.uid())::text = (storage.foldername(name))[1]
             );
     END IF;
 
@@ -71,7 +73,7 @@ BEGIN
         CREATE POLICY "Users can delete their own temp-files" ON storage.objects
             FOR DELETE USING (
                 bucket_id = 'temp-files' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                (SELECT auth.uid())::text = (storage.foldername(name))[1]
             );
     END IF;
 
@@ -80,9 +82,11 @@ BEGIN
         CREATE POLICY "Users can upload to exports" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'exports' AND
-                auth.uid()::text = (storage.foldername(name))[1] AND
-                (metadata->>'size')::bigint <= 2147483648 AND -- 2GiB limit
-                metadata->>'mimetype' IN ('application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream')
+                (SELECT auth.uid())::text = (storage.foldername(name))[1] AND
+                -- Size check: allow if metadata not present OR size is within limit
+                (metadata IS NULL OR (metadata->>'size') IS NULL OR (metadata->>'size')::bigint <= 2147483648) AND
+                -- MIME type check: allow if metadata not present OR mimetype is in list
+                (metadata IS NULL OR (metadata->>'mimetype') IS NULL OR metadata->>'mimetype' IN ('application/zip', 'application/json', 'application/gpx+xml', 'text/plain', 'application/octet-stream'))
             );
     END IF;
 
@@ -90,7 +94,7 @@ BEGIN
         CREATE POLICY "Users can view their own exports" ON storage.objects
             FOR SELECT USING (
                 bucket_id = 'exports' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                (SELECT auth.uid())::text = (storage.foldername(name))[1]
             );
     END IF;
 
@@ -98,7 +102,7 @@ BEGIN
         CREATE POLICY "Users can delete their own exports" ON storage.objects
             FOR DELETE USING (
                 bucket_id = 'exports' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                (SELECT auth.uid())::text = (storage.foldername(name))[1]
             );
     END IF;
 
@@ -112,9 +116,11 @@ BEGIN
         CREATE POLICY "Authenticated users can upload trip-images" ON storage.objects
             FOR INSERT WITH CHECK (
                 bucket_id = 'trip-images' AND
-                auth.role() = 'authenticated' AND
-                (metadata->>'size')::bigint <= 2147483648 AND -- 2GiB limit to match bucket configuration
-                metadata->>'mimetype' IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp')
+                (SELECT auth.role()) = 'authenticated' AND
+                -- Size check: allow if metadata not present OR size is within limit
+                (metadata IS NULL OR (metadata->>'size') IS NULL OR (metadata->>'size')::bigint <= 2147483648) AND
+                -- MIME type check: allow if metadata not present OR mimetype is in list
+                (metadata IS NULL OR (metadata->>'mimetype') IS NULL OR metadata->>'mimetype' IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp'))
             );
     END IF;
 
@@ -122,26 +128,14 @@ BEGIN
         CREATE POLICY "Users can delete their own trip-images" ON storage.objects
             FOR DELETE USING (
                 bucket_id = 'trip-images' AND
-                auth.uid()::text = (storage.foldername(name))[1]
+                (SELECT auth.uid())::text = (storage.foldername(name))[1]
             );
     END IF;
 
     -- Service role can access all storage objects (bypasses all restrictions)
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Service role can access all storage') THEN
         CREATE POLICY "Service role can access all storage" ON storage.objects
-            FOR ALL USING (auth.role() = 'service_role');
-    END IF;
-
-    -- Add a more permissive fallback policy for authenticated users
-    -- This allows uploads even if metadata is missing or incomplete
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'Authenticated users can upload to temp-files fallback') THEN
-        CREATE POLICY "Authenticated users can upload to temp-files fallback" ON storage.objects
-            FOR INSERT WITH CHECK (
-                bucket_id = 'temp-files' AND
-                auth.role() = 'authenticated' AND
-                -- Allow uploads to user's own folder
-                (storage.foldername(name))[1] = auth.uid()::text
-            );
+            FOR ALL USING ((SELECT auth.role()) = 'service_role');
     END IF;
 
 EXCEPTION

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import type { Snippet } from 'svelte';
 
 	import AppNav from '$lib/components/AppNav.svelte';
 	import JobTracker from '$lib/components/JobTracker.svelte';
@@ -10,6 +11,9 @@
 	import { supabase } from '$lib/supabase';
 
 	import { goto } from '$app/navigation';
+
+	// Snippet prop for rendering children
+	let { children }: { children: Snippet } = $props();
 
 	// No server-side data needed - everything is client-side
 
@@ -163,7 +167,7 @@
 				</div>
 			</div>
 		{:else}
-			<slot />
+			{@render children()}
 		{/if}
 	</div>
 </AppNav>

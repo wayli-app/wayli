@@ -16,8 +16,6 @@ function getSupabaseBaseUrl(): string {
 		return config.supabaseUrl;
 	}
 
-	// Fallback for local development
-	console.log('🔗 [CONFIG] No environment URLs found, using localhost fallback');
 	return 'http://localhost:54321';
 }
 
@@ -50,14 +48,12 @@ export function getBaseUrl(): string {
  */
 export function getFunctionsUrl(): string {
 	if (CLIENT_ENVIRONMENT.SUPABASE_FUNCTIONS_URL) {
-		console.log('🔗 [CONFIG] Using SUPABASE_FUNCTIONS_URL:', CLIENT_ENVIRONMENT.SUPABASE_FUNCTIONS_URL);
 		return CLIENT_ENVIRONMENT.SUPABASE_FUNCTIONS_URL;
 	}
 
 	// Fallback to Supabase base URL + functions path
 	const supabaseBaseUrl = getSupabaseBaseUrl();
 	const fallbackUrl = `${supabaseBaseUrl}/functions/v1`;
-	console.log('🔗 [CONFIG] Using fallback Functions URL:', fallbackUrl);
 	return fallbackUrl;
 }
 
@@ -67,13 +63,11 @@ export function getFunctionsUrl(): string {
  */
 export function getStorageUrl(): string {
 	if (CLIENT_ENVIRONMENT.SUPABASE_STORAGE_URL) {
-		console.log('🔗 [CONFIG] Using SUPABASE_STORAGE_URL:', CLIENT_ENVIRONMENT.SUPABASE_STORAGE_URL);
 		return CLIENT_ENVIRONMENT.SUPABASE_STORAGE_URL;
 	}
 
 	// Fallback to Supabase base URL
 	const supabaseBaseUrl = getSupabaseBaseUrl();
-	console.log('🔗 [CONFIG] Using fallback Storage URL:', supabaseBaseUrl);
 	return supabaseBaseUrl;
 }
 
@@ -83,14 +77,12 @@ export function getStorageUrl(): string {
  */
 export function getGraphQLUrl(): string {
 	if (CLIENT_ENVIRONMENT.SUPABASE_GRAPHQL_URL) {
-		console.log('🔗 [CONFIG] Using SUPABASE_GRAPHQL_URL:', CLIENT_ENVIRONMENT.SUPABASE_GRAPHQL_URL);
 		return CLIENT_ENVIRONMENT.SUPABASE_GRAPHQL_URL;
 	}
 
 	// Fallback to Supabase base URL + graphql path
 	const supabaseBaseUrl = getSupabaseBaseUrl();
 	const fallbackUrl = `${supabaseBaseUrl}/graphql/v1`;
-	console.log('🔗 [CONFIG] Using fallback GraphQL URL:', fallbackUrl);
 	return fallbackUrl;
 }
 

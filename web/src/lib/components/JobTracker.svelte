@@ -3,8 +3,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
-	import { SSEService, type JobUpdate } from '$lib/services/sse.service';
-	import { updateJobInStore, removeJobFromStore, getActiveJobsMap } from '$lib/stores/job-store';
+	import { JobRealtimeService, type JobUpdate } from '$lib/services/job-realtime.service';
+	import { updateJobInStore, removeJobFromStore, getActiveJobsMap, fetchAndPopulateJobs } from '$lib/stores/job-store';
 
 	// Helper function to get job type info for notifications
 	function getJobTypeInfo(type: string) {
@@ -30,146 +30,139 @@
 		onJobCompleted = null as ((jobs: JobUpdate[]) => void) | null
 	} = $props();
 
-	let sseService = $state<SSEService | null>(null);
+	let realtimeService = $state<JobRealtimeService | null>(null);
 	let completedJobIds = $state(new Set<string>()); // Track completed jobs to prevent duplicate toasts
-	let pollingInterval = $state<NodeJS.Timeout | null>(null); // Fallback polling
 
 	// Expose methods for parent components
-	export function startMonitoring() {
+	export async function startMonitoring() {
 		console.log('🔗 JobTracker: Starting monitoring...');
-		if (sseService) {
-			console.log('🔗 JobTracker: Disconnecting existing SSE service');
-			sseService.disconnect();
-			sseService = null;
+
+		// Disconnect any existing service
+		if (realtimeService) {
+			await realtimeService.disconnect();
+			realtimeService = null;
 		}
 
-		console.log('🔗 JobTracker: About to create SSE service...');
+		// Step 1: Immediately fetch current active jobs
+		console.log('📥 JobTracker: Fetching initial jobs...');
+		try {
+			await fetchAndPopulateJobs();
+			const jobCount = getActiveJobsMap().size;
+			console.log(`✅ JobTracker: Initial jobs loaded (${jobCount} jobs)`);
+		} catch (error) {
+			console.error('❌ JobTracker: Error fetching initial jobs:', error);
+		}
 
-		// Create a new SSE service instance
-		sseService = new SSEService({
+		// Step 2: Connect to realtime
+		console.log('🔗 JobTracker: Connecting to Realtime...');
+		try {
+			await startRealtimeMonitoring();
+		} catch (error) {
+			console.error('❌ JobTracker: Realtime connection failed:', error);
+		}
+	}
+
+	// Helper functions for handling job updates
+	function handleJobUpdate(job: JobUpdate) {
+		// Update the global store
+		updateJobInStore(job);
+
+		// Show toast notifications for status changes
+		const previousJob = getActiveJobsMap().get(job.id);
+		if (previousJob && previousJob.status !== job.status) {
+			if (showToasts) {
+				const jobTypeInfo = getJobTypeInfo(job.type);
+				if (job.status === 'completed') {
+					toast.success(`${jobTypeInfo.title} completed successfully!`);
+				} else if (job.status === 'failed') {
+					toast.error(`${jobTypeInfo.title} failed`);
+				} else if (job.status === 'cancelled') {
+					toast.info(`${jobTypeInfo.title} was cancelled`);
+				}
+			}
+		}
+
+		// Notify parent component
+		if (onJobUpdate) {
+			try {
+				onJobUpdate([job]);
+			} catch (error) {
+				console.error('❌ JobTracker: Error calling onJobUpdate callback:', error);
+			}
+		}
+
+		// Clean up old completed jobs (older than 30 seconds)
+		cleanupOldJobs();
+	}
+
+	function handleJobCompleted(job: JobUpdate) {
+		// Mark as completed in our tracking
+		completedJobIds.add(job.id);
+
+		// Immediately update the job status in the store
+		updateJobInStore(job);
+
+		// Remove from active jobs after a delay
+		setTimeout(() => {
+			removeJobFromStore(job.id);
+		}, 5000); // 5 second delay
+
+		// Notify parent component
+		onJobCompleted?.([job]);
+	}
+
+	function cleanupOldJobs() {
+		const now = Date.now();
+		const currentJobs = getActiveJobsMap();
+		for (const [jobId, job] of currentJobs.entries()) {
+			if (
+				job.status === 'completed' ||
+				job.status === 'failed' ||
+				job.status === 'cancelled'
+			) {
+				const jobTime = new Date(job.updated_at).getTime();
+				if (now - jobTime > 30000) {
+					// 30 seconds
+					removeJobFromStore(jobId);
+				}
+			}
+		}
+	}
+
+	async function startRealtimeMonitoring() {
+		realtimeService = new JobRealtimeService({
 			onConnected: () => {
-				console.log('🔗 JobTracker: Connected to job stream');
-				// Immediately fetch any existing jobs to ensure we don't miss any
-				setTimeout(async () => {
-					try {
-						const { fetchAndPopulateJobs } = await import('$lib/stores/job-store');
-						await fetchAndPopulateJobs();
-					} catch (error) {
-						console.error('❌ JobTracker: Error fetching initial jobs:', error);
-					}
-				}, 100);
+				console.log('✅ JobTracker: Realtime connected');
 			},
 			onDisconnected: () => {
-				console.log('🔌 JobTracker: Disconnected from job stream');
+				console.log('🔌 JobTracker: Realtime disconnected');
 			},
 			onError: (error: string) => {
-				console.error('❌ JobTracker: SSE error:', error);
+				console.error('❌ JobTracker: Realtime error:', error);
 			},
-			onJobUpdate: (jobs: JobUpdate[]) => {
-				// Update active jobs
-				for (const job of jobs) {
-					// Update the global store
-					updateJobInStore(job);
+			onJobUpdate: (job: JobUpdate) => {
+				// Filter by job type if specified
+				if (jobType && job.type !== jobType) {
+					return;
 				}
-
-				// Clean up old completed jobs (older than 30 seconds)
-				const now = Date.now();
-				const currentJobs = getActiveJobsMap();
-				for (const [jobId, job] of currentJobs.entries()) {
-					if (
-						job.status === 'completed' ||
-						job.status === 'failed' ||
-						job.status === 'cancelled'
-					) {
-						const jobTime = new Date(job.updated_at).getTime();
-						if (now - jobTime > 30000) {
-							// 30 seconds
-							removeJobFromStore(jobId);
-						}
-					}
-				}
-
-				// Show toast notifications for status changes
-				for (const job of jobs) {
-					const previousJob = currentJobs.get(job.id);
-					if (previousJob && previousJob.status !== job.status) {
-						if (showToasts) {
-							const jobTypeInfo = getJobTypeInfo(job.type);
-							if (job.status === 'completed') {
-								toast.success(`${jobTypeInfo.title} completed successfully!`);
-							} else if (job.status === 'failed') {
-								toast.error(`${jobTypeInfo.title} failed`);
-							} else if (job.status === 'cancelled') {
-								toast.info(`${jobTypeInfo.title} was cancelled`);
-							}
-						}
-					}
-				}
-
-				// Notify parent component
-				if (onJobUpdate) {
-					try {
-						onJobUpdate(jobs);
-					} catch (error) {
-						console.error('❌ JobTracker: Error calling onJobUpdate callback:', error);
-					}
-				}
+				handleJobUpdate(job);
 			},
-			onJobCompleted: (jobs: JobUpdate[]) => {
-				// Handle completed jobs
-				for (const job of jobs) {
-					// Mark as completed in our tracking
-					completedJobIds.add(job.id);
-
-					// Immediately update the job status in the store so UI reflects the change
-					updateJobInStore(job);
-
-					// Remove from active jobs after a delay
-					setTimeout(() => {
-						removeJobFromStore(job.id);
-					}, 5000); // 5 second delay
+			onJobCompleted: (job: JobUpdate) => {
+				// Filter by job type if specified
+				if (jobType && job.type !== jobType) {
+					return;
 				}
-
-				// Notify parent component
-				onJobCompleted?.(jobs);
+				handleJobCompleted(job);
 			}
-		}, jobType);
+		});
 
-		// Connect to the SSE service
-		sseService.connect();
-
-		// Start fallback polling in case SSE fails
-		startPollingFallback();
+		await realtimeService.connect();
 	}
 
-	// Fallback polling function for when SSE is not available
-	async function startPollingFallback() {
-		// Clear any existing polling interval
-		if (pollingInterval) {
-			clearInterval(pollingInterval);
-		}
-
-		// Poll every 2 seconds to catch progress updates
-		pollingInterval = setInterval(async () => {
-			try {
-				const { fetchAndPopulateJobs } = await import('$lib/stores/job-store');
-				await fetchAndPopulateJobs();
-			} catch (error) {
-				console.error('❌ JobTracker: Error in fallback polling:', error);
-			}
-		}, 2000);
-	}
-
-	export function stopMonitoring() {
-		if (sseService) {
-			sseService.disconnect();
-			sseService = null;
-		}
-
-		// Clear polling interval
-		if (pollingInterval) {
-			clearInterval(pollingInterval);
-			pollingInterval = null;
+	export async function stopMonitoring() {
+		if (realtimeService) {
+			await realtimeService.disconnect();
+			realtimeService = null;
 		}
 	}
 
@@ -213,12 +206,6 @@
 		stopMonitoring();
 		// Clear completed job tracking
 		completedJobIds.clear();
-
-		// Clear polling interval
-		if (pollingInterval) {
-			clearInterval(pollingInterval);
-			pollingInterval = null;
-		}
 	});
 </script>
 

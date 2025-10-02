@@ -177,7 +177,12 @@
 		<div
 			class="relative w-full max-w-lg max-h-[100vh] rounded-xl bg-white shadow-2xl dark:bg-gray-800 flex flex-col overflow-hidden mx-4"
 			onclick={(e) => e.stopPropagation()}
-			role="document"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') closeModal();
+			}}
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
 		>
 			<!-- Modal Header -->
 			<div

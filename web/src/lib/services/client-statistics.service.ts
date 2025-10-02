@@ -115,6 +115,7 @@ export class ClientStatisticsService {
 	private maxRetries: number = 3;
 	private retryDelay: number = 1000; // 1 second
 	private rawDataPoints: TrackerDataPoint[] = [];
+	private isUsingSampledData: boolean = false;
 
 	constructor(supabaseClient?: SupabaseClient) {
 		this.supabase = supabaseClient || supabase;
@@ -228,6 +229,7 @@ export class ClientStatisticsService {
 		this.statistics = this.initializeStatistics();
 		this.transportContext = this.initializeTransportContext();
 		this.currentOffset = 0;
+		this.isUsingSampledData = false;
 
 		try {
 			// Get total count first
@@ -287,10 +289,16 @@ export class ClientStatisticsService {
 					const chunkSize = 1000;
 					let currentOffset = 0;
 					let hasMore = true;
+					let samplingWasApplied = false;
 
 					while (hasMore) {
-						const chunkData = await this.loadSmartSampledData(userId, startDate, endDate, currentOffset, chunkSize, this.totalCount);
+						const { data: chunkData, samplingApplied } = await this.loadSmartSampledData(userId, startDate, endDate, currentOffset, chunkSize, this.totalCount);
 						allSampledData.push(...chunkData);
+
+						// Track if sampling was applied in any chunk
+						if (samplingApplied) {
+							samplingWasApplied = true;
+						}
 
 						onProgress?.({
 							percentage: 50 + (currentOffset / this.totalCount) * 25,
@@ -311,6 +319,9 @@ export class ClientStatisticsService {
 						}
 					}
 
+					// Set the flag for use in processBatch
+					this.isUsingSampledData = samplingWasApplied;
+
 					onProgress?.({
 						percentage: 75,
 						stage: 'Processing sampled data...',
@@ -319,6 +330,8 @@ export class ClientStatisticsService {
 						currentBatch: 1,
 						totalBatches: 1
 					});
+
+					console.log(`📊 Sampling applied: ${this.isUsingSampledData}`);
 
 					// Process the sampled data
 					this.processBatch(allSampledData);
@@ -479,7 +492,7 @@ export class ClientStatisticsService {
 		offset: number = 0,
 		limit: number = 1000,
 		totalCount?: number
-	): Promise<TrackerDataPoint[]> {
+	): Promise<{ data: TrackerDataPoint[], samplingApplied: boolean }> {
 		try {
 			// Get session for authentication
 			const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
@@ -515,16 +528,18 @@ export class ClientStatisticsService {
 				throw new Error(result.error);
 			}
 
+			const samplingApplied = result.metadata?.samplingApplied || false;
+
 			console.log(`🧠 Smart sampling result:`, {
 				returnedCount: result.metadata?.returnedCount || 0,
 				totalCount: result.metadata?.totalCount || 0,
-				samplingApplied: result.metadata?.samplingApplied || false,
+				samplingApplied,
 				samplingLevel: result.metadata?.samplingLevel || 'unknown',
 				samplingParams: result.metadata?.samplingParams || {}
 			});
 
 			// Transform the data to match the expected format
-			return (result.data || []).map((point: any) => ({
+			const data = (result.data || []).map((point: any) => ({
 				recorded_at: point.recorded_at,
 				time_spent: point.time_spent,
 				country_code: point.country_code,
@@ -539,6 +554,8 @@ export class ClientStatisticsService {
 				village: point.geocode?.properties?.address?.village
 			}));
 
+			return { data, samplingApplied };
+
 		} catch (error) {
 			console.error('❌ Error loading smart sampled data:', error);
 			// Fallback to regular loading if smart sampling fails
@@ -552,7 +569,7 @@ export class ClientStatisticsService {
 	 */
 	private getFunctionsUrl(): string {
 		// Use environment variable or default to local development
-		const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
+		const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || 'http://localhost:54321';
 		return `${supabaseUrl}/functions/v1`;
 	}
 
@@ -564,6 +581,7 @@ export class ClientStatisticsService {
 
 		// Process points and add transport mode information
 		const processedBatch = batch.map((point, index) => {
+			const prevPoint = batch[index - 1];
 			const nextPoint = batch[index + 1];
 			let transportMode = 'unknown';
 			let velocity = 0;
@@ -573,27 +591,40 @@ export class ClientStatisticsService {
 			if (point.speed !== undefined && point.speed !== null) {
 				// Use database speed field for transport mode detection
 				const currentCoords = this.extractCoordinates(point);
+				const previousCoords = prevPoint ? this.extractCoordinates(prevPoint) : null;
 
 				if (currentCoords) {
 					// Create proper GeoJSON Feature for transport mode detection
 					const currentGeocode = this.createGeocodeFeature(point);
 
-					// Use database speed in m/s for transport mode detection
+					// Database stores speed in km/h, convert to m/s for detectEnhancedMode
+					const speedMps = point.speed / 3.6;
+
+					// Use actual previous coordinates if available, otherwise use current
+					const prevLat = previousCoords ? previousCoords[1] : currentCoords[1];
+					const prevLng = previousCoords ? previousCoords[0] : currentCoords[0];
+
+					// Calculate actual time difference
+					const timeDiff = prevPoint
+						? this.calculateTimeSpent(prevPoint, point) / 1000 // convert ms to seconds
+						: 1;
+
+					// Use database speed for transport mode detection
 					const { mode, reason } = detectEnhancedMode(
-						currentCoords[1], currentCoords[0], // lat, lng
-						currentCoords[1], currentCoords[0], // same coordinates since we're using database speed
-						1, // dummy time since we're using database speed
+						prevLat, prevLng, // previous lat, lng
+						currentCoords[1], currentCoords[0], // current lat, lng
+						timeDiff, // actual time difference in seconds
 						currentGeocode,
 						this.transportContext,
-						point.speed // pass database speed in m/s
+						speedMps // pass speed in m/s (detectEnhancedMode will convert to km/h)
 					);
 
 					transportMode = mode;
 					detectionReason = reason;
 
-					// Convert database speed to km/h for velocity display
-					velocity = point.speed * 3.6;
-					console.log(`🚗 Using database speed: ${point.speed.toFixed(2)} m/s (${velocity.toFixed(2)} km/h) for transport mode: ${mode}`);
+					// Database speed is already in km/h
+					velocity = point.speed;
+					console.log(`🚗 Using database speed: ${point.speed.toFixed(2)} km/h for transport mode: ${mode}`);
 				}
 			} else if (nextPoint) {
 				// Fallback to calculated velocity if no database speed available
@@ -773,7 +804,8 @@ export class ClientStatisticsService {
 
 		if (!currentCoords || !nextCoords) return;
 
-		// Calculate distance and time
+		// ALWAYS calculate distance using haversine to match what's displayed on the map
+		// The map renders polylines using haversine calculations, so statistics must match
 		const distance = haversine(
 			currentCoords[1],
 			currentCoords[0], // lat, lng
@@ -784,21 +816,18 @@ export class ClientStatisticsService {
 		const timeSpent = this.calculateTimeSpent(current, next);
 		if (timeSpent <= 0) return;
 
-		// Create proper GeoJSON Feature for transport mode detection
-		const currentGeocode = this.createGeocodeFeature(current);
+		// Use the ALREADY DETECTED transport mode from processBatch
+		// This ensures map and statistics use the same mode (with database speed respected)
+		// DO NOT re-detect the mode here as it will ignore database speed and cause mismatches
+		const mode = current.transport_mode || 'unknown';
 
-		// Detect transport mode
-		const { mode } = detectEnhancedMode(
-			currentCoords?.[1] || 0,
-			currentCoords?.[0] || 0, // prev lat, lng
-			nextCoords?.[1] || 0,
-			nextCoords?.[0] || 0, // curr lat, lng
-			timeSpent / 1000, // convert to seconds
-			currentGeocode,
-			this.transportContext
-		);
+		// Log for verification during development
+		if (mode === 'walking' && distance > 0) {
+			console.log(`📊 Accumulating walking distance: ${(distance / 1000).toFixed(3)}km`);
+		}
 
-		// Update statistics
+		// Update statistics - ALWAYS accumulate distance and time for all rendered points
+		// This ensures statistics match what's displayed on the map
 		if (mode !== 'stationary') {
 			this.statistics.totalDistance += distance;
 			this.statistics.timeSpentMoving += timeSpent;
@@ -1017,7 +1046,8 @@ export class ClientStatisticsService {
 				this.statistics.totalDistance > 0
 					? (stats.distance / this.statistics.totalDistance) * 100
 					: 0
-			)
+			),
+			distanceMeters: stats.distance // Keep raw meters for step calculation
 		}));
 
 		// Convert country time distribution to array
@@ -1040,9 +1070,12 @@ export class ClientStatisticsService {
 			}))
 			.sort((a, b) => b.count - a.count);
 
-		// Calculate steps from walking distance
+		// Calculate steps from walking distance - use raw meters before rounding
+		// Average step length is approximately 0.7 meters
 		const walking = transport.find((t) => t.mode === 'walking');
-		const steps = walking ? Math.round((walking.distance * 1000) / 0.7) : 0;
+		const steps = walking && walking.distanceMeters > 0
+			? Math.round(walking.distanceMeters / 0.7)
+			: 0;
 
 		return {
 			totalDistance: isFinite(totalDistanceKm)
@@ -1074,6 +1107,7 @@ export class ClientStatisticsService {
 		this.totalCount = 0;
 		this.isProcessing = false;
 		this.rawDataPoints = [];
+		this.isUsingSampledData = false;
 	}
 
 	/**
