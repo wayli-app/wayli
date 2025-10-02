@@ -1,6 +1,8 @@
-# Wayli - Privacy-First Location Tracking App
+# Wayli - Privacy-First Location Tracking App 🗺️
 
-A modern, privacy-first location tracking and trip management application built with SvelteKit and Supabase. Wayli helps you track your travels, discover new places, and manage your trips with full control over your data.
+Alright, so... Wayli is basically this privacy-first location analysis app. The whole thing is kind of a love letter to people who want to track their travels without selling their soul to big tech.
+
+It started as vibes but somehow ended up with... actual architecture? 🤷‍♂️
 
 ## ✨ Features
 
@@ -136,7 +138,7 @@ graph TB
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/your-username/wayli.git
+   git clone https://github.com/wayli-app/wayli.git
    cd wayli/web
    ```
 

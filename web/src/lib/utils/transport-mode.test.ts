@@ -74,7 +74,7 @@ describe('Transport Mode Detection', () => {
 				isInAirplaneJourney: false,
 				totalDistanceTraveled: 0
 			};
-			const result = detectEnhancedMode(0, 0, 0.003, 0.003, 60, null, ctx);
+			const result = detectEnhancedMode(0, 0, 0.005, 0.005, 60, null, ctx);
 			expect(result.mode).toBe('car');
 		});
 	});
@@ -118,12 +118,12 @@ describe('Transport Mode Detection', () => {
 				// Start with car mode and add some history
 				context.currentMode = 'car';
 				context.modeHistory = [
-					{ mode: 'car', timestamp: Date.now() - 60000, speed: 50, coordinates: { lat: 0.003, lng: 0.003 } },
-					{ mode: 'car', timestamp: Date.now() - 30000, speed: 55, coordinates: { lat: 0.003, lng: 0.003 } },
-					{ mode: 'car', timestamp: Date.now() - 10000, speed: 52, coordinates: { lat: 0.003, lng: 0.003 } }
+					{ mode: 'car', timestamp: Date.now() - 60000, speed: 50, coordinates: { lat: 0.005, lng: 0.005 } },
+					{ mode: 'car', timestamp: Date.now() - 30000, speed: 55, coordinates: { lat: 0.005, lng: 0.005 } },
+					{ mode: 'car', timestamp: Date.now() - 10000, speed: 52, coordinates: { lat: 0.005, lng: 0.005 } }
 				];
 
-				const result = detectEnhancedMode(0.003, 0.003, 0.006, 0.006, 60, null, context);
+				const result = detectEnhancedMode(0.005, 0.005, 0.010, 0.010, 60, null, context);
 				expect(result.mode).toBe('car');
 				// The reason might be different due to the enhanced logic, just check that it's a car
 			});

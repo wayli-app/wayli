@@ -65,13 +65,6 @@ jobs:
         run: npm run build --if-present
 
       # Only run Docker and release steps on push to main
-      - name: Install semantic-release dependencies
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        working-directory: web
-        run: |
-          npm ci
-          npm install -g semantic-release @semantic-release/changelog @semantic-release/npm
-
       - name: Run semantic-release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         working-directory: web

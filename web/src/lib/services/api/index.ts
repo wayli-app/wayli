@@ -9,5 +9,5 @@ export * from './auth-api.service';
 export * from './geocoding-api.service';
 export * from './preferences-api.service';
 export * from './service-adapter';
-export * from './statistics-api.service';
+// export * from './statistics-api.service'; // TODO: Implement statistics API service
 export * from './trip-exclusions-api.service';

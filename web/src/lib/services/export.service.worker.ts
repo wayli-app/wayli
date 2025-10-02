@@ -86,31 +86,45 @@ export class ExportService {
 		if (!job) return null;
 
 		// Convert job to ExportJob format
-		const options = job.data as Record<string, unknown>;
+		type JobRecord = {
+			id: string;
+			created_by: string;
+			status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+			data: Record<string, unknown>;
+			progress: number;
+			result?: Record<string, unknown>;
+			error?: string;
+			created_at: string;
+			updated_at: string;
+			started_at?: string;
+			completed_at?: string;
+		};
+		const jobRecord = job as JobRecord;
+		const options = jobRecord.data as Record<string, unknown>;
 		return {
-			id: job.id,
-			user_id: job.created_by,
-			status: job.status,
+			id: jobRecord.id,
+			user_id: jobRecord.created_by,
+			status: jobRecord.status,
 			format: options.format as string,
 			include_location_data: options.includeLocationData as boolean,
 			include_want_to_visit: options.includeWantToVisit as boolean,
 			include_trips: options.includeTrips as boolean,
 			file_path:
 				(options.file_path as string) ||
-				((job.result as Record<string, unknown>)?.file_path as string) ||
+				((jobRecord.result as Record<string, unknown>)?.file_path as string) ||
 				undefined,
 			file_size:
 				(options.file_size as number) ||
-				((job.result as Record<string, unknown>)?.file_size as number) ||
+				((jobRecord.result as Record<string, unknown>)?.file_size as number) ||
 				undefined,
 			expires_at: options.expires_at as string,
-			progress: job.progress,
-			result: job.result,
-			error: job.error,
-			created_at: job.created_at,
-			updated_at: job.updated_at,
-			started_at: job.started_at,
-			completed_at: job.completed_at
+			progress: jobRecord.progress,
+			result: jobRecord.result,
+			error: jobRecord.error,
+			created_at: jobRecord.created_at,
+			updated_at: jobRecord.updated_at,
+			started_at: jobRecord.started_at,
+			completed_at: jobRecord.completed_at
 		};
 	}
 
@@ -127,32 +141,46 @@ export class ExportService {
 		if (!jobs) return [];
 
 		// Convert jobs to ExportJob format
+		type JobRecord = {
+			id: string;
+			created_by: string;
+			status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+			data: Record<string, unknown>;
+			progress: number;
+			result?: Record<string, unknown>;
+			error?: string;
+			created_at: string;
+			updated_at: string;
+			started_at?: string;
+			completed_at?: string;
+		};
 		return jobs.map((job) => {
-			const options = job.data as Record<string, unknown>;
+			const jobRecord = job as JobRecord;
+			const options = jobRecord.data as Record<string, unknown>;
 			return {
-				id: job.id,
-				user_id: job.created_by,
-				status: job.status,
+				id: jobRecord.id,
+				user_id: jobRecord.created_by,
+				status: jobRecord.status,
 				format: options.format as string,
 				include_location_data: options.includeLocationData as boolean,
 				include_want_to_visit: options.includeWantToVisit as boolean,
 				include_trips: options.includeTrips as boolean,
 				file_path:
 					(options.file_path as string) ||
-					((job.result as Record<string, unknown>)?.file_path as string) ||
+					((jobRecord.result as Record<string, unknown>)?.file_path as string) ||
 					undefined,
 				file_size:
 					(options.file_size as number) ||
-					((job.result as Record<string, unknown>)?.file_size as number) ||
+					((jobRecord.result as Record<string, unknown>)?.file_size as number) ||
 					undefined,
 				expires_at: options.expires_at as string,
-				progress: job.progress,
-				result: job.result,
-				error: job.error,
-				created_at: job.created_at,
-				updated_at: job.updated_at,
-				started_at: job.started_at,
-				completed_at: job.completed_at
+				progress: jobRecord.progress,
+				result: jobRecord.result,
+				error: jobRecord.error,
+				created_at: jobRecord.created_at,
+				updated_at: jobRecord.updated_at,
+				started_at: jobRecord.started_at,
+				completed_at: jobRecord.completed_at
 			};
 		});
 	}

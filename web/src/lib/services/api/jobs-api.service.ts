@@ -2,7 +2,7 @@
 // Jobs API service layer - extracts business logic from API routes
 
 import { errorHandler, ErrorCode } from '../error-handler.service';
-import { JobQueueService } from '../queue/job-queue.service.server';
+import { JobQueueService } from '../../../worker/job-queue.service.server';
 
 import type { Job, JobType } from '$lib/types/job-queue.types';
 import type { CreateJobRequest, JobQuery } from '$lib/utils/api/schemas';
@@ -275,11 +275,11 @@ export class JobsApiService {
 			// Calculate statistics
 			const stats = {
 				total: jobs.length,
-				queued: jobs.filter((job) => job.status === 'queued').length,
-				running: jobs.filter((job) => job.status === 'running').length,
-				completed: jobs.filter((job) => job.status === 'completed').length,
-				failed: jobs.filter((job) => job.status === 'failed').length,
-				cancelled: jobs.filter((job) => job.status === 'cancelled').length
+				queued: jobs.filter((job: Job) => job.status === 'queued').length,
+				running: jobs.filter((job: Job) => job.status === 'running').length,
+				completed: jobs.filter((job: Job) => job.status === 'completed').length,
+				failed: jobs.filter((job: Job) => job.status === 'failed').length,
+				cancelled: jobs.filter((job: Job) => job.status === 'cancelled').length
 			};
 
 			return stats;

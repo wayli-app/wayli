@@ -1,6 +1,6 @@
-import { supabase } from '$lib/shared/server';
+import { createWorkerClient } from '../../worker/client';
 
-import { JobQueueService } from './queue/job-queue.service.server';
+import { JobQueueService } from '../../worker/job-queue.service.server';
 
 export interface ExportOptions {
 	format?: string;
@@ -32,7 +32,7 @@ export interface ExportJob {
 }
 
 export class ExportService {
-	private static supabase = supabase;
+	private static supabase = createWorkerClient();
 
 	static async createExportJob(userId: string, options: ExportOptions): Promise<ExportJob> {
 		// Check for existing queued or running export job

@@ -137,7 +137,8 @@ export class DatabaseMigrationService {
 
 			console.log('✅ Migration infrastructure bootstrapped successfully');
 		} catch (error) {
-			throw new Error(`Failed to bootstrap migration infrastructure: ${error.message}`);
+			const err = error as Error;
+			throw new Error(`Failed to bootstrap migration infrastructure: ${err.message}`);
 		}
 	}
 
@@ -386,7 +387,8 @@ export class DatabaseMigrationService {
 			}
 
 		} catch (error) {
-			throw new Error(`Failed to create infrastructure: ${error.message}`);
+			const err = error as Error;
+			throw new Error(`Failed to create infrastructure: ${err.message}`);
 		}
 	}
 

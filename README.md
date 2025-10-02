@@ -1,18 +1,29 @@
-# Wayli
+# Wayli 🗺️
 
 [![Build Status](#)](#) [![Coverage Status](#)](#)
 
-Wayli is an open source geospatial tracking and trip analysis platform. It helps users visualize, analyze, and manage their location data, trips, and points of interest.
+Alright, so... Wayli is basically a privacy-first location analysis app. The whole thing is kind of a love letter to people who want to track their travels without selling their soul to big tech.
 
-## Features
-- Visualize GPS tracks and trips on an interactive map
-- Automatic trip detection and statistics
-- POI visit detection (15+ min stay)
-- Modes of transport detection (car, train, cycling, etc.)
-- Upload and manage cover photos for trips
-- Unsplash integration for trip photos
-- User profile with home address for improved trip detection
+## What it does
+
+- Tracks your GPS movements and automatically figures out your trips
+- Tries to guess your transport mode (car, train, bike, etc.)
+- Lets you upload cover photos for trips, and integrates with Unsplash for pretty pictures
+- Export everything because YOUR data is YOURS
 - Privacy-first: your data, your control
+
+## The vibe-coded stack
+
+- **Frontend**: SvelteKit + TypeScript + Tailwind (because who doesn't love a good component framework)
+- **Backend**: Supabase doing the heavy lifting (PostgreSQL, auth, storage, the works)
+- **Architecture**: Got this whole layered thing going on - services, stores, API handlers, the full shebang. It's actually pretty well organized... for something mostly vibe-coded
+
+**Fun facts:**
+- Actually has test coverage goals (85%+) which is wild for a vibe-coded project
+- WCAG 2.1 AA compliant because accessibility matters
+- Has this whole service manager architecture with client-safe vs server-only services
+
+The codebase is at `/web` and honestly it's got more structure than you'd expect. Check out the [web README](web/README.md) for the full architecture breakdown.
 
 ## Quick Start
 ```bash

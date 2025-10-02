@@ -18,7 +18,23 @@ export class WantToVisitService {
 		}
 
 		// Map database column names to frontend property names
-		return (data || []).map((place) => ({
+		type DbPlace = {
+			id: string;
+			user_id: string;
+			title: string;
+			type: string;
+			coordinates: string;
+			description?: string;
+			address?: string;
+			location?: string;
+			marker_type?: string;
+			marker_color?: string;
+			labels?: string[];
+			favorite?: boolean;
+			created_at: string;
+			updated_at: string;
+		};
+		return (data as DbPlace[] || []).map((place) => ({
 			...place,
 			markerType: place.marker_type,
 			markerColor: place.marker_color
