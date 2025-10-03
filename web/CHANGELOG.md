@@ -1,3 +1,13 @@
+## [1.2.1](https://github.com/wayli-app/wayli/compare/v1.2.0...v1.2.1) (2025-10-03)
+
+
+### Bug Fixes
+
+* Add ignore statement. ([a4bbbf6](https://github.com/wayli-app/wayli/commit/a4bbbf6c95b3acd5e7ec727dac5049b043fcb574))
+* Merge migration SQL files into one. ([6c7c64e](https://github.com/wayli-app/wayli/commit/6c7c64e5ee3b9c0f02f348674cbd896fc328c04a))
+* Security issues in SQL. ([f94a26b](https://github.com/wayli-app/wayli/commit/f94a26bb19da20368c07659c5f0d982475620ecb))
+* Update RLS when querying jobs table. ([16506be](https://github.com/wayli-app/wayli/commit/16506be39650391178ea2b0219ec10788af20efd))
+
 # [1.2.0](https://github.com/wayli-app/wayli/compare/v1.1.43...v1.2.0) (2025-10-02)
 
 
