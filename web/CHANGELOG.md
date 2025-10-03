@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/wayli-app/wayli/compare/v1.2.2...v1.2.3) (2025-10-03)
+
+
+### Bug Fixes
+
+* Rename migrations file correctly. ([285c966](https://github.com/wayli-app/wayli/commit/285c966bad1b99ad9136003a29e87180f6b9d4c4))
+
 ## [1.2.2](https://github.com/wayli-app/wayli/compare/v1.2.1...v1.2.2) (2025-10-03)
 
 
