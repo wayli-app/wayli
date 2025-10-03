@@ -1,6 +1,7 @@
 # Dependencies
 web/node_modules
 web/package-lock.json
+web/supabase/config.toml
 
 # Build outputs
 web/.svelte-kit

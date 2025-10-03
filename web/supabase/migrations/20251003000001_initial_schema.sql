@@ -51,7 +51,6 @@ SET "search_path" TO '' AS $$
 DECLARE updated_count INTEGER := 0;
 BEGIN -- Set timeout for batch processing
 SET statement_timeout = '30s';
--- Get batch of records in chronological order
 WITH batch AS (
     SELECT user_id,
         recorded_at,
@@ -62,8 +61,6 @@ WITH batch AS (
     ORDER BY recorded_at OFFSET p_offset
     LIMIT p_limit
 ), -- Calculate distances using LATERAL join to get previous record
--- This approach is reliable because it always looks at the actual previous record
--- in the database, not just within a limited result set
 calculations AS (
     SELECT b.user_id,
         b.recorded_at,
@@ -142,20 +139,13 @@ BEGIN -- Adjust window size based on transport mode
 CASE
     transport_mode
     WHEN 'walking' THEN window_size := 3;
--- Smaller window for walking
 WHEN 'cycling' THEN window_size := 4;
--- Medium window for cycling
 WHEN 'car' THEN window_size := 5;
--- Standard window for car
 WHEN 'train' THEN window_size := 7;
--- Larger window for train (more stable)
 WHEN 'airplane' THEN window_size := 10;
--- Largest window for airplane
 ELSE window_size := 5;
--- Default window
 END CASE
 ;
--- Get points in window around the target point
 WITH point_window AS (
     SELECT location,
         recorded_at,
@@ -205,37 +195,25 @@ FROM speed_calculations
 WHERE speed_kmh IS NOT NULL
     AND speed_kmh > 0
     AND speed_kmh < 1000;
--- Maximum realistic speed
--- Need at least 2 points for calculation
 IF point_count < 2 THEN RETURN 0;
 END IF;
--- Calculate median speed (more robust than average)
 median_speed := valid_speeds [CEIL(point_count::DECIMAL / 2)];
--- Calculate average speed
 SELECT AVG(speed) INTO avg_speed
 FROM UNNEST(valid_speeds) AS speed;
--- Apply mode-specific adjustments
 CASE
     transport_mode
     WHEN 'walking' THEN mode_factor := 0.8;
--- Walking speeds are more variable
 WHEN 'cycling' THEN mode_factor := 0.9;
--- Cycling speeds are moderately variable
 WHEN 'car' THEN mode_factor := 1.0;
--- Car speeds are standard
 WHEN 'train' THEN mode_factor := 1.1;
--- Train speeds are more stable
 WHEN 'airplane' THEN mode_factor := 1.2;
--- Airplane speeds are very stable
 ELSE mode_factor := 1.0;
 END CASE
 ;
--- Use median if available, otherwise average
 IF median_speed IS NOT NULL THEN speed_result := median_speed * mode_factor;
 ELSIF avg_speed IS NOT NULL THEN speed_result := avg_speed * mode_factor;
 ELSE speed_result := 0;
 END IF;
--- Final bounds checking
 speed_result := GREATEST(0, LEAST(speed_result, 1000));
 RETURN ROUND(speed_result, 2);
 END;
@@ -312,16 +290,11 @@ FROM speed_calculations
 WHERE speed_kmh IS NOT NULL
     AND speed_kmh > 0
     AND speed_kmh < 500;
--- Maximum realistic speed
--- Need at least 3 points for stable calculation
 IF point_count < 3 THEN RETURN 0;
 END IF;
--- Calculate median speed (more robust than average)
 median_speed := valid_speeds [CEIL(point_count::DECIMAL / 2)];
--- Calculate average speed
 SELECT AVG(speed) INTO avg_speed
 FROM UNNEST(valid_speeds) AS speed;
--- Calculate outlier threshold (2 standard deviations)
 WITH speed_stats AS (
     SELECT AVG(speed) as mean_speed,
         STDDEV(speed) as std_dev
@@ -329,7 +302,6 @@ WITH speed_stats AS (
 )
 SELECT mean_speed + (2 * std_dev) INTO outlier_threshold
 FROM speed_stats;
--- Filter out outliers and use median if available, otherwise average
 IF median_speed IS NOT NULL
 AND median_speed < outlier_threshold THEN speed_result := median_speed;
 ELSIF avg_speed IS NOT NULL
@@ -337,7 +309,6 @@ AND avg_speed < outlier_threshold THEN speed_result := avg_speed;
 ELSE -- If all speeds are outliers, use the most recent valid speed
 speed_result := valid_speeds [ARRAY_LENGTH(valid_speeds, 1)];
 END IF;
--- Final bounds checking
 speed_result := GREATEST(0, LEAST(speed_result, 500));
 RETURN ROUND(speed_result, 2);
 END;
@@ -367,7 +338,6 @@ WHERE type = 'data_export'
 DELETE FROM storage.objects
 WHERE name = expired_job.file_path
     AND bucket_id = 'exports';
--- Delete the job record
 DELETE FROM public.jobs
 WHERE id = expired_job.id;
 deleted_count := deleted_count + 1;
@@ -378,15 +348,20 @@ $$;
 ALTER FUNCTION "public"."cleanup_expired_exports"() OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "public"."cleanup_old_audit_logs"("retention_days" integer DEFAULT 90) RETURNS integer LANGUAGE "plpgsql" SECURITY DEFINER
 SET "search_path" TO '' AS $$
-DECLARE deleted_count INTEGER;
-BEGIN
+DECLARE delete_count INTEGER;
+BEGIN -- Enforce minimum retention period
+IF retention_days < 30 THEN RAISE EXCEPTION 'Minimum audit log retention is 30 days, requested: % days',
+retention_days;
+END IF;
+-- Delete old audit logs
 DELETE FROM public.audit_logs
 WHERE timestamp < NOW() - INTERVAL '1 day' * retention_days;
-GET DIAGNOSTICS deleted_count = ROW_COUNT;
-RETURN deleted_count;
+GET DIAGNOSTICS delete_count = ROW_COUNT;
+RETURN delete_count;
 END;
 $$;
 ALTER FUNCTION "public"."cleanup_old_audit_logs"("retention_days" integer) OWNER TO "postgres";
+COMMENT ON FUNCTION "public"."cleanup_old_audit_logs"("retention_days" integer) IS 'Deletes audit logs older than specified days (minimum 30 days retention enforced)';
 CREATE OR REPLACE FUNCTION "public"."create_distance_calculation_job"(
         "target_user_id" "uuid",
         "job_reason" "text" DEFAULT 'import_fallback'::"text"
@@ -439,11 +414,6 @@ END;
 $$;
 ALTER FUNCTION "public"."enable_tracker_data_trigger"() OWNER TO "postgres";
 COMMENT ON FUNCTION "public"."enable_tracker_data_trigger"() IS 'Re-enables distance calculation trigger after bulk operations';
-CREATE OR REPLACE FUNCTION "public"."exec_sql"("sql" "text") RETURNS "void" LANGUAGE "plpgsql" SECURITY DEFINER
-SET "search_path" TO '' AS $$ BEGIN EXECUTE sql;
-END;
-$$;
-ALTER FUNCTION "public"."exec_sql"("sql" "text") OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "public"."full_country"("country" "text") RETURNS "text" LANGUAGE "plpgsql" IMMUTABLE
 SET "search_path" TO '' AS $$ BEGIN RETURN (
         SELECT value
@@ -714,34 +684,40 @@ CREATE OR REPLACE FUNCTION "public"."get_audit_statistics"(
         "events_by_severity" "jsonb",
         "events_by_user" "jsonb"
     ) LANGUAGE "plpgsql" SECURITY DEFINER
-SET "search_path" TO '' AS $$ BEGIN RETURN QUERY WITH stats AS (
-        SELECT COUNT(*) as total_events,
-            jsonb_object_agg(event_type, count) as events_by_type,
-            jsonb_object_agg(severity, count) as events_by_severity,
-            jsonb_object_agg(user_id::text, count) as events_by_user
-        FROM (
-                SELECT event_type,
-                    severity,
-                    user_id,
-                    COUNT(*) as count
-                FROM public.audit_logs
-                WHERE (
-                        start_date IS NULL
-                        OR timestamp >= start_date
-                    )
-                    AND (
-                        end_date IS NULL
-                        OR timestamp <= end_date
-                    )
-                GROUP BY event_type,
-                    severity,
-                    user_id
-            ) grouped_stats
+SET "search_path" TO '' AS $$ BEGIN -- Security check: Only admins can view system-wide audit statistics
+    IF NOT EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+            AND role = 'admin'
     )
-SELECT COALESCE(stats.total_events, 0),
-    COALESCE(stats.events_by_type, '{}'::jsonb),
-    COALESCE(stats.events_by_severity, '{}'::jsonb),
-    COALESCE(stats.events_by_user, '{}'::jsonb)
+    AND auth.role() != 'service_role' THEN RAISE EXCEPTION 'Unauthorized: Only admins can view audit statistics';
+END IF;
+RETURN QUERY WITH stats AS (
+    SELECT COUNT(*) as total_events,
+        jsonb_object_agg(event_type, count) as events_by_type,
+        jsonb_object_agg(severity, count) as events_by_severity,
+        jsonb_object_agg(user_id::text, count) as events_by_user
+    FROM (
+            SELECT event_type,
+                severity,
+                user_id,
+                COUNT(*) as count
+            FROM public.audit_logs
+            WHERE (
+                    start_date IS NULL
+                    OR timestamp >= start_date
+                )
+                AND (
+                    end_date IS NULL
+                    OR timestamp <= end_date
+                )
+            GROUP BY event_type,
+                severity,
+                user_id
+        ) event_stats
+)
+SELECT *
 FROM stats;
 END;
 $$;
@@ -749,6 +725,10 @@ ALTER FUNCTION "public"."get_audit_statistics"(
     "start_date" timestamp with time zone,
     "end_date" timestamp with time zone
 ) OWNER TO "postgres";
+COMMENT ON FUNCTION "public"."get_audit_statistics"(
+    "start_date" timestamp with time zone,
+    "end_date" timestamp with time zone
+) IS 'Returns system-wide audit statistics. Admin-only access enforced.';
 CREATE OR REPLACE FUNCTION "public"."get_points_within_radius"(
         "center_lat" double precision,
         "center_lon" double precision,
@@ -761,7 +741,15 @@ CREATE OR REPLACE FUNCTION "public"."get_points_within_radius"(
         "lon" double precision,
         "distance_meters" double precision
     ) LANGUAGE "plpgsql" SECURITY DEFINER
-SET "search_path" TO '' AS $$ BEGIN RETURN QUERY
+SET "search_path" TO '' AS $$ BEGIN IF auth.uid() != user_uuid
+    AND NOT EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+            AND role = 'admin'
+    ) THEN RAISE EXCEPTION 'Unauthorized: You can only access your own tracking points';
+END IF;
+RETURN QUERY
 SELECT td.user_id,
     td.recorded_at,
     gis.ST_Y(td.location::gis.geometry) as lat,
@@ -808,7 +796,15 @@ CREATE OR REPLACE FUNCTION "public"."get_user_activity_summary"("p_user_id" "uui
         "events_by_severity" "jsonb",
         "last_activity" timestamp with time zone
     ) LANGUAGE "plpgsql" SECURITY DEFINER
-SET "search_path" TO '' AS $$ BEGIN RETURN QUERY
+SET "search_path" TO '' AS $$ BEGIN IF auth.uid() != p_user_id
+    AND NOT EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+            AND role = 'admin'
+    ) THEN RAISE EXCEPTION 'Unauthorized: You can only access your own activity summary';
+END IF;
+RETURN QUERY
 SELECT COUNT(*) as total_events,
     jsonb_object_agg(event_type, count) as events_by_type,
     jsonb_object_agg(severity, count) as events_by_severity,
@@ -844,7 +840,15 @@ CREATE OR REPLACE FUNCTION "public"."get_user_tracking_data"(
         "distance" numeric,
         "time_spent" numeric
     ) LANGUAGE "plpgsql" SECURITY DEFINER
-SET "search_path" TO '' AS $$ BEGIN RETURN QUERY
+SET "search_path" TO '' AS $$ BEGIN IF auth.uid() != user_uuid
+    AND NOT EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+            AND role = 'admin'
+    ) THEN RAISE EXCEPTION 'Unauthorized: You can only access your own tracking data';
+END IF;
+RETURN QUERY
 SELECT td.user_id,
     td.recorded_at,
     gis.ST_Y(td.location::gis.geometry) as lat,
@@ -877,9 +881,8 @@ ALTER FUNCTION "public"."get_user_tracking_data"(
     "limit_count" integer
 ) OWNER TO "postgres";
 CREATE OR REPLACE FUNCTION "public"."handle_new_user"() RETURNS "trigger" LANGUAGE "plpgsql" SECURITY DEFINER
-SET "search_path" TO 'public' AS $$
-DECLARE user_count INTEGER;
-user_role TEXT;
+SET "search_path" TO '' AS $$
+DECLARE user_role TEXT;
 first_name TEXT;
 last_name TEXT;
 full_name TEXT;
@@ -887,7 +890,6 @@ BEGIN -- Extract name information from user metadata
 first_name := COALESCE(NEW.raw_user_meta_data->>'first_name', '');
 last_name := COALESCE(NEW.raw_user_meta_data->>'last_name', '');
 full_name := COALESCE(NEW.raw_user_meta_data->>'full_name', '');
--- Build full name if not provided
 IF full_name = ''
 AND (
     first_name != ''
@@ -898,23 +900,9 @@ ELSIF first_name != '' THEN full_name := first_name;
 ELSIF last_name != '' THEN full_name := last_name;
 END IF;
 END IF;
--- Clean up names (remove extra spaces, etc.)
 first_name := TRIM(first_name);
 last_name := TRIM(last_name);
 full_name := TRIM(full_name);
--- Count existing users in user_profiles (more reliable than counting auth.users)
--- This avoids potential permission issues with auth schema
-SELECT COUNT(*) INTO user_count
-FROM public.user_profiles;
--- Set role based on user count
-IF user_count = 0 THEN user_role := 'admin';
-RAISE NOTICE 'Creating first user as admin: %',
-NEW.id;
-ELSE user_role := 'user';
-RAISE NOTICE 'Creating user with role user: %',
-NEW.id;
-END IF;
--- Insert into user_profiles table
 INSERT INTO public.user_profiles (
         id,
         first_name,
@@ -929,11 +917,19 @@ VALUES (
         first_name,
         last_name,
         full_name,
-        user_role,
+        -- Atomic check: First user becomes admin, prevents race condition
+        CASE
+            WHEN NOT EXISTS (
+                SELECT 1
+                FROM public.user_profiles
+                LIMIT 1
+                FOR UPDATE
+            ) THEN 'admin'
+            ELSE 'user'
+        END,
         NOW(),
         NOW()
     );
--- Insert into user_preferences table
 INSERT INTO public.user_preferences (
         id,
         created_at,
@@ -952,13 +948,13 @@ WHEN OTHERS THEN RAISE WARNING 'Error in handle_new_user for user %: % %',
 NEW.id,
 SQLERRM,
 SQLSTATE;
--- Re-raise the exception so the transaction fails and the user sees an error
 RAISE;
 END;
 $$;
 ALTER FUNCTION "public"."handle_new_user"() OWNER TO "postgres";
 COMMENT ON FUNCTION "public"."handle_new_user"() IS 'Trigger function to create user_profiles and user_preferences entries for new users.
-    First user is automatically assigned admin role. Simplified to avoid auth.users permission issues.';
+    First user is automatically assigned admin role using atomic row-level locking to prevent race conditions.
+    Uses empty search_path for security (SECURITY DEFINER function).';
 CREATE OR REPLACE FUNCTION "public"."is_user_admin"("user_uuid" "uuid") RETURNS boolean LANGUAGE "plpgsql" SECURITY DEFINER
 SET "search_path" TO '' AS $$
 DECLARE user_role TEXT;
@@ -1008,11 +1004,8 @@ SET "search_path" TO '' AS $$
 DECLARE updated_count INTEGER;
 BEGIN RAISE NOTICE 'Starting bulk import optimization for user %...',
 target_user_id;
--- Disable trigger for better performance during import
 PERFORM disable_tracker_data_trigger();
--- Calculate distances and time_spent for the imported user's data
 SELECT update_tracker_distances(target_user_id) INTO updated_count;
--- Re-enable trigger
 PERFORM enable_tracker_data_trigger();
 RAISE NOTICE 'Bulk import optimization complete for user %. Updated % records.',
 target_user_id,
@@ -1026,7 +1019,6 @@ CREATE OR REPLACE FUNCTION "public"."remove_duplicate_tracking_points"("target_u
 SET "search_path" TO '' AS $$
 DECLARE deleted_count INTEGER := 0;
 BEGIN -- Delete duplicates, keeping the most recent record (highest created_at)
--- Since the table doesn't have an id column, we use ctid (row identifier)
 WITH duplicates AS (
     SELECT ctid,
         ROW_NUMBER() OVER (
@@ -1092,9 +1084,7 @@ min_distance_degrees DECIMAL;
 min_time_interval INTERVAL;
 BEGIN -- Convert meters to degrees (approximate: 1 degree ≈ 111,000 meters)
 min_distance_degrees := p_min_distance_meters / 111000.0;
--- Convert minutes to interval
 min_time_interval := (p_min_time_minutes || ' minutes')::INTERVAL;
--- First, count total points in the date range
 SELECT COUNT(*) INTO total_point_count
 FROM public.tracker_data
 WHERE user_id = p_target_user_id
@@ -1107,7 +1097,6 @@ WHERE user_id = p_target_user_id
         p_end_date IS NULL
         OR recorded_at <= p_end_date
     );
--- If point count is below threshold OR no sampling parameters are set, return all points
 IF total_point_count <= p_max_points_threshold
 OR (
     p_min_distance_meters = 0
@@ -1327,7 +1316,6 @@ calculated_distance DECIMAL;
 calculated_time_spent DECIMAL;
 stable_speed DECIMAL;
 BEGIN -- Only calculate if location is provided
--- For INSERT operations, always calculate. For UPDATE, always recalculate to be safe
 IF NEW.location IS NOT NULL THEN -- Find the previous point for this user based on recorded_at
 SELECT location,
     recorded_at INTO prev_point
@@ -1340,15 +1328,12 @@ LIMIT 1;
 IF prev_point IS NOT NULL THEN -- Calculate distance from previous point
 calculated_distance := public.st_distancesphere(prev_point.location, NEW.location);
 NEW.distance := calculated_distance;
--- Calculate time spent (time difference in seconds from previous point)
 calculated_time_spent := EXTRACT(
     EPOCH
     FROM (NEW.recorded_at - prev_point.recorded_at)
 );
 NEW.time_spent := calculated_time_spent;
--- Calculate simple speed (distance / time)
 IF calculated_time_spent > 0 THEN stable_speed := (calculated_distance / calculated_time_spent) * 3.6;
--- Convert m/s to km/h
 ELSE stable_speed := 0;
 END IF;
 NEW.speed := LEAST(ROUND(stable_speed::numeric, 2), 9999999999.99);
@@ -1357,7 +1342,6 @@ NEW.distance := 0;
 NEW.time_spent := 0;
 NEW.speed := 0;
 END IF;
--- Set updated timestamp
 NEW.updated_at := NOW();
 END IF;
 RETURN NEW;
@@ -1372,7 +1356,6 @@ calculated_distance DECIMAL;
 calculated_time_spent DECIMAL;
 stable_speed DECIMAL;
 BEGIN -- Only calculate if location is provided
--- For INSERT operations, always calculate. For UPDATE, always recalculate to be safe
 IF NEW.location IS NOT NULL THEN -- Find the previous point for this user based on recorded_at
 SELECT location,
     recorded_at INTO prev_point
@@ -1385,15 +1368,12 @@ LIMIT 1;
 IF prev_point IS NOT NULL THEN -- Calculate distance from previous point
 calculated_distance := public.st_distancesphere(prev_point.location, NEW.location);
 NEW.distance := calculated_distance;
--- Calculate time spent (time difference in seconds from previous point)
 calculated_time_spent := EXTRACT(
     EPOCH
     FROM (NEW.recorded_at - prev_point.recorded_at)
 );
 NEW.time_spent := calculated_time_spent;
--- Calculate simple speed (distance / time)
 IF calculated_time_spent > 0 THEN stable_speed := (calculated_distance / calculated_time_spent) * 3.6;
--- Convert m/s to km/h
 ELSE stable_speed := 0;
 END IF;
 NEW.speed := LEAST(ROUND(stable_speed::numeric, 2), 9999999999.99);
@@ -1428,7 +1408,6 @@ target_user_id;
 user_filter := ' AND t1.user_id = $1';
 ELSE RAISE NOTICE 'Starting enhanced distance and speed calculation for ALL users...';
 END IF;
--- Process in batches to avoid memory issues
 WHILE has_more_records LOOP -- Use enhanced speed calculation with multi-point window
 WITH distance_and_time_calculations AS (
     SELECT t1.user_id,
@@ -1534,11 +1513,8 @@ user_filter TEXT := '';
 has_more_records BOOLEAN := TRUE;
 start_time TIMESTAMP := clock_timestamp();
 max_execution_time INTERVAL := INTERVAL '5 minutes';
--- Reduced from 10 minutes
 BEGIN -- Set shorter timeout for this function to prevent long-running operations
 SET statement_timeout = '300s';
--- 5 minutes
--- Check if we're approaching the execution time limit
 IF clock_timestamp() - start_time > max_execution_time THEN RAISE NOTICE 'Function execution time limit approaching, returning partial results';
 RETURN total_updated;
 END IF;
@@ -1546,7 +1522,6 @@ IF target_user_id IS NOT NULL THEN user_filter := ' AND t1.user_id = $1';
 END IF;
 RAISE NOTICE 'Starting optimized distance calculation for records without distances (batch size: %)',
 batch_size;
--- Loop until no more records need processing or time limit reached
 WHILE has_more_records
 AND (clock_timestamp() - start_time) < max_execution_time LOOP -- Process only records that don't have distance calculated yet
 WITH distance_and_time_calculations AS (
@@ -1619,19 +1594,16 @@ FROM distance_and_time_calculations dc
 WHERE td.user_id = dc.user_id
     AND td.recorded_at = dc.recorded_at;
 GET DIAGNOSTICS batch_updated = ROW_COUNT;
--- If no records were updated, we're done
 IF batch_updated = 0 THEN has_more_records := FALSE;
 ELSE total_updated := total_updated + batch_updated;
 RAISE NOTICE 'Processed batch: % records, total: %',
 batch_updated,
 total_updated;
--- Check execution time limit
 IF (clock_timestamp() - start_time) >= max_execution_time THEN RAISE NOTICE 'Execution time limit reached, returning partial results: % records updated',
 total_updated;
 has_more_records := FALSE;
 ELSE -- Small delay to prevent overwhelming the database
 PERFORM pg_sleep(0.05);
--- Reduced from 0.1s
 END IF;
 END IF;
 END LOOP;
@@ -1658,7 +1630,6 @@ user_filter := ' AND t1.user_id = $1';
 ELSE RAISE NOTICE 'Starting enhanced distance and speed calculation for ALL users...';
 END IF;
 total_updated := 0;
--- Process in batches to avoid memory issues
 WHILE has_more_records LOOP -- Use enhanced speed calculation with multi-point window
 WITH distance_and_time_calculations AS (
     SELECT t1.user_id,
@@ -1761,8 +1732,6 @@ SET "search_path" TO '' AS $$
 DECLARE total_updated INTEGER := 0;
 BEGIN -- Set very short timeout
 SET statement_timeout = '30s';
--- Improved approach: Select records that need updating, but include
--- enough context for the LAG() function to work properly
 WITH records_needing_update AS (
     -- Get records that need distance calculation
     SELECT user_id,
@@ -1865,6 +1834,28 @@ RETURN NEW;
 END;
 $$;
 ALTER FUNCTION "public"."update_workers_updated_at"() OWNER TO "postgres";
+CREATE OR REPLACE FUNCTION "public"."validate_tracking_query_limits"(
+        "p_limit" integer,
+        "p_max_points_threshold" integer
+    ) RETURNS boolean LANGUAGE "plpgsql" SECURITY DEFINER
+SET "search_path" TO '' AS $$ BEGIN -- Enforce maximum limits to prevent DoS
+    IF p_limit > 10000 THEN RAISE EXCEPTION 'Limit too high (maximum 10000), requested: %',
+    p_limit;
+END IF;
+IF p_max_points_threshold > 10000 THEN RAISE EXCEPTION 'Max points threshold too high (maximum 10000), requested: %',
+p_max_points_threshold;
+END IF;
+RETURN TRUE;
+END;
+$$;
+ALTER FUNCTION "public"."validate_tracking_query_limits"(
+    "p_limit" integer,
+    "p_max_points_threshold" integer
+) OWNER TO "postgres";
+COMMENT ON FUNCTION "public"."validate_tracking_query_limits"(
+    "p_limit" integer,
+    "p_max_points_threshold" integer
+) IS 'Validates query limits to prevent DoS attacks via unbounded queries';
 SET default_tablespace = '';
 SET default_table_access_method = "heap";
 CREATE TABLE IF NOT EXISTS "public"."audit_logs" (
@@ -1889,6 +1880,8 @@ CREATE TABLE IF NOT EXISTS "public"."audit_logs" (
     )
 );
 ALTER TABLE "public"."audit_logs" OWNER TO "postgres";
+COMMENT ON TABLE "public"."audit_logs" IS 'Security audit log. Protected by RLS - users can only view their own logs, admins can view all.
+Minimum 30-day retention enforced.';
 CREATE TABLE IF NOT EXISTS "public"."database_migrations" (
     "version" character varying(20) NOT NULL,
     "name" character varying(255) NOT NULL,
@@ -1988,6 +1981,8 @@ CREATE TABLE IF NOT EXISTS "public"."user_profiles" (
     )
 );
 ALTER TABLE "public"."user_profiles" OWNER TO "postgres";
+COMMENT ON TABLE "public"."user_profiles" IS 'User profile information. Contains sensitive fields like two_factor_secret that should never be exposed via API.
+RLS policies ensure users can only access their own profiles.';
 COMMENT ON COLUMN "public"."user_profiles"."two_factor_enabled" IS 'Whether 2FA is enabled for this user';
 COMMENT ON COLUMN "public"."user_profiles"."two_factor_secret" IS 'TOTP secret for 2FA authentication';
 COMMENT ON COLUMN "public"."user_profiles"."two_factor_recovery_codes" IS 'Array of recovery codes for 2FA backup';
@@ -2018,6 +2013,8 @@ WHERE (
     )
 ORDER BY "al"."timestamp" DESC;
 ALTER VIEW "public"."recent_security_events" OWNER TO "postgres";
+COMMENT ON VIEW "public"."recent_security_events" IS 'View of recent high-severity security events. Email addresses are included but access is controlled via grants.
+Only admins should have access to this view.';
 CREATE TABLE IF NOT EXISTS "public"."server_settings" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "server_name" "text" DEFAULT 'Wayli'::"text",
@@ -2028,6 +2025,12 @@ CREATE TABLE IF NOT EXISTS "public"."server_settings" (
     "updated_at" timestamp with time zone DEFAULT "now"()
 );
 ALTER TABLE "public"."server_settings" OWNER TO "postgres";
+-- Insert default settings if table is empty
+INSERT INTO public.server_settings (server_name, admin_email, allow_registration, require_email_verification)
+VALUES ('Wayli', 'support@wayli.app', true, false)
+ON CONFLICT DO NOTHING;
+
+COMMENT ON TABLE "public"."server_settings" IS 'Server-wide configuration. Read-only for authenticated users, writable only by admins via RLS.';
 CREATE TABLE IF NOT EXISTS "public"."tracker_data" (
     "user_id" "uuid" NOT NULL,
     "tracker_type" "text" NOT NULL,
@@ -2209,9 +2212,6 @@ CREATE OR REPLACE TRIGGER "update_user_profiles_updated_at" BEFORE
 UPDATE ON "public"."user_profiles" FOR EACH ROW EXECUTE FUNCTION "public"."update_user_profiles_updated_at"();
 CREATE OR REPLACE TRIGGER "update_workers_updated_at" BEFORE
 UPDATE ON "public"."workers" FOR EACH ROW EXECUTE FUNCTION "public"."update_workers_updated_at"();
-CREATE OR REPLACE TRIGGER "on_auth_user_created"
-AFTER
-INSERT ON "auth"."users" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
 ALTER TABLE ONLY "public"."audit_logs"
 ADD CONSTRAINT "audit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE
 SET NULL;
@@ -2234,7 +2234,13 @@ ADD CONSTRAINT "workers_current_job_fkey" FOREIGN KEY ("current_job") REFERENCES
 SET NULL;
 ALTER TABLE ONLY "public"."workers"
 ADD CONSTRAINT "workers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
-CREATE POLICY "Admins can manage server settings" ON "public"."server_settings" USING (
+CREATE POLICY "Public can view server settings" ON "public"."server_settings"
+FOR SELECT
+USING (true);
+
+CREATE POLICY "Admins can manage server settings" ON "public"."server_settings"
+FOR ALL
+USING (
     (
         (
             (
@@ -2260,29 +2266,21 @@ CREATE POLICY "Admins can manage server settings" ON "public"."server_settings" 
 CREATE POLICY "Jobs can be updated" ON "public"."jobs" FOR
 UPDATE USING (
         (
-            (
-                (
-                    SELECT "auth"."uid"() AS "uid"
-                ) = "created_by"
-            )
-            OR (
-                (
-                    SELECT "auth"."role"() AS "role"
-                ) = 'service_role'::"text"
-            )
+            ("auth"."uid"() = "created_by")
+            OR ("auth"."role"() = 'service_role'::"text")
             OR (
                 EXISTS (
                     SELECT 1
                     FROM "public"."workers"
                     WHERE (
-                            "workers"."id" = (
-                                SELECT "auth"."uid"() AS "uid"
-                            )
+                            ("workers"."id" = "auth"."uid"())
+                            AND ("workers"."current_job" = "jobs"."id")
                         )
                 )
             )
         )
     );
+COMMENT ON POLICY "Jobs can be updated" ON "public"."jobs" IS 'Allows job updates by: job creator, service role, or worker assigned to this specific job';
 CREATE POLICY "Service role can delete audit logs" ON "public"."audit_logs" FOR DELETE USING (
     (
         (
@@ -2687,6 +2685,8 @@ GRANT USAGE ON SCHEMA "public" TO "postgres";
 GRANT USAGE ON SCHEMA "public" TO "anon";
 GRANT USAGE ON SCHEMA "public" TO "authenticated";
 GRANT USAGE ON SCHEMA "public" TO "service_role";
+GRANT ALL ON FUNCTION "public"."audit_user_role_change"() TO "anon";
+GRANT ALL ON FUNCTION "public"."audit_user_role_change"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."audit_user_role_change"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."calculate_distances_batch_v2"(
         "p_user_id" "uuid",
@@ -2733,17 +2733,32 @@ GRANT ALL ON FUNCTION "public"."calculate_stable_speed"(
         "recorded_at_param" timestamp with time zone,
         "window_size" integer
     ) TO "service_role";
+GRANT ALL ON FUNCTION "public"."cleanup_expired_exports"() TO "anon";
+GRANT ALL ON FUNCTION "public"."cleanup_expired_exports"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_expired_exports"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."cleanup_old_audit_logs"("retention_days" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."cleanup_old_audit_logs"("retention_days" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."cleanup_old_audit_logs"("retention_days" integer) TO "service_role";
 GRANT ALL ON FUNCTION "public"."create_distance_calculation_job"("target_user_id" "uuid", "job_reason" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."create_distance_calculation_job"("target_user_id" "uuid", "job_reason" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."create_distance_calculation_job"("target_user_id" "uuid", "job_reason" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."disable_tracker_data_trigger"() TO "anon";
+GRANT ALL ON FUNCTION "public"."disable_tracker_data_trigger"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."disable_tracker_data_trigger"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."enable_tracker_data_trigger"() TO "anon";
+GRANT ALL ON FUNCTION "public"."enable_tracker_data_trigger"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."enable_tracker_data_trigger"() TO "service_role";
-GRANT ALL ON FUNCTION "public"."exec_sql"("sql" "text") TO "service_role";
 GRANT ALL ON FUNCTION "public"."full_country"("country" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."full_country"("country" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."full_country"("country" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_audit_statistics"(
+        "start_date" timestamp with time zone,
+        "end_date" timestamp with time zone
+    ) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_audit_statistics"(
+        "start_date" timestamp with time zone,
+        "end_date" timestamp with time zone
+    ) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_audit_statistics"(
         "start_date" timestamp with time zone,
         "end_date" timestamp with time zone
@@ -2790,6 +2805,8 @@ GRANT ALL ON FUNCTION "public"."get_user_tracking_data"(
         "end_date" timestamp with time zone,
         "limit_count" integer
     ) TO "service_role";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."is_user_admin"("user_uuid" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."is_user_admin"("user_uuid" "uuid") TO "authenticated";
@@ -2799,8 +2816,24 @@ GRANT ALL ON FUNCTION "public"."log_audit_event"(
         "p_description" "text",
         "p_severity" "text",
         "p_metadata" "jsonb"
+    ) TO "anon";
+GRANT ALL ON FUNCTION "public"."log_audit_event"(
+        "p_event_type" "text",
+        "p_description" "text",
+        "p_severity" "text",
+        "p_metadata" "jsonb"
+    ) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."log_audit_event"(
+        "p_event_type" "text",
+        "p_description" "text",
+        "p_severity" "text",
+        "p_metadata" "jsonb"
     ) TO "service_role";
+GRANT ALL ON FUNCTION "public"."perform_bulk_import_with_distance_calculation"("target_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."perform_bulk_import_with_distance_calculation"("target_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."perform_bulk_import_with_distance_calculation"("target_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."remove_duplicate_tracking_points"("target_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."remove_duplicate_tracking_points"("target_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."remove_duplicate_tracking_points"("target_user_id" "uuid") TO "service_role";
 GRANT ALL ON FUNCTION "public"."sample_tracker_data_if_needed"(
         "p_target_user_id" "uuid",
@@ -2868,9 +2901,17 @@ GRANT ALL ON FUNCTION "public"."trigger_calculate_distance_enhanced"() TO "servi
 GRANT ALL ON FUNCTION "public"."update_audit_logs_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_audit_logs_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_audit_logs_updated_at"() TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances"("target_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances"("target_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_tracker_distances"("target_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances_batch"("target_user_id" "uuid", "batch_size" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances_batch"("target_user_id" "uuid", "batch_size" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_tracker_distances_batch"("target_user_id" "uuid", "batch_size" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances_enhanced"("target_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances_enhanced"("target_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_tracker_distances_enhanced"("target_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances_small_batch"("target_user_id" "uuid", "max_records" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."update_tracker_distances_small_batch"("target_user_id" "uuid", "max_records" integer) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_tracker_distances_small_batch"("target_user_id" "uuid", "max_records" integer) TO "service_role";
 GRANT ALL ON FUNCTION "public"."update_user_profiles_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_user_profiles_updated_at"() TO "authenticated";
@@ -2881,11 +2922,20 @@ GRANT ALL ON FUNCTION "public"."update_want_to_visit_places_updated_at"() TO "se
 GRANT ALL ON FUNCTION "public"."update_workers_updated_at"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_workers_updated_at"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_workers_updated_at"() TO "service_role";
-GRANT ALL ON TABLE "public"."audit_logs" TO "anon";
-GRANT ALL ON TABLE "public"."audit_logs" TO "authenticated";
+GRANT ALL ON FUNCTION "public"."validate_tracking_query_limits"(
+        "p_limit" integer,
+        "p_max_points_threshold" integer
+    ) TO "anon";
+GRANT ALL ON FUNCTION "public"."validate_tracking_query_limits"(
+        "p_limit" integer,
+        "p_max_points_threshold" integer
+    ) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."validate_tracking_query_limits"(
+        "p_limit" integer,
+        "p_max_points_threshold" integer
+    ) TO "service_role";
 GRANT ALL ON TABLE "public"."audit_logs" TO "service_role";
-GRANT ALL ON TABLE "public"."database_migrations" TO "anon";
-GRANT ALL ON TABLE "public"."database_migrations" TO "authenticated";
+GRANT SELECT ON TABLE "public"."audit_logs" TO "authenticated";
 GRANT ALL ON TABLE "public"."database_migrations" TO "service_role";
 GRANT ALL ON TABLE "public"."jobs" TO "anon";
 GRANT ALL ON TABLE "public"."jobs" TO "authenticated";
@@ -2893,15 +2943,15 @@ GRANT ALL ON TABLE "public"."jobs" TO "service_role";
 GRANT ALL ON TABLE "public"."poi_visit_logs" TO "anon";
 GRANT ALL ON TABLE "public"."poi_visit_logs" TO "authenticated";
 GRANT ALL ON TABLE "public"."poi_visit_logs" TO "service_role";
-GRANT ALL ON TABLE "public"."user_profiles" TO "anon";
-GRANT ALL ON TABLE "public"."user_profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_profiles" TO "service_role";
+GRANT SELECT,
+    UPDATE ON TABLE "public"."user_profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."recent_security_events" TO "anon";
 GRANT ALL ON TABLE "public"."recent_security_events" TO "authenticated";
 GRANT ALL ON TABLE "public"."recent_security_events" TO "service_role";
-GRANT ALL ON TABLE "public"."server_settings" TO "anon";
-GRANT ALL ON TABLE "public"."server_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."server_settings" TO "service_role";
+GRANT SELECT ON TABLE "public"."server_settings" TO "anon";
+GRANT SELECT ON TABLE "public"."server_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."tracker_data" TO "anon";
 GRANT ALL ON TABLE "public"."tracker_data" TO "authenticated";
 GRANT ALL ON TABLE "public"."tracker_data" TO "service_role";
@@ -2942,3 +2992,81 @@ GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public"
 GRANT ALL ON TABLES TO "service_role";
 RESET ALL;
+--
+-- Dumped schema changes for auth and storage
+--
+
+CREATE OR REPLACE TRIGGER "on_auth_user_created"
+AFTER
+INSERT ON "auth"."users" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
+CREATE POLICY "Public can view trip images" ON "storage"."objects" FOR
+SELECT USING (("bucket_id" = 'trip-images'::"text"));
+CREATE POLICY "Users access own exports" ON "storage"."objects" FOR
+SELECT USING (
+        (
+            ("bucket_id" = 'exports'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users access own temp files" ON "storage"."objects" FOR
+SELECT USING (
+        (
+            ("bucket_id" = 'temp-files'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users delete own exports" ON "storage"."objects" FOR DELETE USING (
+    (
+        ("bucket_id" = 'exports'::"text")
+        AND (
+            ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+        )
+    )
+);
+CREATE POLICY "Users delete own temp files" ON "storage"."objects" FOR DELETE USING (
+    (
+        ("bucket_id" = 'temp-files'::"text")
+        AND (
+            ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+        )
+    )
+);
+CREATE POLICY "Users delete own trip images" ON "storage"."objects" FOR DELETE USING (
+    (
+        ("bucket_id" = 'trip-images'::"text")
+        AND (
+            ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+        )
+    )
+);
+CREATE POLICY "Users upload own exports" ON "storage"."objects" FOR
+INSERT WITH CHECK (
+        (
+            ("bucket_id" = 'exports'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users upload own temp files" ON "storage"."objects" FOR
+INSERT WITH CHECK (
+        (
+            ("bucket_id" = 'temp-files'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users upload own trip images" ON "storage"."objects" FOR
+INSERT WITH CHECK (
+        (
+            ("bucket_id" = 'trip-images'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );

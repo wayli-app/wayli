@@ -25,7 +25,7 @@
 		if (user) {
 			// Create a local copy to avoid modifying the original user object directly
 			localUser = JSON.parse(JSON.stringify(user));
-			role = localUser?.role || 'user';
+			role = user.role || 'user';
 		}
 	});
 
