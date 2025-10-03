@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/wayli-app/wayli/compare/v1.2.3...v1.2.4) (2025-10-03)
+
+
+### Bug Fixes
+
+* Improve realtime connectivity. ([f5208da](https://github.com/wayli-app/wayli/commit/f5208dab0d39eff2e8b89671c5758831edd20841))
+
 ## [1.2.3](https://github.com/wayli-app/wayli/compare/v1.2.2...v1.2.3) (2025-10-03)
 
 
