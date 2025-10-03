@@ -28,7 +28,7 @@ DROP POLICY IF EXISTS "Users can view their own jobs" ON public.jobs;
 CREATE POLICY "Users can view their own jobs" ON public.jobs
     FOR SELECT
     USING (
-        auth.uid()::uuid = created_by
+        (SELECT auth.uid())::uuid = created_by
     );
 
 -- Ensure the table has REPLICA IDENTITY FULL (should already be set, but let's be explicit)

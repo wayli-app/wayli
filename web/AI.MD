@@ -368,20 +368,6 @@ export default defineConfig({
 - Provide clear error messages and debugging information
 - Use non-root users for security
 
-### Production Deployment
-
-When deploying to production, you may need to set the `VITE_ALLOWED_HOSTS` environment variable:
-
-```bash
-# For Vercel, add to your environment variables:
-VITE_ALLOWED_HOSTS=wayli.app,staging.wayli.app
-
-# For other platforms, add to your .env file:
-VITE_ALLOWED_HOSTS=wayli.app,staging.wayli.app,dev.wayli.app
-```
-
-This prevents the "Blocked request. This host is not allowed" error when accessing your app from production domains.
-
 ## 📚 Documentation Standards
 
 ### Code Comments
