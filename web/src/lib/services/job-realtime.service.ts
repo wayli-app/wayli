@@ -26,10 +26,11 @@ export class JobRealtimeService {
 	private options: JobRealtimeOptions;
 	private userId: string | null = null;
 	private reconnectAttempts = 0;
-	private maxReconnectAttempts = 5;
+	private maxReconnectAttempts = 10; // Increased from 5 for better resilience
 	private reconnectTimeout: NodeJS.Timeout | null = null;
 	private isConnecting = false;
 	private authUnsubscribe: (() => void) | null = null;
+	private connectionStartTime: number | null = null;
 
 	constructor(options: JobRealtimeOptions) {
 		this.options = options;
@@ -51,6 +52,7 @@ export class JobRealtimeService {
 		}
 
 		this.isConnecting = true;
+		this.connectionStartTime = Date.now();
 
 		try {
 			// Get current user
@@ -77,6 +79,9 @@ export class JobRealtimeService {
 				await this.disconnect();
 			}
 
+			// Log WebSocket URL for debugging (helpful for self-hosted instances)
+			const realtimeUrl = (supabase.realtime as any).endPoint || 'unknown';
+			console.log('🔗 JobRealtime: Realtime endpoint:', realtimeUrl);
 			console.log('🔗 JobRealtime: Connecting to jobs channel for user:', this.userId);
 
 			// Create channel name for this user's jobs
@@ -101,23 +106,41 @@ export class JobRealtimeService {
 					}
 				)
 				.subscribe((status, err) => {
+					const connectionTime = this.connectionStartTime
+						? Date.now() - this.connectionStartTime
+						: 0;
+
 					if (status === 'SUBSCRIBED') {
-						console.log('✅ JobRealtime: Successfully subscribed to jobs channel');
+						console.log(`✅ JobRealtime: Successfully subscribed to jobs channel (${connectionTime}ms)`);
 						this.reconnectAttempts = 0; // Reset on successful connection
 						this.isConnecting = false;
+						this.connectionStartTime = null;
 						this.options.onConnected?.();
 					} else if (status === 'CHANNEL_ERROR') {
 						console.error('❌ JobRealtime: Channel error:', err);
+						console.error(`   Connection attempt failed after ${connectionTime}ms`);
 						this.isConnecting = false;
-						this.handleError('Channel subscription error');
+						this.connectionStartTime = null;
+
+						// Check if it's a quota-related error
+						const errorMsg = err?.message || String(err);
+						if (errorMsg.includes('too_many')) {
+							this.handleError(`Quota exceeded: ${errorMsg}`);
+						} else {
+							this.handleError('Channel subscription error');
+						}
 					} else if (status === 'TIMED_OUT') {
 						console.error('❌ JobRealtime: Connection timed out');
+						console.error(`   Timeout occurred after ${connectionTime}ms`);
+						console.error('   Check: 1) Network connectivity 2) Nginx ingress timeouts 3) Firewall rules');
 						this.isConnecting = false;
+						this.connectionStartTime = null;
 						this.handleError('Connection timed out');
 						this.attemptReconnect();
 					} else if (status === 'CLOSED') {
-						console.log('🔌 JobRealtime: Channel closed');
+						console.log(`🔌 JobRealtime: Channel closed (was open for ${connectionTime}ms)`);
 						this.isConnecting = false;
+						this.connectionStartTime = null;
 						this.options.onDisconnected?.();
 					}
 				});
@@ -179,14 +202,16 @@ export class JobRealtimeService {
 	private attemptReconnect(): void {
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
 			console.error(
-				'❌ JobRealtime: Max reconnection attempts reached'
+				`❌ JobRealtime: Max reconnection attempts (${this.maxReconnectAttempts}) reached`
 			);
-			this.handleError('Max reconnection attempts reached');
+			this.handleError('Max reconnection attempts reached. Please refresh the page.');
 			return;
 		}
 
 		this.reconnectAttempts++;
-		const delay = 1000 * this.reconnectAttempts; // Linear backoff: 1s, 2s, 3s, 4s, 5s
+		// Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (capped)
+		// This is more network-friendly than linear backoff
+		const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
 
 		console.log(
 			`🔄 JobRealtime: Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`

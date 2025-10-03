@@ -22,6 +22,22 @@ export const supabase = createClient<Database>(config.supabaseUrl, config.supaba
 		storageKey: 'wayli-auth',
 		detectSessionInUrl: true
 	},
+	realtime: {
+		params: {
+			// Limit events per second to avoid quota issues
+			eventsPerSecond: 10
+		},
+		// Connection timeout - increase from default 10s to handle slow networks
+		timeout: 30000,
+		// Heartbeat interval - send every 15s (well under 25s requirement)
+		// This prevents connection timeouts in production
+		heartbeatIntervalMs: 15000,
+		// Exponential backoff for reconnection attempts
+		// Starts at 1s, doubles each time, caps at 30s
+		reconnectAfterMs: (tries: number) => {
+			return Math.min(1000 * Math.pow(2, tries), 30000);
+		}
+	},
 	global: {
 		fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
 			// Get the current session to include authorization header

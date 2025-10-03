@@ -2999,6 +2999,29 @@ RESET ALL;
 CREATE OR REPLACE TRIGGER "on_auth_user_created"
 AFTER
 INSERT ON "auth"."users" FOR EACH ROW EXECUTE FUNCTION "public"."handle_new_user"();
+-- Create temp-files bucket for temporary import files
+INSERT INTO storage.buckets (id, name, file_size_limit)
+VALUES (
+    'temp-files',
+    'temp-files',
+    2147483648  -- 2GiB in bytes
+) ON CONFLICT (id) DO NOTHING;
+
+-- Create trip-images bucket for trip images
+INSERT INTO storage.buckets (id, name, file_size_limit)
+VALUES (
+    'trip-images',
+    'trip-images',
+    104857600  -- 100MiB in bytes
+) ON CONFLICT (id) DO NOTHING;
+
+-- Create exports bucket for user data exports
+INSERT INTO storage.buckets (id, name, file_size_limit)
+VALUES (
+    'exports',
+    'exports',
+    2147483648  -- 2GiB in bytes
+) ON CONFLICT (id) DO NOTHING;
 CREATE POLICY "Public can view trip images" ON "storage"."objects" FOR
 SELECT USING (("bucket_id" = 'trip-images'::"text"));
 CREATE POLICY "Users access own exports" ON "storage"."objects" FOR
@@ -3065,6 +3088,33 @@ CREATE POLICY "Users upload own trip images" ON "storage"."objects" FOR
 INSERT WITH CHECK (
         (
             ("bucket_id" = 'trip-images'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users update own temp files" ON "storage"."objects" FOR
+UPDATE USING (
+        (
+            ("bucket_id" = 'temp-files'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users update own trip images" ON "storage"."objects" FOR
+UPDATE USING (
+        (
+            ("bucket_id" = 'trip-images'::"text")
+            AND (
+                ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
+            )
+        )
+    );
+CREATE POLICY "Users update own exports" ON "storage"."objects" FOR
+UPDATE USING (
+        (
+            ("bucket_id" = 'exports'::"text")
             AND (
                 ("auth"."uid"())::"text" = ("storage"."foldername"("name")) [1]
             )

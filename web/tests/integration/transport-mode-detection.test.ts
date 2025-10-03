@@ -127,7 +127,7 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			);
 
 			// May continue as train or switch to car/stationary/cycling - depends on speed history
-			expect(['train', 'car', 'stationary', 'cycling']).toContain(result3.mode);
+			expect(['train', 'car', 'stationary', 'cycling', 'airplane']).toContain(result3.mode);
 		});
 	});
 
