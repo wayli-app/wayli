@@ -1,3 +1,10 @@
+## [1.2.5](https://github.com/wayli-app/wayli/compare/v1.2.4...v1.2.5) (2025-10-04)
+
+
+### Bug Fixes
+
+* CORS headers. ([ff3bdf6](https://github.com/wayli-app/wayli/commit/ff3bdf68545aea3051b2cfe8d1788e37a8b10350))
+
 ## [1.2.4](https://github.com/wayli-app/wayli/compare/v1.2.3...v1.2.4) (2025-10-03)
 
 
