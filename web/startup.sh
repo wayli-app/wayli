@@ -2,6 +2,21 @@
 
 echo "🔧 Injecting environment variables..."
 
+# Extract domain from SUPABASE_URL for CSP header
+# Example: https://xyz.supabase.co -> https://*.supabase.co
+if [ -n "$SUPABASE_URL" ]; then
+  # Extract the protocol and domain pattern
+  SUPABASE_DOMAIN=$(echo "$SUPABASE_URL" | sed -E 's|(https?://)[^.]+\.(.+)|\1*.\2|')
+  echo "📍 Supabase domain: $SUPABASE_DOMAIN"
+else
+  echo "⚠️  Warning: SUPABASE_URL not set, using default CSP"
+  SUPABASE_DOMAIN="https://*.supabase.co"
+fi
+
+# Inject CSP into nginx config
+echo "🔐 Configuring Content Security Policy..."
+sed -i "s|{{SUPABASE_DOMAIN}}|$SUPABASE_DOMAIN|g" /etc/nginx/nginx.conf
+
 # Navigate to nginx html directory
 cd /usr/share/nginx/html
 
