@@ -1,3 +1,10 @@
+## [1.2.6](https://github.com/wayli-app/wayli/compare/v1.2.5...v1.2.6) (2025-10-04)
+
+
+### Bug Fixes
+
+* Read nginx.conf from /tmp. ([e033a1c](https://github.com/wayli-app/wayli/commit/e033a1cd912f908e6a5867fa7be7b26ab22c19fc))
+
 ## [1.2.5](https://github.com/wayli-app/wayli/compare/v1.2.4...v1.2.5) (2025-10-04)
 
 
