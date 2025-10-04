@@ -1,6 +1,9 @@
 #!/bin/bash
 
-echo "🔧 Injecting environment variables..."
+echo "🔧 Configuring nginx for runtime..."
+
+# Create writable directories for Kubernetes (read-only filesystem)
+mkdir -p /tmp/nginx/html
 
 # Extract domain from SUPABASE_URL for CSP header
 # Example: https://xyz.supabase.co -> https://*.supabase.co
@@ -13,25 +16,31 @@ else
   SUPABASE_DOMAIN="https://*.supabase.co"
 fi
 
-# Inject CSP into nginx config
+# Copy nginx config to writable location and inject CSP
 echo "🔐 Configuring Content Security Policy..."
-sed -i "s|{{SUPABASE_DOMAIN}}|$SUPABASE_DOMAIN|g" /etc/nginx/nginx.conf
+cp /etc/nginx/nginx.conf /tmp/nginx/nginx.conf
+sed -i "s|{{SUPABASE_DOMAIN}}|$SUPABASE_DOMAIN|g" /tmp/nginx/nginx.conf
 
-# Navigate to nginx html directory
-cd /usr/share/nginx/html
+# Copy HTML files to writable location for env var injection
+echo "📋 Copying static files..."
+cp -r /usr/share/nginx/html/* /tmp/nginx/html/
+
+# Navigate to writable html directory
+cd /tmp/nginx/html
 
 # Inject environment variables into HTML files
+echo "📝 Injecting environment variables into HTML..."
 for file in *.html; do
   if [ -f "$file" ]; then
-    echo "📝 Processing $file..."
+    echo "   Processing $file..."
     sed -i "s|{{SUPABASE_URL}}|$SUPABASE_URL|g" "$file"
     sed -i "s|{{SUPABASE_ANON_KEY}}|$SUPABASE_ANON_KEY|g" "$file"
     sed -i "s|{{SUPABASE_SERVICE_ROLE_KEY}}|$SUPABASE_SERVICE_ROLE_KEY|g" "$file"
   fi
 done
 
-echo "✅ Configuration injected successfully"
+echo "✅ Configuration complete"
 
-# Start nginx in foreground
+# Start nginx in foreground with custom config from /tmp
 echo "🌐 Starting nginx..."
-exec nginx -g "daemon off;"
+exec nginx -c /tmp/nginx/nginx.conf -g "daemon off;"
