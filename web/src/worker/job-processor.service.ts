@@ -13,17 +13,17 @@ import type { Job, JobType } from '../lib/types/job-queue.types';
 import type { TripGenerationData, HomeAddress } from '../lib/types/trip-generation.types';
 
 export class JobProcessorService {
-	static async processJob(job: Job): Promise<void> {
+	static async processJob(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		const processor = this.getJobProcessor(job.type);
 		if (!processor) {
 			throw new Error(`No processor found for job type: ${job.type}`);
 		}
 
-		await processor(job);
+		await processor(job, abortSignal);
 	}
 
 	private static getJobProcessor(jobType: JobType) {
-		const processors: Record<JobType, (job: Job) => Promise<void>> = {
+		const processors: Record<JobType, (job: Job, abortSignal?: AbortSignal) => Promise<void>> = {
 			reverse_geocoding_missing: this.processReverseGeocodingMissing.bind(this),
 			data_import: this.processDataImport.bind(this),
 			trip_generation: this.processTripGeneration.bind(this),
@@ -38,14 +38,14 @@ export class JobProcessorService {
 		return processors[jobType];
 	}
 
-	private static async processReverseGeocodingMissing(job: Job): Promise<void> {
+	private static async processReverseGeocodingMissing(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		const { processReverseGeocodingMissing } = await import(
 			'./processors/reverse-geocoding-processor.service'
 		);
-		return processReverseGeocodingMissing(job);
+		return processReverseGeocodingMissing(job, abortSignal);
 	}
 
-	private static async processTripGeneration(job: Job): Promise<void> {
+	private static async processTripGeneration(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`🗺️ Processing sleep-based trip generation job ${job.id}`);
 		console.log(`👤 Job created by user: ${job.created_by}`);
 		console.log(`📋 Job data:`, JSON.stringify(job.data, null, 2));
@@ -54,15 +54,51 @@ export class JobProcessorService {
 		// Moving average ETA over the last 15 seconds
 		const PROGRESS_WINDOW_MS = 15_000;
 		const progressSamples: Array<{ time: number; progress: number }> = [];
-		const formatEta = (seconds: number): string => {
+
+		const calculateEta = (currentProgress: number): number | null => {
+			const now = Date.now();
+
+			// Add current sample
+			progressSamples.push({ time: now, progress: currentProgress });
+
+			// Remove samples older than PROGRESS_WINDOW_MS
+			while (progressSamples.length > 0 && now - progressSamples[0].time > PROGRESS_WINDOW_MS) {
+				progressSamples.shift();
+			}
+
+			// Need at least 2 samples to calculate ETA
+			if (progressSamples.length < 2 || currentProgress <= 0) {
+				return null;
+			}
+
+			// Calculate progress rate (progress per millisecond) using linear regression
+			const oldestSample = progressSamples[0];
+			const progressDelta = currentProgress - oldestSample.progress;
+			const timeDelta = now - oldestSample.time;
+
+			if (progressDelta <= 0 || timeDelta <= 0) {
+				return null;
+			}
+
+			const progressRate = progressDelta / timeDelta; // progress per ms
+			const remainingProgress = 100 - currentProgress;
+			const etaMs = remainingProgress / progressRate;
+
+			return Math.round(etaMs / 1000); // Convert to seconds
+		};
+
+		const formatEta = (seconds: number | null): string => {
 			if (!seconds || seconds <= 0) return 'Calculating...';
-			const s = Math.floor(seconds % 60);
-			const m = Math.floor((seconds / 60) % 60);
-			const h = Math.floor(seconds / 3600);
+			// Cap ETA at 24 hours for display
+			const cappedSeconds = Math.min(seconds, 86400);
+			const s = Math.floor(cappedSeconds % 60);
+			const m = Math.floor((cappedSeconds / 60) % 60);
+			const h = Math.floor(cappedSeconds / 3600);
 			if (h > 0) return `${h}h ${m}m ${s}s`;
 			if (m > 0) return `${m}m ${s}s`;
 			return `${s}s`;
 		};
+
 		const userId = job.created_by;
 		const {
 			startDate,
@@ -80,7 +116,10 @@ export class JobProcessorService {
 		console.log(`  - customHomeAddress: ${customHomeAddress || 'not specified'}`);
 
 		try {
-			// Check for cancellation before starting
+			// Check for cancellation or abort before starting
+			if (abortSignal?.aborted) {
+				throw new Error('Job was aborted');
+			}
 			await checkJobCancellation(job.id);
 
 			// Determine date ranges - if not provided, find available ranges automatically
@@ -254,10 +293,12 @@ export class JobProcessorService {
 				process.env.SUPABASE_SERVICE_ROLE_KEY!
 			);
 
-			// Set up progress tracking for trip detection
+			// Set up progress tracking for trip detection with ETA calculation
 			tripDetectionService.setProgressTracking(job.id, async (progress) => {
+				const eta = calculateEta(progress.progress);
 				await JobQueueService.updateJobProgress(job.id, progress.progress, {
 					message: progress.message,
+					eta: formatEta(eta),
 					...progress.details
 				});
 			});
@@ -271,16 +312,9 @@ export class JobProcessorService {
 
 			console.log(`✅ Trip detection completed: ${detectedTrips.length} trips detected`);
 
-			// Update progress: Saving trips
-			await JobQueueService.updateJobProgress(job.id, 90, {
-				message: `Saving ${detectedTrips.length} detected trips to database...`,
-				detectedTrips: detectedTrips.length
-			});
-
-			// Small delay to make progress visible
-			await new Promise(resolve => setTimeout(resolve, 500));
-
 			// Save detected trips to the database
+			// Note: Trip detection service already updated progress to 100% when completed
+			// We only need to save the trips and avoid overwriting that progress
 			if (detectedTrips.length > 0) {
 				console.log(`💾 Saving ${detectedTrips.length} detected trips to database...`);
 
@@ -299,14 +333,8 @@ export class JobProcessorService {
 
 			const totalTime = Date.now() - startTime;
 			console.log(
-				`✅ Trip detection completed: ${detectedTrips.length} trips detected in ${totalTime}ms`
+				`✅ Trip generation completed: ${detectedTrips.length} trips detected in ${totalTime}ms`
 			);
-
-			await JobQueueService.updateJobProgress(job.id, 100, {
-				message: `Successfully detected ${detectedTrips.length} trips`,
-				suggestedTripsCount: detectedTrips.length,
-				totalTime: `${Math.round(totalTime / 1000)}s`
-			});
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {
@@ -318,14 +346,17 @@ export class JobProcessorService {
 		}
 	}
 
-	private static async processDataImport(job: Job): Promise<void> {
+	private static async processDataImport(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`📥 Processing data import job ${job.id}`);
 
 		const startTime = Date.now();
 		const userId = job.created_by;
 
 		try {
-			// Check for cancellation before starting
+			// Check for cancellation or abort before starting
+			if (abortSignal?.aborted) {
+				throw new Error('Job was aborted');
+			}
 			await checkJobCancellation(job.id);
 
 			// Extract job data
@@ -528,30 +559,30 @@ export class JobProcessorService {
 		}
 	}
 
-	private static async processDataExport(job: Job): Promise<void> {
+	private static async processDataExport(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`📦 Processing data export job ${job.id}`);
 
 		try {
-			await ExportProcessorService.processExport(job);
+			await ExportProcessorService.processExport(job, abortSignal);
 		} catch (error) {
 			console.error(`❌ Error in data export job:`, error);
 			throw error;
 		}
 	}
 
-	private static async processGeocoding(job: Job): Promise<void> {
+	private static async processGeocoding(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`🌍 Processing geocoding job ${job.id}`);
 		// TODO: Implement geocoding processor
 		throw new Error('Geocoding processor not yet implemented');
 	}
 
-	private static async processImageGeneration(job: Job): Promise<void> {
+	private static async processImageGeneration(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`🖼️ Processing image generation job ${job.id}`);
 		// TODO: Implement image generation processor
 		throw new Error('Image generation processor not yet implemented');
 	}
 
-	private static async processPOIDetection(job: Job): Promise<void> {
+	private static async processPOIDetection(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`📍 Processing POI detection job ${job.id}`);
 		// TODO: Implement POI detection processor
 		throw new Error('POI detection processor not yet implemented');
@@ -559,7 +590,7 @@ export class JobProcessorService {
 
 
 
-	private static async processTripDetection(job: Job): Promise<void> {
+	private static async processTripDetection(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`🗺️ Processing trip detection job ${job.id}`);
 		console.log(`👤 Job created by user: ${job.created_by}`);
 
@@ -567,7 +598,10 @@ export class JobProcessorService {
 		const userId = job.created_by;
 
 		try {
-			// Check for cancellation before starting
+			// Check for cancellation or abort before starting
+			if (abortSignal?.aborted) {
+				throw new Error('Job was aborted');
+			}
 			await checkJobCancellation(job.id);
 
 			// Update initial progress
@@ -633,7 +667,7 @@ export class JobProcessorService {
 		}
 	}
 
-	private static async processDistanceCalculation(job: Job): Promise<void> {
+	private static async processDistanceCalculation(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		try {
 			console.log(`🧮 Processing distance calculation job ${job.id}`);
 
@@ -677,7 +711,10 @@ export class JobProcessorService {
 
 			// Process in chronological batches using offset
 			while (offset < totalRecords) {
-				// Check for cancellation before each batch
+				// Check for cancellation or abort before each batch
+				if (abortSignal?.aborted) {
+					throw new Error('Job was aborted');
+				}
 				await checkJobCancellation(job.id);
 
 				const startTime = Date.now();

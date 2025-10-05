@@ -14,6 +14,9 @@ import type { Job } from '../../lib/types/job-queue.types';
 export class JobWorker {
 	private workerId: string;
 	private isRunning: boolean = false;
+	private isShuttingDown: boolean = false;
+	private shutdownGracePeriod: number = 30000; // 30 seconds default
+	private forceShutdownTimeout?: NodeJS.Timeout;
 	private currentJob: Job | null = null;
 	private intervalId?: NodeJS.Timeout;
 	private cancellationCheckInterval?: NodeJS.Timeout;
@@ -23,6 +26,7 @@ export class JobWorker {
 	private lastHeartbeat: string = new Date().toISOString();
 	private totalJobsProcessed: number = 0;
 	private activeJobs: Set<string> = new Set();
+	private abortController?: AbortController;
 
 	constructor(workerId?: string) {
 		this.workerId = workerId || randomUUID();
@@ -156,10 +160,13 @@ export class JobWorker {
 		}
 	}
 
-	async stop(): Promise<void> {
+	async stop(graceful: boolean = true): Promise<void> {
+		console.log(`🛑 Worker ${this.workerId} initiating ${graceful ? 'graceful' : 'forced'} shutdown...`);
+
+		this.isShuttingDown = true;
 		this.isRunning = false;
 
-		// Stop polling
+		// Stop polling for new jobs
 		if (this.intervalId) {
 			clearInterval(this.intervalId);
 			this.intervalId = undefined;
@@ -171,14 +178,70 @@ export class JobWorker {
 			this.cancellationCheckInterval = undefined;
 		}
 
-		// Complete current job if running
+		// Handle current job based on shutdown mode
 		if (this.currentJob) {
-			await JobQueueService.failJob(this.currentJob.id, 'Worker stopped');
-			this.currentJob = null;
+			if (graceful) {
+				console.log(`⏳ Worker ${this.workerId} waiting for current job ${this.currentJob.id} to complete (grace period: ${this.shutdownGracePeriod}ms)...`);
+
+				// Mark job as aborting
+				await JobQueueService.updateJobProgress(this.currentJob.id, this.currentJob.progress || 0, {
+					message: 'Worker shutting down, attempting graceful job completion...',
+					aborting: true
+				});
+
+				// Signal abort to job processor
+				if (this.abortController) {
+					this.abortController.abort();
+				}
+
+				// Set a timeout for forced shutdown
+				const shutdownPromise = new Promise<void>((resolve) => {
+					this.forceShutdownTimeout = setTimeout(() => {
+						console.log(`⏰ Worker ${this.workerId} grace period expired, forcing shutdown...`);
+						resolve();
+					}, this.shutdownGracePeriod);
+				});
+
+				// Wait for either job completion or timeout
+				await Promise.race([
+					shutdownPromise,
+					this.waitForJobCompletion()
+				]);
+
+				// Clear timeout if job completed early
+				if (this.forceShutdownTimeout) {
+					clearTimeout(this.forceShutdownTimeout);
+					this.forceShutdownTimeout = undefined;
+				}
+
+				// If job is still running after grace period, requeue it
+				if (this.currentJob) {
+					console.log(`🔄 Worker ${this.workerId} requeueing job ${this.currentJob.id} for retry...`);
+					await JobQueueService.requeueJobForRetry(
+						this.currentJob.id,
+						'Worker shutdown during job execution'
+					);
+					this.currentJob = null;
+				}
+			} else {
+				// Forced shutdown: fail the job immediately
+				console.log(`❌ Worker ${this.workerId} forcing shutdown, failing current job ${this.currentJob.id}...`);
+				await JobQueueService.failJob(this.currentJob.id, 'Worker stopped (forced shutdown)');
+				this.currentJob = null;
+			}
+		} else {
+			console.log(`✅ Worker ${this.workerId} has no active job, shutting down immediately`);
 		}
 
 		await this.unregisterWorker();
-		console.log(`🛑 Worker ${this.workerId} stopped`);
+		console.log(`🛑 Worker ${this.workerId} stopped successfully`);
+	}
+
+	private async waitForJobCompletion(): Promise<void> {
+		// Poll until current job is cleared (indicates completion)
+		while (this.currentJob) {
+			await new Promise(resolve => setTimeout(resolve, 500));
+		}
 	}
 
 	private async checkJobCancellation(): Promise<void> {
@@ -209,6 +272,12 @@ export class JobWorker {
 
 	private async pollForJobs(): Promise<void> {
 		try {
+			// Don't poll for new jobs if shutting down
+			if (this.isShuttingDown) {
+				console.log(`🛑 Worker ${this.workerId} is shutting down, skipping job poll`);
+				return;
+			}
+
 			// Update heartbeat
 			this.lastHeartbeat = new Date().toISOString();
 
@@ -233,6 +302,9 @@ export class JobWorker {
 			this.jobCancelled = false;
 			console.log(`📋 Worker ${this.workerId} claimed job ${job.id} (${job.type})`);
 
+			// Create new abort controller for this job
+			this.abortController = new AbortController();
+
 			// Process the job
 			await this.processJob(job);
 		} catch (error: unknown) {
@@ -250,11 +322,19 @@ export class JobWorker {
 			// Track active job
 			this.activeJobs.add(job.id);
 
-			await JobProcessorService.processJob(job);
+			// Pass abort signal to job processor
+			await JobProcessorService.processJob(job, this.abortController?.signal);
 
 			// Check if job was cancelled during processing
 			if (this.jobCancelled) {
 				console.log(`🛑 Worker ${this.workerId} job ${job.id} was cancelled during processing`);
+				return;
+			}
+
+			// Check if job was aborted due to shutdown
+			if (this.isShuttingDown && this.currentJob) {
+				console.log(`🛑 Worker ${this.workerId} job ${job.id} aborted due to shutdown`);
+				// Job will be requeued by stop() method
 				return;
 			}
 
@@ -273,6 +353,13 @@ export class JobWorker {
 				return;
 			}
 
+			// Check if the error is due to abort
+			if (error instanceof Error && error.name === 'AbortError') {
+				console.log(`🛑 Worker ${this.workerId} job ${job.id} was aborted`);
+				// Job will be requeued by stop() method if during shutdown
+				return;
+			}
+
 			const errorMessage = (error as Error)?.message || 'Unknown error';
 			await this.failJob(job.id, errorMessage);
 		} finally {
@@ -283,6 +370,7 @@ export class JobWorker {
 			}
 			this.currentJob = null;
 			this.jobCancelled = false;
+			this.abortController = undefined;
 		}
 	}
 

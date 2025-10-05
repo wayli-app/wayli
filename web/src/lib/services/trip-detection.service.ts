@@ -41,6 +41,17 @@ export interface DetectedTrip {
 		visitedCities: string[];
 		visitedCountries: string[];
 		visitedCountryCodes: string[];
+		visitedCitiesDetailed: Array<{
+			city: string;
+			countryCode: string;
+			durationHours: number;
+			dataPoints: number;
+		}>;
+		visitedCountriesDetailed: Array<{
+			countryCode: string;
+			durationHours: number;
+			dataPoints: number;
+		}>;
 		isMultiCountryTrip: boolean;
 		isMultiCityTrip: boolean;
 		tripType: 'city' | 'country' | 'multi-city' | 'multi-country';
@@ -502,11 +513,10 @@ export class TripDetectionService {
 						};
 					}
 
-					// Update progress every 100 points processed
-					if (i % 100 === 0) {
-						totalProcessedPoints += i;
+					// Update progress every 50 points processed (more frequent updates)
+					if (i % 50 === 0 && i > 0) {
 						const rangeProgress = Math.round((dateRangeIndex / totalDateRanges) * 60);
-						const batchProgress = Math.min(10, Math.round((offset / (offset + batchSize)) * 10));
+						const batchProgress = Math.min(10, Math.round((offset / Math.max(1, offset + batchSize)) * 10));
 
 						// Ensure progress only goes forward and stays within bounds
 						const currentProgress = Math.min(80, 20 + rangeProgress + batchProgress);
@@ -514,12 +524,13 @@ export class TripDetectionService {
 						this.updateProgress({
 							phase: 'processing_batches',
 							progress: currentProgress,
-							message: `Processing data points: ${totalProcessedPoints} processed in current date range`,
+							message: `Processing data points: ${totalProcessedPoints + i} processed in current date range`,
 							details: {
 								currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
 								totalDateRanges: totalDateRanges,
-								processedPoints: totalProcessedPoints,
-								currentBatch: Math.floor(offset / batchSize) + 1
+								processedPoints: totalProcessedPoints + i,
+								currentBatch: Math.floor(offset / batchSize) + 1,
+								detectedTrips: trips.length
 							}
 						});
 					}
@@ -527,6 +538,24 @@ export class TripDetectionService {
 
 				// Update total processed points after batch completion
 				totalProcessedPoints += validPoints.length;
+
+				// Update progress after each batch
+				const rangeProgress = Math.round((dateRangeIndex / totalDateRanges) * 60);
+				const batchProgress = Math.min(10, Math.round((offset / Math.max(1, offset + batchSize)) * 10));
+				const currentProgress = Math.min(80, 20 + rangeProgress + batchProgress);
+
+				this.updateProgress({
+					phase: 'processing_batches',
+					progress: currentProgress,
+					message: `Processed batch ${Math.floor(offset / batchSize) + 1} (${totalProcessedPoints} total points)`,
+					details: {
+						currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
+						totalDateRanges: totalDateRanges,
+						processedPoints: totalProcessedPoints,
+						currentBatch: Math.floor(offset / batchSize) + 1,
+						detectedTrips: trips.length
+					}
+				});
 
 				// Check if we have more data
 				if (batch.length < batchSize) {
@@ -721,6 +750,35 @@ export class TripDetectionService {
 		// Determine trip title based on visited locations
 		const title = await this.generateTripTitle(this.userState!.visitedCities, language);
 
+		// Calculate detailed city and country data
+		const visitedCitiesDetailed = filteredLocations.map((loc) => ({
+			city: loc.cityName,
+			countryCode: loc.countryCode,
+			durationHours: Math.round(loc.durationHours),
+			dataPoints: loc.dataPoints
+		}));
+
+		// Aggregate country data from cities
+		const countryMap = new Map<string, { durationHours: number; dataPoints: number }>();
+		filteredLocations.forEach((loc) => {
+			const existing = countryMap.get(loc.countryCode);
+			if (existing) {
+				existing.durationHours += loc.durationHours;
+				existing.dataPoints += loc.dataPoints;
+			} else {
+				countryMap.set(loc.countryCode, {
+					durationHours: loc.durationHours,
+					dataPoints: loc.dataPoints
+				});
+			}
+		});
+
+		const visitedCountriesDetailed = Array.from(countryMap.entries()).map(([countryCode, data]) => ({
+			countryCode,
+			durationHours: Math.round(data.durationHours),
+			dataPoints: data.dataPoints
+		}));
+
 		// Create the trip object
 		const trip: DetectedTrip = {
 			id: tripId,
@@ -733,8 +791,10 @@ export class TripDetectionService {
 			metadata: {
 				totalDurationHours: Math.round(awayDuration),
 				visitedCities: filteredLocations.map((location) => location.cityName),
-				visitedCountries: filteredLocations.map((location) => location.countryCode),
-				visitedCountryCodes: filteredLocations.map((location) => location.countryCode),
+				visitedCountries: Array.from(countryMap.keys()),
+				visitedCountryCodes: Array.from(countryMap.keys()),
+				visitedCitiesDetailed,
+				visitedCountriesDetailed,
 				isMultiCountryTrip: this.hasMultipleCountries(this.userState!.visitedCities),
 				isMultiCityTrip: this.hasMultipleCities(this.userState!.visitedCities),
 				tripType: this.determineTripType(this.userState!.visitedCities),
@@ -949,7 +1009,8 @@ export class TripDetectionService {
 
 	/**
 	 * Filter visited locations by duration thresholds
-	 * - Cities must be visited for at least 3 hours
+	 * - Cities must be visited for at least 12 hours to be considered as a title candidate
+	 * - But cities with less time can still be included if country total >= 24 hours
 	 * - Countries must be visited for at least 24 hours (aggregated from cities)
 	 */
 	private filterLocationsByDuration(visitedCities: any[]): any[] {
@@ -969,7 +1030,8 @@ export class TripDetectionService {
 			}
 		}
 
-		// Filter cities: keep cities from valid countries with reasonable duration (≥2 hours)
+		// Filter cities: keep cities from valid countries with at least 2 hours duration
+		// (lower threshold allows showing multiple cities when no single city is dominant)
 		const finalFiltered = visitedCities.filter((loc) => {
 			const isFromValidCountry = validCountries.has(loc.countryCode);
 			const hasReasonableDuration = loc.durationHours >= 2;

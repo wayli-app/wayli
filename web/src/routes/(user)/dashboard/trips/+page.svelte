@@ -2030,11 +2030,24 @@
 												>
 													{trip.title}
 												</label>
+												<!-- Trip type badges -->
+												<div class="flex gap-2">
+													{#if trip.metadata?.isMultiCountryTrip}
+														<span class="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+															Multi-Country
+														</span>
+													{/if}
+													{#if trip.metadata?.isMultiCityTrip}
+														<span class="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+															Multi-City
+														</span>
+													{/if}
+												</div>
 											</div>
 											<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
 												{trip.description}
 											</p>
-											<div class="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+											<div class="mb-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
 												<span
 													>{t('trips.start')}: {format(
 														new Date(trip.start_date),
@@ -2046,6 +2059,49 @@
 												>
 												<span>{trip.metadata?.dataPoints || 0} {t('trips.dataPoints')}</span>
 											</div>
+
+											<!-- Visited Cities -->
+											{#if trip.metadata?.visitedCitiesDetailed && trip.metadata.visitedCitiesDetailed.length > 0}
+												<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+													<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+														{t('trips.visitedCities')}:
+													</div>
+													<div class="flex flex-wrap gap-2">
+														{#each trip.metadata.visitedCitiesDetailed as city}
+															<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
+																<MapPin class="h-3 w-3" />
+																<span class="font-medium">{city.city}</span>
+																<span class="text-gray-500 dark:text-gray-400">
+																	({city.durationHours < 24
+																		? `${city.durationHours}h`
+																		: `${Math.floor(city.durationHours / 24)}d ${city.durationHours % 24}h`})
+																</span>
+															</span>
+														{/each}
+													</div>
+												</div>
+											{/if}
+
+											<!-- Visited Countries (for multi-country trips) -->
+											{#if trip.metadata?.visitedCountriesDetailed && trip.metadata.visitedCountriesDetailed.length > 1}
+												<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+													<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+														{t('trips.visitedCountries')}:
+													</div>
+													<div class="flex flex-wrap gap-2">
+														{#each trip.metadata.visitedCountriesDetailed as country}
+															<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
+																<span class="font-medium">{country.countryCode}</span>
+																<span class="text-gray-500 dark:text-gray-400">
+																	({country.durationHours < 24
+																		? `${country.durationHours}h`
+																		: `${Math.floor(country.durationHours / 24)}d ${country.durationHours % 24}h`})
+																</span>
+															</span>
+														{/each}
+													</div>
+												</div>
+											{/if}
 										</div>
 									</div>
 								</div>

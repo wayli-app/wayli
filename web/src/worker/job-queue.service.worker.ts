@@ -273,6 +273,53 @@ export class JobQueueService {
 		return stats;
 	}
 
+	static async requeueJobForRetry(jobId: string, reason: string): Promise<void> {
+		console.log(`🔄 Requeueing job ${jobId} for retry. Reason: ${reason}`);
+
+		const { data: job, error: fetchError } = await this.supabase
+			.from('jobs')
+			.select('retry_count')
+			.eq('id', jobId)
+			.single();
+
+		if (fetchError) throw fetchError;
+
+		const currentRetries = job?.retry_count || 0;
+		const maxRetries = this.config.retryAttempts;
+
+		if (currentRetries < maxRetries) {
+			// Re-queue the job for retry
+			const { error: retryError } = await this.supabase
+				.from('jobs')
+				.update({
+					status: 'queued',
+					retry_count: currentRetries + 1,
+					last_error: reason,
+					updated_at: new Date().toISOString(),
+					worker_id: null,
+					started_at: null
+					// Note: Keep progress and result to allow resumption if needed
+				})
+				.eq('id', jobId);
+
+			if (retryError) throw retryError;
+			console.log(`✅ Job ${jobId} requeued for retry (attempt ${currentRetries + 1}/${maxRetries})`);
+		} else {
+			// Exceeded max retries, mark as failed
+			const { error: failError } = await this.supabase
+				.from('jobs')
+				.update({
+					status: 'failed',
+					error: `${reason} (exceeded max retries: ${maxRetries})`,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', jobId);
+
+			if (failError) throw failError;
+			console.log(`❌ Job ${jobId} failed after exceeding max retries (${maxRetries})`);
+		}
+	}
+
 	static async cleanupStaleJobs(): Promise<void> {
 		const timeoutThreshold = new Date(Date.now() - this.config.jobTimeout);
 		// Find all running jobs that have not been updated for longer than jobTimeout
@@ -285,35 +332,7 @@ export class JobQueueService {
 		if (!staleJobs || staleJobs.length === 0) return;
 
 		for (const job of staleJobs) {
-			const currentRetries = job.retry_count || 0;
-			const maxRetries = this.config.retryAttempts;
-			if (currentRetries < maxRetries) {
-				// Re-queue the job
-				const { error: retryError } = await this.supabase
-					.from('jobs')
-					.update({
-						status: 'queued',
-						retry_count: currentRetries + 1,
-						last_error: 'Job was stuck (worker offline or timed out)',
-						updated_at: new Date().toISOString(),
-						worker_id: null,
-						started_at: null,
-						progress: 0
-					})
-					.eq('id', job.id);
-				if (retryError) throw retryError;
-			} else {
-				// Mark as failed
-				const { error: failError } = await this.supabase
-					.from('jobs')
-					.update({
-						status: 'failed',
-						error: 'Job timed out and exceeded max retries',
-						updated_at: new Date().toISOString()
-					})
-					.eq('id', job.id);
-				if (failError) throw failError;
-			}
+			await this.requeueJobForRetry(job.id, 'Job was stuck (worker offline or timed out)');
 		}
 	}
 }

@@ -24,10 +24,9 @@ export type JobType =
 	| 'data_export'
 	| 'geocoding'
 	| 'image_generation'
-	| 'poi_detection'
 	| 'trip_detection'
 	| 'distance_calculation';
-export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'aborting';
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export interface JobConfig {

@@ -36,15 +36,27 @@ const worker = new JobWorker(workerId);
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-	console.log('\n🛑 Received SIGINT, shutting down worker...');
-	await worker.stop();
-	process.exit(0);
+	console.log('\n🛑 Received SIGINT, shutting down worker gracefully...');
+	try {
+		await worker.stop(true); // Graceful shutdown
+		console.log('✅ Worker shutdown completed successfully');
+		process.exit(0);
+	} catch (error) {
+		console.error('❌ Error during worker shutdown:', error);
+		process.exit(1);
+	}
 });
 
 process.on('SIGTERM', async () => {
-	console.log('\n🛑 Received SIGTERM, shutting down worker...');
-	await worker.stop();
-	process.exit(0);
+	console.log('\n🛑 Received SIGTERM (Kubernetes preStop), shutting down worker gracefully...');
+	try {
+		await worker.stop(true); // Graceful shutdown with 30s grace period
+		console.log('✅ Worker shutdown completed successfully');
+		process.exit(0);
+	} catch (error) {
+		console.error('❌ Error during worker shutdown:', error);
+		process.exit(1);
+	}
 });
 
 // Handle uncaught exceptions

@@ -123,8 +123,11 @@ Deno.serve(async (req) => {
 						);
 					}
 
-					// Generate image suggestion based on analysis
-					const suggestion = await generateImageSuggestionFromAnalysis(analysis, apiKey);
+					// Extract metadata if available
+					const tripMetadata = trip.metadata && typeof trip.metadata === 'object' ? trip.metadata as any : undefined;
+
+					// Generate image suggestion based on analysis and metadata
+					const suggestion = await generateImageSuggestionFromAnalysis(supabase, analysis, apiKey, tripMetadata);
 
 					logSuccess('Image suggestion generated for suggested trip', 'TRIPS-SUGGEST-IMAGE', {
 						userId: user.id,
@@ -179,8 +182,8 @@ Deno.serve(async (req) => {
 					);
 				}
 
-				// Generate image suggestion based on analysis
-				const suggestion = await generateImageSuggestionFromAnalysis(analysis, apiKey);
+				// Generate image suggestion based on analysis (no metadata available for new trips)
+				const suggestion = await generateImageSuggestionFromAnalysis(supabase, analysis, apiKey);
 
 				logSuccess('Image suggestion generated for new trip', 'TRIPS-SUGGEST-IMAGE', {
 					userId: user.id,
@@ -401,8 +404,24 @@ function cleanCountryNameForSearch(countryName: string): string {
 
 // Helper function to generate image suggestion from analysis
 async function generateImageSuggestionFromAnalysis(
+	supabase: any,
 	analysis: { primaryCountry: string; primaryCity?: string; isMultiCity: boolean },
-	apiKey: string
+	apiKey: string,
+	tripMetadata?: {
+		visitedCitiesDetailed?: Array<{
+			city: string;
+			countryCode: string;
+			durationHours: number;
+			dataPoints: number;
+		}>;
+		visitedCountriesDetailed?: Array<{
+			countryCode: string;
+			durationHours: number;
+			dataPoints: number;
+		}>;
+		isMultiCountryTrip?: boolean;
+		isMultiCityTrip?: boolean;
+	}
 ): Promise<{
 	imageUrl: string;
 	attribution?: {
@@ -415,12 +434,50 @@ async function generateImageSuggestionFromAnalysis(
 	// Create a more specific search term for better results
 	let searchTerm = 'landscape';
 
-	if (analysis.isMultiCity && analysis.primaryCountry) {
-		searchTerm = cleanCountryNameForSearch(analysis.primaryCountry);
-	} else if (analysis.primaryCity) {
-		searchTerm = `${analysis.primaryCity} city`;
-	} else if (analysis.primaryCountry) {
-		searchTerm = `${cleanCountryNameForSearch(analysis.primaryCountry)} landscape`;
+	// Prefer using metadata if available (duration-based, more accurate)
+	if (tripMetadata) {
+		if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length > 1) {
+			// Multi-country trip: use country with longest duration
+			const dominantCountry = tripMetadata.visitedCountriesDetailed
+				.sort((a, b) => b.durationHours - a.durationHours)[0];
+
+			// Map country code to full name
+			const { data: fullName } = await supabase.rpc('full_country', { country: dominantCountry.countryCode });
+			const countryName = (fullName && typeof fullName === 'string' && fullName) || dominantCountry.countryCode;
+
+			searchTerm = cleanCountryNameForSearch(countryName);
+			logInfo(`Using dominant country from metadata: ${countryName} (${dominantCountry.durationHours}h)`, 'TRIPS-SUGGEST-IMAGE');
+		} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length > 1) {
+			// Multi-city trip (same country): use city with longest duration
+			const dominantCity = tripMetadata.visitedCitiesDetailed
+				.sort((a, b) => b.durationHours - a.durationHours)[0];
+			searchTerm = `${dominantCity.city} city`;
+			logInfo(`Using dominant city from metadata: ${dominantCity.city} (${dominantCity.durationHours}h)`, 'TRIPS-SUGGEST-IMAGE');
+		} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length === 1) {
+			// Single city trip
+			searchTerm = `${tripMetadata.visitedCitiesDetailed[0].city} city`;
+			logInfo(`Using single city from metadata: ${tripMetadata.visitedCitiesDetailed[0].city}`, 'TRIPS-SUGGEST-IMAGE');
+		} else if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length === 1) {
+			// Single country trip
+			const { data: fullName } = await supabase.rpc('full_country', { country: tripMetadata.visitedCountriesDetailed[0].countryCode });
+			const countryName = (fullName && typeof fullName === 'string' && fullName) || tripMetadata.visitedCountriesDetailed[0].countryCode;
+			searchTerm = `${cleanCountryNameForSearch(countryName)} landscape`;
+			logInfo(`Using single country from metadata: ${countryName}`, 'TRIPS-SUGGEST-IMAGE');
+		}
+	}
+
+	// Fallback to analysis-based logic if no metadata was used
+	if (searchTerm === 'landscape') {
+		if (analysis.isMultiCity && analysis.primaryCountry) {
+			searchTerm = cleanCountryNameForSearch(analysis.primaryCountry);
+			logInfo(`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`, 'TRIPS-SUGGEST-IMAGE');
+		} else if (analysis.primaryCity) {
+			searchTerm = `${analysis.primaryCity} city`;
+			logInfo(`Fallback: Using primary city from analysis: ${analysis.primaryCity}`, 'TRIPS-SUGGEST-IMAGE');
+		} else if (analysis.primaryCountry) {
+			searchTerm = `${cleanCountryNameForSearch(analysis.primaryCountry)} landscape`;
+			logInfo(`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`, 'TRIPS-SUGGEST-IMAGE');
+		}
 	}
 
 	// Search for images on Pexels

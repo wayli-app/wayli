@@ -46,12 +46,8 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 	const RATE_WINDOW_MS = 15_000; // 15s window per requirement
 	const scanSamples: Array<{ time: number; scanned: number }> = [];
 
-	if (job.result && typeof job.result === 'object') {
-		const metadata = job.result as Record<string, unknown>;
-		totalProcessed = (metadata.totalProcessed as number) || 0;
-		totalSuccess = (metadata.totalSuccess as number) || 0;
-		totalErrors = (metadata.totalErrors as number) || 0;
-	}
+	// Don't restore previous progress - always recalculate based on current batch progress
+	// This ensures progress is accurate when a job is restarted
 
 	try {
 		await checkJobCancellation(job.id);

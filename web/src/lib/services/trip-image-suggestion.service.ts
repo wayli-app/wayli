@@ -144,10 +144,95 @@ export class TripImageSuggestionService {
 		userId: string,
 		startDate: string,
 		endDate: string,
-		userApiKey?: string
+		userApiKey?: string,
+		tripMetadata?: {
+			visitedCitiesDetailed?: Array<{
+				city: string;
+				countryCode: string;
+				durationHours: number;
+				dataPoints: number;
+			}>;
+			visitedCountriesDetailed?: Array<{
+				countryCode: string;
+				durationHours: number;
+				dataPoints: number;
+			}>;
+			isMultiCountryTrip?: boolean;
+			isMultiCityTrip?: boolean;
+		}
 	): Promise<TripImageSuggestion | null> {
 		try {
-			// Analyze the trip locations
+			// Prefer using metadata if available (duration-based, more accurate)
+			if (tripMetadata) {
+				if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length > 1) {
+					// Multi-country trip: use country with longest duration
+					const dominantCountry = tripMetadata.visitedCountriesDetailed
+						.sort((a, b) => b.durationHours - a.durationHours)[0];
+
+					console.log(`🌍 Using dominant country from metadata: ${dominantCountry.countryCode} (${dominantCountry.durationHours}h)`);
+
+					const countryImage = await getTripBannerImageWithAttribution(
+						dominantCountry.countryCode,
+						userApiKey,
+						dominantCountry.countryCode,
+						false
+					);
+					if (countryImage) {
+						console.log(`✅ Successfully got country image: ${countryImage.imageUrl}`);
+						return countryImage;
+					}
+				} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length > 1) {
+					// Multi-city trip (same country): use city with longest duration
+					const dominantCity = tripMetadata.visitedCitiesDetailed
+						.sort((a, b) => b.durationHours - a.durationHours)[0];
+
+					console.log(`🏙️ Using dominant city from metadata: ${dominantCity.city} (${dominantCity.durationHours}h)`);
+
+					const cityImage = await getTripBannerImageWithAttribution(
+						dominantCity.city,
+						userApiKey,
+						dominantCity.countryCode,
+						true
+					);
+					if (cityImage) {
+						console.log(`✅ Successfully got city image: ${cityImage.imageUrl}`);
+						return cityImage;
+					}
+				} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length === 1) {
+					// Single city trip
+					const singleCity = tripMetadata.visitedCitiesDetailed[0];
+					console.log(`🏙️ Using single city from metadata: ${singleCity.city}`);
+
+					const cityImage = await getTripBannerImageWithAttribution(
+						singleCity.city,
+						userApiKey,
+						singleCity.countryCode,
+						true
+					);
+					if (cityImage) {
+						console.log(`✅ Successfully got city image: ${cityImage.imageUrl}`);
+						return cityImage;
+					}
+				} else if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length === 1) {
+					// Single country trip
+					const singleCountry = tripMetadata.visitedCountriesDetailed[0];
+					console.log(`🌍 Using single country from metadata: ${singleCountry.countryCode}`);
+
+					const countryImage = await getTripBannerImageWithAttribution(
+						singleCountry.countryCode,
+						userApiKey,
+						singleCountry.countryCode,
+						false
+					);
+					if (countryImage) {
+						console.log(`✅ Successfully got country image: ${countryImage.imageUrl}`);
+						return countryImage;
+					}
+				}
+			}
+
+			// Fallback to analysis-based logic if no metadata or metadata search failed
+			console.log('⚠️ Falling back to analysis-based search...');
 			const analysis = await this.analyzeTripLocations(userId, startDate, endDate);
 
 			if (!analysis.primaryCountry) {

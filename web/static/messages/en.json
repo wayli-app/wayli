@@ -631,6 +631,8 @@
 	"trips.start": "Start",
 	"trips.end": "End",
 	"trips.dataPoints": "data points",
+	"trips.visitedCities": "Visited cities",
+	"trips.visitedCountries": "Visited countries",
 	"trips.areYouSureDelete": "Are you sure you want to delete",
 	"trips.actionCannotBeUndone": "? This action cannot be undone.",
 	"trips.delete": "Delete",
