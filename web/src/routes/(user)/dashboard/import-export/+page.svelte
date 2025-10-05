@@ -134,7 +134,7 @@
 			await fetchLastSuccessfulImport();
 
 			// Show success message
-			toast.success(t('importExport.importSuccessful'));
+			toast.success(t('importExport.uploadSuccessful'));
 		} catch (error) {
 			console.error('Import error:', error);
 			// Show error message

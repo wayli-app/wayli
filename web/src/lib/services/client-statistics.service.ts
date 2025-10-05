@@ -624,7 +624,6 @@ export class ClientStatisticsService {
 
 					// Database speed is already in km/h
 					velocity = point.speed;
-					console.log(`🚗 Using database speed: ${point.speed.toFixed(2)} km/h for transport mode: ${mode}`);
 				}
 			} else if (nextPoint) {
 				// Fallback to calculated velocity if no database speed available
@@ -820,11 +819,6 @@ export class ClientStatisticsService {
 		// This ensures map and statistics use the same mode (with database speed respected)
 		// DO NOT re-detect the mode here as it will ignore database speed and cause mismatches
 		const mode = current.transport_mode || 'unknown';
-
-		// Log for verification during development
-		if (mode === 'walking' && distance > 0) {
-			console.log(`📊 Accumulating walking distance: ${(distance / 1000).toFixed(3)}km`);
-		}
 
 		// Update statistics - ALWAYS accumulate distance and time for all rendered points
 		// This ensures statistics match what's displayed on the map

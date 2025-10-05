@@ -38,7 +38,8 @@ export async function importGeoJSONWithProgress(
 				fileName,
 				format: 'GeoJSON',
 				totalProcessed: 0,
-				totalItems: totalFeatures
+				totalItems: totalFeatures,
+				eta: '0s'
 			});
 
 			const startTime = Date.now();
@@ -56,15 +57,32 @@ export async function importGeoJSONWithProgress(
 			importedCount = results.importedCount;
 			skippedCount = results.skippedCount;
 			errorCount = results.errorCount;
+			const duplicatesCount = results.duplicatesCount;
 
 			const totalTime = (Date.now() - startTime) / 1000;
 			console.log(`✅ GeoJSON import completed!`);
 			console.log(`📊 Final stats:`);
 			console.log(`   📥 Imported: ${importedCount.toLocaleString()} points`);
 			console.log(`   ⏭️ Skipped: ${skippedCount.toLocaleString()} points`);
+			console.log(`   🔄 Duplicates: ${duplicatesCount.toLocaleString()} points`);
 			console.log(`   ❌ Errors: ${errorCount.toLocaleString()} points`);
 			console.log(`   ⏱️ Total time: ${totalTime.toFixed(1)}s`);
 			console.log(`   🚀 Average rate: ${(importedCount / totalTime).toFixed(1)} points/sec`);
+
+			// Update final job progress with duplicates count in metadata
+			await JobQueueService.updateJobProgress(jobId, 100, {
+				message: `✅ GeoJSON import completed!`,
+				fileName,
+				format: 'GeoJSON',
+				totalProcessed: importedCount,
+				totalItems: totalFeatures,
+				imported: importedCount,
+				skipped: skippedCount,
+				duplicates: duplicatesCount,
+				errors: errorCount,
+				totalTime: `${totalTime.toFixed(1)}s`,
+				averageRate: `${(importedCount / totalTime).toFixed(1)} points/sec`
+			});
 		}
 
 		return importedCount;
@@ -85,11 +103,12 @@ async function processFeaturesInParallel(
 	fileName: string,
 	startTime: number,
 	lastLogTimeInitial: number
-): Promise<{ importedCount: number; skippedCount: number; errorCount: number }> {
+): Promise<{ importedCount: number; skippedCount: number; errorCount: number; duplicatesCount: number }> {
 	const totalFeatures = features.length;
 	let importedCount = 0;
 	let skippedCount = 0;
 	let errorCount = 0;
+	let duplicatesCount = 0;
 	const errorSummary: ErrorSummary = { counts: {}, samples: [] };
 
 	const CHUNK_SIZE = 30;
@@ -108,6 +127,7 @@ async function processFeaturesInParallel(
 			imported: number;
 			skipped: number;
 			errors: number;
+			duplicates: number;
 			errorSummary: ErrorSummary;
 		}>[] = [];
 
@@ -128,6 +148,7 @@ async function processFeaturesInParallel(
 				importedCount += result.value.imported;
 				skippedCount += result.value.skipped;
 				errorCount += result.value.errors;
+				duplicatesCount += result.value.duplicates;
 				// merge error summaries
 				for (const [k, v] of Object.entries(result.value.errorSummary.counts)) {
 					errorSummary.counts[k] = (errorSummary.counts[k] || 0) + v;
@@ -154,7 +175,7 @@ async function processFeaturesInParallel(
 					: '0';
 
 			console.log(
-				`📈 Progress: ${processed.toLocaleString()}/${totalFeatures.toLocaleString()} (${progress}%) - Rate: ${rate} features/sec - ETA: ${eta}s - Imported: ${importedCount.toLocaleString()} - Skipped: ${skippedCount.toLocaleString()} - Errors: ${errorCount.toLocaleString()}`
+				`📈 Progress: ${processed.toLocaleString()}/${totalFeatures.toLocaleString()} (${progress}%) - Rate: ${rate} features/sec - ETA: ${eta}s - Imported: ${importedCount.toLocaleString()} - Skipped: ${skippedCount.toLocaleString()} - Duplicates: ${duplicatesCount.toLocaleString()} - Errors: ${errorCount.toLocaleString()}`
 			);
 
 			const topErrors = Object.entries(errorSummary.counts)
@@ -173,6 +194,7 @@ async function processFeaturesInParallel(
 				rate: `${rate} features/sec`,
 				eta: `${eta}s`,
 				skipped: skippedCount,
+				duplicates: duplicatesCount,
 				errors: errorCount,
 				errorSummary: topErrors,
 				errorSamples: errorSummary.samples
@@ -182,6 +204,11 @@ async function processFeaturesInParallel(
 		}
 
 		if (importedCount > 0 && importedCount % 1000 === 0) {
+			const elapsedSeconds = (currentTime - startTime) / 1000;
+			const eta =
+				processed > 0
+					? ((totalFeatures - processed) / (processed / elapsedSeconds)).toFixed(0)
+					: '0';
 			console.log(`🎉 Milestone: Imported ${importedCount.toLocaleString()} points!`);
 			await JobQueueService.updateJobProgress(jobId, progress, {
 				message: `🎉 Imported ${importedCount.toLocaleString()} points!`,
@@ -189,12 +216,13 @@ async function processFeaturesInParallel(
 				format: 'GeoJSON',
 				totalProcessed: importedCount,
 				totalItems: totalFeatures,
-				currentFeature: processed + 1
+				currentFeature: processed + 1,
+				eta: `${eta}s`
 			});
 		}
 	}
 
-	return { importedCount, skippedCount, errorCount };
+	return { importedCount, skippedCount, errorCount, duplicatesCount };
 }
 
 async function processFeatureChunk(
@@ -204,10 +232,11 @@ async function processFeatureChunk(
 	jobId?: string,
 	totalFeatures?: number,
 	fileName?: string
-): Promise<{ imported: number; skipped: number; errors: number; errorSummary: ErrorSummary }> {
+): Promise<{ imported: number; skipped: number; errors: number; duplicates: number; errorSummary: ErrorSummary }> {
 	let imported = 0;
 	let skipped = 0;
 	let errors = 0;
+	let duplicates = 0;
 	const errorSummary: ErrorSummary = { counts: {}, samples: [] };
 
 	const trackerData: Array<{
@@ -370,48 +399,51 @@ async function processFeatureChunk(
 
 	if (trackerData.length > 0) {
 		try {
-					const { error } = await supabase.from('tracker_data').insert(trackerData);
+			// Deduplicate within the batch - keep only the last occurrence of each (user_id, recorded_at)
+			const deduplicatedData = Array.from(
+				trackerData.reduce((map, item) => {
+					const key = `${item.user_id}|${item.recorded_at}`;
+					map.set(key, item); // This will overwrite duplicates, keeping the last one
+					return map;
+				}, new Map<string, typeof trackerData[0]>()).values()
+			);
+
+			const duplicatesInBatch = trackerData.length - deduplicatedData.length;
+			if (duplicatesInBatch > 0) {
+				duplicates += duplicatesInBatch;
+				skipped += duplicatesInBatch;
+			}
+
+			const { error } = await supabase.from('tracker_data').upsert(deduplicatedData, {
+				onConflict: 'user_id,recorded_at',
+				ignoreDuplicates: false
+			});
 
 			if (!error) {
-				imported = trackerData.length;
-
-				if (jobId && totalFeatures) {
-					const processedFeatures = chunkStart + features.length;
-					const progress = Math.round((processedFeatures / totalFeatures) * 100);
-
-					if (processedFeatures % 50 === 0) {
-						await JobQueueService.updateJobProgress(jobId, progress, {
-							message: `🗺️ Processing features... ${processedFeatures.toLocaleString()}/${totalFeatures.toLocaleString()} (${progress}%)`,
-							fileName,
-							format: 'GeoJSON',
-							totalProcessed: processedFeatures,
-							totalItems: totalFeatures,
-							currentFeature: processedFeatures + 1
-						});
-					}
-				}
-					} else {
+				imported = deduplicatedData.length;
+				// Note: Progress updates with ETA are handled in processFeaturesInParallel
+			} else {
 			console.log(`❌ Batch insert failed with error:`, error);
 			// For insert failures, we'll handle duplicates during deduplication phase
-			errors += trackerData.length;
+			errors += deduplicatedData.length;
 			const code = (error as any).code || 'unknown';
 			const message = (error as any).message || 'unknown error';
-			errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + trackerData.length;
+			errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + deduplicatedData.length;
 			if (errorSummary.samples.length < 10)
 				errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}: ${message}` });
 		}
 		} catch (outerError: any) {
 			console.log(`❌ Outer batch processing error:`, outerError);
 			// For outer errors, we'll handle duplicates during deduplication phase
-			errors += trackerData.length;
+			errors += deduplicatedData.length;
 			const msg = outerError?.message || 'outer processing error';
-			errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + trackerData.length;
+			errorSummary.counts[msg] = (errorSummary.counts[msg] || 0) + deduplicatedData.length;
 			if (errorSummary.samples.length < 10)
 				errorSummary.samples.push({ idx: chunkStart, reason: msg });
 		}
 	}
 
-	return { imported, skipped, errors, errorSummary };
+	return { imported, skipped, errors, duplicates, errorSummary };
 }
 
 function safeGetCountryForPoint(lat: number, lon: number): string | null {

@@ -26,55 +26,14 @@ Deno.serve(async (req) => {
 				.eq('id', user.id)
 				.single();
 
-			// If profile doesn't exist, create one with default values
+			// If profile doesn't exist, it should have been created by the trigger
+			// Return an error since something went wrong with profile creation
 			if (profileError && profileError.code === 'PGRST116') {
-				// No rows returned
-				logInfo('Creating new user profile', 'AUTH-PROFILE', { userId: user.id });
-
-				// Check if this is the first user (make them admin)
-				const { count: userCount } = await supabase
-					.from('user_profiles')
-					.select('*', { count: 'exact', head: true });
-
-				const isFirstUser = userCount === 0;
-				const defaultRole = isFirstUser ? 'admin' : 'user';
-
-				// Create profile with default role
-				const { data: newProfile, error: createError } = await supabase
-					.from('user_profiles')
-					.insert({
-						id: user.id,
-						role: defaultRole,
-						first_name: user.user_metadata?.first_name || '',
-						last_name: user.user_metadata?.last_name || '',
-						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString()
-					})
-					.select()
-					.single();
-
-				if (createError) {
-					logError(createError, 'AUTH-PROFILE');
-					return errorResponse('Failed to create profile', 500);
-				}
-
-				profile = newProfile;
-				profileError = null;
-
-				// Also update user metadata to include the role
-				if (isFirstUser) {
-					const { error: metadataError } = await supabase.auth.admin.updateUserById(user.id, {
-						user_metadata: {
-							...user.user_metadata,
-							role: defaultRole
-						}
-					});
-
-					if (metadataError) {
-						logError(metadataError, 'AUTH-PROFILE');
-						console.warn('Failed to update user metadata with role, but profile was created');
-					}
-				}
+				logError(
+					new Error('Profile not found - trigger may not have run'),
+					'AUTH-PROFILE'
+				);
+				return errorResponse('Profile not found. Please contact support.', 404);
 			} else if (profileError) {
 				logError(profileError, 'AUTH-PROFILE');
 				return errorResponse('Failed to fetch profile', 500);

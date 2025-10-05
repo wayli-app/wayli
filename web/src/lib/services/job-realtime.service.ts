@@ -101,7 +101,6 @@ export class JobRealtimeService {
 						filter: `created_by=eq.${this.userId}`
 					},
 					(payload: RealtimePostgresChangesPayload<JobUpdate>) => {
-						console.log('📨 JobRealtime: RAW payload received:', payload);
 						this.handleDatabaseChange(payload);
 					}
 				)
@@ -155,15 +154,15 @@ export class JobRealtimeService {
 	private handleDatabaseChange(payload: RealtimePostgresChangesPayload<JobUpdate>): void {
 		const { eventType, new: newRecord, old: oldRecord } = payload;
 
-		console.log('📨 JobRealtime: Database change received:', {
-			event: eventType,
-			jobId: (newRecord as JobUpdate)?.id || (oldRecord as Partial<JobUpdate>)?.id,
-			jobType: (newRecord as JobUpdate)?.type || (oldRecord as Partial<JobUpdate>)?.type,
-			status: (newRecord as JobUpdate)?.status,
-			progress: (newRecord as JobUpdate)?.progress,
-			oldStatus: (oldRecord as Partial<JobUpdate>)?.status,
-			oldProgress: (oldRecord as Partial<JobUpdate>)?.progress
-		});
+		// console.log('📨 JobRealtime: Database change received:', {
+		// 	event: eventType,
+		// 	jobId: (newRecord as JobUpdate)?.id || (oldRecord as Partial<JobUpdate>)?.id,
+		// 	jobType: (newRecord as JobUpdate)?.type || (oldRecord as Partial<JobUpdate>)?.type,
+		// 	status: (newRecord as JobUpdate)?.status,
+		// 	progress: (newRecord as JobUpdate)?.progress,
+		// 	oldStatus: (oldRecord as Partial<JobUpdate>)?.status,
+		// 	oldProgress: (oldRecord as Partial<JobUpdate>)?.progress
+		// });
 
 		if (eventType === 'INSERT' || eventType === 'UPDATE') {
 			const job = newRecord as JobUpdate;

@@ -24,20 +24,20 @@
 
 	// Subscribe to store changes
 	onMount(() => {
-		console.log('📊 JobProgressIndicator: Component mounted');
-
 		// Initial load from store
 		activeJobs = new Map(getActiveJobsMap());
 		console.log('📊 JobProgressIndicator: Initial jobs loaded:', activeJobs.size);
 
 		// Fetch and populate jobs on page load
-		fetchAndPopulateJobs().then(() => {
-			// Update local state after fetch completes
-			activeJobs = new Map(getActiveJobsMap());
-			console.log('📊 JobProgressIndicator: Jobs fetched and loaded:', activeJobs.size);
-		}).catch((error) => {
-			console.error('❌ JobProgressIndicator: Error fetching jobs on mount:', error);
-		});
+		fetchAndPopulateJobs()
+			.then(() => {
+				// Update local state after fetch completes
+				activeJobs = new Map(getActiveJobsMap());
+				console.log('📊 JobProgressIndicator: Jobs fetched and loaded:', activeJobs.size);
+			})
+			.catch((error) => {
+				console.error('❌ JobProgressIndicator: Error fetching jobs on mount:', error);
+			});
 
 		const unsubscribeJobs = subscribe(() => {
 			const newJobs = getActiveJobsMap();
@@ -47,7 +47,6 @@
 		});
 
 		return () => {
-			console.log('📊 JobProgressIndicator: Component unmounting');
 			unsubscribeJobs();
 			// Clear all timers
 			completedJobTimers.forEach((timer) => clearTimeout(timer));
@@ -93,7 +92,18 @@
 
 	// Get ETA display
 	function getETADisplay(job: JobUpdate): string {
-		// Hide ETA for import jobs
+		// Helper to format seconds as h m s consistently
+		function formatSeconds(seconds: number): string {
+			if (!seconds || seconds <= 0) return '';
+			const s = Math.floor(seconds % 60);
+			const m = Math.floor((seconds / 60) % 60);
+			const h = Math.floor(seconds / 3600);
+			if (h > 0) return `${h}h ${m}m ${s}s`;
+			if (m > 0) return `${m}m ${s}s`;
+			return `${s}s`;
+		}
+
+		// Hide ETA for export jobs
 		if (job.type === 'data_export') {
 			return '';
 		}
@@ -107,101 +117,26 @@
 			return t('jobProgress.queued');
 		}
 
-		// Debug logging for ETA calculation
-		if (job.type === 'data_import' && job.status === 'running') {
-			console.log('🔍 [ETA DEBUG] Job data:', {
-				id: job.id,
-				progress: job.progress,
-				result: job.result,
-				eta: job.result?.eta,
-				estimatedTimeRemaining: job.result?.estimatedTimeRemaining
-			});
-		}
+		// Server always provides ETA
+		const serverETA = job.result?.estimatedTimeRemaining ?? job.result?.eta;
 
-		// Use server-provided ETA from result.estimatedTimeRemaining or eta if available
-		if (job.result?.estimatedTimeRemaining) {
-			// Normalize: when server returns numeric seconds, format consistently
-			const etaVal = job.result.estimatedTimeRemaining;
-			if (typeof etaVal === 'number') {
-				return formatSeconds(etaVal);
+		// Handle numeric values
+		if (typeof serverETA === 'number') {
+			return formatSeconds(serverETA);
+		}
+		// Handle string numeric values (e.g., "50")
+		if (typeof serverETA === 'string' && /^(\d+)$/.test(serverETA)) {
+			return formatSeconds(parseInt(serverETA, 10));
+		}
+		// Handle "50s" format from import workers
+		if (typeof serverETA === 'string' && serverETA.endsWith('s')) {
+			const seconds = parseInt(serverETA.slice(0, -1), 10);
+			if (!isNaN(seconds)) {
+				return formatSeconds(seconds);
 			}
-			if (typeof etaVal === 'string' && /^(\d+)$/.test(etaVal)) {
-				return formatSeconds(parseInt(etaVal, 10));
-			}
-			return String(etaVal);
 		}
-
-		// Check for eta field (used by import workers) - PRIORITY 1
-		if (job.result?.eta) {
-			const etaVal = job.result.eta;
-			// Handle "50s" format from import workers
-			if (typeof etaVal === 'string' && etaVal.endsWith('s')) {
-				const seconds = parseInt(etaVal.slice(0, -1), 10);
-				if (!isNaN(seconds)) {
-					return formatSeconds(seconds);
-				}
-			}
-			// Handle numeric ETA values
-			if (typeof etaVal === 'number') {
-				return formatSeconds(etaVal);
-			}
-			return String(etaVal);
-		}
-
-		// For data import, calculate ETA based on progress (export jobs are excluded above)
-		// This is a fallback when the worker doesn't provide ETA - PRIORITY 2
-		if (job.type === 'data_import') {
-			if (job.progress === 0) return t('jobProgress.calculating');
-			if (job.progress === 100) return t('jobProgress.complete');
-
-			// Only use fallback ETA if worker hasn't provided one
-			// The worker's ETA (job.result.eta) should always take precedence
-			if (!job.result?.eta) {
-				// Better ETA calculation based on typical import rates
-				// Import jobs typically process 1000-2000 features per second
-				// Use a more realistic estimate based on progress
-				const remaining = 100 - job.progress;
-				if (remaining <= 5) return t('jobProgress.lessThanMinute');
-				if (remaining <= 20) return t('jobProgress.fewMinutes');
-
-				// For larger remaining progress, use a more nuanced calculation
-				const estimatedMinutes = Math.max(1, Math.ceil(remaining / 15)); // More realistic divisor
-				return t('jobProgress.remaining', { minutes: estimatedMinutes });
-			}
-
-			// If we reach here, the worker provided an ETA but it wasn't parsed correctly
-			// This shouldn't happen, but fallback to a generic message
-			return t('jobProgress.calculating');
-		}
-
-		// Helper to format seconds as h m s consistently
-		function formatSeconds(seconds: number): string {
-			if (!seconds || seconds <= 0) return t('jobProgress.calculating');
-			const s = Math.floor(seconds % 60);
-			const m = Math.floor((seconds / 60) % 60);
-			const h = Math.floor(seconds / 3600);
-			if (h > 0) return `${h}h ${m}m ${s}s`;
-			if (m > 0) return `${m}m ${s}s`;
-			return `${s}s`;
-		}
-
-		// For reverse geocoding and trip generation, prefer server-provided ETA, else fallback
-		if (
-			job.type === 'reverse_geocoding' ||
-			job.type === 'reverse_geocoding_missing' ||
-			job.type === 'trip_generation'
-		) {
-			if (job.progress === 0) return t('jobProgress.calculating');
-			if (job.progress === 100) return t('jobProgress.complete');
-
-			// Simple fallback ETA when server hasn't provided one
-			const remaining = 100 - job.progress;
-			const divisor = job.type === 'trip_generation' ? 8 : 5; // heuristic fallback
-			const estimatedMinutes = Math.ceil(remaining / divisor);
-			return t('jobProgress.remaining', { minutes: estimatedMinutes });
-		}
-
-		return t('jobProgress.inProgress');
+		// Return as-is if it's a formatted string
+		return String(serverETA);
 	}
 
 	// Get status color
@@ -327,7 +262,7 @@
 		)
 	);
 
-		// Watch for changes and update state
+	// Watch for changes and update state
 	$effect(() => {
 		// Update visible jobs
 		visibleJobs = activeJobsList;
@@ -518,8 +453,8 @@
 		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999999 !important; pointer-events: auto !important;"
 	>
 		<div
-					class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
-		style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
+			class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 		>
 			<div class="mb-4">
 				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Cancel Job</h3>

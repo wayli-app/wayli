@@ -142,8 +142,6 @@ export class JobQueueService {
 			console.error(`❌ Error updating job progress:`, error);
 			throw error;
 		}
-
-		console.log(`✅ Job progress updated successfully`, data ? `(${data.length} rows)` : '');
 	}
 
 	static async completeJob(jobId: string, result?: Record<string, unknown>): Promise<void> {

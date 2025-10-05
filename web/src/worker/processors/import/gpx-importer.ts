@@ -43,7 +43,8 @@ export async function importGPXWithProgress(
 			fileName,
 			format: 'GPX',
 			totalProcessed: 0,
-			totalItems
+			totalItems,
+			eta: '0s'
 		});
 
 		const startTime = Date.now();
@@ -93,16 +94,19 @@ export async function importGPXWithProgress(
 				}
 			};
 
-			const { error } = await supabase.from('tracker_data').insert({
-				user_id: userId,
-				tracker_type: 'import',
-				location: `POINT(${lon} ${lat})`,
-				recorded_at: recordedAt,
-				country_code: countryCode,
-				tz_diff: tzDiff,  // Add timezone difference
-				geocode: geocodeFeature,
-				created_at: new Date().toISOString()
-			} as any);
+			const { error } = await supabase.from('tracker_data').upsert(
+				{
+					user_id: userId,
+					tracker_type: 'import',
+					location: `POINT(${lon} ${lat})`,
+					recorded_at: recordedAt,
+					country_code: countryCode,
+					tz_diff: tzDiff,  // Add timezone difference
+					geocode: geocodeFeature,
+					created_at: new Date().toISOString()
+				} as any,
+				{ onConflict: 'user_id,recorded_at', ignoreDuplicates: false }
+			);
 
 			if (!error) {
 				importedCount++;
@@ -117,6 +121,9 @@ export async function importGPXWithProgress(
 
 			if (i % 10 === 0 || i === waypoints.length - 1) {
 				const progress = Math.round((i / totalItems) * 100);
+				const elapsedSeconds = (Date.now() - startTime) / 1000;
+				const rate = i > 0 ? (i / elapsedSeconds).toFixed(1) : '0';
+				const eta = i > 0 ? ((totalItems - i) / (i / elapsedSeconds)).toFixed(0) : '0';
 				console.log(
 					`📈 Waypoints progress: ${i.toLocaleString()}/${waypoints.length.toLocaleString()} - Imported: ${importedCount.toLocaleString()} - Skipped: ${skippedCount.toLocaleString()} - Errors: ${errorCount.toLocaleString()}`
 				);
@@ -125,7 +132,9 @@ export async function importGPXWithProgress(
 					fileName,
 					format: 'GPX',
 					totalProcessed: importedCount,
-					totalItems
+					totalItems,
+					rate: `${rate} items/sec`,
+					eta: `${eta}s`
 				});
 			}
 		}
@@ -208,6 +217,10 @@ export async function importGPXWithProgress(
 			}
 
 			const progress = Math.round(((waypoints.length + i + 1) / totalItems) * 100);
+			const currentProcessed = waypoints.length + i + 1;
+			const elapsedSeconds = (Date.now() - startTime) / 1000;
+			const rate = currentProcessed > 0 ? (currentProcessed / elapsedSeconds).toFixed(1) : '0';
+			const eta = currentProcessed > 0 ? ((totalItems - currentProcessed) / (currentProcessed / elapsedSeconds)).toFixed(0) : '0';
 			console.log(
 				`📈 Tracks progress: ${(i + 1).toLocaleString()}/${tracks.length.toLocaleString()} - Total imported: ${importedCount.toLocaleString()} - Skipped: ${skippedCount.toLocaleString()} - Errors: ${errorCount.toLocaleString()}`
 			);
@@ -216,7 +229,9 @@ export async function importGPXWithProgress(
 				fileName,
 				format: 'GPX',
 				totalProcessed: importedCount,
-				totalItems
+				totalItems,
+				rate: `${rate} items/sec`,
+				eta: `${eta}s`
 			});
 		}
 

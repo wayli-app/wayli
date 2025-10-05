@@ -32,7 +32,8 @@ export async function importOwnTracksWithProgress(
 			fileName,
 			format: 'OwnTracks',
 			totalProcessed: 0,
-			totalItems: totalLines
+			totalItems: totalLines,
+			eta: '0s'
 		});
 
 		const startTime = Date.now();
@@ -109,20 +110,23 @@ export async function importOwnTracksWithProgress(
 					}
 				};
 
-				const { error } = await supabase.from('tracker_data').insert({
-					user_id: userId,
-					tracker_type: 'import',
-					location: `POINT(${lon} ${lat})`,
-					recorded_at: recordedAt,
-					country_code: countryCode,
-					tz_diff: tzDiff,  // Add timezone difference
-					altitude: parts[3] ? parseFloat(parts[3]) : null,
-					accuracy: parts[4] ? parseFloat(parts[4]) : null,
-					speed: parts[6] ? parseFloat(parts[6]) : null,
-					heading: parts[7] ? parseFloat(parts[7]) : null,
-					geocode: geocodeFeature,
-					created_at: new Date().toISOString()
-				} as any);
+				const { error } = await supabase.from('tracker_data').upsert(
+					{
+						user_id: userId,
+						tracker_type: 'import',
+						location: `POINT(${lon} ${lat})`,
+						recorded_at: recordedAt,
+						country_code: countryCode,
+						tz_diff: tzDiff,  // Add timezone difference
+						altitude: parts[3] ? parseFloat(parts[3]) : null,
+						accuracy: parts[4] ? parseFloat(parts[4]) : null,
+						speed: parts[6] ? parseFloat(parts[6]) : null,
+						heading: parts[7] ? parseFloat(parts[7]) : null,
+						geocode: geocodeFeature,
+						created_at: new Date().toISOString()
+					} as any,
+					{ onConflict: 'user_id,recorded_at', ignoreDuplicates: false }
+				);
 
 				if (!error) importedCount++;
 				else {
