@@ -2081,7 +2081,7 @@
 
 											<!-- Visited Cities -->
 											{#if trip.metadata?.visitedCitiesDetailed && trip.metadata.visitedCitiesDetailed.length > 0}
-												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(city => city.durationHours >= 12)}
+												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(city => city.durationHours >= 12 && city.city !== 'Unknown')}
 												{#if significantCities.length > 0}
 													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
 														<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
@@ -2101,18 +2101,21 @@
 
 											<!-- Visited Countries (for multi-country trips) -->
 											{#if trip.metadata?.visitedCountriesDetailed && trip.metadata.visitedCountriesDetailed.length > 1}
-												<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-													<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-														{t('trips.visitedCountries')}:
+												{@const validCountries = trip.metadata.visitedCountriesDetailed.filter(country => country.countryCode !== 'Unknown')}
+												{#if validCountries.length > 1}
+													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+														<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+															{t('trips.visitedCountries')}:
+														</div>
+														<div class="flex flex-wrap gap-2">
+															{#each validCountries as country}
+																<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
+																	<span class="font-medium">{$getCountryNameReactive(country.countryCode)}</span>
+																</span>
+															{/each}
+														</div>
 													</div>
-													<div class="flex flex-wrap gap-2">
-														{#each trip.metadata.visitedCountriesDetailed as country}
-															<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
-																<span class="font-medium">{$getCountryNameReactive(country.countryCode)}</span>
-															</span>
-														{/each}
-													</div>
-												</div>
+												{/if}
 											{/if}
 										</div>
 									</div>

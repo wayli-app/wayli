@@ -795,6 +795,14 @@ export class TripDetectionService {
 			dataPoints: data.dataPoints
 		}));
 
+		// Get unique cities and filter out "Unknown"
+		const uniqueCities = Array.from(new Set(filteredLocations.map((location) => location.cityName)))
+			.filter(city => city !== 'Unknown');
+
+		// Get unique countries and filter out "Unknown"
+		const uniqueCountries = Array.from(countryMap.keys())
+			.filter(country => country !== 'Unknown');
+
 		// Create the trip object
 		const trip: DetectedTrip = {
 			id: tripId,
@@ -806,9 +814,9 @@ export class TripDetectionService {
 			status: 'pending',
 			metadata: {
 				totalDurationHours: Math.round(awayDuration),
-				visitedCities: filteredLocations.map((location) => location.cityName),
-				visitedCountries: Array.from(countryMap.keys()),
-				visitedCountryCodes: Array.from(countryMap.keys()),
+				visitedCities: uniqueCities,
+				visitedCountries: uniqueCountries,
+				visitedCountryCodes: uniqueCountries,
 				visitedCitiesDetailed,
 				visitedCountriesDetailed,
 				isMultiCountryTrip: this.hasMultipleCountries(this.userState!.visitedCities),
@@ -921,7 +929,13 @@ export class TripDetectionService {
 				return translateServer('tripDetection.tripToCity', { city: cityName }, language);
 			}
 
-			// If multiple cities, check for dominant city (≥50% of time)
+			// If more than 3 cities in one country, show country name
+			if (citiesInCountry.length > 3) {
+				const countryName = getCountryNameServer(countryCode, language);
+				return translateServer('tripDetection.tripToCountry', { country: countryName }, language);
+			}
+
+			// If multiple cities (2-3), check for dominant city (≥50% of time)
 			const cityDurations = new Map<string, number>();
 			citiesInCountry.forEach((loc) => {
 				const city = loc.cityName;
