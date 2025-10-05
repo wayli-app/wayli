@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 			let downloadUrl = signedUrlData.signedUrl;
 
 			// Get the public Supabase URL for the frontend
-			const publicSupabaseUrl = Deno.env.get('SUPABASE_URL');
+			const publicSupabaseUrl = Deno.env.get('PUBLIC_SUPABASE_URL');
 
 			// Always replace the URL's hostname with the public Supabase URL if defined
 			if (publicSupabaseUrl) {
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
 					publicSupabaseUrl: publicSupabaseUrl
 				});
 			} else {
-				logInfo('Using signed URL as-is (no SUPABASE_URL defined)', 'EXPORT-DOWNLOAD', {
+				logInfo('Using signed URL as-is (no PUBLIC_SUPABASE_URL defined)', 'EXPORT-DOWNLOAD', {
 					downloadUrl: downloadUrl
 				});
 			}
