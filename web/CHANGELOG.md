@@ -1,3 +1,10 @@
+## [1.2.16](https://github.com/wayli-app/wayli/compare/v1.2.15...v1.2.16) (2025-10-05)
+
+
+### Bug Fixes
+
+* Modals. ([ea71fc0](https://github.com/wayli-app/wayli/commit/ea71fc0c4286cec68d1aac24fd498f4cdbd8a49b))
+
 ## [1.2.15](https://github.com/wayli-app/wayli/compare/v1.2.14...v1.2.15) (2025-10-05)
 
 
