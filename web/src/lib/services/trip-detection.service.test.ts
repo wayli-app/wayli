@@ -669,7 +669,7 @@ describe('TripDetectionService', () => {
 				{ cityName: 'Ghent', countryCode: 'be', durationHours: 10 }    // 33.3% of 30 total
 			];
 			const multiCityTitle = await serviceInstance['generateTripTitle'](multiCityLocations, 'en');
-			expect(multiCityTitle).toBe('Trip to Brussels, Antwerp, Ghent'); // Should show multiple cities since no dominant city
+			expect(multiCityTitle).toBe('Trip to Belgium'); // Should show country because there's no dominant city
 
 			// Test multi-country trip with dominant country
 			const dominantCountryLocations = [

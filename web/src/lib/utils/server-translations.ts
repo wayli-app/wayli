@@ -1,9 +1,15 @@
 // web/src/lib/utils/server-translations.ts
 // Server-side translation utility for worker environments
 
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
 interface Translations {
 	[key: string]: string;
 }
+
+// Cache for loaded translations
+let translationsCache: { [lang: string]: Translations } | null = null;
 
 // Server-side translations (subset of full translations for worker use)
 const translations: { [lang: string]: Translations } = {
@@ -26,6 +32,32 @@ const translations: { [lang: string]: Translations } = {
 		'tripDetection.tripToMultipleCountries': 'Reis naar {countries}'
 	}
 };
+
+/**
+ * Load full translations from JSON files (used for country names)
+ */
+function loadFullTranslations(): { [lang: string]: Translations } {
+	if (translationsCache) {
+		return translationsCache;
+	}
+
+	try {
+		const languages = ['en', 'nl', 'es'];
+		const result: { [lang: string]: Translations } = {};
+
+		for (const lang of languages) {
+			const filePath = join(process.cwd(), 'static', 'messages', `${lang}.json`);
+			const fileContent = readFileSync(filePath, 'utf-8');
+			result[lang] = JSON.parse(fileContent);
+		}
+
+		translationsCache = result;
+		return result;
+	} catch (error) {
+		console.error('Error loading translations:', error);
+		return {};
+	}
+}
 
 /**
  * Simple server-side translation function for worker environments
@@ -76,4 +108,33 @@ export function getPluralSuffix(count: number, language: string = 'en'): string 
 		default:
 			return 's';
 	}
+}
+
+/**
+ * Get country name from country code for server-side use
+ * @param countryCode - ISO 3166-1 alpha-2 country code (e.g., 'US', 'FR', 'JP')
+ * @param language - User's language preference (defaults to 'en')
+ * @returns Translated country name, or the country code if translation not found
+ */
+export function getCountryNameServer(countryCode: string, language: string = 'en'): string {
+	if (!countryCode || countryCode.length !== 2) {
+		return countryCode;
+	}
+
+	const fullTranslations = loadFullTranslations();
+	const lang = fullTranslations[language] ? language : 'en';
+	const key = `country.${countryCode.toUpperCase()}`;
+
+	// Try requested language
+	if (fullTranslations[lang] && fullTranslations[lang][key]) {
+		return fullTranslations[lang][key];
+	}
+
+	// Fallback to English
+	if (fullTranslations['en'] && fullTranslations['en'][key]) {
+		return fullTranslations['en'][key];
+	}
+
+	// Fallback to country code if no translation found
+	return countryCode.toUpperCase();
 }

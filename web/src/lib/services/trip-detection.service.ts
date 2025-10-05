@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { translateServer } from '../utils/server-translations';
+import { translateServer, getCountryNameServer } from '../utils/server-translations';
 import { getCountryForPoint } from '../services/external/country-reverse-geocoding.service';
 
 export interface DateRange {
@@ -428,16 +428,6 @@ export class TripDetectionService {
 		};
 
 		// First, count total data points for accurate progress tracking
-		this.updateProgress({
-			phase: 'processing_batches',
-			progress: 10,
-			message: `Counting data points for ${dateRange.startDate} to ${dateRange.endDate}...`,
-			details: {
-				currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
-				totalDateRanges: totalDateRanges
-			}
-		});
-
 		const { count: totalDataPoints, error: countError } = await this.supabase
 			.from('tracker_data')
 			.select('*', { count: 'exact', head: true })
@@ -461,8 +451,8 @@ export class TripDetectionService {
 		// Update progress: Starting batch processing for this date range
 		this.updateProgress({
 			phase: 'processing_batches',
-			progress: 15,
-			message: `Processing ${totalPoints} data points for ${dateRange.startDate} to ${dateRange.endDate}...`,
+			progress: 10,
+			message: `Starting to process ${totalPoints.toLocaleString()} data points...`,
 			details: {
 				currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
 				totalDateRanges: totalDateRanges,
@@ -541,9 +531,9 @@ export class TripDetectionService {
 
 					// Update progress every 50 points processed (more frequent updates)
 					if (i % 50 === 0 && i > 0 && totalPoints > 0) {
-						// Calculate progress based on actual data points processed (15% to 95%)
+						// Calculate progress based on actual data points processed (10% to 95%)
 						const processedSoFar = totalProcessedPoints + i;
-						const currentProgress = Math.min(95, 15 + Math.round((processedSoFar / totalPoints) * 80));
+						const currentProgress = Math.min(95, 10 + Math.round((processedSoFar / totalPoints) * 85));
 
 						this.updateProgress({
 							phase: 'processing_batches',
@@ -566,7 +556,7 @@ export class TripDetectionService {
 
 				// Update progress after each batch
 				const currentProgress = totalPoints > 0
-					? Math.min(95, 15 + Math.round((totalProcessedPoints / totalPoints) * 80))
+					? Math.min(95, 10 + Math.round((totalProcessedPoints / totalPoints) * 85))
 					: 50;
 
 				this.updateProgress({
@@ -919,6 +909,40 @@ export class TripDetectionService {
 			countryDurations.set(country, currentDuration + loc.durationHours);
 		});
 
+		// If only one country visited (and it's not home country)
+		// Check if there's a single dominant city or multiple cities
+		if (countryDurations.size === 1) {
+			const countryCode = Array.from(countryDurations.keys())[0];
+			const citiesInCountry = filteredLocations.filter((loc) => loc.countryCode === countryCode);
+
+			// If single city, show city name
+			if (citiesInCountry.length === 1) {
+				const cityName = citiesInCountry[0].cityName;
+				return translateServer('tripDetection.tripToCity', { city: cityName }, language);
+			}
+
+			// If multiple cities, check for dominant city (≥50% of time)
+			const cityDurations = new Map<string, number>();
+			citiesInCountry.forEach((loc) => {
+				const city = loc.cityName;
+				const currentDuration = cityDurations.get(city) || 0;
+				cityDurations.set(city, currentDuration + loc.durationHours);
+			});
+
+			// Check for dominant city
+			for (const [city, cityDuration] of Array.from(cityDurations.entries()).sort(
+				(a, b) => b[1] - a[1]
+			)) {
+				if (cityDuration / totalDuration >= 0.5) {
+					return translateServer('tripDetection.tripToCity', { city }, language);
+				}
+			}
+
+			// No dominant city - show country name
+			const countryName = getCountryNameServer(countryCode, language);
+			return translateServer('tripDetection.tripToCountry', { country: countryName }, language);
+		}
+
 		// Check for dominant country
 		for (const [country, duration] of countryDurations) {
 			if (duration / totalDuration >= 0.5) {
@@ -977,7 +1001,7 @@ export class TripDetectionService {
 		if (countriesWithSignificantTime.length > 1) {
 			const countryNames = countriesWithSignificantTime
 				.slice(0, 3) // Top 3 countries
-				.map(([countryCode, _]) => countryCode);
+				.map(([countryCode, _]) => getCountryNameServer(countryCode, language));
 			const countriesString = countryNames.join(', ');
 			return translateServer(
 				'tripDetection.tripToMultipleCountries',

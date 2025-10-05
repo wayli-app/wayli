@@ -58,6 +58,12 @@ export class JobProcessorService {
 		const calculateEta = (currentProgress: number): number | null => {
 			const now = Date.now();
 
+			// Only start tracking ETA after we've made some progress in actual processing
+			// This gives the system time to establish a stable processing rate
+			if (currentProgress < 20) {
+				return null;
+			}
+
 			// Add current sample
 			progressSamples.push({ time: now, progress: currentProgress });
 
