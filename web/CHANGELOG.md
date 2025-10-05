@@ -1,3 +1,10 @@
+## [1.2.9](https://github.com/wayli-app/wayli/compare/v1.2.8...v1.2.9) (2025-10-05)
+
+
+### Bug Fixes
+
+* Only use reasonable amounts of time. ([fe307f1](https://github.com/wayli-app/wayli/commit/fe307f1f8dea01d5e117985cd658133bad87f6eb))
+
 ## [1.2.8](https://github.com/wayli-app/wayli/compare/v1.2.7...v1.2.8) (2025-10-05)
 
 
