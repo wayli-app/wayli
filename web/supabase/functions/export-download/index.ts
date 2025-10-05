@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
 			let downloadUrl = signedUrlData.signedUrl;
 
 			// Get the public Supabase URL for the frontend
-			const publicSupabaseUrl = Deno.env.get('PUBLIC_SUPABASE_URL') || 'http://127.0.0.1:54321';
+			const publicSupabaseUrl = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:54321';
 
 			// If the signed URL contains internal hostnames, replace them with the public URL
 			if (downloadUrl.includes('kong:8000') || downloadUrl.includes('localhost:54321') || downloadUrl.includes('127.0.0.1:54321')) {
