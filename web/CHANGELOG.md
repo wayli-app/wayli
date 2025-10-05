@@ -1,3 +1,10 @@
+## [1.2.22](https://github.com/wayli-app/wayli/compare/v1.2.21...v1.2.22) (2025-10-05)
+
+
+### Bug Fixes
+
+* Use translated country name. ([d6e0b1e](https://github.com/wayli-app/wayli/commit/d6e0b1e07bb89b2556a9b1ff738a9c034a51819f))
+
 ## [1.2.21](https://github.com/wayli-app/wayli/compare/v1.2.20...v1.2.21) (2025-10-05)
 
 
