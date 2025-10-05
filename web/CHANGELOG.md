@@ -1,3 +1,10 @@
+## [1.2.10](https://github.com/wayli-app/wayli/compare/v1.2.9...v1.2.10) (2025-10-05)
+
+
+### Bug Fixes
+
+* ETA display. ([86c06b7](https://github.com/wayli-app/wayli/commit/86c06b7a9c6ebfb2778c1fe943357d1f9002f704))
+
 ## [1.2.9](https://github.com/wayli-app/wayli/compare/v1.2.8...v1.2.9) (2025-10-05)
 
 
