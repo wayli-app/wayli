@@ -119,6 +119,19 @@
 	});
 	let imagePreview = $state<string | null>(null);
 
+	// Auto-focus modal overlay when opened for keyboard events
+	$effect(() => {
+		if (showTripModal || showDeleteConfirm) {
+			// Focus the modal overlay after a brief delay to ensure DOM is ready
+			setTimeout(() => {
+				const modalOverlay = document.querySelector('.modal-overlay');
+				if (modalOverlay instanceof HTMLElement) {
+					modalOverlay.focus();
+				}
+			}, 0);
+		}
+	});
+
 	// Image state
 	let imageError = $state<string>('');
 	let uploadedImageUrl = $state<string | null>(null);
@@ -1342,6 +1355,12 @@
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="modal-title"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					closeTripModal();
+				}
+			}}
+			tabindex="-1"
 		>
 			<div
 				class="relative max-h-[90vh] w-full max-w-lg cursor-default overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
@@ -2188,10 +2207,17 @@
 	<!-- Delete Confirmation Modal -->
 	{#if showDeleteConfirm && tripToDelete}
 		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+			class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="delete-modal-title"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					showDeleteConfirm = false;
+					tripToDelete = null;
+				}
+			}}
+			tabindex="-1"
 		>
 			<div
 				class="relative mx-4 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"

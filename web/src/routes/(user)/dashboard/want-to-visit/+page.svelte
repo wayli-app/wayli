@@ -86,6 +86,19 @@
 	// Edit mode
 	let editingPlace = $state<Place | null>(null);
 
+	// Auto-focus modal overlay when opened for keyboard events
+	$effect(() => {
+		if (showAddForm || showEditForm) {
+			// Focus the modal overlay after a brief delay to ensure DOM is ready
+			setTimeout(() => {
+				const modalOverlay = document.querySelector('.modal-overlay');
+				if (modalOverlay instanceof HTMLElement) {
+					modalOverlay.focus();
+				}
+			}, 0);
+		}
+	});
+
 	// Marker options - updated to use translation keys
 	let markerTypes = $derived([
 		{
@@ -984,10 +997,22 @@
 	<!-- Simple Modal Overlay -->
 	{#if showAddForm}
 		<div
-			class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+			class="modal-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+			role="dialog"
+			aria-modal="true"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					showAddForm = false;
+					if (tempMarker) {
+						tempMarker.remove();
+						tempMarker = null;
+					}
+				}
+			}}
+			tabindex="-1"
 		>
 			<div
-				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
 			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
@@ -1271,10 +1296,19 @@
 	<!-- Edit Modal Overlay -->
 	{#if showEditForm}
 		<div
-			class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+			class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+			role="dialog"
+			aria-modal="true"
+			onkeydown={(e) => {
+				if (e.key === 'Escape') {
+					showEditForm = false;
+					resetForm();
+				}
+			}}
+			tabindex="-1"
 		>
 			<div
-				class="relative z-[10000] max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
 			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
@@ -1671,3 +1705,10 @@
 		</div>
 	{/if}
 </div>
+<style>
+	.modal-overlay {
+		margin: 0 !important;
+		height: 100vh;
+		min-height: 100vh;
+	}
+</style>
