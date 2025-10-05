@@ -1,3 +1,10 @@
+## [1.2.11](https://github.com/wayli-app/wayli/compare/v1.2.10...v1.2.11) (2025-10-05)
+
+
+### Bug Fixes
+
+* Improve trip generation logic. ([703da96](https://github.com/wayli-app/wayli/commit/703da964e43ccb8983d779c8533dc882eab9936c))
+
 ## [1.2.10](https://github.com/wayli-app/wayli/compare/v1.2.9...v1.2.10) (2025-10-05)
 
 
