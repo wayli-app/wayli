@@ -1,3 +1,10 @@
+## [1.2.15](https://github.com/wayli-app/wayli/compare/v1.2.14...v1.2.15) (2025-10-05)
+
+
+### Bug Fixes
+
+* Pexels search improvement. ([993c74f](https://github.com/wayli-app/wayli/commit/993c74f6525704ae72fceb12073ce6b81e4bfa1c))
+
 ## [1.2.14](https://github.com/wayli-app/wayli/compare/v1.2.13...v1.2.14) (2025-10-05)
 
 
