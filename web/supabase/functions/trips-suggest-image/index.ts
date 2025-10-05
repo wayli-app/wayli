@@ -468,10 +468,8 @@ async function generateImageSuggestionFromAnalysis(
 
 	// Fallback to analysis-based logic if no metadata was used
 	if (searchTerm === 'landscape') {
-		if (analysis.isMultiCity && analysis.primaryCountry) {
-			searchTerm = cleanCountryNameForSearch(analysis.primaryCountry);
-			logInfo(`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`, 'TRIPS-SUGGEST-IMAGE');
-		} else if (analysis.primaryCity) {
+		// Prefer city over country for better search results
+		if (analysis.primaryCity) {
 			searchTerm = `${analysis.primaryCity} city`;
 			logInfo(`Fallback: Using primary city from analysis: ${analysis.primaryCity}`, 'TRIPS-SUGGEST-IMAGE');
 		} else if (analysis.primaryCountry) {
