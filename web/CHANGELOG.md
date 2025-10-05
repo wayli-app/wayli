@@ -1,3 +1,10 @@
+## [1.2.13](https://github.com/wayli-app/wayli/compare/v1.2.12...v1.2.13) (2025-10-05)
+
+
+### Bug Fixes
+
+* Trip titles. ([66df2dc](https://github.com/wayli-app/wayli/commit/66df2dc70d6956393a6e9a46a2235a78b8577a10))
+
 ## [1.2.12](https://github.com/wayli-app/wayli/compare/v1.2.11...v1.2.12) (2025-10-05)
 
 
