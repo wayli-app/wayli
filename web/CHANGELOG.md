@@ -1,3 +1,10 @@
+## [1.2.8](https://github.com/wayli-app/wayli/compare/v1.2.7...v1.2.8) (2025-10-05)
+
+
+### Bug Fixes
+
+* Add data inserts back to migrations. ([4b9c2b3](https://github.com/wayli-app/wayli/commit/4b9c2b3133879afacb026bf45a3520a499c84564))
+
 ## [1.2.7](https://github.com/wayli-app/wayli/compare/v1.2.6...v1.2.7) (2025-10-05)
 
 
