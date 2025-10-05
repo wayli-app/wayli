@@ -1,3 +1,10 @@
+## [1.2.19](https://github.com/wayli-app/wayli/compare/v1.2.18...v1.2.19) (2025-10-05)
+
+
+### Bug Fixes
+
+* Correct env var. ([a796f41](https://github.com/wayli-app/wayli/commit/a796f41f1786c78ddfb7b6e4bc2c65122cef82f1))
+
 ## [1.2.18](https://github.com/wayli-app/wayli/compare/v1.2.17...v1.2.18) (2025-10-05)
 
 
