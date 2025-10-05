@@ -125,16 +125,27 @@ export function getCountryNameServer(countryCode: string, language: string = 'en
 	const lang = fullTranslations[language] ? language : 'en';
 	const key = `country.${countryCode.toUpperCase()}`;
 
-	// Try requested language
+	// Try requested language from our translations
 	if (fullTranslations[lang] && fullTranslations[lang][key]) {
 		return fullTranslations[lang][key];
 	}
 
-	// Fallback to English
+	// Fallback to English from our translations
 	if (fullTranslations['en'] && fullTranslations['en'][key]) {
 		return fullTranslations['en'][key];
 	}
 
-	// Fallback to country code if no translation found
+	// Fallback to Intl.DisplayNames API for countries not in our translations
+	try {
+		const regionNames = new Intl.DisplayNames([language, 'en'], { type: 'region' });
+		const countryName = regionNames.of(countryCode.toUpperCase());
+		if (countryName && countryName !== countryCode.toUpperCase()) {
+			return countryName;
+		}
+	} catch (error) {
+		console.error(`Error getting country name for ${countryCode}:`, error);
+	}
+
+	// Final fallback to country code if all else fails
 	return countryCode.toUpperCase();
 }
