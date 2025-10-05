@@ -128,15 +128,19 @@
 		if (typeof serverETA === 'string' && /^(\d+)$/.test(serverETA)) {
 			return formatSeconds(parseInt(serverETA, 10));
 		}
-		// Handle "50s" format from import workers
-		if (typeof serverETA === 'string' && serverETA.endsWith('s')) {
+		// Handle "50s" format from import workers (only simple seconds, not compound formats like "5m 30s")
+		if (typeof serverETA === 'string' && /^\d+s$/.test(serverETA)) {
 			const seconds = parseInt(serverETA.slice(0, -1), 10);
 			if (!isNaN(seconds)) {
 				return formatSeconds(seconds);
 			}
 		}
-		// Return as-is if it's a formatted string
-		return String(serverETA);
+		// Return as-is if it's already a formatted string (e.g., "5m 30s", "1h 15m 30s", "Calculating...")
+		if (typeof serverETA === 'string') {
+			return serverETA;
+		}
+		// Fallback for undefined/null
+		return '';
 	}
 
 	// Get status color
