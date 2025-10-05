@@ -1,3 +1,10 @@
+## [1.2.18](https://github.com/wayli-app/wayli/compare/v1.2.17...v1.2.18) (2025-10-05)
+
+
+### Bug Fixes
+
+* Download link. ([658e160](https://github.com/wayli-app/wayli/commit/658e160d4bbb312549765f7d6efd0456d4ca1d32))
+
 ## [1.2.17](https://github.com/wayli-app/wayli/compare/v1.2.16...v1.2.17) (2025-10-05)
 
 
