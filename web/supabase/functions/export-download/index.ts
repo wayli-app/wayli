@@ -75,25 +75,26 @@ Deno.serve(async (req) => {
 			let downloadUrl = signedUrlData.signedUrl;
 
 			// Get the public Supabase URL for the frontend
-			const publicSupabaseUrl = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:54321';
+			const publicSupabaseUrl = Deno.env.get('SUPABASE_URL');
 
-			// If the signed URL contains internal hostnames, replace them with the public URL
-			if (downloadUrl.includes('kong:8000') || downloadUrl.includes('localhost:54321') || downloadUrl.includes('127.0.0.1:54321')) {
+			// Always replace the URL's hostname with the public Supabase URL if defined
+			if (publicSupabaseUrl) {
 				const urlObj = new URL(downloadUrl);
 				const publicUrlObj = new URL(publicSupabaseUrl);
 
 				// Replace the hostname and port with the public URL
 				urlObj.hostname = publicUrlObj.hostname;
 				urlObj.port = publicUrlObj.port || '';
+				urlObj.protocol = publicUrlObj.protocol;
 				downloadUrl = urlObj.toString();
 
-				logInfo('Transformed internal URL to public URL', 'EXPORT-DOWNLOAD', {
+				logInfo('Transformed URL to use public Supabase URL', 'EXPORT-DOWNLOAD', {
 					originalUrl: signedUrlData.signedUrl,
 					transformedUrl: downloadUrl,
 					publicSupabaseUrl: publicSupabaseUrl
 				});
 			} else {
-				logInfo('Using signed URL as-is (already public)', 'EXPORT-DOWNLOAD', {
+				logInfo('Using signed URL as-is (no SUPABASE_URL defined)', 'EXPORT-DOWNLOAD', {
 					downloadUrl: downloadUrl
 				});
 			}
