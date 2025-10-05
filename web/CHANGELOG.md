@@ -1,3 +1,10 @@
+## [1.2.14](https://github.com/wayli-app/wayli/compare/v1.2.13...v1.2.14) (2025-10-05)
+
+
+### Bug Fixes
+
+* Country names in trip titles. ([0e0e4c7](https://github.com/wayli-app/wayli/commit/0e0e4c764c772dd50afaa449c7aaf3a5a5537d9c))
+
 ## [1.2.13](https://github.com/wayli-app/wayli/compare/v1.2.12...v1.2.13) (2025-10-05)
 
 
