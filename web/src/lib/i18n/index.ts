@@ -280,19 +280,27 @@ export function getCountryName(countryCode: string): string {
 	if (key in currentMessages) {
 		const translatedName = currentMessages[key];
 		return translatedName as string;
-	} else {
-		// Try English fallback
-		const englishKey = `country.${countryCode.toUpperCase()}` as TranslationKey;
-		if (englishKey in currentMessages) {
-			const englishName = currentMessages[englishKey];
-			return englishName as string;
-		}
-		return countryCode.toUpperCase();
 	}
+
+	// Fallback to Intl.DisplayNames API
+	if (browser) {
+		try {
+			const locale = get(currentLocale);
+			const regionNames = new Intl.DisplayNames([locale, 'en'], { type: 'region' });
+			const countryName = regionNames.of(countryCode.toUpperCase());
+			if (countryName && countryName !== countryCode.toUpperCase()) {
+				return countryName;
+			}
+		} catch (error) {
+			console.error(`Error getting country name for ${countryCode}:`, error);
+		}
+	}
+
+	return countryCode.toUpperCase();
 }
 
 // Reactive country name translation
-export const getCountryNameReactive = derived([messages, currentLocale], ([$messages]) => {
+export const getCountryNameReactive = derived([messages, currentLocale], ([$messages, $locale]) => {
 	return (countryCode: string): string => {
 		if (!countryCode || countryCode.length !== 2) {
 			return countryCode;
@@ -304,8 +312,21 @@ export const getCountryNameReactive = derived([messages, currentLocale], ([$mess
 		if (key in $messages) {
 			const translatedName = $messages[key];
 			return translatedName as string;
-		} else {
-			return countryCode.toUpperCase();
 		}
+
+		// Fallback to Intl.DisplayNames API
+		if (browser) {
+			try {
+				const regionNames = new Intl.DisplayNames([$locale, 'en'], { type: 'region' });
+				const countryName = regionNames.of(countryCode.toUpperCase());
+				if (countryName && countryName !== countryCode.toUpperCase()) {
+					return countryName;
+				}
+			} catch (error) {
+				console.error(`Error getting country name for ${countryCode}:`, error);
+			}
+		}
+
+		return countryCode.toUpperCase();
 	};
 });

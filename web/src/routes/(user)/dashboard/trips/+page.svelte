@@ -21,7 +21,7 @@
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
 	import GenerateSuggestionsButton from '$lib/components/ui/generate-suggestions-button/index.svelte';
 	import Modal from '$lib/components/ui/modal/index.svelte';
-	import { translate } from '$lib/i18n';
+	import { translate, getCountryNameReactive } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { uploadTripImage } from '$lib/services/external/image-upload.service';
 	import { getTripsService } from '$lib/services/service-layer-adapter';
@@ -2108,7 +2108,7 @@
 													<div class="flex flex-wrap gap-2">
 														{#each trip.metadata.visitedCountriesDetailed as country}
 															<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
-																<span class="font-medium">{country.countryCode}</span>
+																<span class="font-medium">{$getCountryNameReactive(country.countryCode)}</span>
 															</span>
 														{/each}
 													</div>
