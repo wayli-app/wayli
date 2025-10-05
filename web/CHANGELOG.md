@@ -1,3 +1,10 @@
+## [1.2.20](https://github.com/wayli-app/wayli/compare/v1.2.19...v1.2.20) (2025-10-05)
+
+
+### Bug Fixes
+
+* Hopefully fix download URL. ([ab1027b](https://github.com/wayli-app/wayli/commit/ab1027bd14fff2ffa6e2da536e5a49982f966cbb))
+
 ## [1.2.19](https://github.com/wayli-app/wayli/compare/v1.2.18...v1.2.19) (2025-10-05)
 
 
