@@ -1,3 +1,10 @@
+## [1.2.23](https://github.com/wayli-app/wayli/compare/v1.2.22...v1.2.23) (2025-10-05)
+
+
+### Bug Fixes
+
+* Small UI fixes. ([2b7f091](https://github.com/wayli-app/wayli/commit/2b7f0917b8ae48cb19b0967d79107e2d176da961))
+
 ## [1.2.22](https://github.com/wayli-app/wayli/compare/v1.2.21...v1.2.22) (2025-10-05)
 
 
