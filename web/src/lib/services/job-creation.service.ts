@@ -136,10 +136,12 @@ export class JobCreationService {
 		};
 
 		if (options.startDate) {
-			data.startDate = options.startDate.toISOString().split('T')[0];
+			const startDate = options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
+			data.startDate = startDate.toISOString().split('T')[0];
 		}
 		if (options.endDate) {
-			data.endDate = options.endDate.toISOString().split('T')[0];
+			const endDate = options.endDate instanceof Date ? options.endDate : new Date(options.endDate);
+			data.endDate = endDate.toISOString().split('T')[0];
 		}
 
 		return this.createJob({
