@@ -1,3 +1,10 @@
+## [1.2.7](https://github.com/wayli-app/wayli/compare/v1.2.6...v1.2.7) (2025-10-05)
+
+
+### Bug Fixes
+
+* Handle duplicates in import. ([3c56928](https://github.com/wayli-app/wayli/commit/3c5692803edc098b7bd9caa6f5b005bc48651c53))
+
 ## [1.2.6](https://github.com/wayli-app/wayli/compare/v1.2.5...v1.2.6) (2025-10-04)
 
 
