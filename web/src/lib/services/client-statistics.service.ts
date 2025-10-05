@@ -895,7 +895,10 @@ export class ClientStatisticsService {
 	private calculateTimeSpent(current: TrackerDataPoint, next: TrackerDataPoint): number {
 		// Use database-calculated time_spent if available
 		if (typeof next.time_spent === 'number' && next.time_spent > 0) {
-			return next.time_spent * 1000; // convert to milliseconds
+			const timeMs = next.time_spent * 1000; // convert to milliseconds
+			// Only count continuous movement (less than 30 minutes)
+			// This prevents tracking gaps (overnight, device off, etc.) from inflating transport mode times
+			return timeMs < 1800000 ? timeMs : 0;
 		}
 
 		// Fallback to timestamp difference
@@ -903,8 +906,8 @@ export class ClientStatisticsService {
 		const nextTime = new Date(next.recorded_at).getTime();
 		const timeDiff = nextTime - currentTime;
 
-		// Only count reasonable time differences (less than 1 hour)
-		return timeDiff > 0 && timeDiff < 3600000 ? timeDiff : 0;
+		// Only count continuous movement (less than 30 minutes)
+		return timeDiff > 0 && timeDiff < 1800000 ? timeDiff : 0;
 	}
 
 	/**

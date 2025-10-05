@@ -1140,9 +1140,6 @@
 						{/each}
 					</tbody>
 				</table>
-				<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-					within 300 meters of a station, at least 1 hour apart
-				</div>
 			</div>
 		{/if}
 

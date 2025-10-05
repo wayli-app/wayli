@@ -198,35 +198,54 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 					scanSamples.shift();
 				}
 
+				// Minimum thresholds to ensure accurate ETA
+				const MIN_ELAPSED_SECONDS = 5;
+				const MIN_SAMPLES = 3;
+				const MIN_POINTS_PROCESSED = 200;
+				const elapsedSeconds = (now - startTime) / 1000;
 
-				let scanRate = 0;
-				if (scanSamples.length >= 2) {
-					const first = scanSamples[0];
-					const last = scanSamples[scanSamples.length - 1];
-					const deltaScanned = last.scanned - first.scanned;
-					const deltaSeconds = (last.time - first.time) / 1000;
-					if (deltaSeconds > 0 && deltaScanned >= 0) {
-						scanRate = deltaScanned / deltaSeconds; // rows per second
+				let etaDisplay = 'Calculating...';
+
+				// Only calculate ETA if we have enough data to make an accurate estimate
+				if (
+					elapsedSeconds >= MIN_ELAPSED_SECONDS &&
+					scanSamples.length >= MIN_SAMPLES &&
+					totalProcessed >= MIN_POINTS_PROCESSED
+				) {
+					let scanRate = 0;
+
+					// Try to use moving average first
+					if (scanSamples.length >= 2) {
+						const first = scanSamples[0];
+						const last = scanSamples[scanSamples.length - 1];
+						const deltaScanned = last.scanned - first.scanned;
+						const deltaSeconds = (last.time - first.time) / 1000;
+						// Ensure we have a meaningful time interval (at least 2 seconds)
+						if (deltaSeconds >= 2 && deltaScanned >= 0) {
+							scanRate = deltaScanned / deltaSeconds; // rows per second
+							// Safety check to prevent Infinity
+							if (!isFinite(scanRate)) {
+								scanRate = 0;
+							}
+						}
+					}
+
+					// Fallback to global average if window is insufficient
+					if (scanRate === 0 && elapsedSeconds >= MIN_ELAPSED_SECONDS) {
+						scanRate = totalScanned > 0 ? totalScanned / elapsedSeconds : 0;
 						// Safety check to prevent Infinity
 						if (!isFinite(scanRate)) {
 							scanRate = 0;
 						}
 					}
-				}
-				// Fallback to global average if window is insufficient
-				if (scanRate === 0) {
-					const elapsedSeconds = (now - startTime) / 1000;
-					scanRate = totalScanned > 0 && elapsedSeconds > 0 ? totalScanned / elapsedSeconds : 0;
-					// Safety check to prevent Infinity
-					if (!isFinite(scanRate)) {
-						scanRate = 0;
+
+					// Calculate ETA if we have a valid scan rate
+					if (scanRate > 0) {
+						const remainingScans = Math.max(actualPointsToProcess - totalProcessed, 0);
+						const remainingSeconds = Math.round(remainingScans / scanRate);
+						etaDisplay = formatEta(remainingSeconds);
 					}
 				}
-				const remainingScans = Math.max(actualPointsToProcess - totalProcessed, 0);
-
-				const remainingSeconds = scanRate > 0 && scanRate !== Infinity ? Math.round(remainingScans / scanRate) : 0;
-
-				const etaDisplay = formatEta(remainingSeconds);
 
 				JobQueueService.updateJobProgress(job.id, progress, {
 					totalProcessed,
