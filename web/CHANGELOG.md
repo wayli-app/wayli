@@ -1,3 +1,10 @@
+## [1.2.17](https://github.com/wayli-app/wayli/compare/v1.2.16...v1.2.17) (2025-10-05)
+
+
+### Bug Fixes
+
+* Export page. ([bca9262](https://github.com/wayli-app/wayli/commit/bca9262b3b377ab7e07eafcddc3d8b2ef183ed86))
+
 ## [1.2.16](https://github.com/wayli-app/wayli/compare/v1.2.15...v1.2.16) (2025-10-05)
 
 
