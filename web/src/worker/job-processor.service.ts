@@ -298,7 +298,7 @@ export class JobProcessorService {
 				const eta = calculateEta(progress.progress);
 				await JobQueueService.updateJobProgress(job.id, progress.progress, {
 					message: progress.message,
-					eta: formatEta(eta),
+					estimatedTimeRemaining: formatEta(eta),
 					...progress.details
 				});
 			});

@@ -2062,24 +2062,22 @@
 
 											<!-- Visited Cities -->
 											{#if trip.metadata?.visitedCitiesDetailed && trip.metadata.visitedCitiesDetailed.length > 0}
-												<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-													<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
-														{t('trips.visitedCities')}:
-													</div>
-													<div class="flex flex-wrap gap-2">
-														{#each trip.metadata.visitedCitiesDetailed as city}
-															<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
-																<MapPin class="h-3 w-3" />
-																<span class="font-medium">{city.city}</span>
-																<span class="text-gray-500 dark:text-gray-400">
-																	({city.durationHours < 24
-																		? `${city.durationHours}h`
-																		: `${Math.floor(city.durationHours / 24)}d ${city.durationHours % 24}h`})
+												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(city => city.durationHours >= 12)}
+												{#if significantCities.length > 0}
+													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+														<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+															{t('trips.visitedCities')}:
+														</div>
+														<div class="flex flex-wrap gap-2">
+															{#each significantCities as city}
+																<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
+																	<MapPin class="h-3 w-3" />
+																	<span class="font-medium">{city.city}</span>
 																</span>
-															</span>
-														{/each}
+															{/each}
+														</div>
 													</div>
-												</div>
+												{/if}
 											{/if}
 
 											<!-- Visited Countries (for multi-country trips) -->
@@ -2092,11 +2090,6 @@
 														{#each trip.metadata.visitedCountriesDetailed as country}
 															<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
 																<span class="font-medium">{country.countryCode}</span>
-																<span class="text-gray-500 dark:text-gray-400">
-																	({country.durationHours < 24
-																		? `${country.durationHours}h`
-																		: `${Math.floor(country.durationHours / 24)}d ${country.durationHours % 24}h`})
-																</span>
 															</span>
 														{/each}
 													</div>

@@ -365,10 +365,10 @@ export class TripDetectionService {
 				const range = processingRanges[i];
 
 				// Update progress: Processing current date range
-				const rangeProgress = Math.round((i / processingRanges.length) * 60);
+				const rangeProgress = Math.round((i / processingRanges.length) * 75);
 				this.updateProgress({
 					phase: 'processing_batches',
-					progress: 20 + rangeProgress, // 20-80% for date range processing
+					progress: 20 + rangeProgress, // 20-95% for date range processing
 					message: `Processing date range ${i + 1}/${processingRanges.length}: ${range.startDate} to ${range.endDate}`,
 					details: {
 						currentDateRange: `${range.startDate} to ${range.endDate}`,
@@ -427,6 +427,31 @@ export class TripDetectionService {
 			visitedCities: []
 		};
 
+		// First, count total data points for accurate progress tracking
+		this.updateProgress({
+			phase: 'processing_batches',
+			progress: 10,
+			message: `Counting data points for ${dateRange.startDate} to ${dateRange.endDate}...`,
+			details: {
+				currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
+				totalDateRanges: totalDateRanges
+			}
+		});
+
+		const { count: totalDataPoints, error: countError } = await this.supabase
+			.from('tracker_data')
+			.select('*', { count: 'exact', head: true })
+			.eq('user_id', userId)
+			.gte('recorded_at', dateRange.startDate)
+			.lte('recorded_at', dateRange.endDate);
+
+		if (countError) {
+			console.error(`❌ Error counting data points:`, countError);
+		}
+
+		const totalPoints = totalDataPoints || 0;
+		console.log(`📊 Total data points to process: ${totalPoints}`);
+
 		// Process data in batches of 1000 (Supabase limit)
 		const batchSize = 1000;
 		let offset = 0;
@@ -436,12 +461,13 @@ export class TripDetectionService {
 		// Update progress: Starting batch processing for this date range
 		this.updateProgress({
 			phase: 'processing_batches',
-			progress: 20 + Math.round((dateRangeIndex / totalDateRanges) * 60),
-			message: `Processing data batches for ${dateRange.startDate} to ${dateRange.endDate}...`,
+			progress: 15,
+			message: `Processing ${totalPoints} data points for ${dateRange.startDate} to ${dateRange.endDate}...`,
 			details: {
 				currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
 				totalDateRanges: totalDateRanges,
-				currentBatch: 1
+				totalPoints: totalPoints,
+				processedPoints: 0
 			}
 		});
 
@@ -514,21 +540,20 @@ export class TripDetectionService {
 					}
 
 					// Update progress every 50 points processed (more frequent updates)
-					if (i % 50 === 0 && i > 0) {
-						const rangeProgress = Math.round((dateRangeIndex / totalDateRanges) * 60);
-						const batchProgress = Math.min(10, Math.round((offset / Math.max(1, offset + batchSize)) * 10));
-
-						// Ensure progress only goes forward and stays within bounds
-						const currentProgress = Math.min(80, 20 + rangeProgress + batchProgress);
+					if (i % 50 === 0 && i > 0 && totalPoints > 0) {
+						// Calculate progress based on actual data points processed (15% to 95%)
+						const processedSoFar = totalProcessedPoints + i;
+						const currentProgress = Math.min(95, 15 + Math.round((processedSoFar / totalPoints) * 80));
 
 						this.updateProgress({
 							phase: 'processing_batches',
 							progress: currentProgress,
-							message: `Processing data points: ${totalProcessedPoints + i} processed in current date range`,
+							message: `Processing data points: ${processedSoFar.toLocaleString()} / ${totalPoints.toLocaleString()}`,
 							details: {
 								currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
 								totalDateRanges: totalDateRanges,
-								processedPoints: totalProcessedPoints + i,
+								processedPoints: processedSoFar,
+								totalPoints: totalPoints,
 								currentBatch: Math.floor(offset / batchSize) + 1,
 								detectedTrips: trips.length
 							}
@@ -540,18 +565,19 @@ export class TripDetectionService {
 				totalProcessedPoints += validPoints.length;
 
 				// Update progress after each batch
-				const rangeProgress = Math.round((dateRangeIndex / totalDateRanges) * 60);
-				const batchProgress = Math.min(10, Math.round((offset / Math.max(1, offset + batchSize)) * 10));
-				const currentProgress = Math.min(80, 20 + rangeProgress + batchProgress);
+				const currentProgress = totalPoints > 0
+					? Math.min(95, 15 + Math.round((totalProcessedPoints / totalPoints) * 80))
+					: 50;
 
 				this.updateProgress({
 					phase: 'processing_batches',
 					progress: currentProgress,
-					message: `Processed batch ${Math.floor(offset / batchSize) + 1} (${totalProcessedPoints} total points)`,
+					message: `Processing data points: ${totalProcessedPoints.toLocaleString()} / ${totalPoints.toLocaleString()}`,
 					details: {
 						currentDateRange: `${dateRange.startDate} to ${dateRange.endDate}`,
 						totalDateRanges: totalDateRanges,
 						processedPoints: totalProcessedPoints,
+						totalPoints: totalPoints,
 						currentBatch: Math.floor(offset / batchSize) + 1,
 						detectedTrips: trips.length
 					}
