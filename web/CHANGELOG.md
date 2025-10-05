@@ -1,3 +1,10 @@
+## [1.2.21](https://github.com/wayli-app/wayli/compare/v1.2.20...v1.2.21) (2025-10-05)
+
+
+### Bug Fixes
+
+* Use PUBLIC_SUPABASE_URL again. ([745f091](https://github.com/wayli-app/wayli/commit/745f09109613502b11137e2c0b34d82d1f25caa5))
+
 ## [1.2.20](https://github.com/wayli-app/wayli/compare/v1.2.19...v1.2.20) (2025-10-05)
 
 
