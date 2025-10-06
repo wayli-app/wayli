@@ -2261,7 +2261,7 @@
 	<!-- Approval Progress Modal -->
 	{#if isApprovalInProgress}
 		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+			class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="progress-modal-title"

@@ -162,6 +162,22 @@ Deno.serve(async (req) => {
 							});
 						}
 
+						// Calculate distance traveled if trip has dates
+						if (suggestedTrip.start_date && suggestedTrip.end_date) {
+							const { data, error } = await supabase
+								.from('tracker_data')
+								.select('distance', { aggregateFn: 'sum', head: true })
+								.eq('user_id', user.id)
+								.gte('recorded_at', `${suggestedTrip.start_date}T00:00:00Z`)
+								.lte('recorded_at', `${suggestedTrip.end_date}T23:59:59Z`)
+								.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
+							const totalDistance = !error && data && typeof data[0]?.sum === 'number' ? data[0].sum : 0;
+							updateData.total_distance = totalDistance;
+							updateData.metadata.distance_traveled = totalDistance;
+
+							logInfo(`Calculated distance for trip ${tripId}: ${totalDistance}`, 'TRIPS-SUGGESTED');
+						}
+
 						const { data: updatedTrip, error: updateError } = await supabase
 							.from('trips')
 							.update(updateData)
