@@ -1,3 +1,10 @@
+## [1.2.25](https://github.com/wayli-app/wayli/compare/v1.2.24...v1.2.25) (2025-10-06)
+
+
+### Bug Fixes
+
+* Remove Unknown from countries. ([f766a2c](https://github.com/wayli-app/wayli/commit/f766a2c5b6b543fdc4fd4c073630e0018c46a84d))
+
 ## [1.2.24](https://github.com/wayli-app/wayli/compare/v1.2.23...v1.2.24) (2025-10-06)
 
 
