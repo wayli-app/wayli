@@ -959,14 +959,19 @@ export class TripDetectionService {
 
 		// Check if we have multiple countries with significant time - prioritize this for multi-country trips
 		const countriesWithSignificantTime = Array.from(countryDurations.entries())
-			.filter(([_, duration]) => duration >= 24) // Only countries meeting the 24h threshold
+			.filter(([countryCode, duration]) => countryCode !== 'Unknown' && duration >= 24) // Filter out Unknown and only countries meeting the 24h threshold
 			.sort(([_, a], [__, b]) => b - a); // Sort by duration descending
 
 		if (countriesWithSignificantTime.length > 1) {
 			const countryNames = countriesWithSignificantTime
 				.slice(0, 3) // Top 3 countries
 				.map(([countryCode, _]) => getCountryNameServer(countryCode, language));
-			const countriesString = countryNames.join(', ');
+
+			// Remove duplicates and filter out 'Unknown' from country names
+			const uniqueCountryNames = Array.from(new Set(countryNames))
+				.filter(name => name !== 'Unknown');
+
+			const countriesString = uniqueCountryNames.join(', ');
 			return translateServer(
 				'tripDetection.tripToMultipleCountries',
 				{ countries: countriesString },
