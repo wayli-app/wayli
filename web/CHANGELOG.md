@@ -1,3 +1,10 @@
+## [1.2.28](https://github.com/wayli-app/wayli/compare/v1.2.27...v1.2.28) (2025-10-06)
+
+
+### Bug Fixes
+
+* Hopefully fix distance calculation in the backend. ([3c388db](https://github.com/wayli-app/wayli/commit/3c388db48f05d339bf6cf6f1d5fbb4880fc15b9b))
+
 ## [1.2.27](https://github.com/wayli-app/wayli/compare/v1.2.26...v1.2.27) (2025-10-06)
 
 
