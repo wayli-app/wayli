@@ -1,3 +1,10 @@
+## [1.2.24](https://github.com/wayli-app/wayli/compare/v1.2.23...v1.2.24) (2025-10-06)
+
+
+### Bug Fixes
+
+* Reprioritize multi-country visit. ([65feab4](https://github.com/wayli-app/wayli/commit/65feab4c149109d049a63440eac2335be07295ae))
+
 ## [1.2.23](https://github.com/wayli-app/wayli/compare/v1.2.22...v1.2.23) (2025-10-05)
 
 
