@@ -957,7 +957,24 @@ export class TripDetectionService {
 			return translateServer('tripDetection.tripToCountry', { country: countryName }, language);
 		}
 
-		// Check for dominant country
+		// Check if we have multiple countries with significant time - prioritize this for multi-country trips
+		const countriesWithSignificantTime = Array.from(countryDurations.entries())
+			.filter(([_, duration]) => duration >= 24) // Only countries meeting the 24h threshold
+			.sort(([_, a], [__, b]) => b - a); // Sort by duration descending
+
+		if (countriesWithSignificantTime.length > 1) {
+			const countryNames = countriesWithSignificantTime
+				.slice(0, 3) // Top 3 countries
+				.map(([countryCode, _]) => getCountryNameServer(countryCode, language));
+			const countriesString = countryNames.join(', ');
+			return translateServer(
+				'tripDetection.tripToMultipleCountries',
+				{ countries: countriesString },
+				language
+			);
+		}
+
+		// Check for dominant country (only if we don't have multiple countries above)
 		for (const [country, duration] of countryDurations) {
 			if (duration / totalDuration >= 0.5) {
 				// Single dominant country - check if it's also a single city
@@ -1003,25 +1020,6 @@ export class TripDetectionService {
 					}
 				}
 			}
-		}
-
-		// No dominant country - multiple countries
-
-		// Check if we have multiple countries with significant time
-		const countriesWithSignificantTime = Array.from(countryDurations.entries())
-			.filter(([_, duration]) => duration >= 24) // Only countries meeting the 24h threshold
-			.sort(([_, a], [__, b]) => b - a); // Sort by duration descending
-
-		if (countriesWithSignificantTime.length > 1) {
-			const countryNames = countriesWithSignificantTime
-				.slice(0, 3) // Top 3 countries
-				.map(([countryCode, _]) => getCountryNameServer(countryCode, language));
-			const countriesString = countryNames.join(', ');
-			return translateServer(
-				'tripDetection.tripToMultipleCountries',
-				{ countries: countriesString },
-				language
-			);
 		}
 
 		// Find the country with the most time and show its dominant city, or show multiple countries

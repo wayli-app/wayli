@@ -1826,9 +1826,24 @@
 					</div>
 					<!-- Trip Details and Footer -->
 					<div class="flex min-h-0 flex-1 flex-col p-4">
-						<h3 class="mb-2 line-clamp-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-							{trip.title}
-						</h3>
+						<div class="mb-2 flex flex-wrap items-start justify-between gap-2">
+							<h3 class="line-clamp-2 flex-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
+								{trip.title}
+							</h3>
+							<!-- Trip type badges -->
+							<div class="flex gap-1">
+								{#if trip.metadata?.isMultiCountryTrip}
+									<span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+										Multi-Country
+									</span>
+								{/if}
+								{#if trip.metadata?.isMultiCityTrip}
+									<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+										Multi-City
+									</span>
+								{/if}
+							</div>
+						</div>
 						{#if trip.description}
 							<p class="mb-3 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
 								{trip.description}
@@ -1943,9 +1958,6 @@
 		<div class="py-4 text-center">
 			<p class="text-sm text-gray-600 dark:text-gray-400">
 				{t('trips.showingTripsOf', { filtered: filteredTrips.length, total: trips.length })}
-				{#if hasMoreTrips}
-					{t('trips.andMoreAvailable')}
-				{/if}
 			</p>
 		</div>
 	{/if}

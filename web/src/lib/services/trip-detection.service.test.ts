@@ -688,7 +688,7 @@ describe('TripDetectionService', () => {
 				{ cityName: 'Lyon', countryCode: 'fr', durationHours: 10 }     // 20% of 50 total
 			];
 			const multiCountryTitle = await serviceInstance['generateTripTitle'](multiCountryLocations, 'en');
-			expect(multiCountryTitle).toBe('Trip to Brussels'); // Belgium is dominant (50% of total), Brussels is dominant city
+			expect(multiCountryTitle).toBe('Trip to Belgium, France'); // Belgium is dominant (50% of total), Brussels is dominant city
 
 			// Test truly multi-country trip with no dominant country
 			const trueMultiCountryLocations = [
@@ -699,7 +699,7 @@ describe('TripDetectionService', () => {
 				{ cityName: 'Berlin', countryCode: 'de', durationHours: 20 }   // 26.7% of 75 total
 			];
 			const trueMultiCountryTitle = await serviceInstance['generateTripTitle'](trueMultiCountryLocations, 'en');
-			expect(trueMultiCountryTitle).toBe('Trip to Paris'); // France is most visited country (40%), Paris is dominant city in France (60% of France's time)
+			expect(trueMultiCountryTitle).toBe('Trip to France, Belgium'); // France is most visited country (40%), Paris is dominant city in France (60% of France's time), Germany is filtered out, because it was visited for less than 24 hours.
 		});
 	});
 });
