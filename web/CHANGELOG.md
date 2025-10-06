@@ -1,3 +1,10 @@
+## [1.2.27](https://github.com/wayli-app/wayli/compare/v1.2.26...v1.2.27) (2025-10-06)
+
+
+### Bug Fixes
+
+* Put distance calculation in metadata. ([9a3f3d8](https://github.com/wayli-app/wayli/commit/9a3f3d86a847a6ac038f39b4fd5c3170422b2fe2))
+
 ## [1.2.26](https://github.com/wayli-app/wayli/compare/v1.2.25...v1.2.26) (2025-10-06)
 
 
