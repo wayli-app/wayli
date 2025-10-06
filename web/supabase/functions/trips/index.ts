@@ -107,15 +107,13 @@ Deno.serve(async (req) => {
 				await supabase
 					.from('trips')
 					.update({
-						total_distance: totalDistance,
 						metadata: {
 							...(newTrip.metadata || {}),
-							distance_traveled: totalDistance
+							distanceTraveled: totalDistance
 						}
 					})
 					.eq('id', newTrip.id);
-				newTrip.total_distance = totalDistance;
-				newTrip.metadata = { ...(newTrip.metadata || {}), distance_traveled: totalDistance };
+				newTrip.metadata = { ...(newTrip.metadata || {}), distanceTraveled: totalDistance };
 			}
 
 			logSuccess('Trip created successfully', 'TRIPS', {
@@ -185,17 +183,15 @@ Deno.serve(async (req) => {
 				await supabase
 					.from('trips')
 					.update({
-						total_distance: totalDistance,
 						metadata: {
 							...(updatedTrip.metadata || {}),
-							distance_traveled: totalDistance
+							distanceTraveled: totalDistance
 						}
 					})
 					.eq('id', updatedTrip.id);
-				updatedTrip.total_distance = totalDistance;
 				updatedTrip.metadata = {
 					...(updatedTrip.metadata || {}),
-					distance_traveled: totalDistance
+					distanceTraveled: totalDistance
 				};
 			}
 

@@ -141,19 +141,16 @@ Deno.serve(async (req) => {
 						// Update the trip status to 'active' and add image data
 						logInfo(`Approving trip: ${suggestedTrip.title}`, 'TRIPS-SUGGESTED');
 
-						const updateData: Record<string, unknown> = {
-							status: 'active',
-							metadata: {
-								...suggestedTrip.metadata,
-								suggested: true,
-								approved_at: new Date().toISOString()
-							}
+						// Build metadata object with all updates
+						const updatedMetadata: Record<string, unknown> = {
+							...suggestedTrip.metadata,
+							suggested: true,
+							approved_at: new Date().toISOString()
 						};
 
-						// Add image data if available
+						// Add image attribution if available
 						if (tripImageData?.image_url) {
-							updateData.image_url = tripImageData.image_url;
-							updateData.metadata.image_attribution = tripImageData.attribution || null;
+							updatedMetadata.image_attribution = tripImageData.attribution || null;
 
 							logInfo(`Image data for trip ${tripId}:`, 'TRIPS-SUGGESTED', {
 								hasImageUrl: !!tripImageData.image_url,
@@ -163,6 +160,7 @@ Deno.serve(async (req) => {
 						}
 
 						// Calculate distance traveled if trip has dates
+						let totalDistance = 0;
 						if (suggestedTrip.start_date && suggestedTrip.end_date) {
 							const { data, error } = await supabase
 								.from('tracker_data')
@@ -171,11 +169,22 @@ Deno.serve(async (req) => {
 								.gte('recorded_at', `${suggestedTrip.start_date}T00:00:00Z`)
 								.lte('recorded_at', `${suggestedTrip.end_date}T23:59:59Z`)
 								.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
-							const totalDistance = !error && data && typeof data[0]?.sum === 'number' ? data[0].sum : 0;
-							updateData.total_distance = totalDistance;
-							updateData.metadata.distance_traveled = totalDistance;
+							totalDistance = !error && data && typeof data[0]?.sum === 'number' ? data[0].sum : 0;
+							updatedMetadata.distanceTraveled = totalDistance;
 
 							logInfo(`Calculated distance for trip ${tripId}: ${totalDistance}`, 'TRIPS-SUGGESTED');
+						}
+
+						// Build the update data object
+						const updateData: Record<string, unknown> = {
+							status: 'active',
+							metadata: updatedMetadata,
+							updated_at: new Date().toISOString()
+						};
+
+						// Add image URL if available
+						if (tripImageData?.image_url) {
+							updateData.image_url = tripImageData.image_url;
 						}
 
 						const { data: updatedTrip, error: updateError } = await supabase

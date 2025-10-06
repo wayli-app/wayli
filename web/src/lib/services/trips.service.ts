@@ -197,7 +197,7 @@ export class TripsService {
 				.single();
 			if (tripError || !trip) throw tripError || new Error('Trip not found');
 
-			// Calculate distance_traveled using a direct SUM query
+			// Calculate distanceTraveled using a direct SUM query
 			let distanceTraveled = 0;
 			if (trip.start_date && trip.end_date) {
 				const { data, error } = await this.supabase
@@ -215,10 +215,10 @@ export class TripsService {
 					);
 				}
 			}
-			// Update the trip's metadata.distance_traveled
+			// Update the trip's metadata.distanceTraveled
 			await this.supabase
 				.from('trips')
-				.update({ metadata: { ...trip.metadata, distance_traveled: distanceTraveled } })
+				.update({ metadata: { ...trip.metadata, distanceTraveled } })
 				.eq('id', tripId);
 		} catch (error) {
 			console.error('❌ Error updating trip metadata:', error);
