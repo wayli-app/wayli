@@ -37,7 +37,7 @@ export const MODE_CONTINUITY_LIMITS = {
 	cycling: { maxSpeedDiff: 15 },      // Can accelerate more (downhill, pedaling harder)
 	car: { maxSpeedDiff: 50 },          // Can accelerate significantly (0→50 is possible)
 	train: { maxSpeedDiff: 30 },        // Trains accelerate gradually
-	airplane: { maxSpeedDiff: 100 }     // Aircraft can have high speed variations
+	airplane: { maxSpeedDiff: 1500 }     // Aircraft can have high speed variations (descent, approach)
 } as const;
 
 // Physical acceleration limits (maximum km/h change per second)

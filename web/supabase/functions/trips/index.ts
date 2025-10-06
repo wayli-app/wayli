@@ -98,22 +98,32 @@ Deno.serve(async (req) => {
 			if (newTrip.start_date && newTrip.end_date) {
 				const { data, error } = await supabase
 					.from('tracker_data')
-					.select('distance', { aggregateFn: 'sum', head: true })
+					.select('distance')
 					.eq('user_id', user.id)
 					.gte('recorded_at', `${newTrip.start_date}T00:00:00Z`)
 					.lte('recorded_at', `${newTrip.end_date}T23:59:59Z`)
 					.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
-				const totalDistance = !error && data && typeof data[0]?.sum === 'number' ? data[0].sum : 0;
+
+				// Using the same logic as updateTripMetadata in trips.service.ts
+				let distanceTraveled = 0;
+				if (!error && data) {
+					// Sum up all distances, treating null/undefined as 0
+					distanceTraveled = data.reduce(
+						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						0
+					);
+				}
+
 				await supabase
 					.from('trips')
 					.update({
 						metadata: {
 							...(newTrip.metadata || {}),
-							distanceTraveled: totalDistance
+							distanceTraveled: distanceTraveled
 						}
 					})
 					.eq('id', newTrip.id);
-				newTrip.metadata = { ...(newTrip.metadata || {}), distanceTraveled: totalDistance };
+				newTrip.metadata = { ...(newTrip.metadata || {}), distanceTraveled: distanceTraveled };
 			}
 
 			logSuccess('Trip created successfully', 'TRIPS', {
@@ -174,18 +184,27 @@ Deno.serve(async (req) => {
 			if (updatedTrip.start_date && updatedTrip.end_date) {
 				const { data, error } = await supabase
 					.from('tracker_data')
-					.select('distance', { aggregateFn: 'sum', head: true })
+					.select('distance')
 					.eq('user_id', user.id)
 					.gte('recorded_at', `${updatedTrip.start_date}T00:00:00Z`)
 					.lte('recorded_at', `${updatedTrip.end_date}T23:59:59Z`)
 					.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
-				const totalDistance = !error && data && typeof data[0]?.sum === 'number' ? data[0].sum : 0;
+
+				// Using the same logic as updateTripMetadata in trips.service.ts
+				let distanceTraveled = 0;
+				if (!error && data) {
+					// Sum up all distances, treating null/undefined as 0
+					distanceTraveled = data.reduce(
+						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						0
+					);
+				}
 				await supabase
 					.from('trips')
 					.update({
 						metadata: {
 							...(updatedTrip.metadata || {}),
-							distanceTraveled: totalDistance
+							distanceTraveled: distanceTraveled
 						}
 					})
 					.eq('id', updatedTrip.id);

@@ -160,19 +160,28 @@ Deno.serve(async (req) => {
 						}
 
 						// Calculate distance traveled if trip has dates
-						let totalDistance = 0;
+						// Using the same logic as updateTripMetadata in trips.service.ts
+						let distanceTraveled = 0;
 						if (suggestedTrip.start_date && suggestedTrip.end_date) {
 							const { data, error } = await supabase
 								.from('tracker_data')
-								.select('distance', { aggregateFn: 'sum', head: true })
+								.select('distance')
 								.eq('user_id', user.id)
 								.gte('recorded_at', `${suggestedTrip.start_date}T00:00:00Z`)
 								.lte('recorded_at', `${suggestedTrip.end_date}T23:59:59Z`)
 								.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
-							totalDistance = !error && data && typeof data[0]?.sum === 'number' ? data[0].sum : 0;
-							updatedMetadata.distanceTraveled = totalDistance;
 
-							logInfo(`Calculated distance for trip ${tripId}: ${totalDistance}`, 'TRIPS-SUGGESTED');
+							if (!error && data) {
+								// Sum up all distances, treating null/undefined as 0
+								distanceTraveled = data.reduce(
+									(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+									0
+								);
+							}
+
+							updatedMetadata.distanceTraveled = distanceTraveled;
+
+							logInfo(`Calculated distance for trip ${tripId}: ${distanceTraveled}`, 'TRIPS-SUGGESTED');
 						}
 
 						// Build the update data object
