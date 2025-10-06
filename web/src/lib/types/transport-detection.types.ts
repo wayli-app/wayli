@@ -1,6 +1,7 @@
 // /Users/bart/Dev/wayli/web/src/lib/types/transport-detection.types.ts
 
 import type { GeocodeGeoJSONFeature } from '../utils/geojson-converter';
+import type { GPSFrequencyAnalysis } from '../utils/speed-pattern-analysis';
 
 /**
  * Core interfaces for the enhanced transport mode detection system
@@ -57,6 +58,9 @@ export interface DetectionContext {
 	averageSpeed: number;
 	speedHistory: number[];
 	rollingAverageSpeed: number;
+
+	// GPS frequency analysis (for confidence modifiers)
+	gpsFrequency: GPSFrequencyAnalysis;
 
 	// Journey context
 	currentJourney?: JourneyContext;

@@ -248,23 +248,47 @@ export function filterPhysicallyPossibleModes(
  */
 export interface GPSFrequencyAnalysis {
 	averageInterval: number;        // milliseconds
+	intervalVariance: number;       // coefficient of variation of intervals
 	frequencyType: 'active_navigation' | 'background_tracking' | 'mixed';
 	likelyMode: 'car' | 'train' | 'unknown';
+
+	// Confidence modifiers for each transport mode (-0.3 to +0.3)
+	confidenceModifiers: {
+		car: number;
+		train: number;
+		walking: number;
+		cycling: number;
+		airplane: number;
+		stationary: number;
+	};
 }
 
 /**
  * Analyze GPS sampling frequency to infer likely mode
  * High frequency (< 10s) typically indicates active car navigation
  * Low frequency (> 30s) typically indicates background tracking (train, walking)
+ *
+ * Enhanced with confidence modifiers that can boost or reduce confidence for each mode
  */
 export function analyzeGPSFrequency(
 	modeHistory: Array<{ timestamp: number }>
 ): GPSFrequencyAnalysis {
+	const defaultModifiers = {
+		car: 0,
+		train: 0,
+		walking: 0,
+		cycling: 0,
+		airplane: 0,
+		stationary: 0
+	};
+
 	if (modeHistory.length < 3) {
 		return {
 			averageInterval: 0,
+			intervalVariance: 0,
 			frequencyType: 'mixed',
-			likelyMode: 'unknown'
+			likelyMode: 'unknown',
+			confidenceModifiers: defaultModifiers
 		};
 	}
 
@@ -275,25 +299,80 @@ export function analyzeGPSFrequency(
 
 	const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
 
+	// Calculate interval variance (consistency of sampling)
+	const intervalMean = avgInterval;
+	const intervalVariance = intervals.length > 1
+		? Math.sqrt(intervals.reduce((sum, val) => sum + Math.pow(val - intervalMean, 2), 0) / intervals.length) / intervalMean
+		: 0;
+
 	let frequencyType: GPSFrequencyAnalysis['frequencyType'];
 	let likelyMode: GPSFrequencyAnalysis['likelyMode'];
+	let confidenceModifiers = { ...defaultModifiers };
 
-	if (avgInterval < 10000) { // < 10 seconds
+	// Active navigation: < 10 seconds average interval
+	if (avgInterval < 10000) {
 		frequencyType = 'active_navigation';
-		likelyMode = 'car'; // Active navigation usually means driving
-	} else if (avgInterval > 30000) { // > 30 seconds
+		likelyMode = 'car';
+
+		// Strong signal: active navigation is almost always car
+		confidenceModifiers.car = 0.20;      // +20% for car
+		confidenceModifiers.train = -0.15;    // -15% for train
+		confidenceModifiers.walking = -0.10;  // -10% for walking
+		confidenceModifiers.cycling = -0.05;  // -5% for cycling
+	}
+	// Very low frequency: > 60 seconds (strong background tracking)
+	else if (avgInterval > 60000) {
 		frequencyType = 'background_tracking';
-		likelyMode = 'unknown'; // Could be train, walking, etc.
-	} else {
+		likelyMode = 'unknown';
+
+		// Strong signal: background tracking, likely train or walking
+		confidenceModifiers.car = -0.30;      // -30% for car (very unlikely active nav)
+		confidenceModifiers.train = 0.15;     // +15% for train
+		confidenceModifiers.walking = 0.10;   // +10% for walking
+		confidenceModifiers.cycling = 0.05;   // +5% for cycling
+		confidenceModifiers.airplane = 0.05;  // +5% for airplane
+	}
+	// Medium-low frequency: 30-60 seconds
+	else if (avgInterval > 30000) {
+		frequencyType = 'background_tracking';
+		likelyMode = 'unknown';
+
+		// Moderate signal: background tracking
+		confidenceModifiers.car = -0.20;      // -20% for car
+		confidenceModifiers.train = 0.10;     // +10% for train
+		confidenceModifiers.walking = 0.05;   // +5% for walking
+	}
+	// Medium frequency: 10-30 seconds (ambiguous)
+	else {
 		frequencyType = 'mixed';
 		likelyMode = 'unknown';
+
+		// Neutral - could be either active or background
+		// No significant modifiers
 	}
 
 	return {
 		averageInterval: avgInterval,
+		intervalVariance,
 		frequencyType,
-		likelyMode
+		likelyMode,
+		confidenceModifiers
 	};
+}
+
+/**
+ * Stop pattern analysis for distinguishing transport modes
+ */
+export interface StopPatternAnalysis {
+	stopCount: number;
+	stopsPerKm: number;
+	avgStopDuration: number;          // seconds
+	stopDurationVariance: number;     // coefficient of variation
+	longestMovementDuration: number;  // seconds
+
+	pattern: 'train-like' | 'car-city' | 'car-highway' | 'walking' | 'unknown';
+	confidence: number;
+	likelyMode: 'train' | 'car' | 'walking' | 'unknown';
 }
 
 /**
@@ -353,4 +432,194 @@ export function analyzeSpeedTransitions(
 		smoothness,
 		likelyMode
 	};
+}
+
+/**
+ * Analyze stop patterns to distinguish between transport modes
+ * Trains: Few stops, long duration, regular intervals
+ * Cars (city): Many stops, irregular (traffic lights)
+ * Cars (highway): Few stops, short duration
+ * Walking: Many stops, variable duration
+ */
+export function analyzeStopPattern(
+	pointHistory: Array<{ timestamp: number; speed?: number; lat: number; lng: number }>
+): StopPatternAnalysis {
+	if (pointHistory.length < 5) {
+		return {
+			stopCount: 0,
+			stopsPerKm: 0,
+			avgStopDuration: 0,
+			stopDurationVariance: 0,
+			longestMovementDuration: 0,
+			pattern: 'unknown',
+			confidence: 0,
+			likelyMode: 'unknown'
+		};
+	}
+
+	// Extract speeds from point history
+	const speeds = pointHistory
+		.map(p => p.speed !== undefined ? p.speed : 0)
+		.filter(s => s !== null);
+
+	if (speeds.length === 0) {
+		return {
+			stopCount: 0,
+			stopsPerKm: 0,
+			avgStopDuration: 0,
+			stopDurationVariance: 0,
+			longestMovementDuration: 0,
+			pattern: 'unknown',
+			confidence: 0,
+			likelyMode: 'unknown'
+		};
+	}
+
+	// Define a stop: speed < 5 km/h for > 20 seconds
+	const STOP_SPEED_THRESHOLD = 5; // km/h
+	const MIN_STOP_DURATION = 20; // seconds
+
+	interface Stop {
+		startIdx: number;
+		endIdx: number;
+		duration: number; // seconds
+	}
+
+	const stops: Stop[] = [];
+	let inStop = false;
+	let stopStart = 0;
+
+	for (let i = 0; i < speeds.length; i++) {
+		const speed = speeds[i];
+
+		if (speed < STOP_SPEED_THRESHOLD && !inStop) {
+			// Entering a stop
+			inStop = true;
+			stopStart = i;
+		} else if (speed >= STOP_SPEED_THRESHOLD && inStop) {
+			// Exiting a stop
+			const duration = (pointHistory[i].timestamp - pointHistory[stopStart].timestamp) / 1000; // seconds
+			if (duration >= MIN_STOP_DURATION) {
+				stops.push({ startIdx: stopStart, endIdx: i, duration });
+			}
+			inStop = false;
+		}
+	}
+
+	// Handle stop at the end of the journey
+	if (inStop && stops.length > 0) {
+		const duration = (pointHistory[speeds.length - 1].timestamp - pointHistory[stopStart].timestamp) / 1000;
+		if (duration >= MIN_STOP_DURATION) {
+			stops.push({ startIdx: stopStart, endIdx: speeds.length - 1, duration });
+		}
+	}
+
+	// Calculate total distance traveled
+	let totalDistance = 0; // meters
+	for (let i = 1; i < pointHistory.length; i++) {
+		const prev = pointHistory[i - 1];
+		const curr = pointHistory[i];
+		totalDistance += haversine(prev.lat, prev.lng, curr.lat, curr.lng);
+	}
+
+	const totalDistanceKm = totalDistance / 1000;
+
+	// Calculate metrics
+	const stopCount = stops.length;
+	const stopsPerKm = totalDistanceKm > 0 ? stopCount / totalDistanceKm : 0;
+	const avgDuration = stops.length > 0
+		? stops.reduce((sum, s) => sum + s.duration, 0) / stops.length
+		: 0;
+
+	// Calculate duration variance (coefficient of variation)
+	const durations = stops.map(s => s.duration);
+	const durationCV = durations.length > 1
+		? (Math.sqrt(durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length) / avgDuration)
+		: 0;
+
+	// Calculate longest movement duration (time without stopping)
+	let longestMovement = 0;
+	let currentMovementStart = pointHistory[0].timestamp;
+
+	for (const stop of stops) {
+		const movementDuration = (pointHistory[stop.startIdx].timestamp - currentMovementStart) / 1000;
+		if (movementDuration > longestMovement) {
+			longestMovement = movementDuration;
+		}
+		currentMovementStart = pointHistory[stop.endIdx].timestamp;
+	}
+
+	// Check final movement segment
+	if (stops.length > 0) {
+		const lastStop = stops[stops.length - 1];
+		const finalMovement = (pointHistory[pointHistory.length - 1].timestamp - pointHistory[lastStop.endIdx].timestamp) / 1000;
+		if (finalMovement > longestMovement) {
+			longestMovement = finalMovement;
+		}
+	} else {
+		// No stops - entire journey is one movement
+		longestMovement = (pointHistory[pointHistory.length - 1].timestamp - pointHistory[0].timestamp) / 1000;
+	}
+
+	// Determine pattern and confidence
+	let pattern: StopPatternAnalysis['pattern'] = 'unknown';
+	let confidence = 0;
+	let likelyMode: StopPatternAnalysis['likelyMode'] = 'unknown';
+
+	// Train pattern: Few stops (<0.5 per km), long duration (60-300s), regular (low variance)
+	if (stopsPerKm < 0.5 && avgDuration > 60 && avgDuration < 300 && durationCV < 0.4) {
+		pattern = 'train-like';
+		confidence = 0.80;
+		likelyMode = 'train';
+	}
+	// Car city pattern: Many stops (>3 per km), irregular (high variance)
+	else if (stopsPerKm > 3 && durationCV > 0.5) {
+		pattern = 'car-city';
+		confidence = 0.85;
+		likelyMode = 'car';
+	}
+	// Car highway pattern: Few stops (<1 per km), short duration (10-60s)
+	else if (stopsPerKm < 1 && avgDuration >= 10 && avgDuration < 60) {
+		pattern = 'car-highway';
+		confidence = 0.75;
+		likelyMode = 'car';
+	}
+	// Walking pattern: Many stops (>5 per km), variable duration
+	else if (stopsPerKm > 5) {
+		pattern = 'walking';
+		confidence = 0.70;
+		likelyMode = 'walking';
+	}
+	// Moderate car pattern: 1-3 stops per km
+	else if (stopsPerKm >= 1 && stopsPerKm <= 3) {
+		pattern = 'car-city';
+		confidence = 0.65;
+		likelyMode = 'car';
+	}
+
+	return {
+		stopCount,
+		stopsPerKm,
+		avgStopDuration: avgDuration,
+		stopDurationVariance: durationCV,
+		longestMovementDuration: longestMovement,
+		pattern,
+		confidence,
+		likelyMode
+	};
+}
+
+/**
+ * Haversine distance calculation (same as multi-point-speed.ts)
+ */
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+	const toRad = (x: number) => (x * Math.PI) / 180;
+	const R = 6371e3; // Earth radius in meters
+	const φ1 = toRad(lat1);
+	const φ2 = toRad(lat2);
+	const Δφ = toRad(lat2 - lat1);
+	const Δλ = toRad(lng2 - lng1);
+	const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	return R * c;
 }

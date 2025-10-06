@@ -307,6 +307,14 @@
 		statisticsData = null;
 		statisticsError = '';
 
+		// Clear map markers before loading new data
+		clearMapMarkers();
+
+		// CRITICAL: Reset the service to clear accumulated data
+		if (statisticsService) {
+			statisticsService.reset();
+		}
+
 		// Check dataset size first
 		const canProceed = await checkDatasetSize();
 		if (canProceed) {

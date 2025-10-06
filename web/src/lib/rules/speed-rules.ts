@@ -88,6 +88,7 @@ export class FinalSanityCheckRule implements DetectionRule {
 
 /**
  * Speed bracket detection rule - fallback rule
+ * Enhanced with GPS frequency confidence modifiers
  */
 export class SpeedBracketRule implements DetectionRule {
 	name = 'Speed Bracket Detection';
@@ -99,16 +100,23 @@ export class SpeedBracketRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult {
 		const bracket = getSpeedBracket(context.currentSpeed);
+		const baseConfidence = 0.6;
+
+		// Apply GPS frequency modifier
+		const gpsModifier = context.gpsFrequency.confidenceModifiers[bracket as keyof typeof context.gpsFrequency.confidenceModifiers] || 0;
+		const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
+
 		return {
 			mode: bracket,
-			confidence: 0.6,
-			reason: `Speed ${context.currentSpeed.toFixed(1)} km/h matches ${bracket} bracket`
+			confidence: finalConfidence,
+			reason: `Speed ${context.currentSpeed.toFixed(1)} km/h matches ${bracket} bracket (GPS freq: ${context.gpsFrequency.frequencyType})`
 		};
 	}
 }
 
 /**
  * Multi-point speed stability rule - uses rolling average for better decisions
+ * Enhanced with GPS frequency confidence modifiers
  */
 export class MultiPointSpeedRule implements DetectionRule {
 	name = 'Multi-Point Speed Stability';
@@ -123,16 +131,21 @@ export class MultiPointSpeedRule implements DetectionRule {
 		const bracket = getSpeedBracket(stableSpeed);
 
 		// Higher confidence for stable speeds
-		const confidence = context.speedHistory.length >= 3 ? 0.8 : 0.6;
+		const baseConfidence = context.speedHistory.length >= 3 ? 0.75 : 0.6;
+
+		// Apply GPS frequency modifier
+		const gpsModifier = context.gpsFrequency.confidenceModifiers[bracket as keyof typeof context.gpsFrequency.confidenceModifiers] || 0;
+		const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
 
 		return {
 			mode: bracket,
-			confidence,
-			reason: `Stable speed ${stableSpeed.toFixed(1)} km/h (rolling average) matches ${bracket} bracket`,
+			confidence: finalConfidence,
+			reason: `Stable speed ${stableSpeed.toFixed(1)} km/h (rolling average) matches ${bracket} bracket (GPS freq: ${context.gpsFrequency.frequencyType})`,
 			metadata: {
 				stableSpeed,
 				rawSpeed: context.currentSpeed,
-				pointCount: context.pointHistory.length
+				pointCount: context.pointHistory.length,
+				gpsFrequencyType: context.gpsFrequency.frequencyType
 			}
 		};
 	}

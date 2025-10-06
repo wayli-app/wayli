@@ -4,6 +4,26 @@ import { describe, it, expect } from 'vitest';
 import { SpeedPatternTrainDetectionRule, SpeedPatternCarDetectionRule } from '../../../src/lib/rules/speed-pattern-rules';
 import type { DetectionContext } from '../../../src/lib/types/transport-detection.types';
 
+// Helper to create mock GPS frequency
+function createMockGPSFrequency(type: 'active_navigation' | 'background_tracking' | 'mixed' = 'mixed') {
+	const modifiers = {
+		car: type === 'active_navigation' ? 0.20 : type === 'background_tracking' ? -0.20 : 0,
+		train: type === 'active_navigation' ? -0.15 : type === 'background_tracking' ? 0.10 : 0,
+		walking: type === 'active_navigation' ? -0.10 : type === 'background_tracking' ? 0.05 : 0,
+		cycling: 0,
+		airplane: 0,
+		stationary: 0
+	};
+
+	return {
+		averageInterval: type === 'active_navigation' ? 5000 : type === 'background_tracking' ? 90000 : 30000,
+		intervalVariance: 0.2,
+		frequencyType: type,
+		likelyMode: type === 'active_navigation' ? 'car' as const : 'unknown' as const,
+		confidenceModifiers: modifiers
+	};
+}
+
 describe('Speed Pattern Rules', () => {
 	describe('SpeedPatternTrainDetectionRule', () => {
 		const rule = new SpeedPatternTrainDetectionRule();
@@ -27,6 +47,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: new Array(15).fill(110),
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -46,6 +67,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: new Array(15).fill(110),
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -65,6 +87,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: new Array(15).fill(110),
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -84,6 +107,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 150,
 					speedHistory: new Array(15).fill(150),
 					rollingAverageSpeed: 150,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -103,6 +127,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: [110],
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -139,6 +164,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: [110, 112, 108, 111, 109, 110, 111, 110, 109, 112, 110, 111, 110, 109, 110],
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -178,6 +204,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 95,
 					speedHistory: [50, 120, 60, 110, 40, 100, 55, 115, 65, 105, 50, 110, 60, 100, 55], // High variance for car
 					rollingAverageSpeed: 95,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -202,6 +229,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 90,
 					speedHistory: [85, 90, 88, 92, 87, 91, 89, 90, 88, 91, 89, 90],
 					rollingAverageSpeed: 90,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -242,6 +270,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: [110, 112, 111, 110], // Very low variance (train-like)
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -282,6 +311,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: [110, 112, 110, 112, 110, 112, 110, 112, 110, 112], // Train-like low variance
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -316,6 +346,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 100,
 					speedHistory: new Array(15).fill(100),
 					rollingAverageSpeed: 100,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -335,6 +366,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 100,
 					speedHistory: new Array(15).fill(100),
 					rollingAverageSpeed: 100,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -356,6 +388,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 95,
 					speedHistory: [30, 120, 40, 110, 25, 100, 35, 115, 45, 105, 30, 110, 40, 100, 35], // High variance (CV > 0.35)
 					rollingAverageSpeed: 95,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 
@@ -380,6 +413,7 @@ describe('Speed Pattern Rules', () => {
 					averageSpeed: 110,
 					speedHistory: [110, 112, 108, 111, 109, 110, 111, 110, 109, 112],
 					rollingAverageSpeed: 110,
+					gpsFrequency: createMockGPSFrequency(),
 					speedCalculationWindow: 5
 				};
 

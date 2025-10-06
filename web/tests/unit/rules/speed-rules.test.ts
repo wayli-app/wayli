@@ -156,6 +156,20 @@ function createMockContext(overrides: Partial<DetectionContext> = {}): Detection
 		averageSpeed: 50,
 		speedHistory: [50],
 		rollingAverageSpeed: 50,
+		gpsFrequency: {
+			averageInterval: 30000,
+			intervalVariance: 0.2,
+			frequencyType: 'mixed',
+			likelyMode: 'unknown',
+			confidenceModifiers: {
+				car: 0,
+				train: 0,
+				walking: 0,
+				cycling: 0,
+				airplane: 0,
+				stationary: 0
+			}
+		},
 		speedCalculationWindow: 5,
 		...overrides
 	};

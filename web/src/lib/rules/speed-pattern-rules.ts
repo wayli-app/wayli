@@ -64,10 +64,7 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 			10 * 60 * 1000 // 10 minutes
 		);
 
-		// NEW: GPS frequency analysis
-		const gpsFreq = analyzeGPSFrequency(context.modeHistory);
-
-		// NEW: Speed transition smoothness
+		// Speed transition smoothness
 		const transitions = analyzeSpeedTransitions(context.speedHistory);
 
 		// Score the patterns
@@ -91,11 +88,11 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		if (context.currentSpeed >= 100) trainScore += 1;
 		else if (context.currentSpeed < 90) carScore += 1;
 
-		// NEW: GPS sampling frequency
-		if (gpsFreq.likelyMode === 'car') carScore += 2;
-		else if (gpsFreq.frequencyType === 'background_tracking') trainScore += 1;
+		// GPS sampling frequency from context (enhanced)
+		if (context.gpsFrequency.likelyMode === 'car') carScore += 3; // Strong signal
+		else if (context.gpsFrequency.frequencyType === 'background_tracking') trainScore += 2;
 
-		// NEW: Speed transition smoothness
+		// Speed transition smoothness
 		if (transitions.likelyMode === 'train') trainScore += 2;
 		else if (transitions.likelyMode === 'car') carScore += 2;
 
@@ -104,10 +101,15 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		const trainConfidence = trainScore / Math.max(totalScore, 1);
 
 		if (trainScore > carScore && trainConfidence >= 0.65) {
+			const baseConfidence = Math.min(0.75 + (trainConfidence - 0.65) * 0.5, 0.90);
+			// Apply GPS frequency modifier
+			const gpsModifier = context.gpsFrequency.confidenceModifiers.train;
+			const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
+
 			return {
 				mode: 'train',
-				confidence: Math.min(0.75 + (trainConfidence - 0.65) * 0.5, 0.90),
-				reason: `Strong train-like patterns: CV=${speedMetrics.coefficientOfVariation.toFixed(3)}, straight=${isStraight}, smooth=${transitions.smoothness}`,
+				confidence: finalConfidence,
+				reason: `Strong train-like patterns: CV=${speedMetrics.coefficientOfVariation.toFixed(3)}, straight=${isStraight}, smooth=${transitions.smoothness}, GPS freq=${context.gpsFrequency.frequencyType}`,
 				metadata: {
 					trainScore,
 					carScore,
@@ -116,20 +118,27 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 					hasSustained,
 					speedMean: speedMetrics.mean,
 					speedStdDev: speedMetrics.stdDev,
-					gpsFrequency: gpsFreq.frequencyType,
+					gpsFrequency: context.gpsFrequency.frequencyType,
+					gpsModifier,
 					transitionSmoothness: transitions.smoothness
 				}
 			};
 		} else if (carScore > trainScore) {
+			const baseConfidence = Math.min(0.70 + (carScore - trainScore) * 0.05, 0.85);
+			// Apply GPS frequency modifier
+			const gpsModifier = context.gpsFrequency.confidenceModifiers.car;
+			const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
+
 			return {
 				mode: 'car',
-				confidence: Math.min(0.70 + (carScore - trainScore) * 0.05, 0.85),
-				reason: `Car-like patterns: CV=${speedMetrics.coefficientOfVariation.toFixed(3)}, ${transitions.smoothness} transitions`,
+				confidence: finalConfidence,
+				reason: `Car-like patterns: CV=${speedMetrics.coefficientOfVariation.toFixed(3)}, ${transitions.smoothness} transitions, GPS freq=${context.gpsFrequency.frequencyType}`,
 				metadata: {
 					trainScore,
 					carScore,
 					speedCV: speedMetrics.coefficientOfVariation,
-					gpsFrequency: gpsFreq.frequencyType,
+					gpsFrequency: context.gpsFrequency.frequencyType,
+					gpsModifier,
 					transitionSmoothness: transitions.smoothness
 				}
 			};
@@ -179,6 +188,7 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 /**
  * Car-specific pattern detection rule
  * Detects cars based on high speed variability
+ * Enhanced with GPS frequency confidence modifiers
  */
 export class SpeedPatternCarDetectionRule implements DetectionRule {
 	name = 'Speed Pattern Car Detection';
@@ -196,13 +206,20 @@ export class SpeedPatternCarDetectionRule implements DetectionRule {
 
 		// Strong car signal: High variance + frequent speed changes
 		if (speedMetrics.coefficientOfVariation > 0.35) {
+			const baseConfidence = 0.85;
+			// Apply GPS frequency modifier
+			const gpsModifier = context.gpsFrequency.confidenceModifiers.car;
+			const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
+
 			return {
 				mode: 'car',
-				confidence: 0.85,
-				reason: `High speed variability indicates car travel (CV=${speedMetrics.coefficientOfVariation.toFixed(3)})`,
+				confidence: finalConfidence,
+				reason: `High speed variability indicates car travel (CV=${speedMetrics.coefficientOfVariation.toFixed(3)}, GPS freq=${context.gpsFrequency.frequencyType})`,
 				metadata: {
 					speedCV: speedMetrics.coefficientOfVariation,
-					speedRange: speedMetrics.range
+					speedRange: speedMetrics.range,
+					gpsFrequency: context.gpsFrequency.frequencyType,
+					gpsModifier
 				}
 			};
 		}

@@ -10,6 +10,8 @@ import { HighwayOverrideRule, TrainStationRule, AirportRule, GeographicContextRu
 import { TrainJourneyContinuationRule, AirplaneJourneyContinuationRule, ModeContinuityRule, GradualTransitionRule, ModeContinuityFallbackRule, DefaultRule, MinimumModeDurationRule } from '../rules/journey-rules';
 import { BothStationsDetectedRule, FinalStationOnlyRule, StartingStationOnlyRule, TrainSpeedWithoutStationRule, TrainJourneyEndRule, UnrealisticTrainSegmentRule } from '../rules/train-detection-rules';
 import { SpeedPatternTrainDetectionRule, SpeedPatternCarDetectionRule } from '../rules/speed-pattern-rules';
+import { StopPatternAnalysisRule } from '../rules/stop-pattern-rules';
+import { MultiSignalCombinationRule } from '../rules/multi-signal-rules';
 
 // Import utility functions
 import {
@@ -107,9 +109,13 @@ function initializeDetector(): TransportModeDetector {
 	detector.addRule(new TrainJourneyContinuationRule());           // 70
 	detector.addRule(new HighSpeedContinuityRule());                // 70
 
+	// MULTI-SIGNAL COMBINATION (72) - NEW
+	detector.addRule(new MultiSignalCombinationRule());             // 72 NEW - Combines weak signals for higher confidence
+
 	// PHYSICAL VALIDATION LAYER (68-69)
 	detector.addRule(new PhysicalPossibilityValidationRule());      // 69 UPDATED - Validates physical limits (moved up)
 	detector.addRule(new MinimumModeDurationRule());                // 68 UPDATED - Now checks physics before enforcing continuity
+	detector.addRule(new StopPatternAnalysisRule());                // 68 NEW - Analyzes stop patterns
 
 	// SIMILARITY & PATTERN LAYER (60-66)
 	detector.addRule(new UnrealisticTrainSegmentRule());            // 66 NEW - Filters unrealistic short train segments

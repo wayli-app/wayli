@@ -2,6 +2,7 @@
 
 import type { DetectionContext, DetectionResult, DetectionRule, PointData } from '../types/transport-detection.types';
 import { calculateMultiPointSpeed, getAdaptiveWindowSize, setSpeedCalculationWindow } from '../utils/multi-point-speed';
+import { analyzeGPSFrequency } from '../utils/speed-pattern-analysis';
 
 /**
  * Enhanced transport mode detector using rule-based system
@@ -121,6 +122,9 @@ export class TransportModeDetector {
 		// Calculate rolling average speed
 		const rollingAverageSpeed = calculateMultiPointSpeed(allPoints, 5);
 
+		// Analyze GPS sampling frequency for confidence modifiers
+		const gpsFrequency = analyzeGPSFrequency(allPoints);
+
 		return {
 			current,
 			previous,
@@ -135,6 +139,7 @@ export class TransportModeDetector {
 			averageSpeed,
 			speedHistory,
 			rollingAverageSpeed,
+			gpsFrequency,
 			currentJourney,
 			speedCalculationWindow: windowSize
 		};
