@@ -338,35 +338,6 @@
 					</p>
 				</div>
 			</div>
-
-			<!-- Call to Action -->
-			<div
-				class="rounded-2xl border border-gray-200/50 bg-white/80 p-8 text-center shadow-lg backdrop-blur-sm transition-all duration-300 dark:border-gray-700/50 dark:bg-gray-800/80"
-			>
-				<h2
-					class="mb-4 text-3xl font-bold text-gray-900 transition-colors duration-300 dark:text-gray-100"
-				>
-					{t('landing.readyToStart')}
-				</h2>
-				<p class="mb-6 text-gray-600 transition-colors duration-300 dark:text-gray-400">
-					{t('landing.createAccountToday')}
-				</p>
-				<div class="flex flex-col justify-center gap-4 sm:flex-row">
-					<a
-						href="/auth/signup"
-						class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-8 py-3 font-semibold text-white shadow-md transition-all hover:scale-105 hover:bg-[rgb(37,140,244)]/90"
-					>
-						{t('landing.createAccount')}
-						<ArrowRight class="h-5 w-5" />
-					</a>
-					<a
-						href="/auth/signin"
-						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-3 font-semibold text-gray-700 shadow-md transition-all hover:scale-105 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-					>
-						{t('landing.signIn')}
-					</a>
-				</div>
-			</div>
 		</div>
 	</div>
 {/if}
