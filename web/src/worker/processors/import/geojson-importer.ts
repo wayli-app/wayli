@@ -103,7 +103,12 @@ async function processFeaturesInParallel(
 	fileName: string,
 	startTime: number,
 	lastLogTimeInitial: number
-): Promise<{ importedCount: number; skippedCount: number; errorCount: number; duplicatesCount: number }> {
+): Promise<{
+	importedCount: number;
+	skippedCount: number;
+	errorCount: number;
+	duplicatesCount: number;
+}> {
 	const totalFeatures = features.length;
 	let importedCount = 0;
 	let skippedCount = 0;
@@ -232,7 +237,13 @@ async function processFeatureChunk(
 	jobId?: string,
 	totalFeatures?: number,
 	fileName?: string
-): Promise<{ imported: number; skipped: number; errors: number; duplicates: number; errorSummary: ErrorSummary }> {
+): Promise<{
+	imported: number;
+	skipped: number;
+	errors: number;
+	duplicates: number;
+	errorSummary: ErrorSummary;
+}> {
 	let imported = 0;
 	let skipped = 0;
 	let errors = 0;
@@ -271,7 +282,8 @@ async function processFeatureChunk(
 			// Skip points with null or invalid coordinates
 			if (longitude === null || latitude === null || isNaN(longitude) || isNaN(latitude)) {
 				skipped++;
-				errorSummary.counts['null coordinates'] = (errorSummary.counts['null coordinates'] || 0) + 1;
+				errorSummary.counts['null coordinates'] =
+					(errorSummary.counts['null coordinates'] || 0) + 1;
 				if (errorSummary.samples.length < 10)
 					errorSummary.samples.push({ idx: chunkStart + i, reason: 'null coordinates' });
 				continue;
@@ -383,7 +395,7 @@ async function processFeatureChunk(
 				speed,
 				heading,
 				activity_type: activityType,
-				tz_diff: tzDiff,  // Add timezone difference
+				tz_diff: tzDiff, // Add timezone difference
 				created_at: new Date().toISOString()
 			});
 		} else {
@@ -401,11 +413,13 @@ async function processFeatureChunk(
 		try {
 			// Deduplicate within the batch - keep only the last occurrence of each (user_id, recorded_at)
 			const deduplicatedData = Array.from(
-				trackerData.reduce((map, item) => {
-					const key = `${item.user_id}|${item.recorded_at}`;
-					map.set(key, item); // This will overwrite duplicates, keeping the last one
-					return map;
-				}, new Map<string, typeof trackerData[0]>()).values()
+				trackerData
+					.reduce((map, item) => {
+						const key = `${item.user_id}|${item.recorded_at}`;
+						map.set(key, item); // This will overwrite duplicates, keeping the last one
+						return map;
+					}, new Map<string, (typeof trackerData)[0]>())
+					.values()
 			);
 
 			const duplicatesInBatch = trackerData.length - deduplicatedData.length;
@@ -423,15 +437,16 @@ async function processFeatureChunk(
 				imported = deduplicatedData.length;
 				// Note: Progress updates with ETA are handled in processFeaturesInParallel
 			} else {
-			console.log(`❌ Batch insert failed with error:`, error);
-			// For insert failures, we'll handle duplicates during deduplication phase
-			errors += deduplicatedData.length;
-			const code = (error as any).code || 'unknown';
-			const message = (error as any).message || 'unknown error';
-			errorSummary.counts[`db ${code}`] = (errorSummary.counts[`db ${code}`] || 0) + deduplicatedData.length;
-			if (errorSummary.samples.length < 10)
-				errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}: ${message}` });
-		}
+				console.log(`❌ Batch insert failed with error:`, error);
+				// For insert failures, we'll handle duplicates during deduplication phase
+				errors += deduplicatedData.length;
+				const code = (error as any).code || 'unknown';
+				const message = (error as any).message || 'unknown error';
+				errorSummary.counts[`db ${code}`] =
+					(errorSummary.counts[`db ${code}`] || 0) + deduplicatedData.length;
+				if (errorSummary.samples.length < 10)
+					errorSummary.samples.push({ idx: chunkStart, reason: `db ${code}: ${message}` });
+			}
 		} catch (outerError: any) {
 			console.log(`❌ Outer batch processing error:`, outerError);
 			// For outer errors, we'll handle duplicates during deduplication phase

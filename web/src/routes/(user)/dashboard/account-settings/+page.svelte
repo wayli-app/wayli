@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
+	import OnboardingWelcome from '$lib/components/OnboardingWelcome.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
@@ -10,6 +11,9 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
+
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	import type { UserProfile, UserPreferences } from '$lib/types/user.types';
 
@@ -42,6 +46,10 @@
 	let selectedHomeAddressIndex = $state(-1);
 	let homeAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let homeAddressSearchError = $state<string | null>(null);
+
+	// Onboarding state
+	let showOnboardingModal = $state(false);
+	let isOnboarding = $derived($page.url.searchParams.get('onboarding') === 'true');
 
 	// Trip exclusions state
 	let tripExclusions: any[] = $state([]);
@@ -168,6 +176,11 @@
 	onMount(async () => {
 		await loadUserData();
 		await loadTripExclusions();
+
+		// Show onboarding modal if this is first login
+		if (isOnboarding) {
+			showOnboardingModal = true;
+		}
 	});
 
 	async function loadTripExclusions() {
@@ -235,6 +248,81 @@
 			toast.error('Failed to delete exclusion');
 		} finally {
 			isDeletingExclusion = false;
+		}
+	}
+
+	async function handleOnboardingComplete(homeAddress: any) {
+		try {
+			// Save home address if provided
+			if (homeAddress && profile) {
+				profile.home_address = homeAddress;
+				selectedHomeAddress = homeAddress;
+				homeAddressInput = homeAddress.display_name || '';
+
+				const session = await supabase.auth.getSession();
+				const serviceAdapter = new ServiceAdapter({ session: session.data.session! });
+
+				await serviceAdapter.updateProfile({
+					first_name: profile.first_name || '',
+					last_name: profile.last_name || '',
+					email: profile.email || '',
+					home_address: homeAddress
+				});
+			}
+
+			// Mark onboarding as completed
+			if (profile) {
+				await supabase
+					.from('user_profiles')
+					.update({ onboarding_completed: true })
+					.eq('id', profile.id);
+			}
+
+			toast.success('Welcome! Your profile is all set.');
+			showOnboardingModal = false;
+			goto('/dashboard/account-settings', { replaceState: true });
+		} catch (error) {
+			console.error('Error completing onboarding:', error);
+			toast.error('Failed to save settings');
+		}
+	}
+
+	async function handleOnboardingSkip() {
+		try {
+			// Mark onboarding as completed and home address as skipped
+			if (profile) {
+				await supabase
+					.from('user_profiles')
+					.update({
+						onboarding_completed: true,
+						home_address_skipped: true
+					})
+					.eq('id', profile.id);
+			}
+
+			toast.info('You can add your home address anytime from Account Settings');
+			showOnboardingModal = false;
+			goto('/dashboard/account-settings', { replaceState: true });
+		} catch (error) {
+			console.error('Error skipping onboarding:', error);
+		}
+	}
+
+	async function handleSkipHomeAddressField() {
+		try {
+			if (profile) {
+				await supabase
+					.from('user_profiles')
+					.update({ home_address_skipped: true })
+					.eq('id', profile.id);
+
+				toast.info('You can add your home address later if you change your mind');
+
+				// Reload to update UI
+				await loadUserData();
+			}
+		} catch (error) {
+			console.error('Error skipping home address:', error);
 		}
 	}
 
@@ -770,7 +858,7 @@
 						type="email"
 						value={profile?.email}
 						disabled
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
 					/>
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 						{t('accountSettings.emailCannotChange')}
@@ -782,9 +870,32 @@
 					<label
 						for="homeAddress"
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
-						>Home Address</label
 					>
+						{t('accountSettings.homeLocationOptional')}
+						{#if !homeAddressInput && !profile?.home_address_skipped}
+							<span
+								class="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+							>
+								{t('accountSettings.recommended')}
+							</span>
+						{/if}
+					</label>
+
+					<!-- Context help -->
+					<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+						{t('accountSettings.homeLocationContext')}
+					</p>
+
 					<div class="relative">
+						{#if !homeAddressInput && !profile?.home_address_skipped}
+							<!-- Pulsing indicator -->
+							<span class="absolute -right-2 -top-2 flex h-3 w-3">
+								<span
+									class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"
+								></span>
+								<span class="relative inline-flex h-3 w-3 rounded-full bg-blue-500"></span>
+							</span>
+						{/if}
 						<input
 							id="homeAddress"
 							type="text"
@@ -793,10 +904,10 @@
 							oninput={handleHomeAddressInput}
 							onkeydown={handleHomeAddressKeydown}
 							placeholder={t('accountSettings.startTypingHomeAddress')}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 						{#if isHomeAddressSearching}
-							<div class="absolute top-1/2 right-3 -translate-y-1/2">
+							<div class="absolute right-3 top-1/2 -translate-y-1/2">
 								<div
 									class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(37,140,244)] border-t-transparent"
 								></div>
@@ -828,7 +939,7 @@
 							{/each}
 							{#if homeAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+									class="cursor-default select-none px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400"
 								>
 									{homeAddressSearchError}
 								</div>
@@ -839,7 +950,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-[rgb(218,218,221)] bg-white shadow-lg dark:border-[#3f3f46] dark:bg-[#23232a]"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								class="cursor-default select-none px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400"
 							>
 								{homeAddressSearchError}
 							</div>
@@ -859,7 +970,21 @@
 							</div>
 						</div>
 					{/if}
-					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Used for trip generation.</p>
+
+					<!-- Skip button if field is empty -->
+					{#if !homeAddressInput && !profile?.home_address_skipped}
+						<button
+							type="button"
+							onclick={handleSkipHomeAddressField}
+							class="mt-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+						>
+							{t('accountSettings.skipThisField')}
+						</button>
+					{/if}
+
+					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+						💡 {t('accountSettings.tripDetectionHelp')}
+					</p>
 				</div>
 
 				<div class="grid gap-6 md:grid-cols-2">
@@ -874,7 +999,7 @@
 							type="text"
 							bind:value={firstNameInput}
 							placeholder={t('accountSettings.enterFirstName')}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 
@@ -889,7 +1014,7 @@
 							type="text"
 							bind:value={lastNameInput}
 							placeholder={t('accountSettings.enterLastName')}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 				</div>
@@ -931,7 +1056,7 @@
 						id="currentPassword"
 						type="password"
 						bind:value={currentPassword}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 					/>
 				</div>
 
@@ -946,7 +1071,7 @@
 							id="newPassword"
 							type="password"
 							bind:value={newPassword}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 
@@ -954,13 +1079,13 @@
 						<label
 							for="confirmPassword"
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
-							>{t('accountSettings.confirmPassword')}</label
+							>{t('common.fields.confirmPassword')}</label
 						>
 						<input
 							id="confirmPassword"
 							type="password"
 							bind:value={confirmPassword}
-							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 				</div>
@@ -1111,7 +1236,7 @@
 									id="pexels-api-key"
 									bind:value={pexelsApiKeyInput}
 									placeholder={t('accountSettings.enterPexelsApiKey')}
-									class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
+									class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
 								/>
 								<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
 									{pexelsApiKeyInput
@@ -1235,7 +1360,7 @@
 {#if showAddExclusionModal}
 	<!-- Modal Overlay -->
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 outline-none backdrop-blur-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500"
 		tabindex="0"
 		role="button"
 		aria-label="Close modal"
@@ -1273,7 +1398,7 @@
 						type="text"
 						bind:value={newExclusion.name}
 						placeholder={t('accountSettings.exclusionExampleLabel')}
-						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 				</div>
 				<div>
@@ -1290,10 +1415,10 @@
 							oninput={handleExclusionAddressInput}
 							onkeydown={handleExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 						/>
 						{#if isExclusionAddressSearching}
-							<div class="absolute top-1/2 right-3 -translate-y-1/2">
+							<div class="absolute right-3 top-1/2 -translate-y-1/2">
 								<div
 									class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
 								></div>
@@ -1325,7 +1450,7 @@
 							{/each}
 							{#if exclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+									class="cursor-default select-none px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400"
 								>
 									{exclusionAddressSearchError}
 								</div>
@@ -1336,7 +1461,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								class="cursor-default select-none px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400"
 							>
 								{exclusionAddressSearchError}
 							</div>
@@ -1381,7 +1506,7 @@
 {#if showEditExclusionModal}
 	<!-- Modal Overlay -->
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 backdrop-blur-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 outline-none backdrop-blur-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500"
 		tabindex="0"
 		role="button"
 		aria-label="Close modal"
@@ -1419,7 +1544,7 @@
 						type="text"
 						bind:value={editingExclusion.name}
 						placeholder={t('accountSettings.exclusionExampleLabel')}
-						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 				</div>
 				<div>
@@ -1436,10 +1561,10 @@
 							oninput={handleEditExclusionAddressInput}
 							onkeydown={handleEditExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 						/>
 						{#if isEditExclusionAddressSearching}
-							<div class="absolute top-1/2 right-3 -translate-y-1/2">
+							<div class="absolute right-3 top-1/2 -translate-y-1/2">
 								<div
 									class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
 								></div>
@@ -1471,7 +1596,7 @@
 							{/each}
 							{#if editExclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+									class="cursor-default select-none px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400"
 								>
 									{editExclusionAddressSearchError}
 								</div>
@@ -1482,7 +1607,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								class="cursor-default select-none px-3 py-2 text-center text-sm text-gray-500 dark:text-gray-400"
 							>
 								{editExclusionAddressSearchError}
 							</div>
@@ -1521,4 +1646,13 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+<!-- Onboarding Welcome Modal -->
+{#if showOnboardingModal}
+	<OnboardingWelcome
+		bind:open={showOnboardingModal}
+		onComplete={handleOnboardingComplete}
+		onSkip={handleOnboardingSkip}
+	/>
 {/if}

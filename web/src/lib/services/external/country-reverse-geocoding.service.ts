@@ -144,48 +144,23 @@ export function applyTimezoneCorrection(
 
 /**
  * Applies timezone correction to a timestamp based on geographic coordinates.
- * @param timestamp - The raw timestamp (can be Date, number, or string)
+ * NOTE: This function now returns UTC timestamps as-is, because PostgreSQL's TIMESTAMPTZ
+ * automatically handles timezone conversion when storing. The tz_diff field is used
+ * for display purposes to show the correct local time.
+ *
+ * @param timestamp - The raw timestamp (can be Date, number, or string) - assumed to be UTC
  * @param latitude - The latitude coordinate
  * @param longitude - The longitude coordinate
- * @returns The timestamp formatted with the correct timezone offset
+ * @returns The timestamp in ISO format (UTC)
  */
 export function applyTimezoneCorrectionToTimestamp(
 	timestamp: Date | number | string,
 	latitude: number,
 	longitude: number
 ): string {
-	const timezoneOffset = getTimezoneForPoint(latitude, longitude);
-
-	if (timezoneOffset) {
-		// Parse timezone offset (e.g., "-9.5" -> -9.5 hours, "+2" -> +2 hours)
-		const offsetHours = parseFloat(timezoneOffset);
-
-		if (!isNaN(offsetHours)) {
-			const date = new Date(timestamp);
-
-			// Format the timestamp with the timezone offset
-			// This preserves the local time but adds the timezone information
-			const year = date.getFullYear();
-			const month = String(date.getMonth() + 1).padStart(2, '0');
-			const day = String(date.getDate()).padStart(2, '0');
-			const hours = String(date.getHours()).padStart(2, '0');
-			const minutes = String(date.getMinutes()).padStart(2, '0');
-			const seconds = String(date.getSeconds()).padStart(2, '0');
-
-			// Format timezone offset as +HH:MM or -HH:MM
-			const sign = offsetHours >= 0 ? '+' : '-';
-			const absHours = Math.abs(offsetHours);
-			const wholeHours = Math.floor(absHours);
-			const minutesOffset = Math.round((absHours - wholeHours) * 60);
-
-			const timezoneString = `${sign}${String(wholeHours).padStart(2, '0')}:${String(minutesOffset).padStart(2, '0')}`;
-
-			// Return format: '2025-08-16T14:00:00+02:00'
-			return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${timezoneString}`;
-		}
-	}
-
-	// If no timezone found or invalid offset, return the original timestamp as UTC
+	// Convert the timestamp to a Date object and return as UTC ISO string
+	// PostgreSQL's TIMESTAMPTZ will store this correctly in UTC
+	// Display logic will use tz_diff to show the correct local time
 	return new Date(timestamp).toISOString();
 }
 

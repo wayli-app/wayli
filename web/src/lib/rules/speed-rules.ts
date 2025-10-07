@@ -1,7 +1,16 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/speed-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
-import { SPEED_BRACKETS, MODE_PHYSICAL_LIMITS, ACCELERATION_LIMITS, MODE_CONTINUITY_LIMITS } from '../utils/transport-mode.config';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
+import {
+	SPEED_BRACKETS,
+	MODE_PHYSICAL_LIMITS,
+	ACCELERATION_LIMITS,
+	MODE_CONTINUITY_LIMITS
+} from '../utils/transport-mode.config';
 
 /**
  * Speed-based detection rules
@@ -41,7 +50,10 @@ export class FinalSanityCheckRule implements DetectionRule {
 		if (!limits) return null;
 
 		// If speed is completely outside physical limits, force correction
-		if (context.currentSpeed > limits.max || (context.currentSpeed < limits.min && context.currentSpeed > 0)) {
+		if (
+			context.currentSpeed > limits.max ||
+			(context.currentSpeed < limits.min && context.currentSpeed > 0)
+		) {
 			// DEFENSE IN DEPTH: Check geographic context before defaulting to speed bracket
 			// Geographic context should ALWAYS override physics-based guessing
 			let correctMode: string;
@@ -65,8 +77,6 @@ export class FinalSanityCheckRule implements DetectionRule {
 				contextReason = `speed bracket (${context.currentSpeed.toFixed(1)} km/h)`;
 			}
 
-			console.warn(`⚠️ SANITY CHECK TRIGGERED: ${lastDetectedMode} at ${context.currentSpeed} km/h is impossible (limits: ${limits.min}-${limits.max})`);
-
 			return {
 				mode: correctMode,
 				confidence: 1.0, // Maximum confidence - this is a critical override
@@ -77,7 +87,13 @@ export class FinalSanityCheckRule implements DetectionRule {
 					currentSpeed: context.currentSpeed,
 					validationType: 'sanity_check_override',
 					criticalOverride: true,
-					geographicContext: context.atTrainStation ? 'train_station' : context.onHighway ? 'highway' : context.atAirport ? 'airport' : 'none'
+					geographicContext: context.atTrainStation
+						? 'train_station'
+						: context.onHighway
+							? 'highway'
+							: context.atAirport
+								? 'airport'
+								: 'none'
 				}
 			};
 		}
@@ -103,7 +119,10 @@ export class SpeedBracketRule implements DetectionRule {
 		const baseConfidence = 0.6;
 
 		// Apply GPS frequency modifier
-		const gpsModifier = context.gpsFrequency.confidenceModifiers[bracket as keyof typeof context.gpsFrequency.confidenceModifiers] || 0;
+		const gpsModifier =
+			context.gpsFrequency.confidenceModifiers[
+				bracket as keyof typeof context.gpsFrequency.confidenceModifiers
+			] || 0;
 		const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
 
 		return {
@@ -134,7 +153,10 @@ export class MultiPointSpeedRule implements DetectionRule {
 		const baseConfidence = context.speedHistory.length >= 3 ? 0.75 : 0.6;
 
 		// Apply GPS frequency modifier
-		const gpsModifier = context.gpsFrequency.confidenceModifiers[bracket as keyof typeof context.gpsFrequency.confidenceModifiers] || 0;
+		const gpsModifier =
+			context.gpsFrequency.confidenceModifiers[
+				bracket as keyof typeof context.gpsFrequency.confidenceModifiers
+			] || 0;
 		const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
 
 		return {
@@ -159,9 +181,11 @@ export class HighSpeedContinuityRule implements DetectionRule {
 	priority = 70; // Higher than speed bracket rules to maintain mode
 
 	canApply(context: DetectionContext): boolean {
-		return context.currentSpeed >= 80 &&
-			   context.modeHistory.length > 0 &&
-			   context.modeHistory[context.modeHistory.length - 1].mode !== 'stationary';
+		return (
+			context.currentSpeed >= 80 &&
+			context.modeHistory.length > 0 &&
+			context.modeHistory[context.modeHistory.length - 1].mode !== 'stationary'
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -202,11 +226,24 @@ export class AccelerationValidationRule implements DetectionRule {
 
 		if (continuityLimit && speedChange > continuityLimit.maxSpeedDiff) {
 			// Speed change exceeds what's possible for this mode
-			const appropriateMode = getSpeedBracket(context.currentSpeed);
+			// Don't use speed bracket if it would result in the same mode (circular logic)
+			let appropriateMode = getSpeedBracket(context.currentSpeed);
+
+			// If speed bracket suggests the same mode that failed continuity, pick a different mode
+			if (appropriateMode === lastMode) {
+				// Try the speed bracket for the higher of the two speeds
+				const higherSpeed = Math.max(lastSpeed, context.currentSpeed);
+				appropriateMode = getSpeedBracket(higherSpeed);
+
+				// If still the same, default to 'unknown' to force re-detection
+				if (appropriateMode === lastMode) {
+					appropriateMode = 'unknown';
+				}
+			}
 
 			return {
 				mode: appropriateMode,
-				confidence: 0.9,
+				confidence: 0.7, // Lower confidence since we're guessing
 				reason: `Speed change of ${speedChange.toFixed(1)} km/h (from ${lastSpeed.toFixed(1)} to ${context.currentSpeed.toFixed(1)}) exceeds ${lastMode} limit (max: ${continuityLimit.maxSpeedDiff} km/h), switching to ${appropriateMode}`,
 				metadata: {
 					previousMode: lastMode,
@@ -226,7 +263,8 @@ export class AccelerationValidationRule implements DetectionRule {
 		if (currentPoint && previousPoint && currentPoint.timestamp && previousPoint.timestamp) {
 			const timeDiffSeconds = (currentPoint.timestamp - previousPoint.timestamp) / 1000;
 
-			if (timeDiffSeconds > 0 && timeDiffSeconds < 60) { // Only check for points within 1 minute
+			if (timeDiffSeconds > 0 && timeDiffSeconds < 60) {
+				// Only check for points within 1 minute
 				const accelerationKmhPerSec = speedChange / timeDiffSeconds;
 				const accelLimit = ACCELERATION_LIMITS[lastMode as keyof typeof ACCELERATION_LIMITS];
 
@@ -334,8 +372,7 @@ export class SpeedSimilarityRule implements DetectionRule {
 	priority = 65; // Higher than speed bracket rules to maintain mode
 
 	canApply(context: DetectionContext): boolean {
-		return context.modeHistory.length > 0 &&
-			   context.speedHistory.length > 0;
+		return context.modeHistory.length > 0 && context.speedHistory.length > 0;
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {

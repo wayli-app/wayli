@@ -85,10 +85,10 @@
 		} else {
 			jobsById.set(job.id, job);
 		}
-		console.log(`🔄 Updated job ${job.id}:`, {
+		console.log(`🔄 Updated job ${job.id}:`, $state.snapshot({
 			status: job.status,
 			hasDownload: !!(job.result?.file_path || job.result?.downloadUrl)
-		});
+		}));
 	}
 
 	function updateExportJobs(newJobs: ExportJob[]) {
@@ -140,7 +140,7 @@
 			type: jobUpdate.type,
 			progress: jobUpdate.progress,
 			error: jobUpdate.error || undefined, // Convert null to undefined
-			result: jobUpdate.result,
+			result: jobUpdate.result as ExportJob['result'],
 			created_at: jobUpdate.created_at,
 			updated_at: jobUpdate.updated_at,
 			// Add missing optional fields with defaults

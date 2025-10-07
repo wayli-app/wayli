@@ -57,7 +57,10 @@ export async function authenticateRequest(req: Request): Promise<AuthenticatedCo
 
 	try {
 		// Verify the JWT token using Supabase's built-in verification
-		const { data: { user }, error } = await supabase.auth.getUser(token);
+		const {
+			data: { user },
+			error
+		} = await supabase.auth.getUser(token);
 
 		if (error || !user) {
 			console.error('❌ [AUTH] JWT verification failed:', error);
@@ -152,7 +155,10 @@ export async function authenticateRequestWithApiKey(req: Request): Promise<Authe
 		});
 
 		// Get user by ID and verify API key
-		const { data: { user }, error } = await serviceClient.auth.admin.getUserById(userId);
+		const {
+			data: { user },
+			error
+		} = await serviceClient.auth.admin.getUserById(userId);
 
 		if (error || !user) {
 			console.error('❌ [AUTH] User not found:', userId);
@@ -160,7 +166,7 @@ export async function authenticateRequestWithApiKey(req: Request): Promise<Authe
 		}
 
 		// Check if API key matches
-		const userMetadata = user.user_metadata as Record<string, unknown> || {};
+		const userMetadata = (user.user_metadata as Record<string, unknown>) || {};
 		const storedApiKey = userMetadata.owntracks_api_key as string;
 
 		if (!storedApiKey || storedApiKey !== apiKey) {
@@ -197,7 +203,9 @@ export async function authenticateRequestWithApiKey(req: Request): Promise<Authe
  * Optionally authenticate the request (for public endpoints that can work with or without auth)
  * Returns null if no valid token is provided, but doesn't throw an error
  */
-export async function authenticateRequestOptional(req: Request): Promise<AuthenticatedContext | null> {
+export async function authenticateRequestOptional(
+	req: Request
+): Promise<AuthenticatedContext | null> {
 	const authHeader = req.headers.get('Authorization');
 	if (!authHeader) {
 		return null; // No auth header, but that's okay for optional auth
@@ -209,7 +217,10 @@ export async function authenticateRequestOptional(req: Request): Promise<Authent
 	}
 
 	try {
-		const { data: { user }, error } = await supabase.auth.getUser(token);
+		const {
+			data: { user },
+			error
+		} = await supabase.auth.getUser(token);
 
 		if (error || !user || user.aud !== 'authenticated') {
 			return null; // Invalid token, but that's okay for optional auth
@@ -228,8 +239,8 @@ export async function authenticateRequestOptional(req: Request): Promise<Authent
 		const userClient = createUserClient(token);
 		return { user: userInfo, supabase: userClient };
 	} catch {
-			return null; // Any error means no valid auth, but that's okay
-}
+		return null; // Any error means no valid auth, but that's okay
+	}
 }
 
 /**

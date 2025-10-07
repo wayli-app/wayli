@@ -43,7 +43,7 @@ async function main() {
 		console.log('');
 		console.log('-- Create RLS policy');
 		console.log('CREATE POLICY "Service role can manage migrations" ON public.database_migrations');
-		console.log('    FOR ALL USING (auth.role() = \'service_role\');');
+		console.log("    FOR ALL USING (auth.role() = 'service_role');");
 		console.log('');
 		console.log('-- Grant permissions');
 		console.log('GRANT ALL ON public.database_migrations TO service_role;');

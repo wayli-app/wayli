@@ -122,7 +122,10 @@ export class TripDetectionService {
 	/**
 	 * Set job ID and progress callback for progress tracking
 	 */
-	setProgressTracking(jobId: string, progressCallback: (progress: TripDetectionProgress) => void): void {
+	setProgressTracking(
+		jobId: string,
+		progressCallback: (progress: TripDetectionProgress) => void
+	): void {
 		this.jobId = jobId;
 		this.progressCallback = progressCallback;
 	}
@@ -377,8 +380,15 @@ export class TripDetectionService {
 					}
 				});
 
-								try {
-					const trips = await this.processDateRange(userId, range, homeLocations, language, i, processingRanges.length);
+				try {
+					const trips = await this.processDateRange(
+						userId,
+						range,
+						homeLocations,
+						language,
+						i,
+						processingRanges.length
+					);
 					allTrips.push(...trips);
 				} catch (error) {
 					console.error(
@@ -484,12 +494,10 @@ export class TripDetectionService {
 				}
 
 				// Filter out points without city names
-				const validPoints = batch.filter(
-					(point) => {
-						const city = point.geocode?.properties?.city || point.geocode?.properties?.address?.city;
-						return city && city.trim() !== '';
-					}
-				);
+				const validPoints = batch.filter((point) => {
+					const city = point.geocode?.properties?.city || point.geocode?.properties?.address?.city;
+					return city && city.trim() !== '';
+				});
 
 				if (validPoints.length === 0) {
 					offset += batchSize;
@@ -533,7 +541,10 @@ export class TripDetectionService {
 					if (i % 50 === 0 && i > 0 && totalPoints > 0) {
 						// Calculate progress based on actual data points processed (10% to 95%)
 						const processedSoFar = totalProcessedPoints + i;
-						const currentProgress = Math.min(95, 10 + Math.round((processedSoFar / totalPoints) * 85));
+						const currentProgress = Math.min(
+							95,
+							10 + Math.round((processedSoFar / totalPoints) * 85)
+						);
 
 						this.updateProgress({
 							phase: 'processing_batches',
@@ -555,9 +566,10 @@ export class TripDetectionService {
 				totalProcessedPoints += validPoints.length;
 
 				// Update progress after each batch
-				const currentProgress = totalPoints > 0
-					? Math.min(95, 10 + Math.round((totalProcessedPoints / totalPoints) * 85))
-					: 50;
+				const currentProgress =
+					totalPoints > 0
+						? Math.min(95, 10 + Math.round((totalProcessedPoints / totalPoints) * 85))
+						: 50;
 
 				this.updateProgress({
 					phase: 'processing_batches',
@@ -789,19 +801,23 @@ export class TripDetectionService {
 			}
 		});
 
-		const visitedCountriesDetailed = Array.from(countryMap.entries()).map(([countryCode, data]) => ({
-			countryCode,
-			durationHours: Math.round(data.durationHours),
-			dataPoints: data.dataPoints
-		}));
+		const visitedCountriesDetailed = Array.from(countryMap.entries()).map(
+			([countryCode, data]) => ({
+				countryCode,
+				durationHours: Math.round(data.durationHours),
+				dataPoints: data.dataPoints
+			})
+		);
 
 		// Get unique cities and filter out "Unknown"
-		const uniqueCities = Array.from(new Set(filteredLocations.map((location) => location.cityName)))
-			.filter(city => city !== 'Unknown');
+		const uniqueCities = Array.from(
+			new Set(filteredLocations.map((location) => location.cityName))
+		).filter((city) => city !== 'Unknown');
 
 		// Get unique countries and filter out "Unknown"
-		const uniqueCountries = Array.from(countryMap.keys())
-			.filter(country => country !== 'Unknown');
+		const uniqueCountries = Array.from(countryMap.keys()).filter(
+			(country) => country !== 'Unknown'
+		);
 
 		// Create the trip object
 		const trip: DetectedTrip = {
@@ -968,8 +984,9 @@ export class TripDetectionService {
 				.map(([countryCode, _]) => getCountryNameServer(countryCode, language));
 
 			// Remove duplicates and filter out 'Unknown' from country names
-			const uniqueCountryNames = Array.from(new Set(countryNames))
-				.filter(name => name !== 'Unknown');
+			const uniqueCountryNames = Array.from(new Set(countryNames)).filter(
+				(name) => name !== 'Unknown'
+			);
 
 			const countriesString = uniqueCountryNames.join(', ');
 			return translateServer(

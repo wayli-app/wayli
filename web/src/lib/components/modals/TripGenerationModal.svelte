@@ -218,14 +218,15 @@
 		</div>
 
 		<!-- Date Range Help Text -->
-		<div class="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+		<div
+			class="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
+		>
 			<div class="flex items-start gap-2">
-				<div class="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400">
-					ℹ️
-				</div>
+				<div class="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400">ℹ️</div>
 				<div class="text-sm text-blue-800 dark:text-blue-200">
-					<strong>Dates are optional:</strong> Leave both dates empty to generate trip suggestions from all your available location data.
-					Set specific dates to limit the analysis to a particular time period.
+					<strong>Dates are optional:</strong> Leave both dates empty to generate trip suggestions from
+					all your available location data. Set specific dates to limit the analysis to a particular
+					time period.
 				</div>
 			</div>
 		</div>
@@ -338,10 +339,7 @@
 				bind:checked={clearExistingSuggestions}
 				class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
 			/>
-			<label
-				for="clear-existing-suggestions"
-				class="text-sm text-gray-700 dark:text-gray-300"
-			>
+			<label for="clear-existing-suggestions" class="text-sm text-gray-700 dark:text-gray-300">
 				{t('tripGenerationModal.clearExistingSuggestions')}
 			</label>
 		</div>

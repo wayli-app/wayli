@@ -181,7 +181,10 @@ Deno.serve(async (req) => {
 
 							updatedMetadata.distanceTraveled = distanceTraveled;
 
-							logInfo(`Calculated distance for trip ${tripId}: ${distanceTraveled}`, 'TRIPS-SUGGESTED');
+							logInfo(
+								`Calculated distance for trip ${tripId}: ${distanceTraveled}`,
+								'TRIPS-SUGGESTED'
+							);
 						}
 
 						// Build the update data object

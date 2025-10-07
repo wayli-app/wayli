@@ -35,8 +35,10 @@ export function createWorkerClient() {
 						// For server errors, retry
 						if (response.status >= 500 && attempt < maxRetries) {
 							const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
-							console.log(`⚠️  Server error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
-							await new Promise(resolve => setTimeout(resolve, delay));
+							console.log(
+								`⚠️  Server error ${response.status}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`
+							);
+							await new Promise((resolve) => setTimeout(resolve, delay));
 							continue;
 						}
 
@@ -45,8 +47,10 @@ export function createWorkerClient() {
 						// For network errors, retry
 						if (attempt < maxRetries) {
 							const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
-							console.log(`🌐 Network error: ${error instanceof Error ? error.message : 'Unknown error'}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
-							await new Promise(resolve => setTimeout(resolve, delay));
+							console.log(
+								`🌐 Network error: ${error instanceof Error ? error.message : 'Unknown error'}, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`
+							);
+							await new Promise((resolve) => setTimeout(resolve, delay));
 							continue;
 						}
 

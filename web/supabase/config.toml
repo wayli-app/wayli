@@ -325,6 +325,10 @@ deno_version = 1
 [edge_runtime.secrets]
 pexels_api_key = "env(PEXELS_API_KEY)"
 
+# Configure functions that don't require JWT authentication
+[functions.server-settings]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

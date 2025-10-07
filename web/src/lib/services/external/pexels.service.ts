@@ -182,7 +182,12 @@ export async function getTripBannerImage(
 	countryName?: string,
 	isCityFocused: boolean = false
 ): Promise<string | null> {
-	const result = await getTripBannerImageWithAttribution(cityName, userApiKey, countryName, isCityFocused);
+	const result = await getTripBannerImageWithAttribution(
+		cityName,
+		userApiKey,
+		countryName,
+		isCityFocused
+	);
 	return result?.imageUrl || null;
 }
 
@@ -215,7 +220,9 @@ export async function getTripBannerImageWithAttribution(
 
 	// Determine search strategy based on focus type
 	const searchStrategy = isCityFocused ? 'city' : 'country';
-	console.log(`🔍 Pexels search strategy: ${searchStrategy}-focused for "${cityName}"${cleanedCountryName ? ` (${cleanedCountryName})` : ''}`);
+	console.log(
+		`🔍 Pexels search strategy: ${searchStrategy}-focused for "${cityName}"${cleanedCountryName ? ` (${cleanedCountryName})` : ''}`
+	);
 
 	const imageSources: Array<{
 		getter: () => Promise<string | null>;
@@ -236,7 +243,9 @@ export async function getTripBannerImageWithAttribution(
 					searchQuery = `${cityName} city landscape`;
 				} else {
 					// Country-focused: Use country name for better results
-					searchQuery = cleanedCountryName ? `${cleanedCountryName} landscape` : `${cityName} landscape`;
+					searchQuery = cleanedCountryName
+						? `${cleanedCountryName} landscape`
+						: `${cityName} landscape`;
 				}
 
 				console.log(`🔍 Searching Pexels with query: "${searchQuery}"`);
@@ -445,21 +454,21 @@ export async function getMultipleTripBannerImages(
 ): Promise<Record<string, string>> {
 	const results: Record<string, string> = {};
 
-			// Process cities sequentially to avoid overwhelming the service
-		for (const city of cities) {
-			try {
-				const countryName = countryNames?.[city];
-				// For multiple cities, we assume country-focused search since we don't have city dominance data
-				const imageUrl = await getTripBannerImage(city, userApiKey, countryName, false);
-				if (imageUrl) {
-					results[city] = imageUrl;
-				}
-				// Add a small delay between requests
-				await new Promise((resolve) => setTimeout(resolve, 200));
-			} catch (error) {
-				console.error(`❌ Error getting image for ${city}:`, error);
+	// Process cities sequentially to avoid overwhelming the service
+	for (const city of cities) {
+		try {
+			const countryName = countryNames?.[city];
+			// For multiple cities, we assume country-focused search since we don't have city dominance data
+			const imageUrl = await getTripBannerImage(city, userApiKey, countryName, false);
+			if (imageUrl) {
+				results[city] = imageUrl;
 			}
+			// Add a small delay between requests
+			await new Promise((resolve) => setTimeout(resolve, 200));
+		} catch (error) {
+			console.error(`❌ Error getting image for ${city}:`, error);
 		}
+	}
 
 	return results;
 }

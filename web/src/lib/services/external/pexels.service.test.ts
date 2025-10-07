@@ -45,7 +45,9 @@ describe('Pexels Service with Country Name Cleaner', () => {
 			storage: {
 				from: vi.fn().mockReturnValue({
 					upload: vi.fn().mockResolvedValue({ error: null }),
-					getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://storage.example.com/image.jpg' } })
+					getPublicUrl: vi
+						.fn()
+						.mockReturnValue({ data: { publicUrl: 'https://storage.example.com/image.jpg' } })
 				})
 			}
 		};
@@ -93,7 +95,9 @@ describe('Pexels Service with Country Name Cleaner', () => {
 			storage: {
 				from: vi.fn().mockReturnValue({
 					upload: vi.fn().mockResolvedValue({ error: null }),
-					getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://storage.example.com/image.jpg' } })
+					getPublicUrl: vi
+						.fn()
+						.mockReturnValue({ data: { publicUrl: 'https://storage.example.com/image.jpg' } })
 				})
 			}
 		};
@@ -104,7 +108,12 @@ describe('Pexels Service with Country Name Cleaner', () => {
 		}));
 
 		// Test with just city name
-		const result = await getTripBannerImageWithAttribution('Amsterdam', 'test-api-key', undefined, false);
+		const result = await getTripBannerImageWithAttribution(
+			'Amsterdam',
+			'test-api-key',
+			undefined,
+			false
+		);
 
 		expect(result).toBeDefined();
 	});

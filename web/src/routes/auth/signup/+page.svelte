@@ -25,6 +25,9 @@
 	let isEmailSent = $state(false);
 	let registrationDisabled = $state(false);
 	let isLoadingSettings = $state(false);
+	let isFirstUser = $state(false);
+	let requireEmailVerification = $state(false);
+	let hasRedirected = false; // Guard to prevent multiple redirects
 
 	// Password validation
 	let passwordValidation = $derived({
@@ -47,23 +50,31 @@
 				const result = await response.json();
 				if (result.success && result.data) {
 					registrationDisabled = !result.data.allow_registration;
+					isFirstUser = !result.data.is_setup_complete;
+					requireEmailVerification = result.data.require_email_verification ?? false;
 					console.log('🔧 [SIGNUP] Server settings:', {
-						allow_registration: result.data.allow_registration
+						allow_registration: result.data.allow_registration,
+						is_setup_complete: result.data.is_setup_complete,
+						require_email_verification: result.data.require_email_verification,
+						isFirstUser
 					});
 				} else {
 					console.error('Failed to fetch server settings:', result.error);
 					// Default to allowing registration if we can't fetch settings
 					registrationDisabled = false;
+					isFirstUser = false;
 				}
 			} else {
 				console.error('Failed to fetch server settings');
 				// Default to allowing registration if we can't fetch settings
 				registrationDisabled = false;
+				isFirstUser = false;
 			}
 		} catch (error) {
 			console.error('Error fetching server settings:', error);
 			// Default to allowing registration if we can't fetch settings
 			registrationDisabled = false;
+			isFirstUser = false;
 		} finally {
 			isLoadingSettings = false;
 		}
@@ -72,7 +83,7 @@
 	onMount(() => {
 		console.log('🔐 [SIGNUP] Page mounted');
 
-		// Check server settings first
+		// Check server settings (which includes setup status)
 		checkServerSettings();
 
 		// Check if user is already authenticated
@@ -92,12 +103,36 @@
 		})();
 
 		// Subscribe to auth changes for future registrations
-		const unsubscribe = userStore.subscribe((user) => {
+		const unsubscribe = userStore.subscribe(async (user) => {
 			console.log('🔐 [SIGNUP] User store updated:', user ? `User: ${user.email}` : 'No user');
-			if (user) {
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-				console.log('🔄 [SIGNUP] REDIRECTING: User authenticated, going to', redirectTo);
-				goto(redirectTo);
+
+			// Guard: Only redirect once to prevent infinite loops
+			if (user && !hasRedirected) {
+				hasRedirected = true;
+
+				// Check if this is a new user who needs onboarding
+				const { data: profile } = await supabase
+					.from('user_profiles')
+					.select('onboarding_completed, first_login_at')
+					.eq('id', user.id)
+					.single();
+
+				// If first-time user, redirect to onboarding
+				if (!profile?.onboarding_completed) {
+					if (!profile?.first_login_at) {
+						await supabase
+							.from('user_profiles')
+							.update({ first_login_at: new Date().toISOString() })
+							.eq('id', user.id);
+					}
+
+					console.log('🔄 [SIGNUP] First-time user, redirecting to onboarding');
+					goto('/dashboard/account-settings?onboarding=true');
+				} else {
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+					console.log('🔄 [SIGNUP] REDIRECTING: User authenticated, going to', redirectTo);
+					goto(redirectTo);
+				}
 			}
 		});
 
@@ -137,7 +172,7 @@
 		loading = true;
 
 		try {
-			const { error } = await supabase.auth.signUp({
+			const { data, error } = await supabase.auth.signUp({
 				email,
 				password,
 				options: {
@@ -152,8 +187,15 @@
 
 			if (error) throw error;
 
-			isEmailSent = true;
-			toast.success(t('auth.checkEmailConfirmationLink'));
+			// Only show email confirmation message if email verification is required
+			// and the user hasn't been auto-confirmed
+			if (requireEmailVerification && data.user && !data.user.email_confirmed_at) {
+				isEmailSent = true;
+				toast.success(t('auth.checkEmailConfirmationLink'));
+			} else {
+				// User is auto-logged in, redirect will happen via userStore.subscribe
+				toast.success(t('auth.signUpSuccess'));
+			}
 		} catch (error: any) {
 			toast.error(error.message || t('auth.signUpFailed'));
 		} finally {
@@ -176,16 +218,45 @@
 
 <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
 	<div class="w-full max-w-md">
-		<!-- Back to home -->
-		<div class="mb-8">
-			<a
-				href="/"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-			>
-				<ArrowLeft class="mr-2 h-4 w-4" />
-				{t('auth.backToHome')}
-			</a>
-		</div>
+		<!-- Back to home (hidden during initial setup) -->
+		{#if !isFirstUser}
+			<div class="mb-8">
+				<a
+					href="/"
+					class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+				>
+					<ArrowLeft class="mr-2 h-4 w-4" />
+					{t('auth.backToHome')}
+				</a>
+			</div>
+		{/if}
+
+		<!-- First User Banner -->
+		{#if isFirstUser && !isLoadingSettings}
+			<div class="mb-8">
+				<div
+					class="rounded-xl border-2 border-blue-200 bg-blue-50 p-6 dark:border-blue-800 dark:bg-blue-900/20"
+				>
+					<div class="flex items-start gap-3">
+						<div class="flex-shrink-0">
+							<div
+								class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-2xl dark:bg-blue-900/40"
+							>
+								🎉
+							</div>
+						</div>
+						<div class="flex-1">
+							<h3 class="mb-2 text-lg font-semibold text-blue-900 dark:text-blue-100">
+								{t('signup.firstUserWelcome')}
+							</h3>
+							<p class="text-sm text-blue-700 dark:text-blue-300">
+								{t('signup.firstUserAdminInfo')}
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Sign Up Form -->
 		<div

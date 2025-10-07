@@ -4,7 +4,12 @@
 	import { toast } from 'svelte-sonner';
 
 	import { JobRealtimeService, type JobUpdate } from '$lib/services/job-realtime.service';
-	import { updateJobInStore, removeJobFromStore, getActiveJobsMap, fetchAndPopulateJobs } from '$lib/stores/job-store';
+	import {
+		updateJobInStore,
+		removeJobFromStore,
+		getActiveJobsMap,
+		fetchAndPopulateJobs
+	} from '$lib/stores/job-store';
 
 	// Helper function to get job type info for notifications
 	function getJobTypeInfo(type: string) {
@@ -115,11 +120,7 @@
 		const now = Date.now();
 		const currentJobs = getActiveJobsMap();
 		for (const [jobId, job] of currentJobs.entries()) {
-			if (
-				job.status === 'completed' ||
-				job.status === 'failed' ||
-				job.status === 'cancelled'
-			) {
+			if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
 				const jobTime = new Date(job.updated_at).getTime();
 				if (now - jobTime > 30000) {
 					// 30 seconds

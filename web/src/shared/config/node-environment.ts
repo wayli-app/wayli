@@ -190,10 +190,22 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	const databaseUrl = mergedEnv.SUPABASE_DB_URL || mergedEnv.DATABASE_URL || '';
 	const poolSize = parseInt(mergedEnv.SUPABASE_DB_POOL_SIZE || mergedEnv.DB_POOL_SIZE || '10', 10);
 	const ssl = mergedEnv.SUPABASE_DB_SSL === 'true' || mergedEnv.DB_SSL === 'true';
-	const connectionTimeout = parseInt(mergedEnv.SUPABASE_DB_CONNECTION_TIMEOUT || mergedEnv.DB_CONNECTION_TIMEOUT || '30000', 10);
-	const queryTimeout = parseInt(mergedEnv.SUPABASE_DB_QUERY_TIMEOUT || mergedEnv.DB_QUERY_TIMEOUT || '30000', 10);
-	const dbRetryAttempts = parseInt(mergedEnv.SUPABASE_DB_RETRY_ATTEMPTS || mergedEnv.DB_RETRY_ATTEMPTS || '3', 10);
-	const dbRetryDelay = parseInt(mergedEnv.SUPABASE_DB_RETRY_DELAY || mergedEnv.DB_RETRY_DELAY || '1000', 10);
+	const connectionTimeout = parseInt(
+		mergedEnv.SUPABASE_DB_CONNECTION_TIMEOUT || mergedEnv.DB_CONNECTION_TIMEOUT || '30000',
+		10
+	);
+	const queryTimeout = parseInt(
+		mergedEnv.SUPABASE_DB_QUERY_TIMEOUT || mergedEnv.DB_QUERY_TIMEOUT || '30000',
+		10
+	);
+	const dbRetryAttempts = parseInt(
+		mergedEnv.SUPABASE_DB_RETRY_ATTEMPTS || mergedEnv.DB_RETRY_ATTEMPTS || '3',
+		10
+	);
+	const dbRetryDelay = parseInt(
+		mergedEnv.SUPABASE_DB_RETRY_DELAY || mergedEnv.DB_RETRY_DELAY || '1000',
+		10
+	);
 
 	// Security Configuration
 	const jwtSecret = mergedEnv.JWT_SECRET || '';

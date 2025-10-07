@@ -15,15 +15,20 @@
 		LogOut,
 		Menu
 	} from 'lucide-svelte';
-	import { onMount } from 'svelte';
 
 	import { translate } from '$lib/i18n';
-	import { state, setTheme, toggleSidebar, closeSidebar } from '$lib/stores/app-state.svelte';
+	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
+	import { userStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
+
+	import type { UserProfile } from '$lib/types/user.types';
 
 	import JobProgressIndicator from './JobProgressIndicator.svelte';
 
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	let {
 		isAdmin = false,
@@ -38,25 +43,40 @@
 	// Use the reactive translation function
 	let t = $derived($translate);
 
+	// User profile for completion indicator
+	let userProfile = $state<UserProfile | null>(null);
+
+	// Local state for SSR compatibility
+	let currentTheme = $state<'light' | 'dark'>('light');
+	let isSidebarOpen = $state(false);
+
+	// Computed indicator visibility
+	const shouldShowCompletionIndicator = $derived(
+		userProfile &&
+			!userProfile.home_address &&
+			!userProfile.home_address_skipped &&
+			!userProfile.onboarding_dismissed
+	);
+
 	// Reactive navigation items that update with language changes
 	let navMain = $derived([
-		{ href: '/dashboard/statistics', label: t('navigation.statistics'), icon: BarChart },
-		{ href: '/dashboard/trips', label: t('navigation.trips'), icon: Map },
-		{ href: '/dashboard/import-export', label: t('navigation.importExport'), icon: Import },
+		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
+		{ href: '/dashboard/trips', label: t('common.navigation.trips'), icon: Map },
+		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
 		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
 		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
-		{ href: '/dashboard/want-to-visit', label: t('navigation.wantToVisit'), icon: Star },
-		{ href: '/dashboard/connections', label: t('navigation.connections'), icon: Link }
+		{ href: '/dashboard/want-to-visit', label: t('common.navigation.wantToVisit'), icon: Star },
+		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link }
 	]);
 
 	// Dynamic user navigation based on admin status - reactive to language changes
 	let navUser = $derived([
-		{ href: '/dashboard/account-settings', label: t('navigation.accountSettings'), icon: User },
+		{ href: '/dashboard/account-settings', label: t('common.navigation.accountSettings'), icon: User },
 		...(isAdmin
 			? [
 					{
 						href: '/dashboard/server-admin-settings',
-						label: t('navigation.serverAdminSettings'),
+						label: t('common.navigation.serverAdminSettings'),
 						icon: Settings
 					}
 				]
@@ -68,24 +88,62 @@
 		// This will trigger a reactive update of the page store
 	});
 
+	// Load user profile for onboarding indicator
+	onMount(async () => {
+		// Initialize theme
+		if (browser) {
+			initializeTheme();
+			const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+			if (savedTheme) {
+				currentTheme = savedTheme;
+			} else {
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				currentTheme = prefersDark ? 'dark' : 'light';
+			}
+		}
+
+		if ($userStore) {
+			const { data } = await supabase
+				.from('user_profiles')
+				.select('home_address, home_address_skipped, onboarding_dismissed')
+				.eq('id', $userStore.id)
+				.single();
+
+			userProfile = data;
+		}
+	});
+
 	function handleSignOut() {
 		if (onSignout) {
 			onSignout();
 		}
 	}
 
+	function handleThemeChange(theme: 'light' | 'dark') {
+		setTheme(theme);
+		currentTheme = theme;
+	}
+
+	function handleToggleSidebar() {
+		isSidebarOpen = !isSidebarOpen;
+	}
+
+	function handleCloseSidebar() {
+		isSidebarOpen = false;
+	}
+
 	// Handle window resize to properly manage sidebar state
 	function handleResize() {
 		if (window.innerWidth >= 768) {
 			// md breakpoint
-			closeSidebar();
+			isSidebarOpen = false;
 		}
 	}
 
 	onMount(() => {
 		// Initialize sidebar state based on screen size
 		if (window.innerWidth >= 768) {
-			closeSidebar();
+			isSidebarOpen = false;
 		}
 
 		window.addEventListener('resize', handleResize);
@@ -98,7 +156,7 @@
 <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
 	<!-- Sidebar -->
 	<aside
-		class="fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 dark:border-gray-700 dark:bg-gray-800 {state.isSidebarOpen
+		class="fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 dark:border-gray-700 dark:bg-gray-800 {isSidebarOpen
 			? 'translate-x-0'
 			: '-translate-x-full'}"
 	>
@@ -111,7 +169,7 @@
 				<span class="text-xl font-bold text-gray-900 dark:text-gray-100">Wayli</span>
 			</a>
 			<button
-				onclick={closeSidebar}
+				onclick={handleCloseSidebar}
 				class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 md:hidden dark:hover:text-gray-300"
 			>
 				<X class="h-5 w-5" />
@@ -128,7 +186,7 @@
 							.url.pathname === item.href
 							? 'bg-[rgb(37,140,244)] text-white'
 							: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-						onclick={closeSidebar}
+						onclick={handleCloseSidebar}
 					>
 						<item.icon class="mr-3 h-5 w-5" />
 						{item.label}
@@ -142,21 +200,21 @@
 			<!-- Theme Toggle -->
 			<div class="mb-4 flex justify-start gap-2">
 				<button
-					onclick={() => setTheme('light')}
-					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme ===
+					onclick={() => handleThemeChange('light')}
+					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'light'
 						? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-					title={t('navigation.lightMode')}
+					title={t('common.navigation.lightMode')}
 				>
 					<Sun class="h-5 w-5" />
 				</button>
 				<button
-					onclick={() => setTheme('dark')}
-					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'dark'
+					onclick={() => handleThemeChange('dark')}
+					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'dark'
 						? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-					title={t('navigation.darkMode')}
+					title={t('common.navigation.darkMode')}
 				>
 					<Moon class="h-5 w-5" />
 				</button>
@@ -171,17 +229,25 @@
 					{#each navUser as item (item.href)}
 						<a
 							href={item.href}
-							class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
+							class="relative flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
 								.url.pathname === item.href
 								? 'bg-[rgb(37,140,244)] text-white'
 								: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
-							onclick={closeSidebar}
+							onclick={handleCloseSidebar}
 						>
 							<item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
-								{#if isAdmin && item.label === 'Account Settings'}
+								{#if isAdmin && item.href === '/dashboard/account-settings'}
 									<Crown class="ml-2 h-4 w-4 text-yellow-500" />
+								{/if}
+								{#if item.href === '/dashboard/account-settings' && shouldShowCompletionIndicator}
+									<span class="relative ml-2 flex h-2 w-2 items-center justify-center">
+										<span
+											class="absolute h-2 w-2 animate-ping rounded-full bg-blue-400 opacity-75"
+										></span>
+										<span class="relative h-2 w-2 rounded-full bg-blue-500"></span>
+									</span>
 								{/if}
 							</span>
 						</a>
@@ -193,21 +259,21 @@
 			<button
 				onclick={() => {
 					handleSignOut();
-					closeSidebar();
+					handleCloseSidebar();
 				}}
 				class="flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
 			>
 				<LogOut class="mr-3 h-5 w-5" />
-				{t('navigation.signOut')}
+				{t('common.navigation.signOut')}
 			</button>
 		</div>
 	</aside>
 
 	<!-- Mobile overlay -->
-	{#if state.isSidebarOpen}
+	{#if isSidebarOpen}
 		<div
 			class="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 md:hidden"
-			onclick={closeSidebar}
+			onclick={handleCloseSidebar}
 			role="presentation"
 			aria-roledescription="Mobile overlay"
 			aria-label="Mobile overlay"
@@ -222,7 +288,7 @@
 		>
 			<div class="flex items-center justify-between">
 				<button
-					onclick={toggleSidebar}
+					onclick={handleToggleSidebar}
 					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 				>
 					<Menu class="h-6 w-6" />

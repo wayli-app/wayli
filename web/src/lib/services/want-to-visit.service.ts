@@ -34,7 +34,7 @@ export class WantToVisitService {
 			created_at: string;
 			updated_at: string;
 		};
-		return (data as DbPlace[] || []).map((place) => ({
+		return ((data as DbPlace[]) || []).map((place) => ({
 			...place,
 			markerType: place.marker_type,
 			markerColor: place.marker_color

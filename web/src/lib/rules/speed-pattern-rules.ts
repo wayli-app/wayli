@@ -1,6 +1,10 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/speed-pattern-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
 import {
 	calculateSpeedVariance,
 	hasTrainLikeSpeedPattern,
@@ -27,12 +31,14 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		// 2. Not on highway
 		// 3. Speed is in ambiguous range (80-120 km/h)
 		// 4. Have enough history data
-		return !context.atTrainStation &&
-			   !context.onHighway &&
-			   context.currentSpeed >= 80 &&
-			   context.currentSpeed <= 120 &&
-			   context.speedHistory.length >= 10 &&
-			   context.pointHistory.length >= 10;
+		return (
+			!context.atTrainStation &&
+			!context.onHighway &&
+			context.currentSpeed >= 80 &&
+			context.currentSpeed <= 120 &&
+			context.speedHistory.length >= 10 &&
+			context.pointHistory.length >= 10
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -55,7 +61,7 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		const hasTrainSpeed = hasTrainLikeSpeedPattern(context.speedHistory);
 		const hasCarSpeed = hasCarLikeSpeedPattern(context.speedHistory);
 
-		const points = context.pointHistory.map(p => ({ lat: p.lat, lng: p.lng }));
+		const points = context.pointHistory.map((p) => ({ lat: p.lat, lng: p.lng }));
 		const isStraight = hasStraightTrajectory(points);
 
 		const hasSustained = hasSustainedSpeed(
@@ -72,7 +78,8 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		let carScore = 0;
 
 		// Speed variance analysis
-		if (speedMetrics.coefficientOfVariation < 0.12) trainScore += 3; // Very train-like
+		if (speedMetrics.coefficientOfVariation < 0.12)
+			trainScore += 3; // Very train-like
 		else if (speedMetrics.coefficientOfVariation < 0.18) trainScore += 2;
 		else if (speedMetrics.coefficientOfVariation < 0.25) trainScore += 1;
 		else carScore += 2; // High variance = car
@@ -89,7 +96,8 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		else if (context.currentSpeed < 90) carScore += 1;
 
 		// GPS sampling frequency from context (enhanced)
-		if (context.gpsFrequency.likelyMode === 'car') carScore += 3; // Strong signal
+		if (context.gpsFrequency.likelyMode === 'car')
+			carScore += 3; // Strong signal
 		else if (context.gpsFrequency.frequencyType === 'background_tracking') trainScore += 2;
 
 		// Speed transition smoothness
@@ -101,7 +109,7 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		const trainConfidence = trainScore / Math.max(totalScore, 1);
 
 		if (trainScore > carScore && trainConfidence >= 0.65) {
-			const baseConfidence = Math.min(0.75 + (trainConfidence - 0.65) * 0.5, 0.90);
+			const baseConfidence = Math.min(0.75 + (trainConfidence - 0.65) * 0.5, 0.9);
 			// Apply GPS frequency modifier
 			const gpsModifier = context.gpsFrequency.confidenceModifiers.train;
 			const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
@@ -124,7 +132,7 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 				}
 			};
 		} else if (carScore > trainScore) {
-			const baseConfidence = Math.min(0.70 + (carScore - trainScore) * 0.05, 0.85);
+			const baseConfidence = Math.min(0.7 + (carScore - trainScore) * 0.05, 0.85);
 			// Apply GPS frequency modifier
 			const gpsModifier = context.gpsFrequency.confidenceModifiers.car;
 			const finalConfidence = Math.max(0.1, Math.min(0.95, baseConfidence + gpsModifier));
@@ -176,9 +184,9 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		const Δφ = ((lat2 - lat1) * Math.PI) / 180;
 		const Δλ = ((lng2 - lng1) * Math.PI) / 180;
 
-		const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-				  Math.cos(φ1) * Math.cos(φ2) *
-				  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+		const a =
+			Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+			Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
 		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
 		return R * c; // Distance in meters
@@ -195,10 +203,12 @@ export class SpeedPatternCarDetectionRule implements DetectionRule {
 	priority = 74;
 
 	canApply(context: DetectionContext): boolean {
-		return !context.atTrainStation &&
-			   context.currentSpeed >= 60 &&
-			   context.currentSpeed <= 130 &&
-			   context.speedHistory.length >= 10;
+		return (
+			!context.atTrainStation &&
+			context.currentSpeed >= 60 &&
+			context.currentSpeed <= 130 &&
+			context.speedHistory.length >= 10
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {

@@ -83,7 +83,9 @@ export async function importOwnTracksWithProgress(
 				// Skip points with null or invalid coordinates
 				if (isNaN(timestamp) || isNaN(lat) || isNaN(lon) || lat === null || lon === null) {
 					skippedCount++;
-					console.log(`⚠️ Skipping OwnTracks line ${i}: invalid coordinates (lat: ${lat}, lon: ${lon})`);
+					console.log(
+						`⚠️ Skipping OwnTracks line ${i}: invalid coordinates (lat: ${lat}, lon: ${lon})`
+					);
 					continue;
 				}
 
@@ -117,7 +119,7 @@ export async function importOwnTracksWithProgress(
 						location: `POINT(${lon} ${lat})`,
 						recorded_at: recordedAt,
 						country_code: countryCode,
-						tz_diff: tzDiff,  // Add timezone difference
+						tz_diff: tzDiff, // Add timezone difference
 						altitude: parts[3] ? parseFloat(parts[3]) : null,
 						accuracy: parts[4] ? parseFloat(parts[4]) : null,
 						speed: parts[6] ? parseFloat(parts[6]) : null,

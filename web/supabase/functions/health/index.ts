@@ -25,7 +25,9 @@ Deno.serve(async (req) => {
 		const supabase = createClient(supabaseUrl, supabaseKey);
 
 		// Simple query to check database connectivity
-		const { error } = await supabase.from('user_profiles').select('count', { count: 'exact', head: true });
+		const { error } = await supabase
+			.from('user_profiles')
+			.select('count', { count: 'exact', head: true });
 
 		const duration = performance.now() - start;
 
@@ -42,7 +44,7 @@ Deno.serve(async (req) => {
 
 	// Check 2: Environment variables
 	const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
-	const missingVars = requiredEnvVars.filter(v => !Deno.env.get(v));
+	const missingVars = requiredEnvVars.filter((v) => !Deno.env.get(v));
 
 	if (missingVars.length > 0) {
 		checks.environment = {

@@ -32,6 +32,7 @@
 
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
+	import { SvelteDate } from 'svelte/reactivity';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -280,8 +281,8 @@
 		switch (selectedFilter) {
 			case 'recent':
 				filtered = filtered.filter((trip) => {
-					const tripDate = new Date(trip.start_date);
-					const thirtyDaysAgo = new Date();
+					const tripDate = new SvelteDate(trip.start_date);
+					const thirtyDaysAgo = new SvelteDate();
 					thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 					return tripDate >= thirtyDaysAgo;
 				});
@@ -1286,7 +1287,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('navigation.trips')} - Wayli</title>
+	<title>{t('common.navigation.trips')} - Wayli</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -1294,7 +1295,7 @@
 	<div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
 		<div class="flex items-center gap-3">
 			<Route class="h-8 w-8 text-blue-600 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">{t('navigation.trips')}</h1>
+			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">{t('common.navigation.trips')}</h1>
 		</div>
 		<div class="flex gap-2">
 			<button
@@ -1827,18 +1828,24 @@
 					<!-- Trip Details and Footer -->
 					<div class="flex min-h-0 flex-1 flex-col p-4">
 						<div class="mb-2 flex flex-wrap items-start justify-between gap-2">
-							<h3 class="line-clamp-2 flex-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
+							<h3
+								class="line-clamp-2 flex-1 text-lg font-semibold text-gray-900 dark:text-gray-100"
+							>
 								{trip.title}
 							</h3>
 							<!-- Trip type badges -->
 							<div class="flex gap-1">
 								{#if trip.metadata?.isMultiCountryTrip}
-									<span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+									<span
+										class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+									>
 										Multi-Country
 									</span>
 								{/if}
 								{#if trip.metadata?.isMultiCityTrip}
-									<span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+									<span
+										class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+									>
 										Multi-City
 									</span>
 								{/if}
@@ -2064,12 +2071,16 @@
 												<!-- Trip type badges -->
 												<div class="flex gap-2">
 													{#if trip.metadata?.isMultiCountryTrip}
-														<span class="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+														<span
+															class="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300"
+														>
 															Multi-Country
 														</span>
 													{/if}
 													{#if trip.metadata?.isMultiCityTrip}
-														<span class="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+														<span
+															class="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+														>
 															Multi-City
 														</span>
 													{/if}
@@ -2078,7 +2089,9 @@
 											<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
 												{trip.description}
 											</p>
-											<div class="mb-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+											<div
+												class="mb-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400"
+											>
 												<span
 													>{t('trips.start')}: {format(
 														new Date(trip.start_date),
@@ -2093,15 +2106,21 @@
 
 											<!-- Visited Cities -->
 											{#if trip.metadata?.visitedCitiesDetailed && trip.metadata.visitedCitiesDetailed.length > 0}
-												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(city => city.durationHours >= 12 && city.city !== 'Unknown')}
+												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(
+													(city) => city.durationHours >= 12 && city.city !== 'Unknown'
+												)}
 												{#if significantCities.length > 0}
 													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-														<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+														<div
+															class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300"
+														>
 															{t('trips.visitedCities')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
-															{#each significantCities as city}
-																<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
+															{#each significantCities as city (city.city)}
+																<span
+																	class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300"
+																>
 																	<MapPin class="h-3 w-3" />
 																	<span class="font-medium">{city.city}</span>
 																</span>
@@ -2113,16 +2132,24 @@
 
 											<!-- Visited Countries (for multi-country trips) -->
 											{#if trip.metadata?.visitedCountriesDetailed && trip.metadata.visitedCountriesDetailed.length > 1}
-												{@const validCountries = trip.metadata.visitedCountriesDetailed.filter(country => country.countryCode !== 'Unknown')}
+												{@const validCountries = trip.metadata.visitedCountriesDetailed.filter(
+													(country) => country.countryCode !== 'Unknown'
+												)}
 												{#if validCountries.length > 1}
 													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-														<div class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+														<div
+															class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300"
+														>
 															{t('trips.visitedCountries')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
-															{#each validCountries as country}
-																<span class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300">
-																	<span class="font-medium">{$getCountryNameReactive(country.countryCode)}</span>
+															{#each validCountries as country (country.countryCode)}
+																<span
+																	class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300"
+																>
+																	<span class="font-medium"
+																		>{$getCountryNameReactive(country.countryCode)}</span
+																	>
 																</span>
 															{/each}
 														</div>

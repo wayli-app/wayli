@@ -22,7 +22,8 @@ export function calculateSpeedVariance(speeds: number[]): SpeedPatternMetrics {
 	}
 
 	const mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-	const variance = speeds.reduce((sum, speed) => sum + Math.pow(speed - mean, 2), 0) / speeds.length;
+	const variance =
+		speeds.reduce((sum, speed) => sum + Math.pow(speed - mean, 2), 0) / speeds.length;
 	const stdDev = Math.sqrt(variance);
 	const coefficientOfVariation = mean > 0 ? stdDev / mean : 0;
 
@@ -81,23 +82,18 @@ export function hasSustainedSpeed(
 	const now = Date.now();
 	const cutoff = now - minDurationMs;
 
-	const recentEntries = modeHistory.filter(m => m.timestamp >= cutoff);
+	const recentEntries = modeHistory.filter((m) => m.timestamp >= cutoff);
 
 	if (recentEntries.length === 0) return false;
 
 	// Check if all recent entries meet minimum speed
-	return recentEntries.every(m => m.speed >= minSpeed);
+	return recentEntries.every((m) => m.speed >= minSpeed);
 }
 
 /**
  * Calculate bearing (heading) between two points in degrees (0-360)
  */
-export function calculateBearing(
-	lat1: number,
-	lng1: number,
-	lat2: number,
-	lng2: number
-): number {
+export function calculateBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
 	const toRad = (deg: number) => (deg * Math.PI) / 180;
 	const toDeg = (rad: number) => (rad * 180) / Math.PI;
 
@@ -106,8 +102,7 @@ export function calculateBearing(
 	const Δλ = toRad(lng2 - lng1);
 
 	const y = Math.sin(Δλ) * Math.cos(φ2);
-	const x = Math.cos(φ1) * Math.sin(φ2) -
-			  Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+	const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
 
 	const θ = Math.atan2(y, x);
 	const bearing = (toDeg(θ) + 360) % 360; // Normalize to 0-360
@@ -119,9 +114,7 @@ export function calculateBearing(
  * Calculate bearing variance for a series of points
  * Uses circular statistics since bearings wrap around at 360°
  */
-export function calculateBearingVariance(
-	points: Array<{ lat: number; lng: number }>
-): number {
+export function calculateBearingVariance(points: Array<{ lat: number; lng: number }>): number {
 	if (points.length < 3) return 0;
 
 	const bearings: number[] = [];
@@ -137,7 +130,7 @@ export function calculateBearingVariance(
 	}
 
 	// Calculate circular variance (bearings wrap around at 360°)
-	const radians = bearings.map(b => (b * Math.PI) / 180);
+	const radians = bearings.map((b) => (b * Math.PI) / 180);
 	const sinSum = radians.reduce((sum, r) => sum + Math.sin(r), 0);
 	const cosSum = radians.reduce((sum, r) => sum + Math.cos(r), 0);
 
@@ -155,9 +148,7 @@ export function calculateBearingVariance(
  * Check if trajectory is straight (train-like)
  * Trains run on tracks with very low bearing variance
  */
-export function hasStraightTrajectory(
-	points: Array<{ lat: number; lng: number }>
-): boolean {
+export function hasStraightTrajectory(points: Array<{ lat: number; lng: number }>): boolean {
 	if (points.length < 5) return false;
 
 	const bearingVariance = calculateBearingVariance(points);
@@ -171,9 +162,7 @@ export function hasStraightTrajectory(
  * Check if trajectory has frequent turns (car-like)
  * Cars navigate roads with curves and turns
  */
-export function hasFrequentTurns(
-	points: Array<{ lat: number; lng: number }>
-): boolean {
+export function hasFrequentTurns(points: Array<{ lat: number; lng: number }>): boolean {
 	if (points.length < 5) return false;
 
 	const bearingVariance = calculateBearingVariance(points);
@@ -186,9 +175,9 @@ export function hasFrequentTurns(
  */
 export const PHYSICAL_CONSTRAINTS = {
 	walking: {
-		maxSpeed: 8,          // km/h
-		maxAccel: 0.5,        // m/s²
-		maxDecel: -1.0        // m/s²
+		maxSpeed: 8, // km/h
+		maxAccel: 0.5, // m/s²
+		maxDecel: -1.0 // m/s²
 	},
 	cycling: {
 		maxSpeed: 35,
@@ -196,12 +185,12 @@ export const PHYSICAL_CONSTRAINTS = {
 		maxDecel: -2.5
 	},
 	car: {
-		maxSpeed: 180,        // Realistic highway max
+		maxSpeed: 180, // Realistic highway max
 		maxAccel: 4.0,
 		maxDecel: -8.0
 	},
 	train: {
-		maxSpeed: 320,        // High-speed rail
+		maxSpeed: 320, // High-speed rail
 		maxAccel: 1.5,
 		maxDecel: -2.0
 	},
@@ -211,7 +200,7 @@ export const PHYSICAL_CONSTRAINTS = {
 		maxDecel: -5.0
 	},
 	stationary: {
-		maxSpeed: 3,          // GPS drift
+		maxSpeed: 3, // GPS drift
 		maxAccel: 0.1,
 		maxDecel: -0.1
 	}
@@ -220,10 +209,7 @@ export const PHYSICAL_CONSTRAINTS = {
 /**
  * Check if speed is physically possible for a mode
  */
-export function isPhysicallyPossible(
-	mode: string,
-	speed: number
-): boolean {
+export function isPhysicallyPossible(mode: string, speed: number): boolean {
 	const constraints = PHYSICAL_CONSTRAINTS[mode as keyof typeof PHYSICAL_CONSTRAINTS];
 	if (!constraints) return true;
 
@@ -234,21 +220,16 @@ export function isPhysicallyPossible(
 /**
  * Filter out physically impossible modes
  */
-export function filterPhysicallyPossibleModes(
-	speed: number,
-	candidateModes: string[]
-): string[] {
-	return candidateModes.filter(mode =>
-		isPhysicallyPossible(mode, speed)
-	);
+export function filterPhysicallyPossibleModes(speed: number, candidateModes: string[]): string[] {
+	return candidateModes.filter((mode) => isPhysicallyPossible(mode, speed));
 }
 
 /**
  * GPS sampling frequency analysis
  */
 export interface GPSFrequencyAnalysis {
-	averageInterval: number;        // milliseconds
-	intervalVariance: number;       // coefficient of variation of intervals
+	averageInterval: number; // milliseconds
+	intervalVariance: number; // coefficient of variation of intervals
 	frequencyType: 'active_navigation' | 'background_tracking' | 'mixed';
 	likelyMode: 'car' | 'train' | 'unknown';
 
@@ -301,13 +282,17 @@ export function analyzeGPSFrequency(
 
 	// Calculate interval variance (consistency of sampling)
 	const intervalMean = avgInterval;
-	const intervalVariance = intervals.length > 1
-		? Math.sqrt(intervals.reduce((sum, val) => sum + Math.pow(val - intervalMean, 2), 0) / intervals.length) / intervalMean
-		: 0;
+	const intervalVariance =
+		intervals.length > 1
+			? Math.sqrt(
+					intervals.reduce((sum, val) => sum + Math.pow(val - intervalMean, 2), 0) /
+						intervals.length
+				) / intervalMean
+			: 0;
 
 	let frequencyType: GPSFrequencyAnalysis['frequencyType'];
 	let likelyMode: GPSFrequencyAnalysis['likelyMode'];
-	let confidenceModifiers = { ...defaultModifiers };
+	const confidenceModifiers = { ...defaultModifiers };
 
 	// Active navigation: < 10 seconds average interval
 	if (avgInterval < 10000) {
@@ -315,10 +300,10 @@ export function analyzeGPSFrequency(
 		likelyMode = 'car';
 
 		// Strong signal: active navigation is almost always car
-		confidenceModifiers.car = 0.20;      // +20% for car
-		confidenceModifiers.train = -0.15;    // -15% for train
-		confidenceModifiers.walking = -0.10;  // -10% for walking
-		confidenceModifiers.cycling = -0.05;  // -5% for cycling
+		confidenceModifiers.car = 0.2; // +20% for car
+		confidenceModifiers.train = -0.15; // -15% for train
+		confidenceModifiers.walking = -0.1; // -10% for walking
+		confidenceModifiers.cycling = -0.05; // -5% for cycling
 	}
 	// Very low frequency: > 60 seconds (strong background tracking)
 	else if (avgInterval > 60000) {
@@ -326,11 +311,11 @@ export function analyzeGPSFrequency(
 		likelyMode = 'unknown';
 
 		// Strong signal: background tracking, likely train or walking
-		confidenceModifiers.car = -0.30;      // -30% for car (very unlikely active nav)
-		confidenceModifiers.train = 0.15;     // +15% for train
-		confidenceModifiers.walking = 0.10;   // +10% for walking
-		confidenceModifiers.cycling = 0.05;   // +5% for cycling
-		confidenceModifiers.airplane = 0.05;  // +5% for airplane
+		confidenceModifiers.car = -0.3; // -30% for car (very unlikely active nav)
+		confidenceModifiers.train = 0.15; // +15% for train
+		confidenceModifiers.walking = 0.1; // +10% for walking
+		confidenceModifiers.cycling = 0.05; // +5% for cycling
+		confidenceModifiers.airplane = 0.05; // +5% for airplane
 	}
 	// Medium-low frequency: 30-60 seconds
 	else if (avgInterval > 30000) {
@@ -338,9 +323,9 @@ export function analyzeGPSFrequency(
 		likelyMode = 'unknown';
 
 		// Moderate signal: background tracking
-		confidenceModifiers.car = -0.20;      // -20% for car
-		confidenceModifiers.train = 0.10;     // +10% for train
-		confidenceModifiers.walking = 0.05;   // +5% for walking
+		confidenceModifiers.car = -0.2; // -20% for car
+		confidenceModifiers.train = 0.1; // +10% for train
+		confidenceModifiers.walking = 0.05; // +5% for walking
 	}
 	// Medium frequency: 10-30 seconds (ambiguous)
 	else {
@@ -366,9 +351,9 @@ export function analyzeGPSFrequency(
 export interface StopPatternAnalysis {
 	stopCount: number;
 	stopsPerKm: number;
-	avgStopDuration: number;          // seconds
-	stopDurationVariance: number;     // coefficient of variation
-	longestMovementDuration: number;  // seconds
+	avgStopDuration: number; // seconds
+	stopDurationVariance: number; // coefficient of variation
+	longestMovementDuration: number; // seconds
 
 	pattern: 'train-like' | 'car-city' | 'car-highway' | 'walking' | 'unknown';
 	confidence: number;
@@ -379,8 +364,8 @@ export interface StopPatternAnalysis {
  * Speed transition smoothness analysis
  */
 export interface SpeedTransitionAnalysis {
-	averageChange: number;      // km/h
-	maxChange: number;          // km/h
+	averageChange: number; // km/h
+	maxChange: number; // km/h
 	smoothness: 'smooth' | 'moderate' | 'erratic';
 	likelyMode: 'train' | 'car' | 'unknown';
 }
@@ -390,9 +375,7 @@ export interface SpeedTransitionAnalysis {
  * Trains: Small, gradual changes (smooth)
  * Cars: Larger, more variable changes (erratic)
  */
-export function analyzeSpeedTransitions(
-	speedHistory: number[]
-): SpeedTransitionAnalysis {
+export function analyzeSpeedTransitions(speedHistory: number[]): SpeedTransitionAnalysis {
 	if (speedHistory.length < 3) {
 		return {
 			averageChange: 0,
@@ -459,8 +442,8 @@ export function analyzeStopPattern(
 
 	// Extract speeds from point history
 	const speeds = pointHistory
-		.map(p => p.speed !== undefined ? p.speed : 0)
-		.filter(s => s !== null);
+		.map((p) => (p.speed !== undefined ? p.speed : 0))
+		.filter((s) => s !== null);
 
 	if (speeds.length === 0) {
 		return {
@@ -508,7 +491,8 @@ export function analyzeStopPattern(
 
 	// Handle stop at the end of the journey
 	if (inStop && stops.length > 0) {
-		const duration = (pointHistory[speeds.length - 1].timestamp - pointHistory[stopStart].timestamp) / 1000;
+		const duration =
+			(pointHistory[speeds.length - 1].timestamp - pointHistory[stopStart].timestamp) / 1000;
 		if (duration >= MIN_STOP_DURATION) {
 			stops.push({ startIdx: stopStart, endIdx: speeds.length - 1, duration });
 		}
@@ -527,15 +511,17 @@ export function analyzeStopPattern(
 	// Calculate metrics
 	const stopCount = stops.length;
 	const stopsPerKm = totalDistanceKm > 0 ? stopCount / totalDistanceKm : 0;
-	const avgDuration = stops.length > 0
-		? stops.reduce((sum, s) => sum + s.duration, 0) / stops.length
-		: 0;
+	const avgDuration =
+		stops.length > 0 ? stops.reduce((sum, s) => sum + s.duration, 0) / stops.length : 0;
 
 	// Calculate duration variance (coefficient of variation)
-	const durations = stops.map(s => s.duration);
-	const durationCV = durations.length > 1
-		? (Math.sqrt(durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length) / avgDuration)
-		: 0;
+	const durations = stops.map((s) => s.duration);
+	const durationCV =
+		durations.length > 1
+			? Math.sqrt(
+					durations.reduce((sum, d) => sum + Math.pow(d - avgDuration, 2), 0) / durations.length
+				) / avgDuration
+			: 0;
 
 	// Calculate longest movement duration (time without stopping)
 	let longestMovement = 0;
@@ -552,13 +538,16 @@ export function analyzeStopPattern(
 	// Check final movement segment
 	if (stops.length > 0) {
 		const lastStop = stops[stops.length - 1];
-		const finalMovement = (pointHistory[pointHistory.length - 1].timestamp - pointHistory[lastStop.endIdx].timestamp) / 1000;
+		const finalMovement =
+			(pointHistory[pointHistory.length - 1].timestamp - pointHistory[lastStop.endIdx].timestamp) /
+			1000;
 		if (finalMovement > longestMovement) {
 			longestMovement = finalMovement;
 		}
 	} else {
 		// No stops - entire journey is one movement
-		longestMovement = (pointHistory[pointHistory.length - 1].timestamp - pointHistory[0].timestamp) / 1000;
+		longestMovement =
+			(pointHistory[pointHistory.length - 1].timestamp - pointHistory[0].timestamp) / 1000;
 	}
 
 	// Determine pattern and confidence
@@ -569,7 +558,7 @@ export function analyzeStopPattern(
 	// Train pattern: Few stops (<0.5 per km), long duration (60-300s), regular (low variance)
 	if (stopsPerKm < 0.5 && avgDuration > 60 && avgDuration < 300 && durationCV < 0.4) {
 		pattern = 'train-like';
-		confidence = 0.80;
+		confidence = 0.8;
 		likelyMode = 'train';
 	}
 	// Car city pattern: Many stops (>3 per km), irregular (high variance)
@@ -587,7 +576,7 @@ export function analyzeStopPattern(
 	// Walking pattern: Many stops (>5 per km), variable duration
 	else if (stopsPerKm > 5) {
 		pattern = 'walking';
-		confidence = 0.70;
+		confidence = 0.7;
 		likelyMode = 'walking';
 	}
 	// Moderate car pattern: 1-3 stops per km

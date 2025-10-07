@@ -159,7 +159,7 @@ describe('Speed Pattern Analysis', () => {
 					{ lat: 52.1, lng: 4.0 }, // North
 					{ lat: 52.1, lng: 4.1 }, // East
 					{ lat: 52.0, lng: 4.1 }, // South
-					{ lat: 52.0, lng: 4.2 }  // East again
+					{ lat: 52.0, lng: 4.2 } // East again
 				];
 				const variance = calculateBearingVariance(points);
 				expect(variance).toBeGreaterThan(20);
@@ -293,7 +293,7 @@ describe('Speed Pattern Analysis', () => {
 					{ timestamp: now - 20000 }, // 20s ago
 					{ timestamp: now - 15000 }, // 5s interval
 					{ timestamp: now - 10000 }, // 5s interval
-					{ timestamp: now - 5000 },  // 5s interval
+					{ timestamp: now - 5000 }, // 5s interval
 					{ timestamp: now }
 				];
 
@@ -307,7 +307,7 @@ describe('Speed Pattern Analysis', () => {
 				const modeHistory = [
 					{ timestamp: now - 180000 }, // 3 min ago
 					{ timestamp: now - 120000 }, // 60s interval
-					{ timestamp: now - 60000 },  // 60s interval
+					{ timestamp: now - 60000 }, // 60s interval
 					{ timestamp: now }
 				];
 

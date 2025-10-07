@@ -319,20 +319,21 @@ export function validateWorkerEnvironment() {
 // vite.config.ts
 // Preview server allowed hosts configuration
 export default defineConfig({
-  preview: {
-    allowedHosts: [
-      'localhost',
-      '127.0.0.1',
-      // Allow production domains from environment variable
-      ...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',') : []),
-      'wayli.app',
-      '.wayli.app'
-    ]
-  }
+	preview: {
+		allowedHosts: [
+			'localhost',
+			'127.0.0.1',
+			// Allow production domains from environment variable
+			...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',') : []),
+			'wayli.app',
+			'.wayli.app'
+		]
+	}
 });
 ```
 
 **Environment Variables:**
+
 - `VITE_ALLOWED_HOSTS`: Comma-separated list of allowed hosts for preview server
   - Example: `VITE_ALLOWED_HOSTS=wayli.app,staging.wayli.app,dev.wayli.app`
   - Default: `wayli.app` and `.wayli.app` (with subdomain support)
@@ -346,22 +347,26 @@ export default defineConfig({
 ### Docker Configuration
 
 **Multi-Stage Architecture**:
+
 - **`web` stage**: nginx serving static files (port 80)
 - **`worker` stage**: Node.js for background processing
 - **`builder` stage**: Builds the SvelteKit application
 
 **Entrypoint Script**: `docker-entrypoint.sh`
+
 - Handles worker modes (worker, workers)
 - Provides comprehensive debugging and error handling
 - Validates APP_MODE environment variable
 - Note: Web mode uses nginx directly
 
 **Container Modes**:
+
 - `APP_MODE=web`: Use nginx stage (static file serving)
 - `APP_MODE=worker`: Background worker process
 - `APP_MODE=workers`: Worker manager process
 
 **Best Practices**:
+
 - Use nginx for static file serving (much more efficient than Node.js)
 - Separate concerns: web serving vs background processing
 - Validate environment variables in entrypoint scripts

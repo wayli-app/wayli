@@ -110,7 +110,9 @@ export class JobRealtimeService {
 						: 0;
 
 					if (status === 'SUBSCRIBED') {
-						console.log(`✅ JobRealtime: Successfully subscribed to jobs channel (${connectionTime}ms)`);
+						console.log(
+							`✅ JobRealtime: Successfully subscribed to jobs channel (${connectionTime}ms)`
+						);
 						this.reconnectAttempts = 0; // Reset on successful connection
 						this.isConnecting = false;
 						this.connectionStartTime = null;
@@ -131,7 +133,9 @@ export class JobRealtimeService {
 					} else if (status === 'TIMED_OUT') {
 						console.error('❌ JobRealtime: Connection timed out');
 						console.error(`   Timeout occurred after ${connectionTime}ms`);
-						console.error('   Check: 1) Network connectivity 2) Nginx ingress timeouts 3) Firewall rules');
+						console.error(
+							'   Check: 1) Network connectivity 2) Nginx ingress timeouts 3) Firewall rules'
+						);
 						this.isConnecting = false;
 						this.connectionStartTime = null;
 						this.handleError('Connection timed out');
@@ -171,16 +175,11 @@ export class JobRealtimeService {
 			this.options.onJobUpdate?.(job);
 
 			// Check if job completed
-			if (
-				job.status === 'completed' ||
-				job.status === 'failed' ||
-				job.status === 'cancelled'
-			) {
+			if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
 				// Check if this is a status transition (not just an update to completed job)
 				const oldJobRecord = oldRecord as Partial<JobUpdate>;
 				const wasActive =
-					oldJobRecord &&
-					(oldJobRecord.status === 'queued' || oldJobRecord.status === 'running');
+					oldJobRecord && (oldJobRecord.status === 'queued' || oldJobRecord.status === 'running');
 
 				if (wasActive || eventType === 'INSERT') {
 					this.options.onJobCompleted?.(job);

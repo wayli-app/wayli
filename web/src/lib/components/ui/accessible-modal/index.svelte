@@ -113,27 +113,27 @@
 <svelte:window onkeydown={handleEscapeKey} />
 
 {#if open}
-	        <!-- Backdrop -->
-                        <div
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby={titleId}
-                        aria-describedby={descriptionId}
-                        onclick={handleBackdropClick}
-                        onkeydown={(e) => e.key === 'Escape' && onClose?.()}
-                        tabindex="0"
-                >
+	<!-- Backdrop -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby={titleId}
+		aria-describedby={descriptionId}
+		onclick={handleBackdropClick}
+		onkeydown={(e) => e.key === 'Escape' && onClose?.()}
+		tabindex="0"
+	>
 		<!-- Modal Content -->
-		                <div
-                        bind:this={modalElement}
-                        class="relative mx-4 w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[
-                                size
-                        ]} max-h-[90vh] overflow-y-auto"
-                        role="document"
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => e.key === 'Escape' && onClose?.()}
-                >
+		<div
+			bind:this={modalElement}
+			class="relative mx-4 w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[
+				size
+			]} max-h-[90vh] overflow-y-auto"
+			role="document"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.key === 'Escape' && onClose?.()}
+		>
 			<!-- Header -->
 			{#if title || showCloseButton}
 				<div class="mb-6 flex items-start justify-between">

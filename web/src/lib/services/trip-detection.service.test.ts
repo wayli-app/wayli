@@ -245,7 +245,7 @@ describe('TripDetectionService', () => {
 						address: { city: 'Amstelveen', country_code: 'nl' } // Different city
 					},
 					geometry: {
-						coordinates: [4.8500, 52.3000] // Within 50km of Amsterdam [lng, lat]
+						coordinates: [4.85, 52.3] // Within 50km of Amsterdam [lng, lat]
 					}
 				}
 			};
@@ -291,7 +291,7 @@ describe('TripDetectionService', () => {
 						address: {} // No city name
 					},
 					geometry: {
-						coordinates: [4.8500, 52.3000] // Within 50km [lng, lat]
+						coordinates: [4.85, 52.3] // Within 50km [lng, lat]
 					}
 				}
 			};
@@ -339,7 +339,11 @@ describe('TripDetectionService', () => {
 				visitedCities: []
 			};
 
-			const trip = await serviceInstance['updateUserState']({ recorded_at: '2024-01-01T12:00:00Z' }, null, 'home');
+			const trip = await serviceInstance['updateUserState'](
+				{ recorded_at: '2024-01-01T12:00:00Z' },
+				null,
+				'home'
+			);
 
 			// Short trip (4 hours) should be filtered out
 			expect(trip).toBeNull();
@@ -371,7 +375,11 @@ describe('TripDetectionService', () => {
 				]
 			};
 
-			const trip = await serviceInstance['updateUserState']({ recorded_at: '2024-01-02T08:00:00Z' }, null, 'home');
+			const trip = await serviceInstance['updateUserState'](
+				{ recorded_at: '2024-01-02T08:00:00Z' },
+				null,
+				'home'
+			);
 
 			// Long trip (24 hours) should create a trip
 			expect(trip).not.toBeNull();
@@ -394,7 +402,11 @@ describe('TripDetectionService', () => {
 				visitedCities: []
 			};
 
-			const trip = await serviceInstance['updateUserState']({ recorded_at: '2024-01-02T08:00:00Z' }, null, 'home');
+			const trip = await serviceInstance['updateUserState'](
+				{ recorded_at: '2024-01-02T08:00:00Z' },
+				null,
+				'home'
+			);
 
 			// Trip should not be created when there are no meaningful locations
 			expect(trip).toBeNull();
@@ -416,14 +428,18 @@ describe('TripDetectionService', () => {
 				visitedCities: []
 			};
 
-			await serviceInstance['updateUserState']({ recorded_at: '2024-01-01T12:00:00Z' }, null, 'away');
+			await serviceInstance['updateUserState'](
+				{ recorded_at: '2024-01-01T12:00:00Z' },
+				null,
+				'away'
+			);
 
 			// After 10 points confirming away state, it should transition but not update lastHomeStateStartTime
 			expect(serviceInstance['userState']!.currentState).toBe('away');
 			expect(serviceInstance['userState']!.lastHomeStateStartTime).toBe('2024-01-01T08:00:00Z'); // Should remain unchanged
 		});
 
-						it('should generate UUIDs using crypto.randomUUID()', () => {
+		it('should generate UUIDs using crypto.randomUUID()', () => {
 			// In test environment, crypto.randomUUID() is mocked to return 'test-uuid'
 			const uuid1 = crypto.randomUUID();
 			const uuid2 = crypto.randomUUID();
@@ -440,19 +456,31 @@ describe('TripDetectionService', () => {
 			const serviceInstance = new TripDetectionService('test-url', 'test-key');
 
 			// Same day trip (0 overnight stays, but 1 trip day)
-			const sameDayTrip = serviceInstance['calculateTripDays']('2024-01-01T08:00:00Z', '2024-01-01T18:00:00Z');
+			const sameDayTrip = serviceInstance['calculateTripDays'](
+				'2024-01-01T08:00:00Z',
+				'2024-01-01T18:00:00Z'
+			);
 			expect(sameDayTrip).toBe(1);
 
 			// Overnight trip (1 overnight stay, 2 trip days)
-			const overnightTrip = serviceInstance['calculateTripDays']('2024-01-01T08:00:00Z', '2024-01-02T18:00:00Z');
+			const overnightTrip = serviceInstance['calculateTripDays'](
+				'2024-01-01T08:00:00Z',
+				'2024-01-02T18:00:00Z'
+			);
 			expect(overnightTrip).toBe(2);
 
 			// Multi-day trip (2 overnight stays, 3 trip days)
-			const multiDayTrip = serviceInstance['calculateTripDays']('2024-01-01T08:00:00Z', '2024-01-03T18:00:00Z');
+			const multiDayTrip = serviceInstance['calculateTripDays'](
+				'2024-01-01T08:00:00Z',
+				'2024-01-03T18:00:00Z'
+			);
 			expect(multiDayTrip).toBe(3);
 
 			// Very short trip (less than 24 hours, but still 1 trip day)
-			const shortTrip = serviceInstance['calculateTripDays']('2024-01-01T08:00:00Z', '2024-01-01T10:00:00Z');
+			const shortTrip = serviceInstance['calculateTripDays'](
+				'2024-01-01T08:00:00Z',
+				'2024-01-01T10:00:00Z'
+			);
 			expect(shortTrip).toBe(1);
 		});
 
@@ -536,7 +564,7 @@ describe('TripDetectionService', () => {
 				{ cityName: 'Rotterdam', countryCode: 'nl', durationHours: 4 }, // Above 3-hour threshold
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 6 }, // Above 3-hour threshold
 				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 8 }, // Above 3-hour threshold
-				{ cityName: 'Paris', countryCode: 'fr', durationHours: 12 }, // Above 3-hour threshold
+				{ cityName: 'Paris', countryCode: 'fr', durationHours: 12 } // Above 3-hour threshold
 			];
 
 			// Test the filterLocationsByDuration method
@@ -548,11 +576,11 @@ describe('TripDetectionService', () => {
 			//    Only Belgium (14h total) doesn't meet 24h threshold either
 			//    So all locations are filtered out
 			expect(filteredLocations).toHaveLength(0);
-			expect(filteredLocations.find(loc => loc.cityName === 'Amsterdam')).toBeUndefined();
-			expect(filteredLocations.find(loc => loc.cityName === 'Rotterdam')).toBeUndefined();
-			expect(filteredLocations.find(loc => loc.cityName === 'Brussels')).toBeUndefined();
-			expect(filteredLocations.find(loc => loc.cityName === 'Antwerp')).toBeUndefined();
-			expect(filteredLocations.find(loc => loc.cityName === 'Paris')).toBeUndefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Amsterdam')).toBeUndefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Rotterdam')).toBeUndefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Brussels')).toBeUndefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Antwerp')).toBeUndefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Paris')).toBeUndefined();
 		});
 
 		it('should include locations when country duration threshold is met', () => {
@@ -561,8 +589,8 @@ describe('TripDetectionService', () => {
 			// Create mock visited locations where Belgium meets the 24-hour threshold
 			const mockLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 12 }, // 12 hours
-				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 8 },  // 8 hours
-				{ cityName: 'Ghent', countryCode: 'be', durationHours: 6 },   // 6 hours
+				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 8 }, // 8 hours
+				{ cityName: 'Ghent', countryCode: 'be', durationHours: 6 } // 6 hours
 				// Total Belgium: 26 hours (above 24-hour threshold)
 			];
 
@@ -571,9 +599,9 @@ describe('TripDetectionService', () => {
 
 			// All Belgian cities should be included since total country duration >= 24 hours
 			expect(filteredLocations).toHaveLength(3);
-			expect(filteredLocations.find(loc => loc.cityName === 'Brussels')).toBeDefined();
-			expect(filteredLocations.find(loc => loc.cityName === 'Antwerp')).toBeDefined();
-			expect(filteredLocations.find(loc => loc.cityName === 'Ghent')).toBeDefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Brussels')).toBeDefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Antwerp')).toBeDefined();
+			expect(filteredLocations.find((loc) => loc.cityName === 'Ghent')).toBeDefined();
 		});
 
 		it('should detect single dominant country when 50% threshold is met', () => {
@@ -582,8 +610,8 @@ describe('TripDetectionService', () => {
 			// Create mock locations where Belgium has 60% of the time (dominant)
 			const mockLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 18 }, // 18 hours (60% of 30 total)
-				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 },  // 6 hours
-				{ cityName: 'Paris', countryCode: 'fr', durationHours: 6 },    // 6 hours
+				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 }, // 6 hours
+				{ cityName: 'Paris', countryCode: 'fr', durationHours: 6 } // 6 hours
 				// Total: 30 hours, Belgium: 24 hours (80%), France: 6 hours (20%)
 			];
 
@@ -598,8 +626,8 @@ describe('TripDetectionService', () => {
 			// Create mock locations where no country has 50% of the time
 			const mockLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 12 }, // 12 hours (40% of 30 total)
-				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 },  // 6 hours
-				{ cityName: 'Paris', countryCode: 'fr', durationHours: 12 },   // 12 hours (40% of 30 total)
+				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 }, // 6 hours
+				{ cityName: 'Paris', countryCode: 'fr', durationHours: 12 } // 12 hours (40% of 30 total)
 				// Total: 30 hours, Belgium: 18 hours (60%), France: 12 hours (40%)
 			];
 
@@ -614,8 +642,8 @@ describe('TripDetectionService', () => {
 			// Create mock locations where Brussels has 60% of the time (dominant)
 			const mockLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 18 }, // 18 hours (60% of 30 total)
-				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 },  // 6 hours (20% of 30 total)
-				{ cityName: 'Ghent', countryCode: 'be', durationHours: 6 },    // 6 hours (20% of 30 total)
+				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 }, // 6 hours (20% of 30 total)
+				{ cityName: 'Ghent', countryCode: 'be', durationHours: 6 } // 6 hours (20% of 30 total)
 				// Total: 30 hours, Brussels: 18 hours (60%), others: 12 hours (40%)
 			];
 
@@ -631,7 +659,7 @@ describe('TripDetectionService', () => {
 			const mockLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 10 }, // 10 hours (33.3% of 30 total)
 				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 10 }, // 10 hours (33.3% of 30 total)
-				{ cityName: 'Ghent', countryCode: 'be', durationHours: 10 },   // 10 hours (33.3% of total)
+				{ cityName: 'Ghent', countryCode: 'be', durationHours: 10 } // 10 hours (33.3% of total)
 				// Total: 30 hours, each city: 10 hours (33.3%)
 			];
 
@@ -647,26 +675,27 @@ describe('TripDetectionService', () => {
 			(serviceInstance as any).userId = 'user123';
 
 			// Test single city trip
-			const singleCityLocations = [
-				{ cityName: 'Brussels', countryCode: 'be', durationHours: 24 }
-			];
+			const singleCityLocations = [{ cityName: 'Brussels', countryCode: 'be', durationHours: 24 }];
 			const singleCityTitle = await serviceInstance['generateTripTitle'](singleCityLocations, 'en');
 			expect(singleCityTitle).toBe('Trip to Brussels');
 
 			// Test multi-city trip with dominant city
 			const dominantCityLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 18 }, // 60% of 30 total
-				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 },  // 20% of 30 total
-				{ cityName: 'Ghent', countryCode: 'be', durationHours: 6 }     // 20% of 30 total
+				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 }, // 20% of 30 total
+				{ cityName: 'Ghent', countryCode: 'be', durationHours: 6 } // 20% of 30 total
 			];
-			const dominantCityTitle = await serviceInstance['generateTripTitle'](dominantCityLocations, 'en');
+			const dominantCityTitle = await serviceInstance['generateTripTitle'](
+				dominantCityLocations,
+				'en'
+			);
 			expect(dominantCityTitle).toBe('Trip to Brussels');
 
 			// Test multi-city trip with no dominant city
 			const multiCityLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 10 }, // 33.3% of 30 total
 				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 10 }, // 33.3% of 30 total
-				{ cityName: 'Ghent', countryCode: 'be', durationHours: 10 }    // 33.3% of 30 total
+				{ cityName: 'Ghent', countryCode: 'be', durationHours: 10 } // 33.3% of 30 total
 			];
 			const multiCityTitle = await serviceInstance['generateTripTitle'](multiCityLocations, 'en');
 			expect(multiCityTitle).toBe('Trip to Belgium'); // Should show country because there's no dominant city
@@ -674,31 +703,40 @@ describe('TripDetectionService', () => {
 			// Test multi-country trip with dominant country
 			const dominantCountryLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 18 }, // 60% of 30 total
-				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 },  // 20% of 30 total
-				{ cityName: 'Paris', countryCode: 'fr', durationHours: 6 }     // 20% of 30 total
+				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 6 }, // 20% of 30 total
+				{ cityName: 'Paris', countryCode: 'fr', durationHours: 6 } // 20% of 30 total
 			];
-			const dominantCountryTitle = await serviceInstance['generateTripTitle'](dominantCountryLocations, 'en');
+			const dominantCountryTitle = await serviceInstance['generateTripTitle'](
+				dominantCountryLocations,
+				'en'
+			);
 			expect(dominantCountryTitle).toBe('Trip to Brussels'); // Brussels is dominant city in dominant country
 
 			// Test multi-country trip with no dominant country
 			const multiCountryLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 15 }, // 30% of 50 total
 				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 10 }, // 20% of 50 total
-				{ cityName: 'Paris', countryCode: 'fr', durationHours: 15 },   // 30% of 50 total
-				{ cityName: 'Lyon', countryCode: 'fr', durationHours: 10 }     // 20% of 50 total
+				{ cityName: 'Paris', countryCode: 'fr', durationHours: 15 }, // 30% of 50 total
+				{ cityName: 'Lyon', countryCode: 'fr', durationHours: 10 } // 20% of 50 total
 			];
-			const multiCountryTitle = await serviceInstance['generateTripTitle'](multiCountryLocations, 'en');
+			const multiCountryTitle = await serviceInstance['generateTripTitle'](
+				multiCountryLocations,
+				'en'
+			);
 			expect(multiCountryTitle).toBe('Trip to Belgium, France'); // Belgium is dominant (50% of total), Brussels is dominant city
 
 			// Test truly multi-country trip with no dominant country
 			const trueMultiCountryLocations = [
 				{ cityName: 'Brussels', countryCode: 'be', durationHours: 15 }, // 20% of 75 total
 				{ cityName: 'Antwerp', countryCode: 'be', durationHours: 10 }, // 13.3% of 75 total
-				{ cityName: 'Paris', countryCode: 'fr', durationHours: 18 },   // 24% of 75 total
-				{ cityName: 'Lyon', countryCode: 'fr', durationHours: 12 },    // 16% of 75 total
-				{ cityName: 'Berlin', countryCode: 'de', durationHours: 20 }   // 26.7% of 75 total
+				{ cityName: 'Paris', countryCode: 'fr', durationHours: 18 }, // 24% of 75 total
+				{ cityName: 'Lyon', countryCode: 'fr', durationHours: 12 }, // 16% of 75 total
+				{ cityName: 'Berlin', countryCode: 'de', durationHours: 20 } // 26.7% of 75 total
 			];
-			const trueMultiCountryTitle = await serviceInstance['generateTripTitle'](trueMultiCountryLocations, 'en');
+			const trueMultiCountryTitle = await serviceInstance['generateTripTitle'](
+				trueMultiCountryLocations,
+				'en'
+			);
 			expect(trueMultiCountryTitle).toBe('Trip to France, Belgium'); // France is most visited country (40%), Paris is dominant city in France (60% of France's time), Germany is filtered out, because it was visited for less than 24 hours.
 		});
 	});

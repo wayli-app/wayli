@@ -154,13 +154,20 @@ Deno.serve(async (req) => {
 					if (geocodingError) {
 						logError(geocodingError, 'JOBS');
 						// Don't fail the cancellation, just log the error
-						console.error('❌ [JOBS] Failed to create geocoding job after import cancellation:', geocodingError);
+						console.error(
+							'❌ [JOBS] Failed to create geocoding job after import cancellation:',
+							geocodingError
+						);
 					} else {
-						logSuccess('Reverse geocoding job created successfully after import cancellation', 'JOBS', {
-							userId: user.id,
-							cancelledJobId: jobId,
-							geocodingJobId: geocodingJob.id
-						});
+						logSuccess(
+							'Reverse geocoding job created successfully after import cancellation',
+							'JOBS',
+							{
+								userId: user.id,
+								cancelledJobId: jobId,
+								geocodingJobId: geocodingJob.id
+							}
+						);
 					}
 				} catch (error) {
 					logError(error, 'JOBS');

@@ -1,7 +1,16 @@
 // /Users/bart/Dev/wayli/web/src/lib/services/transport-mode-detector.service.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule, PointData } from '../types/transport-detection.types';
-import { calculateMultiPointSpeed, getAdaptiveWindowSize, setSpeedCalculationWindow } from '../utils/multi-point-speed';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule,
+	PointData
+} from '../types/transport-detection.types';
+import {
+	calculateMultiPointSpeed,
+	getAdaptiveWindowSize,
+	setSpeedCalculationWindow
+} from '../utils/multi-point-speed';
 import { analyzeGPSFrequency } from '../utils/speed-pattern-analysis';
 
 /**
@@ -36,7 +45,7 @@ export class TransportModeDetector {
 	 * Remove a rule by name
 	 */
 	removeRule(ruleName: string): void {
-		this.rules = this.rules.filter(rule => rule.name !== ruleName);
+		this.rules = this.rules.filter((rule) => rule.name !== ruleName);
 	}
 
 	/**
@@ -50,7 +59,7 @@ export class TransportModeDetector {
 	 * Get applicable rules for a context (for debugging)
 	 */
 	getApplicableRules(context: DetectionContext): DetectionRule[] {
-		return this.rules.filter(rule => rule.canApply(context));
+		return this.rules.filter((rule) => rule.canApply(context));
 	}
 
 	/**
@@ -111,13 +120,10 @@ export class TransportModeDetector {
 		const stableSpeed = calculateMultiPointSpeed(allPoints, windowSize);
 
 		// Calculate average speed from history
-		const speedHistory = allPoints
-			.filter(p => p.speed !== undefined)
-			.map(p => p.speed!);
+		const speedHistory = allPoints.filter((p) => p.speed !== undefined).map((p) => p.speed!);
 
-		const averageSpeed = speedHistory.length > 0
-			? speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length
-			: 0;
+		const averageSpeed =
+			speedHistory.length > 0 ? speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length : 0;
 
 		// Calculate rolling average speed
 		const rollingAverageSpeed = calculateMultiPointSpeed(allPoints, 5);
@@ -148,10 +154,7 @@ export class TransportModeDetector {
 	/**
 	 * Update journey context based on detection result
 	 */
-	updateJourneyContext(
-		context: DetectionContext,
-		result: DetectionResult
-	): any {
+	updateJourneyContext(context: DetectionContext, result: DetectionResult): any {
 		const now = Date.now();
 		const currentJourney = context.currentJourney;
 
@@ -174,7 +177,7 @@ export class TransportModeDetector {
 			endStation: context.atTrainStation ? context.stationName : currentJourney.endStation,
 			endAirport: context.atAirport ? context.airportName : currentJourney.endAirport,
 			endCoordinates: { lat: context.current.lat, lng: context.current.lng },
-			totalDistance: currentJourney.totalDistance + (context.currentSpeed * 0.001), // Rough estimate
+			totalDistance: currentJourney.totalDistance + context.currentSpeed * 0.001, // Rough estimate
 			averageSpeed: (currentJourney.averageSpeed + context.currentSpeed) / 2
 		};
 	}

@@ -22,8 +22,6 @@ The environment configuration follows a layered approach:
 
 ## 📁 File Structure
 
-
-
 ### `server-environment.ts` - Server-Side Configuration
 
 - **Purpose**: Server-only configuration using SvelteKit's `$env/static/private`

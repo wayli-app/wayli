@@ -12,9 +12,7 @@ import type { PointData } from '../../../src/lib/types/transport-detection.types
 describe('Multi-Point Speed Calculation', () => {
 	describe('calculateMultiPointSpeed', () => {
 		it('should return 0 for insufficient points', () => {
-			const points: PointData[] = [
-				{ lat: 0, lng: 0, timestamp: Date.now() }
-			];
+			const points: PointData[] = [{ lat: 0, lng: 0, timestamp: Date.now() }];
 
 			const speed = calculateMultiPointSpeed(points);
 			expect(speed).toBe(0);
@@ -38,8 +36,8 @@ describe('Multi-Point Speed Calculation', () => {
 			const points: PointData[] = [
 				{ lat: 0, lng: 0, timestamp: now },
 				{ lat: 0.001, lng: 0, timestamp: now + 1000 }, // Normal speed
-				{ lat: 0.1, lng: 0, timestamp: now + 2000 },   // Extreme outlier
-				{ lat: 0.002, lng: 0, timestamp: now + 3000 }  // Back to normal
+				{ lat: 0.1, lng: 0, timestamp: now + 2000 }, // Extreme outlier
+				{ lat: 0.002, lng: 0, timestamp: now + 3000 } // Back to normal
 			];
 
 			const speed = calculateMultiPointSpeed(points);
@@ -71,9 +69,7 @@ describe('Multi-Point Speed Calculation', () => {
 
 	describe('getAdaptiveWindowSize', () => {
 		it('should return minimum window size for insufficient points', () => {
-			const points: PointData[] = [
-				{ lat: 0, lng: 0, timestamp: Date.now() }
-			];
+			const points: PointData[] = [{ lat: 0, lng: 0, timestamp: Date.now() }];
 
 			const windowSize = getAdaptiveWindowSize(points);
 			expect(windowSize).toBe(SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE);

@@ -291,7 +291,7 @@ export class ServiceAdapter {
 		});
 	}
 
-		async createImportJob(
+	async createImportJob(
 		file: File,
 		format: string,
 		onUploadProgress?: (progress: number) => void
@@ -387,8 +387,6 @@ export class ServiceAdapter {
 			throw error;
 		}
 	}
-
-
 
 	async getImportProgress() {
 		return this.callApi('import/progress');

@@ -60,19 +60,45 @@
 
 						goto(verificationUrl);
 					} else {
-						// No 2FA enabled, proceed with normal login
-						toast.success(t('auth.signedInSuccessfully'));
+						// No 2FA enabled, check onboarding status
+						const { data: profile } = await supabase
+							.from('user_profiles')
+							.select('onboarding_completed, first_login_at')
+							.eq('id', data.user.id)
+							.single();
 
-						// Wait for the auth state change to propagate, then redirect
-						setTimeout(async () => {
-							// Check if we're still on the signin page and have a user
-							const { data: { session } } = await supabase.auth.getSession();
-							if (session?.user && $page.url.pathname.startsWith('/auth/signin')) {
-								const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-								console.log('🔄 [SignIn] Redirecting after successful authentication to:', redirectTo);
-								goto(redirectTo, { replaceState: true });
+						// If first-time user, redirect to onboarding
+						if (!profile?.onboarding_completed) {
+							if (!profile?.first_login_at) {
+								await supabase
+									.from('user_profiles')
+									.update({ first_login_at: new Date().toISOString() })
+									.eq('id', data.user.id);
 							}
-						}, 500); // Reduced timeout for better UX
+
+							toast.success(t('auth.welcomeSetupProfile'));
+							goto('/dashboard/account-settings?onboarding=true');
+						} else {
+							// Returning user - proceed with normal login
+							toast.success(t('auth.signedInSuccessfully'));
+
+							// Wait for the auth state change to propagate, then redirect
+							setTimeout(async () => {
+								// Check if we're still on the signin page and have a user
+								const {
+									data: { session }
+								} = await supabase.auth.getSession();
+								if (session?.user && $page.url.pathname.startsWith('/auth/signin')) {
+									const redirectTo =
+										$page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+									console.log(
+										'🔄 [SignIn] Redirecting after successful authentication to:',
+										redirectTo
+									);
+									goto(redirectTo, { replaceState: true });
+								}
+							}, 500); // Reduced timeout for better UX
+						}
 					}
 				} catch (twoFactorError: any) {
 					console.error('2FA check error:', twoFactorError);

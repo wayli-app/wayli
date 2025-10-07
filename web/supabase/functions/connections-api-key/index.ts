@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 		console.log('🔄 [CONNECTIONS] Generated API key:', apiKey.substring(0, 8) + '...');
 
 		// Update the user's user_metadata with the new API key
-		const userMetadata = user.user_metadata as Record<string, unknown> || {};
+		const userMetadata = (user.user_metadata as Record<string, unknown>) || {};
 		const { error: updateError } = await supabase.auth.admin.updateUserById(user.id as string, {
 			user_metadata: {
 				...userMetadata,

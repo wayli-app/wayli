@@ -18,7 +18,14 @@ describe('Speed Rules', () => {
 				stationName: 'Amsterdam Central',
 				currentSpeed: 30.8, // Walking at 30.8 km/h is impossible (limits: 0-12)
 				modeHistory: [
-					{ mode: 'walking', timestamp: Date.now() - 1000, speed: 30.8, coordinates: { lat: 52.0, lng: 4.0 }, confidence: 0.7, reason: 'test' }
+					{
+						mode: 'walking',
+						timestamp: Date.now() - 1000,
+						speed: 30.8,
+						coordinates: { lat: 52.0, lng: 4.0 },
+						confidence: 0.7,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -37,7 +44,14 @@ describe('Speed Rules', () => {
 				onHighway: true,
 				currentSpeed: 100,
 				modeHistory: [
-					{ mode: 'walking', timestamp: Date.now() - 1000, speed: 100, coordinates: { lat: 52.0, lng: 4.0 }, confidence: 0.7, reason: 'test' }
+					{
+						mode: 'walking',
+						timestamp: Date.now() - 1000,
+						speed: 100,
+						coordinates: { lat: 52.0, lng: 4.0 },
+						confidence: 0.7,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -55,7 +69,14 @@ describe('Speed Rules', () => {
 				airportName: 'Schiphol',
 				currentSpeed: 250,
 				modeHistory: [
-					{ mode: 'car', timestamp: Date.now() - 1000, speed: 250, coordinates: { lat: 52.0, lng: 4.0 }, confidence: 0.7, reason: 'test' }
+					{
+						mode: 'car',
+						timestamp: Date.now() - 1000,
+						speed: 250,
+						coordinates: { lat: 52.0, lng: 4.0 },
+						confidence: 0.7,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -74,7 +95,14 @@ describe('Speed Rules', () => {
 				atAirport: false,
 				currentSpeed: 30.8, // Cycling speed
 				modeHistory: [
-					{ mode: 'walking', timestamp: Date.now() - 1000, speed: 30.8, coordinates: { lat: 52.0, lng: 4.0 }, confidence: 0.7, reason: 'test' }
+					{
+						mode: 'walking',
+						timestamp: Date.now() - 1000,
+						speed: 30.8,
+						coordinates: { lat: 52.0, lng: 4.0 },
+						confidence: 0.7,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -90,7 +118,14 @@ describe('Speed Rules', () => {
 			const context = createMockContext({
 				currentSpeed: 8, // Valid walking speed
 				modeHistory: [
-					{ mode: 'walking', timestamp: Date.now() - 1000, speed: 8, coordinates: { lat: 52.0, lng: 4.0 }, confidence: 0.8, reason: 'test' }
+					{
+						mode: 'walking',
+						timestamp: Date.now() - 1000,
+						speed: 8,
+						coordinates: { lat: 52.0, lng: 4.0 },
+						confidence: 0.8,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -146,7 +181,7 @@ describe('Speed Rules', () => {
 function createMockContext(overrides: Partial<DetectionContext> = {}): DetectionContext {
 	return {
 		current: { lat: 52.3676, lng: 4.9041, timestamp: Date.now() },
-		previous: { lat: 52.3675, lng: 4.9040, timestamp: Date.now() - 1000 },
+		previous: { lat: 52.3675, lng: 4.904, timestamp: Date.now() - 1000 },
 		pointHistory: [],
 		modeHistory: [],
 		atTrainStation: false,

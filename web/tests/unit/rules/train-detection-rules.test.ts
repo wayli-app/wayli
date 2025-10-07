@@ -174,11 +174,46 @@ describe('Train Detection Rules', () => {
 				},
 				currentSpeed: 20,
 				modeHistory: [
-					{ mode: 'train', timestamp: fiveMinutesAgo, speed: 25, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: fiveMinutesAgo + 60000, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: fiveMinutesAgo + 120000, speed: 15, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: fiveMinutesAgo + 180000, speed: 18, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 60000, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' }
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo,
+						speed: 25,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo + 60000,
+						speed: 20,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo + 120000,
+						speed: 15,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo + 180000,
+						speed: 18,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 60000,
+						speed: 20,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -203,11 +238,46 @@ describe('Train Detection Rules', () => {
 				currentSpeed: 20,
 				speedHistory: [120, 80, 60, 40, 20],
 				modeHistory: [
-					{ mode: 'train', timestamp: now - 240000, speed: 120, coordinates: { lat: 52.3, lng: 4.97 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 180000, speed: 80, coordinates: { lat: 52.27, lng: 4.98 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 120000, speed: 60, coordinates: { lat: 52.24, lng: 4.99 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 60000, speed: 40, coordinates: { lat: 52.21, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' }
+					{
+						mode: 'train',
+						timestamp: now - 240000,
+						speed: 120,
+						coordinates: { lat: 52.3, lng: 4.97 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 180000,
+						speed: 80,
+						coordinates: { lat: 52.27, lng: 4.98 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 120000,
+						speed: 60,
+						coordinates: { lat: 52.24, lng: 4.99 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 60000,
+						speed: 40,
+						coordinates: { lat: 52.21, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now,
+						speed: 20,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -231,9 +301,30 @@ describe('Train Detection Rules', () => {
 				},
 				currentSpeed: 0,
 				modeHistory: [
-					{ mode: 'train', timestamp: now - 600000, speed: 110, coordinates: { lat: 52.3, lng: 4.97 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 300000, speed: 115, coordinates: { lat: 52.25, lng: 4.98 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 120000, speed: 0, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' } // 2 min stop
+					{
+						mode: 'train',
+						timestamp: now - 600000,
+						speed: 110,
+						coordinates: { lat: 52.3, lng: 4.97 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 300000,
+						speed: 115,
+						coordinates: { lat: 52.25, lng: 4.98 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 120000,
+						speed: 0,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					} // 2 min stop
 				]
 			});
 
@@ -271,7 +362,14 @@ describe('Train Detection Rules', () => {
 					{ lat: 52.1, lng: 5.0, timestamp: now - 60000 }
 				],
 				modeHistory: [
-					{ mode: 'train', timestamp: now - 900000, speed: 110, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.9, reason: 'at station' }
+					{
+						mode: 'train',
+						timestamp: now - 900000,
+						speed: 110,
+						coordinates: { lat: 52.3676, lng: 4.9041 },
+						confidence: 0.9,
+						reason: 'at station'
+					}
 				],
 				speedHistory: [110, 112, 115, 113, 114, 115, 112, 116, 114, 115]
 			});
@@ -291,7 +389,14 @@ describe('Train Detection Rules', () => {
 				currentSpeed: 110,
 				speedHistory: [110], // Only one data point
 				modeHistory: [
-					{ mode: 'car', timestamp: Date.now() - 60000, speed: 110, coordinates: { lat: 52.0, lng: 4.0 }, confidence: 0.8, reason: 'test' }
+					{
+						mode: 'car',
+						timestamp: Date.now() - 60000,
+						speed: 110,
+						coordinates: { lat: 52.0, lng: 4.0 },
+						confidence: 0.8,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -337,13 +442,34 @@ describe('Train Detection Rules', () => {
 					// 400m traveled over ~15 seconds (too short for train)
 					{ lat: 52.5, lng: 4.8, timestamp: now - 15000 },
 					{ lat: 52.5018, lng: 4.8, timestamp: now - 10000 }, // ~200m
-					{ lat: 52.5036, lng: 4.8, timestamp: now - 5000 },  // ~400m total
+					{ lat: 52.5036, lng: 4.8, timestamp: now - 5000 }, // ~400m total
 					{ lat: 52.5054, lng: 4.8, timestamp: now }
 				],
 				modeHistory: [
-					{ mode: 'car', timestamp: now - 60000, speed: 110, coordinates: { lat: 52.4, lng: 4.8 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now - 30000, speed: 115, coordinates: { lat: 52.45, lng: 4.8 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now - 15000, speed: 110, coordinates: { lat: 52.5, lng: 4.8 }, confidence: 0.8, reason: 'test' }
+					{
+						mode: 'car',
+						timestamp: now - 60000,
+						speed: 110,
+						coordinates: { lat: 52.4, lng: 4.8 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now - 30000,
+						speed: 115,
+						coordinates: { lat: 52.45, lng: 4.8 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now - 15000,
+						speed: 110,
+						coordinates: { lat: 52.5, lng: 4.8 },
+						confidence: 0.8,
+						reason: 'test'
+					}
 				],
 				speedHistory: [110, 112, 115, 113, 110] // Train-like low variance
 			});
@@ -371,15 +497,57 @@ describe('Train Detection Rules', () => {
 					{ lat: 52.04, lng: 4.84, timestamp: now - 360000 },
 					{ lat: 52.06, lng: 4.86, timestamp: now - 240000 },
 					{ lat: 52.08, lng: 4.88, timestamp: now - 120000 },
-					{ lat: 52.10, lng: 4.90, timestamp: now }
+					{ lat: 52.1, lng: 4.9, timestamp: now }
 				],
 				modeHistory: [
-					{ mode: 'car', timestamp: now - 600000, speed: 110, coordinates: { lat: 52.0, lng: 4.8 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now - 480000, speed: 112, coordinates: { lat: 52.02, lng: 4.82 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now - 360000, speed: 115, coordinates: { lat: 52.04, lng: 4.84 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now - 240000, speed: 113, coordinates: { lat: 52.06, lng: 4.86 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now - 120000, speed: 110, coordinates: { lat: 52.08, lng: 4.88 }, confidence: 0.8, reason: 'test' },
-					{ mode: 'car', timestamp: now, speed: 112, coordinates: { lat: 52.10, lng: 4.90 }, confidence: 0.8, reason: 'test' }
+					{
+						mode: 'car',
+						timestamp: now - 600000,
+						speed: 110,
+						coordinates: { lat: 52.0, lng: 4.8 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now - 480000,
+						speed: 112,
+						coordinates: { lat: 52.02, lng: 4.82 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now - 360000,
+						speed: 115,
+						coordinates: { lat: 52.04, lng: 4.84 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now - 240000,
+						speed: 113,
+						coordinates: { lat: 52.06, lng: 4.86 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now - 120000,
+						speed: 110,
+						coordinates: { lat: 52.08, lng: 4.88 },
+						confidence: 0.8,
+						reason: 'test'
+					},
+					{
+						mode: 'car',
+						timestamp: now,
+						speed: 112,
+						coordinates: { lat: 52.1, lng: 4.9 },
+						confidence: 0.8,
+						reason: 'test'
+					}
 				],
 				speedHistory: [110, 112, 115, 113, 110, 112] // Train-like low variance
 			});
@@ -432,11 +600,46 @@ describe('Train Detection Rules', () => {
 				atTrainStation: false,
 				currentSpeed: 20,
 				modeHistory: [
-					{ mode: 'train', timestamp: fiveMinutesAgo, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: fiveMinutesAgo + 60000, speed: 15, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: fiveMinutesAgo + 120000, speed: 10, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: fiveMinutesAgo + 180000, speed: 15, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 60000, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'test' }
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo,
+						speed: 20,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo + 60000,
+						speed: 15,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo + 120000,
+						speed: 10,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: fiveMinutesAgo + 180000,
+						speed: 15,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 60000,
+						speed: 20,
+						coordinates: { lat: 52.2, lng: 5.0 },
+						confidence: 0.9,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -482,8 +685,22 @@ describe('Train Detection Rules', () => {
 				},
 				currentSpeed: 0,
 				modeHistory: [
-					{ mode: 'train', timestamp: now - 600000, speed: 110, coordinates: { lat: 52.3, lng: 4.97 }, confidence: 0.9, reason: 'test' },
-					{ mode: 'train', timestamp: now - 300000, speed: 115, coordinates: { lat: 52.25, lng: 4.98 }, confidence: 0.9, reason: 'test' }
+					{
+						mode: 'train',
+						timestamp: now - 600000,
+						speed: 110,
+						coordinates: { lat: 52.3, lng: 4.97 },
+						confidence: 0.9,
+						reason: 'test'
+					},
+					{
+						mode: 'train',
+						timestamp: now - 300000,
+						speed: 115,
+						coordinates: { lat: 52.25, lng: 4.98 },
+						confidence: 0.9,
+						reason: 'test'
+					}
 				]
 			});
 
@@ -508,7 +725,7 @@ describe('Train Detection Rules', () => {
 function createMockContext(overrides: Partial<DetectionContext> = {}): DetectionContext {
 	return {
 		current: { lat: 52.3676, lng: 4.9041, timestamp: Date.now() },
-		previous: { lat: 52.3675, lng: 4.9040, timestamp: Date.now() - 1000 },
+		previous: { lat: 52.3675, lng: 4.904, timestamp: Date.now() - 1000 },
 		pointHistory: [],
 		modeHistory: [],
 		atTrainStation: false,

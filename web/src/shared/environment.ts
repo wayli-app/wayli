@@ -20,17 +20,17 @@ export const ENVIRONMENT = {
 	// Timeouts and limits
 	DEFAULT_TIMEOUT: 30000, // 30 seconds
 	MAX_RETRY_ATTEMPTS: 3,
-	RETRY_DELAY: 1000, // 1 second
+	RETRY_DELAY: 1000 // 1 second
 } as const;
 
 export const LOG_LEVELS = {
 	ERROR: 'error',
 	WARN: 'warn',
 	INFO: 'info',
-	DEBUG: 'debug',
+	DEBUG: 'debug'
 } as const;
 
-export type LogLevel = typeof LOG_LEVELS[keyof typeof LOG_LEVELS];
+export type LogLevel = (typeof LOG_LEVELS)[keyof typeof LOG_LEVELS];
 
 // Environment-specific logging
 export function getLogLevel(): LogLevel {

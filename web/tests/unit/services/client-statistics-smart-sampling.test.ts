@@ -46,25 +46,26 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 		// Mock fetch response for smart sampling
 		global.fetch = vi.fn().mockResolvedValue({
 			ok: true,
-			json: () => Promise.resolve({
-				data: [
-					{
-						recorded_at: '2024-01-01T00:00:00Z',
-						location: { type: 'Point', coordinates: [0, 0] },
-						speed: 0,
-						distance: 0,
-						time_spent: 0,
-						country_code: 'US',
-						tz_diff: 0,
-						geocode: { properties: { type: 'test' } }
+			json: () =>
+				Promise.resolve({
+					data: [
+						{
+							recorded_at: '2024-01-01T00:00:00Z',
+							location: { type: 'Point', coordinates: [0, 0] },
+							speed: 0,
+							distance: 0,
+							time_spent: 0,
+							country_code: 'US',
+							tz_diff: 0,
+							geocode: { properties: { type: 'test' } }
+						}
+					],
+					metadata: {
+						totalCount: 5000,
+						returnedCount: 1500,
+						samplingApplied: true
 					}
-				],
-				metadata: {
-					totalCount: 5000,
-					returnedCount: 1500,
-					samplingApplied: true
-				}
-			})
+				})
 		});
 
 		// Mock getTotalCount to return large number
@@ -74,7 +75,13 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 		const onError = vi.fn();
 
 		// This should trigger smart sampling
-		await service.loadAndProcessData('test-user-id', '2024-01-01', '2024-01-31', onProgress, onError);
+		await service.loadAndProcessData(
+			'test-user-id',
+			'2024-01-01',
+			'2024-01-31',
+			onProgress,
+			onError
+		);
 
 		// Verify that fetch was called for smart sampling
 		expect(global.fetch).toHaveBeenCalledWith(
@@ -82,7 +89,7 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 			expect.objectContaining({
 				method: 'POST',
 				headers: expect.objectContaining({
-					'Authorization': 'Bearer test-token',
+					Authorization: 'Bearer test-token',
 					'Content-Type': 'application/json'
 				}),
 				body: JSON.stringify({
@@ -136,7 +143,13 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 		const onError = vi.fn();
 
 		// This should trigger smart sampling, fail, and fallback
-		await service.loadAndProcessData('test-user-id', '2024-01-01', '2024-01-31', onProgress, onError);
+		await service.loadAndProcessData(
+			'test-user-id',
+			'2024-01-01',
+			'2024-01-31',
+			onProgress,
+			onError
+		);
 
 		// Verify that fetch was called (smart sampling attempted)
 		expect(global.fetch).toHaveBeenCalled();
@@ -171,7 +184,13 @@ describe('ClientStatisticsService - Smart Sampling', () => {
 		const onError = vi.fn();
 
 		// This should use regular loading
-		await service.loadAndProcessData('test-user-id', '2024-01-01', '2024-01-31', onProgress, onError);
+		await service.loadAndProcessData(
+			'test-user-id',
+			'2024-01-01',
+			'2024-01-31',
+			onProgress,
+			onError
+		);
 
 		// Verify that fetch was NOT called (no smart sampling)
 		expect(global.fetch).not.toHaveBeenCalled();

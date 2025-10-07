@@ -15,16 +15,16 @@ const providedId = process.argv[2];
 let workerId: string;
 
 if (providedId && UUID_REGEX.test(providedId)) {
-    // Use provided UUID if it's valid
-    workerId = providedId;
-    console.log(`🔑 Using provided worker ID: ${workerId}`);
+	// Use provided UUID if it's valid
+	workerId = providedId;
+	console.log(`🔑 Using provided worker ID: ${workerId}`);
 } else {
-    // Generate new UUID if no valid UUID provided
-    workerId = randomUUID();
-    if (providedId) {
-        console.log(`⚠️  Invalid UUID provided: "${providedId}". Generating new UUID instead.`);
-    }
-    console.log(`🆔 Generated new worker ID: ${workerId}`);
+	// Generate new UUID if no valid UUID provided
+	workerId = randomUUID();
+	if (providedId) {
+		console.log(`⚠️  Invalid UUID provided: "${providedId}". Generating new UUID instead.`);
+	}
+	console.log(`🆔 Generated new worker ID: ${workerId}`);
 }
 
 console.log(`🚀 Starting standalone worker with ID: ${workerId}`);
@@ -65,10 +65,12 @@ process.on('uncaughtException', async (error) => {
 
 	// Check if this is a connection-related error
 	if (error instanceof Error) {
-		if (error.message.includes('Missing required environment variables') ||
+		if (
+			error.message.includes('Missing required environment variables') ||
 			error.message.includes('Worker cannot connect to Supabase') ||
 			error.message.includes('SUPABASE_URL') ||
-			error.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+			error.message.includes('SUPABASE_SERVICE_ROLE_KEY')
+		) {
 			console.error('🚨 Critical connection error detected in uncaught exception');
 		}
 	}
@@ -82,10 +84,12 @@ process.on('unhandledRejection', async (reason, promise) => {
 
 	// Check if this is a connection-related error
 	if (reason instanceof Error) {
-		if (reason.message.includes('Missing required environment variables') ||
+		if (
+			reason.message.includes('Missing required environment variables') ||
 			reason.message.includes('Worker cannot connect to Supabase') ||
 			reason.message.includes('SUPABASE_URL') ||
-			reason.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+			reason.message.includes('SUPABASE_SERVICE_ROLE_KEY')
+		) {
 			console.error('🚨 Critical connection error detected in unhandled rejection');
 		}
 	}
@@ -107,10 +111,12 @@ async function startWorkerWithRetry(maxRetries = 3, retryDelay = 2000) {
 
 			// Check if this is a connection error that should cause immediate exit
 			if (error instanceof Error) {
-				if (error.message.includes('Missing required environment variables') ||
+				if (
+					error.message.includes('Missing required environment variables') ||
 					error.message.includes('Worker cannot connect to Supabase') ||
 					error.message.includes('SUPABASE_URL') ||
-					error.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+					error.message.includes('SUPABASE_SERVICE_ROLE_KEY')
+				) {
 					console.error('🚨 Critical connection error detected - exiting immediately');
 					await worker.stop();
 					process.exit(1);

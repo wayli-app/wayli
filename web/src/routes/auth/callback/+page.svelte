@@ -27,10 +27,31 @@
 			}
 
 			if (userData.user) {
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
-				console.log('🔄 [CALLBACK] REDIRECTING: User found, going to', redirectTo);
-				toast.success('Authentication successful');
-				goto(redirectTo);
+				// Check onboarding status
+				const { data: profile } = await supabase
+					.from('user_profiles')
+					.select('onboarding_completed, first_login_at')
+					.eq('id', userData.user.id)
+					.single();
+
+				// If first-time user, update first_login_at and redirect to onboarding
+				if (!profile?.onboarding_completed) {
+					if (!profile?.first_login_at) {
+						await supabase
+							.from('user_profiles')
+							.update({ first_login_at: new Date().toISOString() })
+							.eq('id', userData.user.id);
+					}
+
+					console.log('🔄 [CALLBACK] First-time user, redirecting to onboarding');
+					toast.success("Welcome! Let's set up your profile.");
+					goto('/dashboard/account-settings?onboarding=true');
+				} else {
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+					console.log('🔄 [CALLBACK] Returning user, going to', redirectTo);
+					toast.success('Authentication successful');
+					goto(redirectTo);
+				}
 			} else {
 				console.log('❌ [CALLBACK] ERROR: No user found');
 				error = 'No user found';

@@ -1,6 +1,10 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/multi-signal-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
 import { analyzeStopPattern, calculateSpeedVariance } from '../utils/speed-pattern-analysis';
 
 /**
@@ -21,10 +25,12 @@ export class MultiSignalCombinationRule implements DetectionRule {
 
 	canApply(context: DetectionContext): boolean {
 		// Need enough data to analyze patterns
-		return context.pointHistory.length >= 10 &&
-			   context.speedHistory.length >= 10 &&
-			   context.currentSpeed >= 40 && // Only for ambiguous speeds
-			   context.currentSpeed <= 130;
+		return (
+			context.pointHistory.length >= 10 &&
+			context.speedHistory.length >= 10 &&
+			context.currentSpeed >= 40 && // Only for ambiguous speeds
+			context.currentSpeed <= 130
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -38,25 +44,25 @@ export class MultiSignalCombinationRule implements DetectionRule {
 
 		// Signal 1: GPS frequency analysis
 		const gpsSignal = this.deriveFromGPSFrequency(context);
-		if (gpsSignal && gpsSignal.confidence >= 0.60) {
+		if (gpsSignal && gpsSignal.confidence >= 0.6) {
 			signals.push(gpsSignal);
 		}
 
 		// Signal 2: Stop pattern analysis
 		const stopSignal = this.deriveFromStopPattern(context);
-		if (stopSignal && stopSignal.confidence >= 0.60) {
+		if (stopSignal && stopSignal.confidence >= 0.6) {
 			signals.push(stopSignal);
 		}
 
 		// Signal 3: Speed variance analysis
 		const speedVarianceSignal = this.deriveFromSpeedVariance(context);
-		if (speedVarianceSignal && speedVarianceSignal.confidence >= 0.60) {
+		if (speedVarianceSignal && speedVarianceSignal.confidence >= 0.6) {
 			signals.push(speedVarianceSignal);
 		}
 
 		// Signal 4: Speed bracket (basic fallback)
 		const speedBracketSignal = this.deriveFromSpeedBracket(context);
-		if (speedBracketSignal && speedBracketSignal.confidence >= 0.50) {
+		if (speedBracketSignal && speedBracketSignal.confidence >= 0.5) {
 			signals.push(speedBracketSignal);
 		}
 
@@ -67,7 +73,7 @@ export class MultiSignalCombinationRule implements DetectionRule {
 
 		// Find mode consensus (most common mode among signals)
 		const modeCounts = new Map<string, number>();
-		signals.forEach(s => {
+		signals.forEach((s) => {
 			modeCounts.set(s.mode, (modeCounts.get(s.mode) || 0) + 1);
 		});
 
@@ -80,8 +86,9 @@ export class MultiSignalCombinationRule implements DetectionRule {
 		}
 
 		// Calculate combined confidence from agreeing signals
-		const agreeingSignals = signals.filter(s => s.mode === consensusMode);
-		const avgConfidence = agreeingSignals.reduce((sum, s) => sum + s.confidence, 0) / agreeingSignals.length;
+		const agreeingSignals = signals.filter((s) => s.mode === consensusMode);
+		const avgConfidence =
+			agreeingSignals.reduce((sum, s) => sum + s.confidence, 0) / agreeingSignals.length;
 
 		// Bonus for having multiple agreeing signals (Bayesian-style combination)
 		const signalBonus = Math.min(0.15, agreeingSignals.length * 0.05);
@@ -92,7 +99,7 @@ export class MultiSignalCombinationRule implements DetectionRule {
 			return null;
 		}
 
-		const sources = agreeingSignals.map(s => s.source).join(', ');
+		const sources = agreeingSignals.map((s) => s.source).join(', ');
 
 		return {
 			mode: consensusMode,
@@ -103,11 +110,11 @@ export class MultiSignalCombinationRule implements DetectionRule {
 				agreeingSignals: agreeingSignals.length,
 				avgConfidence,
 				signalBonus,
-				sources: agreeingSignals.map(s => ({
+				sources: agreeingSignals.map((s) => ({
 					source: s.source,
 					confidence: s.confidence
 				})),
-				allSignals: signals.map(s => ({
+				allSignals: signals.map((s) => ({
 					mode: s.mode,
 					source: s.source,
 					confidence: s.confidence
@@ -128,7 +135,7 @@ export class MultiSignalCombinationRule implements DetectionRule {
 		} else if (gpsFreq.frequencyType === 'background_tracking' && context.currentSpeed >= 70) {
 			return {
 				mode: 'train',
-				confidence: 0.70,
+				confidence: 0.7,
 				source: 'GPS frequency (background)'
 			};
 		}
@@ -143,7 +150,7 @@ export class MultiSignalCombinationRule implements DetectionRule {
 
 		const stopAnalysis = analyzeStopPattern(context.pointHistory);
 
-		if (stopAnalysis.confidence >= 0.60) {
+		if (stopAnalysis.confidence >= 0.6) {
 			return {
 				mode: stopAnalysis.likelyMode,
 				confidence: stopAnalysis.confidence,
@@ -160,16 +167,16 @@ export class MultiSignalCombinationRule implements DetectionRule {
 		const speedMetrics = calculateSpeedVariance(context.speedHistory);
 
 		// Train: Low variance (CV < 0.20)
-		if (speedMetrics.coefficientOfVariation < 0.20 && context.currentSpeed >= 70) {
+		if (speedMetrics.coefficientOfVariation < 0.2 && context.currentSpeed >= 70) {
 			return {
 				mode: 'train',
-				confidence: 0.70,
+				confidence: 0.7,
 				source: `Speed variance (CV=${speedMetrics.coefficientOfVariation.toFixed(3)})`
 			};
 		}
 
 		// Car: High variance (CV > 0.30)
-		if (speedMetrics.coefficientOfVariation > 0.30) {
+		if (speedMetrics.coefficientOfVariation > 0.3) {
 			return {
 				mode: 'car',
 				confidence: 0.75,
@@ -189,7 +196,7 @@ export class MultiSignalCombinationRule implements DetectionRule {
 			// Ambiguous range - don't use bracket alone
 			return null;
 		} else if (speed >= 110 && speed <= 130) {
-			return { mode: 'train', confidence: 0.60, source: 'Speed bracket (110-130 km/h)' };
+			return { mode: 'train', confidence: 0.6, source: 'Speed bracket (110-130 km/h)' };
 		}
 
 		return null;

@@ -1,7 +1,10 @@
 // /Users/bart/Dev/wayli/web/tests/integration/transport-mode-detection.test.ts
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { detectEnhancedMode, createEnhancedModeContext } from '../../src/lib/utils/enhanced-transport-mode';
+import {
+	detectEnhancedMode,
+	createEnhancedModeContext
+} from '../../src/lib/utils/enhanced-transport-mode';
 import type { EnhancedModeContext } from '../../src/lib/types/transport-detection.types';
 
 describe('Enhanced Transport Mode Detection Integration', () => {
@@ -17,8 +20,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Start at train station
 			const result1 = detectEnhancedMode(
-				52.3676, 4.9041, // Amsterdam Central
-				52.3676, 4.9041,
+				52.3676,
+				4.9041, // Amsterdam Central
+				52.3676,
+				4.9041,
 				1,
 				createTrainStationGeocode('Amsterdam Central'),
 				context
@@ -28,15 +33,15 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			expect(result1.reason).toContain('train station');
 
 			// Clear pointHistory and rebuild with proper timestamps to avoid speed calculation issues
-			context.pointHistory = [
-				{ lat: 52.3676, lng: 4.9041, timestamp: now - 60000, geocode: null }
-			];
+			context.pointHistory = [{ lat: 52.3676, lng: 4.9041, timestamp: now - 60000, geocode: null }];
 
 			// Travel at train speed
 			// Use realistic coordinates: ~2km in 60 seconds = 120 km/h (train speed)
 			const result2 = detectEnhancedMode(
-				52.3676, 4.9041,
-				52.3776, 4.9141, // ~2km distance towards Utrecht
+				52.3676,
+				4.9041,
+				52.3776,
+				4.9141, // ~2km distance towards Utrecht
 				60,
 				null,
 				context
@@ -47,8 +52,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Arrive at destination station
 			const result3 = detectEnhancedMode(
-				52.1000, 5.1000,
-				52.0893, 5.1106, // Utrecht Central
+				52.1,
+				5.1,
+				52.0893,
+				5.1106, // Utrecht Central
 				1,
 				createTrainStationGeocode('Utrecht Central'),
 				context
@@ -62,8 +69,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			// Travel at train speed without starting station
 			// Use realistic coordinates: 2km in 60 seconds = 120 km/h (train speed)
 			const result1 = detectEnhancedMode(
-				52.0900, 5.1100,
-				52.1000, 5.1200, // ~2km distance
+				52.09,
+				5.11,
+				52.1,
+				5.12, // ~2km distance
 				60,
 				null,
 				context
@@ -74,8 +83,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Arrive at final station
 			const result2 = detectEnhancedMode(
-				52.1000, 5.1000,
-				52.0893, 5.1106, // Utrecht Central
+				52.1,
+				5.1,
+				52.0893,
+				5.1106, // Utrecht Central
 				1,
 				createTrainStationGeocode('Utrecht Central'),
 				context
@@ -88,8 +99,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 		it('should handle starting station only scenario', () => {
 			// Start at train station
 			const result1 = detectEnhancedMode(
-				52.3676, 4.9041, // Amsterdam Central
-				52.3676, 4.9041,
+				52.3676,
+				4.9041, // Amsterdam Central
+				52.3676,
+				4.9041,
 				1,
 				createTrainStationGeocode('Amsterdam Central'),
 				context
@@ -105,8 +118,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			context.trainJourneyStartStation = 'Amsterdam Central';
 
 			const result2 = detectEnhancedMode(
-				52.3676, 4.9041,
-				52.3776, 4.9141, // ~2km distance
+				52.3676,
+				4.9041,
+				52.3776,
+				4.9141, // ~2km distance
 				60,
 				null,
 				context
@@ -119,8 +134,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Slow down significantly (end of journey)
 			const result3 = detectEnhancedMode(
-				52.2000, 5.0000,
-				52.1900, 5.0100,
+				52.2,
+				5.0,
+				52.19,
+				5.01,
 				300, // 5 minutes
 				null,
 				context
@@ -140,8 +157,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Travel on highway at train speed
 			const result = detectEnhancedMode(
-				52.3676, 4.9041,
-				52.2000, 5.0000,
+				52.3676,
+				4.9041,
+				52.2,
+				5.0,
 				60,
 				createHighwayGeocode(),
 				context
@@ -158,15 +177,38 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			context.currentMode = 'car';
 			context.speedHistory = [80, 85, 90];
 			context.modeHistory = [
-				{ mode: 'car', timestamp: Date.now() - 3000, speed: 80, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.8, reason: 'test' },
-				{ mode: 'car', timestamp: Date.now() - 2000, speed: 85, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.8, reason: 'test' },
-				{ mode: 'car', timestamp: Date.now() - 1000, speed: 90, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.8, reason: 'test' }
+				{
+					mode: 'car',
+					timestamp: Date.now() - 3000,
+					speed: 80,
+					coordinates: { lat: 52.3676, lng: 4.9041 },
+					confidence: 0.8,
+					reason: 'test'
+				},
+				{
+					mode: 'car',
+					timestamp: Date.now() - 2000,
+					speed: 85,
+					coordinates: { lat: 52.3676, lng: 4.9041 },
+					confidence: 0.8,
+					reason: 'test'
+				},
+				{
+					mode: 'car',
+					timestamp: Date.now() - 1000,
+					speed: 90,
+					coordinates: { lat: 52.3676, lng: 4.9041 },
+					confidence: 0.8,
+					reason: 'test'
+				}
 			];
 
 			// Use realistic coordinates: ~1.5km in 60 seconds = 90 km/h (car speed)
 			const result = detectEnhancedMode(
-				52.3676, 4.9041,
-				52.3776, 4.9091, // ~1.5km distance
+				52.3676,
+				4.9041,
+				52.3776,
+				4.9091, // ~1.5km distance
 				60,
 				null,
 				context
@@ -181,15 +223,38 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			context.currentMode = 'train';
 			context.speedHistory = [100, 105, 95];
 			context.modeHistory = [
-				{ mode: 'train', timestamp: Date.now() - 3000, speed: 100, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.8, reason: 'test' },
-				{ mode: 'train', timestamp: Date.now() - 2000, speed: 105, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.8, reason: 'test' },
-				{ mode: 'train', timestamp: Date.now() - 1000, speed: 95, coordinates: { lat: 52.3676, lng: 4.9041 }, confidence: 0.8, reason: 'test' }
+				{
+					mode: 'train',
+					timestamp: Date.now() - 3000,
+					speed: 100,
+					coordinates: { lat: 52.3676, lng: 4.9041 },
+					confidence: 0.8,
+					reason: 'test'
+				},
+				{
+					mode: 'train',
+					timestamp: Date.now() - 2000,
+					speed: 105,
+					coordinates: { lat: 52.3676, lng: 4.9041 },
+					confidence: 0.8,
+					reason: 'test'
+				},
+				{
+					mode: 'train',
+					timestamp: Date.now() - 1000,
+					speed: 95,
+					coordinates: { lat: 52.3676, lng: 4.9041 },
+					confidence: 0.8,
+					reason: 'test'
+				}
 			];
 
 			// Use realistic coordinates: ~2km in 60 seconds = 120 km/h (train speed)
 			const result = detectEnhancedMode(
-				52.3676, 4.9041,
-				52.3776, 4.9141, // ~2km distance
+				52.3676,
+				4.9041,
+				52.3776,
+				4.9141, // ~2km distance
 				60,
 				null,
 				context
@@ -207,19 +272,13 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			// Add some point history for multi-point calculation
 			context.pointHistory = [
 				{ lat: 52.3676, lng: 4.9041, timestamp: Date.now() - 5000 },
-				{ lat: 52.3600, lng: 4.9100, timestamp: Date.now() - 4000 },
-				{ lat: 52.3500, lng: 4.9200, timestamp: Date.now() - 3000 },
-				{ lat: 52.3400, lng: 4.9300, timestamp: Date.now() - 2000 },
-				{ lat: 52.3300, lng: 4.9400, timestamp: Date.now() - 1000 }
+				{ lat: 52.36, lng: 4.91, timestamp: Date.now() - 4000 },
+				{ lat: 52.35, lng: 4.92, timestamp: Date.now() - 3000 },
+				{ lat: 52.34, lng: 4.93, timestamp: Date.now() - 2000 },
+				{ lat: 52.33, lng: 4.94, timestamp: Date.now() - 1000 }
 			];
 
-			const result = detectEnhancedMode(
-				52.3300, 4.9400,
-				52.3200, 4.9500,
-				60,
-				null,
-				context
-			);
+			const result = detectEnhancedMode(52.33, 4.94, 52.32, 4.95, 60, null, context);
 
 			// Should use stable speed calculation
 			expect(result.mode).toBeDefined();
@@ -243,22 +302,18 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			}));
 
 			// Add straight trajectory with realistic spacing for train speeds (~2km per minute at 120 km/h)
-			context.pointHistory = Array(10).fill(null).map((_, i) => ({
-				lat: 52.0 + i * 0.02,
-				lng: 4.0,
-				timestamp: now - (10 - i) * 60000
-			}));
+			context.pointHistory = Array(10)
+				.fill(null)
+				.map((_, i) => ({
+					lat: 52.0 + i * 0.02,
+					lng: 4.0,
+					timestamp: now - (10 - i) * 60000
+				}));
 
 			// Set current mode to help detection
 			context.currentMode = 'train';
 
-			const result = detectEnhancedMode(
-				52.0, 4.0,
-				52.02, 4.0,
-				60,
-				null,
-				context
-			);
+			const result = detectEnhancedMode(52.0, 4.0, 52.02, 4.0, 60, null, context);
 
 			// Should detect train based on consistent speed and straight trajectory
 			// May also detect as car if speed is ambiguous - both are acceptable in 100-120 range
@@ -280,13 +335,7 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			context.currentMode = 'car';
 
-			const result = detectEnhancedMode(
-				52.0, 4.0,
-				52.015, 4.003,
-				60,
-				null,
-				context
-			);
+			const result = detectEnhancedMode(52.0, 4.0, 52.015, 4.003, 60, null, context);
 
 			// Should detect car based on variable speed and context
 			expect(['car', 'train']).toContain(result.mode);
@@ -322,8 +371,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Now arrive at destination train station
 			const result = detectEnhancedMode(
-				52.08, 4.88,
-				52.0893, 5.1106, // Utrecht Central coordinates
+				52.08,
+				4.88,
+				52.0893,
+				5.1106, // Utrecht Central coordinates
 				60,
 				createTrainStationGeocode('Utrecht Central'),
 				context
@@ -360,8 +411,10 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 
 			// Continue on highway without station
 			const result = detectEnhancedMode(
-				52.5054, 4.8,
-				52.5072, 4.8,
+				52.5054,
+				4.8,
+				52.5072,
+				4.8,
 				5,
 				null, // No station
 				context
@@ -385,14 +438,37 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			// Build history showing train speeds before stop
 			context.speedHistory = [110, 115, 120, 110, 0, 0]; // 2 min stop
 			context.modeHistory = [
-				{ mode: 'train', timestamp: now - 600000, speed: 110, coordinates: { lat: 52.3, lng: 4.97 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: now - 300000, speed: 115, coordinates: { lat: 52.25, lng: 4.98 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: now - 120000, speed: 0, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'train' }
+				{
+					mode: 'train',
+					timestamp: now - 600000,
+					speed: 110,
+					coordinates: { lat: 52.3, lng: 4.97 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 300000,
+					speed: 115,
+					coordinates: { lat: 52.25, lng: 4.98 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 120000,
+					speed: 0,
+					coordinates: { lat: 52.2, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				}
 			];
 
 			const result = detectEnhancedMode(
-				52.2, 5.0,
-				52.2, 5.0,
+				52.2,
+				5.0,
+				52.2,
+				5.0,
 				120, // 2 min stop
 				null,
 				context
@@ -414,20 +490,49 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			// Extended low speed period
 			context.speedHistory = [20, 15, 10, 15, 20];
 			context.modeHistory = [
-				{ mode: 'train', timestamp: fiveMinutesAgo, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: fiveMinutesAgo + 60000, speed: 15, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: fiveMinutesAgo + 120000, speed: 10, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: fiveMinutesAgo + 180000, speed: 15, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: now - 60000, speed: 20, coordinates: { lat: 52.2, lng: 5.0 }, confidence: 0.9, reason: 'train' }
+				{
+					mode: 'train',
+					timestamp: fiveMinutesAgo,
+					speed: 20,
+					coordinates: { lat: 52.2, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: fiveMinutesAgo + 60000,
+					speed: 15,
+					coordinates: { lat: 52.2, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: fiveMinutesAgo + 120000,
+					speed: 10,
+					coordinates: { lat: 52.2, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: fiveMinutesAgo + 180000,
+					speed: 15,
+					coordinates: { lat: 52.2, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 60000,
+					speed: 20,
+					coordinates: { lat: 52.2, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				}
 			];
 
-			const result = detectEnhancedMode(
-				52.2, 5.0,
-				52.2, 5.0,
-				60,
-				null,
-				context
-			);
+			const result = detectEnhancedMode(52.2, 5.0, 52.2, 5.0, 60, null, context);
 
 			// Should end journey or switch to car/stationary
 			expect(['car', 'stationary', 'walking']).toContain(result.mode);
@@ -444,19 +549,41 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 			// Graduated slowdown
 			context.speedHistory = [120, 80, 60, 40, 20];
 			context.modeHistory = [
-				{ mode: 'train', timestamp: now - 240000, speed: 120, coordinates: { lat: 52.3, lng: 4.97 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: now - 180000, speed: 80, coordinates: { lat: 52.27, lng: 4.98 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: now - 120000, speed: 60, coordinates: { lat: 52.24, lng: 4.99 }, confidence: 0.9, reason: 'train' },
-				{ mode: 'train', timestamp: now - 60000, speed: 40, coordinates: { lat: 52.21, lng: 5.0 }, confidence: 0.9, reason: 'train' }
+				{
+					mode: 'train',
+					timestamp: now - 240000,
+					speed: 120,
+					coordinates: { lat: 52.3, lng: 4.97 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 180000,
+					speed: 80,
+					coordinates: { lat: 52.27, lng: 4.98 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 120000,
+					speed: 60,
+					coordinates: { lat: 52.24, lng: 4.99 },
+					confidence: 0.9,
+					reason: 'train'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 60000,
+					speed: 40,
+					coordinates: { lat: 52.21, lng: 5.0 },
+					confidence: 0.9,
+					reason: 'train'
+				}
 			];
 
-			const result = detectEnhancedMode(
-				52.2, 5.0,
-				52.19, 5.0,
-				60,
-				null,
-				context
-			);
+			const result = detectEnhancedMode(52.2, 5.0, 52.19, 5.0, 60, null, context);
 
 			// May continue as train or end journey - depends on slowdown detection logic
 			expect(['train', 'car', 'stationary', 'walking']).toContain(result.mode);
@@ -492,7 +619,7 @@ function createHighwayGeocode() {
 		},
 		geometry: {
 			type: 'Point',
-			coordinates: [5.0000, 52.2000]
+			coordinates: [5.0, 52.2]
 		}
 	};
 }

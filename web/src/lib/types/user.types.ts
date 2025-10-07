@@ -12,6 +12,11 @@ export interface UserProfile {
 	email_confirmed_at?: string;
 	created_at: string;
 	updated_at: string;
+	// Onboarding tracking fields
+	onboarding_completed?: boolean;
+	onboarding_dismissed?: boolean;
+	home_address_skipped?: boolean;
+	first_login_at?: string;
 }
 
 export interface UserPreferences {

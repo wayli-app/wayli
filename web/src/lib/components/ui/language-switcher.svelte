@@ -2,7 +2,6 @@
 <script lang="ts">
 	import { ChevronDown, Globe } from 'lucide-svelte';
 
-
 	import { currentLocale, SUPPORTED_LOCALES, type SupportedLocale } from '$lib/i18n';
 
 	export let size: 'sm' | 'md' | 'lg' = 'md';
@@ -12,8 +11,6 @@
 	let isOpen = false;
 	let buttonElement: HTMLButtonElement;
 	let dropdownElement: HTMLDivElement;
-
-
 
 	const localeNames: Record<SupportedLocale, string> = {
 		en: 'English',

@@ -76,7 +76,11 @@ export interface TrackerDataPoint {
 	recorded_at: string;
 	time_spent?: number;
 	country_code?: string;
-	location?: { type: string; coordinates: number[]; crs?: { type: string; properties: { name: string } } }; // GeoJSON Point object
+	location?: {
+		type: string;
+		coordinates: number[];
+		crs?: { type: string; properties: { name: string } };
+	}; // GeoJSON Point object
 	coordinates?: number[]; // GeoJSON coordinates array [lon, lat] (fallback)
 	speed?: number; // Speed in m/s from database
 	distance?: number; // Distance in meters from previous point
@@ -292,7 +296,14 @@ export class ClientStatisticsService {
 					let samplingWasApplied = false;
 
 					while (hasMore) {
-						const { data: chunkData, samplingApplied } = await this.loadSmartSampledData(userId, startDate, endDate, currentOffset, chunkSize, this.totalCount);
+						const { data: chunkData, samplingApplied } = await this.loadSmartSampledData(
+							userId,
+							startDate,
+							endDate,
+							currentOffset,
+							chunkSize,
+							this.totalCount
+						);
 						allSampledData.push(...chunkData);
 
 						// Track if sampling was applied in any chunk
@@ -338,7 +349,10 @@ export class ClientStatisticsService {
 					pointsLoaded = allSampledData.length;
 					batchesCompleted = 1;
 				} catch (samplingError) {
-					console.error('❌ Smart sampling failed, falling back to regular batch loading:', samplingError);
+					console.error(
+						'❌ Smart sampling failed, falling back to regular batch loading:',
+						samplingError
+					);
 
 					// Fallback to regular batch loading
 					onProgress?.({
@@ -439,7 +453,8 @@ export class ClientStatisticsService {
 	): Promise<TrackerDataPoint[]> {
 		let query = this.supabase
 			.from('tracker_data')
-			.select(`
+			.select(
+				`
 				recorded_at,
 				time_spent,
 				country_code,
@@ -453,7 +468,8 @@ export class ClientStatisticsService {
 				geocode->properties->>city,
 				geocode->properties->address->>city,
 				geocode->properties->address->>village
-			`)
+			`
+			)
 			.eq('user_id', userId)
 			.not('location', 'is', null)
 			.order('recorded_at', { ascending: true })
@@ -474,10 +490,11 @@ export class ClientStatisticsService {
 		}
 
 		// Process the data to handle COALESCE logic for city field
-		const processedData = (data as any[])?.map(point => ({
-			...point,
-			city: point.city || point.address_city || null
-		})) || [];
+		const processedData =
+			(data as any[])?.map((point) => ({
+				...point,
+				city: point.city || point.address_city || null
+			})) || [];
 
 		return processedData;
 	}
@@ -492,10 +509,13 @@ export class ClientStatisticsService {
 		offset: number = 0,
 		limit: number = 1000,
 		totalCount?: number
-	): Promise<{ data: TrackerDataPoint[], samplingApplied: boolean }> {
+	): Promise<{ data: TrackerDataPoint[]; samplingApplied: boolean }> {
 		try {
 			// Get session for authentication
-			const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
+			const {
+				data: { session },
+				error: sessionError
+			} = await this.supabase.auth.getSession();
 			if (sessionError || !session) {
 				throw new Error('User not authenticated');
 			}
@@ -505,16 +525,16 @@ export class ClientStatisticsService {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${session.access_token}`
+					Authorization: `Bearer ${session.access_token}`
 				},
 				body: JSON.stringify({
 					userId,
 					startDate,
 					endDate,
-					maxPointsThreshold: 1000,  // More aggressive threshold
+					maxPointsThreshold: 1000, // More aggressive threshold
 					offset,
 					limit,
-					totalCount  // Pass the already calculated total count
+					totalCount // Pass the already calculated total count
 				})
 			});
 
@@ -555,7 +575,6 @@ export class ClientStatisticsService {
 			}));
 
 			return { data, samplingApplied };
-
 		} catch (error) {
 			console.error('❌ Error loading smart sampled data:', error);
 			// Fallback to regular loading if smart sampling fails
@@ -611,8 +630,10 @@ export class ClientStatisticsService {
 
 					// Use database speed for transport mode detection
 					const { mode, reason } = detectEnhancedMode(
-						prevLat, prevLng, // previous lat, lng
-						currentCoords[1], currentCoords[0], // current lat, lng
+						prevLat,
+						prevLng, // previous lat, lng
+						currentCoords[1],
+						currentCoords[0], // current lat, lng
 						timeDiff, // actual time difference in seconds
 						currentGeocode,
 						this.transportContext,
@@ -632,22 +653,28 @@ export class ClientStatisticsService {
 
 				if (currentCoords && nextCoords) {
 					const distance = haversine(
-						currentCoords[1], currentCoords[0], // lat, lng
-						nextCoords[1], nextCoords[0]
+						currentCoords[1],
+						currentCoords[0], // lat, lng
+						nextCoords[1],
+						nextCoords[0]
 					);
 					const timeSpent = this.calculateTimeSpent(point, nextPoint);
 
 					if (timeSpent > 0) {
 						// Calculate velocity in km/h
 						velocity = (distance / timeSpent) * 3.6;
-						console.log(`🚗 Fallback velocity calculation: distance=${distance.toFixed(2)}m, time=${timeSpent}ms, velocity=${velocity.toFixed(2)}km/h`);
+						console.log(
+							`🚗 Fallback velocity calculation: distance=${distance.toFixed(2)}m, time=${timeSpent}ms, velocity=${velocity.toFixed(2)}km/h`
+						);
 
 						// Create proper GeoJSON Feature for transport mode detection
 						const currentGeocode = this.createGeocodeFeature(point);
 
 						const { mode, reason } = detectEnhancedMode(
-							currentCoords[1], currentCoords[0], // prev lat, lng
-							nextCoords[1], nextCoords[0], // curr lat, lng
+							currentCoords[1],
+							currentCoords[0], // prev lat, lng
+							nextCoords[1],
+							nextCoords[0], // curr lat, lng
 							timeSpent / 1000, // convert to seconds
 							currentGeocode,
 							this.transportContext
@@ -669,7 +696,7 @@ export class ClientStatisticsService {
 		});
 
 		// Store processed data points for map visualization with lat/lon properties
-		const mapDataPoints = processedBatch.map(point => {
+		const mapDataPoints = processedBatch.map((point) => {
 			const coords = this.extractCoordinates(point);
 			return {
 				...point,
@@ -681,7 +708,6 @@ export class ClientStatisticsService {
 
 		for (let i = 0; i < processedBatch.length; i++) {
 			const point = processedBatch[i];
-			const nextPoint = processedBatch[i + 1];
 
 			// Basic counting
 			this.statistics.totalPoints++;
@@ -693,9 +719,47 @@ export class ClientStatisticsService {
 			// Process country and place data
 			this.processLocationData(point);
 
-			// Process transport mode and distance/time
-			if (nextPoint) {
-				this.processTransportMode(point, nextPoint);
+			// Use current point's distance and mode
+			// The distance field on a point represents: distance FROM previous TO this point
+			// The mode field on a point represents: how we ARRIVED at this point
+			// So we should aggregate: point.distance → point.transport_mode
+			if (point.transport_mode && point.distance && point.distance > 0) {
+				const mode = point.transport_mode;
+				const distance = point.distance;
+				const timeSpent = point.time_spent ? point.time_spent * 1000 : 0; // convert to ms
+
+				// Different time thresholds for different transport modes
+				// Long-distance modes (train, car, plane) can have longer intervals between updates
+				// Walking/cycling should have shorter intervals to avoid GPS drift
+				const longDistanceModes = ['train', 'car', 'plane', 'bus', 'tram', 'metro'];
+				const maxTimeSpent = longDistanceModes.includes(mode)
+					? 7200000  // 2 hours for long-distance travel
+					: 1800000; // 30 minutes for walking/cycling
+
+				if (mode !== 'stationary' && timeSpent > 0 && timeSpent < maxTimeSpent) {
+					// Update total statistics
+					this.statistics.totalDistance += distance;
+					this.statistics.timeSpentMoving += timeSpent;
+
+					// Update transport mode statistics
+					const modeStats = this.statistics.transportModes.get(mode) || {
+						distance: 0,
+						time: 0,
+						points: 0
+					};
+
+					modeStats.distance += distance;
+					modeStats.time += timeSpent;
+					modeStats.points++;
+
+					this.statistics.transportModes.set(mode, modeStats);
+
+					// Update country time distribution
+					if (point.country_code) {
+						const currentTime = this.statistics.countryTimeDistribution.get(point.country_code) || 0;
+						this.statistics.countryTimeDistribution.set(point.country_code, currentTime + timeSpent);
+					}
+				}
 			}
 
 			// Process train station visits
@@ -718,11 +782,7 @@ export class ClientStatisticsService {
 	 * Check if geocode data is valid and useful
 	 */
 	private hasValidGeocode(point: TrackerDataPoint): boolean {
-		return !!(
-			point.coordinates ||
-			point.type ||
-			point.class
-		);
+		return !!(point.coordinates || point.type || point.class);
 	}
 
 	/**
@@ -793,85 +853,19 @@ export class ClientStatisticsService {
 		return null;
 	}
 
-	/**
-	 * Process transport mode detection and distance/time calculations
-	 */
-	private processTransportMode(current: TrackerDataPoint, next: TrackerDataPoint): void {
-		// Extract coordinates from geocode
-		const currentCoords = this.extractCoordinates(current);
-		const nextCoords = this.extractCoordinates(next);
-
-		if (!currentCoords || !nextCoords) return;
-
-		// ALWAYS calculate distance using haversine to match what's displayed on the map
-		// The map renders polylines using haversine calculations, so statistics must match
-		const distance = haversine(
-			currentCoords[1],
-			currentCoords[0], // lat, lng
-			nextCoords[1],
-			nextCoords[0]
-		);
-
-		const timeSpent = this.calculateTimeSpent(current, next);
-		if (timeSpent <= 0) return;
-
-		// Use the ALREADY DETECTED transport mode from processBatch
-		// This ensures map and statistics use the same mode (with database speed respected)
-		// DO NOT re-detect the mode here as it will ignore database speed and cause mismatches
-		const mode = current.transport_mode || 'unknown';
-
-		// Update statistics - ALWAYS accumulate distance and time for all rendered points
-		// This ensures statistics match what's displayed on the map
-		if (mode !== 'stationary') {
-			this.statistics.totalDistance += distance;
-			this.statistics.timeSpentMoving += timeSpent;
-		}
-
-		// Update transport mode statistics
-		const modeStats = this.statistics.transportModes.get(mode) || {
-			distance: 0,
-			time: 0,
-			points: 0
-		};
-
-		modeStats.distance += distance;
-		modeStats.time += timeSpent;
-		modeStats.points++;
-
-		this.statistics.transportModes.set(mode, modeStats);
-
-		// Update country time distribution
-		if (current.country_code) {
-			const currentTime = this.statistics.countryTimeDistribution.get(current.country_code) || 0;
-			this.statistics.countryTimeDistribution.set(current.country_code, currentTime + timeSpent);
-
-			// Also update the unique countries time spent
-			const countryData = this.statistics.uniqueCountries.get(current.country_code);
-			if (countryData) {
-				countryData.timeSpent += timeSpent;
-				this.statistics.uniqueCountries.set(current.country_code, countryData);
-			}
-		}
-
-		// Update unique cities time spent
-		if (current.type || current.addresstype) {
-			const cityKey = this.generateCityKey(current);
-			if (cityKey) {
-				const cityData = this.statistics.uniqueCities.get(cityKey);
-				if (cityData) {
-					cityData.timeSpent += timeSpent;
-					this.statistics.uniqueCities.set(cityKey, cityData);
-				}
-			}
-		}
-	}
 
 	/**
 	 * Extract coordinates from GeoJSON location field or geocode coordinates
 	 */
 	private extractCoordinates(point: TrackerDataPoint): [number, number] | null {
 		// First try the GeoJSON location field
-		if (point.location && typeof point.location === 'object' && point.location.coordinates && Array.isArray(point.location.coordinates) && point.location.coordinates.length >= 2) {
+		if (
+			point.location &&
+			typeof point.location === 'object' &&
+			point.location.coordinates &&
+			Array.isArray(point.location.coordinates) &&
+			point.location.coordinates.length >= 2
+		) {
 			const [lon, lat] = point.location.coordinates;
 			if (!isNaN(lon) && !isNaN(lat)) {
 				return [lon, lat]; // [lng, lat]
@@ -951,8 +945,6 @@ export class ClientStatisticsService {
 
 		// Set last processed timestamp
 		this.statistics.lastProcessedAt = new Date().toISOString();
-
-		console.log('✅ Statistics finalized');
 	}
 
 	/**
@@ -1027,7 +1019,7 @@ export class ClientStatisticsService {
 	/**
 	 * Get formatted statistics for display
 	 */
-	getFormattedStatistics(): any {
+	public getFormattedStatistics(): any {
 		const totalDistanceKm = this.statistics.totalDistance / 1000;
 		const timeSpentMovingHours =
 			Math.round((this.statistics.timeSpentMoving / (1000 * 60 * 60)) * 100) / 100;
@@ -1036,21 +1028,22 @@ export class ClientStatisticsService {
 		// Convert transport modes map to array
 		const transport = Array.from(this.statistics.transportModes.entries()).map(([mode, stats]) => ({
 			mode,
-			distance: Math.round((stats.distance / 1000) * 10) / 10, // convert to km, round to 1 decimal
+			distance: stats.distance, // Keep distance in meters, format in frontend
 			time: Math.round((stats.time / (1000 * 60 * 60)) * 10) / 10, // convert to hours, round to 1 decimal
 			points: stats.points,
 			percentage: Math.round(
 				this.statistics.totalDistance > 0
 					? (stats.distance / this.statistics.totalDistance) * 100
 					: 0
-			),
-			distanceMeters: stats.distance // Keep raw meters for step calculation
+			)
 		}));
 
 		// Convert country time distribution to array
 		// Calculate total time spent in all countries
-		const totalCountryTime = Array.from(this.statistics.countryTimeDistribution.values())
-			.reduce((sum, time) => sum + time, 0);
+		const totalCountryTime = Array.from(this.statistics.countryTimeDistribution.values()).reduce(
+			(sum, time) => sum + time,
+			0
+		);
 
 		const countryTimeDistribution = Array.from(
 			this.statistics.countryTimeDistribution.entries()
@@ -1067,12 +1060,10 @@ export class ClientStatisticsService {
 			}))
 			.sort((a, b) => b.count - a.count);
 
-		// Calculate steps from walking distance - use raw meters before rounding
+		// Calculate steps from walking distance - distance is already in meters
 		// Average step length is approximately 0.7 meters
 		const walking = transport.find((t) => t.mode === 'walking');
-		const steps = walking && walking.distanceMeters > 0
-			? Math.round(walking.distanceMeters / 0.7)
-			: 0;
+		const steps = walking && walking.distance > 0 ? Math.round(walking.distance / 0.7) : 0;
 
 		return {
 			totalDistance: isFinite(totalDistanceKm)

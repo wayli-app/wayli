@@ -8,23 +8,34 @@
 		Sun,
 		Moon,
 		User,
-		LogOut
+		LogOut,
+		Shield,
+		Users,
+		Navigation
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate, messages, currentLocale } from '$lib/i18n';
-	import { state, setTheme } from '$lib/stores/app-state.svelte';
+	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
+	import { getEdgeFunctionUrl } from '$lib/utils/url-utils';
 
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
 
 	// Check if messages are loaded
 	let messagesLoaded = $derived(Object.keys($messages).length > 0);
+
+	// Track if checking user count
+	let checkingUserCount = $state(true);
+
+	// Local theme state for SSR compatibility
+	let currentTheme = $state<'light' | 'dark'>('light');
 
 	async function handleLogin() {
 		goto('/auth/signin');
@@ -42,9 +53,47 @@
 		window.location.href = '/auth/signout';
 	}
 
+	async function checkSetupStatus() {
+		try {
+			const response = await fetch(getEdgeFunctionUrl('server-settings'));
+			if (response.ok) {
+				const result = await response.json();
+				const isSetupComplete = result.data?.is_setup_complete ?? false;
+				console.log('🏠 [LANDING] Setup status check:', { isSetupComplete });
+
+				// If setup is not complete, redirect to signup for initial setup
+				if (!isSetupComplete) {
+					console.log('🏠 [LANDING] Setup not complete, redirecting to initial setup');
+					goto('/auth/signup');
+					return;
+				}
+			}
+		} catch (error) {
+			console.error('🏠 [LANDING] Error checking setup status:', error);
+		} finally {
+			checkingUserCount = false;
+		}
+	}
+
 	onMount(() => {
 		console.log('🏠 [LANDING] Page mounted');
-		// Theme is already initialized in the store
+
+		// Initialize theme
+		initializeTheme();
+
+		// Get current theme from localStorage or system preference
+		if (browser) {
+			const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+			if (savedTheme) {
+				currentTheme = savedTheme;
+			} else {
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				currentTheme = prefersDark ? 'dark' : 'light';
+			}
+		}
+
+		// Check setup status first to see if initial setup is needed
+		checkSetupStatus();
 
 		// Subscribe to user store for real-time updates
 		const unsubscribe = userStore.subscribe((user) => {
@@ -63,6 +112,11 @@
 			sessionUnsubscribe();
 		};
 	});
+
+	function handleThemeChange(theme: 'light' | 'dark') {
+		setTheme(theme);
+		currentTheme = theme;
+	}
 </script>
 
 <svelte:head>
@@ -70,7 +124,7 @@
 </svelte:head>
 
 <!-- Loading State -->
-{#if !messagesLoaded}
+{#if !messagesLoaded || checkingUserCount}
 	<div
 		class="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
 	>
@@ -78,8 +132,9 @@
 			<div
 				class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"
 			></div>
-			<p class="text-gray-600 dark:text-gray-300">Loading translations...</p>
-			<p class="text-sm text-gray-500">Messages: {Object.keys($messages).length}</p>
+			<p class="text-gray-600 dark:text-gray-300">
+				{checkingUserCount ? 'Checking system status...' : 'Loading translations...'}
+			</p>
 		</div>
 	</div>
 {:else}
@@ -91,8 +146,8 @@
 		<!-- Theme Toggle -->
 		<div class="flex gap-2">
 			<button
-				onclick={() => setTheme('light')}
-				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'light'
+				onclick={() => handleThemeChange('light')}
+				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'light'
 					? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 				title={t('landing.lightMode')}
@@ -100,8 +155,8 @@
 				<Sun class="h-4 w-4" />
 			</button>
 			<button
-				onclick={() => setTheme('dark')}
-				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {state.theme === 'dark'
+				onclick={() => handleThemeChange('dark')}
+				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'dark'
 					? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
 					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 				title={t('landing.darkMode')}
@@ -167,29 +222,26 @@
 		class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 transition-colors duration-300 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
 	>
 		<div class="container mx-auto px-4 py-16">
-			<!-- Development Status Banner -->
-			<div class="mx-auto mb-8 max-w-4xl">
-				<div class="rounded-xl border-2 border-amber-500 bg-amber-50 p-6 text-center shadow-lg dark:border-amber-400 dark:bg-amber-900/20">
-					<h2 class="mb-3 text-2xl font-bold text-amber-800 dark:text-amber-200">
-						{t('landing.developmentStatus')}
-					</h2>
-					<p class="text-lg text-amber-700 dark:text-amber-300">
-						{t('landing.developmentDescription')}
-					</p>
-				</div>
-			</div>
-
 			<!-- Hero Content -->
 			<div class="mx-auto mb-16 max-w-4xl text-center">
+				<!-- Logo Icon -->
+				<div class="mx-auto mb-6 flex justify-center">
+					<Navigation class="h-24 w-24 text-[rgb(37,140,244)] md:h-32 md:w-32" />
+				</div>
 				<h1
 					class="mb-6 text-5xl font-bold text-gray-900 transition-colors duration-300 md:text-7xl dark:text-gray-100"
 				>
-					{t('landing.welcomeTo')} <span class="text-[rgb(37,140,244)]">Wayli</span>
+					<span class="text-[rgb(37,140,244)]">Wayli</span>
 				</h1>
 				<p
-					class="mb-8 text-xl leading-relaxed text-gray-600 transition-colors duration-300 md:text-2xl dark:text-gray-300"
+					class="mb-4 text-2xl font-semibold text-gray-800 transition-colors duration-300 md:text-3xl dark:text-gray-200"
 				>
-					{t('landing.tagline')}
+					{t('landing.yourPersonalTracker')}
+				</p>
+				<p
+					class="mb-8 text-lg leading-relaxed text-gray-600 transition-colors duration-300 md:text-xl dark:text-gray-400"
+				>
+					{t('landing.selfHostedTagline')}
 				</p>
 				<div class="flex flex-col justify-center gap-4 sm:flex-row">
 					<a
@@ -209,45 +261,48 @@
 			</div>
 
 			<!-- Features Grid -->
-			<div class="mb-16 grid gap-8 md:grid-cols-3">
+			<div class="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+				<!-- Feature 1: Privacy First -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
 				>
 					<div
 						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 transition-colors duration-300 dark:bg-blue-900/20"
 					>
-						<MapPin class="h-8 w-8 text-[rgb(37,140,244)]" />
+						<Shield class="h-8 w-8 text-blue-600 dark:text-blue-400" />
 					</div>
 					<h3
 						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 					>
-						{t('landing.trackYourJourney')}
+						{t('landing.privacyFirst')}
 					</h3>
-					<p class="text-gray-600 transition-colors duration-300 dark:text-gray-400">
-						{t('landing.trackYourJourneyDescription')}
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+						{t('landing.privacyFirstDescription')}
 					</p>
 				</div>
 
+				<!-- Feature 2: Automatic Trip Detection -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
 				>
 					<div
 						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 transition-colors duration-300 dark:bg-green-900/20"
 					>
-						<Globe class="h-8 w-8 text-green-600 dark:text-green-400" />
+						<MapPin class="h-8 w-8 text-green-600 dark:text-green-400" />
 					</div>
 					<h3
 						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 					>
-						{t('landing.discoverTheWorld')}
+						{t('landing.automaticTripDetection')}
 					</h3>
-					<p class="text-gray-600 transition-colors duration-300 dark:text-gray-400">
-						{t('landing.discoverTheWorldDescription')}
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+						{t('landing.automaticTripDescription')}
 					</p>
 				</div>
 
+				<!-- Feature 3: Beautiful Analytics -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
 				>
 					<div
 						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 transition-colors duration-300 dark:bg-purple-900/20"
@@ -257,10 +312,29 @@
 					<h3
 						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 					>
-						{t('landing.analyzeYourTravels')}
+						{t('landing.beautifulAnalytics')}
 					</h3>
-					<p class="text-gray-600 transition-colors duration-300 dark:text-gray-400">
-						{t('landing.analyzeYourTravelsDescription')}
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+						{t('landing.beautifulAnalyticsDescription')}
+					</p>
+				</div>
+
+				<!-- Feature 4: Multi-User Support -->
+				<div
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+				>
+					<div
+						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 transition-colors duration-300 dark:bg-orange-900/20"
+					>
+						<Users class="h-8 w-8 text-orange-600 dark:text-orange-400" />
+					</div>
+					<h3
+						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
+					>
+						{t('landing.multiUserSupport')}
+					</h3>
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+						{t('landing.multiUserDescription')}
 					</p>
 				</div>
 			</div>
@@ -272,26 +346,25 @@
 				<h2
 					class="mb-4 text-3xl font-bold text-gray-900 transition-colors duration-300 dark:text-gray-100"
 				>
-					{t('landing.earlyAccess')}
+					{t('landing.readyToStart')}
 				</h2>
 				<p class="mb-6 text-gray-600 transition-colors duration-300 dark:text-gray-400">
-					{t('landing.developmentDescription')}
+					{t('landing.createAccountToday')}
 				</p>
 				<div class="flex flex-col justify-center gap-4 sm:flex-row">
 					<a
 						href="/auth/signup"
-						class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-6 py-3 font-medium text-white transition-colors hover:bg-[rgb(37,140,244)]/90"
+						class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[rgb(37,140,244)] px-8 py-3 font-semibold text-white shadow-md transition-all hover:scale-105 hover:bg-[rgb(37,140,244)]/90"
 					>
-						{t('landing.createYourAccount')}
-						<ArrowRight class="h-4 w-4" />
+						{t('landing.createAccount')}
+						<ArrowRight class="h-5 w-5" />
 					</a>
-					<button
-						disabled
-						class="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border-2 border-gray-300 px-6 py-3 font-medium text-gray-400 dark:border-gray-600 dark:text-gray-500"
-						title="Limited registration during development"
+					<a
+						href="/auth/signin"
+						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-3 font-semibold text-gray-700 shadow-md transition-all hover:scale-105 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 					>
-						{t('landing.inDevelopment')}
-					</button>
+						{t('landing.signIn')}
+					</a>
 				</div>
 			</div>
 		</div>

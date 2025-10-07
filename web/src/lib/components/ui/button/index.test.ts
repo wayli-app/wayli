@@ -14,7 +14,11 @@ describe('Button.svelte', () => {
 	});
 
 	it('applies variant and size classes', () => {
-		render(Button, { props: { variant: 'destructive', size: 'lg' } }, { slots: { default: 'Delete' } });
+		render(
+			Button,
+			{ props: { variant: 'destructive', size: 'lg' } },
+			{ slots: { default: 'Delete' } }
+		);
 		const button = screen.getByRole('button');
 		expect(button).toHaveAttribute('data-variant', 'destructive');
 		expect(button).toHaveAttribute('data-size', 'lg');
@@ -28,7 +32,11 @@ describe('Button.svelte', () => {
 
 	it('disables button when disabled=true', async () => {
 		const handleClick = vi.fn();
-		render(Button, { props: { disabled: true, on: { click: handleClick } } }, { slots: { default: 'Disabled' } });
+		render(
+			Button,
+			{ props: { disabled: true, on: { click: handleClick } } },
+			{ slots: { default: 'Disabled' } }
+		);
 		const button = screen.getByRole('button');
 		expect(button).toBeDisabled();
 		await fireEvent.click(button);
@@ -60,7 +68,11 @@ describe('Button.svelte', () => {
 
 	it('does not trigger click handler when disabled via loading', async () => {
 		const handleClick = vi.fn();
-		render(Button, { props: { loading: true, on: { click: handleClick } } }, { slots: { default: 'Wait' } });
+		render(
+			Button,
+			{ props: { loading: true, on: { click: handleClick } } },
+			{ slots: { default: 'Wait' } }
+		);
 		const button = screen.getByRole('button');
 		await fireEvent.click(button);
 		expect(handleClick).not.toHaveBeenCalled();

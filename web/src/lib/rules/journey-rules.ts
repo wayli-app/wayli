@@ -1,6 +1,10 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/journey-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
 import { isPhysicallyPossible } from '../utils/speed-pattern-analysis';
 import { MODE_DETECTION_REQUIREMENTS, MODE_PHYSICAL_LIMITS } from '../utils/transport-mode.config';
 import { haversine } from '../utils/multi-point-speed';
@@ -22,7 +26,9 @@ export class MinimumModeDurationRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult | null {
 		// Get the last N points to check for mode consistency
-		const recentModes = context.modeHistory.slice(-MODE_DETECTION_REQUIREMENTS.MIN_POINTS_FOR_MODE_CHANGE);
+		const recentModes = context.modeHistory.slice(
+			-MODE_DETECTION_REQUIREMENTS.MIN_POINTS_FOR_MODE_CHANGE
+		);
 		const currentModeFromBracket = this.getCurrentModeFromSpeed(context.currentSpeed);
 		const dominantRecentMode = this.getDominantMode(recentModes);
 
@@ -48,7 +54,8 @@ export class MinimumModeDurationRule implements DetectionRule {
 			}
 
 			// Check if we're at a high-priority location (station, airport, highway)
-			const isHighPriorityLocation = context.atTrainStation || context.atAirport || context.onHighway;
+			const isHighPriorityLocation =
+				context.atTrainStation || context.atAirport || context.onHighway;
 
 			// Allow immediate mode change for high-priority locations
 			if (isHighPriorityLocation) {
@@ -56,7 +63,9 @@ export class MinimumModeDurationRule implements DetectionRule {
 			}
 
 			// Calculate total distance covered in recent mode history
-			const totalDistance = this.calculateTotalDistance(context.pointHistory.slice(-MODE_DETECTION_REQUIREMENTS.MIN_POINTS_FOR_MODE_CHANGE));
+			const totalDistance = this.calculateTotalDistance(
+				context.pointHistory.slice(-MODE_DETECTION_REQUIREMENTS.MIN_POINTS_FOR_MODE_CHANGE)
+			);
 
 			// Only enforce minimum distance if speed is physically plausible for current mode
 			if (totalDistance < MODE_DETECTION_REQUIREMENTS.MIN_DISTANCE_FOR_MODE_CHANGE) {
@@ -90,7 +99,7 @@ export class MinimumModeDurationRule implements DetectionRule {
 
 	private getDominantMode(modes: Array<{ mode: string }>): string {
 		const modeCount = new Map<string, number>();
-		modes.forEach(m => {
+		modes.forEach((m) => {
 			modeCount.set(m.mode, (modeCount.get(m.mode) || 0) + 1);
 		});
 
@@ -111,10 +120,7 @@ export class MinimumModeDurationRule implements DetectionRule {
 
 		let total = 0;
 		for (let i = 1; i < points.length; i++) {
-			total += haversine(
-				points[i - 1].lat, points[i - 1].lng,
-				points[i].lat, points[i].lng
-			);
+			total += haversine(points[i - 1].lat, points[i - 1].lng, points[i].lat, points[i].lng);
 		}
 		return total;
 	}
@@ -128,9 +134,11 @@ export class TrainJourneyContinuationRule implements DetectionRule {
 	priority = 70;
 
 	canApply(context: DetectionContext): boolean {
-		return context.currentJourney?.type === 'train' &&
-			   context.currentSpeed >= 30 &&
-			   context.currentSpeed <= 200;
+		return (
+			context.currentJourney?.type === 'train' &&
+			context.currentSpeed >= 30 &&
+			context.currentSpeed <= 200
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult {
@@ -159,8 +167,7 @@ export class AirplaneJourneyContinuationRule implements DetectionRule {
 	priority = 75;
 
 	canApply(context: DetectionContext): boolean {
-		return context.currentJourney?.type === 'airplane' &&
-			   context.currentSpeed >= 200;
+		return context.currentJourney?.type === 'airplane' && context.currentSpeed >= 200;
 	}
 
 	detect(context: DetectionContext): DetectionResult {
@@ -189,8 +196,7 @@ export class ModeContinuityRule implements DetectionRule {
 	priority = 30;
 
 	canApply(context: DetectionContext): boolean {
-		return context.modeHistory.length > 0 &&
-			   context.currentSpeed < 20; // Only for slow speeds
+		return context.modeHistory.length > 0 && context.currentSpeed < 20; // Only for slow speeds
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -305,7 +311,8 @@ export class DefaultRule implements DetectionRule {
 		if (context.currentSpeed < 2) mode = 'stationary';
 		else if (context.currentSpeed < 10) mode = 'walking';
 		else if (context.currentSpeed < 35) mode = 'cycling';
-		else if (context.currentSpeed < 110) mode = 'car';      // Updated to match new brackets
+		else if (context.currentSpeed < 110)
+			mode = 'car'; // Updated to match new brackets
 		else if (context.currentSpeed < 200) mode = 'train';
 		else mode = 'airplane';
 

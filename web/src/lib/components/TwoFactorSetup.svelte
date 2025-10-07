@@ -175,7 +175,7 @@
 		aria-hidden="true"
 	>
 		<div
-			class="relative w-full max-w-lg max-h-[100vh] rounded-xl bg-white shadow-2xl dark:bg-gray-800 flex flex-col overflow-hidden mx-4"
+			class="relative mx-4 flex max-h-[100vh] w-full max-w-lg flex-col overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-gray-800"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => {
 				if (e.key === 'Escape') closeModal();
@@ -186,7 +186,7 @@
 		>
 			<!-- Modal Header -->
 			<div
-				class="flex items-start justify-between border-b border-gray-200 p-6 dark:border-gray-700 flex-shrink-0"
+				class="flex flex-shrink-0 items-start justify-between border-b border-gray-200 p-6 dark:border-gray-700"
 			>
 				<div>
 					<h2
@@ -209,10 +209,10 @@
 			</div>
 
 			<!-- Modal Content -->
-			<div class="p-6 overflow-y-auto flex-1">
+			<div class="flex-1 overflow-y-auto p-6">
 				{#if currentStep === 1}
 					<!-- Step 1: Password Entry and QR Code Generation -->
-					<div class="text-center pb-4">
+					<div class="pb-4 text-center">
 						<div class="mb-6">
 							<Shield class="mx-auto mb-4 h-12 w-12 text-[rgb(37,140,244)]" />
 							<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -283,7 +283,7 @@
 					</div>
 				{:else if currentStep === 2}
 					<!-- Step 2: Verification -->
-					<div class="text-center pb-4">
+					<div class="pb-4 text-center">
 						<div class="mb-6">
 							<Smartphone class="mx-auto mb-4 h-12 w-12 text-[rgb(37,140,244)]" />
 							<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
@@ -322,7 +322,7 @@
 					</div>
 				{:else if currentStep === 3}
 					<!-- Step 3: Recovery Codes -->
-					<div class="text-center pb-4">
+					<div class="pb-4 text-center">
 						<div class="mb-6">
 							<CheckCircle class="mx-auto mb-4 h-12 w-12 text-green-500" />
 							<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">

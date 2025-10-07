@@ -1,19 +1,23 @@
 // /Users/bart/Dev/wayli/web/src/lib/utils/multi-point-speed.ts
 
-import type { PointData, SpeedCalculationConfig, SpeedSegment } from '../types/transport-detection.types';
+import type {
+	PointData,
+	SpeedCalculationConfig,
+	SpeedSegment
+} from '../types/transport-detection.types';
 
 /**
  * Multi-point speed calculation for noise reduction and stability
  */
 
 export const SPEED_CALCULATION_CONFIG: SpeedCalculationConfig = {
-	DEFAULT_WINDOW_SIZE: 5,        // Number of points to use
-	MIN_WINDOW_SIZE: 3,            // Minimum points required
-	MAX_WINDOW_SIZE: 10,           // Maximum points to prevent lag
-	OUTLIER_THRESHOLD: 2.0,        // Standard deviations for outlier detection
-	WEIGHT_DECAY: 0.8,             // Weight decay factor for older points
-	MIN_DISTANCE_THRESHOLD: 10,    // Minimum distance in meters to consider
-	MAX_SPEED_THRESHOLD: 500       // Maximum realistic speed in km/h
+	DEFAULT_WINDOW_SIZE: 5, // Number of points to use
+	MIN_WINDOW_SIZE: 3, // Minimum points required
+	MAX_WINDOW_SIZE: 10, // Maximum points to prevent lag
+	OUTLIER_THRESHOLD: 2.0, // Standard deviations for outlier detection
+	WEIGHT_DECAY: 0.8, // Weight decay factor for older points
+	MIN_DISTANCE_THRESHOLD: 10, // Minimum distance in meters to consider
+	MAX_SPEED_THRESHOLD: 500 // Maximum realistic speed in km/h
 };
 
 /**
@@ -39,14 +43,18 @@ export function calculateMultiPointSpeed(
 	windowSize: number = SPEED_CALCULATION_CONFIG.DEFAULT_WINDOW_SIZE
 ): number {
 	// Check if points have pre-calculated speeds (from database)
-	const pointsWithSpeed = points.filter(p => p.speed !== undefined && p.speed !== null && p.speed > 0);
+	const pointsWithSpeed = points.filter(
+		(p) => p.speed !== undefined && p.speed !== null && p.speed > 0
+	);
 
 	// If we have enough points with pre-calculated speeds, use those instead of calculating from coordinates
 	if (pointsWithSpeed.length >= Math.min(3, points.length)) {
-		const recentSpeeds = pointsWithSpeed.slice(-windowSize).map(p => p.speed!);
+		const recentSpeeds = pointsWithSpeed.slice(-windowSize).map((p) => p.speed!);
 
 		// Filter outliers
-		const speeds = recentSpeeds.filter(s => s > 0 && s < SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD);
+		const speeds = recentSpeeds.filter(
+			(s) => s > 0 && s < SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD
+		);
 		if (speeds.length === 0) return 0;
 
 		// Calculate weighted average (more weight on recent speeds)
@@ -58,7 +66,9 @@ export function calculateMultiPointSpeed(
 			totalWeight += weight;
 		});
 
-		return totalWeight > 0 ? Math.min(weightedSum / totalWeight, SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD) : 0;
+		return totalWeight > 0
+			? Math.min(weightedSum / totalWeight, SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD)
+			: 0;
 	}
 
 	// Fallback: Calculate from coordinates and timestamps
@@ -117,17 +127,15 @@ export function calculateMultiPointSpeed(
 function filterOutliers(segments: SpeedSegment[]): SpeedSegment[] {
 	if (segments.length < 3) return segments;
 
-	const speeds = segments.map(s => s.speed);
+	const speeds = segments.map((s) => s.speed);
 	const mean = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-	const variance = speeds.reduce((sum, speed) => sum + Math.pow(speed - mean, 2), 0) / speeds.length;
+	const variance =
+		speeds.reduce((sum, speed) => sum + Math.pow(speed - mean, 2), 0) / speeds.length;
 	const stdDev = Math.sqrt(variance);
 
-	const threshold = mean + (SPEED_CALCULATION_CONFIG.OUTLIER_THRESHOLD * stdDev);
+	const threshold = mean + SPEED_CALCULATION_CONFIG.OUTLIER_THRESHOLD * stdDev;
 
-	return segments.filter(segment =>
-		segment.speed <= threshold &&
-		segment.speed >= 0
-	);
+	return segments.filter((segment) => segment.speed <= threshold && segment.speed >= 0);
 }
 
 /**
@@ -151,17 +159,17 @@ function calculateWeightedAverageSpeed(segments: SpeedSegment[]): number {
 /**
  * Get adaptive window size based on GPS data quality
  */
-export function getAdaptiveWindowSize(
-	pointHistory: PointData[]
-): number {
+export function getAdaptiveWindowSize(pointHistory: PointData[]): number {
 	if (pointHistory.length < 3) return SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE;
 
 	// Calculate GPS accuracy indicators
 	const distances: number[] = [];
 	for (let i = 1; i < pointHistory.length; i++) {
 		const dist = haversine(
-			pointHistory[i-1].lat, pointHistory[i-1].lng,
-			pointHistory[i].lat, pointHistory[i].lng
+			pointHistory[i - 1].lat,
+			pointHistory[i - 1].lng,
+			pointHistory[i].lat,
+			pointHistory[i].lng
 		);
 		distances.push(dist);
 	}
@@ -170,7 +178,7 @@ export function getAdaptiveWindowSize(
 
 	// Use larger window for noisy GPS data
 	if (avgDistance > 100) return 7; // Noisy GPS
-	if (avgDistance > 50) return 5;  // Moderate noise
+	if (avgDistance > 50) return 5; // Moderate noise
 	return 3; // Clean GPS
 }
 

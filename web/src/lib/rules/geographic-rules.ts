@@ -1,6 +1,10 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/geographic-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
 
 /**
  * Geographic context-based detection rules

@@ -941,7 +941,7 @@
 			height: 36px;
 		}
 	</style>
-	<title>{t('navigation.wantToVisit')} - Wayli</title>
+	<title>{t('common.navigation.wantToVisit')} - Wayli</title>
 </svelte:head>
 
 <div class="space-y-6">
@@ -950,7 +950,7 @@
 		<div class="flex items-center gap-3">
 			<Heart class="h-8 w-8 text-red-500" />
 			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
-				{t('navigation.wantToVisit')}
+				{t('common.navigation.wantToVisit')}
 			</h1>
 		</div>
 		<button
@@ -1705,6 +1705,7 @@
 		</div>
 	{/if}
 </div>
+
 <style>
 	.modal-overlay {
 		margin: 0 !important;

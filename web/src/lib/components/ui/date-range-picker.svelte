@@ -126,7 +126,8 @@
 		background-size: 14px 14px;
 		height: 14px;
 		width: 14px;
-		filter: brightness(0) saturate(100%) invert(45%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(0%) contrast(0%);
+		filter: brightness(0) saturate(100%) invert(45%) sepia(0%) saturate(0%) hue-rotate(0deg)
+			brightness(0%) contrast(0%);
 	}
 
 	.clear-button {
@@ -145,7 +146,8 @@
 		display: inline-block;
 		width: 16px;
 		height: 16px;
-		background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12'/%3E%3C/svg%3E") no-repeat center center;
+		background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 18L18 6M6 6l12 12'/%3E%3C/svg%3E")
+			no-repeat center center;
 		background-size: 16px 16px;
 		color: rgb(107 114 128);
 	}
@@ -167,7 +169,8 @@
 	}
 
 	:global(.dark) .date-field .icon-calendar {
-		filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%);
+		filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg)
+			brightness(100%) contrast(100%);
 	}
 
 	:global(.dark) .clear-button:hover {

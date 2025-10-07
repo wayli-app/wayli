@@ -15,22 +15,15 @@ import { defineConfig } from 'vite';
  */
 
 export default defineConfig({
-	plugins: [
-		tailwindcss(),
-		sveltekit(),
-	],
+	plugins: [tailwindcss(), sveltekit()],
 	define: {
 		// Only expose public environment variables to the client
 		// SECURITY: Never expose SUPABASE_SERVICE_ROLE_KEY to the client!
 		// It should only be used server-side (in +server.ts files, hooks.server.ts, or workers)
 		'process.env': {
 			SUPABASE_URL:
-				process.env.SUPABASE_URL ||
-				process.env.PUBLIC_SUPABASE_URL ||
-				'http://127.0.0.1:54321',
-			PUBLIC_SUPABASE_URL:
-				process.env.PUBLIC_SUPABASE_URL ||
-				'http://127.0.0.1:54321',
+				process.env.SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
+			PUBLIC_SUPABASE_URL: process.env.PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321',
 			PUBLIC_SUPABASE_ANON_KEY:
 				process.env.PUBLIC_SUPABASE_ANON_KEY ||
 				'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
@@ -104,7 +97,7 @@ export default defineConfig({
 			'localhost',
 			'127.0.0.1',
 			// Allow production domains from environment variable
-			...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',') : []),
+			...(process.env.VITE_ALLOWED_HOSTS ? process.env.VITE_ALLOWED_HOSTS.split(',') : [])
 		]
 	}
 });

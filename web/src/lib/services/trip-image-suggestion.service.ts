@@ -108,19 +108,19 @@ export class TripImageSuggestionService {
 			);
 
 			// Find primary city (most visited)
-			const primaryCity = Object.keys(cityStats).length > 0
-				? Object.keys(cityStats).reduce(
-					(a, b) => (cityStats[a] > cityStats[b] ? a : b),
-					''
-				)
-				: undefined;
+			const primaryCity =
+				Object.keys(cityStats).length > 0
+					? Object.keys(cityStats).reduce((a, b) => (cityStats[a] > cityStats[b] ? a : b), '')
+					: undefined;
 
 			// Log city dominance for debugging
 			if (primaryCity && trackerData.length > 0) {
 				const primaryCityCount = cityStats[primaryCity] || 0;
 				const cityDominance = (primaryCityCount / trackerData.length) * 100;
 
-				console.log(`🏙️ Primary city: ${primaryCity} (${primaryCityCount}/${trackerData.length} points, ${cityDominance.toFixed(1)}% dominance)`);
+				console.log(
+					`🏙️ Primary city: ${primaryCity} (${primaryCityCount}/${trackerData.length} points, ${cityDominance.toFixed(1)}% dominance)`
+				);
 			}
 
 			return {
@@ -164,12 +164,18 @@ export class TripImageSuggestionService {
 		try {
 			// Prefer using metadata if available (duration-based, more accurate)
 			if (tripMetadata) {
-				if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length > 1) {
+				if (
+					tripMetadata.visitedCountriesDetailed &&
+					tripMetadata.visitedCountriesDetailed.length > 1
+				) {
 					// Multi-country trip: use country with longest duration
-					const dominantCountry = tripMetadata.visitedCountriesDetailed
-						.sort((a, b) => b.durationHours - a.durationHours)[0];
+					const dominantCountry = tripMetadata.visitedCountriesDetailed.sort(
+						(a, b) => b.durationHours - a.durationHours
+					)[0];
 
-					console.log(`🌍 Using dominant country from metadata: ${dominantCountry.countryCode} (${dominantCountry.durationHours}h)`);
+					console.log(
+						`🌍 Using dominant country from metadata: ${dominantCountry.countryCode} (${dominantCountry.durationHours}h)`
+					);
 
 					const countryImage = await getTripBannerImageWithAttribution(
 						dominantCountry.countryCode,
@@ -181,12 +187,18 @@ export class TripImageSuggestionService {
 						console.log(`✅ Successfully got country image: ${countryImage.imageUrl}`);
 						return countryImage;
 					}
-				} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length > 1) {
+				} else if (
+					tripMetadata.visitedCitiesDetailed &&
+					tripMetadata.visitedCitiesDetailed.length > 1
+				) {
 					// Multi-city trip (same country): use city with longest duration
-					const dominantCity = tripMetadata.visitedCitiesDetailed
-						.sort((a, b) => b.durationHours - a.durationHours)[0];
+					const dominantCity = tripMetadata.visitedCitiesDetailed.sort(
+						(a, b) => b.durationHours - a.durationHours
+					)[0];
 
-					console.log(`🏙️ Using dominant city from metadata: ${dominantCity.city} (${dominantCity.durationHours}h)`);
+					console.log(
+						`🏙️ Using dominant city from metadata: ${dominantCity.city} (${dominantCity.durationHours}h)`
+					);
 
 					const cityImage = await getTripBannerImageWithAttribution(
 						dominantCity.city,
@@ -198,7 +210,10 @@ export class TripImageSuggestionService {
 						console.log(`✅ Successfully got city image: ${cityImage.imageUrl}`);
 						return cityImage;
 					}
-				} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length === 1) {
+				} else if (
+					tripMetadata.visitedCitiesDetailed &&
+					tripMetadata.visitedCitiesDetailed.length === 1
+				) {
 					// Single city trip
 					const singleCity = tripMetadata.visitedCitiesDetailed[0];
 					console.log(`🏙️ Using single city from metadata: ${singleCity.city}`);
@@ -213,7 +228,10 @@ export class TripImageSuggestionService {
 						console.log(`✅ Successfully got city image: ${cityImage.imageUrl}`);
 						return cityImage;
 					}
-				} else if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length === 1) {
+				} else if (
+					tripMetadata.visitedCountriesDetailed &&
+					tripMetadata.visitedCountriesDetailed.length === 1
+				) {
 					// Single country trip
 					const singleCountry = tripMetadata.visitedCountriesDetailed[0];
 					console.log(`🌍 Using single country from metadata: ${singleCountry.countryCode}`);
@@ -274,7 +292,12 @@ export class TripImageSuggestionService {
 
 			// Final fallback to generic travel image
 			console.log('Using generic travel image as fallback');
-			const travelImage = await getTripBannerImageWithAttribution('travel', userApiKey, undefined, false);
+			const travelImage = await getTripBannerImageWithAttribution(
+				'travel',
+				userApiKey,
+				undefined,
+				false
+			);
 			if (travelImage) {
 				console.log(`Successfully got travel image: ${travelImage.imageUrl}`);
 				return travelImage;

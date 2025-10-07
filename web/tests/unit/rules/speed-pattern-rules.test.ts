@@ -1,25 +1,31 @@
 // tests/unit/rules/speed-pattern-rules.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { SpeedPatternTrainDetectionRule, SpeedPatternCarDetectionRule } from '../../../src/lib/rules/speed-pattern-rules';
+import {
+	SpeedPatternTrainDetectionRule,
+	SpeedPatternCarDetectionRule
+} from '../../../src/lib/rules/speed-pattern-rules';
 import type { DetectionContext } from '../../../src/lib/types/transport-detection.types';
 
 // Helper to create mock GPS frequency
-function createMockGPSFrequency(type: 'active_navigation' | 'background_tracking' | 'mixed' = 'mixed') {
+function createMockGPSFrequency(
+	type: 'active_navigation' | 'background_tracking' | 'mixed' = 'mixed'
+) {
 	const modifiers = {
-		car: type === 'active_navigation' ? 0.20 : type === 'background_tracking' ? -0.20 : 0,
-		train: type === 'active_navigation' ? -0.15 : type === 'background_tracking' ? 0.10 : 0,
-		walking: type === 'active_navigation' ? -0.10 : type === 'background_tracking' ? 0.05 : 0,
+		car: type === 'active_navigation' ? 0.2 : type === 'background_tracking' ? -0.2 : 0,
+		train: type === 'active_navigation' ? -0.15 : type === 'background_tracking' ? 0.1 : 0,
+		walking: type === 'active_navigation' ? -0.1 : type === 'background_tracking' ? 0.05 : 0,
 		cycling: 0,
 		airplane: 0,
 		stationary: 0
 	};
 
 	return {
-		averageInterval: type === 'active_navigation' ? 5000 : type === 'background_tracking' ? 90000 : 30000,
+		averageInterval:
+			type === 'active_navigation' ? 5000 : type === 'background_tracking' ? 90000 : 30000,
 		intervalVariance: 0.2,
 		frequencyType: type,
-		likelyMode: type === 'active_navigation' ? 'car' as const : 'unknown' as const,
+		likelyMode: type === 'active_navigation' ? ('car' as const) : ('unknown' as const),
 		confidenceModifiers: modifiers
 	};
 }
@@ -149,14 +155,16 @@ describe('Speed Pattern Rules', () => {
 						{ lat: 52.1, lng: 4.0, timestamp: now - 60000 },
 						{ lat: 52.0, lng: 4.0, timestamp: now }
 					],
-					modeHistory: Array(15).fill(null).map((_, i) => ({
-						mode: 'train',
-						timestamp: now - (15 - i) * 60000,
-						speed: 110,
-						coordinates: { lat: 52.0, lng: 4.0 },
-						confidence: 0.8,
-						reason: 'test'
-					})),
+					modeHistory: Array(15)
+						.fill(null)
+						.map((_, i) => ({
+							mode: 'train',
+							timestamp: now - (15 - i) * 60000,
+							speed: 110,
+							coordinates: { lat: 52.0, lng: 4.0 },
+							confidence: 0.8,
+							reason: 'test'
+						})),
 					atTrainStation: false,
 					atAirport: false,
 					onHighway: false,
@@ -189,14 +197,16 @@ describe('Speed Pattern Rules', () => {
 						{ lat: 52.1, lng: 4.0, timestamp: now - 60000 },
 						{ lat: 52.0, lng: 4.1, timestamp: now }
 					],
-					modeHistory: Array(15).fill(null).map((_, i) => ({
-						mode: 'car',
-						timestamp: now - (15 - i) * 60000,
-						speed: 80 + (i % 3) * 20, // Variable speeds
-						coordinates: { lat: 52.0, lng: 4.0 },
-						confidence: 0.7,
-						reason: 'test'
-					})),
+					modeHistory: Array(15)
+						.fill(null)
+						.map((_, i) => ({
+							mode: 'car',
+							timestamp: now - (15 - i) * 60000,
+							speed: 80 + (i % 3) * 20, // Variable speeds
+							coordinates: { lat: 52.0, lng: 4.0 },
+							confidence: 0.7,
+							reason: 'test'
+						})),
 					atTrainStation: false,
 					atAirport: false,
 					onHighway: false,
@@ -258,10 +268,38 @@ describe('Speed Pattern Rules', () => {
 						{ lat: 52.5054, lng: 4.8, timestamp: now }
 					],
 					modeHistory: [
-						{ mode: 'car', timestamp: now - 60000, speed: 110, coordinates: { lat: 52.4, lng: 4.8 }, confidence: 0.8, reason: 'test' },
-						{ mode: 'car', timestamp: now - 30000, speed: 112, coordinates: { lat: 52.45, lng: 4.8 }, confidence: 0.8, reason: 'test' },
-						{ mode: 'car', timestamp: now - 15000, speed: 110, coordinates: { lat: 52.5, lng: 4.8 }, confidence: 0.8, reason: 'test' },
-						{ mode: 'car', timestamp: now - 10000, speed: 111, coordinates: { lat: 52.5018, lng: 4.8 }, confidence: 0.8, reason: 'test' }
+						{
+							mode: 'car',
+							timestamp: now - 60000,
+							speed: 110,
+							coordinates: { lat: 52.4, lng: 4.8 },
+							confidence: 0.8,
+							reason: 'test'
+						},
+						{
+							mode: 'car',
+							timestamp: now - 30000,
+							speed: 112,
+							coordinates: { lat: 52.45, lng: 4.8 },
+							confidence: 0.8,
+							reason: 'test'
+						},
+						{
+							mode: 'car',
+							timestamp: now - 15000,
+							speed: 110,
+							coordinates: { lat: 52.5, lng: 4.8 },
+							confidence: 0.8,
+							reason: 'test'
+						},
+						{
+							mode: 'car',
+							timestamp: now - 10000,
+							speed: 111,
+							coordinates: { lat: 52.5018, lng: 4.8 },
+							confidence: 0.8,
+							reason: 'test'
+						}
 					],
 					atTrainStation: false,
 					atAirport: false,
@@ -286,7 +324,7 @@ describe('Speed Pattern Rules', () => {
 				// Simulate a 10km journey over 10 minutes with train-like speed pattern
 				// This allows retroactive train detection when station is reached later
 				const context: DetectionContext = {
-					current: { lat: 52.10, lng: 4.90, timestamp: now },
+					current: { lat: 52.1, lng: 4.9, timestamp: now },
 					previous: { lat: 52.08, lng: 4.88, timestamp: now - 120000 },
 					pointHistory: [
 						{ lat: 52.0, lng: 4.8, timestamp: now - 600000 },
@@ -294,16 +332,18 @@ describe('Speed Pattern Rules', () => {
 						{ lat: 52.04, lng: 4.84, timestamp: now - 360000 },
 						{ lat: 52.06, lng: 4.86, timestamp: now - 240000 },
 						{ lat: 52.08, lng: 4.88, timestamp: now - 120000 },
-						{ lat: 52.10, lng: 4.90, timestamp: now }
+						{ lat: 52.1, lng: 4.9, timestamp: now }
 					],
-					modeHistory: Array(10).fill(null).map((_, i) => ({
-						mode: 'car',
-						timestamp: now - (10 - i) * 60000,
-						speed: 110 + (i % 2) * 2, // Very consistent speed
-						coordinates: { lat: 52.0 + i * 0.01, lng: 4.8 + i * 0.01 },
-						confidence: 0.8,
-						reason: 'test'
-					})),
+					modeHistory: Array(10)
+						.fill(null)
+						.map((_, i) => ({
+							mode: 'car',
+							timestamp: now - (10 - i) * 60000,
+							speed: 110 + (i % 2) * 2, // Very consistent speed
+							coordinates: { lat: 52.0 + i * 0.01, lng: 4.8 + i * 0.01 },
+							confidence: 0.8,
+							reason: 'test'
+						})),
 					atTrainStation: false,
 					atAirport: false,
 					onHighway: false,

@@ -58,7 +58,9 @@ export class DatabaseMigrationService {
 			const { error: tableError } = await this.supabase
 				.from('_sql')
 				.select('*')
-				.eq('query', `
+				.eq(
+					'query',
+					`
 					CREATE TABLE IF NOT EXISTS public.database_migrations (
 						version VARCHAR(20) PRIMARY KEY,
 						name VARCHAR(255) NOT NULL,
@@ -67,7 +69,8 @@ export class DatabaseMigrationService {
 						execution_time_ms INTEGER,
 						error_message TEXT
 					);
-				`);
+				`
+				);
 
 			if (tableError) {
 				console.log('⚠️ Table creation error (may already exist):', tableError.message);
@@ -77,14 +80,17 @@ export class DatabaseMigrationService {
 			const { error: functionError } = await this.supabase
 				.from('_sql')
 				.select('*')
-				.eq('query', `
+				.eq(
+					'query',
+					`
 					CREATE OR REPLACE FUNCTION exec_sql(sql TEXT)
 					RETURNS VOID AS $$
 					BEGIN
 						EXECUTE sql;
 					END;
 					$$ LANGUAGE plpgsql SECURITY DEFINER;
-				`);
+				`
+				);
 
 			if (functionError) {
 				console.log('⚠️ Function creation error (may already exist):', functionError.message);
@@ -104,7 +110,9 @@ export class DatabaseMigrationService {
 			const { error: policyError } = await this.supabase
 				.from('_sql')
 				.select('*')
-				.eq('query', `
+				.eq(
+					'query',
+					`
 					DO $$
 					BEGIN
 						IF NOT EXISTS (
@@ -116,7 +124,8 @@ export class DatabaseMigrationService {
 								FOR ALL USING (auth.role() = 'service_role');
 						END IF;
 					END $$;
-				`);
+				`
+				);
 
 			if (policyError) {
 				console.log('⚠️ Policy creation error (may already exist):', policyError.message);
@@ -126,10 +135,13 @@ export class DatabaseMigrationService {
 			const { error: grantError } = await this.supabase
 				.from('_sql')
 				.select('*')
-				.eq('query', `
+				.eq(
+					'query',
+					`
 					GRANT ALL ON public.database_migrations TO service_role;
 					GRANT EXECUTE ON FUNCTION exec_sql(TEXT) TO service_role;
-				`);
+				`
+				);
 
 			if (grantError) {
 				console.log('⚠️ Grant error (may already be granted):', grantError.message);
@@ -148,7 +160,7 @@ export class DatabaseMigrationService {
 	private static async getMigrationByVersion(version: string): Promise<Migration | null> {
 		try {
 			const files = await fs.readdir(this.migrationsPath);
-			const migrationFile = files.find(file => file.startsWith(version));
+			const migrationFile = files.find((file) => file.startsWith(version));
 
 			if (!migrationFile) {
 				return null;
@@ -277,7 +289,9 @@ export class DatabaseMigrationService {
 				throw new Error(`Failed to record migration: ${insertError.message}`);
 			}
 
-			console.log(`✅ Migration applied successfully: ${migration.version} - ${migration.name} (${executionTime}ms)`);
+			console.log(
+				`✅ Migration applied successfully: ${migration.version} - ${migration.name} (${executionTime}ms)`
+			);
 
 			return {
 				success: true,
@@ -368,8 +382,10 @@ export class DatabaseMigrationService {
 				console.log('ALTER TABLE public.database_migrations ENABLE ROW LEVEL SECURITY;');
 				console.log('');
 				console.log('-- Create RLS policy');
-				console.log('CREATE POLICY "Service role can manage migrations" ON public.database_migrations');
-				console.log('    FOR ALL USING (auth.role() = \'service_role\');');
+				console.log(
+					'CREATE POLICY "Service role can manage migrations" ON public.database_migrations'
+				);
+				console.log("    FOR ALL USING (auth.role() = 'service_role');");
 				console.log('');
 				console.log('-- Grant permissions');
 				console.log('GRANT ALL ON public.database_migrations TO service_role;');
@@ -379,13 +395,11 @@ export class DatabaseMigrationService {
 
 				// Exit the process to let the user run the SQL
 				process.exit(1);
-
 			} else if (testError) {
 				throw new Error(`Unexpected error: ${testError.message}`);
 			} else {
 				console.log('✅ Table already exists');
 			}
-
 		} catch (error) {
 			const err = error as Error;
 			throw new Error(`Failed to create infrastructure: ${err.message}`);
@@ -427,15 +441,15 @@ export class DatabaseMigrationService {
 			// Get and apply pending migrations
 			const results = await this.applyPendingMigrations();
 
-			const successCount = results.filter(r => r.success).length;
-			const failureCount = results.filter(r => !r.success).length;
+			const successCount = results.filter((r) => r.success).length;
+			const failureCount = results.filter((r) => !r.success).length;
 
 			console.log(`📊 Migration Summary: ${successCount} successful, ${failureCount} failed`);
 
 			if (failureCount > 0) {
-				const failed = results.filter(r => !r.success);
+				const failed = results.filter((r) => !r.success);
 				console.error('❌ Failed migrations:');
-				failed.forEach(f => console.error(`  - ${f.version}: ${f.error}`));
+				failed.forEach((f) => console.error(`  - ${f.version}: ${f.error}`));
 			}
 
 			return results;

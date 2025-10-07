@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
 			// Get basic server settings that are safe for public access
 			const { data: settings, error: settingsError } = await supabase
 				.from('server_settings')
-				.select('allow_registration, require_email_verification, server_name')
+				.select('allow_registration, require_email_verification, server_name, is_setup_complete')
 				.single();
 
 			if (settingsError && settingsError.code !== 'PGRST116') {
@@ -42,17 +42,33 @@ Deno.serve(async (req) => {
 				return errorResponse('Failed to fetch server settings', 500);
 			}
 
+			// Check if SMTP is configured by looking for environment variables
+			const smtpHost = Deno.env.get('SMTP_HOST');
+			const smtpUser = Deno.env.get('SMTP_USER');
+			const smtpConfigured = !!(smtpHost && smtpUser);
+
+			logInfo('SMTP configuration check', 'SERVER-SETTINGS', {
+				smtpConfigured,
+				hasHost: !!smtpHost,
+				hasUser: !!smtpUser
+			});
+
 			// Return default settings if none exist
 			const defaultSettings = {
 				allow_registration: true,
 				require_email_verification: false,
-				server_name: 'Wayli'
+				server_name: 'Wayli',
+				is_setup_complete: false,
+				smtp_configured: smtpConfigured
 			};
 
 			const publicSettings = {
 				allow_registration: settings?.allow_registration ?? defaultSettings.allow_registration,
-				require_email_verification: settings?.require_email_verification ?? defaultSettings.require_email_verification,
-				server_name: settings?.server_name ?? defaultSettings.server_name
+				require_email_verification:
+					settings?.require_email_verification ?? defaultSettings.require_email_verification,
+				server_name: settings?.server_name ?? defaultSettings.server_name,
+				is_setup_complete: settings?.is_setup_complete ?? defaultSettings.is_setup_complete,
+				smtp_configured: smtpConfigured
 			};
 
 			logInfo('Public server settings returned', 'SERVER-SETTINGS', publicSettings);

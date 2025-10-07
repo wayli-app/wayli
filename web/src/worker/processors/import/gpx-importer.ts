@@ -61,7 +61,9 @@ export async function importGPXWithProgress(
 			// Skip points with null or invalid coordinates
 			if (isNaN(lat) || isNaN(lon) || lat === null || lon === null) {
 				skippedCount++;
-				console.log(`⚠️ Skipping waypoint ${i + 1}: invalid coordinates (lat: ${lat}, lon: ${lon})`);
+				console.log(
+					`⚠️ Skipping waypoint ${i + 1}: invalid coordinates (lat: ${lat}, lon: ${lon})`
+				);
 				continue;
 			}
 
@@ -101,7 +103,7 @@ export async function importGPXWithProgress(
 					location: `POINT(${lon} ${lat})`,
 					recorded_at: recordedAt,
 					country_code: countryCode,
-					tz_diff: tzDiff,  // Add timezone difference
+					tz_diff: tzDiff, // Add timezone difference
 					geocode: geocodeFeature,
 					created_at: new Date().toISOString()
 				} as any,
@@ -161,7 +163,9 @@ export async function importGPXWithProgress(
 				// Skip points with null or invalid coordinates
 				if (isNaN(lat) || isNaN(lon) || lat === null || lon === null) {
 					skippedCount++;
-					console.log(`⚠️ Skipping waypoint ${i + 1}: invalid coordinates (lat: ${lat}, lon: ${lon})`);
+					console.log(
+						`⚠️ Skipping waypoint ${i + 1}: invalid coordinates (lat: ${lat}, lon: ${lon})`
+					);
 					continue;
 				}
 
@@ -198,7 +202,7 @@ export async function importGPXWithProgress(
 						location: `POINT(${lon} ${lat})`,
 						recorded_at: recordedAt,
 						country_code: countryCode,
-						tz_diff: tzDiff,  // Add timezone difference
+						tz_diff: tzDiff, // Add timezone difference
 						geocode: geocodeFeature,
 						created_at: new Date().toISOString()
 					} as any,
@@ -220,7 +224,10 @@ export async function importGPXWithProgress(
 			const currentProcessed = waypoints.length + i + 1;
 			const elapsedSeconds = (Date.now() - startTime) / 1000;
 			const rate = currentProcessed > 0 ? (currentProcessed / elapsedSeconds).toFixed(1) : '0';
-			const eta = currentProcessed > 0 ? ((totalItems - currentProcessed) / (currentProcessed / elapsedSeconds)).toFixed(0) : '0';
+			const eta =
+				currentProcessed > 0
+					? ((totalItems - currentProcessed) / (currentProcessed / elapsedSeconds)).toFixed(0)
+					: '0';
 			console.log(
 				`📈 Tracks progress: ${(i + 1).toLocaleString()}/${tracks.length.toLocaleString()} - Total imported: ${importedCount.toLocaleString()} - Skipped: ${skippedCount.toLocaleString()} - Errors: ${errorCount.toLocaleString()}`
 			);

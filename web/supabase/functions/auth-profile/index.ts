@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
 		if (req.method === 'GET') {
 			// Get user profile from user_profiles table
-			let { data: profile, error: profileError } = await supabase
+			const { data: profile, error: profileError } = await supabase
 				.from('user_profiles')
 				.select('*')
 				.eq('id', user.id)
@@ -29,10 +29,7 @@ Deno.serve(async (req) => {
 			// If profile doesn't exist, it should have been created by the trigger
 			// Return an error since something went wrong with profile creation
 			if (profileError && profileError.code === 'PGRST116') {
-				logError(
-					new Error('Profile not found - trigger may not have run'),
-					'AUTH-PROFILE'
-				);
+				logError(new Error('Profile not found - trigger may not have run'), 'AUTH-PROFILE');
 				return errorResponse('Profile not found. Please contact support.', 404);
 			} else if (profileError) {
 				logError(profileError, 'AUTH-PROFILE');

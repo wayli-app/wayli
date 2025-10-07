@@ -26,6 +26,7 @@
 
 	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -42,6 +43,7 @@
 	let adminEmail = $state('');
 	let allowRegistration = $state(true);
 	let requireEmailVerification = $state(false);
+	let smtpConfigured = $state(false);
 	let showAddUserModal = $state(false);
 	let isModalOpen = $state(false);
 	let selectedUser = $state<UserProfile | null>(null);
@@ -92,7 +94,7 @@
 	async function fetchFilteredUsers() {
 		if (!browser) return;
 
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (debouncedSearchQuery) params.set('search', debouncedSearchQuery);
 		if (currentPage > 1) params.set('page', currentPage.toString());
 		if (itemsPerPage !== 10) params.set('limit', itemsPerPage.toString());
@@ -324,12 +326,14 @@
 			adminEmail = settings.admin_email || '';
 			allowRegistration = settings.allow_registration ?? true;
 			requireEmailVerification = settings.require_email_verification ?? false;
+			smtpConfigured = settings.smtp_configured ?? false;
 
 			console.log('🔧 [ADMIN] Processed settings:', {
 				serverName,
 				adminEmail,
 				allowRegistration,
-				requireEmailVerification
+				requireEmailVerification,
+				smtpConfigured
 			});
 		} catch (error: any) {
 			console.error('Error loading server settings:', error);
@@ -343,11 +347,11 @@
 		loadServerSettings();
 	});
 
-	        // Add User Modal State
-        let newUserEmail = $state('');
-        let newUserFirstName = $state('');
-        let newUserLastName = $state('');
-        let newUserRole = $state<'admin' | 'user'>('user');
+	// Add User Modal State
+	let newUserEmail = $state('');
+	let newUserFirstName = $state('');
+	let newUserLastName = $state('');
+	let newUserRole = $state<'admin' | 'user'>('user');
 
 	// Admin state
 	let isAdmin = $state(false);
@@ -516,8 +520,7 @@
 				</div>
 
 				<div>
-					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span
-					>
+					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span>
 					<RoleSelector bind:role={newUserRole} />
 				</div>
 			</div>
@@ -945,22 +948,37 @@
 								</button>
 							</div>
 							<div class="flex items-center justify-between">
-								<div>
+								<div class="flex-1">
 									<label
 										for="requireEmailVerification"
-										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
+										class="block text-sm font-medium text-gray-900 dark:text-gray-100 {!smtpConfigured
+											? 'opacity-50'
+											: ''}"
 									>
 										{t('serverAdmin.requireEmailVerification')}
 									</label>
-									<p class="text-sm text-gray-500 dark:text-gray-400">
+									<p
+										class="text-sm text-gray-500 dark:text-gray-400 {!smtpConfigured
+											? 'opacity-50'
+											: ''}"
+									>
 										{t('serverAdmin.requireEmailVerificationDescription')}
 									</p>
+									{#if !smtpConfigured}
+										<p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
+											⚠️ {t('serverAdmin.smtpNotConfigured')}
+										</p>
+									{/if}
 								</div>
 								<button
 									type="button"
 									id="requireEmailVerification"
-									onclick={() => (requireEmailVerification = !requireEmailVerification)}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {requireEmailVerification
+									disabled={!smtpConfigured}
+									onclick={() =>
+										smtpConfigured && (requireEmailVerification = !requireEmailVerification)}
+									class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {!smtpConfigured
+										? 'cursor-not-allowed opacity-50'
+										: 'cursor-pointer'} {requireEmailVerification
 										? 'bg-[rgb(37,140,244)]'
 										: 'bg-gray-200 dark:bg-gray-700'}"
 									role="switch"

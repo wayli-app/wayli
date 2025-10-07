@@ -26,11 +26,15 @@ export const WORKER_ENVIRONMENT = {
 
 	// Worker configuration
 	WORKER_POOL_SIZE: parseInt(process.env.WORKER_POOL_SIZE || '3'),
-	WORKER_IDLE_TIMEOUT: parseInt(process.env.WORKER_IDLE_TIMEOUT || '60000'),
+	WORKER_IDLE_TIMEOUT: parseInt(process.env.WORKER_IDLE_TIMEOUT || '60000')
 } as const;
 
 // Worker-safe logging (can include job details)
-export function logWorker(message: string, level: 'info' | 'warn' | 'error' = 'info', jobContext?: Record<string, any>) {
+export function logWorker(
+	message: string,
+	level: 'info' | 'warn' | 'error' = 'info',
+	jobContext?: Record<string, any>
+) {
 	if (WORKER_ENVIRONMENT.ENABLE_JOB_LOGGING) {
 		const emoji = level === 'error' ? '❌' : level === 'warn' ? '⚠️' : 'ℹ️';
 		const jobStr = jobContext ? ` | Job: ${JSON.stringify(jobContext)}` : '';

@@ -63,7 +63,9 @@ export function validateWorkerEnvironmentConfig(strict: boolean = false): Worker
 
 	// Validate environment variables
 	if (!supabaseUrl) {
-		errors.push('No valid Supabase URL found (checked WORKER_SUPABASE_URL, INTERNAL_SUPABASE_URL, PUBLIC_SUPABASE_URL)');
+		errors.push(
+			'No valid Supabase URL found (checked WORKER_SUPABASE_URL, INTERNAL_SUPABASE_URL, PUBLIC_SUPABASE_URL)'
+		);
 	} else if (!supabaseUrl.startsWith('http')) {
 		errors.push('Supabase URL must be a valid URL starting with http:// or https://');
 	}

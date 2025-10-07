@@ -29,7 +29,7 @@ export const CLIENT_ENVIRONMENT = {
 
 	// Client-side limits
 	MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-	MAX_UPLOAD_FILES: 5,
+	MAX_UPLOAD_FILES: 5
 } as const;
 
 // Client-safe logging (no sensitive data)

@@ -65,20 +65,25 @@ export const TRANSPORT_DETECTION_REASON_LABELS: Record<TransportDetectionReason,
 
 	// New enhanced detection reason labels
 	[TransportDetectionReason.SPEED_BRACKET_MATCH]: 'Speed matches transport mode bracket',
-	[TransportDetectionReason.MULTI_POINT_SPEED_STABLE]: 'Stable speed calculated from multiple points',
+	[TransportDetectionReason.MULTI_POINT_SPEED_STABLE]:
+		'Stable speed calculated from multiple points',
 	[TransportDetectionReason.HIGH_SPEED_CONTINUITY]: 'Maintaining mode at high speed',
 	[TransportDetectionReason.SPEED_SIMILARITY]: 'Speed similar to previous, maintaining mode',
 	[TransportDetectionReason.BOTH_STATIONS_DETECTED]: 'Both start and end train stations detected',
-	[TransportDetectionReason.FINAL_STATION_ONLY]: 'Final train station detected, assuming train travel',
+	[TransportDetectionReason.FINAL_STATION_ONLY]:
+		'Final train station detected, assuming train travel',
 	[TransportDetectionReason.STARTING_STATION_ONLY]: 'Continuing from starting train station',
 	[TransportDetectionReason.TRAIN_JOURNEY_CONTINUATION]: 'Continuing existing train journey',
 	[TransportDetectionReason.AIRPLANE_JOURNEY_CONTINUATION]: 'Continuing existing airplane journey',
-	[TransportDetectionReason.TRAIN_SPEED_WITHOUT_STATION]: 'Train-like speed without station context',
+	[TransportDetectionReason.TRAIN_SPEED_WITHOUT_STATION]:
+		'Train-like speed without station context',
 	[TransportDetectionReason.TRAIN_JOURNEY_END]: 'Train journey ended',
 	[TransportDetectionReason.MODE_CONTINUITY]: 'Maintaining previous transport mode',
 	[TransportDetectionReason.GRADUAL_TRANSITION]: 'Gradual transition between modes',
-	[TransportDetectionReason.GEOGRAPHIC_CONTEXT_VALIDATION]: 'Mode validated against geographic context',
-	[TransportDetectionReason.PHYSICALLY_IMPOSSIBLE]: 'Mode changed due to physically impossible combination'
+	[TransportDetectionReason.GEOGRAPHIC_CONTEXT_VALIDATION]:
+		'Mode validated against geographic context',
+	[TransportDetectionReason.PHYSICALLY_IMPOSSIBLE]:
+		'Mode changed due to physically impossible combination'
 };
 
 // Helper function to get user-friendly label

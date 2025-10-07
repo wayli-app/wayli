@@ -6,7 +6,7 @@ function setupRequest(req: Request) {
 	const corsHeaders = {
 		'Access-Control-Allow-Origin': '*',
 		'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-		'Access-Control-Allow-Methods': 'POST, OPTIONS',
+		'Access-Control-Allow-Methods': 'POST, OPTIONS'
 	};
 
 	if (req.method === 'OPTIONS') {
@@ -37,8 +37,8 @@ function successResponse(data: unknown, status = 200) {
 		status,
 		headers: {
 			'Content-Type': 'application/json',
-			'Access-Control-Allow-Origin': '*',
-		},
+			'Access-Control-Allow-Origin': '*'
+		}
 	});
 }
 
@@ -47,8 +47,8 @@ function errorResponse(message: string, status = 400) {
 		status,
 		headers: {
 			'Content-Type': 'application/json',
-			'Access-Control-Allow-Origin': '*',
-		},
+			'Access-Control-Allow-Origin': '*'
+		}
 	});
 }
 
@@ -75,9 +75,10 @@ Deno.serve(async (req) => {
 			return errorResponse('Missing authorization header', 401);
 		}
 
-		const { data: { user }, error: authError } = await supabase.auth.getUser(
-			authHeader.replace('Bearer ', '')
-		);
+		const {
+			data: { user },
+			error: authError
+		} = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
 
 		if (authError || !user) {
 			logError(authError, 'TRACKER-DATA-SMART');
@@ -90,7 +91,7 @@ Deno.serve(async (req) => {
 				userId: requestUserId,
 				startDate,
 				endDate,
-				maxPointsThreshold = 1000,  // More aggressive threshold
+				maxPointsThreshold = 1000, // More aggressive threshold
 				offset = 0,
 				limit = 1000,
 				totalCount: providedTotalCount
@@ -201,51 +202,54 @@ Deno.serve(async (req) => {
 			const isSampled = data && data.length > 0 ? data[0].result_is_sampled : false;
 
 			// Remove metadata columns from response and map all result_* columns back to original names
-			const cleanData = data?.map(({
-				result_is_sampled: _is_sampled,
-				result_total_count: _total_count,
-				result_user_id,
-				result_tracker_type,
-				result_device_id,
-				result_recorded_at,
-				result_location,
-				result_country_code,
-				result_altitude,
-				result_accuracy,
-				result_speed,
-				result_distance,
-				result_time_spent,
-				result_heading,
-				result_battery_level,
-				result_is_charging,
-				result_activity_type,
-				result_geocode,
-				result_tz_diff,
-				result_created_at,
-				result_updated_at,
-				...point
-			}: Record<string, unknown>) => ({
-				...point,
-				user_id: result_user_id,
-				tracker_type: result_tracker_type,
-				device_id: result_device_id,
-				recorded_at: result_recorded_at,
-				location: result_location,
-				country_code: result_country_code,
-				altitude: result_altitude,
-				accuracy: result_accuracy,
-				speed: result_speed,
-				distance: result_distance,
-				time_spent: result_time_spent,
-				heading: result_heading,
-				battery_level: result_battery_level,
-				is_charging: result_is_charging,
-				activity_type: result_activity_type,
-				geocode: result_geocode,
-				tz_diff: result_tz_diff,
-				created_at: result_created_at,
-				updated_at: result_updated_at
-			})) || [];
+			const cleanData =
+				data?.map(
+					({
+						result_is_sampled: _is_sampled,
+						result_total_count: _total_count,
+						result_user_id,
+						result_tracker_type,
+						result_device_id,
+						result_recorded_at,
+						result_location,
+						result_country_code,
+						result_altitude,
+						result_accuracy,
+						result_speed,
+						result_distance,
+						result_time_spent,
+						result_heading,
+						result_battery_level,
+						result_is_charging,
+						result_activity_type,
+						result_geocode,
+						result_tz_diff,
+						result_created_at,
+						result_updated_at,
+						...point
+					}: Record<string, unknown>) => ({
+						...point,
+						user_id: result_user_id,
+						tracker_type: result_tracker_type,
+						device_id: result_device_id,
+						recorded_at: result_recorded_at,
+						location: result_location,
+						country_code: result_country_code,
+						altitude: result_altitude,
+						accuracy: result_accuracy,
+						speed: result_speed,
+						distance: result_distance,
+						time_spent: result_time_spent,
+						heading: result_heading,
+						battery_level: result_battery_level,
+						is_charging: result_is_charging,
+						activity_type: result_activity_type,
+						geocode: result_geocode,
+						tz_diff: result_tz_diff,
+						created_at: result_created_at,
+						updated_at: result_updated_at
+					})
+				) || [];
 
 			logSuccess('Smart tracker data fetched successfully', 'TRACKER-DATA-SMART', {
 				userId: user.id,
@@ -261,15 +265,21 @@ Deno.serve(async (req) => {
 					returnedCount: cleanData.length,
 					isSampled,
 					samplingApplied: isSampled,
-					samplingLevel: actualTotalCount <= 1000 ? 'none' :
-								  actualTotalCount <= 5000 ? 'light' :
-								  actualTotalCount <= 20000 ? 'moderate' :
-								  actualTotalCount <= 100000 ? 'aggressive' : 'extreme',
+					samplingLevel:
+						actualTotalCount <= 1000
+							? 'none'
+							: actualTotalCount <= 5000
+								? 'light'
+								: actualTotalCount <= 20000
+									? 'moderate'
+									: actualTotalCount <= 100000
+										? 'aggressive'
+										: 'extreme',
 					samplingParams,
 					pagination: {
 						offset,
 						limit,
-						hasMore: cleanData.length === limit && (offset + limit) < totalCount
+						hasMore: cleanData.length === limit && offset + limit < totalCount
 					}
 				}
 			});

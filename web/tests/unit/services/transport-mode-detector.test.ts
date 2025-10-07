@@ -2,7 +2,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TransportModeDetector } from '../../../src/lib/services/transport-mode-detector.service';
-import type { DetectionContext, DetectionRule, PointData } from '../../../src/lib/types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionRule,
+	PointData
+} from '../../../src/lib/types/transport-detection.types';
 
 // Mock rule for testing
 class TestRule implements DetectionRule {
@@ -143,7 +147,7 @@ describe('TransportModeDetector', () => {
 
 			const previous: PointData = {
 				lat: 52.3675,
-				lng: 4.9040,
+				lng: 4.904,
 				timestamp: Date.now() - 1000,
 				speed: 45
 			};

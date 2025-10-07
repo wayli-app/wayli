@@ -332,7 +332,9 @@ export class TripsApiService {
 			.from('trips')
 			.select('*')
 			.eq('user_id', userId)
-			.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,labels.cs.{${searchQuery}}`)
+			.or(
+				`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,labels.cs.{${searchQuery}}`
+			)
 			.order('created_at', { ascending: false });
 
 		if (error) {

@@ -67,7 +67,12 @@ export class JobCreationService {
 				const jobUpdate: JobUpdate = {
 					id: result.id,
 					type: options.type,
-					status: (result.status || 'queued') as 'queued' | 'running' | 'completed' | 'failed' | 'cancelled',
+					status: (result.status || 'queued') as
+						| 'queued'
+						| 'running'
+						| 'completed'
+						| 'failed'
+						| 'cancelled',
 					progress: result.progress || 0,
 					created_at: result.created_at || new Date().toISOString(),
 					updated_at: result.updated_at || new Date().toISOString()
@@ -136,7 +141,8 @@ export class JobCreationService {
 		};
 
 		if (options.startDate) {
-			const startDate = options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
+			const startDate =
+				options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
 			data.startDate = startDate.toISOString().split('T')[0];
 		}
 		if (options.endDate) {

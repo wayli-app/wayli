@@ -10,10 +10,12 @@ import {
 	createRetryableError
 } from '../../lib/utils/geocoding-utils';
 import { checkJobCancellation } from '../../lib/utils/job-cancellation';
-import { convertNominatimToGeoJSON, createGeocodeErrorGeoJSON, mergeGeocodingWithExisting } from '../../lib/utils/geojson-converter';
+import {
+	convertNominatimToGeoJSON,
+	createGeocodeErrorGeoJSON,
+	mergeGeocodingWithExisting
+} from '../../lib/utils/geojson-converter';
 import type { Feature } from 'geojson';
-
-
 
 import type { Job } from '../../lib/types/job-queue.types';
 
@@ -152,7 +154,6 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 		// Process all points that need geocoding
 		const actualPointsToProcess = allPointsNeedingGeocoding?.length || 0;
 
-
 		const result = await processTrackerDataInBatches(
 			allPointsNeedingGeocoding || [],
 			BATCH_SIZE,
@@ -160,7 +161,6 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 			actualPointsToProcess,
 			startTime,
 			(scanned, processed, success, errors, batchIndex, totalBatches) => {
-
 				totalScanned += scanned;
 				totalProcessed += processed;
 				totalSuccess += success;
@@ -335,17 +335,19 @@ async function processTrackerDataInBatches(
 	const totalBatches = Math.ceil(totalPointsToProcess / batchSize);
 	console.log(`📊 Processing ${totalBatches} batches of ${batchSize} points each`);
 
-			for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
-			await checkJobCancellation(jobId);
+	for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+		await checkJobCancellation(jobId);
 
-			const startIndex = batchIndex * batchSize;
-			const batch = points.slice(startIndex, startIndex + batchSize);
+		const startIndex = batchIndex * batchSize;
+		const batch = points.slice(startIndex, startIndex + batchSize);
 
-			if (batch.length > 0) {
-				const results = await processPointsSequentially(batch, jobId);
-				console.log(`📊 Batch ${batchIndex + 1}/${totalBatches} completed: ${results.processed} processed, ${results.success} successful, ${results.errors} errors`);
+		if (batch.length > 0) {
+			const results = await processPointsSequentially(batch, jobId);
+			console.log(
+				`📊 Batch ${batchIndex + 1}/${totalBatches} completed: ${results.processed} processed, ${results.success} successful, ${results.errors} errors`
+			);
 
-				totalProcessed += results.processed;
+			totalProcessed += results.processed;
 
 			// Emit progress with correct batch information
 			progressCallback(
@@ -420,8 +422,6 @@ async function processSinglePoint(point: {
 	tracker_type: string;
 }): Promise<boolean> {
 	try {
-
-
 		let lat: number, lon: number;
 		if (point.location && typeof point.location === 'object' && 'coordinates' in point.location) {
 			const coords = (point.location as { coordinates: number[] }).coordinates;
@@ -474,9 +474,9 @@ async function processSinglePoint(point: {
 
 		// Add country_code to the geocode properties for efficient querying
 		if (extractedCountryCode) {
-			(mergedGeocodeGeoJSON.properties as Record<string, unknown>).country_code = extractedCountryCode;
+			(mergedGeocodeGeoJSON.properties as Record<string, unknown>).country_code =
+				extractedCountryCode;
 		}
-
 
 		const { error: updateError } = await (supabase as any)
 			.from('tracker_data')
@@ -487,13 +487,11 @@ async function processSinglePoint(point: {
 			.eq('user_id', point.user_id)
 			.eq('recorded_at', point.recorded_at);
 
-
 		if (updateError) {
 			console.error(`❌ Database update error:`, updateError);
 			await updateGeocodeWithError(point, `Database update error: ${updateError.message}`);
 			return false;
 		}
-
 
 		return true;
 	} catch (error: unknown) {
@@ -522,7 +520,6 @@ async function updateGeocodeWithError(
 	errorMessage: string
 ): Promise<void> {
 	try {
-
 		// Extract coordinates from the point location
 		let lat: number, lon: number;
 		if (point.location && typeof point.location === 'object' && 'coordinates' in point.location) {
@@ -546,7 +543,7 @@ async function updateGeocodeWithError(
 			return;
 		}
 
-				// Create GeoJSON error feature
+		// Create GeoJSON error feature
 		const errorGeoJSON = createGeocodeErrorGeoJSON(lat, lon, errorMessage);
 
 		// Add geocode_error field and retryable/permanent flags based on error type
@@ -576,10 +573,8 @@ async function updateGeocodeWithError(
 				`⚠️ Updated geocode with ${retryable ? 'retryable' : 'permanent'} error: ${errorMessage}`
 			);
 		}
-
 	} catch (error) {
 		console.error(`❌ Error updating geocode with error:`, error);
-
 	}
 }
 

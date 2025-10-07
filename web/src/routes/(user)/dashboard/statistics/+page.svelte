@@ -30,9 +30,11 @@
 		getTransportDetectionReasonLabel,
 		type TransportDetectionReason
 	} from '$lib/types/transport-detection-reasons';
+	import { formatDateInTimezone, getTimezoneFromOffset } from '$lib/utils/timezone-utils';
 
 	import type { Map as LeafletMap } from 'leaflet';
 	import { browser } from '$app/environment';
+	import { SvelteDate } from 'svelte/reactivity';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -89,7 +91,8 @@
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer = $state<any>(null);
 	let isInitializing = $state(true);
-	let mapMarkers: any[] = $state([]);
+	// Use a regular array instead of $state to avoid triggering effects
+	let mapMarkers: any[] = [];
 	let selectedPoint: any = $state(null);
 
 	// Loading and progress state
@@ -98,6 +101,7 @@
 	let loadingProgress = $state(0);
 	let loadingStage = $state('');
 	let progressAnimationId = $state<NodeJS.Timeout | null>(null);
+	let isHandlingDateChange = $state(false);
 
 	// Statistics state
 	let statisticsData = $state<StatisticsData | null>(null);
@@ -138,7 +142,7 @@
 			const elapsed = Date.now() - startTime;
 			const progress = Math.min(elapsed / duration, 1);
 			const easeOutCubic = 1 - Math.pow(1 - progress, 3);
-			const currentProgress = start + (change * easeOutCubic);
+			const currentProgress = start + change * easeOutCubic;
 			loadingProgress = Math.round(currentProgress);
 
 			if (progress < 1) {
@@ -271,14 +275,11 @@
 			// Get formatted statistics for display
 			statisticsData = statisticsService!.getFormattedStatistics();
 
-			console.log('✅ Statistics processing complete:', statisticsData);
-
 			// Draw data points on map
 			const rawDataPoints = (statisticsService as any).rawDataPoints;
 			if (rawDataPoints && rawDataPoints.length > 0) {
 				drawDataPointsOnMap(rawDataPoints);
 			}
-
 		} catch (error) {
 			console.error('❌ Error loading statistics:', error);
 			statisticsError = error instanceof Error ? error.message : 'Unknown error';
@@ -302,23 +303,35 @@
 
 	// Handle date range changes
 	async function handleDateRangeChange() {
-		// Reset state
-		userConfirmedLargeDataset = false;
-		statisticsData = null;
-		statisticsError = '';
-
-		// Clear map markers before loading new data
-		clearMapMarkers();
-
-		// CRITICAL: Reset the service to clear accumulated data
-		if (statisticsService) {
-			statisticsService.reset();
+		// Prevent concurrent calls
+		if (isHandlingDateChange || isLoading) {
+			console.log('⏭️ Skipping handleDateRangeChange - already processing');
+			return;
 		}
 
-		// Check dataset size first
-		const canProceed = await checkDatasetSize();
-		if (canProceed) {
-			await loadStatisticsData();
+		isHandlingDateChange = true;
+
+		try {
+			// Reset state
+			userConfirmedLargeDataset = false;
+			statisticsData = null;
+			statisticsError = '';
+
+			// Clear map markers before loading new data
+			clearMapMarkers();
+
+			// CRITICAL: Reset the service to clear accumulated data
+			if (statisticsService) {
+				statisticsService.reset();
+			}
+
+			// Check dataset size first
+			const canProceed = await checkDatasetSize();
+			if (canProceed) {
+				await loadStatisticsData();
+			}
+		} finally {
+			isHandlingDateChange = false;
 		}
 	}
 
@@ -474,18 +487,18 @@
 		const codePoints = countryCode
 			.toUpperCase()
 			.split('')
-			.map(char => 127397 + char.charCodeAt(0));
+			.map((char) => 127397 + char.charCodeAt(0));
 		return String.fromCodePoint(...codePoints);
 	}
 
 	// Transport mode colors
 	const transportModeColors: Record<string, string> = {
-		car: '#dc2626',      // Red
-		train: '#7c3aed',    // Purple
+		car: '#dc2626', // Red
+		train: '#7c3aed', // Purple
 		airplane: '#000000', // Black
-		cycling: '#ea580c',  // Orange
-		walking: '#16a34a',  // Green
-		unknown: '#6b7280'   // Grey
+		cycling: '#ea580c', // Orange
+		walking: '#16a34a', // Green
+		unknown: '#6b7280' // Grey
 	};
 
 	// Get color for transport mode
@@ -497,10 +510,10 @@
 	// Clear existing map markers
 	function clearMapMarkers() {
 		if (!map || !L) return;
-		mapMarkers.forEach(marker => {
+		for (const marker of mapMarkers) {
 			map.removeLayer(marker);
-		});
-		mapMarkers = [];
+		}
+		mapMarkers.length = 0;
 	}
 
 	// Draw data points on map
@@ -513,8 +526,8 @@
 		clearMapMarkers();
 
 		// Sort points by recorded_at timestamp to ensure proper order
-		const sortedPoints = [...dataPoints].sort((a, b) =>
-			new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+		const sortedPoints = [...dataPoints].sort(
+			(a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
 		);
 
 		// Draw lines between consecutive points
@@ -529,13 +542,17 @@
 				const nextLon = parseFloat(nextPoint.lon);
 
 				if (!isNaN(currentLat) && !isNaN(currentLon) && !isNaN(nextLat) && !isNaN(nextLon)) {
-					// Use the transport mode of the current point for the line color
-					const mode = currentPoint.transport_mode || 'unknown';
+					// Use the transport mode of the NEXT point for the line color
+					// The detection at nextPoint tells us what mode was used to REACH that point
+					const mode = nextPoint.transport_mode || 'unknown';
 					const color = getTransportModeColor(mode);
 
 					// Create polyline between consecutive points
 					const polyline = L.polyline(
-						[[currentLat, currentLon], [nextLat, nextLon]],
+						[
+							[currentLat, currentLon],
+							[nextLat, nextLon]
+						],
 						{
 							color: color,
 							weight: 3,
@@ -552,7 +569,7 @@
 
 		// Group points by transport mode for markers
 		const pointsByMode: Record<string, any[]> = {};
-		sortedPoints.forEach(point => {
+		sortedPoints.forEach((point) => {
 			const mode = point.transport_mode || 'unknown';
 			if (!pointsByMode[mode]) {
 				pointsByMode[mode] = [];
@@ -564,7 +581,7 @@
 		Object.entries(pointsByMode).forEach(([mode, points]) => {
 			const color = getTransportModeColor(mode);
 
-			points.forEach(point => {
+			points.forEach((point) => {
 				if (point.lat && point.lon) {
 					const lat = parseFloat(point.lat);
 					const lon = parseFloat(point.lon);
@@ -614,19 +631,36 @@
 		return `${hours.toFixed(1)}h`;
 	}
 
+	// Format distance from meters to a human-readable format
+	function formatDistance(meters: number): string {
+		const km = meters / 1000;
+		if (km < 0.1) {
+			return `${Math.round(meters)} m`;
+		} else if (km < 10) {
+			return `${km.toFixed(2)} km`;
+		} else if (km < 100) {
+			return `${km.toFixed(1)} km`;
+		} else {
+			return `${Math.round(km)} km`;
+		}
+	}
+
 	// Format date with timezone information
-	function formatDateWithTimezone(recordedAt: string, tzDiff?: number): string {
+	function formatDateWithTimezoneSync(recordedAt: string, tzDiff?: number): string {
 		const utcDate = new Date(recordedAt);
 
-		// If we have timezone difference, calculate local time
+		// If we have tz_diff, use it to look up the timezone
 		if (tzDiff !== undefined && tzDiff !== null) {
-			const localTime = new Date(utcDate.getTime() + (tzDiff * 60 * 60 * 1000));
-			const timezoneOffset = tzDiff >= 0 ? `+${tzDiff}` : `${tzDiff}`;
-			return `${localTime.toLocaleString()} (UTC${timezoneOffset})`;
+			try {
+				const timezone = getTimezoneFromOffset(tzDiff);
+				return formatDateInTimezone(utcDate, timezone);
+			} catch (error) {
+				console.warn('Failed to get timezone, falling back to UTC:', error);
+			}
 		}
 
 		// Fallback to UTC if no timezone info
-		return `${utcDate.toLocaleString()} (UTC)`;
+		return formatDateInTimezone(utcDate, 'UTC');
 	}
 
 	// Initialize on mount
@@ -636,8 +670,8 @@
 
 		// Set default date range to past 7 days if no date range is set
 		if (!appState.filtersStartDate && !appState.filtersEndDate) {
-			const endDate = new Date();
-			const startDate = new Date();
+			const endDate = new SvelteDate();
+			const startDate = new SvelteDate();
 			startDate.setDate(endDate.getDate() - 6); // Last 7 days includes today and 6 days before
 
 			appState.filtersStartDate = startDate;
@@ -645,14 +679,34 @@
 			console.log('📅 Set default date range:', { start: startDate, end: endDate });
 		}
 
-		await handleDateRangeChange();
+		// Don't call handleDateRangeChange() here - the $effect will handle it
 		isInitializing = false;
 	});
 
+	// Track last processed dates to prevent duplicate processing
+	let lastProcessedStart: Date | string | null = null;
+	let lastProcessedEnd: Date | string | null = null;
+
 	// Reactive statement for date range changes
 	$effect(() => {
-		if (!isInitializing && (appState.filtersStartDate || appState.filtersEndDate)) {
-			handleDateRangeChange();
+		// Only watch the date changes, not other reactive state
+		const startDate = appState.filtersStartDate;
+		const endDate = appState.filtersEndDate;
+
+		// Convert to comparable strings
+		const startStr = startDate instanceof Date ? startDate.toISOString() : String(startDate);
+		const endStr = endDate instanceof Date ? endDate.toISOString() : String(endDate);
+		const lastStartStr = lastProcessedStart instanceof Date ? lastProcessedStart.toISOString() : String(lastProcessedStart);
+		const lastEndStr = lastProcessedEnd instanceof Date ? lastProcessedEnd.toISOString() : String(lastProcessedEnd);
+
+		// Only trigger if dates actually changed and we're not initializing
+		if (!isInitializing && (startDate || endDate)) {
+			if (startStr !== lastStartStr || endStr !== lastEndStr) {
+				console.log('📅 Date range changed, triggering data load');
+				lastProcessedStart = startDate;
+				lastProcessedEnd = endDate;
+				handleDateRangeChange();
+			}
 		}
 	});
 
@@ -721,8 +775,6 @@
 			console.error('❌ Error initializing map:', error);
 		}
 	}
-
-
 </script>
 
 <svelte:head>
@@ -744,8 +796,8 @@
 			pointer-events: auto !important;
 		}
 
-				/* Ensure map container doesn't interfere with mouse events */
-				.map-container {
+		/* Ensure map container doesn't interfere with mouse events */
+		.map-container {
 			pointer-events: auto !important;
 			touch-action: manipulation !important;
 		}
@@ -803,13 +855,15 @@
 			</div>
 			<div class="mb-6 text-sm text-gray-600 dark:text-gray-400">
 				<p class="mb-2">
-					You have <strong>{totalPointsCount.toLocaleString()}</strong> data points in the selected date range.
+					You have <strong>{totalPointsCount.toLocaleString()}</strong> data points in the selected date
+					range.
 				</p>
 				<p class="mb-2">
 					Processing this much data may take several minutes and could slow down your browser.
 				</p>
 				<p>
-					Consider selecting a smaller date range for better performance, or proceed if you want to process all data.
+					Consider selecting a smaller date range for better performance, or proceed if you want to
+					process all data.
 				</p>
 			</div>
 			<div class="flex justify-end space-x-3">
@@ -831,25 +885,25 @@
 {/if}
 
 <!-- Header -->
-	<!-- Header -->
-	<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
-		<div class="flex min-w-0 items-center gap-2">
-			<BarChart class="h-8 w-8 flex-shrink-0 text-blue-600 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold whitespace-nowrap text-gray-900 dark:text-gray-100">
-				{t('navigation.statistics')}
-			</h1>
-		</div>
-		<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
-			<div class="datepicker-statistics-fix relative">
-				<DateRangePicker
-					bind:startDate={localStartDate}
-					bind:endDate={localEndDate}
-					pickLabel={t('datePicker.pickDateRange')}
-					showClear={false}
-				/>
-			</div>
+<!-- Header -->
+<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
+	<div class="flex min-w-0 items-center gap-2">
+		<BarChart class="h-8 w-8 flex-shrink-0 text-blue-600 dark:text-gray-400" />
+		<h1 class="text-3xl font-bold whitespace-nowrap text-gray-900 dark:text-gray-100">
+			{t('common.navigation.statistics')}
+		</h1>
+	</div>
+	<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
+		<div class="datepicker-statistics-fix relative">
+			<DateRangePicker
+				bind:startDate={localStartDate}
+				bind:endDate={localEndDate}
+				pickLabel={t('datePicker.pickDateRange')}
+				showClear={false}
+			/>
 		</div>
 	</div>
+</div>
 
 <div class="space-y-6">
 	<!-- Map -->
@@ -861,13 +915,17 @@
 		></div>
 
 		<!-- Map Legend -->
-		<div class="absolute top-24 left-4 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3">
-			<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('statistics.modeColors')}</h4>
+		<div class="absolute top-24 left-4 z-[1000] rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800">
+			<h4 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+				{t('statistics.modeColors')}
+			</h4>
 			<div class="space-y-1">
-				{#each Object.entries(transportModeColors) as [mode, color]}
+				{#each Object.entries(transportModeColors) as [mode, color] (mode)}
 					<div class="flex items-center space-x-2">
-						<div class="w-3 h-3 rounded-full" style="background-color: {color}"></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400">{translateTransportMode(mode)}</span>
+						<div class="h-3 w-3 rounded-full" style="background-color: {color}"></div>
+						<span class="text-xs text-gray-600 dark:text-gray-400"
+							>{translateTransportMode(mode)}</span
+						>
 					</div>
 				{/each}
 			</div>
@@ -875,36 +933,54 @@
 
 		<!-- Point Details Popup -->
 		{#if selectedPoint}
-			<div class="absolute top-4 right-4 z-[1000] bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm w-80">
-				<div class="flex justify-between items-start mb-3">
-					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('statistics.pointDetails')}</h4>
+			<div
+				class="absolute top-4 right-4 z-[1000] w-80 max-w-sm rounded-lg bg-white p-4 shadow-lg dark:bg-gray-800"
+			>
+				<div class="mb-3 flex items-start justify-between">
+					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+						{t('statistics.pointDetails')}
+					</h4>
 					<button
 						onclick={closePointDetails}
 						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 					>
-						<X class="w-4 h-4" />
+						<X class="h-4 w-4" />
 					</button>
 				</div>
 
 				<div class="space-y-2 text-xs">
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.date')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">{formatDateWithTimezone(selectedPoint.recorded_at, selectedPoint.tz_diff)}</div>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.date')}:</span
+							>
+							<div class="text-gray-800 dark:text-gray-200">
+								{formatDateWithTimezoneSync(selectedPoint.recorded_at, selectedPoint.tz_diff)}
+							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.mode')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">{translateTransportMode(selectedPoint.transport_mode || 'unknown')}</div>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.mode')}:</span
+							>
+							<div class="text-gray-800 dark:text-gray-200">
+								{translateTransportMode(selectedPoint.transport_mode || 'unknown')}
+							</div>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.coordinates')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.lat}, {selectedPoint.lon}</div>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.coordinates')}:</span
+							>
+							<div class="text-gray-800 dark:text-gray-200">
+								{selectedPoint.lat}, {selectedPoint.lon}
+							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupSpeed')}:</span>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.popupSpeed')}:</span
+							>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
 							</div>
@@ -913,33 +989,51 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupDistance')}:</span>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.popupDistance')}:</span
+							>
 							<div class="text-gray-800 dark:text-gray-200">
-								{selectedPoint.distance ? `${(selectedPoint.distance / 1000).toFixed(2)} km` : 'N/A'}
+								{selectedPoint.distance
+									? `${(selectedPoint.distance / 1000).toFixed(2)} km`
+									: 'N/A'}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.type')}:</span>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.type')}:</span
+							>
 							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.type || 'N/A'}</div>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.class')}:</span>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.class')}:</span
+							>
 							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.class || 'N/A'}</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.country')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">{selectedPoint.country_code || 'N/A'}</div>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.country')}:</span
+							>
+							<div class="text-gray-800 dark:text-gray-200">
+								{selectedPoint.country_code || 'N/A'}
+							</div>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400">{t('statistics.popupReason')}</span>
+							<span class="font-medium text-gray-600 dark:text-gray-400"
+								>{t('statistics.popupReason')}</span
+							>
 							<div class="text-gray-800 dark:text-gray-200">
-								{selectedPoint.detection_reason ? getTransportDetectionReasonLabel(selectedPoint.detection_reason as TransportDetectionReason) : 'N/A'}
+								{selectedPoint.detection_reason
+									? getTransportDetectionReasonLabel(
+											selectedPoint.detection_reason as TransportDetectionReason
+										)
+									: 'N/A'}
 							</div>
 						</div>
 					</div>
@@ -949,7 +1043,9 @@
 
 		<!-- No Data Message -->
 		{#if !isLoading && !isInitialLoad && (!statisticsData || Object.keys(statisticsData).length === 0)}
-			<div class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80">
+			<div
+				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
+			>
 				<div class="text-center">
 					<MapPin class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
 					<h3 class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -969,208 +1065,248 @@
 			</div>
 		{/if}
 	</div>
-		<!-- Loading State -->
-		{#if statisticsLoading}
-			<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-				{#each Array(8) as _, index (`loading-${index}`)}
-					<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-						<div class="mb-3 flex items-center gap-2">
-							<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-							<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-						</div>
-						<div class="space-y-3">
-							{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
-								<div class="flex items-center gap-4">
-									<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-									<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-									<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-								</div>
-							{/each}
-						</div>
+	<!-- Loading State -->
+	{#if statisticsLoading}
+		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+			{#each Array(8) as _, index (`loading-${index}`)}
+				<div
+					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+				>
+					<div class="mb-3 flex items-center gap-2">
+						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 					</div>
-				{/each}
-			</div>
-		{:else if !statisticsData || Object.keys(statisticsData).length === 0}
-			<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
-				No statistics available for this period.
-			</div>
-		{:else}
-			<!-- Actual Statistics Content -->
-			<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-				{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
-					{@const IconComponent = stat.icon}
-					<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-						<div class="flex items-center gap-2">
-							<IconComponent class="h-5 w-5 text-{stat.color}-500" />
-							<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
-						</div>
-						<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
-							{stat.value}
-						</div>
-					</div>
-				{/each}
-			</div>
-		{/if}
-
-		<!-- Country Time Distribution and Modes of Transport: Side by Side -->
-		{#if statisticsData && !statisticsLoading && !statisticsError}
-			<div class="mb-8 flex flex-col gap-6 md:flex-row">
-				{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
-					<div class="w-full md:w-1/2">
-						<div class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-							<div class="mb-3 flex items-center gap-2">
-								<Globe2 class="h-5 w-5 text-blue-500" />
-								<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-									{t('statistics.countryTimeDistribution')}
-								</span>
+					<div class="space-y-3">
+						{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
+							<div class="flex items-center gap-4">
+								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+								<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 							</div>
-							<div class="space-y-4">
-								{#each statisticsData.countryTimeDistribution as country, index (`country-${index}-${country.country_code || 'unknown'}`)}
-									<div>
-										<div class="mb-1 flex items-center gap-2">
-											<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
-											<span class="text-base text-gray-700 dark:text-gray-300">
-												{$getCountryNameReactive(country.country_code)}
-											</span>
-										</div>
-										<div class="relative w-full">
-											<div class="h-4 rounded bg-gray-200 dark:bg-gray-700">
-												<div
-													class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
-													style="width: {country.percent}%; min-width: 2.5rem;"
-												>
-													<span>{country.percent}%</span>
-												</div>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else if !statisticsData || Object.keys(statisticsData).length === 0}
+		<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
+			No statistics available for this period.
+		</div>
+	{:else}
+		<!-- Actual Statistics Content -->
+		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
+				{@const IconComponent = stat.icon}
+				<div
+					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+				>
+					<div class="flex items-center gap-2">
+						<IconComponent class="h-5 w-5 text-{stat.color}-500" />
+						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
+					</div>
+					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
+						{stat.value}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{/if}
+
+	<!-- Country Time Distribution and Modes of Transport: Side by Side -->
+	{#if statisticsData && !statisticsLoading && !statisticsError}
+		<div class="mb-8 flex flex-col gap-6 md:flex-row">
+			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
+				<div class="w-full md:w-1/2">
+					<div
+						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<div class="mb-3 flex items-center gap-2">
+							<Globe2 class="h-5 w-5 text-blue-500" />
+							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+								{t('statistics.countryTimeDistribution')}
+							</span>
+						</div>
+						<div class="space-y-4">
+							{#each statisticsData.countryTimeDistribution as country, index (`country-${index}-${country.country_code || 'unknown'}`)}
+								<div>
+									<div class="mb-1 flex items-center gap-2">
+										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
+										<span class="text-base text-gray-700 dark:text-gray-300">
+											{$getCountryNameReactive(country.country_code)}
+										</span>
+									</div>
+									<div class="relative w-full">
+										<div class="h-4 rounded bg-gray-200 dark:bg-gray-700">
+											<div
+												class="flex h-4 items-center justify-center rounded bg-blue-500 text-xs font-bold text-white transition-all duration-300"
+												style="width: {country.percent}%; min-width: 2.5rem;"
+											>
+												<span>{country.percent}%</span>
 											</div>
 										</div>
 									</div>
-								{/each}
-							</div>
-							<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
-								{t('statistics.ofSelectedPeriod')}
-							</div>
+								</div>
+							{/each}
+						</div>
+						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+							{t('statistics.ofSelectedPeriod')}
 						</div>
 					</div>
-				{/if}
+				</div>
+			{/if}
 
-				{#if statisticsData.transport && statisticsData.transport.length > 0}
-					<div class="w-full md:w-1/2">
-						<div class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-							<div class="mb-3 flex items-center gap-2">
-								<Route class="h-5 w-5 text-blue-500" />
-								<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-									{t('statistics.transportModes')}
-								</span>
-							</div>
-							<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-								<thead>
+			{#if statisticsData.transport && statisticsData.transport.length > 0}
+				<div class="w-full md:w-1/2">
+					<div
+						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<div class="mb-3 flex items-center gap-2">
+							<Route class="h-5 w-5 text-blue-500" />
+							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+								{t('statistics.transportModes')}
+							</span>
+						</div>
+						<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+							<thead>
+								<tr>
+									<th
+										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+									>
+										{t('statistics.mode')}
+									</th>
+									<th
+										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+									>
+										{t('statistics.distanceKm')}
+									</th>
+									<th
+										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+									>
+										{t('statistics.time')}
+									</th>
+									<th
+										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+									>
+										{t('statistics.percentOfTotal')}
+									</th>
+									<th
+										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+									>
+										{t('statistics.points')}
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each statisticsData.transport
+									.slice()
+									.filter((mode) => mode.mode !== 'stationary')
+									.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
 									<tr>
-										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-											{t('statistics.mode')}
-										</th>
-										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-											{t('statistics.distanceKm')}
-										</th>
-										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-											{t('statistics.time')}
-										</th>
-										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-											{t('statistics.percentOfTotal')}
-										</th>
-										<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-											{t('statistics.points')}
-										</th>
+										<td
+											class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
+										>
+											{translateTransportMode(mode.mode)}
+										</td>
+										<td
+											class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
+										>
+											{formatDistance(mode.distance)}
+										</td>
+										<td
+											class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+										>
+											{formatSegmentDuration(mode.time || 0)}
+										</td>
+										<td
+											class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+										>
+											{mode.percentage}%
+										</td>
+										<td
+											class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+										>
+											{mode.points || 0}
+										</td>
 									</tr>
-								</thead>
-								<tbody>
-									{#each statisticsData.transport
-										.slice()
-										.filter((mode) => mode.mode !== 'stationary')
-										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
-										<tr>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-												{translateTransportMode(mode.mode)}
-											</td>
-											<td class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300">
-												{mode.distance} km
-											</td>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
-												{formatSegmentDuration(mode.time || 0)}
-											</td>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
-												{mode.percentage}%
-											</td>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300">
-												{mode.points || 0}
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+								{/each}
+							</tbody>
+						</table>
 					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<!-- Train Station Visits Table -->
-		{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
-			<div class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800">
-				<div class="mb-3 flex items-center gap-2">
-					<Train class="h-5 w-5 text-blue-500" />
-					<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
-						{t('statistics.trainStationVisits')}
-					</span>
 				</div>
-				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-					<thead>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Train Station Visits Table -->
+	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
+		<div
+			class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
+		>
+			<div class="mb-3 flex items-center gap-2">
+				<Train class="h-5 w-5 text-blue-500" />
+				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+					{t('statistics.trainStationVisits')}
+				</span>
+			</div>
+			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+				<thead>
+					<tr>
+						<th
+							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+						>
+							Station
+						</th>
+						<th
+							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+						>
+							Visits
+						</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each statisticsData.trainStationVisits
+						.slice()
+						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
 						<tr>
-							<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-								Station
-							</th>
-							<th class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">
-								Visits
-							</th>
+							<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+								{station.name}
+							</td>
+							<td
+								class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300"
+							>
+								{station.count}
+							</td>
 						</tr>
-					</thead>
-					<tbody>
-						{#each statisticsData.trainStationVisits
-							.slice()
-							.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
-							<tr>
-								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-									{station.name}
-								</td>
-								<td class="px-4 py-2 text-sm font-bold whitespace-nowrap text-blue-700 dark:text-blue-300">
-									{station.count}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	{/if}
 
-		<!-- Error Display -->
-		{#if statisticsError}
-			<div class="mb-8 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-				<div class="flex items-center">
-					<X class="mr-3 h-5 w-5 text-red-500" />
-					<div>
-						<h3 class="text-sm font-medium text-red-800 dark:text-red-200">
-							Error loading statistics
-						</h3>
-						<p class="mt-1 text-sm text-red-700 dark:text-red-300">
-							{statisticsError}
-						</p>
-					</div>
+	<!-- Error Display -->
+	{#if statisticsError}
+		<div
+			class="mb-8 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+		>
+			<div class="flex items-center">
+				<X class="mr-3 h-5 w-5 text-red-500" />
+				<div>
+					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+						Error loading statistics
+					</h3>
+					<p class="mt-1 text-sm text-red-700 dark:text-red-300">
+						{statisticsError}
+					</p>
 				</div>
 			</div>
-		{/if}
+		</div>
+	{/if}
 
 	<!-- Loading Overlay -->
 	{#if isLoading}
-		<div class="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70">
+		<div
+			class="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70"
+		>
 			<Loader2 class="h-16 w-16 animate-spin text-blue-500 dark:text-blue-300" />
 			<div class="mt-4 text-center">
 				<div class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">

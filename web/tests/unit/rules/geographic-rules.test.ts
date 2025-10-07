@@ -1,7 +1,11 @@
 // tests/unit/rules/geographic-rules.test.ts
 
 import { describe, it, expect } from 'vitest';
-import { TrainStationRule, AirportRule, HighwayOverrideRule } from '../../../src/lib/rules/geographic-rules';
+import {
+	TrainStationRule,
+	AirportRule,
+	HighwayOverrideRule
+} from '../../../src/lib/rules/geographic-rules';
 import type { DetectionContext } from '../../../src/lib/types/transport-detection.types';
 
 describe('Geographic Rules', () => {
@@ -139,7 +143,7 @@ describe('Geographic Rules', () => {
 function createMockContext(overrides: Partial<DetectionContext> = {}): DetectionContext {
 	return {
 		current: { lat: 52.3676, lng: 4.9041, timestamp: Date.now() },
-		previous: { lat: 52.3675, lng: 4.9040, timestamp: Date.now() - 1000 },
+		previous: { lat: 52.3675, lng: 4.904, timestamp: Date.now() - 1000 },
 		pointHistory: [],
 		modeHistory: [],
 		atTrainStation: false,

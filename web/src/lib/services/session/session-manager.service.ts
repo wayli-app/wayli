@@ -56,7 +56,9 @@ export class SessionManagerService {
 					}
 					this.startSessionManagement();
 				} else if (event === 'SIGNED_OUT' || !session) {
-					console.log('🚪 [SessionManager] User signed out or no session, clearing stores and stopping management');
+					console.log(
+						'🚪 [SessionManager] User signed out or no session, clearing stores and stopping management'
+					);
 					// Ensure stores are cleared
 					this.updateAuthStores(null);
 					this.stopSessionManagement();
@@ -107,7 +109,10 @@ export class SessionManagerService {
 	 * Update auth stores with current session
 	 */
 	private updateAuthStores(session: any): void {
-		console.log('🔄 [SessionManager] Updating auth stores:', session ? 'with session' : 'clearing stores');
+		console.log(
+			'🔄 [SessionManager] Updating auth stores:',
+			session ? 'with session' : 'clearing stores'
+		);
 
 		sessionStore.set(session);
 

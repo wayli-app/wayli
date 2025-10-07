@@ -10,7 +10,7 @@ const POLITICAL_INDICATORS = [
 	'Democratic Republic of the',
 	'Democratic Republic of',
 	'Islamic Republic of',
-	'People\'s Republic of',
+	"People's Republic of",
 	'United Republic of',
 	'Federated States of',
 	'Commonwealth of',
@@ -24,11 +24,7 @@ const POLITICAL_INDICATORS = [
 	'Union'
 ];
 
-const SUFFIX_INDICATORS = [
-	'Islands',
-	'Island',
-	'Territories'
-];
+const SUFFIX_INDICATORS = ['Islands', 'Island', 'Territories'];
 
 /**
  * Cleans a country name by removing political indicators
@@ -71,8 +67,8 @@ export function cleanCountryNameForSearch(countryName: string): string {
 		'Russian Federation': 'Russia',
 		'Czech Republic': 'Czechia',
 		'Timor-Leste': 'East Timor',
-		'Côte d\'Ivoire': 'Ivory Coast',
-		'Myanmar': 'Burma'
+		"Côte d'Ivoire": 'Ivory Coast',
+		Myanmar: 'Burma'
 	};
 
 	return specialCases[cleaned] || cleaned;

@@ -38,7 +38,10 @@ export class JobProcessorService {
 		return processors[jobType];
 	}
 
-	private static async processReverseGeocodingMissing(job: Job, abortSignal?: AbortSignal): Promise<void> {
+	private static async processReverseGeocodingMissing(
+		job: Job,
+		abortSignal?: AbortSignal
+	): Promise<void> {
 		const { processReverseGeocodingMissing } = await import(
 			'./processors/reverse-geocoding-processor.service'
 		);
@@ -310,11 +313,7 @@ export class JobProcessorService {
 			});
 
 			// Use the new trip detection V2 service with the determined date ranges
-			const detectedTrips = await tripDetectionService.detectTrips(
-				userId,
-				startDate,
-				endDate
-			);
+			const detectedTrips = await tripDetectionService.detectTrips(userId, startDate, endDate);
 
 			console.log(`✅ Trip detection completed: ${detectedTrips.length} trips detected`);
 
@@ -473,7 +472,10 @@ export class JobProcessorService {
 				);
 
 				if (backgroundJobError) {
-					console.warn('⚠️ Failed to create background distance calculation job:', backgroundJobError);
+					console.warn(
+						'⚠️ Failed to create background distance calculation job:',
+						backgroundJobError
+					);
 				} else {
 					console.log('✅ Background distance calculation job created successfully');
 				}
@@ -485,7 +487,9 @@ export class JobProcessorService {
 			// Remove duplicate tracking points
 			console.log('🧹 Removing duplicate tracking points...');
 			try {
-				const { removeDuplicateTrackingPoints } = await import('./processors/import/geojson-importer');
+				const { removeDuplicateTrackingPoints } = await import(
+					'./processors/import/geojson-importer'
+				);
 				const { removed } = await removeDuplicateTrackingPoints(userId);
 				console.log(`✅ Removed ${removed} duplicate tracking points`);
 			} catch (dedupeError) {
@@ -512,30 +516,28 @@ export class JobProcessorService {
 				`✅ Data import completed: ${importedCount} items imported in ${elapsedSeconds.toFixed(1)}s`
 			);
 
-				// Create auto-reverse geocoding job for newly imported data
-	try {
-		console.log('🔄 Creating auto-reverse geocoding job for imported data...');
-		const { error: reverseGeocodingError } = await supabase.from('jobs').insert({
-			created_by: userId,
-			type: 'reverse_geocoding_missing',
-			status: 'queued',
-			priority: 'normal',
-			data: {
-				type: 'reverse_geocoding_missing',
-				created_by: userId
+			// Create auto-reverse geocoding job for newly imported data
+			try {
+				console.log('🔄 Creating auto-reverse geocoding job for imported data...');
+				const { error: reverseGeocodingError } = await supabase.from('jobs').insert({
+					created_by: userId,
+					type: 'reverse_geocoding_missing',
+					status: 'queued',
+					priority: 'normal',
+					data: {
+						type: 'reverse_geocoding_missing',
+						created_by: userId
+					}
+				});
+
+				if (reverseGeocodingError) {
+					console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
+				} else {
+					console.log('✅ Auto-reverse geocoding job created successfully');
+				}
+			} catch (error) {
+				console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
 			}
-		});
-
-		if (reverseGeocodingError) {
-			console.warn('⚠️ Failed to create auto-reverse geocoding job:', reverseGeocodingError);
-		} else {
-			console.log('✅ Auto-reverse geocoding job created successfully');
-		}
-	} catch (error) {
-		console.warn('⚠️ Failed to create auto-reverse geocoding job:', error);
-	}
-
-
 		} catch (error: unknown) {
 			// Check if the error is due to cancellation
 			if (error instanceof Error && error.message === 'Job was cancelled') {
@@ -593,8 +595,6 @@ export class JobProcessorService {
 		// TODO: Implement POI detection processor
 		throw new Error('POI detection processor not yet implemented');
 	}
-
-
 
 	private static async processTripDetection(job: Job, abortSignal?: AbortSignal): Promise<void> {
 		console.log(`🗺️ Processing trip detection job ${job.id}`);
@@ -673,7 +673,10 @@ export class JobProcessorService {
 		}
 	}
 
-	private static async processDistanceCalculation(job: Job, abortSignal?: AbortSignal): Promise<void> {
+	private static async processDistanceCalculation(
+		job: Job,
+		abortSignal?: AbortSignal
+	): Promise<void> {
 		try {
 			console.log(`🧮 Processing distance calculation job ${job.id}`);
 
@@ -727,14 +730,11 @@ export class JobProcessorService {
 				console.log(`🧮 Processing batch at offset ${offset}/${totalRecords}...`);
 
 				// Call new V2 function which uses chronological offset-based processing
-				const { data: updatedCount, error } = await supabase.rpc(
-					'calculate_distances_batch_v2',
-					{
-						p_user_id: targetUserId,
-						p_offset: offset,
-						p_limit: BATCH_SIZE
-					}
-				);
+				const { data: updatedCount, error } = await supabase.rpc('calculate_distances_batch_v2', {
+					p_user_id: targetUserId,
+					p_offset: offset,
+					p_limit: BATCH_SIZE
+				});
 
 				const elapsed = Date.now() - startTime;
 
@@ -749,7 +749,9 @@ export class JobProcessorService {
 				totalProcessed += recordsInBatch;
 
 				console.log(`⏱️  Batch took ${(elapsed / 1000).toFixed(1)}s`);
-				console.log(`✅ Batch complete: ${updatedCount || 0} records updated, ${offset}/${totalRecords} total processed`);
+				console.log(
+					`✅ Batch complete: ${updatedCount || 0} records updated, ${offset}/${totalRecords} total processed`
+				);
 
 				// Update progress (cap at 95% until final completion)
 				const progressPercent = Math.min(95, Math.round((offset / totalRecords) * 100));
@@ -761,7 +763,7 @@ export class JobProcessorService {
 				});
 
 				// Small delay between batches to avoid overwhelming the database
-				await new Promise(resolve => setTimeout(resolve, 50));
+				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
 
 			console.log(`✅ Distance calculation completed: ${totalProcessed} records processed`);

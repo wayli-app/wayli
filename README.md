@@ -1,6 +1,16 @@
 # Wayli 🗺️
 
-[![Build Status](#)](#) [![Coverage Status](#)](#)
+[![CI](https://github.com/wayli-app/wayli/actions/workflows/ci.yml/badge.svg)](https://github.com/wayli-app/wayli/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/github/v/release/wayli-app/wayli)](https://github.com/wayli-app/wayli/releases)
+[![Docker](https://img.shields.io/docker/v/zehbart/wayli?label=docker)](https://hub.docker.com/r/zehbart/wayli)
+[![Code Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](web/README.md)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
+
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-FF3E00?logo=svelte&logoColor=white)](https://kit.svelte.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
 Alright, so... Wayli is basically a privacy-first location analysis app. The whole thing is kind of a love letter to people who want to track their travels without selling their soul to big tech.
 

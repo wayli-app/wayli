@@ -1,6 +1,10 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/train-detection-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
 import {
 	calculateSpeedVariance,
 	hasTrainLikeSpeedPattern,
@@ -19,10 +23,12 @@ export class BothStationsDetectedRule implements DetectionRule {
 	priority = 95;
 
 	canApply(context: DetectionContext): boolean {
-		return context.currentJourney?.type === 'train' &&
-			   Boolean(context.currentJourney?.startStation) &&
-			   Boolean(context.currentJourney?.endStation) &&
-			   context.currentSpeed >= 30;
+		return (
+			context.currentJourney?.type === 'train' &&
+			Boolean(context.currentJourney?.startStation) &&
+			Boolean(context.currentJourney?.endStation) &&
+			context.currentSpeed >= 30
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -42,35 +48,126 @@ export class BothStationsDetectedRule implements DetectionRule {
 
 /**
  * Final station only rule - assume train travel before that point
+ * Enhanced with backward-looking speed analysis
  */
 export class FinalStationOnlyRule implements DetectionRule {
 	name = 'Final Station Only';
 	priority = 85;
 
 	canApply(context: DetectionContext): boolean {
-		return context.atTrainStation &&
-			   context.currentJourney?.type !== 'train' &&
-			   (context.currentSpeed >= 60 || // Lower threshold for decelerating trains
-			    this.wasRecentlyAtTrainSpeed(context));
+		return (
+			context.atTrainStation &&
+			context.currentJourney?.type !== 'train' &&
+			this.hadTrainSpeedBeforeStation(context)
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
+		const analysis = this.analyzeSpeedBeforeStation(context);
+
 		return {
 			mode: 'train',
-			confidence: 0.85,
-			reason: `Final train station (${context.stationName}) detected with train-like speed - assuming train travel before this point`,
+			confidence: analysis.confidence,
+			reason: `Final train station (${context.stationName}) detected with prior train-like speed pattern (avg: ${analysis.avgSpeed.toFixed(1)} km/h for ${analysis.duration.toFixed(1)} min)`,
 			metadata: {
 				stationName: context.stationName,
-				detectionType: 'final_station_only',
-				speed: context.currentSpeed
+				detectionType: 'final_station_with_speed_analysis',
+				priorAvgSpeed: analysis.avgSpeed,
+				priorMaxSpeed: analysis.maxSpeed,
+				priorDuration: analysis.duration,
+				confidenceFactors: analysis.factors,
+				currentSpeed: context.currentSpeed
 			}
 		};
 	}
 
-	private wasRecentlyAtTrainSpeed(context: DetectionContext): boolean {
-		// Check if we had train-like speed in last 5 minutes
-		const recentSpeeds = context.speedHistory.slice(-10);
-		return recentSpeeds.some(s => s >= 100);
+	/**
+	 * Check if user had train-like speeds before arriving at station
+	 */
+	private hadTrainSpeedBeforeStation(context: DetectionContext): boolean {
+		// Look back 30 minutes in mode history
+		const lookbackWindow = 30 * 60 * 1000;
+		const cutoffTime = Date.now() - lookbackWindow;
+
+		const recentModes = context.modeHistory.filter((m) => m.timestamp > cutoffTime);
+
+		if (recentModes.length < 5) return false; // Need minimum data points
+
+		const recentSpeeds = recentModes.map((m) => m.speed);
+
+		// Calculate metrics
+		const avgSpeed = recentSpeeds.reduce((a, b) => a + b, 0) / recentSpeeds.length;
+		const maxSpeed = Math.max(...recentSpeeds);
+		const highSpeedCount = recentSpeeds.filter((s) => s >= 80).length;
+
+		// Train-like pattern: average > 70 km/h OR max > 100 km/h with multiple high-speed points
+		return avgSpeed >= 70 || (maxSpeed >= 100 && highSpeedCount >= 3);
+	}
+
+	/**
+	 * Analyze speed pattern before arriving at station
+	 * Returns detailed analysis with confidence scoring
+	 */
+	private analyzeSpeedBeforeStation(context: DetectionContext): {
+		avgSpeed: number;
+		maxSpeed: number;
+		duration: number; // in minutes
+		confidence: number;
+		factors: string[];
+	} {
+		const lookbackWindow = 30 * 60 * 1000;
+		const cutoffTime = Date.now() - lookbackWindow;
+
+		const recentModes = context.modeHistory.filter((m) => m.timestamp > cutoffTime);
+		const recentSpeeds = recentModes.map((m) => m.speed);
+
+		const avgSpeed = recentSpeeds.reduce((a, b) => a + b, 0) / recentSpeeds.length;
+		const maxSpeed = Math.max(...recentSpeeds);
+		const duration =
+			recentModes.length > 0
+				? (recentModes[recentModes.length - 1].timestamp - recentModes[0].timestamp) / 60000
+				: 0;
+
+		// Calculate confidence based on multiple factors
+		let confidence = 0.75; // Base confidence
+		const factors: string[] = [];
+
+		// Factor 1: High average speed
+		if (avgSpeed >= 100) {
+			confidence += 0.15;
+			factors.push('high_avg_speed');
+		} else if (avgSpeed >= 80) {
+			confidence += 0.1;
+			factors.push('train_avg_speed');
+		}
+
+		// Factor 2: Very high max speed
+		if (maxSpeed >= 140) {
+			confidence += 0.1;
+			factors.push('very_high_max_speed');
+		}
+
+		// Factor 3: Sustained duration
+		if (duration >= 15) {
+			confidence += 0.05;
+			factors.push('sustained_duration');
+		}
+
+		// Factor 4: Multiple high-speed samples (consistency)
+		const highSpeedCount = recentSpeeds.filter((s) => s >= 80).length;
+		const highSpeedRatio = highSpeedCount / recentSpeeds.length;
+		if (highSpeedRatio >= 0.6) {
+			confidence += 0.1;
+			factors.push('consistent_high_speed');
+		}
+
+		return {
+			avgSpeed,
+			maxSpeed,
+			duration,
+			confidence: Math.min(confidence, 0.95),
+			factors
+		};
 	}
 }
 
@@ -82,9 +179,11 @@ export class StartingStationOnlyRule implements DetectionRule {
 	priority = 80;
 
 	canApply(context: DetectionContext): boolean {
-		return context.currentJourney?.type === 'train' &&
-			   Boolean(context.currentJourney?.startStation) &&
-			   !context.currentJourney?.endStation;
+		return (
+			context.currentJourney?.type === 'train' &&
+			Boolean(context.currentJourney?.startStation) &&
+			!context.currentJourney?.endStation
+		);
 		// Note: Speed check removed to allow detection of slowdowns
 	}
 
@@ -140,20 +239,20 @@ export class StartingStationOnlyRule implements DetectionRule {
 
 	private hasRecentHighSpeed(context: DetectionContext): boolean {
 		// Check if we had train-like speed in last 3 minutes
-		const threeMinutesAgo = Date.now() - (3 * 60 * 1000);
+		const threeMinutesAgo = Date.now() - 3 * 60 * 1000;
 		const recentSpeeds = context.speedHistory.slice(-15); // Last 15 points
-		const recentHighSpeeds = recentSpeeds.filter(s => s >= 80);
+		const recentHighSpeeds = recentSpeeds.filter((s) => s >= 80);
 		return recentHighSpeeds.length >= 3; // At least 3 high-speed points recently
 	}
 
 	private checkForSignificantSlowdown(context: DetectionContext): boolean {
 		// Extended window: 5 minutes instead of 3
-		const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-		const recentModes = context.modeHistory.filter(m => m.timestamp >= fiveMinutesAgo);
+		const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+		const recentModes = context.modeHistory.filter((m) => m.timestamp >= fiveMinutesAgo);
 
 		// Need more data points for reliable slowdown detection
 		if (recentModes.length >= 3) {
-			const recentSpeeds = recentModes.map(m => m.speed);
+			const recentSpeeds = recentModes.map((m) => m.speed);
 			const avgRecentSpeed = recentSpeeds.reduce((a, b) => a + b, 0) / recentSpeeds.length;
 
 			// Higher threshold: 30 km/h instead of 20
@@ -167,7 +266,7 @@ export class StartingStationOnlyRule implements DetectionRule {
 		// Train ending: 120 → 80 → 60 → 40 → 20 (gradual)
 		// Train stopping briefly: 120 → 0 → 120 (sharp stop/start)
 		if (recentModes.length >= 4) {
-			const speeds = recentModes.slice(-4).map(m => m.speed);
+			const speeds = recentModes.slice(-4).map((m) => m.speed);
 			const isGradualSlowdown = this.checkGradualSlowdown(speeds);
 			const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
 
@@ -182,7 +281,8 @@ export class StartingStationOnlyRule implements DetectionRule {
 	private checkGradualSlowdown(speeds: number[]): boolean {
 		// Check if speeds are monotonically decreasing
 		for (let i = 1; i < speeds.length; i++) {
-			if (speeds[i] > speeds[i - 1] + 10) { // Allow 10 km/h tolerance
+			if (speeds[i] > speeds[i - 1] + 10) {
+				// Allow 10 km/h tolerance
 				return false; // Speed increased = not gradual slowdown
 			}
 		}
@@ -198,11 +298,13 @@ export class TrainSpeedWithoutStationRule implements DetectionRule {
 	priority = 60;
 
 	canApply(context: DetectionContext): boolean {
-		return !context.atTrainStation &&
-			   !context.onHighway &&
-			   context.currentSpeed >= 60 &&  // Lowered from 80 to detect slower regional trains
-			   context.currentSpeed <= 200 &&
-			   context.modeHistory.length > 0;
+		return (
+			!context.atTrainStation &&
+			!context.onHighway &&
+			context.currentSpeed >= 60 && // Lowered from 80 to detect slower regional trains
+			context.currentSpeed <= 200 &&
+			context.modeHistory.length > 0
+		);
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -220,7 +322,10 @@ export class TrainSpeedWithoutStationRule implements DetectionRule {
 
 		// If no recent station visit, require substantial journey length
 		if (!recentlyAtStation && !wasInTrainMode) {
-			if (journeyDistance < MIN_DISTANCE_WITHOUT_STATION && journeyDuration < MIN_DURATION_WITHOUT_STATION) {
+			if (
+				journeyDistance < MIN_DISTANCE_WITHOUT_STATION &&
+				journeyDuration < MIN_DURATION_WITHOUT_STATION
+			) {
 				// Too short without station context - likely highway, not train
 				return null;
 			}
@@ -231,7 +336,7 @@ export class TrainSpeedWithoutStationRule implements DetectionRule {
 		const hasTrainSpeed = hasTrainLikeSpeedPattern(context.speedHistory);
 
 		// Check trajectory
-		const points = context.pointHistory.map(p => ({ lat: p.lat, lng: p.lng }));
+		const points = context.pointHistory.map((p) => ({ lat: p.lat, lng: p.lng }));
 		const isStraight = hasStraightTrajectory(points);
 
 		// Calculate confidence based on multiple signals
@@ -246,12 +351,14 @@ export class TrainSpeedWithoutStationRule implements DetectionRule {
 		// - With station context: 2 signals sufficient
 		// - Without station context but long journey (>5km OR >8min): 2 signals sufficient
 		// - Without station context and short journey: 3 signals required (prevents false positives)
-		const positiveSignals = [recentlyAtStation, wasInTrainMode, hasTrainSpeed, isStraight]
-			.filter(Boolean).length;
+		const positiveSignals = [recentlyAtStation, wasInTrainMode, hasTrainSpeed, isStraight].filter(
+			Boolean
+		).length;
 
-		const hasLongJourney = journeyDistance >= MIN_DISTANCE_WITHOUT_STATION ||
-							   journeyDuration >= MIN_DURATION_WITHOUT_STATION;
-		const requiredSignals = (recentlyAtStation || hasLongJourney) ? 2 : 3;
+		const hasLongJourney =
+			journeyDistance >= MIN_DISTANCE_WITHOUT_STATION ||
+			journeyDuration >= MIN_DURATION_WITHOUT_STATION;
+		const requiredSignals = recentlyAtStation || hasLongJourney ? 2 : 3;
 
 		if (positiveSignals >= requiredSignals) {
 			return {
@@ -274,11 +381,8 @@ export class TrainSpeedWithoutStationRule implements DetectionRule {
 	}
 
 	private wasRecentlyAtTrainStation(context: DetectionContext): boolean {
-		const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
-		return context.modeHistory.some(m =>
-			m.timestamp > thirtyMinutesAgo &&
-			m.mode === 'train'
-		);
+		const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
+		return context.modeHistory.some((m) => m.timestamp > thirtyMinutesAgo && m.mode === 'train');
 	}
 
 	private calculateJourneyDuration(context: DetectionContext): number {
@@ -310,9 +414,9 @@ export class TrainSpeedWithoutStationRule implements DetectionRule {
 		const Δφ = ((lat2 - lat1) * Math.PI) / 180;
 		const Δλ = ((lng2 - lng1) * Math.PI) / 180;
 
-		const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-				  Math.cos(φ1) * Math.cos(φ2) *
-				  Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+		const a =
+			Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+			Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
 		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
 		return R * c; // Distance in meters
@@ -352,7 +456,7 @@ export class UnrealisticTrainSegmentRule implements DetectionRule {
 				// Check mode history to use previous non-train mode
 				const recentNonTrainModes = context.modeHistory
 					.slice(-10)
-					.filter(m => m.mode !== 'train' && m.mode !== 'stationary');
+					.filter((m) => m.mode !== 'train' && m.mode !== 'stationary');
 
 				if (recentNonTrainModes.length > 0) {
 					const previousMode = recentNonTrainModes[recentNonTrainModes.length - 1].mode;
@@ -386,8 +490,7 @@ export class TrainJourneyEndRule implements DetectionRule {
 	priority = 65;
 
 	canApply(context: DetectionContext): boolean {
-		return context.currentJourney?.type === 'train' &&
-			   context.currentSpeed < 30;
+		return context.currentJourney?.type === 'train' && context.currentSpeed < 30;
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
@@ -395,8 +498,8 @@ export class TrainJourneyEndRule implements DetectionRule {
 		const timeSinceStart = Date.now() - journey.startTime;
 
 		// Check if we're at a different station (journey end)
-		const atDifferentStation = context.atTrainStation &&
-									context.stationName !== journey.startStation;
+		const atDifferentStation =
+			context.atTrainStation && context.stationName !== journey.startStation;
 
 		// Check if we've been slow for extended period
 		const hasExtendedSlowdown = this.hasExtendedLowSpeed(context);
@@ -405,7 +508,7 @@ export class TrainJourneyEndRule implements DetectionRule {
 		// 1. At a different station, OR
 		// 2. Been slow for 5+ minutes (not just a brief stop), OR
 		// 3. Journey exceeds max duration (2 hours)
-		if (atDifferentStation || hasExtendedSlowdown || timeSinceStart > (2 * 60 * 60 * 1000)) {
+		if (atDifferentStation || hasExtendedSlowdown || timeSinceStart > 2 * 60 * 60 * 1000) {
 			return {
 				mode: 'stationary', // Likely at destination
 				confidence: 0.8,
@@ -424,8 +527,8 @@ export class TrainJourneyEndRule implements DetectionRule {
 	}
 
 	private hasExtendedLowSpeed(context: DetectionContext): boolean {
-		const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-		const recentModes = context.modeHistory.filter(m => m.timestamp >= fiveMinutesAgo);
+		const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+		const recentModes = context.modeHistory.filter((m) => m.timestamp >= fiveMinutesAgo);
 
 		if (recentModes.length < 3) return false;
 

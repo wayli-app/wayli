@@ -14,8 +14,8 @@
 <button
 	use:useAriaButton={{ label: 'Toggle popover' }}
 	onclick={toggleOpen}
-	        onkeydown={(e) => e.key === 'Enter' && toggleOpen()}
-        tabindex="0"
+	onkeydown={(e) => e.key === 'Enter' && toggleOpen()}
+	tabindex="0"
 >
 	<slot />
 </button>

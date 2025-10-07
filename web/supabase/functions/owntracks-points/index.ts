@@ -31,7 +31,10 @@ Deno.serve(async (req) => {
 			} catch (jwtError) {
 				logError(apiKeyError, 'OWNTRACKS_POINTS_API_KEY');
 				logError(jwtError, 'OWNTRACKS_POINTS_JWT');
-				return errorResponse('Authentication required. Use api_key and user_id query parameters or JWT token.', 401);
+				return errorResponse(
+					'Authentication required. Use api_key and user_id query parameters or JWT token.',
+					401
+				);
 			}
 		}
 
@@ -44,7 +47,7 @@ Deno.serve(async (req) => {
 
 		// Parse request body for location data
 		const body = await parseJsonBody<Record<string, unknown>>(req);
-		const points = body.points as any[] || [];
+		const points = (body.points as any[]) || [];
 
 		if (!Array.isArray(points) || points.length === 0) {
 			return errorResponse('No valid points data found', 400);

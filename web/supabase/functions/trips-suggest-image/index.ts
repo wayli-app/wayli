@@ -124,10 +124,16 @@ Deno.serve(async (req) => {
 					}
 
 					// Extract metadata if available
-					const tripMetadata = trip.metadata && typeof trip.metadata === 'object' ? trip.metadata as any : undefined;
+					const tripMetadata =
+						trip.metadata && typeof trip.metadata === 'object' ? (trip.metadata as any) : undefined;
 
 					// Generate image suggestion based on analysis and metadata
-					const suggestion = await generateImageSuggestionFromAnalysis(supabase, analysis, apiKey, tripMetadata);
+					const suggestion = await generateImageSuggestionFromAnalysis(
+						supabase,
+						analysis,
+						apiKey,
+						tripMetadata
+					);
 
 					logSuccess('Image suggestion generated for suggested trip', 'TRIPS-SUGGEST-IMAGE', {
 						userId: user.id,
@@ -356,15 +362,26 @@ async function analyzeTripLocations(
 // Helper function to clean country names for better search results
 function cleanCountryNameForSearch(countryName: string): string {
 	const politicalIndicators = [
-		'Republic of the', 'Republic of', 'Democratic Republic of the', 'Democratic Republic of',
-		'Islamic Republic of', 'People\'s Republic of', 'United Republic of', 'Federated States of',
-		'Commonwealth of', 'Kingdom of', 'Principality of', 'Grand Duchy of', 'State of',
-		'Territory of', 'Province of China', 'Federation', 'Union'
+		'Republic of the',
+		'Republic of',
+		'Democratic Republic of the',
+		'Democratic Republic of',
+		'Islamic Republic of',
+		"People's Republic of",
+		'United Republic of',
+		'Federated States of',
+		'Commonwealth of',
+		'Kingdom of',
+		'Principality of',
+		'Grand Duchy of',
+		'State of',
+		'Territory of',
+		'Province of China',
+		'Federation',
+		'Union'
 	];
 
-	const suffixIndicators = [
-		'Islands', 'Island', 'Territories'
-	];
+	const suffixIndicators = ['Islands', 'Island', 'Territories'];
 
 	let cleaned = countryName.trim();
 
@@ -394,9 +411,13 @@ function cleanCountryNameForSearch(countryName: string): string {
 
 	// Handle special cases
 	const specialCases: Record<string, string> = {
-		'United States': 'USA', 'United Kingdom': 'UK', 'Russian Federation': 'Russia',
-		'Czech Republic': 'Czechia', 'Timor-Leste': 'East Timor', 'Côte d\'Ivoire': 'Ivory Coast',
-		'Myanmar': 'Burma'
+		'United States': 'USA',
+		'United Kingdom': 'UK',
+		'Russian Federation': 'Russia',
+		'Czech Republic': 'Czechia',
+		'Timor-Leste': 'East Timor',
+		"Côte d'Ivoire": 'Ivory Coast',
+		Myanmar: 'Burma'
 	};
 
 	return specialCases[cleaned] || cleaned;
@@ -438,29 +459,56 @@ async function generateImageSuggestionFromAnalysis(
 	if (tripMetadata) {
 		if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length > 1) {
 			// Multi-country trip: use country with longest duration
-			const dominantCountry = tripMetadata.visitedCountriesDetailed
-				.sort((a, b) => b.durationHours - a.durationHours)[0];
+			const dominantCountry = tripMetadata.visitedCountriesDetailed.sort(
+				(a, b) => b.durationHours - a.durationHours
+			)[0];
 
 			// Map country code to full name
-			const { data: fullName } = await supabase.rpc('full_country', { country: dominantCountry.countryCode });
-			const countryName = (fullName && typeof fullName === 'string' && fullName) || dominantCountry.countryCode;
+			const { data: fullName } = await supabase.rpc('full_country', {
+				country: dominantCountry.countryCode
+			});
+			const countryName =
+				(fullName && typeof fullName === 'string' && fullName) || dominantCountry.countryCode;
 
 			searchTerm = cleanCountryNameForSearch(countryName);
-			logInfo(`Using dominant country from metadata: ${countryName} (${dominantCountry.durationHours}h)`, 'TRIPS-SUGGEST-IMAGE');
-		} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length > 1) {
+			logInfo(
+				`Using dominant country from metadata: ${countryName} (${dominantCountry.durationHours}h)`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
+		} else if (
+			tripMetadata.visitedCitiesDetailed &&
+			tripMetadata.visitedCitiesDetailed.length > 1
+		) {
 			// Multi-city trip (same country): use city with longest duration
-			const dominantCity = tripMetadata.visitedCitiesDetailed
-				.sort((a, b) => b.durationHours - a.durationHours)[0];
+			const dominantCity = tripMetadata.visitedCitiesDetailed.sort(
+				(a, b) => b.durationHours - a.durationHours
+			)[0];
 			searchTerm = `${dominantCity.city} city`;
-			logInfo(`Using dominant city from metadata: ${dominantCity.city} (${dominantCity.durationHours}h)`, 'TRIPS-SUGGEST-IMAGE');
-		} else if (tripMetadata.visitedCitiesDetailed && tripMetadata.visitedCitiesDetailed.length === 1) {
+			logInfo(
+				`Using dominant city from metadata: ${dominantCity.city} (${dominantCity.durationHours}h)`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
+		} else if (
+			tripMetadata.visitedCitiesDetailed &&
+			tripMetadata.visitedCitiesDetailed.length === 1
+		) {
 			// Single city trip
 			searchTerm = `${tripMetadata.visitedCitiesDetailed[0].city} city`;
-			logInfo(`Using single city from metadata: ${tripMetadata.visitedCitiesDetailed[0].city}`, 'TRIPS-SUGGEST-IMAGE');
-		} else if (tripMetadata.visitedCountriesDetailed && tripMetadata.visitedCountriesDetailed.length === 1) {
+			logInfo(
+				`Using single city from metadata: ${tripMetadata.visitedCitiesDetailed[0].city}`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
+		} else if (
+			tripMetadata.visitedCountriesDetailed &&
+			tripMetadata.visitedCountriesDetailed.length === 1
+		) {
 			// Single country trip
-			const { data: fullName } = await supabase.rpc('full_country', { country: tripMetadata.visitedCountriesDetailed[0].countryCode });
-			const countryName = (fullName && typeof fullName === 'string' && fullName) || tripMetadata.visitedCountriesDetailed[0].countryCode;
+			const { data: fullName } = await supabase.rpc('full_country', {
+				country: tripMetadata.visitedCountriesDetailed[0].countryCode
+			});
+			const countryName =
+				(fullName && typeof fullName === 'string' && fullName) ||
+				tripMetadata.visitedCountriesDetailed[0].countryCode;
 			searchTerm = `${cleanCountryNameForSearch(countryName)} landscape`;
 			logInfo(`Using single country from metadata: ${countryName}`, 'TRIPS-SUGGEST-IMAGE');
 		}
@@ -471,10 +519,16 @@ async function generateImageSuggestionFromAnalysis(
 		// Prefer city over country for better search results
 		if (analysis.primaryCity) {
 			searchTerm = `${analysis.primaryCity} city`;
-			logInfo(`Fallback: Using primary city from analysis: ${analysis.primaryCity}`, 'TRIPS-SUGGEST-IMAGE');
+			logInfo(
+				`Fallback: Using primary city from analysis: ${analysis.primaryCity}`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
 		} else if (analysis.primaryCountry) {
 			searchTerm = `${cleanCountryNameForSearch(analysis.primaryCountry)} landscape`;
-			logInfo(`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`, 'TRIPS-SUGGEST-IMAGE');
+			logInfo(
+				`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
 		}
 	}
 

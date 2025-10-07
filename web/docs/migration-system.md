@@ -243,6 +243,7 @@ The following components have been **removed** due to security issues:
 ### Recommended Workflow
 
 1. **Develop Locally**
+
    ```bash
    supabase start
    # Make schema changes via SQL or Studio
@@ -253,6 +254,7 @@ The following components have been **removed** due to security issues:
    ```
 
 2. **Test in Staging**
+
    ```bash
    supabase link --project-ref $STAGING_PROJECT_REF
    supabase db push --linked
@@ -260,6 +262,7 @@ The following components have been **removed** due to security issues:
    ```
 
 3. **Deploy to Production**
+
    ```bash
    # Via CI/CD or manually
    supabase link --project-ref $PROD_PROJECT_REF
@@ -279,20 +282,24 @@ The following components have been **removed** due to security issues:
 ### Common Issues
 
 **Migration fails due to existing objects:**
+
 - Ensure your migration uses `IF NOT EXISTS` and `DO $$ ... EXCEPTION` blocks
 - Test idempotency by running the migration twice locally
 
 **Permission denied errors:**
+
 - Check that you're linked to the correct project
 - Verify database password is correct
 - Ensure service role has necessary permissions
 
 **Migration not detected:**
+
 - Check filename format: `YYYYMMDDHHMMSS_description.sql`
 - Ensure file is in `supabase/migrations/` directory
 - Run `supabase migration list` to see available migrations
 
 **Rollback needed:**
+
 ```bash
 # Create a new migration that reverses changes
 supabase migration new revert_previous_change

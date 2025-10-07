@@ -1,6 +1,10 @@
 // /Users/bart/Dev/wayli/web/src/lib/rules/stop-pattern-rules.ts
 
-import type { DetectionContext, DetectionResult, DetectionRule } from '../types/transport-detection.types';
+import type {
+	DetectionContext,
+	DetectionResult,
+	DetectionRule
+} from '../types/transport-detection.types';
 import { analyzeStopPattern } from '../utils/speed-pattern-analysis';
 
 /**
@@ -37,9 +41,10 @@ export class StopPatternAnalysisRule implements DetectionRule {
 		}
 
 		// Apply GPS frequency modifier if available
-		const gpsModifier = context.gpsFrequency.confidenceModifiers[
-			stopAnalysis.likelyMode as keyof typeof context.gpsFrequency.confidenceModifiers
-		] || 0;
+		const gpsModifier =
+			context.gpsFrequency.confidenceModifiers[
+				stopAnalysis.likelyMode as keyof typeof context.gpsFrequency.confidenceModifiers
+			] || 0;
 
 		const finalConfidence = Math.max(0.1, Math.min(0.95, stopAnalysis.confidence + gpsModifier));
 

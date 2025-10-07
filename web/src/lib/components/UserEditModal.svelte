@@ -155,8 +155,7 @@
 					</div>
 
 					<div>
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>Role</span
+						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span
 						>
 						<RoleSelector bind:role />
 					</div>

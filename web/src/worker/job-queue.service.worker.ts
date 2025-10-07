@@ -130,7 +130,10 @@ export class JobQueueService {
 		};
 		if (result) update.result = result;
 
-		console.log(`📊 Updating job ${jobId} progress to ${progress}%`, result ? `with result: ${JSON.stringify(result)}` : '');
+		console.log(
+			`📊 Updating job ${jobId} progress to ${progress}%`,
+			result ? `with result: ${JSON.stringify(result)}` : ''
+		);
 
 		const { error, data } = await this.supabase
 			.from('jobs')
@@ -233,8 +236,10 @@ export class JobQueueService {
 		cancelled: number;
 	}> {
 		// Debug: Log which Supabase client we're using
-		console.log('🔍 JobQueueService.getJobStats() using Supabase client with URL:',
-			(this.supabase as any).supabaseUrl || 'unknown');
+		console.log(
+			'🔍 JobQueueService.getJobStats() using Supabase client with URL:',
+			(this.supabase as any).supabaseUrl || 'unknown'
+		);
 
 		const { data, error } = await this.supabase.from('jobs').select('status');
 
@@ -303,7 +308,9 @@ export class JobQueueService {
 				.eq('id', jobId);
 
 			if (retryError) throw retryError;
-			console.log(`✅ Job ${jobId} requeued for retry (attempt ${currentRetries + 1}/${maxRetries})`);
+			console.log(
+				`✅ Job ${jobId} requeued for retry (attempt ${currentRetries + 1}/${maxRetries})`
+			);
 		} else {
 			// Exceeded max retries, mark as failed
 			const { error: failError } = await this.supabase

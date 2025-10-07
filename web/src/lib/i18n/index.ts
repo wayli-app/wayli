@@ -15,6 +15,31 @@ export const DEFAULT_LOCALE: SupportedLocale = 'en';
 // Locale store
 export const currentLocale = writable<SupportedLocale>(DEFAULT_LOCALE);
 
+// Flatten nested objects into dot-notation keys
+// e.g., { common: { actions: { save: "Save" } } } => { "common.actions.save": "Save" }
+function flattenMessages(
+	obj: Record<string, unknown>,
+	prefix = ''
+): Record<string, string> {
+	const result: Record<string, string> = {};
+
+	for (const [key, value] of Object.entries(obj)) {
+		const newKey = prefix ? `${prefix}.${key}` : key;
+
+		if (typeof value === 'string') {
+			result[newKey] = value;
+		} else if (Array.isArray(value)) {
+			// For arrays (like datePicker.monthLabels), keep them as-is
+			result[newKey] = value as unknown as string;
+		} else if (typeof value === 'object' && value !== null) {
+			// Recursively flatten nested objects
+			Object.assign(result, flattenMessages(value as Record<string, unknown>, newKey));
+		}
+	}
+
+	return result;
+}
+
 // Load translation messages
 async function loadMessages(locale: SupportedLocale): Promise<Record<string, string>> {
 	try {
@@ -25,7 +50,8 @@ async function loadMessages(locale: SupportedLocale): Promise<Record<string, str
 		}
 
 		const messages = await response.json();
-		return messages;
+		// Flatten nested structure for compatibility with existing code
+		return flattenMessages(messages);
 	} catch {
 		// If fetch fails, try fallback to English
 		console.warn(`Failed to fetch messages for locale ${locale}`);

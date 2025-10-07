@@ -24,8 +24,6 @@
 	let isImporting = $state(false);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-
-
 	// Last successful import date
 	let lastSuccessfulImport = $state<string | null>(null);
 
@@ -33,8 +31,6 @@
 	let exportFormat = $state('JSON');
 	let exportStartDate = $state<Date | undefined>(undefined);
 	let exportEndDate = $state<Date | undefined>(undefined);
-
-
 
 	// Add export state variables for export job creation
 	let includeLocationDataExport = $state(true);
@@ -91,16 +87,12 @@
 		try {
 			isImporting = true;
 
-			const result = await jobCreationService.createImportJob(
-				selectedFile,
-				{
-					format: importFormat,
-					includeLocationData,
-					includeWantToVisit,
-					includeTrips
-				},
-
-			);
+			const result = await jobCreationService.createImportJob(selectedFile, {
+				format: importFormat,
+				includeLocationData,
+				includeWantToVisit,
+				includeTrips
+			});
 
 			// Immediately add the job to the store so it shows in the sidebar
 			if (result?.id) {
@@ -357,8 +349,6 @@
 					</div>
 				</div>
 
-
-
 				<!-- Import button only shown if no active job -->
 				<button
 					type="button"
@@ -433,7 +423,7 @@
 					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
 						>{t('importExport.dateRange')}</span
 					>
-					<div class="relative datepicker-import-export-fix">
+					<div class="datepicker-import-export-fix relative">
 						<DateRangePicker
 							bind:startDate={localExportStartDate}
 							bind:endDate={localExportEndDate}

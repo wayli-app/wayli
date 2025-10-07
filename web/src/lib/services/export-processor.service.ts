@@ -2,7 +2,11 @@ import JSZip from 'jszip';
 
 import { supabase } from '../../worker/supabase';
 import { checkJobCancellation } from '../utils/job-cancellation';
-import { isGeoJSONGeocode, getDisplayNameFromGeoJSON, getAddressFromGeoJSON } from '../utils/geojson-converter';
+import {
+	isGeoJSONGeocode,
+	getDisplayNameFromGeoJSON,
+	getAddressFromGeoJSON
+} from '../utils/geojson-converter';
 
 import { ExportService } from './export.service.worker';
 

@@ -19,8 +19,6 @@ Deno.serve(async (req) => {
 	try {
 		const { user, supabase } = await authenticateRequest(req);
 
-
-
 		if (req.method === 'POST') {
 			logInfo('Updating user password', 'AUTH-PASSWORD', { userId: user.id });
 
@@ -34,7 +32,7 @@ Deno.serve(async (req) => {
 				return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
 			}
 
-						// Get the user's JWT token from the Authorization header
+			// Get the user's JWT token from the Authorization header
 			const authHeader = req.headers.get('Authorization');
 			const userToken = authHeader?.replace('Bearer ', '');
 

@@ -45,10 +45,7 @@ export const createJobSchemaCore = z.object({
 		'trip_detection'
 	]),
 	data: z.record(z.string(), z.unknown()),
-	priority: z
-		.enum(['low', 'normal', 'high', 'urgent'])
-		.optional()
-		.default('normal')
+	priority: z.enum(['low', 'normal', 'high', 'urgent']).optional().default('normal')
 });
 export const createJobSchema = {
 	safeParse: (data: unknown) =>
@@ -57,13 +54,7 @@ export const createJobSchema = {
 // Attach classic compatibility for test runner wrappers
 (createJobSchema as any)._zod = z as any;
 
-export const jobStatusSchema = z.enum([
-	'queued',
-	'processing',
-	'completed',
-	'failed',
-	'cancelled'
-]);
+export const jobStatusSchema = z.enum(['queued', 'processing', 'completed', 'failed', 'cancelled']);
 
 export const jobQuerySchema = paginationSchema.extend({
 	status: jobStatusSchema.optional(),

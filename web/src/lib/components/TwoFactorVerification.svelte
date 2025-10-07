@@ -87,16 +87,16 @@
 		aria-hidden="true"
 	>
 		<!-- Modal -->
-		                <div
-                        class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800"
-                        onclick={(e) => e.stopPropagation()}
-                        onkeydown={(e) => e.stopPropagation()}
-                        aria-modal="true"
-                        role="dialog"
-                        aria-labelledby="two-factor-modal-title"
-                        aria-describedby="two-factor-modal-description"
-                        tabindex="0"
-                >
+		<div
+			class="w-full max-w-md rounded-lg bg-white shadow-xl dark:bg-gray-800"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			aria-modal="true"
+			role="dialog"
+			aria-labelledby="two-factor-modal-title"
+			aria-describedby="two-factor-modal-description"
+			tabindex="0"
+		>
 			<!-- Header -->
 			<div
 				class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700"

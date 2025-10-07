@@ -21,8 +21,8 @@ export interface GeocodeGeoJSONFeature extends Feature<Point> {
 		geocoded_at: string;
 		geocoding_provider: string;
 		// Error fields (for failed geocoding)
-		geocode_error?: string;  // Store geocoding errors here
-		geocoding_error?: string;  // Legacy field for backward compatibility
+		geocode_error?: string; // Store geocoding errors here
+		geocoding_error?: string; // Legacy field for backward compatibility
 		geocoding_status?: 'success' | 'failed';
 		retryable?: boolean;
 		permanent?: boolean;
@@ -47,7 +47,13 @@ export function convertNominatimToGeoJSON(
 	if (nominatimResponse.address && typeof nominatimResponse.address === 'object') {
 		const address = nominatimResponse.address as Record<string, string>;
 		// Try different possible city fields
-		extractedCity = address.city || address.town || address.village || address.municipality || address.suburb || null;
+		extractedCity =
+			address.city ||
+			address.town ||
+			address.village ||
+			address.municipality ||
+			address.suburb ||
+			null;
 		// Try different possible country fields
 		extractedCountry = address.country || address.country_name || null;
 	}
@@ -87,7 +93,7 @@ export function createGeocodeErrorGeoJSON(
 		},
 		properties: {
 			geocode_error: error,
-			geocoding_error: error,  // Legacy field for backward compatibility
+			geocoding_error: error, // Legacy field for backward compatibility
 			geocoded_at: new Date().toISOString(),
 			geocoding_provider: 'nominatim',
 			geocoding_status: 'failed'
@@ -157,7 +163,13 @@ export function mergeGeocodingWithExisting(
 	if (nominatimResponse.address && typeof nominatimResponse.address === 'object') {
 		const address = nominatimResponse.address as Record<string, string>;
 		// Try different possible city fields
-		extractedCity = address.city || address.town || address.village || address.municipality || address.suburb || null;
+		extractedCity =
+			address.city ||
+			address.town ||
+			address.village ||
+			address.municipality ||
+			address.suburb ||
+			null;
 		// Try different possible country fields
 		extractedCountry = address.country || address.country_name || null;
 	}

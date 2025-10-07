@@ -86,7 +86,10 @@ export class JobWorker {
 			console.log('  - SUPABASE_ANON_KEY:', (config as any).anonKey ? 'SET' : 'NOT SET');
 
 			// Check if we're in a container environment
-			console.log('  - Container environment:', process.env.KUBERNETES_SERVICE_HOST ? 'Kubernetes' : 'Local');
+			console.log(
+				'  - Container environment:',
+				process.env.KUBERNETES_SERVICE_HOST ? 'Kubernetes' : 'Local'
+			);
 			console.log('  - Node environment:', process.env.NODE_ENV || 'undefined');
 			console.log('  - Working directory:', process.cwd());
 
@@ -106,9 +109,13 @@ export class JobWorker {
 					'   Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY before running workers.'
 				);
 				console.error('🚨 Missing required environment variables - exiting with code 1');
-				console.error('   This indicates a critical configuration failure that prevents the worker from starting.');
+				console.error(
+					'   This indicates a critical configuration failure that prevents the worker from starting.'
+				);
 				console.error('   Please check your environment variable configuration.');
-				throw new Error('Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY');
+				throw new Error(
+					'Missing required environment variables: SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY'
+				);
 			}
 
 			// Test the connection by trying to get job stats with timeout
@@ -136,7 +143,9 @@ export class JobWorker {
 
 					// Check for specific error types
 					if (error.message.includes('fetch failed')) {
-						console.error('❌ Network error detected - check pod network policies and firewall rules');
+						console.error(
+							'❌ Network error detected - check pod network policies and firewall rules'
+						);
 					} else if (error.message.includes('timeout')) {
 						console.error('❌ Connection timeout - check if Supabase is reachable from the pod');
 					} else if (error.message.includes('unauthorized')) {
@@ -147,7 +156,9 @@ export class JobWorker {
 				// Throw error to cause worker to exit with code 1
 				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 				console.error('🚨 Worker cannot connect to Supabase - exiting with code 1');
-				console.error('   This indicates a critical connection failure that prevents the worker from functioning.');
+				console.error(
+					'   This indicates a critical connection failure that prevents the worker from functioning.'
+				);
 				console.error('   Please check your Supabase configuration and network connectivity.');
 				throw new Error(`Worker cannot connect to Supabase: ${errorMessage}`);
 			}
@@ -161,7 +172,9 @@ export class JobWorker {
 	}
 
 	async stop(graceful: boolean = true): Promise<void> {
-		console.log(`🛑 Worker ${this.workerId} initiating ${graceful ? 'graceful' : 'forced'} shutdown...`);
+		console.log(
+			`🛑 Worker ${this.workerId} initiating ${graceful ? 'graceful' : 'forced'} shutdown...`
+		);
 
 		this.isShuttingDown = true;
 		this.isRunning = false;
@@ -181,7 +194,9 @@ export class JobWorker {
 		// Handle current job based on shutdown mode
 		if (this.currentJob) {
 			if (graceful) {
-				console.log(`⏳ Worker ${this.workerId} waiting for current job ${this.currentJob.id} to complete (grace period: ${this.shutdownGracePeriod}ms)...`);
+				console.log(
+					`⏳ Worker ${this.workerId} waiting for current job ${this.currentJob.id} to complete (grace period: ${this.shutdownGracePeriod}ms)...`
+				);
 
 				// Mark job as aborting
 				await JobQueueService.updateJobProgress(this.currentJob.id, this.currentJob.progress || 0, {
@@ -203,10 +218,7 @@ export class JobWorker {
 				});
 
 				// Wait for either job completion or timeout
-				await Promise.race([
-					shutdownPromise,
-					this.waitForJobCompletion()
-				]);
+				await Promise.race([shutdownPromise, this.waitForJobCompletion()]);
 
 				// Clear timeout if job completed early
 				if (this.forceShutdownTimeout) {
@@ -216,7 +228,9 @@ export class JobWorker {
 
 				// If job is still running after grace period, requeue it
 				if (this.currentJob) {
-					console.log(`🔄 Worker ${this.workerId} requeueing job ${this.currentJob.id} for retry...`);
+					console.log(
+						`🔄 Worker ${this.workerId} requeueing job ${this.currentJob.id} for retry...`
+					);
 					await JobQueueService.requeueJobForRetry(
 						this.currentJob.id,
 						'Worker shutdown during job execution'
@@ -225,7 +239,9 @@ export class JobWorker {
 				}
 			} else {
 				// Forced shutdown: fail the job immediately
-				console.log(`❌ Worker ${this.workerId} forcing shutdown, failing current job ${this.currentJob.id}...`);
+				console.log(
+					`❌ Worker ${this.workerId} forcing shutdown, failing current job ${this.currentJob.id}...`
+				);
 				await JobQueueService.failJob(this.currentJob.id, 'Worker stopped (forced shutdown)');
 				this.currentJob = null;
 			}
@@ -240,7 +256,7 @@ export class JobWorker {
 	private async waitForJobCompletion(): Promise<void> {
 		// Poll until current job is cleared (indicates completion)
 		while (this.currentJob) {
-			await new Promise(resolve => setTimeout(resolve, 500));
+			await new Promise((resolve) => setTimeout(resolve, 500));
 		}
 	}
 
