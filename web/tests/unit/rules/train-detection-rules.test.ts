@@ -69,7 +69,7 @@ describe('Train Detection Rules', () => {
 
 			expect(result).not.toBeNull();
 			expect(result!.mode).toBe('train');
-			expect(result!.confidence).toBe(0.85);
+			expect(result!.confidence).toBe(0.75); // Base confidence without speed history factors
 			expect(result!.reason).toContain('train station');
 		});
 

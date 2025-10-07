@@ -164,68 +164,76 @@ describe('country-reverse-geocoding.service', () => {
 	});
 
 	describe('applyTimezoneCorrectionToTimestamp', () => {
-		it('should format timestamp with negative timezone offset', () => {
+		it('should return UTC ISO string for New York coordinates', () => {
 			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 40.7128, -74.006);
-			expect(result).toBe('2025-08-16T14:00:00-05:00');
+			// Returns UTC ISO string
+			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 		});
 
-		it('should format timestamp with positive timezone offset', () => {
+		it('should return UTC ISO string for Paris coordinates', () => {
 			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 48.8566, 2.3522);
-			expect(result).toBe('2025-08-16T14:00:00+01:00');
+			// Returns UTC ISO string
+			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 		});
 
-		it('should format timestamp with large positive timezone offset', () => {
+		it('should return UTC ISO string for Tokyo coordinates', () => {
 			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 35.6762, 139.6503);
-			expect(result).toBe('2025-08-16T14:00:00+09:00');
+			// Returns UTC ISO string
+			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 		});
 
-		it('should format timestamp with fractional timezone offset', () => {
+		it('should return UTC ISO string regardless of coordinates', () => {
 			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', -17.6797, -149.4068);
-			// The actual timezone might be different, so we'll check for the correct format
-			expect(result).toMatch(/^2025-08-16T14:00:00[+-]\d{2}:\d{2}$/);
+			// Function now returns UTC timestamps to avoid double conversion in PostgreSQL
+			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 		});
 
 		it('should handle Date objects', () => {
-			const date = new Date('2025-08-16T14:00:00');
+			const date = new Date('2025-08-16T14:00:00Z');
 			const result = applyTimezoneCorrectionToTimestamp(date, 40.7128, -74.006);
-			expect(result).toBe('2025-08-16T14:00:00-05:00');
+			// Returns UTC ISO string
+			expect(result).toBe('2025-08-16T14:00:00.000Z');
 		});
 
 		it('should handle numeric timestamps', () => {
-			// Use a timestamp that represents 2025-08-16T14:00:00
-			const timestamp = new Date('2025-08-16T14:00:00').getTime();
+			// Use a timestamp that represents 2025-08-16T14:00:00 UTC
+			const timestamp = new Date('2025-08-16T14:00:00Z').getTime();
 			const result = applyTimezoneCorrectionToTimestamp(timestamp, 40.7128, -74.006);
-			expect(result).toBe('2025-08-16T14:00:00-05:00');
+			// Returns UTC ISO string
+			expect(result).toBe('2025-08-16T14:00:00.000Z');
 		});
 
 		it('should handle timestamps with milliseconds', () => {
 			const result = applyTimezoneCorrectionToTimestamp(
-				'2025-08-16T14:00:00.123',
+				'2025-08-16T14:00:00.123Z',
 				40.7128,
 				-74.006
 			);
-			expect(result).toBe('2025-08-16T14:00:00-05:00');
+			// Returns UTC ISO string
+			expect(result).toBe('2025-08-16T14:00:00.123Z');
 		});
 
-		it('should return UTC format when no timezone found', () => {
-			// Use coordinates that are very unlikely to have a timezone
+		it('should return UTC format for all coordinates', () => {
 			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T14:00:00', 90, 180);
 			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 		});
 
 		it('should handle edge case of midnight', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T00:00:00', 40.7128, -74.006);
-			expect(result).toBe('2025-08-16T00:00:00-05:00');
+			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T00:00:00Z', 40.7128, -74.006);
+			// Returns UTC ISO string
+			expect(result).toBe('2025-08-16T00:00:00.000Z');
 		});
 
 		it('should handle edge case of end of day', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T23:59:59', 40.7128, -74.006);
-			expect(result).toBe('2025-08-16T23:59:59-05:00');
+			const result = applyTimezoneCorrectionToTimestamp('2025-08-16T23:59:59Z', 40.7128, -74.006);
+			// Returns UTC ISO string
+			expect(result).toBe('2025-08-16T23:59:59.000Z');
 		});
 
 		it('should handle leap year dates', () => {
-			const result = applyTimezoneCorrectionToTimestamp('2024-02-29T14:00:00', 40.7128, -74.006);
-			expect(result).toBe('2024-02-29T14:00:00-05:00');
+			const result = applyTimezoneCorrectionToTimestamp('2024-02-29T14:00:00Z', 40.7128, -74.006);
+			// Returns UTC ISO string
+			expect(result).toBe('2024-02-29T14:00:00.000Z');
 		});
 	});
 });
