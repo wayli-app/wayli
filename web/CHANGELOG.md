@@ -1,3 +1,10 @@
+## [0.0.1](https://github.com/wayli-app/wayli/compare/v0.0.0...v0.0.1) (2025-10-07)
+
+
+### Bug Fixes
+
+* Remove call to action box. ([931fd35](https://github.com/wayli-app/wayli/commit/931fd358821fb76561bed604cc8afd53782ccec8))
+
 ## [1.2.28](https://github.com/wayli-app/wayli/compare/v1.2.27...v1.2.28) (2025-10-06)
 
 ### Bug Fixes
