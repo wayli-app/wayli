@@ -20,8 +20,8 @@
 		TreePine,
 		Coffee,
 		ShoppingBag,
-		Anchor,
-		Building,
+		Umbrella,
+		BedDouble,
 		Flag
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
@@ -46,13 +46,13 @@
 		default: 'map-pin',
 		home: 'home',
 		restaurant: 'utensils',
-		hotel: 'building-2',
+		hotel: 'bed-double',
 		camera: 'camera',
 		tree: 'tree-pine',
 		coffee: 'coffee',
 		shopping: 'shopping-bag',
-		umbrella: 'anchor',
-		building: 'building',
+		umbrella: 'umbrella-off', // Beach/umbrella icon
+		building: 'building-2',
 		flag: 'flag'
 	};
 
@@ -125,7 +125,7 @@
 		{
 			id: 'hotel',
 			name: t('wantToVisit.markerTypes.hotel'),
-			icon: Building2,
+			icon: BedDouble,
 			iconName: 'hotel',
 			color: '#8B5CF6'
 		},
@@ -160,14 +160,14 @@
 		{
 			id: 'umbrella',
 			name: t('wantToVisit.markerTypes.umbrella'),
-			icon: Anchor,
+			icon: Umbrella,
 			iconName: 'umbrella',
 			color: '#06B6D4'
 		},
 		{
 			id: 'building',
 			name: t('wantToVisit.markerTypes.building'),
-			icon: Building,
+			icon: Building2,
 			iconName: 'building',
 			color: '#6B7280'
 		},
@@ -220,13 +220,13 @@
 		{ id: 'default', name: t('wantToVisit.markerTypes.default'), icon: MapPin },
 		{ id: 'home', name: t('wantToVisit.markerTypes.home'), icon: Home },
 		{ id: 'restaurant', name: t('wantToVisit.markerTypes.restaurant'), icon: Utensils },
-		{ id: 'hotel', name: t('wantToVisit.markerTypes.hotel'), icon: Building2 },
+		{ id: 'hotel', name: t('wantToVisit.markerTypes.hotel'), icon: BedDouble },
 		{ id: 'camera', name: t('wantToVisit.markerTypes.camera'), icon: Camera },
 		{ id: 'tree', name: t('wantToVisit.markerTypes.tree'), icon: TreePine },
 		{ id: 'coffee', name: t('wantToVisit.markerTypes.coffee'), icon: Coffee },
 		{ id: 'shopping', name: t('wantToVisit.markerTypes.shopping'), icon: ShoppingBag },
-		{ id: 'umbrella', name: t('wantToVisit.markerTypes.umbrella'), icon: Anchor },
-		{ id: 'building', name: t('wantToVisit.markerTypes.building'), icon: Building },
+		{ id: 'umbrella', name: t('wantToVisit.markerTypes.umbrella'), icon: Umbrella },
+		{ id: 'building', name: t('wantToVisit.markerTypes.building'), icon: Building2 },
 		{ id: 'flag', name: t('wantToVisit.markerTypes.flag'), icon: Flag }
 	]);
 
@@ -596,7 +596,6 @@
 		return `
 			<div class="p-2">
 				<h3 class="font-semibold text-sm">${place.title}</h3>
-				<p class="text-xs text-gray-600">${place.type}</p>
 				<p class="text-xs text-gray-500 mt-1">${place.address}</p>
 				${place.description ? `<p class="text-xs text-gray-700 mt-2 italic">"${place.description}"</p>` : ''}
 			</div>
@@ -977,7 +976,7 @@
 
 	<!-- Map -->
 	<div
-		class="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+		class="relative z-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
 	>
 		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
 
@@ -1009,10 +1008,24 @@
 					}
 				}
 			}}
+			onclick={(e) => {
+				// Close modal if clicking the backdrop
+				if (e.target === e.currentTarget) {
+					showAddForm = false;
+					if (tempMarker) {
+						tempMarker.remove();
+						tempMarker = null;
+					}
+				}
+			}}
 			tabindex="-1"
 		>
 			<div
 				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				role="dialog"
+				tabindex="0"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
 			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
@@ -1060,17 +1073,19 @@
 							{t('wantToVisit.searchForPlace')}
 						</label>
 						<div class="relative">
-							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<div class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2">
+								<Search class="h-4 w-4 text-gray-400" />
+							</div>
 							<input
 								type="text"
 								id="searchPlace"
 								bind:value={searchQuery}
 								oninput={handleSearchInput}
-								class="relative z-[10001] w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.searchPlaceholder')}
 							/>
 							{#if isSearching}
-								<div class="absolute top-1/2 right-3 -translate-y-1/2">
+								<div class="pointer-events-none absolute top-1/2 right-3 z-10 -translate-y-1/2">
 									<div
 										class="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
 									></div>
@@ -1083,7 +1098,7 @@
 							<div
 								class="relative z-[10002] mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700"
 							>
-								{#each searchResults as result (result.id)}
+								{#each searchResults as result, index (index)}
 									<button
 										type="button"
 										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
@@ -1244,7 +1259,7 @@
 								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 								onclick={addLabel}
 							>
-								{t('add')}
+								{t('common.actions.add')}
 							</button>
 						</div>
 					</div>
@@ -1278,7 +1293,7 @@
 							}}
 							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-							{t('cancel')}
+							{t('common.actions.cancel')}
 						</button>
 						<button
 							type="button"
@@ -1305,10 +1320,21 @@
 					resetForm();
 				}
 			}}
+			onclick={(e) => {
+				// Close modal if clicking the backdrop
+				if (e.target === e.currentTarget) {
+					showEditForm = false;
+					resetForm();
+				}
+			}}
 			tabindex="-1"
 		>
 			<div
 				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				role="dialog"
+				tabindex="0"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => e.stopPropagation()}
 			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
@@ -1479,7 +1505,7 @@
 								class="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
 								onclick={addLabel}
 							>
-								{t('add')}
+								{t('common.actions.add')}
 							</button>
 						</div>
 					</div>
@@ -1510,7 +1536,7 @@
 							}}
 							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-							{t('cancel')}
+							{t('common.actions.cancel')}
 						</button>
 						<button
 							type="button"
