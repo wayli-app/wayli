@@ -27,7 +27,6 @@
 		"test:enhanced-jobs": "tsx src/scripts/test-enhanced-jobs.ts",
 		"test:totp": "tsx src/scripts/test-totp.ts",
 		"test:cache": "tsx src/scripts/test-cache.ts",
-		"test:poi-visits": "tsx src/scripts/test-poi-visit-detection.ts",
 		"worker": "cd src && tsx worker/entry.ts",
 		"worker:start": "cd src && tsx worker/entry.ts",
 		"worker:dev": "cd src && tsx --watch worker/entry.ts",
