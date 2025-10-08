@@ -329,6 +329,9 @@ pexels_api_key = "env(PEXELS_API_KEY)"
 [functions.server-settings]
 verify_jwt = false
 
+[functions.owntracks-points]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
