@@ -809,7 +809,7 @@
 		"enablePublicUserRegistration": "Enable public user registration",
 		"requireEmailVerification": "Require email verification",
 		"requireEmailVerificationDescription": "Users must verify their email before accessing the system",
-		"smtpNotConfigured": "Email verification cannot be enabled because SMTP is not configured in your Supabase settings",
+		"smtpNotConfigured": "Email verification requires SMTP to be configured in your Supabase Auth settings",
 		"saveSettings": "Save settings",
 		"userManagement": "User Management",
 		"manageUsersDescription": "Manage users and their permissions. Total users:",

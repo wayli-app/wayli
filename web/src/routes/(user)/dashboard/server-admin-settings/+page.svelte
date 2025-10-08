@@ -43,7 +43,6 @@
 	let adminEmail = $state('');
 	let allowRegistration = $state(true);
 	let requireEmailVerification = $state(false);
-	let smtpConfigured = $state(false);
 	let showAddUserModal = $state(false);
 	let isModalOpen = $state(false);
 	let selectedUser = $state<UserProfile | null>(null);
@@ -326,14 +325,12 @@
 			adminEmail = settings.admin_email || '';
 			allowRegistration = settings.allow_registration ?? true;
 			requireEmailVerification = settings.require_email_verification ?? false;
-			smtpConfigured = settings.smtp_configured ?? false;
 
 			console.log('🔧 [ADMIN] Processed settings:', {
 				serverName,
 				adminEmail,
 				allowRegistration,
-				requireEmailVerification,
-				smtpConfigured
+				requireEmailVerification
 			});
 		} catch (error: any) {
 			console.error('Error loading server settings:', error);
@@ -951,34 +948,22 @@
 								<div class="flex-1">
 									<label
 										for="requireEmailVerification"
-										class="block text-sm font-medium text-gray-900 dark:text-gray-100 {!smtpConfigured
-											? 'opacity-50'
-											: ''}"
+										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
 									>
 										{t('serverAdmin.requireEmailVerification')}
 									</label>
-									<p
-										class="text-sm text-gray-500 dark:text-gray-400 {!smtpConfigured
-											? 'opacity-50'
-											: ''}"
-									>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
 										{t('serverAdmin.requireEmailVerificationDescription')}
 									</p>
-									{#if !smtpConfigured}
-										<p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
-											⚠️ {t('serverAdmin.smtpNotConfigured')}
-										</p>
-									{/if}
+									<p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
+										⚠️ {t('serverAdmin.smtpNotConfigured')}
+									</p>
 								</div>
 								<button
 									type="button"
 									id="requireEmailVerification"
-									disabled={!smtpConfigured}
-									onclick={() =>
-										smtpConfigured && (requireEmailVerification = !requireEmailVerification)}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {!smtpConfigured
-										? 'cursor-not-allowed opacity-50'
-										: 'cursor-pointer'} {requireEmailVerification
+									onclick={() => (requireEmailVerification = !requireEmailVerification)}
+									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {requireEmailVerification
 										? 'bg-[rgb(37,140,244)]'
 										: 'bg-gray-200 dark:bg-gray-700'}"
 									role="switch"

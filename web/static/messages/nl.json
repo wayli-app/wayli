@@ -816,7 +816,7 @@
 		"enablePublicUserRegistration": "Openbare gebruikersregistratie inschakelen",
 		"requireEmailVerification": "E-mailverificatie vereisen",
 		"requireEmailVerificationDescription": "Gebruikers moeten hun e-mail verifiëren voordat ze toegang krijgen tot het systeem",
-		"smtpNotConfigured": "E-mailverificatie kan niet worden ingeschakeld omdat SMTP niet is geconfigureerd in je Supabase-instellingen",
+		"smtpNotConfigured": "E-mailverificatie vereist dat SMTP is geconfigureerd in je Supabase Auth-instellingen",
 		"saveSettings": "Instellingen opslaan",
 		"userManagement": "Gebruikersbeheer",
 		"manageUsersDescription": "Beheer gebruikers en hun rechten. Totaal aantal gebruikers:",

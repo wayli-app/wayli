@@ -42,24 +42,12 @@ Deno.serve(async (req) => {
 				return errorResponse('Failed to fetch server settings', 500);
 			}
 
-			// Check if SMTP is configured by looking for environment variables
-			const smtpHost = Deno.env.get('SMTP_HOST');
-			const smtpUser = Deno.env.get('SMTP_USER');
-			const smtpConfigured = !!(smtpHost && smtpUser);
-
-			logInfo('SMTP configuration check', 'SERVER-SETTINGS', {
-				smtpConfigured,
-				hasHost: !!smtpHost,
-				hasUser: !!smtpUser
-			});
-
 			// Return default settings if none exist
 			const defaultSettings = {
 				allow_registration: true,
 				require_email_verification: false,
 				server_name: 'Wayli',
-				is_setup_complete: false,
-				smtp_configured: smtpConfigured
+				is_setup_complete: false
 			};
 
 			const publicSettings = {
@@ -67,8 +55,7 @@ Deno.serve(async (req) => {
 				require_email_verification:
 					settings?.require_email_verification ?? defaultSettings.require_email_verification,
 				server_name: settings?.server_name ?? defaultSettings.server_name,
-				is_setup_complete: settings?.is_setup_complete ?? defaultSettings.is_setup_complete,
-				smtp_configured: smtpConfigured
+				is_setup_complete: settings?.is_setup_complete ?? defaultSettings.is_setup_complete
 			};
 
 			logInfo('Public server settings returned', 'SERVER-SETTINGS', publicSettings);

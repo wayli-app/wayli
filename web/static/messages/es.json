@@ -816,7 +816,7 @@
 		"enablePublicUserRegistration": "Habilitar registro público de usuarios",
 		"requireEmailVerification": "Requerir verificación de correo electrónico",
 		"requireEmailVerificationDescription": "Los usuarios deben verificar su correo electrónico antes de acceder al sistema",
-		"smtpNotConfigured": "La verificación de correo no se puede habilitar porque SMTP no está configurado en tu configuración de Supabase",
+		"smtpNotConfigured": "La verificación de correo requiere que SMTP esté configurado en tu configuración de Supabase Auth",
 		"saveSettings": "Guardar configuración",
 		"userManagement": "Gestión de Usuarios",
 		"manageUsersDescription": "Gestiona usuarios y sus permisos. Total de usuarios:",
