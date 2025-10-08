@@ -342,13 +342,15 @@
 		// Helper to sum green distances
 		function getGreenDistance() {
 			if (!statisticsData || !statisticsData.transport) return 0;
-			return statisticsData.transport
+			// Sum distances in meters and convert to kilometers
+			const distanceInMeters = statisticsData.transport
 				.filter((t: { mode: string }) => greenModes.includes(t.mode))
 				.reduce(
 					(sum: number, t: { distance: number }) =>
 						sum + (typeof t.distance === 'number' ? t.distance : 0),
 					0
 				);
+			return distanceInMeters / 1000; // Convert meters to kilometers
 		}
 
 		const greenDistance = getGreenDistance();
