@@ -186,13 +186,13 @@
 							href="/dashboard/statistics"
 							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-							{t('landing.dashboard')}
+							{t('navigation.dashboard')}
 						</a>
 						<a
 							href="/dashboard/account-settings"
 							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-							{t('landing.accountSettings')}
+							{t('navigation.accountSettings')}
 						</a>
 						<hr class="my-2 border-gray-200 dark:border-gray-700" />
 						<button
@@ -200,7 +200,7 @@
 							class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-50 dark:text-red-400 dark:hover:bg-gray-700"
 						>
 							<LogOut class="h-4 w-4" />
-							{t('landing.signOut')}
+							{t('navigation.signOut')}
 						</button>
 					</div>
 				</div>
