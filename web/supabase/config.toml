@@ -326,6 +326,9 @@ deno_version = 1
 pexels_api_key = "env(PEXELS_API_KEY)"
 
 # Configure functions that don't require JWT authentication
+# Note: These functions validate authentication through other means (API keys, etc.)
+# and use service role key internally to bypass RLS when needed
+
 [functions.server-settings]
 verify_jwt = false
 

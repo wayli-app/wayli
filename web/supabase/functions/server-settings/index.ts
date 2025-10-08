@@ -13,10 +13,18 @@ Deno.serve(async (req) => {
 	if (corsResponse) return corsResponse;
 
 	try {
-		// This is a public endpoint - no authentication required
+		// This endpoint requires anon key for rate limiting and security
+		// but doesn't require user authentication
+		const authHeader = req.headers.get('Authorization');
+		if (!authHeader) {
+			logError('Missing authorization header', 'SERVER-SETTINGS');
+			return errorResponse('Missing authorization header', 401);
+		}
+
 		logInfo('Public server settings request', 'SERVER-SETTINGS');
 
 		// Create Supabase client with service role key for database access
+		// This allows reading server settings regardless of RLS policies
 		const supabaseUrl = Deno.env.get('SUPABASE_URL');
 		const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
