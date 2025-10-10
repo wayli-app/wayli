@@ -31,6 +31,5 @@
   "parserOpts": {
     "noteKeywords": ["BREAKING CHANGE", "BREAKING CHANGES"]
   },
-  "changelogFile": "CHANGELOG.md",
   "changelogTitle": "# Changelog\n\nAll notable changes to this project will be documented in this file."
 }

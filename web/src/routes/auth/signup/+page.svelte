@@ -44,34 +44,36 @@
 	async function checkServerSettings() {
 		isLoadingSettings = true;
 		try {
-			// Use Edge Functions with proper base URL
-			const response = await fetch(getEdgeFunctionUrl('server-settings'));
-			if (response.ok) {
-				const result = await response.json();
-				if (result.success && result.data) {
-					registrationDisabled = !result.data.allow_registration;
-					isFirstUser = !result.data.is_setup_complete;
-					requireEmailVerification = result.data.require_email_verification ?? false;
-					console.log('🔧 [SIGNUP] Server settings:', {
-						allow_registration: result.data.allow_registration,
-						is_setup_complete: result.data.is_setup_complete,
-						require_email_verification: result.data.require_email_verification,
-						isFirstUser
-					});
-				} else {
-					console.error('Failed to fetch server settings:', result.error);
-					// Default to allowing registration if we can't fetch settings
-					registrationDisabled = false;
-					isFirstUser = false;
-				}
+			// Use Supabase client to invoke edge function with anon key
+			const { data, error } = await supabase.functions.invoke('server-settings', {
+				method: 'GET'
+			});
+
+			console.log('🔧 [SIGNUP] Raw response:', { data, error });
+
+			if (!error && data) {
+				// Handle the response - data might already be unwrapped or might be wrapped in { data: ... }
+				const settings = data.data || data;
+				console.log('🔧 [SIGNUP] Settings extracted:', settings);
+
+				registrationDisabled = !settings.allow_registration;
+				isFirstUser = !settings.is_setup_complete;
+				requireEmailVerification = settings.require_email_verification ?? false;
+				console.log('🔧 [SIGNUP] Server settings applied:', {
+					allow_registration: settings.allow_registration,
+					is_setup_complete: settings.is_setup_complete,
+					require_email_verification: settings.require_email_verification,
+					registrationDisabled,
+					isFirstUser
+				});
 			} else {
-				console.error('Failed to fetch server settings');
+				console.error('Failed to fetch server settings:', error);
 				// Default to allowing registration if we can't fetch settings
 				registrationDisabled = false;
 				isFirstUser = false;
 			}
 		} catch (error) {
-			console.error('Error fetching server settings:', error);
+			console.error('Error checking server settings:', error);
 			// Default to allowing registration if we can't fetch settings
 			registrationDisabled = false;
 			isFirstUser = false;

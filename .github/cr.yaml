@@ -1,0 +1,4 @@
+# Configuration for Helm Chart Releaser
+owner: wayli-app
+git-repo: wayli
+charts-repo-url: https://wayli-app.github.io/wayli

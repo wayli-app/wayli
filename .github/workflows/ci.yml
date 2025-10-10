@@ -119,5 +119,49 @@ jobs:
             zehbart/wayli:latest
             zehbart/wayli:${{ env.SHORT_SHA }}
 
+      # Update deployment files with new version
+      - name: Update deployment files with new version
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # Update Helm Chart.yaml with new appVersion
+          sed -i "s/^appVersion: .*/appVersion: \"${{ env.VERSION }}\"/" charts/wayli/Chart.yaml
+
+          # Bump Helm chart version (patch bump)
+          CURRENT_CHART_VERSION=$(grep '^version:' charts/wayli/Chart.yaml | awk '{print $2}')
+          NEW_CHART_VERSION=$(echo $CURRENT_CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          sed -i "s/^version: .*/version: $NEW_CHART_VERSION/" charts/wayli/Chart.yaml
+
+          echo "📦 Updated Helm chart to version $NEW_CHART_VERSION with appVersion ${{ env.VERSION }}"
+
+          # Update Supabase functions init container image in values.yaml
+          sed -i "s|image: zehbart/wayli:.*|image: zehbart/wayli:v${{ env.VERSION }}|" charts/wayli/values.yaml
+
+          echo "📦 Updated init container image to v${{ env.VERSION }}"
+
+          # Update docker-compose .env.example with new version
+          sed -i "s/^WAYLI_VERSION=.*/WAYLI_VERSION=${{ env.VERSION }}/" deploy/docker-compose/.env.example
+
+          echo "📦 Updated docker-compose to version ${{ env.VERSION }}"
+
+      - name: Commit deployment file updates
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes to commit
+          if [[ -n $(git status --porcelain) ]]; then
+            git add charts/wayli/Chart.yaml charts/wayli/values.yaml deploy/docker-compose/.env.example
+            git commit -m "chore(deploy): Update deployment files to version ${{ env.VERSION }}
+
+            🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+            Co-Authored-By: Claude <noreply@anthropic.com>"
+            git push
+            echo "✅ Deployment files updated and pushed"
+          else
+            echo "ℹ️ No changes to deployment files"
+          fi
+
       # Note: GitHub release is automatically created by semantic-release
-      # No need for manual release creation
+      # Helm chart will be released by the release-chart.yml workflow

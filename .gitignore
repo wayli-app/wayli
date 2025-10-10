@@ -45,3 +45,6 @@ bun.lockb
 *.pem
 
 .project.inlang/
+
+deploy/docker-compose/volumes/db/data
+charts/wayli/charts/*.tgz

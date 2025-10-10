@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
 	import { User as UserIcon, Mail, X } from 'lucide-svelte';
 
 	import RoleSelector from './RoleSelector.svelte';
@@ -29,6 +30,23 @@
 		}
 	});
 
+	// Handle Escape key globally
+	$effect(() => {
+		if (isOpen) {
+			const handleKeydown = (e: KeyboardEvent) => {
+				if (e.key === 'Escape') {
+					closeModal();
+				}
+			};
+
+			window.addEventListener('keydown', handleKeydown);
+
+			return () => {
+				window.removeEventListener('keydown', handleKeydown);
+			};
+		}
+	});
+
 	function closeModal() {
 		if (onClose) {
 			onClose();
@@ -46,16 +64,19 @@
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
 		onclick={closeModal}
-		onkeydown={(e) => e.key === 'Escape' && closeModal()}
-		role="presentation"
-		aria-hidden="true"
+		onkeydown={(e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				closeModal();
+			}
+		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal"
 	>
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
 			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => {
-				if (e.key === 'Escape') closeModal();
-			}}
+			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"

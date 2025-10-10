@@ -49,7 +49,6 @@ This project uses automatic semantic versioning based on [Conventional Commits](
 
 - Analyzes commit messages to determine version bumps
 - Creates semantic version tags (e.g., `v1.2.3`)
-- Updates the CHANGELOG.md file
 - Creates GitHub releases
 - Tags Docker images with semantic versions
 
@@ -116,6 +115,35 @@ Docker images are automatically tagged with:
 - `zehbart/wayli:v1.2.3` - Semantic version
 - `zehbart/wayli:latest` - Latest stable version
 - `zehbart/wayli:abc1234` - Git commit SHA
+
+## 📦 Deployment
+
+Wayli can be deployed using Docker Compose or Kubernetes (via Helm chart). Both deployment methods include Supabase as a dependency.
+
+**Choose your deployment method:**
+- **Docker Compose**: Perfect for development, testing, and small self-hosted installations
+- **Kubernetes (Helm)**: Recommended for production deployments with automatic scaling and high availability
+
+See the [Deployment Guide](deploy/README.md) for a detailed comparison and instructions for both methods.
+
+### Quick Start
+
+**Docker Compose:**
+```bash
+cd deploy/docker-compose
+cp .env.example .env
+# Edit .env with your configuration
+docker-compose up -d
+```
+
+**Kubernetes (Helm):**
+```bash
+helm repo add wayli https://wayli-app.github.io/wayli
+helm repo update
+helm install wayli wayli/wayli -n wayli --create-namespace
+```
+
+Both deployment configurations are automatically updated after each release with semantic versioning.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute, file issues, and submit pull requests.

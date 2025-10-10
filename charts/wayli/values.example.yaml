@@ -1,0 +1,88 @@
+global:
+  pexels:
+    existingSecret: &supabaseSecret supabase-secret
+
+## Web deployment
+web:
+  ## Environment variables
+  env:
+    ## Trusted origins (list)
+    trustedOrigins:
+      - 'https://your-domain.com'
+      - 'https://www.your-domain.com'
+      - 'https://supabase.your-domain.com'
+    ## CORS origins (list)
+    corsOrigin:
+      - 'https://your-domain.com'
+      - 'https://*.your-domain.com'
+
+## Worker deployment (StatefulSet)
+worker:
+  ## Environment variables
+  env:
+    ## External service endpoints
+    nominatim:
+      endpoint: 'https://nominatim.wayli.app'
+
+## Wayli ingress configuration
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hostname: wayli.your-domain.com # Use the same domain as in .supabase.global.supabase.siteUrl
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+
+## Supabase dependency configuration
+supabase:
+  enabled: true
+
+  global:
+    # Global default storage class
+    defaultStorageClass: 'local-path'
+    # Global storage class
+    storageClass: 'local-path'
+    # Supabase global configuration
+    supabase:
+      # Organization name displayed in Studio
+      organizationName: Wayli
+      # Project name displayed in Studio
+      projectName: Wayli
+      # Public URL of the Studio instance (you MUST set this)
+      publicUrl: 'http://supabase.your-domain.com'
+      # Site URL of Wayli (you MUST set this)
+      siteUrl: 'http://wayli.your-domain.com'
+      # Existing secret containing Supabase keys
+      existingSecret: *supabaseSecret
+      # Uncomment if you want to provide a secret containing SMTP credentials yourself.
+      # Use the keys 'username' and 'password' (you can also configure these keys with 'secretKeys').
+      # auth:
+      #   smtp:
+      #     existingSecret: smtp-secret
+
+  db:
+    postgres:
+      existingSecret: *supabaseSecret
+
+  studio:
+    config:
+      auth:
+        existingSecret: *supabaseSecret
+
+  vector:
+    enabled: false
+
+  kong:
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hostname: 'supabase.your-domain.com' # Use the same domain as in .supabase.global.supabase.publicUrl
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+        nginx.ingress.kubernetes.io/force-ssl-redirect: 'true'
+        nginx.ingress.kubernetes.io/backend-protocol: 'HTTP'
+        nginx.ingress.kubernetes.io/proxy-body-size: '1g'
+        nginx.ingress.kubernetes.io/proxy-connect-timeout: '3600'
+        nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+        nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+      tls: []

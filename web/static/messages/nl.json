@@ -341,7 +341,20 @@
 		"disable2FAWarning": "Het uitschakelen van twee-factor authenticatie maakt je account minder veilig. Je hebt alleen je wachtwoord nodig om in te loggen.",
 		"enterPasswordToConfirm": "Voer je wachtwoord in om te bevestigen",
 		"mustEnterPasswordToDisable": "Je moet je wachtwoord invoeren om twee-factor authenticatie uit te schakelen.",
-		"disable2FA": "2FA Uitschakelen"
+		"disable2FA": "2FA Uitschakelen",
+		"resetPassword": "Wachtwoord Resetten",
+		"enterNewPassword": "Voer je nieuwe wachtwoord in",
+		"newPassword": "Nieuw Wachtwoord",
+		"confirmPassword": "Bevestig Wachtwoord",
+		"confirmNewPassword": "Bevestig je nieuwe wachtwoord",
+		"passwordMinLength": "Minimaal 6 tekens",
+		"resettingPassword": "Wachtwoord resetten...",
+		"passwordResetEmailSent": "Wachtwoord reset e-mail verzonden! Controleer je inbox.",
+		"failedToSendPasswordReset": "Kan wachtwoord reset e-mail niet verzenden",
+		"checkEmailPasswordReset": "Controleer je e-mail voor een wachtwoord reset link.",
+		"passwordResetSuccess": "Je wachtwoord is succesvol gereset!",
+		"redirectingToSignIn": "Doorsturen naar inloggen...",
+		"enterValidEmail": "Voer een geldig e-mailadres in"
 	},
 	"signup": {
 		"firstUserWelcome": "Welkom! Je stelt Wayli voor de eerste keer in.",
@@ -802,7 +815,19 @@
 		"failedToUpdatePassword": "Kan wachtwoord niet bijwerken. Probeer het opnieuw.",
 		"failedToSearchAddress": "Kan adres niet zoeken",
 		"noAddressesFound": "Geen adressen gevonden",
-		"failedToSaveSettings": "Kan instellingen niet opslaan"
+		"failedToSaveSettings": "Kan instellingen niet opslaan",
+		"trips": "Reizen",
+		"tripsDescription": "Configureer reisafbeeldingssuggesties en uitsluitingszones",
+		"tripImageSuggestionsTitle": "Reisafbeeldingssuggesties",
+		"tripImageSuggestionsDescription": "Configureer een Pexels API-sleutel om hoogwaardige reisafbeeldingssuggesties te krijgen op basis van je reisbestemmingen.",
+		"dontHavePexelsApiKey": "Heb je geen Pexels API-sleutel?",
+		"serverPexelsKeyConfigured": "De Pexels API-sleutel op serverniveau is geconfigureerd. Je kunt optioneel je eigen persoonlijke API-sleutel instellen om de serverstandaard te overschrijven.",
+		"usingPersonalApiKey": "Persoonlijke API-sleutel wordt gebruikt voor reisafbeeldingssuggesties",
+		"usingServerApiKey": "Server-geconfigureerde API-sleutel wordt gebruikt voor reisafbeeldingssuggesties",
+		"noApiKeyConfigured": "Geen API-sleutel geconfigureerd - reisafbeeldingssuggesties zullen alternatieve diensten gebruiken",
+		"personalPexelsApiKey": "Persoonlijke Pexels API-sleutel",
+		"personalPexelsApiKeyOptional": "Persoonlijke Pexels API-sleutel (Optioneel)",
+		"leaveEmptyToUseServerKey": "Laat leeg om serversleutel te gebruiken"
 	},
 	"serverAdmin": {
 		"title": "Server beheerder instellingen",

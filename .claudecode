@@ -169,7 +169,6 @@ Follow this Algorithm for Efficiency:
 ## Documentation
 - Write clear comments and use JSDoc when appropriate
 - Keep README.md and AI.MD updated
-- Maintain CHANGELOG.md for significant changes
 - Document API endpoints
 - Comment complex business logic
 

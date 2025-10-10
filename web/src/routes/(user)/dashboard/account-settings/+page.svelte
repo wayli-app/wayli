@@ -1,5 +1,16 @@
 <script lang="ts">
-	import { User, Globe, Shield, Trash2, Info, Lock, MapPin, Plus, Pencil } from 'lucide-svelte';
+	import {
+		User,
+		Globe,
+		Shield,
+		Trash2,
+		Info,
+		Lock,
+		MapPin,
+		Plus,
+		Pencil,
+		Image
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -89,6 +100,27 @@
 	let selectedEditExclusionAddressIndex = $state(-1);
 	let editExclusionAddressSearchTimeout: ReturnType<typeof setTimeout> | null = null;
 	let editExclusionAddressSearchError: string | null = $state(null);
+
+	// Handle Escape key for modals
+	$effect(() => {
+		if (showAddExclusionModal || showEditExclusionModal) {
+			const handleKeydown = (e: KeyboardEvent) => {
+				if (e.key === 'Escape') {
+					if (showAddExclusionModal) {
+						showAddExclusionModal = false;
+					} else if (showEditExclusionModal) {
+						showEditExclusionModal = false;
+					}
+				}
+			};
+
+			window.addEventListener('keydown', handleKeydown);
+
+			return () => {
+				window.removeEventListener('keydown', handleKeydown);
+			};
+		}
+	});
 
 	// Language selector handler
 	function handleLanguageChange(data: { locale: SupportedLocale }) {
@@ -1025,7 +1057,7 @@
 				onclick={handleSaveProfile}
 				disabled={isUpdatingProfile}
 			>
-				{isUpdatingProfile ? t('accountSettings.savingChanges') : t('accountSettings.saveChanges')}
+				{isUpdatingProfile ? t('accountSettings.savingChanges') : t('common.actions.saveChanges')}
 			</button>
 		</div>
 
@@ -1159,7 +1191,7 @@
 					</h2>
 				</div>
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
-					Configure your language, units, and display preferences
+					Configure your language and display preferences
 				</p>
 			</div>
 
@@ -1179,75 +1211,7 @@
 						/>
 					</div>
 				</div>
-
-				<!-- Timezone selection hidden - using automatic timezone detection based on location -->
-				<!--
-				<div>
-					<label
-						for="timezone"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
-						>Timezone</label
-					>
-					<select
-						id="timezone"
-						bind:value={timezoneInput}
-						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:bg-[#23232a] dark:text-gray-100"
-					>
-						{#each timezones as tz}
-							<option value={tz}>{tz}</option>
-						{/each}
-					</select>
-				</div>
-				-->
 			</div>
-
-			<!-- Pexels API Key Section - Only show if server key is not available -->
-			{#if !serverPexelsApiKeyAvailable}
-				<div
-					class="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20"
-				>
-					<div class="flex items-start gap-3">
-						<Info class="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
-						<div class="flex-1">
-							<h3 class="mb-1 text-sm font-medium text-blue-900 dark:text-blue-100">
-								Trip Image Suggestions
-							</h3>
-							<p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
-								Configure a Pexels API key to get better quality trip image suggestions based on
-								your travel destinations. Without an API key, the system will use fallback image
-								services.
-								<a
-									href="https://www.pexels.com/api/"
-									target="_blank"
-									rel="noopener noreferrer"
-									class="underline hover:text-blue-800 dark:hover:text-blue-200"
-									>Get your free API key here</a
-								>.
-							</p>
-
-							<div>
-								<label
-									for="pexels-api-key"
-									class="mb-1 block text-sm font-medium text-blue-900 dark:text-blue-100"
-									>Pexels API Key</label
-								>
-								<input
-									type="text"
-									id="pexels-api-key"
-									bind:value={pexelsApiKeyInput}
-									placeholder={t('accountSettings.enterPexelsApiKey')}
-									class="w-full rounded-md border border-blue-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
-								/>
-								<p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
-									{pexelsApiKeyInput
-										? '✅ API key configured - high-quality trip image suggestions enabled'
-										: 'ℹ️ No API key - trip image suggestions will use fallback services'}
-								</p>
-							</div>
-						</div>
-					</div>
-				</div>
-			{/if}
 
 			<button
 				class="mt-6 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
@@ -1260,7 +1224,7 @@
 			</button>
 		</div>
 
-		<!-- Trip Exclusions -->
+		<!-- Trips Settings -->
 		<div
 			class="mt-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
 		>
@@ -1268,10 +1232,93 @@
 				<div class="flex items-center gap-2">
 					<MapPin class="h-5 w-5 text-gray-400" />
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-						{t('accountSettings.tripExclusions')}
+						{t('accountSettings.trips')}
 					</h2>
 				</div>
 				<p class="mt-1 text-sm text-gray-600 dark:text-gray-100">
+					{t('accountSettings.tripsDescription')}
+				</p>
+			</div>
+
+			<!-- Pexels API Key Section -->
+			<div class="mb-8">
+				<div class="mb-4 flex items-center gap-2">
+					<Image class="h-5 w-5 text-gray-400" />
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+						{t('accountSettings.tripImageSuggestionsTitle')}
+					</h3>
+				</div>
+
+				<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+					{t('accountSettings.tripImageSuggestionsDescription')}
+				</p>
+
+				{#if serverPexelsApiKeyAvailable}
+					<div
+						class="mb-4 flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-900/20"
+					>
+						<Info class="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600 dark:text-green-400" />
+						<p class="text-xs text-green-700 dark:text-green-300">
+							✅ {t('accountSettings.serverPexelsKeyConfigured')}
+						</p>
+					</div>
+				{/if}
+
+				<div>
+					<label
+						for="pexels-api-key"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						>{serverPexelsApiKeyAvailable
+							? t('accountSettings.personalPexelsApiKeyOptional')
+							: t('accountSettings.personalPexelsApiKey')}</label
+					>
+					<input
+						type="text"
+						id="pexels-api-key"
+						bind:value={pexelsApiKeyInput}
+						placeholder={serverPexelsApiKeyAvailable
+							? t('accountSettings.leaveEmptyToUseServerKey')
+							: t('accountSettings.enterPexelsApiKey')}
+						class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:outline-none focus:ring-1 focus:ring-[rgb(37,140,244)] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+					/>
+					<p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+						{#if pexelsApiKeyInput}
+							✅ {t('accountSettings.usingPersonalApiKey')}
+						{:else if serverPexelsApiKeyAvailable}
+							ℹ️ {t('accountSettings.usingServerApiKey')}
+						{:else}
+							⚠️ {t('accountSettings.noApiKeyConfigured')}
+						{/if}
+					</p>
+				</div>
+
+				<!-- Info notification -->
+				<div
+					class="mt-4 flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
+				>
+					<Info class="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+					<p class="text-xs text-blue-700 dark:text-blue-300">
+						{t('accountSettings.dontHavePexelsApiKey')}
+						<a
+							href="https://www.pexels.com/api/"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="font-medium underline hover:text-blue-800 dark:hover:text-blue-200"
+							>{t('accountSettings.getApiKey')}</a
+						>.
+					</p>
+				</div>
+			</div>
+
+			<!-- Trip Exclusions Section -->
+			<div>
+				<div class="mb-4 flex items-center gap-2">
+					<MapPin class="h-5 w-5 text-gray-400" />
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+						{t('accountSettings.tripExclusions')}
+					</h3>
+				</div>
+				<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
 					{t('accountSettings.tripExclusionsDescription')}
 				</p>
 			</div>
@@ -1338,6 +1385,17 @@
 					</div>
 				{/if}
 			</div>
+
+			<!-- Save Button for Trips Section -->
+			<button
+				class="mt-6 cursor-pointer rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90 disabled:cursor-not-allowed disabled:opacity-50"
+				onclick={handleSavePreferences}
+				disabled={isUpdatingPreferences}
+			>
+				{isUpdatingPreferences
+					? t('accountSettings.savingPreferences')
+					: t('accountSettings.savePreferences')}
+			</button>
 		</div>
 	{/if}
 </div>
@@ -1360,29 +1418,25 @@
 {#if showAddExclusionModal}
 	<!-- Modal Overlay -->
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 outline-none backdrop-blur-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500"
-		tabindex="0"
-		role="button"
-		aria-label="Close modal"
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/60 backdrop-blur-sm"
 		onclick={() => (showAddExclusionModal = false)}
 		onkeydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter') {
-				e.preventDefault();
+			if (e.key === 'Enter' || e.key === ' ') {
 				showAddExclusionModal = false;
 			}
 		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal"
 	>
 		<!-- Modal Box -->
 		<div
 			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
 			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
-			tabindex="0"
-			onkeydown={(e) => {
-				if (e.key === 'Escape') {
-					showAddExclusionModal = false;
-				}
-			}}
+			aria-modal="true"
+			tabindex="-1"
 		>
 			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
 				Add Trip Exclusion
@@ -1506,29 +1560,25 @@
 {#if showEditExclusionModal}
 	<!-- Modal Overlay -->
 	<div
-		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/40 outline-none backdrop-blur-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500"
-		tabindex="0"
-		role="button"
-		aria-label="Close modal"
+		class="fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black/60 backdrop-blur-sm"
 		onclick={() => (showEditExclusionModal = false)}
 		onkeydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter') {
-				e.preventDefault();
+			if (e.key === 'Enter' || e.key === ' ') {
 				showEditExclusionModal = false;
 			}
 		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal"
 	>
 		<!-- Modal Box -->
 		<div
 			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
 			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
-			tabindex="0"
-			onkeydown={(e) => {
-				if (e.key === 'Escape') {
-					showEditExclusionModal = false;
-				}
-			}}
+			aria-modal="true"
+			tabindex="-1"
 		>
 			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
 				Edit Trip Exclusion

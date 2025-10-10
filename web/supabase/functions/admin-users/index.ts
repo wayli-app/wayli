@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
 			const { action: postAction, ...data } = body;
 
 			if (postAction === 'addUser') {
-				const { email, firstName, lastName, role } = data;
+				const { email, firstName, lastName, password, role } = data;
 
 				if (!email || !firstName || !lastName || !role) {
 					return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -142,15 +142,16 @@ Deno.serve(async (req) => {
 					});
 				}
 
-				// Create a new user with a temporary password
-				const tempPassword =
-					Math.random().toString(36).slice(-10) +
-					Math.random().toString(36).toUpperCase().slice(-2) +
-					'1!';
+				if (!password || password.length < 6) {
+					return new Response(JSON.stringify({ error: 'Password must be at least 6 characters long' }), {
+						status: 400,
+						headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+					});
+				}
 
 				const { data: createUserData, error } = await adminSupabase.auth.admin.createUser({
 					email,
-					password: tempPassword,
+					password: password,
 					email_confirm: true,
 					user_metadata: {
 						first_name: firstName,
@@ -184,7 +185,6 @@ Deno.serve(async (req) => {
 					}
 				}
 
-				console.log('New user created with temporary password:', tempPassword);
 				return successResponse({ success: true });
 			}
 

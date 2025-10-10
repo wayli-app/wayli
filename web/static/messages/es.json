@@ -341,7 +341,20 @@
 		"disable2FAWarning": "Deshabilitar la autenticación de dos factores hará que tu cuenta sea menos segura. Solo necesitarás tu contraseña para iniciar sesión.",
 		"enterPasswordToConfirm": "Ingresa tu contraseña para confirmar",
 		"mustEnterPasswordToDisable": "Debes ingresar tu contraseña para deshabilitar la autenticación de dos factores.",
-		"disable2FA": "Deshabilitar 2FA"
+		"disable2FA": "Deshabilitar 2FA",
+		"resetPassword": "Restablecer Contraseña",
+		"enterNewPassword": "Ingresa tu nueva contraseña",
+		"newPassword": "Nueva Contraseña",
+		"confirmPassword": "Confirmar Contraseña",
+		"confirmNewPassword": "Confirma tu nueva contraseña",
+		"passwordMinLength": "Mínimo 6 caracteres",
+		"resettingPassword": "Restableciendo contraseña...",
+		"passwordResetEmailSent": "¡Correo de restablecimiento de contraseña enviado! Revisa tu bandeja de entrada.",
+		"failedToSendPasswordReset": "Error al enviar el correo de restablecimiento de contraseña",
+		"checkEmailPasswordReset": "Revisa tu correo electrónico para obtener un enlace de restablecimiento de contraseña.",
+		"passwordResetSuccess": "¡Tu contraseña ha sido restablecida exitosamente!",
+		"redirectingToSignIn": "Redirigiendo al inicio de sesión...",
+		"enterValidEmail": "Por favor ingresa una dirección de correo electrónico válida"
 	},
 	"signup": {
 		"firstUserWelcome": "¡Bienvenido! Estás configurando Wayli por primera vez.",
@@ -802,7 +815,19 @@
 		"failedToUpdatePassword": "Error al actualizar contraseña. Por favor intenta de nuevo.",
 		"failedToSearchAddress": "Error al buscar dirección",
 		"noAddressesFound": "No se encontraron direcciones",
-		"failedToSaveSettings": "Error al guardar configuración"
+		"failedToSaveSettings": "Error al guardar configuración",
+		"trips": "Viajes",
+		"tripsDescription": "Configura sugerencias de imágenes de viajes y zonas de exclusión",
+		"tripImageSuggestionsTitle": "Sugerencias de Imágenes de Viajes",
+		"tripImageSuggestionsDescription": "Configura una clave API de Pexels para obtener sugerencias de imágenes de alta calidad basadas en tus destinos de viaje.",
+		"dontHavePexelsApiKey": "¿No tienes una clave API de Pexels?",
+		"serverPexelsKeyConfigured": "La clave API de Pexels del servidor está configurada. Opcionalmente puedes configurar tu propia clave personal para anular la predeterminada del servidor.",
+		"usingPersonalApiKey": "Usando clave API personal para sugerencias de imágenes de viajes",
+		"usingServerApiKey": "Usando clave API del servidor para sugerencias de imágenes de viajes",
+		"noApiKeyConfigured": "No hay clave API configurada - las sugerencias de imágenes de viajes usarán servicios alternativos",
+		"personalPexelsApiKey": "Clave API Personal de Pexels",
+		"personalPexelsApiKeyOptional": "Clave API Personal de Pexels (Opcional)",
+		"leaveEmptyToUseServerKey": "Dejar vacío para usar la clave del servidor"
 	},
 	"serverAdmin": {
 		"title": "Configuración del administrador del servidor",

@@ -98,30 +98,34 @@ export class ImageGenerationProcessorService {
 
 	/**
 	 * Get user's Pexels API key from preferences
+	 * Priority: User's personal key > Server key
 	 */
 	private async getUserPexelsApiKey(userId: string): Promise<string | undefined> {
 		try {
-			// Check if server has Pexels API key configured
-			const { getPexelsConfig } = await import('../shared/config/node-environment');
-			const serverApiKey = getPexelsConfig().apiKey;
-
-			// Prioritize server API key
-			if (serverApiKey) {
-				return serverApiKey;
-			}
-
-			// Fall back to user's API key if server key is not available
+			// First check if user has a personal API key
 			const { data: preferences, error } = await this.supabase
 				.from('user_preferences')
 				.select('pexels_api_key')
 				.eq('id', userId)
 				.single();
 
-			if (error || !preferences) {
-				return undefined;
+			// Prioritize user's personal API key if configured
+			if (!error && preferences?.pexels_api_key) {
+				console.log('🔑 Using user personal Pexels API key');
+				return preferences.pexels_api_key;
 			}
 
-			return preferences.pexels_api_key;
+			// Fall back to server API key if user hasn't configured their own
+			const { getPexelsConfig } = await import('../shared/config/node-environment');
+			const serverApiKey = getPexelsConfig().apiKey;
+
+			if (serverApiKey) {
+				console.log('🔑 Using server-level Pexels API key');
+				return serverApiKey;
+			}
+
+			console.log('⚠️ No Pexels API key available');
+			return undefined;
 		} catch (error) {
 			console.error('❌ Error fetching user Pexels API key:', error);
 			return undefined;

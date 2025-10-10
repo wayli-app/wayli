@@ -61,12 +61,18 @@ export async function searchPexelsImages(
 	userApiKey?: string
 ): Promise<PexelsSearchResponse | null> {
 	try {
-		// Prioritize server-set API key, fall back to user's API key if server key is not available
+		// Prioritize user's personal API key over server key
 		const serverApiKey = getPexelsConfig().apiKey;
-		const apiKey = serverApiKey || userApiKey;
+		const apiKey = userApiKey || serverApiKey;
 		if (!apiKey) {
 			console.warn('⚠️ Pexels API key not configured (neither server nor user key available)');
 			return null;
+		}
+
+		if (userApiKey) {
+			console.log('🔑 Using user personal Pexels API key');
+		} else if (serverApiKey) {
+			console.log('🔑 Using server-level Pexels API key');
 		}
 
 		const url = new URL('https://api.pexels.com/v1/search');

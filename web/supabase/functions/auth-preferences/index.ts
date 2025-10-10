@@ -32,10 +32,10 @@ Deno.serve(async (req) => {
 			}
 
 			// Check if server-side Pexels API key is available
-			// For now, hardcode to true since PEXELS_API_KEY is set in .env.local
+			const serverPexelsApiKey = Deno.env.get('PEXELS_API_KEY');
 			const preferencesWithServerKey = {
 				...preferences,
-				server_pexels_api_key_available: true
+				server_pexels_api_key_available: !!serverPexelsApiKey
 			};
 
 			return successResponse(preferencesWithServerKey);
@@ -76,10 +76,10 @@ Deno.serve(async (req) => {
 			}
 
 			// Check if server-side Pexels API key is available
-			// For now, hardcode to true since PEXELS_API_KEY is set in .env.local
+			const serverPexelsApiKey = Deno.env.get('PEXELS_API_KEY');
 			const preferencesWithServerKey = {
 				...updatedPreferences,
-				server_pexels_api_key_available: true
+				server_pexels_api_key_available: !!serverPexelsApiKey
 			};
 
 			logSuccess('Preferences updated successfully', 'AUTH-PREFERENCES', { userId: user.id });

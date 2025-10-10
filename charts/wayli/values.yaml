@@ -1,0 +1,586 @@
+## Global parameters
+global:
+  ## Additional labels to apply to all resources
+  labels: {}
+  ## Additional annotations to apply to all resources
+  annotations: {}
+  ## Pexels API integration
+  pexels:
+    ## Existing secret containing Pexels API key
+    existingSecret: ""
+    ## Secret key configuration for existing secret
+    secretKeys:
+      apiKey: "pexels-api-key"
+    ## Direct value (when existingSecret is empty - for non-production only)
+    values:
+      apiKey: ""
+
+## Secrets configuration
+## Note: Secret names are configured in supabase.global.supabase.existingSecret
+## and supabase.global.supabase.auth.smtp.existingSecret
+secrets:
+  ## SMTP secret keys (for creating secrets from values.yaml in non-production)
+  smtp:
+    secretKeys: &smtpSecretKeys
+      username: &smtpUsernameName "username"
+      password: &smtpPasswordName "password"
+    values:
+      username: ""
+      password: ""
+
+## Image configuration
+image:
+  repository: zehbart/wayli
+  pullPolicy: IfNotPresent
+  tag: ""  # Defaults to .Chart.AppVersion
+  ## Optional image pull secrets
+  # pullSecrets:
+  #   - myRegistryKeySecretName
+
+## Name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+## Web deployment
+web:
+  enabled: true
+  replicaCount: 2
+
+  ## Update strategy
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  ## Init containers for migrations
+  initContainers:
+    waitForDb:
+      enabled: true
+      image:
+        repository: postgres
+        tag: "16-alpine"
+        pullPolicy: IfNotPresent
+    migrations:
+      enabled: true
+      flywayImage:
+        repository: flyway/flyway
+        tag: "11-alpine"
+        pullPolicy: IfNotPresent
+    waitForAuth:
+      enabled: true
+      image:
+        repository: busybox
+        tag: "1.36"
+        pullPolicy: IfNotPresent
+
+  ## Environment variables
+  env:
+    nodeEnv: production
+    appMode: web
+    host: "0.0.0.0"
+    port: "80"
+    ## Trusted origins (list)
+    trustedOrigins:
+      - "https://wayli.app"
+      - "https://www.wayli.app"
+      - "https://supa.wayli.app"
+    ## CORS origins (list)
+    corsOrigin:
+      - "https://wayli.app"
+      - "https://*.wayli.app"
+
+  ## Extra environment variables (Bitnami-style)
+  ## Specify as list of objects with name/value pairs
+  extraEnvVars: []
+  #  - name: FOO
+  #    value: "bar"
+
+  ## Extra environment variables from ConfigMap/Secret
+  extraEnvVarsCM: ""
+  extraEnvVarsSecret: ""
+
+  ## Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+    ## Additional service ports
+    extraPorts: []
+    ## Service annotations
+    annotations: {}
+    ## Service labels
+    labels: {}
+
+  ## Resource limits and requests
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  ## Horizontal Pod Autoscaler
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+    targetMemory: 80
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        policies:
+          - type: Percent
+            value: 50
+            periodSeconds: 60
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - type: Percent
+            value: 75
+            periodSeconds: 60
+
+  ## Pod Disruption Budget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    # maxUnavailable: 1
+
+  ## Liveness and readiness probes
+  livenessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+
+  readinessProbe:
+    enabled: false
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+    successThreshold: 1
+
+  ## Lifecycle hooks
+  lifecycleHooks: {}
+
+  ## Pod annotations
+  podAnnotations: {}
+
+  ## Pod labels
+  podLabels: {}
+
+  ## Affinity for pod assignment
+  affinity: {}
+  ## Node labels for pod assignment
+  nodeSelector: {}
+  ## Tolerations for pod assignment
+  tolerations: []
+
+  ## Priority class name
+  priorityClassName: ""
+
+  ## Termination grace period
+  terminationGracePeriodSeconds: 60
+
+  ## Extra volumes
+  extraVolumes: []
+  #  - name: extra-volume
+  #    emptyDir: {}
+
+  ## Extra volume mounts
+  extraVolumeMounts: []
+  #  - name: extra-volume
+  #    mountPath: /extra
+
+## Worker deployment (StatefulSet)
+worker:
+  enabled: true
+  replicaCount: 2
+
+  ## Update strategy for StatefulSet
+  updateStrategy:
+    type: RollingUpdate
+
+  ## Pod management policy
+  podManagementPolicy: OrderedReady
+
+  ## Environment variables
+  env:
+    nodeEnv: production
+    appMode: worker
+    corsOrigin: "https://wayli.app"
+    ## External service endpoints
+    nominatim:
+      endpoint: "http://nominatim.nominatim.svc.cluster.local:8088"
+
+  ## Extra environment variables
+  extraEnvVars: []
+  extraEnvVarsCM: ""
+  extraEnvVarsSecret: ""
+
+  ## Service (headless for StatefulSet)
+  service:
+    enabled: true
+    type: ClusterIP
+    clusterIP: None  # Headless service
+    annotations: {}
+    labels: {}
+
+  ## Resources
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+
+  ## Lifecycle hooks
+  lifecycleHooks:
+    preStop:
+      exec:
+        command: ["/bin/sh", "-c", "sleep 5"]
+
+  ## Termination grace period (longer for workers to finish jobs)
+  terminationGracePeriodSeconds: 45
+
+  ## HPA for workers
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 30
+    targetMemory: 80
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 900  # 15 min
+        policies:
+          - type: Percent
+            value: 25
+            periodSeconds: 300
+          - type: Pods
+            value: 1
+            periodSeconds: 300
+        selectPolicy: Min
+      scaleUp:
+        stabilizationWindowSeconds: 60
+        policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 60
+          - type: Pods
+            value: 2
+            periodSeconds: 60
+        selectPolicy: Max
+
+  ## Pod Disruption Budget
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 2
+
+  ## Probes
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: false
+
+  podAnnotations: {}
+  podLabels: {}
+  affinity: {}
+  nodeSelector: {}
+  tolerations: []
+  priorityClassName: ""
+
+  ## Extra volumes and mounts
+  extraVolumes: []
+  extraVolumeMounts: []
+
+## Ingress configuration
+ingress:
+  ## Enable ingress controller resource
+  enabled: true
+  ## IngressClass to use for the ingress resource
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-class
+  ingressClassName: nginx
+  ## Hostname for the ingress resource
+  hostname: console.wayli.app
+  ## Path for the default host
+  ## You may need to set this to '/*' in order to use this with ALB ingress controllers
+  path: /
+  ## Path type for the ingress resource
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
+  pathType: Prefix
+  ## Additional annotations for the Ingress resource
+  ## For a full list of possible ingress annotations, please see
+  ## ref: https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/annotations.md
+  ## Use this parameter to set the required annotations for cert-manager, see
+  ## ref: https://cert-manager.io/docs/usage/ingress/#supported-annotations
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+
+  ## Additional labels for the Ingress resource
+  labels: {}
+  ## Enable TLS configuration for the hostname defined at `ingress.hostname` parameter
+  ## TLS certificates will be retrieved from a TLS secret with name: {{- printf "%s-tls" .Values.ingress.hostname }}
+  ## You can:
+  ##   - Use the `ingress.secrets` parameter to create this TLS secret
+  ##   - Rely on cert-manager to create it by setting the corresponding annotations
+  ##   - Rely on Helm to create self-signed certificates by setting `ingress.selfSigned=true`
+  tls: true
+  ## Create a TLS secret for this ingress record using self-signed certificates generated by Helm
+  selfSigned: false
+  ## An array with additional hostname(s) to be covered with the ingress record
+  ## Most likely the hostname above will be enough, but in the event more hosts are needed, this is an array
+  ## e.g:
+  ## extraHosts:
+  ##   - name: wayli.local
+  ##     path: /
+  extraHosts: []
+  ## An array with additional arbitrary paths that may need to be added to the ingress under the main host
+  ## e.g:
+  ## extraPaths:
+  ##   - path: /*
+  ##     backend:
+  ##       service:
+  ##         name: ssl-redirect
+  ##         port:
+  ##           name: use-annotation
+  extraPaths: []
+  ## The list of additional hostnames to be covered with this ingress record.
+  ## Most likely the hostname above will be enough, but in the event more hosts are needed, this is an array
+  ## e.g:
+  ## extraTls:
+  ##   - hosts:
+  ##       - wayli.local
+  ##     secretName: wayli.local-tls
+  extraTls: []
+  ## If you're providing your own certificates, please use this to add the certificates as secrets
+  ## key and certificate should start with -----BEGIN CERTIFICATE----- or -----BEGIN RSA PRIVATE KEY-----
+  ## name should line up with a secretName set further up
+  ## If it is not set and you're using cert-manager, this is unneeded, as it will create the secret for you
+  ## If it is not set and you're NOT using cert-manager either, self-signed certificates will be created
+  ## It is also possible to create and manage the certificates outside of this helm chart
+  ## Please see README.md for more information
+  ## e.g:
+  ## secrets:
+  ##   - name: wayli.local-tls
+  ##     key: ""
+  ##     certificate: ""
+  secrets: []
+
+## External Supabase configuration
+## Only set these if using an external/managed Supabase instance (not the subchart)
+externalSupabase:
+  ## Set to true to use external Supabase instead of the subchart
+  enabled: false
+  ## Public Supabase URL (API endpoint)
+  url: ""
+  ## Database connection details (for migrations and workers)
+  dbHost: ""
+  dbPort: 5432
+  dbName: "postgres"
+  dbUser: "supabase_admin"
+  ## Kong API gateway details
+  kongHost: ""
+  kongPort: 8000
+
+## Pod Security Context (enabled by default for non-root)
+podSecurityContext:
+  enabled: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+## Container Security Context
+containerSecurityContext:
+  enabled: true
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+## Service Account
+serviceAccount:
+  create: true
+  ## Service account name
+  name: ""
+  ## Annotations
+  annotations: {}
+  ## Auto-mount service account token
+  automountServiceAccountToken: true
+
+## Supabase dependency configuration
+supabase:
+  enabled: true
+
+  global:
+    # Global default storage class
+    defaultStorageClass: "standard"
+    # Global storage class
+    storageClass: "standard"
+    # Supabase global configuration
+    supabase:
+      # Organization name displayed in Studio
+      organizationName: Wayli
+      # Project name displayed in Studio
+      projectName: Wayli
+      # Public URL of the Supabase instance (API endpoint)
+      publicUrl: "https://supa.wayli.app"
+      # Site URL of the Supabase instance (for auth redirects)
+      siteUrl: "https://wayli.app"
+      # JWT token expiry in seconds
+      jwtExpiry: 3600
+      # Auth configuration
+      auth:
+        # Authentication settings
+        disableSignup: false
+        # Enable email signup
+        enableEmailSignup: true
+        # SMTP configuration
+        smtp:
+          # SMTP admin email
+          adminEmail: ""
+          # SMTP host
+          host: ""
+          # SMTP port
+          port: 587
+          # SMTP sender name
+          senderName: "Wayli"
+          # Existing secret containing SMTP credentials
+          existingSecret: ""
+          # Secret keys configuration for existing secret
+          secretKeys:
+            # SMTP user key in the secret
+            userKey: username
+            # SMTP password key in the secret
+            passwordKey: password
+      existingSecret: ""
+      secretKeys:
+        # JWT secret key in the secret
+        jwtSecret: jwt-secret
+        # Anonymous key in the secret
+        anonKey: anon-key
+        # Service role key in the secret
+        serviceRoleKey: service-role-key
+        # Secret key base in the secret
+        secretKeyBase: secret-key-base
+        # Vault encryption key in the secret
+        vaultEncKey: vault-enc-key
+        # Database encryption key in the secret
+        dbEncKey: db-enc-key
+      # Direct values (when existingSecret is empty - for non-production only)
+      values:
+        anonKey: ""
+        serviceRoleKey: ""
+        jwtSecret: ""
+        dbPassword: ""
+        dbEncKey: ""
+        vaultEncKey: ""
+        secretKeyBase: ""
+        username: ""
+        password: ""
+  db:
+    postgres:
+      enabled: true
+      existingSecret: ""
+      secretKeys:
+        userPasswordKey: db-password
+      resources:
+        requests:
+          memory: 512Mi
+          cpu: "250m"
+        limits:
+          memory: 2Gi
+          cpu: "2"
+      persistence:
+        size: 20Gi
+    pgbouncer:
+      enabled: true
+      service:
+        port: 6432
+
+  realtime:
+    enabled: true
+
+  vector:
+    enabled: false
+
+  storage:
+    enabled: true
+    config:
+      fileSizeLimit: 1073741824
+      storageBackend: file
+      tenantId: wayli-tenant
+      region: local
+    persistence:
+      size: 50Gi
+      storageClass: ~
+
+  functions:
+    enabled: true
+    config:
+      mainService: /home/supabase/functions/main
+    extraEnvVars: []
+    initContainers:
+      - name: init-functions
+        # NOTE: This is automatically updated by CI/CD to match appVersion
+        image: zehbart/wayli:v0.0.1
+        imagePullPolicy: Always
+        command:
+          - /bin/sh
+          - -c
+          - cp -Rv /app/supabase/functions/* /functions
+        volumeMounts:
+          - name: functions-main
+            mountPath: /functions
+
+  auth:
+    extraEnvVars: []
+    db:
+      host: ""  # Defaults to supabase-pgbouncer or supabase-db based on pgbouncer.enabled
+      port: ""  # Defaults to 6432 (pgbouncer) or 5432 (postgres)
+
+  rest:
+    enabled: true
+    db:
+      host: ""  # Defaults to supabase-pgbouncer or supabase-db based on pgbouncer.enabled
+      port: ""  # Defaults to 6432 (pgbouncer) or 5432 (postgres)
+
+  studio:
+    enabled: true
+
+  kong:
+    enabled: true
+    ingress:
+      enabled: false
+      ingressClassName: nginx
+      hostname: ""
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+        nginx.ingress.kubernetes.io/proxy-body-size: "1g"
+        nginx.ingress.kubernetes.io/proxy-connect-timeout: "3600"
+        nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+        nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      tls: []
+
+  analytics:
+    enabled: false
+    persistence:
+      size: 10Gi

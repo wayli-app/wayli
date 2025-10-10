@@ -62,7 +62,6 @@ Most important rules:
 ## Documentation
 - Write clear comments and use JSDoc when appropriate
 - Keep README.md and AI.MD updated
-- Maintain CHANGELOG.md for significant changes
 - Add JSDoc comments for complex functions
 - Document API endpoints
 - Comment complex business logic

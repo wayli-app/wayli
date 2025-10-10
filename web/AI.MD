@@ -403,7 +403,6 @@ export default defineConfig({
 - **README.md**: Project overview and quick start guide
 - **CONTRIBUTING.md**: Detailed contribution guidelines
 - **CODE_OF_CONDUCT.md**: Community behavior standards
-- **CHANGELOG.md**: Version history and changes
 - **API Documentation**: `src/lib/utils/api/README.md`
 - **Environment Guide**: `src/lib/core/config/README.md`
 - **Testing Guide**: `tests/README.md`

@@ -55,11 +55,17 @@
 
 	async function checkSetupStatus() {
 		try {
-			const response = await fetch(getEdgeFunctionUrl('server-settings'));
-			if (response.ok) {
-				const result = await response.json();
-				const isSetupComplete = result.data?.is_setup_complete ?? false;
-				console.log('🏠 [LANDING] Setup status check:', { isSetupComplete });
+			const { data, error } = await supabase.functions.invoke('server-settings', {
+				method: 'GET'
+			});
+
+			console.log('🏠 [LANDING] Raw response:', { data, error });
+
+			if (!error && data) {
+				// Handle the response - data might already be unwrapped or might be wrapped in { data: ... }
+				const settings = data.data || data;
+				const isSetupComplete = settings.is_setup_complete ?? false;
+				console.log('🏠 [LANDING] Setup status check:', { isSetupComplete, settings });
 
 				// If setup is not complete, redirect to signup for initial setup
 				if (!isSetupComplete) {
@@ -186,13 +192,13 @@
 							href="/dashboard/statistics"
 							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-							{t('navigation.dashboard')}
+							{t('common.navigation.dashboard')}
 						</a>
 						<a
 							href="/dashboard/account-settings"
 							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
 						>
-							{t('navigation.accountSettings')}
+							{t('common.navigation.accountSettings')}
 						</a>
 						<hr class="my-2 border-gray-200 dark:border-gray-700" />
 						<button
@@ -200,7 +206,7 @@
 							class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-50 dark:text-red-400 dark:hover:bg-gray-700"
 						>
 							<LogOut class="h-4 w-4" />
-							{t('navigation.signOut')}
+							{t('common.navigation.signOut')}
 						</button>
 					</div>
 				</div>

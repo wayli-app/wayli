@@ -10,7 +10,8 @@
 		ChevronLeft,
 		ChevronRight,
 		X,
-		Mail
+		Mail,
+		Lock
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -50,6 +51,29 @@
 	let userToDelete = $state<UserProfile | null>(null);
 	let searchTimeout: ReturnType<typeof setTimeout>;
 	let activeTab = $state('settings'); // Add tab state - default to settings tab
+
+	// Handle Escape key for modals
+	$effect(() => {
+		if (showAddUserModal || isModalOpen || showDeleteConfirm) {
+			const handleKeydown = (e: KeyboardEvent) => {
+				if (e.key === 'Escape') {
+					if (showAddUserModal) {
+						handleCloseAddUserModal();
+					} else if (isModalOpen) {
+						handleCloseModal();
+					} else if (showDeleteConfirm) {
+						showDeleteConfirm = false;
+					}
+				}
+			};
+
+			window.addEventListener('keydown', handleKeydown);
+
+			return () => {
+				window.removeEventListener('keydown', handleKeydown);
+			};
+		}
+	});
 
 	// Initialize pagination data
 	let pagination = $state({
@@ -348,6 +372,8 @@
 	let newUserEmail = $state('');
 	let newUserFirstName = $state('');
 	let newUserLastName = $state('');
+	let newUserPassword = $state('');
+	let newUserConfirmPassword = $state('');
 	let newUserRole = $state<'admin' | 'user'>('user');
 
 	// Admin state
@@ -358,6 +384,8 @@
 		newUserEmail = '';
 		newUserFirstName = '';
 		newUserLastName = '';
+		newUserPassword = '';
+		newUserConfirmPassword = '';
 		newUserRole = 'user';
 	}
 
@@ -367,30 +395,39 @@
 			return;
 		}
 
-		try {
-			const formData = new FormData();
-			formData.append('email', newUserEmail);
-			formData.append('firstName', newUserFirstName);
-			formData.append('lastName', newUserLastName);
-			formData.append('role', newUserRole);
+		if (!newUserPassword || newUserPassword.length < 6) {
+			toast.error('Password must be at least 6 characters long');
+			return;
+		}
 
-			const response = await fetch('?/addUser', {
+		if (newUserPassword !== newUserConfirmPassword) {
+			toast.error('Passwords do not match');
+			return;
+		}
+
+		try {
+			const { data, error } = await supabase.functions.invoke('admin-users', {
 				method: 'POST',
-				body: formData
+				body: {
+					action: 'addUser',
+					email: newUserEmail,
+					firstName: newUserFirstName,
+					lastName: newUserLastName,
+					password: newUserPassword,
+					role: newUserRole
+				}
 			});
 
-			if (response.ok) {
+			if (error) {
+				throw error;
+			}
+
+			if (data?.success) {
 				toast.success('User added successfully');
 				handleCloseAddUserModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
-				let errorDescription = 'An unknown error occurred while adding the user.';
-				try {
-					const result = await response.json();
-					errorDescription = result.error || result.message || errorDescription;
-				} catch {
-					// The response was not JSON.
-				}
+				const errorDescription = data?.error || 'An unknown error occurred while adding the user.';
 				toast.error('Failed to add user', { description: errorDescription });
 			}
 		} catch (error: any) {
@@ -419,10 +456,10 @@
 <!-- Add User Modal -->
 {#if showAddUserModal}
 	<div
-		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60"
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		onclick={handleCloseAddUserModal}
 		onkeydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter') {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
 				handleCloseAddUserModal();
 			}
 		}}
@@ -433,7 +470,7 @@
 		<div
 			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
 			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.key === 'Escape' && handleCloseAddUserModal()}
+			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -516,6 +553,46 @@
 					</div>
 				</div>
 
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label
+							for="newUserPassword"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Password *</label
+						>
+						<div class="relative">
+							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<input
+								type="password"
+								id="newUserPassword"
+								bind:value={newUserPassword}
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								placeholder="Min. 6 characters"
+								required
+							/>
+						</div>
+					</div>
+
+					<div>
+						<label
+							for="newUserConfirmPassword"
+							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Confirm Password *</label
+						>
+						<div class="relative">
+							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<input
+								type="password"
+								id="newUserConfirmPassword"
+								bind:value={newUserConfirmPassword}
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-500 dark:focus:ring-blue-500"
+								placeholder="Confirm password"
+								required
+							/>
+						</div>
+					</div>
+				</div>
+
 				<div>
 					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span>
 					<RoleSelector bind:role={newUserRole} />
@@ -544,10 +621,10 @@
 <!-- Delete Confirmation Modal -->
 {#if showDeleteConfirm && userToDelete}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
 		onclick={handleCloseDeleteConfirm}
 		onkeydown={(e) => {
-			if (e.key === 'Escape' || e.key === 'Enter') {
+			if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
 				handleCloseDeleteConfirm();
 			}
 		}}
@@ -555,7 +632,14 @@
 		tabindex="0"
 		aria-label="Close modal"
 	>
-		<div class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+		<div
+			class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			onclick={(e) => e.stopPropagation()}
+			onkeydown={(e) => e.stopPropagation()}
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+		>
 			<div class="mb-4 flex items-center gap-3">
 				<div class="flex-shrink-0">
 					<div

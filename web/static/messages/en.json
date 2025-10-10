@@ -342,7 +342,20 @@
 		"disable2FAWarning": "Disabling two-factor authentication will make your account less secure. You'll only need your password to sign in.",
 		"enterPasswordToConfirm": "Enter your password to confirm",
 		"mustEnterPasswordToDisable": "You must enter your password to disable two-factor authentication.",
-		"disable2FA": "Disable 2FA"
+		"disable2FA": "Disable 2FA",
+		"resetPassword": "Reset Password",
+		"enterNewPassword": "Enter your new password",
+		"newPassword": "New Password",
+		"confirmPassword": "Confirm Password",
+		"confirmNewPassword": "Confirm your new password",
+		"passwordMinLength": "Minimum 6 characters",
+		"resettingPassword": "Resetting password...",
+		"passwordResetEmailSent": "Password reset email sent! Check your inbox.",
+		"failedToSendPasswordReset": "Failed to send password reset email",
+		"checkEmailPasswordReset": "Check your email for a password reset link.",
+		"passwordResetSuccess": "Your password has been reset successfully!",
+		"redirectingToSignIn": "Redirecting to sign in...",
+		"enterValidEmail": "Please enter a valid email address"
 	},
 	"signup": {
 		"firstUserWelcome": "Welcome! You're setting up Wayli for the first time.",
@@ -795,7 +808,19 @@
 		"failedToUpdatePassword": "Failed to update password. Please try again.",
 		"failedToSearchAddress": "Failed to search for address",
 		"noAddressesFound": "No addresses found",
-		"failedToSaveSettings": "Failed to save settings"
+		"failedToSaveSettings": "Failed to save settings",
+		"trips": "Trips",
+		"tripsDescription": "Configure trip image suggestions and exclusion zones",
+		"tripImageSuggestionsTitle": "Trip Image Suggestions",
+		"tripImageSuggestionsDescription": "Configure a Pexels API key to get high-quality trip image suggestions based on your travel destinations.",
+		"dontHavePexelsApiKey": "Don't have a Pexels API key?",
+		"serverPexelsKeyConfigured": "Server-level Pexels API key is configured. You can optionally set your own personal API key below to override the server default.",
+		"usingPersonalApiKey": "Using personal API key for trip image suggestions",
+		"usingServerApiKey": "Using server-configured API key for trip image suggestions",
+		"noApiKeyConfigured": "No API key configured - trip image suggestions will use fallback services",
+		"personalPexelsApiKey": "Personal Pexels API Key",
+		"personalPexelsApiKeyOptional": "Personal Pexels API Key (Optional)",
+		"leaveEmptyToUseServerKey": "Leave empty to use server key"
 	},
 	"serverAdmin": {
 		"title": "Server admin settings",

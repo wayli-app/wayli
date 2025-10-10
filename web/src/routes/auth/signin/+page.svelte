@@ -117,7 +117,7 @@
 		}
 	}
 
-	async function handleMagicLink() {
+	async function handlePasswordReset() {
 		if (!email) {
 			toast.error(t('auth.enterValidEmail'));
 			return;
@@ -126,19 +126,21 @@
 		loading = true;
 
 		try {
-			const { error } = await supabase.auth.signInWithOtp({
-				email,
-				options: {
-					emailRedirectTo: `${window.location.origin}/auth/callback`
-				}
+			// Always attempt to send reset email
+			// We don't check for errors to prevent email enumeration attacks
+			await supabase.auth.resetPasswordForEmail(email, {
+				redirectTo: `${window.location.origin}/auth/reset-password`
 			});
 
-			if (error) throw error;
-
+			// Always show success message, regardless of whether the email exists
+			// This prevents attackers from discovering which emails are registered
 			isMagicLinkSent = true;
-			toast.success(t('auth.magicLinkSent'));
+			toast.success(t('auth.passwordResetEmailSent'));
 		} catch (error: any) {
-			toast.error(error.message || t('auth.failedToSendMagicLink'));
+			// Even on error, show success to prevent email enumeration
+			isMagicLinkSent = true;
+			toast.success(t('auth.passwordResetEmailSent'));
+			console.error('Password reset error (hidden from user):', error);
 		} finally {
 			loading = false;
 		}
@@ -190,9 +192,16 @@
 						class="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20"
 					>
 						<p class="text-sm text-green-800 dark:text-green-200">
-							{t('auth.checkEmailMagicLink')}
+							{t('auth.checkEmailPasswordReset')}
 						</p>
 					</div>
+					<button
+						type="button"
+						onclick={() => (isMagicLinkSent = false)}
+						class="text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80"
+					>
+						{t('auth.backToSignIn')}
+					</button>
 				</div>
 			{:else}
 				<form onsubmit={handleSignIn} class="space-y-6">
@@ -257,7 +266,7 @@
 					<div class="flex items-center justify-end">
 						<button
 							type="button"
-							onclick={handleMagicLink}
+							onclick={handlePasswordReset}
 							disabled={loading || !email}
 							class="cursor-pointer text-sm text-[rgb(37,140,244)] transition-colors hover:text-[rgb(37,140,244)]/80 disabled:cursor-not-allowed disabled:opacity-50"
 						>
