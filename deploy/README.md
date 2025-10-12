@@ -29,7 +29,7 @@ helm repo update
 helm install wayli wayli/wayli -n wayli --create-namespace
 ```
 
-See [../charts/wayli/README.md](../charts/wayli/README.md) for detailed configuration options.
+See [charts/wayli/README.md](../charts/wayli/README.md) for detailed configuration options.
 
 ## Common Configuration
 
@@ -63,5 +63,5 @@ helm upgrade wayli wayli/wayli -n wayli
 
 For issues or questions:
 - Docker Compose: See [docker-compose/README.md](docker-compose/README.md)
-- Kubernetes: See [../charts/wayli/README.md](../charts/wayli/README.md)
+- Kubernetes: See [charts/wayli/README.md](../charts/wayli/README.md)
 - General: [GitHub Issues](https://github.com/wayli-app/wayli/issues)

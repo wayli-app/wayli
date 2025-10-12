@@ -118,13 +118,13 @@ Docker images are automatically tagged with:
 
 ## 📦 Deployment
 
-Wayli can be deployed using Docker Compose or Kubernetes (via Helm chart). Both deployment methods include Supabase as a dependency.
+Wayli can be deployed using Docker Compose or Kubernetes (via Helm chart). Both deployment methods require Supabase configuration.
 
 **Choose your deployment method:**
 - **Docker Compose**: Perfect for development, testing, and small self-hosted installations
 - **Kubernetes (Helm)**: Recommended for production deployments with automatic scaling and high availability
 
-See the [Deployment Guide](deploy/README.md) for a detailed comparison and instructions for both methods.
+See the [Deployment Guide](deploy/README.md) for detailed instructions.
 
 ### Quick Start
 
@@ -138,12 +138,20 @@ docker-compose up -d
 
 **Kubernetes (Helm):**
 ```bash
+# Add the Wayli Helm repository
 helm repo add wayli https://wayli-app.github.io/wayli
 helm repo update
+
+# Install with default values
 helm install wayli wayli/wayli -n wayli --create-namespace
+
+# Or customize with your own values
+helm install wayli wayli/wayli -n wayli --create-namespace -f custom-values.yaml
 ```
 
-Both deployment configurations are automatically updated after each release with semantic versioning.
+For detailed Helm chart configuration options (ingress, autoscaling, resources, etc.), see the [Helm Chart README](charts/wayli/README.md).
+
+Both deployment configurations are automatically updated with each release using semantic versioning.
 
 ## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute, file issues, and submit pull requests.
