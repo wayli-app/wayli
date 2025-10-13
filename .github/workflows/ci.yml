@@ -122,26 +122,28 @@ jobs:
       # Update deployment files with new version
       - name: Update deployment files with new version
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          VERSION: ${{ env.VERSION }}
         run: |
           # Update Helm Chart.yaml with new appVersion
-          sed -i "s/^appVersion: .*/appVersion: \"${{ env.VERSION }}\"/" charts/wayli/Chart.yaml
+          sed -i "s/^appVersion: .*/appVersion: \"v$VERSION\"/" charts/wayli/Chart.yaml
 
           # Bump Helm chart version (patch bump)
           CURRENT_CHART_VERSION=$(grep '^version:' charts/wayli/Chart.yaml | awk '{print $2}')
           NEW_CHART_VERSION=$(echo $CURRENT_CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
           sed -i "s/^version: .*/version: $NEW_CHART_VERSION/" charts/wayli/Chart.yaml
 
-          echo "📦 Updated Helm chart to version $NEW_CHART_VERSION with appVersion ${{ env.VERSION }}"
+          echo "📦 Updated Helm chart to version $NEW_CHART_VERSION with appVersion $VERSION"
 
           # Update Supabase functions init container image in values.yaml
-          sed -i "s|image: zehbart/wayli:.*|image: zehbart/wayli:v${{ env.VERSION }}|" charts/wayli/values.yaml
+          sed -i "s|image: zehbart/wayli:.*|image: zehbart/wayli:v$VERSION|" charts/wayli/values.yaml
 
-          echo "📦 Updated init container image to v${{ env.VERSION }}"
+          echo "📦 Updated init container image to v$VERSION"
 
           # Update docker-compose .env.example with new version
-          sed -i "s/^WAYLI_VERSION=.*/WAYLI_VERSION=${{ env.VERSION }}/" deploy/docker-compose/.env.example
+          sed -i "s/^WAYLI_VERSION=.*/WAYLI_VERSION=v$VERSION/" deploy/docker-compose/.env.example
 
-          echo "📦 Updated docker-compose to version ${{ env.VERSION }}"
+          echo "📦 Updated docker-compose to version $VERSION"
 
       - name: Commit deployment file updates
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
