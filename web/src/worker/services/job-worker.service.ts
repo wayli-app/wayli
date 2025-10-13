@@ -1,6 +1,9 @@
 // This file is for server-side worker logic only. Do not import SvelteKit or Vite modules here.
 // The Supabase client is provided by JobQueueService, which uses the worker-only client.
-// No changes needed unless there are direct supabase imports (which there are not).
+//
+// Workers use Supabase Realtime to receive instant notifications when new jobs are queued.
+// This eliminates the need for polling and provides sub-second job pickup latency.
+// Race conditions are prevented by atomic job claiming via database UPDATE...WHERE operations.
 
 import { randomUUID } from 'crypto';
 
@@ -8,8 +11,10 @@ import { getWorkerSupabaseConfig } from '../../shared/config/worker-environment'
 
 import { JobProcessorService } from '../job-processor.service';
 import { JobQueueService } from '../job-queue.service.worker';
+import { WorkerRealtimeService } from './job-realtime.service';
 
 import type { Job } from '../../lib/types/job-queue.types';
+import type { JobNotification } from './job-realtime.service';
 
 export class JobWorker {
 	private workerId: string;
@@ -18,15 +23,14 @@ export class JobWorker {
 	private shutdownGracePeriod: number = 30000; // 30 seconds default
 	private forceShutdownTimeout?: NodeJS.Timeout;
 	private currentJob: Job | null = null;
-	private intervalId?: NodeJS.Timeout;
 	private cancellationCheckInterval?: NodeJS.Timeout;
-	private pollInterval: number = 5000; // 5 seconds default
 	private cancellationCheckIntervalMs: number = 10000; // 10 seconds default
 	private jobCancelled: boolean = false;
 	private lastHeartbeat: string = new Date().toISOString();
 	private totalJobsProcessed: number = 0;
 	private activeJobs: Set<string> = new Set();
 	private abortController?: AbortController;
+	private realtimeService: WorkerRealtimeService | null = null;
 
 	constructor(workerId?: string) {
 		this.workerId = workerId || randomUUID();
@@ -51,12 +55,26 @@ export class JobWorker {
 
 			console.log(`✅ Worker ${this.workerId} started successfully`);
 
-			// Start polling for jobs
-			this.intervalId = setInterval(async () => {
-				if (this.isRunning && !this.currentJob) {
-					await this.pollForJobs();
+			// Initialize Realtime service for instant job notifications
+			this.realtimeService = new WorkerRealtimeService({
+				workerId: this.workerId,
+				onConnected: () => {
+					console.log(`🔗 Worker ${this.workerId} Realtime connected`);
+				},
+				onDisconnected: () => {
+					console.log(`🔌 Worker ${this.workerId} Realtime disconnected`);
+				},
+				onError: (error) => {
+					console.error(`❌ Worker ${this.workerId} Realtime error:`, error);
+				},
+				onJobAvailable: (job: JobNotification) => {
+					// When notified of a new job, try to claim it
+					this.handleJobNotification(job);
 				}
-			}, this.pollInterval);
+			});
+
+			// Connect to Realtime
+			await this.realtimeService.connect();
 
 			// Start cancellation checking for running jobs
 			this.cancellationCheckInterval = setInterval(async () => {
@@ -65,8 +83,9 @@ export class JobWorker {
 				}
 			}, this.cancellationCheckIntervalMs);
 
-			// Initial poll
-			await this.pollForJobs();
+			// Do an initial check for any existing queued jobs
+			// This handles jobs that were queued before the worker started
+			await this.tryClaimJob();
 		} catch (error) {
 			console.error(`❌ Failed to start worker ${this.workerId}:`, error);
 			throw error;
@@ -179,10 +198,10 @@ export class JobWorker {
 		this.isShuttingDown = true;
 		this.isRunning = false;
 
-		// Stop polling for new jobs
-		if (this.intervalId) {
-			clearInterval(this.intervalId);
-			this.intervalId = undefined;
+		// Disconnect Realtime service
+		if (this.realtimeService) {
+			await this.realtimeService.disconnect();
+			this.realtimeService = null;
 		}
 
 		// Stop cancellation checking
@@ -286,11 +305,28 @@ export class JobWorker {
 		console.log(`📝 Worker ${this.workerId} registered`);
 	}
 
-	private async pollForJobs(): Promise<void> {
+	/**
+	 * Handle job notification from Realtime
+	 * This is called when a new job becomes available
+	 */
+	private async handleJobNotification(_job: JobNotification): Promise<void> {
+		// Don't process if shutting down or already busy
+		if (this.isShuttingDown || this.currentJob) {
+			return;
+		}
+
+		// Try to claim a job
+		await this.tryClaimJob();
+	}
+
+	/**
+	 * Try to claim and process the next available job
+	 * This uses atomic database operations to prevent race conditions
+	 */
+	private async tryClaimJob(): Promise<void> {
 		try {
-			// Don't poll for new jobs if shutting down
+			// Don't claim jobs if shutting down
 			if (this.isShuttingDown) {
-				console.log(`🛑 Worker ${this.workerId} is shutting down, skipping job poll`);
 				return;
 			}
 
@@ -299,18 +335,14 @@ export class JobWorker {
 
 			// If we're already processing a job, don't get another one
 			if (this.currentJob) {
-				console.log(
-					`🔄 Worker ${this.workerId} already processing job ${this.currentJob.id}, skipping poll`
-				);
 				return;
 			}
 
-			// console.log(`🔍 Worker ${this.workerId} polling for jobs...`);
-
-			// Get next job
+			// Try to atomically claim the next job
+			// getNextJob() handles the race condition - only one worker will succeed
 			const job = await JobQueueService.getNextJob(this.workerId);
 			if (!job) {
-				// console.log(`⏳ Worker ${this.workerId} found no available jobs`);
+				// No job available or another worker claimed it
 				return;
 			}
 
@@ -324,7 +356,7 @@ export class JobWorker {
 			// Process the job
 			await this.processJob(job);
 		} catch (error: unknown) {
-			console.error(`❌ Worker ${this.workerId} error during polling:`, error);
+			console.error(`❌ Worker ${this.workerId} error claiming job:`, error);
 
 			if (this.currentJob) {
 				await this.failJob(this.currentJob.id, (error as Error)?.message || 'Unknown error');
@@ -387,18 +419,12 @@ export class JobWorker {
 			this.currentJob = null;
 			this.jobCancelled = false;
 			this.abortController = undefined;
-		}
-	}
 
-	private async updateJobProgress(
-		jobId: string,
-		progress: number,
-		result?: Record<string, unknown>
-	): Promise<void> {
-		try {
-			await JobQueueService.updateJobProgress(jobId, progress, result);
-		} catch (error: unknown) {
-			console.error(`❌ Worker ${this.workerId} error updating job progress:`, error);
+			// After finishing a job, check if there are more jobs waiting
+			// This handles the case where jobs were queued while we were busy
+			if (!this.isShuttingDown) {
+				setImmediate(() => this.tryClaimJob());
+			}
 		}
 	}
 
@@ -446,7 +472,7 @@ export class JobWorker {
 
 		try {
 			// Test Supabase connection through JobQueueService
-			const stats = await JobQueueService.getJobStats();
+			await JobQueueService.getJobStats();
 			health.details.supabase.connected = true;
 		} catch (error) {
 			health.details.supabase.error = error instanceof Error ? error.message : 'Unknown error';
@@ -455,7 +481,7 @@ export class JobWorker {
 
 		try {
 			// Test job queue connection
-			const job = await JobQueueService.getNextJob(this.workerId);
+			await JobQueueService.getNextJob(this.workerId);
 			// If we can get a job (even if it's null), the connection is working
 			health.details.jobQueue.connected = true;
 		} catch (error) {

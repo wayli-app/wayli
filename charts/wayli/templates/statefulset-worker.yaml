@@ -94,8 +94,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "wayli.supabaseSecretName" . }}
                   key: {{ .Values.supabase.db.postgres.secretKeys.userPasswordKey }}
-            - name: SUPABASE_DB_URL
-              value: {{ include "wayli.supabase.dbUrl" . | quote }}
             - name: INTERNAL_SUPABASE_URL
               value: "http://{{ include "wayli.supabase.kongHost" . }}:{{ include "wayli.supabase.kongPort" . }}"
             - name: NOMINATIM_ENDPOINT
