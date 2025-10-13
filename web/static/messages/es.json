@@ -658,6 +658,7 @@
 		"datesOptionalDescription": "Deja ambas fechas vacías para generar sugerencias de viajes de todos tus datos de ubicación disponibles. Establece fechas específicas para limitar el análisis a un período de tiempo particular.",
 		"invalidDateRange": "Rango de fechas inválido:",
 		"singleDayTripError": "Las fechas de inicio y fin no pueden ser las mismas. Un viaje debe abarcar al menos dos días.",
+		"startDateMustBeBeforeEndDate": "La fecha de inicio debe ser anterior a la fecha de fin.",
 		"clearExistingSuggestions": "Limpiar todas las sugerencias existentes antes de generar nuevas",
 		"useCustomHomeAddress": "Usar dirección de casa personalizada para este análisis",
 		"warning": "Advertencia:",

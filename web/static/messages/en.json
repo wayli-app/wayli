@@ -659,6 +659,7 @@
 		"datesOptionalDescription": "Leave both dates empty to generate trip suggestions from all your available location data. Set specific dates to limit the analysis to a particular time period.",
 		"invalidDateRange": "Invalid date range:",
 		"singleDayTripError": "Start and end dates cannot be the same. A trip must span at least two days.",
+		"startDateMustBeBeforeEndDate": "Start date must be before the end date.",
 		"clearExistingSuggestions": "Clear all existing suggestions before generating new ones",
 		"useCustomHomeAddress": "Use custom home address for this analysis",
 		"warning": "Warning:",

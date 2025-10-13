@@ -66,9 +66,15 @@
 	function generateTrip() {
 		// Only validate dates if both are provided
 		// Allow generation when no dates are set (process all data)
-		if (startDate && endDate && startDate === endDate) {
-			alert(t('tripGenerationModal.singleDayTripError'));
-			return;
+		if (startDate && endDate) {
+			if (startDate === endDate) {
+				alert(t('tripGenerationModal.singleDayTripError'));
+				return;
+			}
+			if (new Date(startDate) > new Date(endDate)) {
+				alert(t('tripGenerationModal.startDateMustBeBeforeEndDate'));
+				return;
+			}
 		}
 
 		if (onGenerate) {
@@ -350,7 +356,7 @@
 				onclick={closeModal}
 				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
-				{t('tripGenerationModal.cancel')}
+				{t('common.actions.cancel')}
 			</button>
 			<button
 				onclick={generateTrip}

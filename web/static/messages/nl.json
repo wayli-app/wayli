@@ -658,6 +658,7 @@
 		"datesOptionalDescription": "Laat beide datums leeg om reissuggesties te genereren uit al je beschikbare locatiegegevens. Stel specifieke datums in om de analyse te beperken tot een bepaalde periode.",
 		"invalidDateRange": "Ongeldig datumbereik:",
 		"singleDayTripError": "Start- en einddatum kunnen niet hetzelfde zijn. Een reis moet minimaal twee dagen duren.",
+		"startDateMustBeBeforeEndDate": "Startdatum moet voor de einddatum liggen.",
 		"clearExistingSuggestions": "Wis alle bestaande suggesties voordat je nieuwe genereert",
 		"useCustomHomeAddress": "Gebruik aangepast thuisadres voor deze analyse",
 		"warning": "Waarschuwing:",

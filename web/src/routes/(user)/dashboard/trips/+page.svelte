@@ -143,6 +143,7 @@
 	let userPreferences = $state<any>(null);
 	let serverPexelsApiKeyAvailable = $state(false);
 	let imageAttribution = $state<any>(null);
+	let hasAttemptedImageSuggestion = $state(false);
 
 	// Create a reactive subscription to the global store for trip generation jobs
 	let activeJobs = $state(getActiveJobsMap());
@@ -445,6 +446,14 @@
 		}
 	});
 
+	// Reset the image suggestion attempt flag when dates change
+	$effect(() => {
+		// Track changes to dates - reset flag when dates change
+		if (tripForm.start_date || tripForm.end_date) {
+			hasAttemptedImageSuggestion = false;
+		}
+	});
+
 	// Auto-suggest image when both dates are selected and no image is uploaded yet
 	$effect(() => {
 		if (
@@ -454,7 +463,8 @@
 			!imageFile &&
 			!isEditing &&
 			showTripModal &&
-			!isSuggestingImage
+			!isSuggestingImage &&
+			!hasAttemptedImageSuggestion
 		) {
 			// Add a small delay to avoid too many requests
 			setTimeout(() => {
@@ -720,6 +730,7 @@
 		isSuggestingImage = false;
 		suggestedImageUrl = null;
 		tripAnalysis = null;
+		hasAttemptedImageSuggestion = false;
 		formError = '';
 	}
 
@@ -779,6 +790,7 @@
 		suggestedImageUrl = null;
 		tripAnalysis = null;
 		imageAttribution = null;
+		hasAttemptedImageSuggestion = false;
 		formError = '';
 	}
 
@@ -953,6 +965,7 @@
 			imageError = t('trips.failedToSuggestImage');
 		} finally {
 			isSuggestingImage = false;
+			hasAttemptedImageSuggestion = true; // Mark that we've attempted for this date range
 		}
 	}
 
