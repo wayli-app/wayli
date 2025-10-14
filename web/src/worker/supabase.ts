@@ -3,6 +3,7 @@
 // Do not import this in client or server code
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import { getWorkerSupabaseConfig } from '../shared/config/node-environment';
 import type { Database } from '../shared/types';
 
@@ -26,7 +27,16 @@ function getSupabaseClient(): SupabaseClient<Database> {
 			global: {
 				headers: {
 					'User-Agent': 'Wayli-Worker/1.0'
-				}
+				},
+				// Provide WebSocket implementation for Node.js environment
+				fetch: fetch,
+				WebSocket: WebSocket as any
+			},
+			realtime: {
+				params: {
+					eventsPerSecond: 10
+				},
+				timeout: 30000
 			}
 		});
 

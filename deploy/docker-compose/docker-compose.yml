@@ -121,6 +121,8 @@ services:
         condition: service_healthy
       auth:
         condition: service_healthy
+      realtime:
+        condition: service_healthy
       kong:
         condition: service_started
     environment:
