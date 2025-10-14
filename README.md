@@ -18,7 +18,7 @@ Alright, so... Wayli is basically a privacy-first location analysis app. The who
 
 - Tracks your GPS movements and automatically figures out your trips
 - Tries to guess your transport mode (car, train, bike, etc.)
-- Lets you upload cover photos for trips, and integrates with Unsplash for pretty pictures
+- Lets you upload cover photos for trips, and integrates with Pexels for pretty pictures
 - Export everything because YOUR data is YOURS
 - Privacy-first: your data, your control
 

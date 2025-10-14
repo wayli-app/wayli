@@ -919,15 +919,6 @@
 					</p>
 
 					<div class="relative">
-						{#if !homeAddressInput && !profile?.home_address_skipped}
-							<!-- Pulsing indicator -->
-							<span class="absolute -right-2 -top-2 flex h-3 w-3">
-								<span
-									class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"
-								></span>
-								<span class="relative inline-flex h-3 w-3 rounded-full bg-blue-500"></span>
-							</span>
-						{/if}
 						<input
 							id="homeAddress"
 							type="text"

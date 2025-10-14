@@ -28,6 +28,7 @@ export class WorkerRealtimeService {
 	private reconnectTimeout: NodeJS.Timeout | null = null;
 	private isConnecting = false;
 	private connectionStartTime: number | null = null;
+	private pendingChannelError: { error: any; time: number } | null = null;
 
 	constructor(options: WorkerRealtimeOptions) {
 		this.options = options;
@@ -98,22 +99,37 @@ export class WorkerRealtimeService {
 						this.reconnectAttempts = 0;
 						this.isConnecting = false;
 						this.connectionStartTime = null;
+						// Clear any pending error since we successfully connected
+						this.pendingChannelError = null;
 						this.options.onConnected?.();
 					} else if (status === 'CHANNEL_ERROR') {
-						console.error(`❌ Worker ${this.options.workerId}: Channel error:`, err);
-						console.error(`   Connection attempt failed after ${connectionTime}ms`);
-						this.isConnecting = false;
-						this.connectionStartTime = null;
-
 						const errorMsg = err?.message || String(err);
-						if (errorMsg.includes('too_many')) {
-							this.handleError(`Quota exceeded: ${errorMsg}`);
+
+						// Only handle critical errors immediately
+						if (errorMsg.includes('too_many') || errorMsg.includes('403') || errorMsg.includes('401')) {
+							console.error(`❌ Worker ${this.options.workerId}: Critical channel error:`, err);
+							console.error(`   Connection attempt failed after ${connectionTime}ms`);
+							this.isConnecting = false;
+							this.connectionStartTime = null;
+							this.handleError(`Channel subscription error: ${errorMsg}`);
 						} else {
-							this.handleError('Channel subscription error');
+							// For non-critical errors, store them and wait to see if connection recovers
+							// If no pending error yet, store this one with a timestamp
+							if (!this.pendingChannelError) {
+								this.pendingChannelError = { error: err, time: Date.now() };
+							}
+							// Don't log anything yet - wait to see if SUBSCRIBED or TIMED_OUT follows
 						}
 					} else if (status === 'TIMED_OUT') {
 						console.error(`❌ Worker ${this.options.workerId}: Connection timed out`);
 						console.error(`   Timeout occurred after ${connectionTime}ms`);
+
+						// If there was a pending channel error, show it now since connection failed
+						if (this.pendingChannelError) {
+							console.error(`   Prior channel error:`, this.pendingChannelError.error);
+							this.pendingChannelError = null;
+						}
+
 						this.isConnecting = false;
 						this.connectionStartTime = null;
 						this.handleError('Connection timed out');
@@ -124,6 +140,7 @@ export class WorkerRealtimeService {
 						);
 						this.isConnecting = false;
 						this.connectionStartTime = null;
+						this.pendingChannelError = null;
 						this.options.onDisconnected?.();
 					}
 				});
@@ -205,6 +222,7 @@ export class WorkerRealtimeService {
 
 		this.isConnecting = false;
 		this.reconnectAttempts = 0;
+		this.pendingChannelError = null;
 	}
 
 	isConnected(): boolean {

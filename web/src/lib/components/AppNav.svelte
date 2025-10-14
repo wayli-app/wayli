@@ -50,14 +50,6 @@
 	let currentTheme = $state<'light' | 'dark'>('light');
 	let isSidebarOpen = $state(false);
 
-	// Computed indicator visibility
-	const shouldShowCompletionIndicator = $derived(
-		userProfile &&
-			!userProfile.home_address &&
-			!userProfile.home_address_skipped &&
-			!userProfile.onboarding_dismissed
-	);
-
 	// Reactive navigation items that update with language changes
 	let navMain = $derived([
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
@@ -240,14 +232,6 @@
 								{item.label}
 								{#if isAdmin && item.href === '/dashboard/account-settings'}
 									<Crown class="ml-2 h-4 w-4 text-yellow-500" />
-								{/if}
-								{#if item.href === '/dashboard/account-settings' && shouldShowCompletionIndicator}
-									<span class="relative ml-2 flex h-2 w-2 items-center justify-center">
-										<span
-											class="absolute h-2 w-2 animate-ping rounded-full bg-blue-400 opacity-75"
-										></span>
-										<span class="relative h-2 w-2 rounded-full bg-blue-500"></span>
-									</span>
 								{/if}
 							</span>
 						</a>
