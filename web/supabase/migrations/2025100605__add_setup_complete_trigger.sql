@@ -20,7 +20,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET "search_path" TO '';
 
 -- Create trigger on user_profiles table
 DROP TRIGGER IF EXISTS trigger_mark_setup_complete ON user_profiles;
