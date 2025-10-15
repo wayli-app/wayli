@@ -34,11 +34,8 @@ function getSupabaseClient(): SupabaseClient<Database> {
 			},
 			realtime: {
 				params: {
-					eventsPerSecond: 10,
-					// Explicitly include the API key for authentication
-					apikey: config.serviceRoleKey
-				},
-				timeout: 30000
+					eventsPerSecond: 10
+				}
 			}
 		});
 
