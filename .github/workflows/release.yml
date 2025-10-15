@@ -1,0 +1,154 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no actual release)'
+        required: false
+        default: false
+        type: boolean
+
+# Required permissions for semantic-release and Docker operations
+permissions:
+  packages: write      # For npm package publishing (if needed)
+  contents: write      # For creating tags and commits
+  id-token: write     # For Docker registry authentication
+  issues: write       # For semantic-release GitHub plugin
+  pull-requests: write # For semantic-release GitHub plugin
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for semantic-release
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Prepare SvelteKit
+        working-directory: web
+        run: npx svelte-kit sync
+
+      - name: Run unit tests
+        working-directory: web
+        run: npm run test
+
+      - name: Build app
+        working-directory: web
+        run: npm run build --if-present
+
+      - name: Run semantic-release
+        working-directory: web
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: production
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "🔍 [semantic-release] Starting release process..."
+          echo "🔍 [semantic-release] Working directory: $(pwd)"
+          echo "🔍 [semantic-release] Node version: $(node --version)"
+          echo "🔍 [semantic-release] NPM version: $(npm --version)"
+          echo "🔍 [semantic-release] Repository: $GITHUB_REPOSITORY"
+          echo "🔍 [semantic-release] Branch: ${{ github.ref }}"
+          echo "🔍 [semantic-release] Commit: ${{ github.sha }}"
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "🔍 [semantic-release] Running in DRY RUN mode"
+            npx semantic-release --dry-run --debug
+          else
+            npx semantic-release --debug
+          fi
+
+      - name: Get version from semantic-release
+        if: inputs.dry_run == false
+        working-directory: web
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Released version: $VERSION"
+
+      - name: Set up Docker Buildx
+        if: inputs.dry_run == false
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: inputs.dry_run == false
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract short SHA
+        if: inputs.dry_run == false
+        id: vars
+        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Build and push Docker image
+        if: inputs.dry_run == false
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            zehbart/wayli:v${{ env.VERSION }}
+            zehbart/wayli:latest
+            zehbart/wayli:${{ env.SHORT_SHA }}
+
+      # Update deployment files with new version
+      - name: Update deployment files with new version
+        if: inputs.dry_run == false
+        env:
+          VERSION: ${{ env.VERSION }}
+        run: |
+          # Update Helm Chart.yaml with new appVersion
+          sed -i "s/^appVersion: .*/appVersion: \"v$VERSION\"/" charts/wayli/Chart.yaml
+
+          # Bump Helm chart version (patch bump)
+          CURRENT_CHART_VERSION=$(grep '^version:' charts/wayli/Chart.yaml | awk '{print $2}')
+          NEW_CHART_VERSION=$(echo $CURRENT_CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          sed -i "s/^version: .*/version: $NEW_CHART_VERSION/" charts/wayli/Chart.yaml
+
+          echo "📦 Updated Helm chart to version $NEW_CHART_VERSION with appVersion $VERSION"
+
+          # Update Supabase functions init container image in values.yaml
+          sed -i "s|image: zehbart/wayli:.*|image: zehbart/wayli:v$VERSION|" charts/wayli/values.yaml
+
+          echo "📦 Updated init container image to v$VERSION"
+
+          # Update docker-compose .env.example with new version
+          sed -i "s/^WAYLI_VERSION=.*/WAYLI_VERSION=v$VERSION/" deploy/docker-compose/.env.example
+
+          echo "📦 Updated docker-compose to version $VERSION"
+
+      - name: Commit deployment file updates
+        if: inputs.dry_run == false
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are changes to commit
+          if [[ -n $(git status --porcelain) ]]; then
+            git add charts/wayli/Chart.yaml charts/wayli/values.yaml deploy/docker-compose/.env.example
+            git commit -m "chore(deploy): Update deployment files to version ${{ env.VERSION }}"
+            git push
+            echo "✅ Deployment files updated and pushed"
+          else
+            echo "ℹ️ No changes to deployment files"
+          fi
+
+      # Note: GitHub release is automatically created by semantic-release
+      # Helm chart will be released by the release-chart.yml workflow
