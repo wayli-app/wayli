@@ -1,9 +1,12 @@
 # Wayli 🗺️
 
 [![CI](https://github.com/wayli-app/wayli/actions/workflows/ci.yml/badge.svg)](https://github.com/wayli-app/wayli/actions/workflows/ci.yml)
+[![Release](https://github.com/wayli-app/wayli/actions/workflows/release.yml/badge.svg)](https://github.com/wayli-app/wayli/actions/workflows/release.yml)
+[![Release Chart](https://github.com/wayli-app/wayli/actions/workflows/release-chart.yml/badge.svg)](https://github.com/wayli-app/wayli/actions/workflows/release-chart.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/github/v/release/wayli-app/wayli)](https://github.com/wayli-app/wayli/releases)
 [![Docker](https://img.shields.io/docker/v/zehbart/wayli?label=docker)](https://hub.docker.com/r/zehbart/wayli)
+[![Docker Pulls](https://img.shields.io/docker/pulls/zehbart/wayli)](https://hub.docker.com/r/zehbart/wayli)
 [![Code Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen)](web/README.md)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 
@@ -43,14 +46,27 @@ npm install
 npm run dev
 ```
 
-## 🚀 Semantic Versioning
+## 🚀 Releases & Semantic Versioning
 
-This project uses automatic semantic versioning based on [Conventional Commits](https://www.conventionalcommits.org/). The CI pipeline automatically:
+This project uses semantic versioning based on [Conventional Commits](https://www.conventionalcommits.org/).
 
-- Analyzes commit messages to determine version bumps
-- Creates semantic version tags (e.g., `v1.2.3`)
-- Creates GitHub releases
-- Tags Docker images with semantic versions
+### Creating a Release
+
+Releases are triggered manually via GitHub Actions:
+
+1. Go to **Actions** → **Release** → **Run workflow**
+2. Optionally enable "Dry run" to preview the release without publishing
+3. The release pipeline automatically:
+   - Analyzes commit messages to determine version bumps
+   - Creates semantic version tags (e.g., `v1.2.3`)
+   - Generates GitHub releases with automatic release notes
+   - Builds and tags Docker images
+   - Updates deployment configurations (Helm charts, docker-compose)
+
+This approach allows you to:
+- Merge PRs to main anytime for CI/testing
+- Batch multiple changes into a single release
+- Control exactly when releases happen
 
 ### 📝 Commit Message Format
 
