@@ -1711,7 +1711,7 @@
 								type="button"
 								class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 								onclick={closeTripModal}
-								disabled={isSubmitting}>{t('trips.cancel')}</button
+								disabled={isSubmitting}>{t('actions.cancel')}</button
 							>
 							<button
 								type="submit"
@@ -2205,7 +2205,7 @@
 					onclick={() => (showSuggestedTripsModal = false)}
 					class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
-					{t('trips.cancel')}
+					{t('actions.cancel')}
 				</button>
 				<button
 					onclick={handleRejectTrips}
@@ -2287,7 +2287,7 @@
 				<div class="flex justify-end gap-3">
 					<button
 						class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						onclick={cancelDeleteTrip}>{t('trips.cancel')}</button
+						onclick={cancelDeleteTrip}>{t('actions.cancel')}</button
 					>
 					<button
 						class="cursor-pointer rounded-lg bg-red-500 px-5 py-2 font-medium text-white transition-colors hover:bg-red-600"
