@@ -39,18 +39,6 @@ Both deployment methods require:
 - **SMTP**: Optional, for email notifications
 - **Storage**: For uploaded images and data
 
-### ⚠️ macOS Storage Limitation
-
-**Important:** If you're running on macOS (including Apple Silicon), Supabase's built-in storage service will not work. You **must** configure external storage using MinIO instead.
-
-This is because Supabase Storage's "file system" backend relies on [extended file attributes (xattr)](https://github.com/supabase/storage/blob/23559aaabeba90dd0adaa30a548ec0c3322f793b/src/storage/backend/file.ts#L570), which are not supported in Docker volumes on macOS. For more details, see [supabase/supabase#30742](https://github.com/supabase/supabase/issues/30742#issuecomment-3196908722).
-
-**Solution for macOS users:**
-1. Use the MinIO configuration provided in the Docker Compose setup
-2. Follow the storage configuration instructions in [docker-compose/README.md](docker-compose/README.md)
-
-Linux users can use either Supabase's built-in storage or MinIO.
-
 ## Updates
 
 Both deployment methods support semantic versioning:

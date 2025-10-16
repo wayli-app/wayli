@@ -114,12 +114,14 @@ Version tags follow semantic versioning (e.g., `v0.0.1`). Available versions can
 All data is persisted using Docker named volumes for better performance and portability:
 - `db-data`: PostgreSQL database data
 - `db-config`: PostgreSQL configuration including pgsodium encryption keys
+- `minio-data`: MinIO (S3-compatible) object storage data
+- `storage-data`: Supabase Storage service cache (optional, mainly uses MinIO)
 - `flyway-sql`: Temporary volume for migration files
-- Database initialization scripts and storage files use bind mounts to local directories
+- Database initialization scripts use bind mounts to local directories
 
 ### Benefits of Named Volumes
 
-The PostgreSQL database now uses a Docker named volume (`db-data`) instead of a bind mount. This provides:
+All persistent data (PostgreSQL database and MinIO object storage) now uses Docker named volumes instead of bind mounts. This provides:
 - Better performance, especially on macOS and Windows
 - Easier backup and migration using Docker's built-in tools
 - Fewer permission issues
@@ -147,16 +149,25 @@ docker compose exec -T db psql -U postgres postgres < backup.sql
 docker run --rm -v supabase_db-data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/db-backup.tar.gz"
 ```
 
-**Backup storage files:**
+**Backup MinIO object storage:**
 
 ```bash
-docker compose exec storage tar czf /tmp/storage-backup.tar.gz /var/lib/storage
-docker cp $(docker compose ps -q storage):/tmp/storage-backup.tar.gz ./storage-backup.tar.gz
+# Backup the entire MinIO volume (recommended)
+docker run --rm -v supabase_minio-data:/data -v $(pwd):/backup alpine tar czf /backup/minio-backup.tar.gz -C /data .
 ```
 
-### Migrating from Bind Mount (./volumes/db/data)
+**Restore MinIO object storage:**
 
-If you're upgrading from a previous version that used a bind mount, migrate your data:
+```bash
+# Restore the MinIO volume
+docker run --rm -v supabase_minio-data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/minio-backup.tar.gz"
+```
+
+### Migrating from Bind Mounts
+
+If you're upgrading from a previous version that used bind mounts, migrate your data:
+
+**Migrate database data:**
 
 ```bash
 # Stop the database
@@ -166,6 +177,22 @@ docker compose stop db
 docker run --rm \
   -v $(pwd)/volumes/db/data:/source:ro \
   -v supabase_db-data:/dest \
+  alpine sh -c "cp -av /source/. /dest/"
+
+# Start services with the new configuration
+docker compose up -d
+```
+
+**Migrate storage data (if you had ./volumes/storage):**
+
+```bash
+# Stop MinIO and storage services
+docker compose stop minio storage
+
+# Copy storage data from bind mount to named volume
+docker run --rm \
+  -v $(pwd)/volumes/storage:/source:ro \
+  -v supabase_minio-data:/dest \
   alpine sh -c "cp -av /source/. /dest/"
 
 # Start services with the new configuration

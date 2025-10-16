@@ -1384,7 +1384,7 @@
 					<button
 						class="absolute top-4 right-4 cursor-pointer text-gray-400 transition-colors hover:text-red-500"
 						onclick={closeTripModal}
-						aria-label={t('trips.close')}>&times;</button
+						aria-label={t('actions.close')}>&times;</button
 					>
 					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
 						{isEditing ? t('trips.editTrip') : t('trips.addNewTrip')}
@@ -1473,7 +1473,7 @@
 										onclick={addLabel}
 										class="rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
 									>
-										{t('trips.add')}
+										{t('actions.add')}
 									</button>
 								</div>
 
@@ -2291,7 +2291,7 @@
 					>
 					<button
 						class="cursor-pointer rounded-lg bg-red-500 px-5 py-2 font-medium text-white transition-colors hover:bg-red-600"
-						onclick={deleteTrip}>{t('trips.delete')}</button
+						onclick={deleteTrip}>{t('actions.delete')}</button
 					>
 				</div>
 			</div>
@@ -2414,7 +2414,7 @@
 							class="cursor-pointer rounded-lg bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700"
 							onclick={() => (isApprovalInProgress = false)}
 						>
-							{t('trips.close')}
+							{t('actions.close')}
 						</button>
 					</div>
 				{/if}
