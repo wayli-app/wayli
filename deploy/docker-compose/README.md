@@ -111,19 +111,65 @@ Version tags follow semantic versioning (e.g., `v0.0.1`). Available versions can
 
 ## Data Persistence
 
-All data is persisted in Docker volumes:
-- `wayli_db_data`: PostgreSQL database
-- `wayli_storage`: File storage
+All data is persisted using Docker named volumes for better performance and portability:
+- `db-data`: PostgreSQL database data
+- `db-config`: PostgreSQL configuration including pgsodium encryption keys
+- `flyway-sql`: Temporary volume for migration files
+- Database initialization scripts and storage files use bind mounts to local directories
 
-To backup your data:
+### Benefits of Named Volumes
+
+The PostgreSQL database now uses a Docker named volume (`db-data`) instead of a bind mount. This provides:
+- Better performance, especially on macOS and Windows
+- Easier backup and migration using Docker's built-in tools
+- Fewer permission issues
+- Consistent behavior across different host systems
+
+### Backup and Restore
+
+**Backup database:**
 
 ```bash
-# Backup database
-docker-compose exec db pg_dump -U postgres > backup.sql
+# Create SQL dump
+docker compose exec db pg_dump -U postgres postgres > backup.sql
 
-# Backup storage
-docker-compose exec storage tar czf /tmp/storage-backup.tar.gz /var/lib/storage
-docker cp $(docker-compose ps -q storage):/tmp/storage-backup.tar.gz ./storage-backup.tar.gz
+# Or backup the entire volume
+docker run --rm -v supabase_db-data:/data -v $(pwd):/backup alpine tar czf /backup/db-backup.tar.gz -C /data .
+```
+
+**Restore database:**
+
+```bash
+# Restore from SQL dump
+docker compose exec -T db psql -U postgres postgres < backup.sql
+
+# Or restore entire volume
+docker run --rm -v supabase_db-data:/data -v $(pwd):/backup alpine sh -c "cd /data && tar xzf /backup/db-backup.tar.gz"
+```
+
+**Backup storage files:**
+
+```bash
+docker compose exec storage tar czf /tmp/storage-backup.tar.gz /var/lib/storage
+docker cp $(docker compose ps -q storage):/tmp/storage-backup.tar.gz ./storage-backup.tar.gz
+```
+
+### Migrating from Bind Mount (./volumes/db/data)
+
+If you're upgrading from a previous version that used a bind mount, migrate your data:
+
+```bash
+# Stop the database
+docker compose stop db
+
+# Copy data from bind mount to named volume
+docker run --rm \
+  -v $(pwd)/volumes/db/data:/source:ro \
+  -v supabase_db-data:/dest \
+  alpine sh -c "cp -av /source/. /dest/"
+
+# Start services with the new configuration
+docker compose up -d
 ```
 
 ## Troubleshooting
