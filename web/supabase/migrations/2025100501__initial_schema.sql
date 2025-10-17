@@ -1988,7 +1988,7 @@ SET default_table_access_method = "heap";
 
 
 CREATE TABLE IF NOT EXISTS "public"."audit_logs" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "user_id" "uuid",
     "event_type" "text" NOT NULL,
     "severity" "text" NOT NULL,
@@ -2013,7 +2013,7 @@ Minimum 30-day retention enforced.';
 
 
 CREATE TABLE IF NOT EXISTS "public"."database_migrations" (
-    "version" character varying(20) NOT NULL,
+    "version" character varying(20) NOT NULL PRIMARY KEY,
     "name" character varying(255) NOT NULL,
     "checksum" character varying(32) NOT NULL,
     "applied_at" timestamp with time zone DEFAULT "now"(),
@@ -2026,7 +2026,7 @@ ALTER TABLE "public"."database_migrations" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."jobs" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "type" "text" NOT NULL,
     "status" "text" DEFAULT 'queued'::"text" NOT NULL,
     "priority" "text" DEFAULT 'normal'::"text" NOT NULL,
@@ -2062,7 +2062,7 @@ COMMENT ON COLUMN "public"."jobs"."retry_count" IS 'Number of retry attempts for
 
 
 CREATE TABLE IF NOT EXISTS "public"."poi_visit_logs" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "user_id" "uuid",
     "visit_start" timestamp with time zone NOT NULL,
     "visit_end" timestamp with time zone NOT NULL,
@@ -2081,7 +2081,7 @@ ALTER TABLE "public"."poi_visit_logs" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."user_profiles" (
-    "id" "uuid" NOT NULL,
+    "id" "uuid" NOT NULL PRIMARY KEY,
     "first_name" "text",
     "last_name" "text",
     "full_name" "text",
@@ -2143,7 +2143,7 @@ Only admins should have access to this view.';
 
 
 CREATE TABLE IF NOT EXISTS "public"."server_settings" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "server_name" "text" DEFAULT 'Wayli'::"text",
     "admin_email" "text",
     "allow_registration" boolean DEFAULT true,
@@ -2179,7 +2179,8 @@ CREATE TABLE IF NOT EXISTS "public"."tracker_data" (
     "geocode" "jsonb",
     "tz_diff" numeric(4,1),
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    PRIMARY KEY ("user_id", "recorded_at")
 );
 
 
@@ -2199,7 +2200,7 @@ COMMENT ON COLUMN "public"."tracker_data"."tz_diff" IS 'Timezone difference from
 
 
 CREATE TABLE IF NOT EXISTS "public"."trips" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "user_id" "uuid",
     "title" "text" NOT NULL,
     "description" "text",
@@ -2231,7 +2232,7 @@ COMMENT ON COLUMN "public"."trips"."metadata" IS 'Trip metadata including dataPo
 
 
 CREATE TABLE IF NOT EXISTS "public"."user_preferences" (
-    "id" "uuid" NOT NULL,
+    "id" "uuid" NOT NULL PRIMARY KEY,
     "theme" "text" DEFAULT 'light'::"text",
     "language" "text" DEFAULT 'en'::"text",
     "notifications_enabled" boolean DEFAULT true,
@@ -2247,7 +2248,7 @@ ALTER TABLE "public"."user_preferences" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."want_to_visit_places" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "user_id" "uuid",
     "title" "text" NOT NULL,
     "type" "text" NOT NULL,
@@ -2268,7 +2269,7 @@ ALTER TABLE "public"."want_to_visit_places" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."workers" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
     "user_id" "uuid",
     "status" "text" DEFAULT 'idle'::"text" NOT NULL,
     "current_job" "uuid",
@@ -2282,63 +2283,8 @@ CREATE TABLE IF NOT EXISTS "public"."workers" (
 ALTER TABLE "public"."workers" OWNER TO "postgres";
 
 
-ALTER TABLE ONLY "public"."audit_logs"
-    ADD CONSTRAINT "audit_logs_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."database_migrations"
-    ADD CONSTRAINT "database_migrations_pkey" PRIMARY KEY ("version");
-
-
-
-ALTER TABLE ONLY "public"."jobs"
-    ADD CONSTRAINT "jobs_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."poi_visit_logs"
-    ADD CONSTRAINT "poi_visit_logs_pkey" PRIMARY KEY ("id");
-
-
-
 ALTER TABLE ONLY "public"."poi_visit_logs"
     ADD CONSTRAINT "poi_visit_logs_user_id_visit_start_key" UNIQUE ("user_id", "visit_start");
-
-
-
-ALTER TABLE ONLY "public"."server_settings"
-    ADD CONSTRAINT "server_settings_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."tracker_data"
-    ADD CONSTRAINT "tracker_data_pkey" PRIMARY KEY ("user_id", "recorded_at");
-
-
-
-ALTER TABLE ONLY "public"."trips"
-    ADD CONSTRAINT "trips_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."user_preferences"
-    ADD CONSTRAINT "user_preferences_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."user_profiles"
-    ADD CONSTRAINT "user_profiles_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."want_to_visit_places"
-    ADD CONSTRAINT "want_to_visit_places_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."workers"
-    ADD CONSTRAINT "workers_pkey" PRIMARY KEY ("id");
 
 
 
