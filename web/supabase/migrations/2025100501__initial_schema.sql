@@ -2061,25 +2061,6 @@ COMMENT ON COLUMN "public"."jobs"."retry_count" IS 'Number of retry attempts for
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."poi_visit_logs" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL PRIMARY KEY,
-    "user_id" "uuid",
-    "visit_start" timestamp with time zone NOT NULL,
-    "visit_end" timestamp with time zone NOT NULL,
-    "duration_minutes" integer NOT NULL,
-    "confidence_score" numeric(3,2),
-    "visit_type" "text" DEFAULT 'detected'::"text",
-    "notes" "text",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"(),
-    CONSTRAINT "poi_visit_logs_confidence_score_check" CHECK ((("confidence_score" >= (0)::numeric) AND ("confidence_score" <= (1)::numeric))),
-    CONSTRAINT "poi_visit_logs_visit_type_check" CHECK (("visit_type" = ANY (ARRAY['detected'::"text", 'manual'::"text", 'confirmed'::"text"])))
-);
-
-
-ALTER TABLE "public"."poi_visit_logs" OWNER TO "postgres";
-
-
 CREATE TABLE IF NOT EXISTS "public"."user_profiles" (
     "id" "uuid" NOT NULL PRIMARY KEY,
     "first_name" "text",
@@ -2283,11 +2264,6 @@ CREATE TABLE IF NOT EXISTS "public"."workers" (
 ALTER TABLE "public"."workers" OWNER TO "postgres";
 
 
-ALTER TABLE ONLY "public"."poi_visit_logs"
-    ADD CONSTRAINT "poi_visit_logs_user_id_visit_start_key" UNIQUE ("user_id", "visit_start");
-
-
-
 CREATE INDEX "idx_audit_logs_event_type" ON "public"."audit_logs" USING "btree" ("event_type");
 
 
@@ -2341,18 +2317,6 @@ CREATE INDEX "idx_jobs_status" ON "public"."jobs" USING "btree" ("status");
 
 
 CREATE INDEX "idx_jobs_worker_id" ON "public"."jobs" USING "btree" ("worker_id");
-
-
-
-CREATE INDEX "idx_poi_visit_logs_user_id" ON "public"."poi_visit_logs" USING "btree" ("user_id");
-
-
-
-CREATE INDEX "idx_poi_visit_logs_visit_end" ON "public"."poi_visit_logs" USING "btree" ("visit_end");
-
-
-
-CREATE INDEX "idx_poi_visit_logs_visit_start" ON "public"."poi_visit_logs" USING "btree" ("visit_start");
 
 
 
@@ -2482,11 +2446,6 @@ ALTER TABLE ONLY "public"."jobs"
 
 
 
-ALTER TABLE ONLY "public"."poi_visit_logs"
-    ADD CONSTRAINT "poi_visit_logs_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
-
-
-
 ALTER TABLE ONLY "public"."tracker_data"
     ADD CONSTRAINT "tracker_data_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
@@ -2604,10 +2563,6 @@ CREATE POLICY "User profiles can be viewed" ON "public"."user_profiles" FOR SELE
 
 
 
-CREATE POLICY "Users can delete their own POI visit logs" ON "public"."poi_visit_logs" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
 CREATE POLICY "Users can delete their own jobs" ON "public"."jobs" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "created_by"));
 
 
@@ -2621,10 +2576,6 @@ CREATE POLICY "Users can delete their own trips" ON "public"."trips" FOR DELETE 
 
 
 CREATE POLICY "Users can delete their own want to visit places" ON "public"."want_to_visit_places" FOR DELETE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
-CREATE POLICY "Users can insert their own POI visit logs" ON "public"."poi_visit_logs" FOR INSERT WITH CHECK ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
 
@@ -2644,10 +2595,6 @@ CREATE POLICY "Users can insert their own want to visit places" ON "public"."wan
 
 
 
-CREATE POLICY "Users can update their own POI visit logs" ON "public"."poi_visit_logs" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
-
-
-
 CREATE POLICY "Users can update their own tracker data" ON "public"."tracker_data" FOR UPDATE USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
@@ -2663,10 +2610,6 @@ CREATE POLICY "Users can update their own want to visit places" ON "public"."wan
 CREATE POLICY "Users can view audit logs" ON "public"."audit_logs" FOR SELECT USING (((( SELECT "auth"."uid"() AS "uid") = "user_id") OR (( SELECT "auth"."role"() AS "role") = 'service_role'::"text") OR (EXISTS ( SELECT 1
    FROM "public"."user_profiles"
   WHERE (("user_profiles"."id" = ( SELECT "auth"."uid"() AS "uid")) AND ("user_profiles"."role" = 'admin'::"text"))))));
-
-
-
-CREATE POLICY "Users can view their own POI visit logs" ON "public"."poi_visit_logs" FOR SELECT USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
 
 
 
@@ -2713,9 +2656,6 @@ ALTER TABLE "public"."database_migrations" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."jobs" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."poi_visit_logs" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."server_settings" ENABLE ROW LEVEL SECURITY;
@@ -3153,12 +3093,6 @@ GRANT ALL ON TABLE "public"."database_migrations" TO "service_role";
 GRANT ALL ON TABLE "public"."jobs" TO "anon";
 GRANT ALL ON TABLE "public"."jobs" TO "authenticated";
 GRANT ALL ON TABLE "public"."jobs" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."poi_visit_logs" TO "anon";
-GRANT ALL ON TABLE "public"."poi_visit_logs" TO "authenticated";
-GRANT ALL ON TABLE "public"."poi_visit_logs" TO "service_role";
 
 
 
