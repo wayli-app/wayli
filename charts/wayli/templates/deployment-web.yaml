@@ -58,21 +58,30 @@ spec:
           env:
             - name: KONG_SERVICE
               value: "{{ include "wayli.supabase.kongHost" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "wayli.supabase.kongPort" . }}"
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "wayli.supabaseSecretName" . }}
+                  key: {{ .Values.supabase.global.supabase.secretKeys.anonKey }}
           command:
             - /bin/sh
             - -c
             - |
               echo "Waiting for Supabase Auth service to be ready via Kong..."
-              until wget --spider --timeout=5 --tries=1 \
-                "http://${KONG_SERVICE}/auth/v1/health" 2>&1 | grep -qE "200 OK|401 Unauthorized"; do
+              until wget --header="apikey: ${SUPABASE_ANON_KEY}" \
+                --header="Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                --spider --timeout=5 --tries=1 \
+                "http://${KONG_SERVICE}/auth/v1/health" 2>&1 | grep -q "200 OK"; do
                 echo "Auth service not ready, waiting..."
                 sleep 2
               done
               echo "Supabase Auth service is ready"
 
               echo "Waiting for Supabase Storage service to be ready via Kong..."
-              until wget --spider --timeout=5 --tries=1 \
-                "http://${KONG_SERVICE}/storage/status" 2>&1 | grep -qE "200 OK|401 Unauthorized"; do
+              until wget --header="apikey: ${SUPABASE_ANON_KEY}" \
+                --header="Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+                --spider --timeout=5 --tries=1 \
+                "http://${KONG_SERVICE}/storage/v1/status" 2>&1 | grep -q "200 OK"; do
                 echo "Storage service not ready, waiting..."
                 sleep 2
               done
