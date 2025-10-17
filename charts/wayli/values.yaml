@@ -44,7 +44,7 @@ fullnameOverride: ""
 ## Web deployment
 web:
   enabled: true
-  replicaCount: 2
+  replicaCount: 1
 
   ## Update strategy
   updateStrategy:

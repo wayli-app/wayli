@@ -52,7 +52,7 @@ spec:
         {{- end }}
       initContainers:
         {{- if .Values.web.initContainers.waitForAuth.enabled }}
-        - name: wait-for-auth
+        - name: wait-for-supabase
           image: {{ .Values.web.initContainers.waitForAuth.image.repository }}:{{ .Values.web.initContainers.waitForAuth.image.tag }}
           imagePullPolicy: {{ .Values.web.initContainers.waitForAuth.image.pullPolicy }}
           env:
@@ -69,6 +69,14 @@ spec:
                 sleep 2
               done
               echo "Supabase Auth service is ready"
+
+              echo "Waiting for Supabase Storage service to be ready via Kong..."
+              until wget --spider --timeout=5 --tries=1 \
+                "http://${KONG_SERVICE}/storage/status" 2>&1 | grep -qE "200 OK|401 Unauthorized"; do
+                echo "Storage service not ready, waiting..."
+                sleep 2
+              done
+              echo "Supabase Storage service is ready"
         {{- end }}
         {{- if .Values.web.initContainers.waitForDb.enabled }}
         - name: wait-for-db
