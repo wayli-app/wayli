@@ -67,7 +67,7 @@ web:
         repository: flyway/flyway
         tag: "11-alpine"
         pullPolicy: IfNotPresent
-    waitForAuth:
+    waitForSupabase:
       enabled: true
       image:
         repository: busybox

@@ -51,10 +51,10 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       initContainers:
-        {{- if .Values.web.initContainers.waitForAuth.enabled }}
+        {{- if .Values.web.initContainers.waitForSupabase.enabled }}
         - name: wait-for-supabase
-          image: {{ .Values.web.initContainers.waitForAuth.image.repository }}:{{ .Values.web.initContainers.waitForAuth.image.tag }}
-          imagePullPolicy: {{ .Values.web.initContainers.waitForAuth.image.pullPolicy }}
+          image: {{ .Values.web.initContainers.waitForSupabase.image.repository }}:{{ .Values.web.initContainers.waitForSupabase.image.tag }}
+          imagePullPolicy: {{ .Values.web.initContainers.waitForSupabase.image.pullPolicy }}
           env:
             - name: KONG_SERVICE
               value: "{{ include "wayli.supabase.kongHost" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "wayli.supabase.kongPort" . }}"
