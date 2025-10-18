@@ -89,7 +89,8 @@ spec:
           args:
             - migrate
             - -locations=filesystem:/flyway/sql
-            - -baselineOnMigrate=true
+            - -schemas=public
+            - -baselineOnMigrate=false
             - -validateOnMigrate=false
           volumeMounts:
             - name: ephemeral

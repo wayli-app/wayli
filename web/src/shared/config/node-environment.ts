@@ -158,8 +158,13 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	// Use the merged environment variables (env vars take precedence over .env file)
 	const mergedEnv = { ...result.parsed, ...process.env };
 
-	// Supabase Configuration
-	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';
+	// Supabase Configuration - prioritize internal URLs for workers
+	const supabaseUrl =
+		mergedEnv.WORKER_SUPABASE_URL ||
+		mergedEnv.INTERNAL_SUPABASE_URL ||
+		mergedEnv.SUPABASE_URL ||
+		mergedEnv.PUBLIC_SUPABASE_URL ||
+		'';
 	const supabaseAnonKey = mergedEnv.SUPABASE_ANON_KEY || mergedEnv.PUBLIC_SUPABASE_ANON_KEY || '';
 	const supabaseServiceRoleKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || '';
 
@@ -322,9 +327,30 @@ export function getWorkerSupabaseConfig() {
 	// Environment variables should take precedence over .env file
 	const mergedEnv = { ...result.parsed, ...process.env };
 
-	const supabaseUrl = mergedEnv.SUPABASE_URL || mergedEnv.PUBLIC_SUPABASE_URL || '';
+	// For workers, prioritize internal URLs over public URLs
+	// This ensures workers use cluster-internal communication in Kubernetes
+	const supabaseUrl =
+		mergedEnv.WORKER_SUPABASE_URL ||
+		mergedEnv.INTERNAL_SUPABASE_URL ||
+		mergedEnv.SUPABASE_URL ||
+		mergedEnv.PUBLIC_SUPABASE_URL ||
+		'';
+
 	const supabaseAnonKey = mergedEnv.SUPABASE_ANON_KEY || mergedEnv.PUBLIC_SUPABASE_ANON_KEY || '';
 	const supabaseServiceRoleKey = mergedEnv.SUPABASE_SERVICE_ROLE_KEY || '';
+
+	// Log which URL is being used for debugging
+	const urlSource = mergedEnv.WORKER_SUPABASE_URL
+		? 'WORKER_SUPABASE_URL'
+		: mergedEnv.INTERNAL_SUPABASE_URL
+			? 'INTERNAL_SUPABASE_URL'
+			: mergedEnv.SUPABASE_URL
+				? 'SUPABASE_URL'
+				: mergedEnv.PUBLIC_SUPABASE_URL
+					? 'PUBLIC_SUPABASE_URL'
+					: 'none';
+	console.log(`🔧 Worker Supabase URL source: ${urlSource}`);
+	console.log(`🔧 Worker Supabase URL: ${supabaseUrl}`);
 
 	// Only validate Supabase config for workers
 	if (!supabaseUrl) {

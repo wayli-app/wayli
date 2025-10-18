@@ -2264,83 +2264,83 @@ CREATE TABLE IF NOT EXISTS "public"."workers" (
 ALTER TABLE "public"."workers" OWNER TO "postgres";
 
 
-CREATE INDEX "idx_audit_logs_event_type" ON "public"."audit_logs" USING "btree" ("event_type");
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_event_type" ON "public"."audit_logs" USING "btree" ("event_type");
 
 
 
-CREATE INDEX "idx_audit_logs_ip_address" ON "public"."audit_logs" USING "btree" ("ip_address");
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_ip_address" ON "public"."audit_logs" USING "btree" ("ip_address");
 
 
 
-CREATE INDEX "idx_audit_logs_request_id" ON "public"."audit_logs" USING "btree" ("request_id");
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_request_id" ON "public"."audit_logs" USING "btree" ("request_id");
 
 
 
-CREATE INDEX "idx_audit_logs_severity" ON "public"."audit_logs" USING "btree" ("severity");
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_severity" ON "public"."audit_logs" USING "btree" ("severity");
 
 
 
-CREATE INDEX "idx_audit_logs_severity_timestamp" ON "public"."audit_logs" USING "btree" ("severity", "timestamp" DESC);
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_severity_timestamp" ON "public"."audit_logs" USING "btree" ("severity", "timestamp" DESC);
 
 
 
-CREATE INDEX "idx_audit_logs_timestamp" ON "public"."audit_logs" USING "btree" ("timestamp");
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_timestamp" ON "public"."audit_logs" USING "btree" ("timestamp");
 
 
 
-CREATE INDEX "idx_audit_logs_type_timestamp" ON "public"."audit_logs" USING "btree" ("event_type", "timestamp" DESC);
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_type_timestamp" ON "public"."audit_logs" USING "btree" ("event_type", "timestamp" DESC);
 
 
 
-CREATE INDEX "idx_audit_logs_user_id" ON "public"."audit_logs" USING "btree" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_user_id" ON "public"."audit_logs" USING "btree" ("user_id");
 
 
 
-CREATE INDEX "idx_audit_logs_user_timestamp" ON "public"."audit_logs" USING "btree" ("user_id", "timestamp" DESC);
+CREATE INDEX IF NOT EXISTS "idx_audit_logs_user_timestamp" ON "public"."audit_logs" USING "btree" ("user_id", "timestamp" DESC);
 
 
 
-CREATE INDEX "idx_jobs_created_at" ON "public"."jobs" USING "btree" ("created_at");
+CREATE INDEX IF NOT EXISTS "idx_jobs_created_at" ON "public"."jobs" USING "btree" ("created_at");
 
 
 
-CREATE INDEX "idx_jobs_created_by" ON "public"."jobs" USING "btree" ("created_by");
+CREATE INDEX IF NOT EXISTS "idx_jobs_created_by" ON "public"."jobs" USING "btree" ("created_by");
 
 
 
-CREATE INDEX "idx_jobs_priority" ON "public"."jobs" USING "btree" ("priority");
+CREATE INDEX IF NOT EXISTS "idx_jobs_priority" ON "public"."jobs" USING "btree" ("priority");
 
 
 
-CREATE INDEX "idx_jobs_status" ON "public"."jobs" USING "btree" ("status");
+CREATE INDEX IF NOT EXISTS "idx_jobs_status" ON "public"."jobs" USING "btree" ("status");
 
 
 
-CREATE INDEX "idx_jobs_worker_id" ON "public"."jobs" USING "btree" ("worker_id");
+CREATE INDEX IF NOT EXISTS "idx_jobs_worker_id" ON "public"."jobs" USING "btree" ("worker_id");
 
 
 
-CREATE INDEX "idx_tracker_data_device_id" ON "public"."tracker_data" USING "btree" ("device_id");
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_device_id" ON "public"."tracker_data" USING "btree" ("device_id");
 
 
 
-CREATE INDEX "idx_tracker_data_location" ON "public"."tracker_data" USING "gist" ("location");
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_location" ON "public"."tracker_data" USING "gist" ("location");
 
 
 
-CREATE INDEX "idx_tracker_data_timestamp" ON "public"."tracker_data" USING "btree" ("recorded_at");
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_timestamp" ON "public"."tracker_data" USING "btree" ("recorded_at");
 
 
 
-CREATE INDEX "idx_tracker_data_tz_diff" ON "public"."tracker_data" USING "btree" ("tz_diff");
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_tz_diff" ON "public"."tracker_data" USING "btree" ("tz_diff");
 
 
 
-CREATE INDEX "idx_tracker_data_user_id" ON "public"."tracker_data" USING "btree" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_user_id" ON "public"."tracker_data" USING "btree" ("user_id");
 
 
 
-CREATE INDEX "idx_tracker_data_user_timestamp_distance" ON "public"."tracker_data" USING "btree" ("user_id", "recorded_at") WHERE (("distance" IS NULL) OR ("distance" = (0)::numeric));
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_user_timestamp_distance" ON "public"."tracker_data" USING "btree" ("user_id", "recorded_at") WHERE (("distance" IS NULL) OR ("distance" = (0)::numeric));
 
 
 
@@ -2348,7 +2348,7 @@ COMMENT ON INDEX "public"."idx_tracker_data_user_timestamp_distance" IS 'Optimiz
 
 
 
-CREATE INDEX "idx_tracker_data_user_timestamp_location" ON "public"."tracker_data" USING "btree" ("user_id", "recorded_at") WHERE ("location" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_user_timestamp_location" ON "public"."tracker_data" USING "btree" ("user_id", "recorded_at") WHERE ("location" IS NOT NULL);
 
 
 
@@ -2356,7 +2356,7 @@ COMMENT ON INDEX "public"."idx_tracker_data_user_timestamp_location" IS 'Optimiz
 
 
 
-CREATE INDEX "idx_tracker_data_user_timestamp_ordered" ON "public"."tracker_data" USING "btree" ("user_id", "recorded_at", "location") WHERE ("location" IS NOT NULL);
+CREATE INDEX IF NOT EXISTS "idx_tracker_data_user_timestamp_ordered" ON "public"."tracker_data" USING "btree" ("user_id", "recorded_at", "location") WHERE ("location" IS NOT NULL);
 
 
 
@@ -2364,51 +2364,51 @@ COMMENT ON INDEX "public"."idx_tracker_data_user_timestamp_ordered" IS 'Optimize
 
 
 
-CREATE INDEX "idx_trips_end_date" ON "public"."trips" USING "btree" ("end_date");
+CREATE INDEX IF NOT EXISTS "idx_trips_end_date" ON "public"."trips" USING "btree" ("end_date");
 
 
 
-CREATE INDEX "idx_trips_start_date" ON "public"."trips" USING "btree" ("start_date");
+CREATE INDEX IF NOT EXISTS "idx_trips_start_date" ON "public"."trips" USING "btree" ("start_date");
 
 
 
-CREATE INDEX "idx_trips_user_id" ON "public"."trips" USING "btree" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_trips_user_id" ON "public"."trips" USING "btree" ("user_id");
 
 
 
-CREATE INDEX "idx_user_preferences_id" ON "public"."user_preferences" USING "btree" ("id");
+CREATE INDEX IF NOT EXISTS "idx_user_preferences_id" ON "public"."user_preferences" USING "btree" ("id");
 
 
 
-CREATE INDEX "idx_user_profiles_id" ON "public"."user_profiles" USING "btree" ("id");
+CREATE INDEX IF NOT EXISTS "idx_user_profiles_id" ON "public"."user_profiles" USING "btree" ("id");
 
 
 
-CREATE INDEX "idx_want_to_visit_places_created_at" ON "public"."want_to_visit_places" USING "btree" ("created_at");
+CREATE INDEX IF NOT EXISTS "idx_want_to_visit_places_created_at" ON "public"."want_to_visit_places" USING "btree" ("created_at");
 
 
 
-CREATE INDEX "idx_want_to_visit_places_favorite" ON "public"."want_to_visit_places" USING "btree" ("favorite");
+CREATE INDEX IF NOT EXISTS "idx_want_to_visit_places_favorite" ON "public"."want_to_visit_places" USING "btree" ("favorite");
 
 
 
-CREATE INDEX "idx_want_to_visit_places_type" ON "public"."want_to_visit_places" USING "btree" ("type");
+CREATE INDEX IF NOT EXISTS "idx_want_to_visit_places_type" ON "public"."want_to_visit_places" USING "btree" ("type");
 
 
 
-CREATE INDEX "idx_want_to_visit_places_user_id" ON "public"."want_to_visit_places" USING "btree" ("user_id");
+CREATE INDEX IF NOT EXISTS "idx_want_to_visit_places_user_id" ON "public"."want_to_visit_places" USING "btree" ("user_id");
 
 
 
-CREATE INDEX "idx_workers_last_heartbeat" ON "public"."workers" USING "btree" ("last_heartbeat");
+CREATE INDEX IF NOT EXISTS "idx_workers_last_heartbeat" ON "public"."workers" USING "btree" ("last_heartbeat");
 
 
 
-CREATE INDEX "idx_workers_status" ON "public"."workers" USING "btree" ("status");
+CREATE INDEX IF NOT EXISTS "idx_workers_status" ON "public"."workers" USING "btree" ("status");
 
 
 
-CREATE INDEX "idx_workers_updated_at" ON "public"."workers" USING "btree" ("updated_at");
+CREATE INDEX IF NOT EXISTS "idx_workers_updated_at" ON "public"."workers" USING "btree" ("updated_at");
 
 
 
