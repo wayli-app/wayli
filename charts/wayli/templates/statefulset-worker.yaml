@@ -48,6 +48,11 @@ spec:
       volumes:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        {{- with .Values.worker.extraInitContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- include "wayli.initContainers.waitForInfrastructure" . | nindent 8 }}
       containers:
         - name: wayli-worker
           image: {{ include "wayli.image" . }}
@@ -95,7 +100,11 @@ spec:
                   name: {{ include "wayli.supabaseSecretName" . }}
                   key: {{ .Values.supabase.db.postgres.secretKeys.userPasswordKey }}
             - name: INTERNAL_SUPABASE_URL
-              value: "http://{{ include "wayli.supabase.kongHost" . }}:{{ include "wayli.supabase.kongPort" . }}"
+              value: "http://{{ include "wayli.supabase.kongHost" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "wayli.supabase.kongPort" . }}"
+            - name: WORKER_SUPABASE_URL
+              value: "http://{{ include "wayli.supabase.kongHost" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "wayli.supabase.kongPort" . }}"
+            - name: PUBLIC_SUPABASE_URL
+              value: {{ include "wayli.supabase.url" . | quote }}
             - name: NOMINATIM_ENDPOINT
               value: {{ .Values.worker.env.nominatim.endpoint | quote }}
             - name: PEXELS_API_KEY

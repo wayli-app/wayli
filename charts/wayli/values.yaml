@@ -74,6 +74,13 @@ web:
         tag: "1.36"
         pullPolicy: IfNotPresent
 
+  ## Extra init containers (prepended before standard init containers)
+  ## Specify as a list of container definitions
+  extraInitContainers: []
+  #  - name: custom-init
+  #    image: busybox:latest
+  #    command: ['sh', '-c', 'echo "Custom init container"']
+
   ## Environment variables
   env:
     nodeEnv: production
@@ -228,6 +235,13 @@ worker:
   extraEnvVars: []
   extraEnvVarsCM: ""
   extraEnvVarsSecret: ""
+
+  ## Extra init containers (prepended before standard init containers)
+  ## Specify as a list of container definitions
+  extraInitContainers: []
+  #  - name: custom-init
+  #    image: busybox:latest
+  #    command: ['sh', '-c', 'echo "Custom init container"']
 
   ## Service (headless for StatefulSet)
   service:

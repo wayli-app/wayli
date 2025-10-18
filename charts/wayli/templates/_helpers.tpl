@@ -316,3 +316,99 @@ Return worker CORS origin
 {{- define "wayli.worker.corsOrigin" -}}
 {{- .Values.worker.env.corsOrigin -}}
 {{- end -}}
+
+{{/*
+Common initContainers for waiting for Supabase services and database
+*/}}
+{{- define "wayli.initContainers.waitForInfrastructure" -}}
+{{- if .Values.web.initContainers.waitForSupabase.enabled }}
+- name: wait-for-supabase
+  image: {{ .Values.web.initContainers.waitForSupabase.image.repository }}:{{ .Values.web.initContainers.waitForSupabase.image.tag }}
+  imagePullPolicy: {{ .Values.web.initContainers.waitForSupabase.image.pullPolicy }}
+  env:
+    - name: KONG_SERVICE
+      value: "{{ include "wayli.supabase.kongHost" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "wayli.supabase.kongPort" . }}"
+    - name: SUPABASE_ANON_KEY
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "wayli.supabaseSecretName" . }}
+          key: {{ .Values.supabase.global.supabase.secretKeys.anonKey }}
+  command:
+    - /bin/sh
+    - -c
+    - |
+      echo "Waiting for Supabase Auth service to be ready via Kong..."
+      until wget --header="apikey: ${SUPABASE_ANON_KEY}" \
+        --header="Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+        -O /dev/null --timeout=5 --tries=1 -q \
+        "http://${KONG_SERVICE}/auth/v1/health"; do
+        echo "Auth service not ready, waiting..."
+        sleep 2
+      done
+      echo "Supabase Auth service is ready"
+
+      echo "Waiting for Supabase Storage service to be ready via Kong..."
+      until wget --header="apikey: ${SUPABASE_ANON_KEY}" \
+        --header="Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+        -O /dev/null --timeout=5 --tries=1 -q \
+        "http://${KONG_SERVICE}/storage/v1/status"; do
+        echo "Storage service not ready, waiting..."
+        sleep 2
+      done
+      echo "Supabase Storage service is ready"
+{{- end }}
+{{- if .Values.web.initContainers.waitForDb.enabled }}
+- name: wait-for-db
+  image: {{ include "wayli.initContainer.postgres.image" . }}
+  imagePullPolicy: {{ .Values.web.initContainers.waitForDb.image.pullPolicy }}
+  env:
+    - name: DB_HOST
+      value: "{{ include "wayli.supabase.dbHost" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+    - name: DB_PORT
+      value: {{ include "wayli.supabase.dbPort" . | quote }}
+    - name: FLYWAY_USER
+      value: {{ include "wayli.supabase.dbUser" . | quote }}
+    - name: FLYWAY_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "wayli.supabaseSecretName" . }}
+          key: {{ .Values.supabase.db.postgres.secretKeys.userPasswordKey }}
+    - name: DB_NAME
+      value: {{ include "wayli.supabase.dbName" . | quote }}
+    - name: FLYWAY_URL
+      value: jdbc:postgresql://$(DB_HOST):{{ include "wayli.supabase.dbPort" . }}/$(DB_NAME)
+    - name: DATABASE_URL
+      value: {{ include "wayli.databaseUrl" . | quote }}
+    - name: PGHOST
+      value: "{{ include "wayli.supabase.dbHost" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+    - name: PGPORT
+      value: {{ include "wayli.supabase.dbPort" . | quote }}
+    - name: PGUSER
+      value: {{ include "wayli.supabase.dbUser" . | quote }}
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ include "wayli.supabaseSecretName" . }}
+          key: {{ .Values.supabase.db.postgres.secretKeys.userPasswordKey }}
+    - name: PGDATABASE
+      value: {{ include "wayli.supabase.dbName" . | quote }}
+  command:
+    - /bin/bash
+    - -c
+    - |
+      echo "Waiting for database to be ready..."
+      while ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$FLYWAY_USER" -d "$DB_NAME"; do
+        echo "Database not ready, waiting..."
+        sleep 1
+      done
+      echo "Database is ready"
+
+      echo "Waiting for Supabase Storage migrations to complete..."
+      until [ "$(psql -tAc "SELECT COUNT(*) FROM storage.migrations;" 2>/dev/null || echo 0)" -ge 44 ]; do
+        CURRENT_COUNT=$(psql -tAc "SELECT COUNT(*) FROM storage.migrations;" 2>/dev/null || echo 0)
+        echo "Storage migrations not complete yet ($CURRENT_COUNT/44 applied), waiting..."
+        sleep 2
+      done
+      echo "Supabase Storage migrations are complete."
+{{- end }}
+{{- end -}}

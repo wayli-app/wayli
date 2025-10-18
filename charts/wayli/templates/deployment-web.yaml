@@ -51,7 +51,11 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       initContainers:
-        {{- if .Values.web.initContainers.waitForSupabase.enabled }}
+        {{- with .Values.web.extraInitContainers }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- include "wayli.initContainers.waitForInfrastructure" . | nindent 8 }}
+        {{- if false }}
         - name: wait-for-supabase
           image: {{ .Values.web.initContainers.waitForSupabase.image.repository }}:{{ .Values.web.initContainers.waitForSupabase.image.tag }}
           imagePullPolicy: {{ .Values.web.initContainers.waitForSupabase.image.pullPolicy }}
@@ -138,7 +142,8 @@ spec:
                 echo "Storage migrations not complete yet, waiting..."
                 sleep 2
               done
-              echo "Supabase Storage migrations are complete (44+ migrations applied)"
+              echo "Supabase Storage migrations are complete."
+        {{- end }}
         {{- end }}
         {{- if .Values.web.initContainers.migrations.enabled }}
         - name: prepare-init-db
