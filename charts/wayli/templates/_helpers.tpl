@@ -405,8 +405,7 @@ Common initContainers for waiting for Supabase services and database
 
       echo "Waiting for Supabase Storage migrations to complete..."
       until [ "$(psql -tAc "SELECT COUNT(*) FROM storage.migrations;" 2>/dev/null || echo 0)" -ge 44 ]; do
-        CURRENT_COUNT=$(psql -tAc "SELECT COUNT(*) FROM storage.migrations;" 2>/dev/null || echo 0)
-        echo "Storage migrations not complete yet ($CURRENT_COUNT/44 applied), waiting..."
+        echo "Storage migrations not complete yet, waiting..."
         sleep 2
       done
       echo "Supabase Storage migrations are complete."
