@@ -115,14 +115,10 @@ jobs:
           VERSION: ${{ env.VERSION }}
         run: |
           # Update Helm Chart.yaml with new appVersion
+          # Note: Chart version is bumped separately by release-chart.yml workflow
           sed -i "s/^appVersion: .*/appVersion: \"v$VERSION\"/" charts/wayli/Chart.yaml
 
-          # Bump Helm chart version (patch bump)
-          CURRENT_CHART_VERSION=$(grep '^version:' charts/wayli/Chart.yaml | awk '{print $2}')
-          NEW_CHART_VERSION=$(echo $CURRENT_CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
-          sed -i "s/^version: .*/version: $NEW_CHART_VERSION/" charts/wayli/Chart.yaml
-
-          echo "📦 Updated Helm chart to version $NEW_CHART_VERSION with appVersion $VERSION"
+          echo "📦 Updated Helm chart appVersion to v$VERSION"
 
           # Update Supabase functions init container image in values.yaml
           sed -i "s|image: zehbart/wayli:.*|image: zehbart/wayli:v$VERSION|" charts/wayli/values.yaml

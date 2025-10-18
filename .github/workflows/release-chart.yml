@@ -97,12 +97,37 @@ jobs:
 
           echo "chart_version=$NEW_VERSION" >> $GITHUB_ENV
 
-      - name: Run chart-releaser
+      - name: Package Helm chart
         if: steps.chart_changes.outputs.changed == 'true'
-        uses: helm/chart-releaser-action@v1.6.0
+        run: |
+          mkdir -p .cr-release-packages
+          helm package charts/wayli --destination .cr-release-packages
+          echo "📦 Chart packaged"
+
+      - name: Checkout gh-pages branch
+        if: steps.chart_changes.outputs.changed == 'true'
+        uses: actions/checkout@v4
         with:
-          charts_dir: charts
-          config: .github/cr.yaml
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_SKIP_EXISTING: "true"
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update Helm repository index
+        if: steps.chart_changes.outputs.changed == 'true'
+        run: |
+          # Copy new chart package to gh-pages
+          cp .cr-release-packages/*.tgz gh-pages/
+
+          # Update index.yaml
+          cd gh-pages
+          helm repo index . --url https://wayli-app.github.io/wayli
+
+          # Configure git
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+          # Commit and push
+          git add .
+          git commit -m "chore(chart): Publish Helm chart ${{ env.chart_version }}" || echo "No changes to commit"
+          git push || echo "Nothing to push"
+
+          echo "✅ Helm chart published to GitHub Pages"
