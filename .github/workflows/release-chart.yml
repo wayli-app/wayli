@@ -32,7 +32,7 @@ jobs:
         run: |
           # Check if last commit was a version bump from this workflow
           LAST_COMMIT_MSG=$(git log -1 --format='%s')
-          if [[ "$LAST_COMMIT_MSG" == "chore(chart): Release version"* ]]; then
+          if [[ "$LAST_COMMIT_MSG" == "chore(chart): Bump version to"* ]]; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "ℹ️ Last commit was automated version bump, skipping to avoid loop"
             exit 0
@@ -89,45 +89,18 @@ jobs:
           sed -i "s/^version: .*/version: $NEW_VERSION/" charts/wayli/Chart.yaml
 
           # Commit the version bump
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
           git add charts/wayli/Chart.yaml
-          git commit -m "chore(chart): Release version $NEW_VERSION" || echo "No changes to commit"
-          git push || echo "Nothing to push"
+          git commit -m "chore(chart): Bump version to $NEW_VERSION [skip ci]"
+          git push
 
-          echo "chart_version=$NEW_VERSION" >> $GITHUB_ENV
+          echo "📦 Chart version bumped to $NEW_VERSION"
 
-      - name: Package Helm chart
+      - name: Run chart-releaser
         if: steps.chart_changes.outputs.changed == 'true'
-        run: |
-          mkdir -p .cr-release-packages
-          helm package charts/wayli --destination .cr-release-packages
-          echo "📦 Chart packaged"
-
-      - name: Checkout gh-pages branch
-        if: steps.chart_changes.outputs.changed == 'true'
-        uses: actions/checkout@v4
+        uses: helm/chart-releaser-action@v1.6.0
         with:
-          ref: gh-pages
-          path: gh-pages
-
-      - name: Update Helm repository index
-        if: steps.chart_changes.outputs.changed == 'true'
-        run: |
-          # Copy new chart package to gh-pages
-          cp .cr-release-packages/*.tgz gh-pages/
-
-          # Update index.yaml
-          cd gh-pages
-          helm repo index . --url https://wayli-app.github.io/wayli
-
-          # Configure git
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-          # Commit and push
-          git add .
-          git commit -m "chore(chart): Publish Helm chart ${{ env.chart_version }}" || echo "No changes to commit"
-          git push || echo "Nothing to push"
-
-          echo "✅ Helm chart published to GitHub Pages"
+          charts_dir: charts
+          config: .github/cr.yaml
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_SKIP_EXISTING: "true"

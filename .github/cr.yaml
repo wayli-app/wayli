@@ -2,3 +2,4 @@
 owner: wayli-app
 git-repo: wayli
 charts-repo-url: https://wayli-app.github.io/wayli
+release-name-template: "chart-{{ .Version }}"
