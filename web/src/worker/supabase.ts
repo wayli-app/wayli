@@ -29,13 +29,14 @@ function getSupabaseClient(): SupabaseClient<Database> {
 					'User-Agent': 'Wayli-Worker/1.0'
 				},
 				// Provide WebSocket implementation for Node.js environment
-				fetch: fetch,
-				WebSocket: WebSocket as any
+				fetch: fetch
 			},
 			realtime: {
 				params: {
 					eventsPerSecond: 10
-				}
+				},
+				// Provide WebSocket implementation for Realtime
+				transport: WebSocket as any
 			}
 		});
 

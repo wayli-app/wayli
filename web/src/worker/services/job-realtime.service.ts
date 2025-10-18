@@ -92,6 +92,8 @@ export class WorkerRealtimeService {
 						? Date.now() - this.connectionStartTime
 						: 0;
 
+					console.log(`🔔 Worker ${this.options.workerId}: Subscription status: ${status}`, err ? `Error: ${err}` : '');
+
 					if (status === 'SUBSCRIBED') {
 						console.log(
 							`✅ Worker ${this.options.workerId}: Successfully subscribed to jobs channel (${connectionTime}ms)`
@@ -104,6 +106,10 @@ export class WorkerRealtimeService {
 						this.options.onConnected?.();
 					} else if (status === 'CHANNEL_ERROR') {
 						const errorMsg = err?.message || String(err);
+
+						console.error(`❌ Worker ${this.options.workerId}: Channel error:`, err);
+						console.error(`   Error message:`, errorMsg);
+						console.error(`   Connection time: ${connectionTime}ms`);
 
 						// Only handle critical errors immediately
 						if (errorMsg.includes('too_many') || errorMsg.includes('403') || errorMsg.includes('401')) {
