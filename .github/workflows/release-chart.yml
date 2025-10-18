@@ -30,10 +30,22 @@ jobs:
       - name: Check for chart changes
         id: chart_changes
         run: |
-          # Check if charts directory was modified in the last 2 commits
-          if git diff --name-only HEAD~2 HEAD | grep -q '^charts/'; then
+          # Check if last commit was a version bump from this workflow
+          LAST_COMMIT_MSG=$(git log -1 --format='%s')
+          if [[ "$LAST_COMMIT_MSG" == "chore(chart): Release version"* ]]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Last commit was automated version bump, skipping to avoid loop"
+            exit 0
+          fi
+
+          # If manually triggered or Chart.yaml push, always process
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "${{ github.event_name }}" == "push" ]]; then
             echo "changed=true" >> $GITHUB_OUTPUT
-            echo "📦 Chart files were modified"
+            echo "📦 Chart release triggered by ${{ github.event_name }}"
+          # Check if charts were modified in the last commit (from Release workflow)
+          elif git diff --name-only HEAD~1 HEAD | grep -q '^charts/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "📦 Chart files were modified in Release workflow commit"
           else
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "ℹ️ No chart files were modified, skipping release"
@@ -61,6 +73,29 @@ jobs:
         if: steps.chart_changes.outputs.changed == 'true'
         run: |
           helm dependency update charts/wayli
+
+      - name: Bump chart version
+        if: steps.chart_changes.outputs.changed == 'true'
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(grep '^version:' charts/wayli/Chart.yaml | awk '{print $2}')
+          echo "📦 Current chart version: $CURRENT_VERSION"
+
+          # Bump patch version
+          NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+          echo "📦 Bumping to version: $NEW_VERSION"
+
+          # Update Chart.yaml
+          sed -i "s/^version: .*/version: $NEW_VERSION/" charts/wayli/Chart.yaml
+
+          # Commit the version bump
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git add charts/wayli/Chart.yaml
+          git commit -m "chore(chart): Release version $NEW_VERSION" || echo "No changes to commit"
+          git push || echo "Nothing to push"
+
+          echo "chart_version=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Run chart-releaser
         if: steps.chart_changes.outputs.changed == 'true'
