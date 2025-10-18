@@ -17,7 +17,8 @@ permissions:
   id-token: write
 
 jobs:
-  release:
+  release-chart:
+    name: Release Helm Chart
     runs-on: ubuntu-latest
     # Only run if Release workflow succeeded (or if manually triggered)
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
@@ -104,3 +105,18 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_SKIP_EXISTING: "true"
+
+      - name: Setup Pages
+        if: steps.chart_changes.outputs.changed == 'true'
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        if: steps.chart_changes.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .cr-index
+
+      - name: Deploy to GitHub Pages
+        if: steps.chart_changes.outputs.changed == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4
