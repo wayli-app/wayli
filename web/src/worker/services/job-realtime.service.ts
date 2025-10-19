@@ -92,7 +92,12 @@ export class WorkerRealtimeService {
 						? Date.now() - this.connectionStartTime
 						: 0;
 
-					console.log(`🔔 Worker ${this.options.workerId}: Subscription status: ${status}`, err ? `Error: ${err}` : '');
+					console.log(`🔔 Worker ${this.options.workerId}: Subscription status: ${status}`);
+					if (err) {
+						console.error(`   Error object:`, JSON.stringify(err, null, 2));
+						console.error(`   Error type:`, typeof err);
+						console.error(`   Error keys:`, Object.keys(err || {}));
+					}
 
 					if (status === 'SUBSCRIBED') {
 						console.log(
