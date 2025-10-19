@@ -465,6 +465,8 @@ supabase:
         disableSignup: false
         # Enable email signup
         enableEmailSignup: true
+        # Enable email autoconfirm (set to true if SMTP is not configured)
+        enableEmailAutoconfirm: false
         # SMTP configuration
         smtp:
           # SMTP admin email

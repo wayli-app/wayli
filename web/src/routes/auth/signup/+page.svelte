@@ -6,10 +6,8 @@
 	import { translate } from '$lib/i18n';
 	import { userStore } from '$lib/stores/auth';
 	import { supabase } from '$lib/supabase';
-	import { getEdgeFunctionUrl } from '$lib/utils/url-utils';
 
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -26,7 +24,6 @@
 	let registrationDisabled = $state(false);
 	let isLoadingSettings = $state(false);
 	let isFirstUser = $state(false);
-	let requireEmailVerification = $state(false);
 	let hasRedirected = false; // Guard to prevent multiple redirects
 
 	// Password validation
@@ -58,11 +55,9 @@
 
 				registrationDisabled = !settings.allow_registration;
 				isFirstUser = !settings.is_setup_complete;
-				requireEmailVerification = settings.require_email_verification ?? false;
 				console.log('🔧 [SIGNUP] Server settings applied:', {
 					allow_registration: settings.allow_registration,
 					is_setup_complete: settings.is_setup_complete,
-					require_email_verification: settings.require_email_verification,
 					registrationDisabled,
 					isFirstUser
 				});
@@ -189,13 +184,17 @@
 
 			if (error) throw error;
 
-			// Only show email confirmation message if email verification is required
-			// and the user hasn't been auto-confirmed
-			if (requireEmailVerification && data.user && !data.user.email_confirmed_at) {
-				isEmailSent = true;
+			// Check if email verification is required based on Supabase Auth's response
+			// If there's no session, email verification is required
+			// If there's a session, the user is auto-confirmed and logged in
+			if (!data.session && data.user && !data.user.email_confirmed_at) {
+				// Email verification required - redirect to verification page
+				sessionStorage.setItem('pending_verification_email', email);
 				toast.success(t('auth.checkEmailConfirmationLink'));
-			} else {
-				// User is auto-logged in, redirect will happen via userStore.subscribe
+				goto('/auth/verify-email');
+			} else if (data.session) {
+				// User is auto-confirmed and logged in
+				// Redirect will happen via userStore.subscribe
 				toast.success(t('auth.signUpSuccess'));
 			}
 		} catch (error: any) {

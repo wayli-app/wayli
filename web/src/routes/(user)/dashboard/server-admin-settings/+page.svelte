@@ -41,9 +41,6 @@
 
 	// Initialize server settings
 	let serverName = $state('');
-	let adminEmail = $state('');
-	let allowRegistration = $state(true);
-	let requireEmailVerification = $state(false);
 	let showAddUserModal = $state(false);
 	let isModalOpen = $state(false);
 	let selectedUser = $state<UserProfile | null>(null);
@@ -203,10 +200,7 @@
 			if (!session) throw new Error('No session found');
 
 			const settings = {
-				server_name: serverName,
-				admin_email: adminEmail,
-				allow_registration: allowRegistration,
-				require_email_verification: requireEmailVerification
+				server_name: serverName
 			};
 
 			console.log('🔧 [ADMIN] Saving server settings:', settings);
@@ -301,35 +295,40 @@
 	async function handleSaveUser(event: CustomEvent) {
 		const updatedUser = event.detail;
 
-		const formData = new FormData();
-		formData.append('userId', updatedUser.id);
-		formData.append('email', updatedUser.email);
-		formData.append('firstName', updatedUser.first_name || '');
-		formData.append('lastName', updatedUser.last_name || '');
-		formData.append('role', updatedUser.role || 'user');
+		try {
+			const { data, error } = await supabase.functions.invoke('admin-users', {
+				method: 'POST',
+				body: {
+					action: 'updateUser',
+					userId: updatedUser.id,
+					email: updatedUser.email,
+					firstName: updatedUser.first_name || '',
+					lastName: updatedUser.last_name || '',
+					role: updatedUser.role || 'user'
+				}
+			});
 
-		const response = await fetch('?/updateUser', {
-			method: 'POST',
-			body: formData
-		});
-
-		if (response.ok) {
-			toast.success('User updated successfully');
-			await invalidateAll(); // This will re-run the `load` function
-		} else {
-			let errorDescription = 'An unknown error occurred while updating the user.';
-			try {
-				const result = await response.json();
-				errorDescription = result.error || result.message || errorDescription;
-			} catch {
-				// The response was not JSON.
+			if (error) {
+				throw error;
 			}
-			toast.error('Failed to update user', {
+
+			if (data?.success) {
+				toast.success(t('serverAdmin.userUpdated'));
+				handleCloseModal();
+				await invalidateAll(); // Refresh the user list
+			} else {
+				const errorDescription = data?.error || t('serverAdmin.failedToUpdateUser');
+				toast.error(t('serverAdmin.failedToUpdateUser'), {
+					description: errorDescription
+				});
+			}
+		} catch (error: any) {
+			console.error('Error updating user:', error);
+			const errorDescription = error?.message || error?.error || t('serverAdmin.failedToUpdateUser');
+			toast.error(t('serverAdmin.failedToUpdateUser'), {
 				description: errorDescription
 			});
 		}
-
-		handleCloseModal();
 	}
 
 	async function loadServerSettings() {
@@ -346,15 +345,9 @@
 			console.log('🔧 [ADMIN] Loaded server settings:', settings);
 
 			serverName = settings.server_name || '';
-			adminEmail = settings.admin_email || '';
-			allowRegistration = settings.allow_registration ?? true;
-			requireEmailVerification = settings.require_email_verification ?? false;
 
 			console.log('🔧 [ADMIN] Processed settings:', {
-				serverName,
-				adminEmail,
-				allowRegistration,
-				requireEmailVerification
+				serverName
 			});
 		} catch (error: any) {
 			console.error('Error loading server settings:', error);
@@ -978,88 +971,197 @@
 							</div>
 						</div>
 
-						<!-- Admin Email -->
-						<div>
-							<label
-								for="adminEmail"
-								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-								>{t('serverAdmin.adminEmail')}</label
-							>
-							<div class="mt-1">
-								<input
-									type="email"
-									id="adminEmail"
-									bind:value={adminEmail}
-									class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
-									placeholder="admin@example.com"
-								/>
+						<!-- Admin Email Info (Read-only) -->
+						<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+							<div class="flex items-start gap-3">
+								<div class="flex-shrink-0">
+									<svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+								</div>
+								<div class="flex-1">
+									<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
+										{t('serverAdmin.adminEmailInfo')}
+									</h4>
+									<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
+										{t('serverAdmin.adminEmailConfiguredInSupabase')}
+									</p>
+									<div class="mt-3 space-y-3">
+										<!-- Configuration Instructions -->
+										<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
+											<p class="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
+												{t('serverAdmin.howToChange')}:
+											</p>
+
+											<!-- Kubernetes/Helm -->
+											<div class="mb-3">
+												<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
+													🎯 {t('serverAdmin.kubernetesHelm')}:
+												</p>
+												<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
+													supabase.auth.smtp.adminEmail: "admin@example.com"
+												</code>
+												<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+													{t('serverAdmin.updateInValuesYaml')}
+												</p>
+											</div>
+
+											<!-- Docker Compose -->
+											<div>
+												<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
+													🐳 {t('serverAdmin.dockerCompose')}:
+												</p>
+												<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
+													GOTRUE_SMTP_ADMIN_EMAIL=admin@example.com
+												</code>
+												<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+													{t('serverAdmin.setInAuthService')}
+												</p>
+											</div>
+										</div>
+									</div>
+									<p class="mt-3 text-xs text-blue-600 dark:text-blue-400">
+										💡 {t('serverAdmin.restartAfterChange')}
+									</p>
+								</div>
 							</div>
 						</div>
 
-						<!-- Registration Settings -->
+						<!-- Registration Settings Info (Read-only) -->
 						<div class="space-y-4">
-							<div class="flex items-center justify-between">
-								<div>
-									<label
-										for="allowRegistration"
-										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
-									>
-										{t('serverAdmin.allowNewUserRegistration')}
-									</label>
-									<p class="text-sm text-gray-500 dark:text-gray-400">
-										{t('serverAdmin.enablePublicUserRegistration')}
-									</p>
+							<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+								<div class="flex items-start gap-3">
+									<div class="flex-shrink-0">
+										<svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+										</svg>
+									</div>
+									<div class="flex-1">
+										<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
+											{t('serverAdmin.registrationInfo')}
+										</h4>
+										<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
+											{t('serverAdmin.registrationConfiguredInSupabase')}
+										</p>
+										<div class="mt-3 space-y-3">
+											<!-- Current Status -->
+											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
+												<p class="text-xs text-blue-700 dark:text-blue-300">
+													{t('serverAdmin.currentStatus')}:
+												</p>
+												<p class="mt-1 text-xs">
+													<code class="rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-blue-900 dark:text-blue-100">
+														{t('serverAdmin.registrationEnabled')}
+													</code>
+												</p>
+											</div>
+
+											<!-- Configuration Instructions -->
+											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
+												<p class="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
+													{t('serverAdmin.howToChange')}:
+												</p>
+
+												<!-- Kubernetes/Helm -->
+												<div class="mb-3">
+													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
+														🎯 {t('serverAdmin.kubernetesHelm')}:
+													</p>
+													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
+														supabase.auth.enableSignup: false
+													</code>
+													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+														{t('serverAdmin.updateInValuesYaml')}
+													</p>
+												</div>
+
+												<!-- Docker Compose -->
+												<div>
+													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
+														🐳 {t('serverAdmin.dockerCompose')}:
+													</p>
+													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
+														GOTRUE_DISABLE_SIGNUP=true
+													</code>
+													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+														{t('serverAdmin.setInAuthService')}
+													</p>
+												</div>
+											</div>
+										</div>
+										<p class="mt-3 text-xs text-blue-600 dark:text-blue-400">
+											💡 {t('serverAdmin.restartAfterChange')}
+										</p>
+									</div>
 								</div>
-								<button
-									type="button"
-									id="allowRegistration"
-									onclick={() => (allowRegistration = !allowRegistration)}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {allowRegistration
-										? 'bg-[rgb(37,140,244)]'
-										: 'bg-gray-200 dark:bg-gray-700'}"
-									role="switch"
-									aria-checked={allowRegistration}
-									aria-label="Allow new user registration"
-								>
-									<span
-										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {allowRegistration
-											? 'translate-x-5'
-											: 'translate-x-0'}"
-									></span>
-								</button>
 							</div>
-							<div class="flex items-center justify-between">
-								<div class="flex-1">
-									<label
-										for="requireEmailVerification"
-										class="block text-sm font-medium text-gray-900 dark:text-gray-100"
-									>
-										{t('serverAdmin.requireEmailVerification')}
-									</label>
-									<p class="text-sm text-gray-500 dark:text-gray-400">
-										{t('serverAdmin.requireEmailVerificationDescription')}
-									</p>
-									<p class="mt-2 text-sm text-amber-600 dark:text-amber-400">
-										⚠️ {t('serverAdmin.smtpNotConfigured')}
-									</p>
+
+							<!-- Email Verification Info (Read-only) -->
+							<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+								<div class="flex items-start gap-3">
+									<div class="flex-shrink-0">
+										<svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+										</svg>
+									</div>
+									<div class="flex-1">
+										<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
+											{t('serverAdmin.emailVerificationInfo')}
+										</h4>
+										<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
+											{t('serverAdmin.emailVerificationConfiguredInSupabase')}
+										</p>
+										<div class="mt-3 space-y-3">
+											<!-- Current Status -->
+											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
+												<p class="text-xs text-blue-700 dark:text-blue-300">
+													{t('serverAdmin.currentStatus')}:
+												</p>
+												<p class="mt-1 text-xs">
+													<code class="rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-blue-900 dark:text-blue-100">
+														{t('serverAdmin.emailVerificationRequired')}
+													</code>
+												</p>
+											</div>
+
+											<!-- Configuration Instructions -->
+											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
+												<p class="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
+													{t('serverAdmin.howToChange')}:
+												</p>
+
+												<!-- Kubernetes/Helm -->
+												<div class="mb-3">
+													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
+														🎯 {t('serverAdmin.kubernetesHelm')}:
+													</p>
+													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
+														supabase.auth.enableEmailAutoconfirm: true
+													</code>
+													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+														{t('serverAdmin.updateInValuesYaml')}
+													</p>
+												</div>
+
+												<!-- Docker Compose -->
+												<div>
+													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
+														🐳 {t('serverAdmin.dockerCompose')}:
+													</p>
+													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
+														GOTRUE_MAILER_AUTOCONFIRM=true
+													</code>
+													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
+														{t('serverAdmin.setInAuthService')}
+													</p>
+												</div>
+											</div>
+										</div>
+										<p class="mt-3 text-xs text-blue-600 dark:text-blue-400">
+											💡 {t('serverAdmin.restartAfterChange')}
+										</p>
+									</div>
 								</div>
-								<button
-									type="button"
-									id="requireEmailVerification"
-									onclick={() => (requireEmailVerification = !requireEmailVerification)}
-									class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-[rgb(37,140,244)] focus:ring-offset-2 focus:outline-none {requireEmailVerification
-										? 'bg-[rgb(37,140,244)]'
-										: 'bg-gray-200 dark:bg-gray-700'}"
-									role="switch"
-									aria-checked={requireEmailVerification}
-									aria-label="Require email verification"
-								>
-									<span
-										class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {requireEmailVerification
-											? 'translate-x-5'
-											: 'translate-x-0'}"
-									></span>
-								</button>
 							</div>
 						</div>
 					</div>

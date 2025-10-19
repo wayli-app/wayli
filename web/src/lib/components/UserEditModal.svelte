@@ -20,13 +20,11 @@
 	}>();
 
 	let localUser = $state<UserProfile | null>(null);
-	let role = $state<'admin' | 'user'>('user');
 
 	$effect(() => {
 		if (user) {
 			// Create a local copy to avoid modifying the original user object directly
 			localUser = JSON.parse(JSON.stringify(user));
-			role = user.role || 'user';
 		}
 	});
 
@@ -178,7 +176,7 @@
 					<div>
 						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span
 						>
-						<RoleSelector bind:role />
+						<RoleSelector bind:role={localUser.role} />
 					</div>
 				</div>
 			{/if}
