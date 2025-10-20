@@ -897,7 +897,12 @@
 		"dockerCompose": "Docker Compose",
 		"updateInValuesYaml": "Update this in your Helm values.yaml file and redeploy",
 		"setInAuthService": "Set this environment variable in the auth service",
-		"restartAfterChange": "After making changes, restart your Supabase Auth service for them to take effect."
+		"restartAfterChange": "After making changes, restart your Supabase Auth service for them to take effect.",
+		"supabaseAuthConfig": "Supabase Auth Configuration",
+		"supabaseAuthConfigDescription": "These settings are controlled by Supabase Auth, not Wayli. Configure them in your Helm values or environment variables.",
+		"setting": "Setting",
+		"helmChart": "Helm Chart",
+		"emailVerification": "Email Verification"
 	},
 	"wantToVisit": {
 		"addNewPlace": "Add new place",

@@ -971,202 +971,89 @@
 							</div>
 						</div>
 
-						<!-- Admin Email Info (Read-only) -->
-						<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-							<div class="flex items-start gap-3">
-								<div class="flex-shrink-0">
-									<svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-									</svg>
-								</div>
-								<div class="flex-1">
-									<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
-										{t('serverAdmin.adminEmailInfo')}
-									</h4>
-									<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
-										{t('serverAdmin.adminEmailConfiguredInSupabase')}
-									</p>
-									<div class="mt-3 space-y-3">
-										<!-- Configuration Instructions -->
-										<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
-											<p class="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
-												{t('serverAdmin.howToChange')}:
-											</p>
+					<!-- Supabase Auth Configuration (Read-only) -->
+					<div>
+						<h3 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+							{t('serverAdmin.supabaseAuthConfig')}
+						</h3>
+						<p class="mb-4 text-xs text-gray-600 dark:text-gray-400">
+							{t('serverAdmin.supabaseAuthConfigDescription')}
+						</p>
 
-											<!-- Kubernetes/Helm -->
-											<div class="mb-3">
-												<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
-													🎯 {t('serverAdmin.kubernetesHelm')}:
-												</p>
-												<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
-													supabase.auth.smtp.adminEmail: "admin@example.com"
-												</code>
-												<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-													{t('serverAdmin.updateInValuesYaml')}
-												</p>
-											</div>
-
-											<!-- Docker Compose -->
-											<div>
-												<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
-													🐳 {t('serverAdmin.dockerCompose')}:
-												</p>
-												<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
-													GOTRUE_SMTP_ADMIN_EMAIL=admin@example.com
-												</code>
-												<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-													{t('serverAdmin.setInAuthService')}
-												</p>
-											</div>
-										</div>
-									</div>
-									<p class="mt-3 text-xs text-blue-600 dark:text-blue-400">
-										💡 {t('serverAdmin.restartAfterChange')}
-									</p>
-								</div>
-							</div>
+						<div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+							<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+								<thead class="bg-gray-50 dark:bg-gray-800">
+									<tr>
+										<th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+											{t('serverAdmin.setting')}
+										</th>
+										<th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+											{t('serverAdmin.helmChart')}
+										</th>
+										<th scope="col" class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+											{t('serverAdmin.dockerCompose')}
+										</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+									<!-- Admin Email -->
+									<tr>
+										<td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+											{t('serverAdmin.adminEmail')}
+										</td>
+										<td class="px-4 py-3 text-xs">
+											<code class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+												supabase.auth.smtp.adminEmail
+											</code>
+										</td>
+										<td class="px-4 py-3 text-xs">
+											<code class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+												GOTRUE_SMTP_ADMIN_EMAIL
+											</code>
+										</td>
+									</tr>
+									<!-- User Registration -->
+									<tr>
+										<td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+											{t('serverAdmin.allowNewUserRegistration')}
+										</td>
+										<td class="px-4 py-3 text-xs">
+											<code class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+												supabase.auth.enableSignup
+											</code>
+										</td>
+										<td class="px-4 py-3 text-xs">
+											<code class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+												GOTRUE_DISABLE_SIGNUP
+											</code>
+										</td>
+									</tr>
+									<!-- Email Verification -->
+									<tr>
+										<td class="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+											{t('serverAdmin.emailVerification')}
+										</td>
+										<td class="px-4 py-3 text-xs">
+											<code class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+												supabase.auth.enableEmailAutoconfirm
+											</code>
+										</td>
+										<td class="px-4 py-3 text-xs">
+											<code class="rounded bg-gray-100 px-2 py-1 font-mono text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+												GOTRUE_MAILER_AUTOCONFIRM
+											</code>
+										</td>
+									</tr>
+								</tbody>
+							</table>
 						</div>
-
-						<!-- Registration Settings Info (Read-only) -->
-						<div class="space-y-4">
-							<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-								<div class="flex items-start gap-3">
-									<div class="flex-shrink-0">
-										<svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-										</svg>
-									</div>
-									<div class="flex-1">
-										<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
-											{t('serverAdmin.registrationInfo')}
-										</h4>
-										<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
-											{t('serverAdmin.registrationConfiguredInSupabase')}
-										</p>
-										<div class="mt-3 space-y-3">
-											<!-- Current Status -->
-											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
-												<p class="text-xs text-blue-700 dark:text-blue-300">
-													{t('serverAdmin.currentStatus')}:
-												</p>
-												<p class="mt-1 text-xs">
-													<code class="rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-blue-900 dark:text-blue-100">
-														{t('serverAdmin.registrationEnabled')}
-													</code>
-												</p>
-											</div>
-
-											<!-- Configuration Instructions -->
-											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
-												<p class="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
-													{t('serverAdmin.howToChange')}:
-												</p>
-
-												<!-- Kubernetes/Helm -->
-												<div class="mb-3">
-													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
-														🎯 {t('serverAdmin.kubernetesHelm')}:
-													</p>
-													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
-														supabase.auth.enableSignup: false
-													</code>
-													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-														{t('serverAdmin.updateInValuesYaml')}
-													</p>
-												</div>
-
-												<!-- Docker Compose -->
-												<div>
-													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
-														🐳 {t('serverAdmin.dockerCompose')}:
-													</p>
-													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
-														GOTRUE_DISABLE_SIGNUP=true
-													</code>
-													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-														{t('serverAdmin.setInAuthService')}
-													</p>
-												</div>
-											</div>
-										</div>
-										<p class="mt-3 text-xs text-blue-600 dark:text-blue-400">
-											💡 {t('serverAdmin.restartAfterChange')}
-										</p>
-									</div>
-								</div>
-							</div>
-
-							<!-- Email Verification Info (Read-only) -->
-							<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-								<div class="flex items-start gap-3">
-									<div class="flex-shrink-0">
-										<svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-										</svg>
-									</div>
-									<div class="flex-1">
-										<h4 class="text-sm font-medium text-blue-900 dark:text-blue-100">
-											{t('serverAdmin.emailVerificationInfo')}
-										</h4>
-										<p class="mt-1 text-sm text-blue-700 dark:text-blue-300">
-											{t('serverAdmin.emailVerificationConfiguredInSupabase')}
-										</p>
-										<div class="mt-3 space-y-3">
-											<!-- Current Status -->
-											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
-												<p class="text-xs text-blue-700 dark:text-blue-300">
-													{t('serverAdmin.currentStatus')}:
-												</p>
-												<p class="mt-1 text-xs">
-													<code class="rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-blue-900 dark:text-blue-100">
-														{t('serverAdmin.emailVerificationRequired')}
-													</code>
-												</p>
-											</div>
-
-											<!-- Configuration Instructions -->
-											<div class="rounded bg-blue-100 dark:bg-blue-900/40 p-3">
-												<p class="mb-2 text-xs font-semibold text-blue-900 dark:text-blue-100">
-													{t('serverAdmin.howToChange')}:
-												</p>
-
-												<!-- Kubernetes/Helm -->
-												<div class="mb-3">
-													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
-														🎯 {t('serverAdmin.kubernetesHelm')}:
-													</p>
-													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
-														supabase.auth.enableEmailAutoconfirm: true
-													</code>
-													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-														{t('serverAdmin.updateInValuesYaml')}
-													</p>
-												</div>
-
-												<!-- Docker Compose -->
-												<div>
-													<p class="text-xs font-medium text-blue-800 dark:text-blue-200">
-														🐳 {t('serverAdmin.dockerCompose')}:
-													</p>
-													<code class="mt-1 block rounded bg-blue-200 dark:bg-blue-800 px-2 py-1 font-mono text-xs text-blue-900 dark:text-blue-100">
-														GOTRUE_MAILER_AUTOCONFIRM=true
-													</code>
-													<p class="mt-1 text-xs text-blue-700 dark:text-blue-300">
-														{t('serverAdmin.setInAuthService')}
-													</p>
-												</div>
-											</div>
-										</div>
-										<p class="mt-3 text-xs text-blue-600 dark:text-blue-400">
-											💡 {t('serverAdmin.restartAfterChange')}
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
+						<p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+							💡 {t('serverAdmin.restartAfterChange')}
+						</p>
 					</div>
+				</div>
 
-					<!-- Save Button -->
+				<!-- Save Button -->
 					<div class="mt-6 flex justify-end">
 						<button
 							onclick={saveSettings}

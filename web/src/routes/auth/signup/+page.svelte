@@ -8,6 +8,7 @@
 	import { supabase } from '$lib/supabase';
 
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
