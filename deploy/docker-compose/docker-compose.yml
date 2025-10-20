@@ -124,7 +124,9 @@ services:
       realtime:
         condition: service_healthy
       kong:
-        condition: service_started
+        condition: service_healthy
+      wayli-web:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       APP_MODE: worker
