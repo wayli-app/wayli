@@ -1384,7 +1384,7 @@
 					<button
 						class="absolute top-4 right-4 cursor-pointer text-gray-400 transition-colors hover:text-red-500"
 						onclick={closeTripModal}
-						aria-label={t('actions.close')}>&times;</button
+						aria-label={t('common.actions.close')}>&times;</button
 					>
 					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
 						{isEditing ? t('trips.editTrip') : t('trips.addNewTrip')}
@@ -1473,7 +1473,7 @@
 										onclick={addLabel}
 										class="rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600"
 									>
-										{t('actions.add')}
+										{t('common.actions.add')}
 									</button>
 								</div>
 
@@ -1711,7 +1711,7 @@
 								type="button"
 								class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 								onclick={closeTripModal}
-								disabled={isSubmitting}>{t('actions.cancel')}</button
+								disabled={isSubmitting}>{t('common.actions.cancel')}</button
 							>
 							<button
 								type="submit"
@@ -2205,7 +2205,7 @@
 					onclick={() => (showSuggestedTripsModal = false)}
 					class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 				>
-					{t('actions.cancel')}
+					{t('common.actions.cancel')}
 				</button>
 				<button
 					onclick={handleRejectTrips}
@@ -2287,11 +2287,11 @@
 				<div class="flex justify-end gap-3">
 					<button
 						class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						onclick={cancelDeleteTrip}>{t('actions.cancel')}</button
+						onclick={cancelDeleteTrip}>{t('common.actions.cancel')}</button
 					>
 					<button
 						class="cursor-pointer rounded-lg bg-red-500 px-5 py-2 font-medium text-white transition-colors hover:bg-red-600"
-						onclick={deleteTrip}>{t('actions.delete')}</button
+						onclick={deleteTrip}>{t('common.actions.delete')}</button
 					>
 				</div>
 			</div>
@@ -2414,7 +2414,7 @@
 							class="cursor-pointer rounded-lg bg-blue-600 px-5 py-2 font-medium text-white transition-colors hover:bg-blue-700"
 							onclick={() => (isApprovalInProgress = false)}
 						>
-							{t('actions.close')}
+							{t('common.actions.close')}
 						</button>
 					</div>
 				{/if}
