@@ -76,10 +76,26 @@ jobs:
         working-directory: web
         id: version
         run: |
+          # Pull the latest changes from semantic-release (which creates a new commit)
+          cd ..
+          git pull origin main
+          cd web
+
+          # Now read the updated package.json
           VERSION=$(node -p "require('./package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📦 Released version: $VERSION"
+
+          # Verify this is actually a new version
+          CURRENT_CHART_VERSION=$(grep '^appVersion:' ../charts/wayli/Chart.yaml | awk '{print $2}' | tr -d '"' | sed 's/^v//')
+          echo "📦 Current Chart appVersion: $CURRENT_CHART_VERSION"
+
+          if [ "$VERSION" == "$CURRENT_CHART_VERSION" ]; then
+            echo "⚠️ WARNING: Version $VERSION matches current Chart appVersion"
+          else
+            echo "✅ Version changed from $CURRENT_CHART_VERSION to $VERSION"
+          fi
 
       - name: Set up Docker Buildx
         if: inputs.dry_run == false
@@ -138,12 +154,31 @@ jobs:
 
           # Check if there are changes to commit
           if [[ -n $(git status --porcelain) ]]; then
+            echo "📝 Changes detected in deployment files:"
+            git status --porcelain
             git add charts/wayli/Chart.yaml charts/wayli/values.yaml deploy/docker-compose/.env.example
             git commit -m "chore(deploy): Update deployment files to version ${{ env.VERSION }}"
             git push
             echo "✅ Deployment files updated and pushed"
           else
             echo "ℹ️ No changes to deployment files"
+
+            # Double-check: verify versions are actually in sync
+            CHART_VERSION=$(grep '^appVersion:' charts/wayli/Chart.yaml | awk '{print $2}' | tr -d '"')
+            VALUES_VERSION=$(grep 'image: zehbart/wayli:v' charts/wayli/values.yaml | awk '{print $2}' | cut -d: -f2)
+            ENV_VERSION=$(grep '^WAYLI_VERSION=' deploy/docker-compose/.env.example | cut -d= -f2)
+
+            echo "🔍 Version verification:"
+            echo "   Chart appVersion: $CHART_VERSION"
+            echo "   Values image: $VALUES_VERSION"
+            echo "   Docker-compose: $ENV_VERSION"
+            echo "   Expected: v${{ env.VERSION }}"
+
+            if [ "$CHART_VERSION" != "v${{ env.VERSION }}" ] || [ "$VALUES_VERSION" != "v${{ env.VERSION }}" ] || [ "$ENV_VERSION" != "v${{ env.VERSION }}" ]; then
+              echo "❌ ERROR: Version mismatch detected but no changes in git!"
+              echo "This indicates the sed commands may have failed."
+              exit 1
+            fi
           fi
 
       # Note: GitHub release is automatically created by semantic-release
