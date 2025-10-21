@@ -62,8 +62,8 @@ export class JobProcessorService {
 			const now = Date.now();
 
 			// Only start tracking ETA after we've made some progress in actual processing
-			// This gives the system time to establish a stable processing rate
-			if (currentProgress < 20) {
+			// Reduced from 20% to 5% to show ETA sooner
+			if (currentProgress < 5) {
 				return null;
 			}
 

@@ -195,9 +195,11 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 				}
 
 				// Minimum thresholds to ensure accurate ETA
-				const MIN_ELAPSED_SECONDS = 5;
-				const MIN_SAMPLES = 3;
-				const MIN_POINTS_PROCESSED = 200;
+				// Use adaptive thresholds based on total points to show ETA sooner
+				const MIN_ELAPSED_SECONDS = 3; // Reduced from 5 to show ETA sooner
+				const MIN_SAMPLES = 2; // Reduced from 3 - we only need 2 samples for a rate
+				// Dynamic minimum based on total points: 50 points OR 2% of total, whichever is smaller
+				const MIN_POINTS_PROCESSED = Math.min(50, Math.ceil(totalPoints * 0.02));
 				const elapsedSeconds = (now - startTime) / 1000;
 
 				let etaDisplay = 'Calculating...';
@@ -210,14 +212,14 @@ export async function processReverseGeocodingMissing(job: Job): Promise<void> {
 				) {
 					let scanRate = 0;
 
-					// Try to use moving average first
+					// Try to use moving average first (prioritizes recent performance)
 					if (scanSamples.length >= 2) {
 						const first = scanSamples[0];
 						const last = scanSamples[scanSamples.length - 1];
 						const deltaScanned = last.scanned - first.scanned;
 						const deltaSeconds = (last.time - first.time) / 1000;
-						// Ensure we have a meaningful time interval (at least 2 seconds)
-						if (deltaSeconds >= 2 && deltaScanned >= 0) {
+						// Reduced minimum interval from 2s to 1s for faster adaptation
+						if (deltaSeconds >= 1 && deltaScanned >= 0) {
 							scanRate = deltaScanned / deltaSeconds; // rows per second
 							// Safety check to prevent Infinity
 							if (!isFinite(scanRate)) {

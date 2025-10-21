@@ -135,9 +135,10 @@
 				return formatSeconds(seconds);
 			}
 		}
-		// Return as-is if it's already a formatted string (e.g., "5m 30s", "1h 15m 30s", "Calculating...")
+		// Return as-is if it's already a formatted string (e.g., "5m 30s", "1h 15m 30s")
+		// Translate "Calculating..." to support i18n
 		if (typeof serverETA === 'string') {
-			return serverETA;
+			return serverETA === 'Calculating...' ? t('jobProgress.calculating') : serverETA;
 		}
 		// Fallback for undefined/null
 		return '';
