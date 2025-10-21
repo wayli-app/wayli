@@ -297,24 +297,10 @@ Return the Supabase Kong port
 {{- end -}}
 
 {{/*
-Return trusted origins as comma-separated string
+Return the site URL
 */}}
-{{- define "wayli.trustedOrigins" -}}
-{{- join "," .Values.web.env.trustedOrigins -}}
-{{- end -}}
-
-{{/*
-Return CORS origins as comma-separated string
-*/}}
-{{- define "wayli.corsOrigin" -}}
-{{- join "," .Values.web.env.corsOrigin -}}
-{{- end -}}
-
-{{/*
-Return worker CORS origin
-*/}}
-{{- define "wayli.worker.corsOrigin" -}}
-{{- .Values.worker.env.corsOrigin -}}
+{{- define "wayli.siteUrl" -}}
+{{- .Values.web.env.siteUrl -}}
 {{- end -}}
 
 {{/*

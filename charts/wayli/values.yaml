@@ -87,15 +87,8 @@ web:
     appMode: web
     host: "0.0.0.0"
     port: "80"
-    ## Trusted origins (list)
-    trustedOrigins:
-      - "https://wayli.app"
-      - "https://www.wayli.app"
-      - "https://supa.wayli.app"
-    ## CORS origins (list)
-    corsOrigin:
-      - "https://wayli.app"
-      - "https://*.wayli.app"
+    ## Site URL for CORS and trusted origins
+    siteUrl: "https://wayli.app"
 
   ## Extra environment variables (Bitnami-style)
   ## Specify as list of objects with name/value pairs
@@ -226,7 +219,6 @@ worker:
   env:
     nodeEnv: production
     appMode: worker
-    corsOrigin: "https://wayli.app"
     ## External service endpoints
     nominatim:
       endpoint: "http://nominatim.nominatim.svc.cluster.local:8088"

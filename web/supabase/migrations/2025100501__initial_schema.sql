@@ -1294,10 +1294,21 @@ sampled_points AS (
         -- Keep first and last points
         CASE
             WHEN rp.row_num = 1
-            OR rp.row_num = total_point_count THEN true -- Keep points with significant movement
-            WHEN rp.distance_from_prev >= p_min_distance_meters THEN true -- Keep points with significant time gap
-            WHEN rp.time_from_prev >= min_time_interval THEN true -- Keep points if we're under the hourly limit
-            WHEN rp.points_in_hour <= p_max_points_per_hour THEN true -- Sample remaining points (keep every nth point)
+            OR rp.row_num = total_point_count THEN true
+
+            -- Prioritize time-based sampling: keep points with significant time gap
+            -- This is the primary filter for reducing density
+            WHEN rp.time_from_prev >= min_time_interval THEN true
+
+            -- Secondary: keep points with significant movement only if also some time has passed
+            -- Require at least 25% of the time interval to prevent excessive points during fast travel
+            WHEN rp.distance_from_prev >= p_min_distance_meters
+                AND rp.time_from_prev >= (min_time_interval * 0.25) THEN true
+
+            -- Keep points if we're under the hourly limit (safety net)
+            WHEN rp.points_in_hour <= p_max_points_per_hour THEN true
+
+            -- Sample remaining points (keep every nth point)
             WHEN rp.row_num % CEIL(
                 total_point_count::DECIMAL / p_max_points_threshold
             ) = 0 THEN true

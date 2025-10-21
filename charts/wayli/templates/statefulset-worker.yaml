@@ -73,8 +73,6 @@ spec:
               value: {{ .Values.worker.env.nodeEnv | quote }}
             - name: APP_MODE
               value: {{ .Values.worker.env.appMode | quote }}
-            - name: CORS_ORIGIN
-              value: {{ include "wayli.worker.corsOrigin" . | quote }}
             - name: SUPABASE_URL
               value: {{ include "wayli.supabase.url" . | quote }}
             - name: SUPABASE_ANON_KEY

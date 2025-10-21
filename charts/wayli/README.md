@@ -32,8 +32,6 @@ helm install wayli wayli/wayli -n wayli -f custom-values.yaml
 
 ## Configuration
 
-> **Note:** Kubernetes manifests for Wayli deployments and services will be added in the next phase. This chart currently contains the base structure and configuration values.
-
 ### Basic Configuration
 
 The following table lists the main configurable parameters of the Wayli chart and their default values.
@@ -44,33 +42,92 @@ The following table lists the main configurable parameters of the Wayli chart an
 | `image.tag` | Wayli image tag (overrides Chart.yaml appVersion) | `""` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `web.enabled` | Enable web deployment | `true` |
-| `web.replicaCount` | Number of web replicas | `2` |
+| `web.replicaCount` | Number of web replicas | `1` |
+| `web.env.siteUrl` | Site URL for CORS and trusted origins | `https://wayli.app` |
 | `web.service.type` | Kubernetes service type | `ClusterIP` |
 | `web.service.port` | Service port | `80` |
 | `worker.enabled` | Enable worker deployment | `true` |
-| `worker.replicaCount` | Number of worker replicas | `1` |
-| `ingress.enabled` | Enable ingress controller resource | `false` |
-| `ingress.hosts` | Ingress hosts configuration | `[]` |
+| `worker.replicaCount` | Number of worker replicas | `2` |
+| `ingress.enabled` | Enable ingress controller resource | `true` |
+| `ingress.hostname` | Ingress hostname | `console.wayli.app` |
+| `supabase.enabled` | Enable Supabase subchart | `true` |
+| `supabase.global.supabase.publicUrl` | Supabase API endpoint URL | `https://supa.wayli.app` |
 
 ### Environment Variables
 
-Configure Wayli through the `env` section in `values.yaml`:
+Configure Wayli through the `web.env` and `worker.env` sections in `values.yaml`:
 
 ```yaml
-env:
-  NODE_ENV: production
-  PUBLIC_SUPABASE_URL: "https://your-supabase-url.supabase.co"
-  PUBLIC_SUPABASE_ANON_KEY: "your-anon-key"
+web:
+  env:
+    nodeEnv: production
+    siteUrl: "https://wayli.app"  # Used for CORS and trusted origins
+
+worker:
+  env:
+    nodeEnv: production
+    nominatim:
+      endpoint: "http://nominatim.nominatim.svc.cluster.local:8088"
+
+supabase:
+  global:
+    supabase:
+      publicUrl: "https://supa.wayli.app"  # Supabase API endpoint
+      siteUrl: "https://wayli.app"  # For auth redirects
 ```
 
 ### Secrets
 
-Sensitive configuration should be provided via Kubernetes secrets:
+#### Option A: Automated Secret Generation (Recommended)
+
+Use the included script to automatically generate all required secrets:
+
+```bash
+cd charts/wayli
+./generate-secrets.sh
+```
+
+**Prerequisites**: `openssl` and `docker` must be installed. `kubectl` is optional (if not installed, secrets will be saved as YAML files).
+
+This interactive script will:
+- Generate secure random values for all secrets (passwords, JWT tokens, encryption keys)
+- Generate JWT tokens automatically using Docker
+- Optionally configure SMTP credentials
+- Either apply secrets directly to your cluster or save them as YAML files
+
+#### Option B: Manual Secret Creation
+
+Create Kubernetes secrets manually:
+
+```bash
+# Create Supabase secret
+kubectl create secret generic supabase-secret \
+  --from-literal=jwt-secret=$(openssl rand -base64 48) \
+  --from-literal=anon-key=<your-anon-key> \
+  --from-literal=service-role-key=<your-service-role-key> \
+  --from-literal=db-password=$(openssl rand -base64 40) \
+  --from-literal=db-enc-key=$(openssl rand -hex 16) \
+  --from-literal=vault-enc-key=$(openssl rand -hex 16) \
+  --from-literal=secret-key-base=$(openssl rand -base64 48) \
+  -n wayli
+
+# Optional: Create SMTP secret
+kubectl create secret generic smtp-secret \
+  --from-literal=username=<smtp-username> \
+  --from-literal=password=<smtp-password> \
+  -n wayli
+```
+
+Then configure your `values.yaml` to reference the secrets:
 
 ```yaml
-secrets:
-  SUPABASE_SERVICE_ROLE_KEY: "your-service-role-key"
-  OWNTRACKS_SERVICE_KEY: "your-owntracks-key"
+supabase:
+  global:
+    supabase:
+      existingSecret: supabase-secret
+      auth:
+        smtp:
+          existingSecret: smtp-secret  # Optional
 ```
 
 > **Recommendation**: Use external secret management solutions like [External Secrets Operator](https://external-secrets.io/) or [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) for production deployments.

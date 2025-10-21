@@ -6,15 +6,8 @@ global:
 web:
   ## Environment variables
   env:
-    ## Trusted origins (list)
-    trustedOrigins:
-      - 'https://your-domain.com'
-      - 'https://www.your-domain.com'
-      - 'https://supabase.your-domain.com'
-    ## CORS origins (list)
-    corsOrigin:
-      - 'https://your-domain.com'
-      - 'https://*.your-domain.com'
+    ## Site URL for CORS and trusted origins (you MUST set this)
+    siteUrl: 'https://your-domain.com'
 
 ## Worker deployment (StatefulSet)
 worker:

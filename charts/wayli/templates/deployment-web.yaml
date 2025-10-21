@@ -121,9 +121,7 @@ spec:
             - name: APP_MODE
               value: {{ .Values.web.env.appMode | quote }}
             - name: PUBLIC_TRUSTED_ORIGINS
-              value: {{ include "wayli.trustedOrigins" . | quote }}
-            - name: CORS_ORIGIN
-              value: {{ include "wayli.corsOrigin" . | quote }}
+              value: {{ include "wayli.siteUrl" . | quote }}
             - name: HOST
               value: {{ .Values.web.env.host | quote }}
             - name: PORT
