@@ -35,6 +35,10 @@ function getSupabaseClient(): SupabaseClient<Database> {
 				params: {
 					eventsPerSecond: 10
 				},
+				// Increase timeout for slow networks
+				timeout: 30000,
+				// Heartbeat interval
+				heartbeatIntervalMs: 15000,
 				// Provide WebSocket implementation for Realtime
 				transport: WebSocket as any
 			}
@@ -42,6 +46,11 @@ function getSupabaseClient(): SupabaseClient<Database> {
 
 		console.log('🔧 Supabase client created with URL:', config.url);
 		console.log('🔧 Supabase client service role key length:', config.serviceRoleKey.length);
+
+		// Set the service role key as auth for Realtime
+		// This ensures WebSocket connections are properly authenticated
+		console.log('🔐 Setting service role key for Realtime authentication');
+		supabaseClient.realtime.setAuth(config.serviceRoleKey);
 	}
 
 	return supabaseClient;
