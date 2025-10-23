@@ -29,6 +29,6 @@ keywords:
 
 dependencies:
   - name: supabase
-    version: "0.0.11"
+    version: "0.0.13"
     repository: "https://wayli-app.github.io/supabase-helm"
     condition: supabase.enabled
