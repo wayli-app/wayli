@@ -138,7 +138,7 @@ services:
 
   studio:
     container_name: supabase-studio
-    image: supabase/studio:2025.10.01-sha-8460121
+    image: supabase/studio:2025.10.20-sha-5005fc6
     restart: unless-stopped
     healthcheck:
       test:
@@ -309,7 +309,7 @@ services:
   realtime:
     # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: realtime-dev.supabase-realtime
-    image: supabase/realtime:v2.54.4
+    image: supabase/realtime:v2.56.0
     restart: unless-stopped
     depends_on:
       db:
@@ -474,7 +474,7 @@ services:
 
   storage:
     container_name: supabase-storage
-    image: supabase/storage-api:v1.28.0
+    image: supabase/storage-api:v1.28.1
     depends_on:
       db:
         # Disable this if you are using an external Postgres database
@@ -565,7 +565,7 @@ services:
   # # Update the DATABASE_URL if you are using an external Postgres database
   # supavisor:
   #   container_name: supabase-pooler
-  #   image: supabase/supavisor:2.7.0
+  #   image: supabase/supavisor:2.7.3
   #   restart: unless-stopped
   #   ports:
   #     - ${POSTGRES_PORT}:5432
