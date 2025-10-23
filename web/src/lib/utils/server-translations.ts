@@ -46,9 +46,30 @@ function loadFullTranslations(): { [lang: string]: Translations } {
 		const result: { [lang: string]: Translations } = {};
 
 		for (const lang of languages) {
-			const filePath = join(process.cwd(), 'static', 'messages', `${lang}.json`);
-			const fileContent = readFileSync(filePath, 'utf-8');
-			result[lang] = JSON.parse(fileContent);
+			// Try multiple possible paths for translation files
+			// 1. Build directory (for worker in Docker)
+			// 2. Static directory (for development)
+			const possiblePaths = [
+				join(process.cwd(), 'build', 'messages', `${lang}.json`),
+				join(process.cwd(), 'static', 'messages', `${lang}.json`)
+			];
+
+			let loaded = false;
+			for (const filePath of possiblePaths) {
+				try {
+					const fileContent = readFileSync(filePath, 'utf-8');
+					result[lang] = JSON.parse(fileContent);
+					loaded = true;
+					break;
+				} catch (err) {
+					// Try next path
+					continue;
+				}
+			}
+
+			if (!loaded) {
+				console.warn(`Could not load translations for language: ${lang}`);
+			}
 		}
 
 		translationsCache = result;
