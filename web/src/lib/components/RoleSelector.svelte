@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Shield, User } from 'lucide-svelte';
 
-	export let role: 'admin' | 'user' = 'user';
+	let { role = $bindable('user') }: { role: 'admin' | 'user' } = $props();
 
 	const roles = [
 		{

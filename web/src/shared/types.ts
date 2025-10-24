@@ -392,27 +392,21 @@ export interface Database {
 				Row: {
 					id: string;
 					server_name: string;
-					admin_email: string | null;
-					allow_registration: boolean;
-					require_email_verification: boolean;
+					is_setup_complete: boolean;
 					created_at: string;
 					updated_at: string;
 				};
 				Insert: {
 					id?: string;
 					server_name?: string;
-					admin_email?: string | null;
-					allow_registration?: boolean;
-					require_email_verification?: boolean;
+					is_setup_complete?: boolean;
 					created_at?: string;
 					updated_at?: string;
 				};
 				Update: {
 					id?: string;
 					server_name?: string;
-					admin_email?: string | null;
-					allow_registration?: boolean;
-					require_email_verification?: boolean;
+					is_setup_complete?: boolean;
 					created_at?: string;
 					updated_at?: string;
 				};

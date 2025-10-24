@@ -52,24 +52,15 @@ Deno.serve(async (req) => {
 			const body = await parseJsonBody<Record<string, unknown>>(req);
 
 			// Validate required fields
-			const requiredFields = ['server_name', 'admin_email'];
+			const requiredFields = ['server_name'];
 			const missingFields = validateRequiredFields(body, requiredFields);
 
 			if (missingFields.length > 0) {
 				return errorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400);
 			}
 
-			// Extract boolean fields with defaults
-			const allowRegistration = body.allow_registration === true;
-			const requireEmailVerification = body.require_email_verification === true;
-
 			logInfo('Received settings update', 'ADMIN_SERVER_SETTINGS', {
-				server_name: body.server_name,
-				admin_email: body.admin_email,
-				allow_registration: body.allow_registration,
-				require_email_verification: body.require_email_verification,
-				processed_allow_registration: allowRegistration,
-				processed_require_email_verification: requireEmailVerification
+				server_name: body.server_name
 			});
 
 			// Check if settings already exist
@@ -90,9 +81,6 @@ Deno.serve(async (req) => {
 					.from('server_settings')
 					.update({
 						server_name: body.server_name,
-						admin_email: body.admin_email,
-						allow_registration: allowRegistration,
-						require_email_verification: requireEmailVerification,
 						updated_at: new Date().toISOString()
 					})
 					.eq('id', existingSettings.id)
@@ -110,10 +98,7 @@ Deno.serve(async (req) => {
 				const { data: newSettings, error: insertError } = await supabase
 					.from('server_settings')
 					.insert({
-						server_name: body.server_name,
-						admin_email: body.admin_email,
-						allow_registration: allowRegistration,
-						require_email_verification: requireEmailVerification
+						server_name: body.server_name
 					})
 					.select()
 					.single();

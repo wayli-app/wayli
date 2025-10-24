@@ -399,10 +399,7 @@ describe('API Validation Schemas', () => {
 	describe('serverSettingsSchema', () => {
 		it('should validate correct server settings', () => {
 			const validSettings = {
-				server_name: 'Wayli Server',
-				admin_email: 'admin@wayli.com',
-				allow_registration: true,
-				require_email_verification: false
+				server_name: 'Wayli Server'
 			};
 
 			const result = serverSettingsSchema.safeParse(validSettings);

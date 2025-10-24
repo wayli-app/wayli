@@ -7,20 +7,38 @@ INSERT INTO "storage"."buckets" ("id", "name", "owner", "created_at", "updated_a
 	('trip-images', 'trip-images', NULL, NOW(), NOW(), true, false, 2147483648, '{image/jpeg,image/png,image/gif,image/webp}', NULL, 'STANDARD')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert server settings (note: is_setup_complete is added by a later migration)
-INSERT INTO "public"."server_settings" ("id", "server_name", "admin_email", "allow_registration", "require_email_verification", "created_at", "updated_at") VALUES
-	('f37b0676-27ee-4fa7-b24a-d8744c807ad8', 'Wayli', 'support@wayli.app', true, false, NOW(), NOW())
-ON CONFLICT (id) DO NOTHING;
-
--- Update is_setup_complete to false if it exists (will be set after first migration adds the column)
+-- Insert server settings
+-- Note: Handles both old schema (with allow_registration, etc.) and new simplified schema
 DO $$
 BEGIN
+  -- Check which columns exist to determine schema version
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public'
     AND table_name = 'server_settings'
-    AND column_name = 'is_setup_complete'
+    AND column_name = 'allow_registration'
   ) THEN
-    UPDATE "public"."server_settings" SET "is_setup_complete" = false WHERE "id" = 'f37b0676-27ee-4fa7-b24a-d8744c807ad8';
+    -- Old schema: insert with old fields (before migration 2025102401)
+    INSERT INTO "public"."server_settings" ("id", "server_name", "admin_email", "allow_registration", "require_email_verification", "created_at", "updated_at") VALUES
+      ('f37b0676-27ee-4fa7-b24a-d8744c807ad8', 'Wayli', 'support@wayli.app', true, false, NOW(), NOW())
+    ON CONFLICT (id) DO NOTHING;
+  ELSE
+    -- New schema: insert with simplified fields (after migration 2025102401)
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'server_settings'
+      AND column_name = 'is_setup_complete'
+    ) THEN
+      -- With is_setup_complete column
+      INSERT INTO "public"."server_settings" ("id", "server_name", "is_setup_complete", "created_at", "updated_at") VALUES
+        ('f37b0676-27ee-4fa7-b24a-d8744c807ad8', 'Wayli', false, NOW(), NOW())
+      ON CONFLICT (id) DO NOTHING;
+    ELSE
+      -- Without is_setup_complete column (shouldn't happen, but handle it)
+      INSERT INTO "public"."server_settings" ("id", "server_name", "created_at", "updated_at") VALUES
+        ('f37b0676-27ee-4fa7-b24a-d8744c807ad8', 'Wayli', NOW(), NOW())
+      ON CONFLICT (id) DO NOTHING;
+    END IF;
   END IF;
 END $$;

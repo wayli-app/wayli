@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 			// Get basic server settings that are safe for public access
 			const { data: settings, error: settingsError } = await supabase
 				.from('server_settings')
-				.select('allow_registration, require_email_verification, server_name, is_setup_complete')
+				.select('server_name, is_setup_complete')
 				.single();
 
 			if (settingsError && settingsError.code !== 'PGRST116') {
@@ -52,16 +52,11 @@ Deno.serve(async (req) => {
 
 			// Return default settings if none exist
 			const defaultSettings = {
-				allow_registration: true,
-				require_email_verification: false,
 				server_name: 'Wayli',
 				is_setup_complete: false
 			};
 
 			const publicSettings = {
-				allow_registration: settings?.allow_registration ?? defaultSettings.allow_registration,
-				require_email_verification:
-					settings?.require_email_verification ?? defaultSettings.require_email_verification,
 				server_name: settings?.server_name ?? defaultSettings.server_name,
 				is_setup_complete: settings?.is_setup_complete ?? defaultSettings.is_setup_complete
 			};

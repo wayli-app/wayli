@@ -54,10 +54,11 @@
 				const settings = data.data || data;
 				console.log('🔧 [SIGNUP] Settings extracted:', settings);
 
-				registrationDisabled = !settings.allow_registration;
+				// Registration enabled/disabled is now handled by Supabase Auth config
+				// We only need to check setup status for first user flow
+				registrationDisabled = false;
 				isFirstUser = !settings.is_setup_complete;
 				console.log('🔧 [SIGNUP] Server settings applied:', {
-					allow_registration: settings.allow_registration,
 					is_setup_complete: settings.is_setup_complete,
 					registrationDisabled,
 					isFirstUser
