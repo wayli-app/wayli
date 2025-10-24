@@ -158,77 +158,86 @@ Deno.serve(async (req) => {
 			pointCount: points.length
 		});
 
-		// Process and insert points
-		// Map OwnTracks fields to tracker_data schema
-		const processedPoints = points.map((point: any) => ({
-			user_id: user.id,
-			tracker_type: 'owntracks',
-			device_id: point.tid || 'owntracks', // Use OwnTracks tracker ID if available
-			recorded_at: new Date(point.tst * 1000).toISOString(), // Convert Unix timestamp to ISO string
-			location: `POINT(${point.lon} ${point.lat})`, // PostGIS point format
-			altitude: point.alt || null,
-			accuracy: point.acc || null,
-			speed: point.vel || null,
-			heading: point.cog || null,
-			battery_level: point.batt || null
-			// Note: activity_type, distance, time_spent, geocode, etc. are not provided by OwnTracks
-			// and will be calculated/filled by other processes
-		}));
+		// Process points and perform reverse geocoding synchronously
+		// This ensures data is complete when inserted (takes longer but better data quality)
+		const processedPoints = await Promise.all(
+			points.map(async (point: any) => {
+				let geocodeData = null;
+				let countryCode = null;
 
+				// Always fetch reverse geocode from Nominatim for consistency
+				try {
+					logInfo('Fetching reverse geocode from Nominatim', 'OWNTRACKS_GEOCODE', {
+						userId: user.id,
+						lat: point.lat,
+						lon: point.lon
+					});
+
+					geocodeData = await reverseGeocode(point.lat, point.lon);
+
+					if (geocodeData) {
+						countryCode = geocodeData.properties?.address?.country_code?.toUpperCase() || null;
+						logSuccess('Point geocoded successfully', 'OWNTRACKS_GEOCODE', {
+							userId: user.id,
+							timestamp: point.tst,
+							countryCode
+						});
+					} else {
+						logError(
+							`Geocoding returned null for user ${user.id} at lat=${point.lat}, lon=${point.lon}`,
+							'OWNTRACKS_GEOCODE'
+						);
+					}
+				} catch (error) {
+					// Log the error with full details but continue - we'll insert the point without geocode data
+					const errorMsg = error instanceof Error ? error.message : String(error);
+					const errorStack = error instanceof Error ? error.stack : '';
+					logError(
+						`Geocoding failed for user ${user.id} at lat=${point.lat}, lon=${point.lon}: ${errorMsg}\n${errorStack}`,
+						'OWNTRACKS_GEOCODE'
+					);
+				}
+
+				// Return processed point with geocode data (if available)
+				return {
+					user_id: user.id,
+					tracker_type: 'owntracks',
+					device_id: point.tid || 'owntracks',
+					recorded_at: new Date(point.tst * 1000).toISOString(),
+					location: `POINT(${point.lon} ${point.lat})`,
+					altitude: point.alt || null,
+					accuracy: point.acc || null,
+					speed: point.vel || null,
+					heading: point.cog || null,
+					battery_level: point.batt || null,
+					geocode: geocodeData,
+					country_code: countryCode
+				};
+			})
+		);
+
+		// Insert points with complete geocode data
 		const { data: insertedPoints, error: insertError } = await supabase
 			.from('tracker_data')
 			.insert(processedPoints)
 			.select();
 
 		if (insertError) {
-			logError(insertError, 'OWNTRACKS_POINTS');
+			logError(
+				`Failed to insert ${processedPoints.length} points for user ${user.id}: [${insertError.code}] ${insertError.message} - ${insertError.details}`,
+				'OWNTRACKS_POINTS'
+			);
 			return errorResponse('Failed to insert points', 500);
 		}
 
+		const geocodedCount = processedPoints.filter((p) => p.geocode !== null).length;
+
 		logSuccess('Points inserted successfully', 'OWNTRACKS_POINTS', {
 			userId: user.id,
-			count: insertedPoints?.length || 0
+			totalCount: insertedPoints?.length || 0,
+			geocodedCount,
+			ungeocodedCount: (insertedPoints?.length || 0) - geocodedCount
 		});
-
-		// Perform reverse geocoding for each inserted point in the background
-		// This doesn't block the response but enriches the data immediately
-		if (insertedPoints && insertedPoints.length > 0) {
-			// Don't await this - let it run in background
-			Promise.all(
-				insertedPoints.map(async (insertedPoint: any) => {
-					const point = points.find((p) => p.tst === insertedPoint.recorded_at);
-					if (!point) return;
-
-					try {
-						const geocodeData = await reverseGeocode(point.lat, point.lon);
-						if (geocodeData) {
-							// Extract country code from geocode data
-							const countryCode = geocodeData.properties?.address?.country_code?.toUpperCase();
-
-							// Update the tracker_data record with geocode data
-							await supabase
-								.from('tracker_data')
-								.update({
-									geocode: geocodeData,
-									country_code: countryCode || null
-								})
-								.eq('user_id', user.id)
-								.eq('recorded_at', insertedPoint.recorded_at);
-
-							logInfo('Point geocoded successfully', 'OWNTRACKS_GEOCODE', {
-								userId: user.id,
-								recordedAt: insertedPoint.recorded_at
-							});
-						}
-					} catch (error) {
-						// Log but don't fail - geocoding is best effort
-						logError(error, 'OWNTRACKS_GEOCODE');
-					}
-				})
-			).catch((error) => {
-				logError(error, 'OWNTRACKS_GEOCODE_BATCH');
-			});
-		}
 
 		return successResponse({
 			message: 'Points inserted successfully',
