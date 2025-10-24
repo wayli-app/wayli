@@ -539,7 +539,7 @@ supabase:
     initContainers:
       - name: init-functions
         # NOTE: This is automatically updated by CI/CD to match appVersion
-        image: zehbart/wayli:v0.1.0
+        image: zehbart/wayli:v1.0.0
         imagePullPolicy: Always
         command:
           - /bin/sh
