@@ -175,12 +175,20 @@
 		if (!statisticsService) return false;
 
 		try {
-			const startDate = appState.filtersStartDate
-				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
-				: '';
-			const endDate = appState.filtersEndDate
-				? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
-				: '';
+			// Format dates in local timezone to avoid timezone shifting
+			// Using .toISOString() would shift dates to UTC, causing off-by-one errors
+			const formatLocalDate = (date: Date | string | null): string => {
+				if (!date) return '';
+				const d = getDateObject(date);
+				if (!d) return '';
+				const year = d.getFullYear();
+				const month = String(d.getMonth() + 1).padStart(2, '0');
+				const day = String(d.getDate()).padStart(2, '0');
+				return `${year}-${month}-${day}`;
+			};
+
+			const startDate = formatLocalDate(appState.filtersStartDate);
+			const endDate = formatLocalDate(appState.filtersEndDate);
 
 			const {
 				data: { session },
@@ -227,12 +235,20 @@
 			statisticsError = '';
 			loadingProgress = 0; // Reset progress to 0 for new loading session
 
-			const startDate = appState.filtersStartDate
-				? getDateObject(appState.filtersStartDate)?.toISOString().split('T')[0]
-				: '';
-			const endDate = appState.filtersEndDate
-				? getDateObject(appState.filtersEndDate)?.toISOString().split('T')[0]
-				: '';
+			// Format dates in local timezone to avoid timezone shifting
+			// Using .toISOString() would shift dates to UTC, causing off-by-one errors
+			const formatLocalDate = (date: Date | string | null): string => {
+				if (!date) return '';
+				const d = getDateObject(date);
+				if (!d) return '';
+				const year = d.getFullYear();
+				const month = String(d.getMonth() + 1).padStart(2, '0');
+				const day = String(d.getDate()).padStart(2, '0');
+				return `${year}-${month}-${day}`;
+			};
+
+			const startDate = formatLocalDate(appState.filtersStartDate);
+			const endDate = formatLocalDate(appState.filtersEndDate);
 
 			if (!startDate && !endDate) {
 				console.log('📅 No date range set, skipping data fetch');
