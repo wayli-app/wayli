@@ -533,6 +533,9 @@ supabase:
     enabled: true
     config:
       mainService: /home/supabase/functions/main
+    extraEnvVars:
+      - name: VERIFY_JWT
+        value: "true"
     initContainers:
       - name: init-functions
         # NOTE: This is automatically updated by CI/CD to match appVersion
