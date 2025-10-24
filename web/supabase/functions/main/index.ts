@@ -36,8 +36,13 @@ serve(async (req: Request) => {
 	const path_parts = pathname.split('/');
 	const service_name = path_parts[1];
 
-	// Skip JWT verification for jobs-stream as it has its own authentication
-	if (req.method !== 'OPTIONS' && VERIFY_JWT && service_name !== 'jobs-stream') {
+	// JWT verification is enabled by default for all functions (opt-out model)
+	// Functions that use alternative authentication (API keys, etc.) can opt-out
+	const noJwtFunctions: string[] = [
+		'owntracks-points' // Uses API key authentication
+	];
+
+	if (req.method !== 'OPTIONS' && VERIFY_JWT && !noJwtFunctions.includes(service_name)) {
 		try {
 			const token = getAuthToken(req);
 			const isValidJWT = await verifyJWT(token);
