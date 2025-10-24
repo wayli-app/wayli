@@ -5,6 +5,7 @@ import { toast } from 'svelte-sonner';
 import { sessionStore } from '$lib/stores/auth';
 import { addJobToStore } from '$lib/stores/job-store';
 import type { JobUpdate } from '$lib/services/job-realtime.service';
+import { formatLocalDate } from '$lib/utils/utils';
 
 import { ServiceAdapter } from './api/service-adapter';
 
@@ -143,11 +144,13 @@ export class JobCreationService {
 		if (options.startDate) {
 			const startDate =
 				options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
-			data.startDate = startDate.toISOString().split('T')[0];
+			// Use formatLocalDate to avoid timezone shifting issues
+			data.startDate = formatLocalDate(startDate);
 		}
 		if (options.endDate) {
 			const endDate = options.endDate instanceof Date ? options.endDate : new Date(options.endDate);
-			data.endDate = endDate.toISOString().split('T')[0];
+			// Use formatLocalDate to avoid timezone shifting issues
+			data.endDate = formatLocalDate(endDate);
 		}
 
 		return this.createJob({

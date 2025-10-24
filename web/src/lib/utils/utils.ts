@@ -5,6 +5,32 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
+/**
+ * Format a date to YYYY-MM-DD in local timezone
+ *
+ * This function formats dates in the user's local timezone, avoiding the common
+ * pitfall of using .toISOString().split('T')[0] which converts to UTC and can
+ * cause off-by-one date errors in non-UTC timezones.
+ *
+ * @param date - Date object, date string, or null
+ * @returns Date string in YYYY-MM-DD format, or empty string if invalid
+ *
+ * @example
+ * // In UTC+2 timezone on Oct 24, 2025:
+ * const date = new Date('Oct 24, 2025');
+ * date.toISOString().split('T')[0]  // Returns '2025-10-23' (WRONG!)
+ * formatLocalDate(date)              // Returns '2025-10-24' (CORRECT!)
+ */
+export function formatLocalDate(date: Date | string | null | undefined): string {
+	if (!date) return '';
+	const d = date instanceof Date ? date : new Date(date);
+	if (isNaN(d.getTime())) return '';
+	const year = d.getFullYear();
+	const month = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
 // Haversine distance in meters between two lat/lng points
 export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
 	const R = 6371000; // meters

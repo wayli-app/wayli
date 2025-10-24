@@ -31,6 +31,7 @@
 		type TransportDetectionReason
 	} from '$lib/types/transport-detection-reasons';
 	import { formatDateInTimezone, getTimezoneFromOffset } from '$lib/utils/timezone-utils';
+	import { formatLocalDate } from '$lib/utils/utils';
 
 	import type { Map as LeafletMap } from 'leaflet';
 	import { browser } from '$app/environment';
@@ -176,17 +177,6 @@
 
 		try {
 			// Format dates in local timezone to avoid timezone shifting
-			// Using .toISOString() would shift dates to UTC, causing off-by-one errors
-			const formatLocalDate = (date: Date | string | null): string => {
-				if (!date) return '';
-				const d = getDateObject(date);
-				if (!d) return '';
-				const year = d.getFullYear();
-				const month = String(d.getMonth() + 1).padStart(2, '0');
-				const day = String(d.getDate()).padStart(2, '0');
-				return `${year}-${month}-${day}`;
-			};
-
 			const startDate = formatLocalDate(appState.filtersStartDate);
 			const endDate = formatLocalDate(appState.filtersEndDate);
 
@@ -236,17 +226,6 @@
 			loadingProgress = 0; // Reset progress to 0 for new loading session
 
 			// Format dates in local timezone to avoid timezone shifting
-			// Using .toISOString() would shift dates to UTC, causing off-by-one errors
-			const formatLocalDate = (date: Date | string | null): string => {
-				if (!date) return '';
-				const d = getDateObject(date);
-				if (!d) return '';
-				const year = d.getFullYear();
-				const month = String(d.getMonth() + 1).padStart(2, '0');
-				const day = String(d.getDate()).padStart(2, '0');
-				return `${year}-${month}-${day}`;
-			};
-
 			const startDate = formatLocalDate(appState.filtersStartDate);
 			const endDate = formatLocalDate(appState.filtersEndDate);
 
