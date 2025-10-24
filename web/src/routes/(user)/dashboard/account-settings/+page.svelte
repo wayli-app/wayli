@@ -1249,9 +1249,12 @@
 						class="mb-4 flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-900/20"
 					>
 						<Info class="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600 dark:text-green-400" />
-						<p class="text-xs text-green-700 dark:text-green-300">
-							✅ {t('accountSettings.serverPexelsKeyConfigured')}
-						</p>
+						<div class="text-xs text-green-700 dark:text-green-300">
+							<p class="font-medium">✅ {t('accountSettings.serverPexelsKeyConfigured')}</p>
+							<p class="mt-1">
+								{t('accountSettings.serverPexelsKeyDetails')}
+							</p>
+						</div>
 					</div>
 				{/if}
 
