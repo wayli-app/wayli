@@ -143,11 +143,6 @@ spec:
                 secretKeyRef:
                   name: {{ include "wayli.supabaseSecretName" . }}
                   key: {{ .Values.supabase.global.supabase.secretKeys.jwtSecret }}
-            - name: PEXELS_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "wayli.pexelsSecretName" . }}
-                  key: {{ .Values.global.pexels.secretKeys.apiKey }}
             {{- if .Values.web.extraEnvVars }}
             {{- toYaml .Values.web.extraEnvVars | nindent 12 }}
             {{- end }}

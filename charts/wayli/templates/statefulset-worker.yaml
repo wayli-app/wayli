@@ -105,11 +105,6 @@ spec:
               value: {{ include "wayli.supabase.url" . | quote }}
             - name: NOMINATIM_ENDPOINT
               value: {{ .Values.worker.env.nominatim.endpoint | quote }}
-            - name: PEXELS_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "wayli.pexelsSecretName" . }}
-                  key: {{ .Values.global.pexels.secretKeys.apiKey }}
             {{- if .Values.worker.extraEnvVars }}
             {{- toYaml .Values.worker.extraEnvVars | nindent 12 }}
             {{- end }}

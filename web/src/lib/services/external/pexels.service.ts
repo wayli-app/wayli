@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { getPexelsConfig } from '../../../shared/config/node-environment';
 import { config } from '../../config';
 import { cleanCountryNameForSearch } from '../../utils/country-name-cleaner';
 
@@ -61,19 +60,13 @@ export async function searchPexelsImages(
 	userApiKey?: string
 ): Promise<PexelsSearchResponse | null> {
 	try {
-		// Prioritize user's personal API key over server key
-		const serverApiKey = getPexelsConfig().apiKey;
-		const apiKey = userApiKey || serverApiKey;
-		if (!apiKey) {
-			console.warn('⚠️ Pexels API key not configured (neither server nor user key available)');
+		// The API key should be provided by the caller
+		if (!userApiKey) {
+			console.warn('⚠️ Pexels API key not provided');
 			return null;
 		}
 
-		if (userApiKey) {
-			console.log('🔑 Using user personal Pexels API key');
-		} else if (serverApiKey) {
-			console.log('🔑 Using server-level Pexels API key');
-		}
+		console.log('🔑 Using provided Pexels API key');
 
 		const url = new URL('https://api.pexels.com/v1/search');
 		url.searchParams.set('query', query);
@@ -83,7 +76,7 @@ export async function searchPexelsImages(
 
 		const response = await fetch(url.toString(), {
 			headers: {
-				Authorization: apiKey,
+				Authorization: userApiKey,
 				Accept: 'application/json'
 			}
 		});

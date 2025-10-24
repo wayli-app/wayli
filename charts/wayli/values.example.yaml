@@ -1,6 +1,6 @@
 global:
-  pexels:
-    existingSecret: &supabaseSecret supabase-secret
+  ## Shared secret name anchor for Supabase
+  supabaseSecretName: &supabaseSecret supabase-secret
 
 ## Web deployment
 web:

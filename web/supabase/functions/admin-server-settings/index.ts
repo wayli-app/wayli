@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
 			}
 
 			logInfo('Received settings update', 'ADMIN_SERVER_SETTINGS', {
-				server_name: body.server_name
+				server_name: body.server_name,
+				has_pexels_key: !!body.server_pexels_api_key
 			});
 
 			// Check if settings already exist
@@ -74,15 +75,23 @@ Deno.serve(async (req) => {
 				return errorResponse('Failed to check existing settings', 500);
 			}
 
+			// Prepare update data - only include server_pexels_api_key if provided
+			const updateData: Record<string, unknown> = {
+				server_name: body.server_name,
+				updated_at: new Date().toISOString()
+			};
+
+			// Only update the Pexels key if it's explicitly provided (even if empty string to clear it)
+			if (body.server_pexels_api_key !== undefined) {
+				updateData.server_pexels_api_key = body.server_pexels_api_key || null;
+			}
+
 			let result;
 			if (existingSettings) {
 				// Update existing settings
 				const { data: updatedSettings, error: updateError } = await supabase
 					.from('server_settings')
-					.update({
-						server_name: body.server_name,
-						updated_at: new Date().toISOString()
-					})
+					.update(updateData)
 					.eq('id', existingSettings.id)
 					.select()
 					.single();
@@ -95,11 +104,16 @@ Deno.serve(async (req) => {
 				result = updatedSettings;
 			} else {
 				// Create new settings
+				const insertData: Record<string, unknown> = {
+					server_name: body.server_name
+				};
+				if (body.server_pexels_api_key !== undefined) {
+					insertData.server_pexels_api_key = body.server_pexels_api_key || null;
+				}
+
 				const { data: newSettings, error: insertError } = await supabase
 					.from('server_settings')
-					.insert({
-						server_name: body.server_name
-					})
+					.insert(insertData)
 					.select()
 					.single();
 

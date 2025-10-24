@@ -1,3 +1,7 @@
 {
-	"imports": {}
+	"imports": {},
+	"deploy": {
+		"entrypoint": "index.ts",
+		"verifyJWT": false
+	}
 }

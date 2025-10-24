@@ -10,42 +10,37 @@ import {
 	logSuccess
 } from '../_shared/utils.ts';
 
-// Pexels API configuration
-const PEXELS_API_KEY = Deno.env.get('PEXELS_API_KEY');
-
 // Helper function to get the best available Pexels API key
-// Priority: User's personal key > Server key
+// Priority: User's personal key > Server key from database
 async function getPexelsApiKey(supabase: any, userId: string): Promise<string | null> {
 	try {
 		// First try user's personal API key
-		const { data: preferences, error } = await supabase
+		const { data: preferences, error: preferencesError } = await supabase
 			.from('user_preferences')
 			.select('pexels_api_key')
 			.eq('id', userId)
 			.single();
 
-		if (!error && preferences?.pexels_api_key) {
+		if (!preferencesError && preferences?.pexels_api_key) {
 			logInfo('Using user personal Pexels API key', 'TRIPS-SUGGEST-IMAGE');
 			return preferences.pexels_api_key;
 		}
 
-		// Fallback to server environment variable
-		if (PEXELS_API_KEY) {
-			logInfo('Using server-level PEXELS_API_KEY', 'TRIPS-SUGGEST-IMAGE');
-			return PEXELS_API_KEY;
+		// Fallback to server-level key from server_settings table
+		const { data: serverSettings, error: settingsError } = await supabase
+			.from('server_settings')
+			.select('server_pexels_api_key')
+			.single();
+
+		if (!settingsError && serverSettings?.server_pexels_api_key) {
+			logInfo('Using server-level Pexels API key from database', 'TRIPS-SUGGEST-IMAGE');
+			return serverSettings.server_pexels_api_key;
 		}
 
 		logError('No Pexels API key available', 'TRIPS-SUGGEST-IMAGE');
 		return null;
 	} catch (error) {
-		logError(`Error getting user preferences: ${error}`, 'TRIPS-SUGGEST-IMAGE');
-
-		// Still try server key as fallback on error
-		if (PEXELS_API_KEY) {
-			logInfo('Using server-level PEXELS_API_KEY (fallback)', 'TRIPS-SUGGEST-IMAGE');
-			return PEXELS_API_KEY;
-		}
-
+		logError(`Error getting Pexels API key: ${error}`, 'TRIPS-SUGGEST-IMAGE');
 		return null;
 	}
 }

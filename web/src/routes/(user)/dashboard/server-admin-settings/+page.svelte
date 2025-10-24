@@ -22,6 +22,7 @@
 	import { translate } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionStore } from '$lib/stores/auth';
+	import { supabase } from '$lib/supabase';
 
 	import type { UserProfile } from '$lib/types/user.types';
 
@@ -41,6 +42,7 @@
 
 	// Initialize server settings
 	let serverName = $state('');
+	let serverPexelsApiKey = $state('');
 	let showAddUserModal = $state(false);
 	let isModalOpen = $state(false);
 	let selectedUser = $state<UserProfile | null>(null);
@@ -199,11 +201,16 @@
 			const session = $sessionStore;
 			if (!session) throw new Error('No session found');
 
-			const settings = {
+			const settings: any = {
 				server_name: serverName
 			};
 
-			console.log('🔧 [ADMIN] Saving server settings:', settings);
+			// Only include the Pexels API key if it's been provided
+			if (serverPexelsApiKey) {
+				settings.server_pexels_api_key = serverPexelsApiKey;
+			}
+
+			console.log('🔧 [ADMIN] Saving server settings:', { ...settings, server_pexels_api_key: settings.server_pexels_api_key ? '[REDACTED]' : undefined });
 
 			const serviceAdapter = new ServiceAdapter({ session });
 			await serviceAdapter.updateServerSettings(settings);
@@ -345,9 +352,11 @@
 			console.log('🔧 [ADMIN] Loaded server settings:', settings);
 
 			serverName = settings.server_name || '';
+			serverPexelsApiKey = settings.server_pexels_api_key || '';
 
 			console.log('🔧 [ADMIN] Processed settings:', {
-				serverName
+				serverName,
+				hasPexelsKey: !!settings.server_pexels_api_key
 			});
 		} catch (error: any) {
 			console.error('Error loading server settings:', error);
@@ -971,6 +980,28 @@
 							</div>
 						</div>
 
+						<!-- Server-level Pexels API Key -->
+						<div>
+							<label
+								for="serverPexelsApiKey"
+								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								>Server Pexels API Key</label
+							>
+							<div class="mt-1">
+								<input
+									type="text"
+									id="serverPexelsApiKey"
+									bind:value={serverPexelsApiKey}
+									class="w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(37,140,244)] focus:ring-1 focus:ring-[rgb(37,140,244)] focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
+									placeholder="Enter Pexels API key (optional)"
+								/>
+							</div>
+							<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+								Provide a server-level Pexels API key for trip image suggestions. Users without their own API key will fall back to this server key. Free tier: 200 requests/hour. <a href="https://www.pexels.com/api/" target="_blank" rel="noopener noreferrer" class="text-[rgb(37,140,244)] hover:underline">Get an API key</a>
+							</p>
+						</div>
+					</div>
+
 					<!-- Supabase Auth Configuration (Read-only) -->
 					<div>
 						<h3 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -1051,19 +1082,18 @@
 							💡 {t('serverAdmin.restartAfterChange')}
 						</p>
 					</div>
-				</div>
 
 				<!-- Save Button -->
-					<div class="mt-6 flex justify-end">
-						<button
-							onclick={saveSettings}
-							class="rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
-						>
-							{t('serverAdmin.saveSettings')}
-						</button>
-					</div>
+				<div class="mt-6 flex justify-end">
+					<button
+						onclick={saveSettings}
+						class="rounded-md bg-[rgb(37,140,244)] px-4 py-2 text-sm font-medium text-white hover:bg-[rgb(37,140,244)]/90"
+					>
+						{t('serverAdmin.saveSettings')}
+					</button>
 				</div>
 			</div>
+		</div>
 		{/if}
 	</div>
 {:else}

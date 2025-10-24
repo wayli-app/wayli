@@ -72,8 +72,8 @@ Deno.serve(async (req) => {
 
 	try {
 		// This endpoint uses API key authentication instead of JWT
-		// verify_jwt is disabled in config.toml to allow OwnTracks devices to connect
-		// Validate API key and user_id from query parameters
+		// We check for query parameters first to allow OwnTracks devices to connect
+		// without JWT tokens (which would normally be enforced by Supabase)
 		const url = new URL(req.url);
 		const apiKey = url.searchParams.get('api_key');
 		const userId = url.searchParams.get('user_id');

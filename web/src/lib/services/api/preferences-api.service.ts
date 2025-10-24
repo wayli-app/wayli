@@ -69,11 +69,6 @@ export class PreferencesApiService {
 				);
 			}
 
-			// Check if server has Pexels API key configured
-			const { getPexelsConfig } = await import('../../../shared/config/node-environment');
-			const pexelsConfig = getPexelsConfig();
-			const serverPexelsApiKeyAvailable = !!pexelsConfig.apiKey;
-
 			// If preferences don't exist, create them with defaults
 			if (!preferences) {
 				const { data: newPreferences, error: createError } = await this.supabase
@@ -100,14 +95,12 @@ export class PreferencesApiService {
 				}
 
 				return {
-					preferences: newPreferences,
-					server_pexels_api_key_available: serverPexelsApiKeyAvailable
+					preferences: newPreferences
 				};
 			}
 
 			return {
-				preferences,
-				server_pexels_api_key_available: serverPexelsApiKeyAvailable
+				preferences
 			};
 		} catch (error) {
 			console.error('❌ [PreferencesAPI] Get preferences error:', error);

@@ -29,8 +29,7 @@
 			onclick={() => (role = roleOption.id as 'admin' | 'user')}
 		>
 			<div class="mb-2 flex items-center">
-				<svelte:component
-					this={roleOption.icon}
+				<roleOption.icon
 					class="mr-3 h-5 w-5 {role === roleOption.id
 						? 'text-blue-600 dark:text-blue-400'
 						: 'text-gray-500 dark:text-gray-400'}"

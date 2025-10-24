@@ -393,6 +393,7 @@ export interface Database {
 					id: string;
 					server_name: string;
 					is_setup_complete: boolean;
+					server_pexels_api_key: string | null;
 					created_at: string;
 					updated_at: string;
 				};
@@ -400,6 +401,7 @@ export interface Database {
 					id?: string;
 					server_name?: string;
 					is_setup_complete?: boolean;
+					server_pexels_api_key?: string | null;
 					created_at?: string;
 					updated_at?: string;
 				};
@@ -407,6 +409,7 @@ export interface Database {
 					id?: string;
 					server_name?: string;
 					is_setup_complete?: boolean;
+					server_pexels_api_key?: string | null;
 					created_at?: string;
 					updated_at?: string;
 				};

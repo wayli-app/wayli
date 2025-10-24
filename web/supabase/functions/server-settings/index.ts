@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 			// Get basic server settings that are safe for public access
 			const { data: settings, error: settingsError } = await supabase
 				.from('server_settings')
-				.select('server_name, is_setup_complete')
+				.select('server_name, is_setup_complete, server_pexels_api_key')
 				.single();
 
 			if (settingsError && settingsError.code !== 'PGRST116') {
@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
 
 			const publicSettings = {
 				server_name: settings?.server_name ?? defaultSettings.server_name,
-				is_setup_complete: settings?.is_setup_complete ?? defaultSettings.is_setup_complete
+				is_setup_complete: settings?.is_setup_complete ?? defaultSettings.is_setup_complete,
+				server_pexels_api_key_available: !!(settings?.server_pexels_api_key)
 			};
 
 			logInfo('Public server settings returned', 'SERVER-SETTINGS', publicSettings);

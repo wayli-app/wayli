@@ -115,13 +115,15 @@ export class ImageGenerationProcessorService {
 				return preferences.pexels_api_key;
 			}
 
-			// Fall back to server API key if user hasn't configured their own
-			const { getPexelsConfig } = await import('../shared/config/node-environment');
-			const serverApiKey = getPexelsConfig().apiKey;
+			// Fall back to server-level API key from database
+			const { data: serverSettings, error: settingsError } = await this.supabase
+				.from('server_settings')
+				.select('server_pexels_api_key')
+				.single();
 
-			if (serverApiKey) {
+			if (!settingsError && serverSettings?.server_pexels_api_key) {
 				console.log('🔑 Using server-level Pexels API key');
-				return serverApiKey;
+				return serverSettings.server_pexels_api_key;
 			}
 
 			console.log('⚠️ No Pexels API key available');

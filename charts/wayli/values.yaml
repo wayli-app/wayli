@@ -4,16 +4,6 @@ global:
   labels: {}
   ## Additional annotations to apply to all resources
   annotations: {}
-  ## Pexels API integration
-  pexels:
-    ## Existing secret containing Pexels API key
-    existingSecret: ""
-    ## Secret key configuration for existing secret
-    secretKeys:
-      apiKey: "pexels-api-key"
-    ## Direct value (when existingSecret is empty - for non-production only)
-    values:
-      apiKey: ""
 
 ## Secrets configuration
 ## Note: Secret names are configured in supabase.global.supabase.existingSecret
@@ -21,9 +11,9 @@ global:
 secrets:
   ## SMTP secret keys (for creating secrets from values.yaml in non-production)
   smtp:
-    secretKeys: &smtpSecretKeys
-      username: &smtpUsernameName "username"
-      password: &smtpPasswordName "password"
+    secretKeys:
+      username: "username"
+      password: "password"
     values:
       username: ""
       password: ""
@@ -543,7 +533,6 @@ supabase:
     enabled: true
     config:
       mainService: /home/supabase/functions/main
-    extraEnvVars: []
     initContainers:
       - name: init-functions
         # NOTE: This is automatically updated by CI/CD to match appVersion

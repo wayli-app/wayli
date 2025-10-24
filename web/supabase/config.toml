@@ -325,6 +325,11 @@ deno_version = 1
 [edge_runtime.secrets]
 pexels_api_key = "env(PEXELS_API_KEY)"
 
+# Edge function specific configurations
+# Disable JWT verification for OwnTracks endpoint - uses API key authentication instead
+[functions.owntracks-points]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327

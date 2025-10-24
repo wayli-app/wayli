@@ -385,7 +385,6 @@ services:
       # TODO: Allow configuring VERIFY_JWT per function. This PR might help: https://github.com/supabase/cli/pull/786
       VERIFY_JWT: "${FUNCTIONS_VERIFY_JWT}"
       # Wayli custom environment variables
-      PEXELS_API_KEY: ${PEXELS_API_KEY}
       SUPABASE_CORS_ALLOW_ORIGIN: ${SUPABASE_CORS_ALLOW_ORIGIN:-wayli.app,localhost:3000}
       PUBLIC_SUPABASE_URL: ${PUBLIC_SUPABASE_URL}
       NOMINATIM_ENDPOINT: ${NOMINATIM_ENDPOINT:-https://nominatim.openstreetmap.org}

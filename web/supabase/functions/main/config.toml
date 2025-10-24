@@ -1,0 +1,6 @@
+# Edge function configuration
+# This config is deployed with the functions and controls runtime behavior
+
+# Disable JWT verification for OwnTracks endpoint - uses API key authentication instead
+[functions.owntracks-points]
+verify_jwt = false

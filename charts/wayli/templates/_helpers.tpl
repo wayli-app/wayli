@@ -146,17 +146,6 @@ Return the Supabase secret name
 {{- end }}
 
 {{/*
-Return the Pexels secret name
-*/}}
-{{- define "wayli.pexelsSecretName" -}}
-{{- if .Values.global.pexels.existingSecret }}
-{{- .Values.global.pexels.existingSecret }}
-{{- else }}
-{{- printf "%s-pexels" (include "wayli.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
 Return the SMTP secret name
 */}}
 {{- define "wayli.smtpSecretName" -}}

@@ -137,10 +137,11 @@
 
 			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
 
-			// Load profile and preferences separately
-			const [profileResult, preferencesResult] = await Promise.all([
+			// Load profile, preferences, and server settings separately
+			const [profileResult, preferencesResult, serverSettingsResponse] = await Promise.all([
 				serviceAdapter.getProfile(),
-				serviceAdapter.getPreferences()
+				serviceAdapter.getPreferences(),
+				supabase.functions.invoke('server-settings', { method: 'GET' })
 			]);
 
 			// Handle profile data - Edge Functions return { success: true, data: ... }
@@ -174,9 +175,12 @@
 				preferences = preferencesData as UserPreferences;
 				// timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)'; // Timezone selection hidden
 				pexelsApiKeyInput = preferences.pexels_api_key || '';
+			}
 
-				// Check if server-side Pexels API key is available
-				if (preferencesData?.server_pexels_api_key_available) {
+			// Handle server settings data
+			if (serverSettingsResponse && !serverSettingsResponse.error) {
+				const serverSettingsData = serverSettingsResponse.data?.data || serverSettingsResponse.data;
+				if (serverSettingsData?.server_pexels_api_key_available) {
 					serverPexelsApiKeyAvailable = true;
 				}
 			}

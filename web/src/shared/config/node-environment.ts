@@ -39,10 +39,6 @@ export interface NodeEnvironmentConfig {
 		rateLimit: number;
 	};
 
-	pexels: {
-		apiKey: string;
-	};
-
 	// Application Configuration
 	app: {
 		nodeEnv: string;
@@ -179,9 +175,6 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 	const nominatimEndpoint = mergedEnv.NOMINATIM_ENDPOINT || 'https://nominatim.wayli.app';
 	const nominatimRateLimit = parseInt(mergedEnv.NOMINATIM_RATE_LIMIT || '1000', 10);
 
-	// Pexels API Key
-	const pexelsApiKey = mergedEnv.PEXELS_API_KEY || '';
-
 	// Application Configuration
 	const nodeEnv = mergedEnv.NODE_ENV || 'development';
 	const port = parseInt(mergedEnv.PORT || '3000', 10);
@@ -254,9 +247,6 @@ export function getNodeEnvironmentConfig(): NodeEnvironmentConfig {
 		nominatim: {
 			endpoint: nominatimEndpoint,
 			rateLimit: nominatimRateLimit
-		},
-		pexels: {
-			apiKey: pexelsApiKey
 		},
 		app: {
 			nodeEnv,
@@ -391,17 +381,3 @@ export function isProduction(): boolean {
 	return getNodeEnvironmentConfig().app.nodeEnv === 'production';
 }
 
-/**
- * Gets the Pexels configuration for the Node.js environment
- * @returns The Pexels configuration
- */
-export function getPexelsConfig() {
-	const mergedEnv = { ...result.parsed, ...process.env };
-	const pexelsApiKey = mergedEnv.PEXELS_API_KEY || '';
-
-	return {
-		apiKey: pexelsApiKey || 'NOT SET',
-		apiKeyLength: pexelsApiKey.length,
-		serverPexelsApiKeyAvailable: pexelsApiKey.length > 0
-	};
-}
