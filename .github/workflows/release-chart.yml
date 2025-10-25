@@ -109,17 +109,21 @@ jobs:
       - name: Deploy index.yaml to gh-pages
         if: steps.chart_changes.outputs.changed == 'true'
         run: |
+          # Check if index.yaml was generated
+          if [ ! -f .cr-index/index.yaml ]; then
+            echo "⚠️ No index.yaml found in .cr-index directory"
+            exit 1
+          fi
+
+          # Copy the generated index.yaml to a temporary location
+          cp .cr-index/index.yaml /tmp/index.yaml
+
           # Checkout gh-pages branch
           git fetch origin gh-pages:gh-pages || git checkout --orphan gh-pages
           git checkout gh-pages
 
-          # Copy the generated index.yaml from .cr-index to root
-          if [ -f .cr-index/index.yaml ]; then
-            cp .cr-index/index.yaml index.yaml
-            git add index.yaml
-            git commit -m "Update Helm repository index [skip ci]" || echo "No changes to commit"
-            git push origin gh-pages
-          else
-            echo "⚠️ No index.yaml found in .cr-index directory"
-            exit 1
-          fi
+          # Copy the index.yaml from temp to root
+          cp /tmp/index.yaml index.yaml
+          git add index.yaml
+          git commit -m "Update Helm repository index [skip ci]" || echo "No changes to commit"
+          git push origin gh-pages
