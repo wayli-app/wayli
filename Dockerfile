@@ -38,8 +38,8 @@ RUN echo "=== Build Complete ===" && \
 #############################################
 FROM node:20-alpine AS production
 
-# Install nginx and wget for static file serving and health checks
-RUN apk add --no-cache nginx wget && \
+# Install nginx, wget, and bash for static file serving, health checks, and entrypoint script
+RUN apk add --no-cache nginx wget bash && \
     mkdir -p /run/nginx
 
 WORKDIR /app
