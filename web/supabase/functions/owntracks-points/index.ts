@@ -217,9 +217,11 @@ Deno.serve(async (req) => {
 		);
 
 		// Insert points with complete geocode data
+		// Use upsert with ignoreDuplicates to handle cases where OwnTracks retries the same point
+		// This prevents 500 errors when duplicate timestamps are received
 		const { data: insertedPoints, error: insertError } = await supabase
 			.from('tracker_data')
-			.insert(processedPoints)
+			.upsert(processedPoints, { onConflict: 'user_id,recorded_at', ignoreDuplicates: true })
 			.select();
 
 		if (insertError) {
