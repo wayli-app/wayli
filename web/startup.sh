@@ -47,5 +47,6 @@ done
 echo "✅ Configuration complete"
 
 # Start nginx in foreground with custom config from /tmp
+# Use -e flag to set error log to stderr immediately (before reading config)
 echo "🌐 Starting nginx..."
-exec nginx -c /tmp/nginx/nginx.conf -g "daemon off;"
+exec nginx -c /tmp/nginx/nginx.conf -e /dev/stderr -g "daemon off;"
