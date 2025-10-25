@@ -17,6 +17,24 @@
 
 Alright, so... Wayli is basically a privacy-first location analysis app. The whole thing is kind of a love letter to people who want to track their travels without selling their soul to big tech.
 
+## Screenshots
+
+<div align="center">
+
+### Track Your Trips
+![Trips Overview](docs/images/screenshot-trips.jpg)
+*Automatically detected trips with cover photos and transport mode detection*
+
+### Analyze Your Movement Patterns
+![Statistics Dashboard](docs/images/screenshot-statistics.jpg)
+*Detailed statistics including distance traveled, transport modes, and interactive maps*
+
+### Plan Future Adventures
+![Want to Visit](docs/images/screenshot-want-to-visit.jpg)
+*Keep track of places you want to visit with map visualization*
+
+</div>
+
 ## What it does
 
 - Tracks your GPS movements and automatically figures out your trips
