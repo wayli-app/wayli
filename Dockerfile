@@ -1,18 +1,22 @@
-# Single-stage Dockerfile for Wayli - supports both web and worker modes
-# Uses Nginx for static file serving (more performant) + Node.js for worker processes
+# Multi-stage Dockerfile for Wayli - optimized for minimal size
+# Stage 1: Build stage - includes all build dependencies
+# Stage 2: Production stage - only runtime dependencies and built artifacts
 
-FROM node:20-slim
+#############################################
+# Stage 1: Builder
+#############################################
+FROM node:20-alpine AS builder
 
-# Install nginx and wget for static file serving and health checks
-RUN apt-get update && apt-get install -y nginx wget && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Copy package files first (for better caching)
 COPY web/package*.json ./
-RUN npm install --legacy-peer-deps
+
+# Install ALL dependencies (including devDependencies for build)
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY web/ ./
@@ -29,37 +33,50 @@ RUN echo "=== Build Complete ===" && \
     echo "Static files:" && \
     ls -la static/
 
+#############################################
+# Stage 2: Production Runtime
+#############################################
+FROM node:20-alpine AS production
+
+# Install nginx and wget for static file serving and health checks
+RUN apk add --no-cache nginx wget && \
+    mkdir -p /run/nginx
+
+WORKDIR /app
+
+# Copy package files
+COPY web/package*.json ./
+
+# Install ONLY production dependencies (no devDependencies)
+RUN npm ci --omit=dev --legacy-peer-deps && \
+    npm cache clean --force
+
+# Copy built application from builder stage
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/static ./static
+
 # Copy nginx config and serve static files
 COPY web/nginx.conf /etc/nginx/nginx.conf
-RUN rm -rf /usr/share/nginx/html/* && \
+RUN mkdir -p /usr/share/nginx/html && \
+    rm -rf /usr/share/nginx/html/* && \
     cp -r build/* /usr/share/nginx/html/ && \
     cp -r static /usr/share/nginx/html/
 
-# Copy startup script
+# Copy startup scripts
 COPY web/startup.sh /usr/local/bin/startup.sh
-
-# Make startup script executable
-RUN chmod +x /usr/local/bin/startup.sh
-
-# Copy worker entrypoint
 COPY web/docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Make entrypoint script executable
-RUN chmod +x ./docker-entrypoint.sh
+# Make scripts executable
+RUN chmod +x /usr/local/bin/startup.sh ./docker-entrypoint.sh
 
-# Create non-root user for Kubernetes compatibility
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Create non-root user for security
+RUN addgroup -S appuser && \
+    adduser -S -G appuser appuser
 
 # Create nginx directories with proper ownership
 RUN mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx && \
-    chown -R appuser:appuser /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx && \
-    chmod -R 755 /var/log/nginx /var/cache/nginx /var/lib/nginx && \
-    chmod 755 /run /tmp/nginx
-
-# Set proper permissions for app files and nginx
-RUN chown -R appuser:appuser /app /usr/share/nginx/html && \
-    chmod -R 755 /app && \
-    chmod -R 755 /usr/share/nginx/html
+    chown -R appuser:appuser /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx /app /usr/share/nginx/html && \
+    chmod -R 755 /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx /app /usr/share/nginx/html
 
 # Switch to non-root user
 USER appuser

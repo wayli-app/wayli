@@ -80,10 +80,10 @@ prompt_with_default() {
     echo "$value"
 }
 
-# Generate random password
+# Generate a secure random password (URL-safe, alphanumeric only)
 generate_password() {
     local length=${1:-32}
-    openssl rand -base64 48 | tr -d "=+/" | cut -c1-${length}
+    openssl rand -base64 $((length * 2)) | tr -d '\n' | tr -dc 'a-zA-Z0-9' | head -c $length
 }
 
 # Generate base64 encoded random bytes

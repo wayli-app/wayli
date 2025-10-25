@@ -1,11 +1,13 @@
 # Dependencies
 web/node_modules
-web/package-lock.json
 web/supabase/config.toml
+node_modules
 
 # Build outputs
 web/.svelte-kit
 web/build
+dist
+.svelte-kit
 
 # Development files
 web/.vscode
@@ -39,3 +41,23 @@ coverage
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Git and documentation
+.git
+.gitignore
+*.md
+README.md
+CHANGELOG.md
+
+# Testing
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
+tests
+test
+
+# Deployment
+deploy
+docker-compose.yml
+Dockerfile.old

@@ -76,9 +76,28 @@ Deno.serve(async (req) => {
 				});
 			}
 
+			// Fetch user profiles to get accurate role information
+			const { data: userProfiles, error: profilesError } = await supabase
+				.from('user_profiles')
+				.select('id, role');
+
+			if (profilesError) {
+				logError(profilesError, 'ADMIN-USERS');
+			}
+
+			// Create a map of user IDs to roles for quick lookup
+			const roleMap = new Map<string, string>();
+			if (userProfiles) {
+				userProfiles.forEach((profile: any) => {
+					roleMap.set(profile.id, profile.role);
+				});
+			}
+
 			// Map auth users to the UserProfile format
 			const combinedUsers = authUsers.map((authUser: any) => {
 				const metadata = authUser.user_metadata || {};
+				// Get role from user_profiles table (source of truth), fallback to metadata, then default to 'user'
+				const role = roleMap.get(authUser.id) || (metadata.role as 'user' | 'admin') || 'user';
 				return {
 					id: authUser.id,
 					email: authUser.email,
@@ -88,7 +107,7 @@ Deno.serve(async (req) => {
 						metadata.full_name ||
 						`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
 						'',
-					role: (metadata.role as 'user' | 'admin') || 'user',
+					role: role as 'user' | 'admin',
 					avatar_url: metadata.avatar_url,
 					home_address: metadata.home_address,
 					email_confirmed_at: authUser.email_confirmed_at,
