@@ -55,8 +55,9 @@ RUN npm ci --omit=dev --legacy-peer-deps && \
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/static ./static
 
-# Copy Supabase functions (needed for Kubernetes deployments)
+# Copy Supabase functions and migrations (needed for Kubernetes deployments)
 COPY web/supabase/functions ./supabase/functions
+COPY web/supabase/migrations ./supabase/migrations
 
 # Copy nginx config and serve static files
 COPY web/nginx.conf /etc/nginx/nginx.conf
