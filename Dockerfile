@@ -81,9 +81,10 @@ RUN addgroup -S appuser && \
     adduser -S -G appuser appuser
 
 # Create nginx directories with proper ownership
-RUN mkdir -p /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx && \
-    chown -R appuser:appuser /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx /app /usr/share/nginx/html && \
-    chmod -R 755 /var/log/nginx /var/cache/nginx /var/lib/nginx /run /tmp/nginx /app /usr/share/nginx/html
+# Note: Logs go to stdout/stderr, so no log directories needed
+RUN mkdir -p /var/cache/nginx /run /tmp/nginx && \
+    chown -R appuser:appuser /var/cache/nginx /run /tmp/nginx /app /usr/share/nginx/html && \
+    chmod -R 755 /var/cache/nginx /run /tmp/nginx /app /usr/share/nginx/html
 
 # Switch to non-root user
 USER appuser

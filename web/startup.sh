@@ -3,7 +3,12 @@
 echo "🔧 Configuring nginx for runtime..."
 
 # Create writable directories for Kubernetes (read-only filesystem)
-mkdir -p /tmp/nginx/html
+mkdir -p /tmp/nginx/html \
+         /tmp/nginx/client_body \
+         /tmp/nginx/proxy \
+         /tmp/nginx/fastcgi \
+         /tmp/nginx/uwsgi \
+         /tmp/nginx/scgi
 
 # Extract domain from SUPABASE_URL for CSP header
 # Example: https://xyz.supabase.co -> https://*.supabase.co
