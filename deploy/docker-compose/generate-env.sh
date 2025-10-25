@@ -281,7 +281,6 @@ main() {
     # Optional Services
     echo ""
     echo -e "${BLUE}Optional Services:${NC}"
-    PEXELS_API_KEY=$(prompt_with_default "Pexels API Key (for cover images, optional)" "$(get_existing_value PEXELS_API_KEY)")
     NOMINATIM_ENDPOINT=$(prompt_with_default "Nominatim endpoint (for geocoding)" "$(get_existing_value NOMINATIM_ENDPOINT || echo 'https://nominatim.openstreetmap.org')")
 
     # Email Configuration
@@ -351,7 +350,6 @@ main() {
     update_env_value "SITE_URL" "$SITE_URL"
     update_env_value "SUPABASE_PUBLIC_URL" "$SUPABASE_PUBLIC_URL"
     update_env_value "SUPABASE_CORS_ALLOW_ORIGIN" "$SUPABASE_CORS_ALLOW_ORIGIN"
-    update_env_value "PEXELS_API_KEY" "$PEXELS_API_KEY"
     update_env_value "NOMINATIM_ENDPOINT" "$NOMINATIM_ENDPOINT"
     update_env_value "SMTP_HOST" "$SMTP_HOST"
     update_env_value "SMTP_PORT" "$SMTP_PORT"
