@@ -1,6 +1,6 @@
 dependencies:
 - name: supabase
   repository: https://wayli-app.github.io/supabase-helm
-  version: 0.0.17
-digest: sha256:c72bbc0c5965c96588135e1db04aa5594beb8d03801cb08422853396d9fce2d4
-generated: "2025-10-25T11:23:43.040092+02:00"
+  version: 0.0.18
+digest: sha256:60a45c831392f3425ddc6f85ae95bdb44e1d5209415e9ef589f47a9dd94cefa8
+generated: "2025-10-25T11:32:20.156115+02:00"
