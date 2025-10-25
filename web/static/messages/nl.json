@@ -931,5 +931,11 @@
 			"flag": "Land",
 			"all": "Alle"
 		}
+	},
+	"realtime": {
+		"connected": "Live updates actief",
+		"connecting": "Verbinden...",
+		"disconnected": "Niet verbonden",
+		"error": "Verbindingsfout"
 	}
 }

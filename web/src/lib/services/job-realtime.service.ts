@@ -19,6 +19,7 @@ export interface JobRealtimeOptions {
 	onError?: (error: string) => void;
 	onJobUpdate?: (job: JobUpdate) => void;
 	onJobCompleted?: (job: JobUpdate) => void;
+	onConnectionStatusChange?: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void;
 }
 
 export class JobRealtimeService {
@@ -53,6 +54,7 @@ export class JobRealtimeService {
 
 		this.isConnecting = true;
 		this.connectionStartTime = Date.now();
+		this.options.onConnectionStatusChange?.('connecting');
 
 		try {
 			// Get current user
@@ -63,6 +65,7 @@ export class JobRealtimeService {
 			if (!session?.user) {
 				console.error('🔗 JobRealtime: No authenticated user');
 				this.isConnecting = false;
+				this.options.onConnectionStatusChange?.('error');
 				return;
 			}
 
@@ -116,12 +119,14 @@ export class JobRealtimeService {
 						this.reconnectAttempts = 0; // Reset on successful connection
 						this.isConnecting = false;
 						this.connectionStartTime = null;
+						this.options.onConnectionStatusChange?.('connected');
 						this.options.onConnected?.();
 					} else if (status === 'CHANNEL_ERROR') {
 						console.error('❌ JobRealtime: Channel error:', err);
 						console.error(`   Connection attempt failed after ${connectionTime}ms`);
 						this.isConnecting = false;
 						this.connectionStartTime = null;
+						this.options.onConnectionStatusChange?.('error');
 
 						// Check if it's a quota-related error
 						const errorMsg = err?.message || String(err);
@@ -138,18 +143,21 @@ export class JobRealtimeService {
 						);
 						this.isConnecting = false;
 						this.connectionStartTime = null;
+						this.options.onConnectionStatusChange?.('error');
 						this.handleError('Connection timed out');
 						this.attemptReconnect();
 					} else if (status === 'CLOSED') {
 						console.log(`🔌 JobRealtime: Channel closed (was open for ${connectionTime}ms)`);
 						this.isConnecting = false;
 						this.connectionStartTime = null;
+						this.options.onConnectionStatusChange?.('disconnected');
 						this.options.onDisconnected?.();
 					}
 				});
 		} catch (error) {
 			console.error('❌ JobRealtime: Error connecting:', error);
 			this.isConnecting = false;
+			this.options.onConnectionStatusChange?.('error');
 			this.handleError(error instanceof Error ? error.message : 'Unknown error');
 			this.attemptReconnect();
 		}

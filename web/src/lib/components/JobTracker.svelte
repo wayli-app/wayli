@@ -37,6 +37,7 @@
 
 	let realtimeService = $state<JobRealtimeService | null>(null);
 	let completedJobIds = $state(new Set<string>()); // Track completed jobs to prevent duplicate toasts
+	let connectionStatus = $state<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
 	// Expose methods for parent components
 	export async function startMonitoring() {
@@ -141,6 +142,10 @@
 			onError: (error: string) => {
 				console.error('❌ JobTracker: Realtime error:', error);
 			},
+			onConnectionStatusChange: (status) => {
+				connectionStatus = status;
+				console.log('🔗 JobTracker: Connection status changed to:', status);
+			},
 			onJobUpdate: (job: JobUpdate) => {
 				// Filter by job type if specified
 				if (jobType && job.type !== jobType) {
@@ -194,6 +199,14 @@
 		if (onJobUpdate) {
 			onJobUpdate(jobs);
 		}
+	}
+
+	export function getConnectionStatus(): string {
+		return connectionStatus;
+	}
+
+	export function isConnected(): boolean {
+		return connectionStatus === 'connected';
 	}
 
 	// Auto-start monitoring if enabled

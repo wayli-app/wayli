@@ -963,5 +963,11 @@
 			"flag": "Country",
 			"all": "All"
 		}
+	},
+	"realtime": {
+		"connected": "Live updates active",
+		"connecting": "Connecting...",
+		"disconnected": "Disconnected",
+		"error": "Connection error"
 	}
 }

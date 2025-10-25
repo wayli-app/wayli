@@ -24,6 +24,7 @@
 	import type { UserProfile } from '$lib/types/user.types';
 
 	import JobProgressIndicator from './JobProgressIndicator.svelte';
+	import RealtimeConnectionStatus from './RealtimeConnectionStatus.svelte';
 
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -33,11 +34,13 @@
 	let {
 		isAdmin = false,
 		children,
-		onSignout
+		onSignout,
+		realtimeConnectionStatus = 'disconnected'
 	} = $props<{
 		isAdmin?: boolean;
 		children?: unknown;
 		onSignout?: () => void;
+		realtimeConnectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
 	}>();
 
 	// Use the reactive translation function
@@ -210,6 +213,11 @@
 				>
 					<Moon class="h-5 w-5" />
 				</button>
+			</div>
+
+			<!-- Realtime Connection Status -->
+			<div class="mb-3">
+				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={false} />
 			</div>
 
 			<!-- Job Progress Indicator -->

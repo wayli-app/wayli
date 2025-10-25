@@ -23,6 +23,7 @@
 
 	let globalJobTracker: JobTracker;
 	let isInitializing = true;
+	let realtimeConnectionStatus = $state<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
 
 	async function handleSignout() {
 		try {
@@ -153,9 +154,20 @@
 			checkAdminRole();
 		}
 	});
+
+	// Update connection status from JobTracker periodically
+	$effect(() => {
+		const interval = setInterval(() => {
+			if (globalJobTracker) {
+				realtimeConnectionStatus = globalJobTracker.getConnectionStatus() as 'connecting' | 'connected' | 'disconnected' | 'error';
+			}
+		}, 500); // Check every 500ms
+
+		return () => clearInterval(interval);
+	});
 </script>
 
-<AppNav {isAdmin} onSignout={handleSignout}>
+<AppNav {isAdmin} onSignout={handleSignout} {realtimeConnectionStatus}>
 	<!-- Main content area -->
 	<div class="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
 		{#if isCheckingAdmin}

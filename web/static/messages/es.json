@@ -931,5 +931,11 @@
 			"flag": "País",
 			"all": "Todos"
 		}
+	},
+	"realtime": {
+		"connected": "Actualizaciones en vivo activas",
+		"connecting": "Conectando...",
+		"disconnected": "Desconectado",
+		"error": "Error de conexión"
 	}
 }
