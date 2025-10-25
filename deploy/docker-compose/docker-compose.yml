@@ -66,7 +66,6 @@ services:
   wayli-web:
     container_name: wayli-web
     image: zehbart/wayli:${WAYLI_VERSION:-latest}
-    platform: linux/amd64
     restart: unless-stopped
     ports:
       - ${WAYLI_WEB_PORT:-3000}:80
@@ -111,7 +110,6 @@ services:
   wayli-worker:
     container_name: wayli-worker
     image: zehbart/wayli:${WAYLI_VERSION:-latest}
-    platform: linux/amd64
     restart: unless-stopped
     depends_on:
       flyway-migrations:
