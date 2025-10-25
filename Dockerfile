@@ -55,6 +55,9 @@ RUN npm ci --omit=dev --legacy-peer-deps && \
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/static ./static
 
+# Copy source code (needed for worker mode with tsx)
+COPY web/src ./src
+
 # Copy Supabase functions and migrations (needed for Kubernetes deployments)
 COPY web/supabase/functions ./supabase/functions
 COPY web/supabase/migrations ./supabase/migrations
