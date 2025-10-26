@@ -105,7 +105,7 @@
 					created_at: new Date().toISOString(),
 					updated_at: new Date().toISOString(),
 					result: undefined,
-					error: null
+					error: undefined
 				});
 				console.log('✅ [IMPORT] Job added to store:', result.id);
 			}
@@ -391,7 +391,7 @@
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
-								bind:checked={includeLocationData}
+								bind:checked={includeLocationDataExport}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
 							<span class="text-sm text-gray-600 dark:text-gray-300"
@@ -401,7 +401,7 @@
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
-								bind:checked={includeWantToVisit}
+								bind:checked={includeWantToVisitExport}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
 							<span class="text-sm text-gray-600 dark:text-gray-300"
@@ -411,7 +411,7 @@
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
-								bind:checked={includeTrips}
+								bind:checked={includeTripsExport}
 								class="h-4 w-4 rounded border-gray-300 text-[rgb(37,140,244)] focus:ring-[rgb(37,140,244)]"
 							/>
 							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.trips')}</span
