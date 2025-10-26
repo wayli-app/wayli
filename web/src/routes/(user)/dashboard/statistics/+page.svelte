@@ -890,7 +890,7 @@
 			{t('common.navigation.statistics')}
 		</h1>
 	</div>
-	<div class="flex flex-1 items-center justify-end gap-6" style="z-index: 2001;">
+	<div class="flex flex-1 items-center justify-end gap-6">
 		<div class="datepicker-statistics-fix relative">
 			<DateRangePicker
 				bind:startDate={localStartDate}
@@ -904,7 +904,7 @@
 
 <div class="space-y-6">
 	<!-- Map -->
-	<div class="relative h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900">
+	<div class="relative z-0 h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900">
 		<div
 			bind:this={mapContainer}
 			class="h-full w-full rounded-lg"
@@ -912,7 +912,7 @@
 		></div>
 
 		<!-- Map Legend -->
-		<div class="absolute top-24 left-4 z-[1000] rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800">
+		<div class="absolute top-24 left-4 z-10 rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800">
 			<h4 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
 				{t('statistics.modeColors')}
 			</h4>
@@ -931,7 +931,7 @@
 		<!-- Point Details Popup -->
 		{#if selectedPoint}
 			<div
-				class="absolute top-4 right-4 z-[1000] w-80 max-w-sm rounded-lg bg-white p-4 shadow-lg dark:bg-gray-800"
+				class="absolute top-4 right-4 z-10 w-80 max-w-sm rounded-lg bg-white p-4 shadow-lg dark:bg-gray-800"
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">

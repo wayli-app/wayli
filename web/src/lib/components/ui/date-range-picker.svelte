@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { DatePicker } from '@svelte-plugins/datepicker';
 	import { format } from 'date-fns';
+	import { onMount } from 'svelte';
 
 	let {
 		startDate = $bindable(),
@@ -20,6 +21,16 @@
 		onChange?: () => void;
 	}>();
 
+	// Detect if we should use native date picker (mobile devices)
+	let useNativePicker = $state(false);
+
+	onMount(() => {
+		// Detect mobile devices
+		const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+		const isSmallScreen = window.innerWidth < 768;
+		useNativePicker = isTouchDevice && isSmallScreen;
+	});
+
 	const MILLISECONDS_IN_DAY = 24 * 60 * 60 * 1000;
 
 	export function getDateFromToday(days: number) {
@@ -31,6 +42,12 @@
 		return format(new Date(date), dateFormat);
 	}
 
+	function formatDateForInput(date: string | Date) {
+		if (!date || isNaN(new Date(date).getTime())) return '';
+		const d = new Date(date);
+		return d.toISOString().split('T')[0];
+	}
+
 	const onClearDates = () => {
 		startDate = '';
 		endDate = '';
@@ -40,6 +57,22 @@
 	};
 
 	const toggleDatePicker = () => (isOpen = !isOpen);
+
+	function handleNativeStartDateChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (target.value) {
+			startDate = new Date(target.value);
+			handleChange();
+		}
+	}
+
+	function handleNativeEndDateChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (target.value) {
+			endDate = new Date(target.value);
+			handleChange();
+		}
+	}
 
 	let formattedStartDate = $derived(() => formatDate(startDate));
 	let formattedEndDate = $derived(() => formatDate(endDate));
@@ -64,36 +97,75 @@
 </script>
 
 <div class="date-filter">
-	<DatePicker bind:isOpen bind:startDate bind:endDate isRange showPresets onchange={handleChange}>
-		<button
-			type="button"
-			class="date-field"
-			aria-label={pickLabel}
-			onclick={toggleDatePicker}
-			class:open={isOpen}
-		>
-			<i class="icon-calendar"></i>
-			<div class="date">
-				{#if startDate}
-					{formattedStartDate()} - {formattedEndDate()}
-				{:else}
-					{pickLabel}
+	{#if useNativePicker}
+		<!-- Native date inputs for mobile -->
+		<div class="native-date-picker">
+			<div class="date-inputs-container">
+				<div class="date-input-group">
+					<label for="start-date" class="date-label">From</label>
+					<input
+						id="start-date"
+						type="date"
+						value={formatDateForInput(startDate)}
+						onchange={handleNativeStartDateChange}
+						class="native-date-input"
+					/>
+				</div>
+				<div class="date-input-group">
+					<label for="end-date" class="date-label">To</label>
+					<input
+						id="end-date"
+						type="date"
+						value={formatDateForInput(endDate)}
+						onchange={handleNativeEndDateChange}
+						class="native-date-input"
+					/>
+				</div>
+				{#if showClear && startDate}
+					<button
+						type="button"
+						class="clear-button-native"
+						aria-label="Clear dates"
+						onclick={onClearDates}
+					>
+						<i class="os-icon-x"></i>
+					</button>
 				{/if}
 			</div>
-			{#if showClear && startDate}
-				<span
-					class="clear-button"
-					aria-label="Clear dates"
-					onclick={handleClearClick}
-					onkeydown={handleClearKeydown}
-					role="button"
-					tabindex="0"
-				>
-					<i class="os-icon-x"></i>
-				</span>
-			{/if}
-		</button>
-	</DatePicker>
+		</div>
+	{:else}
+		<!-- Custom date picker for desktop -->
+		<DatePicker bind:isOpen bind:startDate bind:endDate isRange showPresets onchange={handleChange}>
+			<button
+				type="button"
+				class="date-field"
+				aria-label={pickLabel}
+				onclick={toggleDatePicker}
+				class:open={isOpen}
+			>
+				<i class="icon-calendar"></i>
+				<div class="date">
+					{#if startDate}
+						{formattedStartDate()} - {formattedEndDate()}
+					{:else}
+						{pickLabel}
+					{/if}
+				</div>
+				{#if showClear && startDate}
+					<span
+						class="clear-button"
+						aria-label="Clear dates"
+						onclick={handleClearClick}
+						onkeydown={handleClearKeydown}
+						role="button"
+						tabindex="0"
+					>
+						<i class="os-icon-x"></i>
+					</span>
+				{/if}
+			</button>
+		</DatePicker>
+	{/if}
 </div>
 
 <style>
@@ -139,6 +211,90 @@
 
 	.clear-button:hover {
 		background-color: rgb(243 244 246);
+	}
+
+	/* Native date picker styles for mobile */
+	.native-date-picker {
+		width: 100%;
+	}
+
+	.date-inputs-container {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		width: 100%;
+	}
+
+	.date-input-group {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		flex: 1;
+	}
+
+	.date-label {
+		font-size: 12px;
+		font-weight: 500;
+		color: rgb(55 65 81);
+	}
+
+	.native-date-input {
+		width: 100%;
+		padding: 8px 12px;
+		border: 1px solid rgb(229 231 235);
+		border-radius: 0.5rem;
+		background-color: rgb(255 255 255);
+		font-size: 14px;
+		color: rgb(17 24 39);
+		transition: all 0.2s ease-in-out;
+	}
+
+	.native-date-input:focus {
+		border-color: rgb(37 140 244);
+		box-shadow: 0 0 0 3px rgb(37 140 244 / 0.1);
+		outline: none;
+	}
+
+	.clear-button-native {
+		align-self: flex-start;
+		padding: 8px 12px;
+		border-radius: 0.5rem;
+		background-color: rgb(243 244 246);
+		border: 1px solid rgb(229 231 235);
+		cursor: pointer;
+		transition: all 0.2s ease-in-out;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.clear-button-native:hover {
+		background-color: rgb(229 231 235);
+	}
+
+	/* Dark mode styles for native date picker */
+	:global(.dark) .date-label {
+		color: rgb(209 213 219);
+	}
+
+	:global(.dark) .native-date-input {
+		background-color: rgb(31 41 55);
+		border-color: rgb(75 85 99);
+		color: rgb(243 244 246);
+	}
+
+	:global(.dark) .native-date-input:focus {
+		border-color: rgb(59 130 246);
+		box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+	}
+
+	:global(.dark) .clear-button-native {
+		background-color: rgb(55 65 81);
+		border-color: rgb(75 85 99);
+	}
+
+	:global(.dark) .clear-button-native:hover {
+		background-color: rgb(75 85 99);
 	}
 
 	/* Icon styling */
@@ -197,6 +353,7 @@
 		border: 1px solid rgb(229 231 235);
 		border-radius: 0.75rem;
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+		z-index: 40 !important;
 	}
 
 	:global(.dark .datepicker-dropdown) {

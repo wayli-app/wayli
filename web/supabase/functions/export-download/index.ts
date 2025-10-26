@@ -77,22 +77,30 @@ Deno.serve(async (req) => {
 			// Get the public Supabase URL for the frontend
 			const publicSupabaseUrl = Deno.env.get('PUBLIC_SUPABASE_URL');
 
-			// Always replace the URL's hostname with the public Supabase URL if defined
+			// Always replace the URL's origin with the public Supabase URL if defined
 			if (publicSupabaseUrl) {
-				const urlObj = new URL(downloadUrl);
-				const publicUrlObj = new URL(publicSupabaseUrl);
+				try {
+					const urlObj = new URL(downloadUrl);
+					const publicUrlObj = new URL(publicSupabaseUrl);
 
-				// Replace the hostname and port with the public URL
-				urlObj.hostname = publicUrlObj.hostname;
-				urlObj.port = publicUrlObj.port || '';
-				urlObj.protocol = publicUrlObj.protocol;
-				downloadUrl = urlObj.toString();
+					// Replace the entire origin (protocol + hostname + port)
+					const pathAndQuery = downloadUrl.substring(urlObj.origin.length);
+					downloadUrl = publicUrlObj.origin + pathAndQuery;
 
-				logInfo('Transformed URL to use public Supabase URL', 'EXPORT-DOWNLOAD', {
-					originalUrl: signedUrlData.signedUrl,
-					transformedUrl: downloadUrl,
-					publicSupabaseUrl: publicSupabaseUrl
-				});
+					logInfo('Transformed URL to use public Supabase URL', 'EXPORT-DOWNLOAD', {
+						originalUrl: signedUrlData.signedUrl,
+						transformedUrl: downloadUrl,
+						publicSupabaseUrl: publicSupabaseUrl,
+						originalOrigin: urlObj.origin,
+						publicOrigin: publicUrlObj.origin
+					});
+				} catch (error) {
+					logError(error, 'EXPORT-DOWNLOAD');
+					logInfo('Failed to transform URL, using original', 'EXPORT-DOWNLOAD', {
+						originalUrl: signedUrlData.signedUrl,
+						publicSupabaseUrl: publicSupabaseUrl
+					});
+				}
 			} else {
 				logInfo('Using signed URL as-is (no PUBLIC_SUPABASE_URL defined)', 'EXPORT-DOWNLOAD', {
 					downloadUrl: downloadUrl
