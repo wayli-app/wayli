@@ -236,7 +236,35 @@ export class ExportService {
 			.from('exports')
 			.createSignedUrl(filePath, 3600, { download: true }); // 1 hour expiry
 
-		return data?.signedUrl || null;
+		if (!data?.signedUrl) {
+			return null;
+		}
+
+		// Replace internal hostname/port with public URL
+		const signedUrl = data.signedUrl;
+		const publicUrl = process.env.PUBLIC_SUPABASE_URL;
+
+		if (!publicUrl) {
+			console.warn('⚠️  PUBLIC_SUPABASE_URL not set, returning signed URL as-is');
+			return signedUrl;
+		}
+
+		try {
+			const signedUrlObj = new URL(signedUrl);
+			const publicUrlObj = new URL(publicUrl);
+
+			// Replace the hostname and port with the public URL's hostname and port
+			signedUrlObj.protocol = publicUrlObj.protocol;
+			signedUrlObj.hostname = publicUrlObj.hostname;
+			signedUrlObj.port = publicUrlObj.port;
+
+			const finalUrl = signedUrlObj.toString();
+			console.log(`🔄 Replaced internal URL (${signedUrlObj.host}) with public URL (${publicUrlObj.host})`);
+			return finalUrl;
+		} catch (error) {
+			console.error('❌ Error replacing URL hostname:', error);
+			return signedUrl;
+		}
 	}
 
 	static async cleanupExpiredExports(): Promise<number> {
