@@ -834,6 +834,7 @@
 		"addExclusion": "Add Exclusion",
 		"editTripExclusionModal": "Edit Trip Exclusion",
 		"updateExclusion": "Update Exclusion",
+		"startTypingHomeAddress": "Enter your city or town...",
 		"startTypingLocation": "Start typing to search for a location...",
 		"excludedZoneTripsBadge": "Trips",
 		"excludedZonePlacesBadge": "Places (100m)",

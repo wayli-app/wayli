@@ -24,12 +24,12 @@
 }
 
 /* Focus management */
-.focus-visible:outline-none {
+.focus-visible\:outline-none {
 	outline: 2px solid transparent;
 	outline-offset: 2px;
 }
 
-.focus-visible:ring-2 {
+.focus-visible\:ring-2 {
 	box-shadow: 0 0 0 2px currentColor;
 }
 
@@ -91,7 +91,7 @@
 		border-width: 2px;
 	}
 
-	.focus-visible:ring-2 {
+	.focus-visible\:ring-2 {
 		box-shadow: 0 0 0 4px currentColor;
 	}
 }

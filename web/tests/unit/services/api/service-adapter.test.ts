@@ -828,15 +828,16 @@ describe('ServiceAdapter', () => {
 				});
 
 				const storageMock = {
-					getPublicUrl: vi.fn().mockReturnValue({
-						data: { publicUrl: 'https://storage.example.com/exports/file.json' }
+					createSignedUrl: vi.fn().mockResolvedValue({
+						data: { signedUrl: 'https://storage.example.com/exports/file.json?token=signed' },
+						error: null
 					})
 				};
 				mockFluxbase.storage.from.mockReturnValue(storageMock);
 
 				const result = await adapter.getExportDownloadUrl('job-id');
 
-				expect(result.downloadUrl).toBe('https://storage.example.com/exports/file.json');
+				expect(result.downloadUrl).toBe('https://storage.example.com/exports/file.json?token=signed');
 			});
 
 			it('should throw error when export not ready', async () => {
