@@ -409,9 +409,14 @@ export class JobsAdapter extends BaseAdapter {
 			throw new Error('Export file not ready');
 		}
 
-		const { data: urlData } = fluxbase.storage.from('temp-files').getPublicUrl(filePath);
+		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, 3600, { download: true });
 
-		return { downloadUrl: urlData.publicUrl };
+		if (error || !data?.signedUrl) {
+			console.error('[JobsAdapter] getExportDownloadUrl - failed to generate signed URL:', error);
+			throw new Error(`Failed to generate download URL: ${error?.message || 'Unknown error'}`);
+		}
+
+		return { downloadUrl: data.signedUrl };
 	}
 
 	/**

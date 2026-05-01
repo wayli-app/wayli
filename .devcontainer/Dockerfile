@@ -45,6 +45,11 @@ RUN ARCH=$(dpkg --print-architecture) \
     && rm /tmp/deno.zip \
     && deno --version
 
+# Set up non-root user
+ARG USERNAME=node
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
 # Install Bun
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH=/home/$USERNAME/.bun/bin:$PATH
@@ -52,11 +57,6 @@ ENV PATH=/home/$USERNAME/.bun/bin:$PATH
 # Install Fluxbase CLI for resource synchronization
 ARG FLUXBASE_CLI_VERSION=v2026.3.6
 RUN curl -fsSL https://raw.githubusercontent.com/nimbleflux/fluxbase/main/install-cli.sh | bash -s -- ${FLUXBASE_CLI_VERSION:-latest}
-
-# Set up non-root user
-ARG USERNAME=node
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
 
 # Configure git to trust the workspace directory
 RUN git config --system --add safe.directory /workspace

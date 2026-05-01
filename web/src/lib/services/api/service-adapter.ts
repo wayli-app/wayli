@@ -1205,12 +1205,16 @@ export class ServiceAdapter {
 
 		console.log('[ServiceAdapter] getExportDownloadUrl - generating download URL for:', filePath);
 
-		// Use the public URL through the Fluxbase API gateway (handles auth via session)
-		// This avoids issues with presigned URLs using internal hostnames (e.g., minio:9000)
-		const { data: urlData } = fluxbase.storage.from('temp-files').getPublicUrl(filePath);
+		// Use signed URL for temp-files bucket (requires authentication via RLS)
+		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, 3600, { download: true });
+
+		if (error || !data?.signedUrl) {
+			console.error('[ServiceAdapter] getExportDownloadUrl - failed to generate signed URL:', error);
+			throw new Error(`Failed to generate download URL: ${error?.message || 'Unknown error'}`);
+		}
 
 		console.log('[ServiceAdapter] getExportDownloadUrl - download URL generated successfully');
-		return { downloadUrl: urlData.publicUrl };
+		return { downloadUrl: data.signedUrl };
 	}
 
 	/**

@@ -834,6 +834,7 @@
 		"addExclusion": "Ausschluss hinzufügen",
 		"editTripExclusionModal": "Reiseausschluss bearbeiten",
 		"updateExclusion": "Update-Ausschluss",
+		"startTypingHomeAddress": "Geben Sie Ihre Stadt oder Ihr Dorf ein...",
 		"startTypingLocation": "Beginnen Sie mit der Eingabe, um nach einem Standort zu suchen...",
 		"excludedZoneTripsBadge": "Reisen",
 		"excludedZonePlacesBadge": "Orte (100m)",

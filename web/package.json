@@ -102,6 +102,6 @@
     "@rollup/rollup-linux-x64-gnu": "*"
   },
   "overrides": {
-    "marked-terminal>marked": "^17.0.4"
+    "marked": "^17.0.4"
   }
 }
