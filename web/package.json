@@ -103,6 +103,6 @@
     "@rollup/rollup-linux-x64-gnu": "*"
   },
   "overrides": {
-    "marked": "^17.0.4"
+    "marked": "^18.0.1"
   }
 }
