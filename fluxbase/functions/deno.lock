@@ -1,6 +1,8 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@nimbleflux/fluxbase-sdk@2026.3.6": "2026.3.6_esbuild@0.24.0",
+    "npm:cross-fetch@4.1.0": "4.1.0",
     "npm:esbuild@0.24.0": "0.24.0"
   },
   "npm": {
@@ -124,6 +126,30 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
+    "@nimbleflux/fluxbase-sdk@2026.3.6_esbuild@0.24.0": {
+      "integrity": "sha512-j5id7TUd6YkqHF20w+ad3J/7yAEDZpIVIF4VebBfr+m61q+NHnH5Rj9RUiV+hjBFh8zLDSMQf23qWZ/J5STFZQ==",
+      "dependencies": [
+        "cross-fetch",
+        "esbuild"
+      ],
+      "optionalDependencies": [
+        "@rollup/rollup-darwin-arm64"
+      ],
+      "optionalPeers": [
+        "esbuild"
+      ]
+    },
+    "@rollup/rollup-darwin-arm64@4.60.2": {
+      "integrity": "sha512-UwRE7CGpvSVEQS8gUMBe1uADWjNnVgP3Iusyda1nSRwNDCsRjnGc7w6El6WLQsXmZTbLZx9cecegumcitNfpmA==",
+      "os": ["darwin"],
+      "cpu": ["arm64"]
+    },
+    "cross-fetch@4.1.0": {
+      "integrity": "sha512-uKm5PU+MHTootlWEY+mZ4vvXoCn4fLQxT9dSc1sXVMSFkINTJVN8cAQROpwcKm8bJ/c7rgZVIBWzH5T78sNZZw==",
+      "dependencies": [
+        "node-fetch"
+      ]
+    },
     "esbuild@0.24.0": {
       "integrity": "sha512-FuLPevChGDshgSicjisSooU0cemp/sGXR841D5LHMB7mTVOmsEHcAxaH3irL53+8YDIeVNQEySh4DaYU/iuPqQ==",
       "optionalDependencies": [
@@ -154,12 +180,31 @@
       ],
       "scripts": true,
       "bin": true
+    },
+    "node-fetch@2.7.0": {
+      "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
+      "dependencies": [
+        "whatwg-url"
+      ]
+    },
+    "tr46@0.0.3": {
+      "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="
+    },
+    "webidl-conversions@3.0.1": {
+      "integrity": "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ=="
+    },
+    "whatwg-url@5.0.0": {
+      "integrity": "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==",
+      "dependencies": [
+        "tr46",
+        "webidl-conversions"
+      ]
     }
   },
   "workspace": {
     "dependencies": [
-      "npm:@fluxbase/sdk@0.1.0",
-      "npm:cross-fetch@4.0.0"
+      "npm:@nimbleflux/fluxbase-sdk@2026.3.6",
+      "npm:cross-fetch@4.1.0"
     ]
   }
 }

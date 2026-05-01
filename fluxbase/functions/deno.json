@@ -5,7 +5,7 @@
     "@nimbleflux/fluxbase-sdk": "npm:@nimbleflux/fluxbase-sdk@2026.3.6",
     "@nimbleflux/fluxbase-sdk/": "npm:@nimbleflux/fluxbase-sdk@2026.3.6/",
     "_shared/": "./_shared/",
-    "cross-fetch": "npm:cross-fetch@4.0.0"
+    "cross-fetch": "npm:cross-fetch@4.1.0"
   },
   "compilerOptions": {
     "lib": ["deno.window", "deno.unstable"],
