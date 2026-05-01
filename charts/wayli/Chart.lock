@@ -1,6 +1,6 @@
 dependencies:
 - name: fluxbase
   repository: oci://ghcr.io/nimbleflux/charts
-  version: 2026.5.2
-digest: sha256:d3dca2474ee292e700966654ed5563cc02a9f35b2bf8d4bfe7467768fe87141e
-generated: "2026-05-01T19:29:30.697122+02:00"
+  version: 2026.5.3-rc.1
+digest: sha256:471a43e8cfea95554aa0b212f2efe80fe867890afa3e772510dbd757db0572de
+generated: "2026-05-01T19:59:08.437771+02:00"
