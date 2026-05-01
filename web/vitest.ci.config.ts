@@ -19,7 +19,7 @@ export default defineConfig({
 		environment: 'jsdom',
 		setupFiles: ['./tests/setup.ts'],
 		globals: true,
-		css: true,
+		css: false,
 		tsconfig: './tsconfig.ci.json',
 		coverage: {
 			provider: 'v8',
