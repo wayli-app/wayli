@@ -5,12 +5,12 @@ type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
-version: 2.1.0-rc.1
+version: 2.1.1-rc.1
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are expected to follow Semantic Versioning (https://semver.org/)
 # This will be automatically updated by CI/CD pipeline after each release
-appVersion: "v2.1.0-rc.1"
+appVersion: "v2.1.1-rc.1"
 
 maintainers:
   - name: nimbleflux
@@ -29,7 +29,7 @@ keywords:
 
 dependencies:
   - name: fluxbase
-    version: '2026.5.1'
+    version: '2026.5.2-rc.1'
     repository: 'oci://ghcr.io/nimbleflux/charts'
     condition: fluxbase.enabled
 
