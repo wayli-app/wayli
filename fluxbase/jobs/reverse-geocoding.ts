@@ -257,9 +257,10 @@ export async function handler(
 				batchQuery = batchQuery.eq('user_id', userId);
 			}
 
-			// For force mode, use offset-based pagination; otherwise, records drop out of filter after processing
+			// Use offset-based pagination for force and fill_country_codes_only modes
+			// Default mode can rely on records dropping out of the filter after processing
 			let finalQuery = batchQuery.order('recorded_at', { ascending: false }).limit(BATCH_SIZE);
-			if (forceMode) {
+			if (forceMode || fillCountryCodesOnly) {
 				finalQuery = finalQuery.range(offset, offset + BATCH_SIZE - 1);
 			}
 
@@ -278,8 +279,8 @@ export async function handler(
 				? await processPointsForCountryCodeOnly(db, batch)
 				: await processPointsConcurrently(db, batch);
 
-			// Update offset for force mode pagination
-			if (forceMode) {
+			// Update offset for modes using offset-based pagination
+			if (forceMode || fillCountryCodesOnly) {
 				offset += batch.length;
 			}
 
@@ -456,6 +457,24 @@ async function processPointsForCountryCodeOnly(
 ): Promise<{ processed: number; success: number; errors: number }> {
 	let success = 0;
 	let errors = 0;
+
+	if (points.length > 0) {
+		const testPoint = points[0];
+		let lat: number | undefined, lon: number | undefined;
+		if (testPoint.location && typeof testPoint.location === 'object' && 'coordinates' in testPoint.location) {
+			const coords = (testPoint.location as { coordinates: number[] }).coordinates;
+			if (Array.isArray(coords) && coords.length >= 2) {
+				[lon, lat] = coords;
+			}
+		}
+		if (lat !== undefined && lon !== undefined) {
+			console.log(`[DEBUG] First point: lat=${lat}, lon=${lon}, country_code=${testPoint.country_code}, tz_diff=${testPoint.tz_diff}`);
+			console.log(`[DEBUG] getCountryForPoint test: ${getCountryForPoint(lat, lon)}`);
+			console.log(`[DEBUG] getTimezoneDifferenceForPoint test: ${getTimezoneDifferenceForPoint(lat, lon)}`);
+		} else {
+			console.log(`[DEBUG] Could not extract lat/lon from first point, location type: ${typeof testPoint.location}`);
+		}
+	}
 
 	// Process in concurrent chunks
 	for (let i = 0; i < points.length; i += CONCURRENCY) {

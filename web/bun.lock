@@ -5,7 +5,7 @@
     "": {
       "name": "web",
       "dependencies": {
-        "@nimbleflux/fluxbase-sdk": "^2026.5.4-rc.10",
+        "@nimbleflux/fluxbase-sdk": "^2026.5.4-rc.11",
         "@svelte-plugins/datepicker": "^1.0.11",
         "@turf/turf": "^7.3.4",
         "clsx": "^2.1.1",
@@ -228,7 +228,7 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@0.2.12", "", { "dependencies": { "@emnapi/core": "^1.4.3", "@emnapi/runtime": "^1.4.3", "@tybys/wasm-util": "^0.10.0" } }, "sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ=="],
 
-    "@nimbleflux/fluxbase-sdk": ["@nimbleflux/fluxbase-sdk@2026.5.4-rc.10", "", { "dependencies": { "cross-fetch": "^4.1.0" }, "optionalDependencies": { "@rollup/rollup-darwin-arm64": "^4.60.1" }, "peerDependencies": { "esbuild": ">=0.28.0" }, "optionalPeers": ["esbuild"] }, "sha512-2lSyHo8YJTMAXlD97oDOvFfIG/+9EVGSfvtJla5BPLb7QHRxL8UmIXIoczZ4rfJlsctzseWRoXeuv+T0KfqHmg=="],
+    "@nimbleflux/fluxbase-sdk": ["@nimbleflux/fluxbase-sdk@2026.5.4-rc.11", "", { "dependencies": { "cross-fetch": "^4.1.0" }, "optionalDependencies": { "@rollup/rollup-darwin-arm64": "^4.60.1" }, "peerDependencies": { "esbuild": ">=0.28.0" }, "optionalPeers": ["esbuild"] }, "sha512-NI7/lQZhSqkfZzy/b26fGjKtukmpJlAdSBT+EMi9UcSSc4BPBK1opzs12CX8dfQLMzBakfcvlemSCDKelwCRwQ=="],
 
     "@nodable/entities": ["@nodable/entities@2.1.0", "", {}, "sha512-nyT7T3nbMyBI/lvr6L5TyWbFJAI9FTgVRakNoBqCD+PmID8DzFrrNdLLtHMwMszOtqZa8PAOV24ZqDnQrhQINA=="],
 
