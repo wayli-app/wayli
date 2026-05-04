@@ -256,10 +256,10 @@ export async function handler(
 				batchQuery = batchQuery.eq('user_id', userId);
 			}
 
-			// Use offset-based pagination for force and fill_country_codes_only modes
-			// Default mode can rely on records dropping out of the filter after processing
+			// Only force mode uses offset-based pagination
+			// Default and fill_country_codes_only modes rely on records dropping out of the filter
 			let finalQuery = batchQuery.order('recorded_at', { ascending: false }).limit(BATCH_SIZE);
-			if (forceMode || fillCountryCodesOnly) {
+			if (forceMode) {
 				finalQuery = finalQuery.range(offset, offset + BATCH_SIZE - 1);
 			}
 
@@ -278,8 +278,8 @@ export async function handler(
 				? await processPointsForCountryCodeOnly(db, batch)
 				: await processPointsConcurrently(db, batch);
 
-			// Update offset for modes using offset-based pagination
-			if (forceMode || fillCountryCodesOnly) {
+			// Update offset for force mode pagination
+			if (forceMode) {
 				offset += batch.length;
 			}
 
