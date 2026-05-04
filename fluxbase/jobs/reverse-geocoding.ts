@@ -12,9 +12,8 @@
  */
 
 import { reverseGeocode } from '_shared/services/external/pelias.service';
+import { convertCountryCode3to2 } from '_shared/types/geocoding.types';
 import {
-	getCountryForPoint,
-	normalizeCountryCode,
 	getTimezoneDifferenceForPoint
 } from '_shared/services/external/country-reverse-geocoding.service';
 import { isRetryableError } from '_shared/utils/geocoding-utils';
@@ -458,24 +457,6 @@ async function processPointsForCountryCodeOnly(
 	let success = 0;
 	let errors = 0;
 
-	if (points.length > 0) {
-		const testPoint = points[0];
-		let lat: number | undefined, lon: number | undefined;
-		if (testPoint.location && typeof testPoint.location === 'object' && 'coordinates' in testPoint.location) {
-			const coords = (testPoint.location as { coordinates: number[] }).coordinates;
-			if (Array.isArray(coords) && coords.length >= 2) {
-				[lon, lat] = coords;
-			}
-		}
-		if (lat !== undefined && lon !== undefined) {
-			console.log(`[DEBUG] First point: lat=${lat}, lon=${lon}, country_code=${testPoint.country_code}, tz_diff=${testPoint.tz_diff}`);
-			console.log(`[DEBUG] getCountryForPoint test: ${getCountryForPoint(lat, lon)}`);
-			console.log(`[DEBUG] getTimezoneDifferenceForPoint test: ${getTimezoneDifferenceForPoint(lat, lon)}`);
-		} else {
-			console.log(`[DEBUG] Could not extract lat/lon from first point, location type: ${typeof testPoint.location}`);
-		}
-	}
-
 	// Process in concurrent chunks
 	for (let i = 0; i < points.length; i += CONCURRENCY) {
 		const chunk = points.slice(i, i + CONCURRENCY);
@@ -497,7 +478,7 @@ async function processPointsForCountryCodeOnly(
 
 /**
  * Process a single point to fill in missing country code and/or tz_diff.
- * Uses local GeoJSON point-in-polygon lookup instead of Pelias API for speed.
+ * Uses Pelias API for country code, local GeoJSON for timezone offset.
  */
 async function processSinglePointCountryCodeOnly(
 	fluxbase: FluxbaseClient,
@@ -555,8 +536,16 @@ async function processSinglePointCountryCodeOnly(
 
 		// Fill country_code if missing
 		if (newCountryCode === null) {
-			const rawCountryCode = getCountryForPoint(lat, lon);
-			newCountryCode = normalizeCountryCode(rawCountryCode);
+			try {
+				const peliasResult = await reverseGeocode(lat, lon);
+				const rawCode = peliasResult?.address?.country_code
+					|| convertCountryCode3to2(peliasResult?.country_a);
+				if (rawCode) {
+					newCountryCode = rawCode.toUpperCase();
+				}
+			} catch {
+				// Pelias unavailable, country_code remains null
+			}
 		}
 
 		// Fill tz_diff if missing
@@ -675,10 +664,9 @@ async function processSinglePoint(
 		const mergedGeocodeGeoJSON = mergeGeocodingWithExisting(point.geocode, lat, lon, geocodeResult);
 
 		// Extract country_code from geocode result
-		const countryCode = normalizeCountryCode(
-			(mergedGeocodeGeoJSON as any)?.properties?.address?.country_code ||
-			getCountryForPoint(lat, lon)
-		);
+		const countryCode = (mergedGeocodeGeoJSON as any)?.properties?.address?.country_code
+			|| convertCountryCode3to2((mergedGeocodeGeoJSON as any)?.properties?.country_a)
+			|| null;
 
 		// Calculate tz_diff from coordinates
 		const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
