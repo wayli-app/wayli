@@ -92,7 +92,7 @@
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
     "lucide-svelte": "^1.0.1",
-    "marked": "^18.0.1",
+    "marked": "^18.0.2",
     "qrcode": "^1.5.4",
     "svelte-sonner": "^1.1.0",
     "tailwind-merge": "^3.5.0",
@@ -103,6 +103,6 @@
     "@rollup/rollup-linux-x64-gnu": "*"
   },
   "overrides": {
-    "marked": "^18.0.1"
+    "marked": "^18.0.2"
   }
 }
