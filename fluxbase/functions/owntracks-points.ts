@@ -19,34 +19,16 @@ interface FeatureCollection<G = Polygon | MultiPolygon> { type: 'FeatureCollecti
 import timezonesRaw from '_shared/timezones';
 const timezonesGeoJSON = timezonesRaw as FeatureCollection;
 
-// ===== Type Definitions =====
-interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
 // ===== Utility Functions =====
-function successResponse<T>(data: T, status = 200): Response {
-  const response: ApiResponse<T> = {
-    success: true,
-    data
-  };
-
-  return new Response(JSON.stringify(response), {
-    status,
+function successResponse(_status = 200): Response {
+  return new Response('[]', {
+    status: _status,
     headers: { 'Content-Type': 'application/json' }
   });
 }
 
-function errorResponse(message: string, status = 400): Response {
-  const response: ApiResponse = {
-    success: false,
-    error: message
-  };
-
-  return new Response(JSON.stringify(response), {
+function errorResponse(status = 400): Response {
+  return new Response('[]', {
     status,
     headers: { 'Content-Type': 'application/json' }
   });
@@ -408,14 +390,14 @@ async function handler(
 
     if (!userId || !apiKey) {
       logError('Missing api_key or user_id in query parameters', 'OWNTRACKS_POINTS');
-      return errorResponse('api_key and user_id required in query parameters', 400);
+      return errorResponse(400);
     }
 
     // Validate UUID format for user ID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(userId)) {
       logError('Invalid user ID format', 'OWNTRACKS_POINTS');
-      return errorResponse('Invalid user ID format', 400);
+      return errorResponse(400);
     }
 
     // Verify API key by retrieving and decrypting the user's stored secret
@@ -433,7 +415,7 @@ async function handler(
 
     if (!storedApiKey || storedApiKey !== apiKey) {
       logError('Invalid API key', 'OWNTRACKS_POINTS', { userId });
-      return errorResponse('Invalid or inactive API key', 401);
+      return errorResponse(401);
     }
 
     const user = { id: userId };
@@ -441,7 +423,7 @@ async function handler(
 
     // Only allow POST requests (OwnTracks sends location data in POST body)
     if (req.method !== 'POST') {
-      return errorResponse('Method not allowed', 405);
+      return errorResponse(405);
     }
 
     logInfo('Processing OwnTracks points', 'OWNTRACKS_POINTS', { userId: user.id });
@@ -467,7 +449,7 @@ async function handler(
 
     if (!Array.isArray(points) || points.length === 0) {
       logError('No valid points data found', 'OWNTRACKS_POINTS');
-      return errorResponse('No valid points data found', 400);
+      return errorResponse(400);
     }
 
     logInfo('Processing points', 'OWNTRACKS_POINTS', {
@@ -579,7 +561,7 @@ async function handler(
         `Failed to insert ${processedPoints.length} points for user ${user.id}: ${insertError.message}`,
         'OWNTRACKS_POINTS'
       );
-      return errorResponse('Failed to insert points', 500);
+      return errorResponse(500);
     }
     const geocodedCount = processedPoints.filter((p) => p.geocode !== null).length;
     const insertedCount = insertedPoints?.length || processedPoints.length;
@@ -591,13 +573,10 @@ async function handler(
       ungeocodedCount: insertedCount - geocodedCount
     });
 
-    return successResponse({
-      message: 'Points inserted successfully',
-      count: insertedCount
-    });
+    return successResponse();
   } catch (error) {
     logError(error, 'OWNTRACKS_POINTS');
-    return errorResponse('Internal server error', 500);
+    return errorResponse(500);
   }
 }
 
