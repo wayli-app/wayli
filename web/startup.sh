@@ -143,23 +143,12 @@ ensure_knowledge_base() {
         return 0
     fi
 
-    echo "Checking if tables should be exported to knowledge base..."
-
-    # Call the edge function which will:
-    # 1. Check if embedding provider is configured
-    # 2. Check if tables exist
-    # 3. Export if conditions are met
-    if RESULT=$(curl -s -X POST "${FLUXBASE_BASE_URL}/functions/export-kb-tables/invoke" \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${FLUXBASE_SERVICE_ROLE_KEY}" \
-        -d '{}'); then
-        # Try to extract and display the message
-        MESSAGE=$(echo "$RESULT" | jq -r '.message // "Table export check complete"' 2>/dev/null || echo "Table export check complete")
-        echo "  ✓ $MESSAGE"
-        # Log full result for debugging
-        echo "$RESULT" | jq '.' 2>/dev/null || echo "$RESULT"
-    else
-        echo "  Note: Table export skipped (embedding may not be configured yet)"
+    echo "Exporting tables to knowledge base..."
+    if ! fluxbase kb export-table "$KB_ID" --schema public --table place_visits --include-fks --sample-rows 3 2>/dev/null; then
+        echo "  Note: place_visits export skipped (table may not exist yet)"
+    fi
+    if ! fluxbase kb export-table "$KB_ID" --schema public --table user_preferences --include-fks 2>/dev/null; then
+        echo "  Note: user_preferences export skipped (table may not exist yet)"
     fi
 
     echo "Knowledge base ready"

@@ -5,8 +5,6 @@
  */
 
 import {
-	getCountryForPoint,
-	normalizeCountryCode,
 	applyTimezoneCorrectionToTimestamp,
 	getTimezoneDifferenceForPoint
 } from '../services/external/country-reverse-geocoding.service.ts';
@@ -90,41 +88,20 @@ export function safeReportProgress(job: JobUtils, percent: number, message: stri
 // ============================================================================
 
 /**
- * Safely get country code for a point, returning null on error
- */
-export function safeGetCountryForPoint(lat: number, lon: number): string | null {
-	try {
-		return getCountryForPoint(lat, lon);
-	} catch (e) {
-		console.warn('Failed to get country for point:', e);
-		return null;
-	}
-}
-
-/**
- * Safely normalize country code, returning null on error
- */
-export function safeNormalizeCountryCode(countryCode: string | null): string | null {
-	try {
-		return normalizeCountryCode(countryCode);
-	} catch (e) {
-		console.warn('Failed to normalize country code:', e);
-		return null;
-	}
-}
-
-/**
- * Get country code for a point, using provided value or calculating from coordinates
+ * Get country code for a point, using provided value only
+ * Country code from coordinates is no longer computed locally;
+ * the reverse-geocoding job fills it via Pelias.
  */
 export function getCountryCodeForPoint(
-	lat: number,
-	lon: number,
+	_lat: number,
+	_lon: number,
 	providedCode?: string | null
 ): string | null {
 	if (providedCode) {
-		return safeNormalizeCountryCode(providedCode);
+		const upper = providedCode.toUpperCase();
+		if (/^[A-Z]{2}$/.test(upper)) return upper;
 	}
-	return safeNormalizeCountryCode(safeGetCountryForPoint(lat, lon));
+	return null;
 }
 
 /**

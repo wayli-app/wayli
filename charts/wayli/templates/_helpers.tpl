@@ -309,6 +309,22 @@ Init container for syncing Fluxbase resources using CLI
       fluxbase jobs sync --dir /app/fluxbase/jobs --namespace wayli
       echo "Syncing chatbots..."
       fluxbase chatbots sync --dir /app/fluxbase/chatbots --namespace wayli
+      echo "Syncing MCP tools..."
+      fluxbase mcp tools sync --dir /app/fluxbase/mcp-tools --namespace wayli
+      echo "Ensuring knowledge base exists..."
+      fluxbase kb create wayli-pois \
+        --namespace wayli \
+        --description "User POI visits with behavioral context for semantic search" \
+        --chunk-size 500 \
+        --embedding-model text-embedding-3-small 2>/dev/null || true
+      KB_ID=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+      if [ -n "$KB_ID" ]; then
+        echo "Exporting tables to knowledge base..."
+        fluxbase kb export-table "$KB_ID" --schema public --table place_visits --include-fks --sample-rows 3 2>/dev/null || true
+        fluxbase kb export-table "$KB_ID" --schema public --table user_preferences --include-fks 2>/dev/null || true
+      else
+        echo "Warning: Could not get KB ID, skipping table exports"
+      fi
       echo "Sync completed successfully"
   env:
     - name: FLUXBASE_SERVER

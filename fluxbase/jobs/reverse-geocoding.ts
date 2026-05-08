@@ -12,9 +12,8 @@
  */
 
 import { reverseGeocode } from '_shared/services/external/pelias.service';
+import { convertCountryCode3to2 } from '_shared/types/geocoding.types';
 import {
-	getCountryForPoint,
-	normalizeCountryCode,
 	getTimezoneDifferenceForPoint
 } from '_shared/services/external/country-reverse-geocoding.service';
 import { isRetryableError } from '_shared/utils/geocoding-utils';
@@ -172,6 +171,7 @@ export async function handler(
 			// Fill country codes/tz_diff mode: find points that have geocode data but missing country_code OR tz_diff
 			countQuery = countQuery
 				.not('geocode->properties->>geocoded_at', 'is', null) // Has been geocoded
+				.is('geocode->properties->>country_code_failed_at', null) // Not permanently failed
 				.or('country_code.is.null,tz_diff.is.null'); // But missing country_code or tz_diff
 		} else {
 			// Default mode: only points that haven't been geocoded yet
@@ -245,6 +245,7 @@ export async function handler(
 				// Fill country codes/tz_diff mode: find points that have geocode data but missing country_code OR tz_diff
 				batchQuery = batchQuery
 					.not('geocode->properties->>geocoded_at', 'is', null)
+					.is('geocode->properties->>country_code_failed_at', null)
 					.or('country_code.is.null,tz_diff.is.null');
 			} else {
 				// Default mode: only points that haven't been geocoded yet
@@ -257,7 +258,8 @@ export async function handler(
 				batchQuery = batchQuery.eq('user_id', userId);
 			}
 
-			// For force mode, use offset-based pagination; otherwise, records drop out of filter after processing
+			// Only force mode uses offset-based pagination
+			// Default and fill_country_codes_only modes rely on records dropping out of the filter
 			let finalQuery = batchQuery.order('recorded_at', { ascending: false }).limit(BATCH_SIZE);
 			if (forceMode) {
 				finalQuery = finalQuery.range(offset, offset + BATCH_SIZE - 1);
@@ -478,7 +480,7 @@ async function processPointsForCountryCodeOnly(
 
 /**
  * Process a single point to fill in missing country code and/or tz_diff.
- * Uses local GeoJSON point-in-polygon lookup instead of Pelias API for speed.
+ * Uses Pelias API for country code, local GeoJSON for timezone offset.
  */
 async function processSinglePointCountryCodeOnly(
 	fluxbase: FluxbaseClient,
@@ -533,11 +535,22 @@ async function processSinglePointCountryCodeOnly(
 		// Determine what needs to be filled
 		let newCountryCode: string | null = point.country_code;
 		let newTzDiff: number | null = point.tz_diff;
+		let countryCodeFailed = false;
 
 		// Fill country_code if missing
 		if (newCountryCode === null) {
-			const rawCountryCode = getCountryForPoint(lat, lon);
-			newCountryCode = normalizeCountryCode(rawCountryCode);
+			try {
+				const peliasResult = await reverseGeocode(lat, lon);
+				const rawCode = peliasResult?.address?.country_code
+					|| convertCountryCode3to2(peliasResult?.country_a);
+				if (rawCode) {
+					newCountryCode = rawCode.toUpperCase();
+				} else {
+					countryCodeFailed = true;
+				}
+			} catch {
+				countryCodeFailed = true;
+			}
 		}
 
 		// Fill tz_diff if missing
@@ -545,33 +558,34 @@ async function processSinglePointCountryCodeOnly(
 			newTzDiff = getTimezoneDifferenceForPoint(lat, lon);
 		}
 
-		// If we couldn't determine either value, skip this point
-		if (newCountryCode === null && newTzDiff === null) {
-			return false;
+		// Update the existing geocode data
+		const existingGeocode = point.geocode as Record<string, unknown> | null;
+		let updatedGeocode: Record<string, unknown> | null = existingGeocode
+			? JSON.parse(JSON.stringify(existingGeocode))
+			: { type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties: {} };
+
+		if (!(updatedGeocode as any).properties) {
+			(updatedGeocode as any).properties = {};
 		}
 
-		// Update the existing geocode data with the new country code (if we have one)
-		const existingGeocode = point.geocode as Record<string, unknown> | null;
-		let updatedGeocode = existingGeocode;
-
-		if (newCountryCode && existingGeocode && typeof existingGeocode === 'object') {
-			// Deep clone and update
-			updatedGeocode = JSON.parse(JSON.stringify(existingGeocode));
-			if (!(updatedGeocode as any).properties) {
-				(updatedGeocode as any).properties = {};
-			}
+		if (newCountryCode) {
 			if (!(updatedGeocode as any).properties.address) {
 				(updatedGeocode as any).properties.address = {};
 			}
 			(updatedGeocode as any).properties.address.country_code = newCountryCode;
 		}
 
-		// Build update object with only the fields that need updating
+		// Mark permanently failed lookups so they're excluded from future runs
+		if (countryCodeFailed) {
+			(updatedGeocode as any).properties.country_code_failed_at = new Date().toISOString();
+		}
+
+		// Build update object
 		const updateData: Record<string, unknown> = {
 			updated_at: new Date().toISOString()
 		};
 
-		if (updatedGeocode && updatedGeocode !== existingGeocode) {
+		if (updatedGeocode !== existingGeocode) {
 			updateData.geocode = updatedGeocode;
 		}
 		if (newCountryCode !== null && point.country_code === null) {
@@ -656,10 +670,9 @@ async function processSinglePoint(
 		const mergedGeocodeGeoJSON = mergeGeocodingWithExisting(point.geocode, lat, lon, geocodeResult);
 
 		// Extract country_code from geocode result
-		const countryCode = normalizeCountryCode(
-			(mergedGeocodeGeoJSON as any)?.properties?.address?.country_code ||
-			getCountryForPoint(lat, lon)
-		);
+		const countryCode = (mergedGeocodeGeoJSON as any)?.properties?.address?.country_code
+			|| convertCountryCode3to2((mergedGeocodeGeoJSON as any)?.properties?.country_a)
+			|| null;
 
 		// Calculate tz_diff from coordinates
 		const tzDiff = getTimezoneDifferenceForPoint(lat, lon);
