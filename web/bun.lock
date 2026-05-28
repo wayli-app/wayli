@@ -35,7 +35,7 @@
         "@semantic-release/release-notes-generator": "^14.1.1",
         "@sveltejs/adapter-auto": "^7.0.1",
         "@sveltejs/adapter-static": "^3.0.10",
-        "@sveltejs/kit": "^2.59.1",
+        "@sveltejs/kit": "^2.60.1",
         "@sveltejs/vite-plugin-svelte": "^7.1.2",
         "@tailwindcss/typography": "^0.5.19",
         "@tailwindcss/vite": "^4.3.0",
@@ -56,7 +56,7 @@
         "globals": "^17.6.0",
         "jsdom": "^29.1.1",
         "lightningcss": "^1.32.0",
-        "lucide-static": "^1.14.0",
+        "lucide-static": "^1.16.0",
         "prettier": "^3.8.3",
         "prettier-plugin-svelte": "^3.5.2",
         "prettier-plugin-tailwindcss": "^0.8.0",
@@ -66,7 +66,7 @@
         "tailwindcss": "^4.3.0",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.59.3",
-        "vite": "^8.0.12",
+        "vite": "^8.0.13",
         "vitest": "^4.1.6",
       },
       "optionalDependencies": {
@@ -1306,7 +1306,7 @@
 
     "lru-cache": ["lru-cache@11.3.5", "", {}, "sha512-NxVFwLAnrd9i7KUBxC4DrUhmgjzOs+1Qm50D3oF1/oL+r1NpZ4gA7xvG0/zJ8evR7zIKn4vLf7qTNduWFtCrRw=="],
 
-    "lucide-static": ["lucide-static@1.14.0", "", {}, "sha512-QnAHXC1nk8IXRBmO5ee9JcPiKEVeqf06tKF0bZipxlV++bwUVqvvliC3KA+beDg2lod+WXYIhHde5pQRHkUmqA=="],
+    "lucide-static": ["lucide-static@1.17.0", "", {}, "sha512-VORJmPqi4DZ5lf4/n2qqcIz1nTKGFReS83DJINcK5nXY7z+4P3G6CW/7SXpzlGllEI0vHKFH24eSM+aMFaK5zw=="],
 
     "lucide-svelte": ["lucide-svelte@1.0.1", "", { "peerDependencies": { "svelte": "^3 || ^4 || ^5.0.0-next.42" } }, "sha512-WvzZgk0pqzgda+AErLvgWxHkfg/+GgUwqKMRHvzt0IqyMdmyEDzDCk3Z+Wo/3y753oIgx8u9Q4eUbWkghFa8Jg=="],
 
