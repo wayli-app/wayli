@@ -213,7 +213,11 @@
 			</div>
 
 			<!-- Steps grid (responsive) -->
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-{totalSteps}">
+			<div
+				class="grid grid-cols-1 gap-3 sm:grid-cols-2 {totalSteps >= 4
+					? 'lg:grid-cols-4'
+					: 'lg:grid-cols-3'}"
+			>
 				{#each steps as step (step.id)}
 					{@const Icon = step.icon}
 					<a

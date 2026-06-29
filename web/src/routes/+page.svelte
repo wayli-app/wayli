@@ -31,6 +31,9 @@
 	// Track if checking user count
 	let checkingUserCount = $state(true);
 
+	// Track if initial auth state has resolved (prevents login-button flash for logged-in users)
+	let authResolved = $state(false);
+
 	// Local theme state for SSR compatibility
 	let currentTheme = $state<'light' | 'dark'>('light');
 
@@ -94,6 +97,17 @@
 		// Check setup status first to see if initial setup is needed
 		checkSetupStatus();
 
+		// Resolve auth state so the top-right chrome doesn't flash the login button for logged-in users
+		(async () => {
+			try {
+				await fluxbase.auth.getUser();
+			} catch {
+				// No session — show the login button.
+			} finally {
+				authResolved = true;
+			}
+		})();
+
 		// Subscribe to user store for real-time updates
 		const unsubscribe = userStore.subscribe((user) => {
 			console.log('🏠 [LANDING] User state:', user ? `Logged in - ${user.email}` : 'Not logged in');
@@ -138,7 +152,11 @@
 	</div>
 {:else}
 	<!-- Theme Toggle, Language Selector, and User/Login Button in Top Right -->
-	<div class="fixed right-4 z-40 flex items-center gap-3 transition-all duration-300 {appState.storageBannerVisible ? 'top-16' : 'top-4'}">
+	<div
+		class="fixed right-4 z-40 flex items-center gap-3 transition-all duration-300 {appState.storageBannerVisible
+			? 'top-16'
+			: 'top-4'}"
+	>
 		<!-- Language Selector -->
 		<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 
@@ -204,7 +222,7 @@
 					</div>
 				</div>
 			</div>
-		{:else}
+		{:else if authResolved}
 			<!-- Login Button -->
 			<button
 				onclick={handleLogin}

@@ -19,7 +19,9 @@
 		FileText,
 		ChevronRight,
 		ChevronDown,
-		Database
+		Database,
+		Menu,
+		MessageSquare
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
@@ -45,6 +47,7 @@
 	let question = $state('');
 	let isConnected = $state(false);
 	let isLoading = $state(false);
+	let showMobileSidebar = $state(false);
 	let messages = $state<ChatMessage[]>([]);
 	let currentStreamingContent = $state('');
 	let currentQueryResults = $state<QueryResultData[]>([]);
@@ -260,7 +263,11 @@
 						const fetchQueryResults = async (): Promise<QueryResultData[]> => {
 							const conversation = await chatService.getConversation(currentConversationId!);
 							const lastMessage = conversation.messages[conversation.messages.length - 1];
-							if (lastMessage?.role === 'assistant' && lastMessage.query_results && lastMessage.query_results.length > 0) {
+							if (
+								lastMessage?.role === 'assistant' &&
+								lastMessage.query_results &&
+								lastMessage.query_results.length > 0
+							) {
 								return lastMessage.query_results.map((qr) => ({
 									query: qr.query,
 									summary: qr.summary,
@@ -279,7 +286,7 @@
 							try {
 								// Add delay before retries to allow backend to persist
 								if (attempt > 0) {
-									await new Promise(resolve => setTimeout(resolve, retryDelay));
+									await new Promise((resolve) => setTimeout(resolve, retryDelay));
 								}
 
 								const results = await fetchQueryResults();
@@ -288,7 +295,10 @@
 									break;
 								}
 							} catch (err) {
-								console.warn(`Failed to fetch query results (attempt ${attempt + 1}/${maxRetries}):`, err);
+								console.warn(
+									`Failed to fetch query results (attempt ${attempt + 1}/${maxRetries}):`,
+									err
+								);
 							}
 						}
 					}
@@ -301,8 +311,7 @@
 						content: currentStreamingContent || (hasContent ? '' : t('ask.noResponse')),
 						timestamp: new Date(),
 						queryResults: enrichedQueryResults.length > 0 ? [...enrichedQueryResults] : undefined,
-						executionLogs:
-							currentExecutionLogs.length > 0 ? [...currentExecutionLogs] : undefined,
+						executionLogs: currentExecutionLogs.length > 0 ? [...currentExecutionLogs] : undefined,
 						usage
 					};
 					messages = [...messages, assistantMessage];
@@ -676,6 +685,16 @@
 			await loadConversationList();
 		}, 500);
 	}
+
+	// Mobile sidebar wrappers — close the drawer after an action
+	function selectConversationMobile(id: string) {
+		loadConversation(id);
+		showMobileSidebar = false;
+	}
+	function startNewConversationMobile() {
+		startNewConversation();
+		showMobileSidebar = false;
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -685,7 +704,7 @@
 </svelte:head>
 
 <div class="-m-6 flex h-screen">
-	<!-- Conversation Sidebar -->
+	<!-- Conversation Sidebar (desktop) -->
 	<div class="hidden md:block">
 		<ConversationSidebar
 			conversations={conversationList}
@@ -700,8 +719,55 @@
 		/>
 	</div>
 
+	<!-- Conversation Sidebar (mobile drawer) -->
+	{#if showMobileSidebar}
+		<div class="fixed inset-0 z-40 md:hidden">
+			<!-- Backdrop -->
+			<button
+				type="button"
+				aria-label="Close conversations"
+				class="absolute inset-0 bg-black/50"
+				onclick={() => (showMobileSidebar = false)}
+			></button>
+			<!-- Drawer -->
+			<div class="absolute top-0 left-0 h-full w-80 max-w-[85vw] shadow-xl">
+				<ConversationSidebar
+					conversations={conversationList}
+					activeConversationId={currentConversationId}
+					isLoading={isLoadingConversations}
+					hasMore={hasMoreConversations}
+					isLoadingMore={isLoadingMoreConversations}
+					onSelect={selectConversationMobile}
+					onNewConversation={startNewConversationMobile}
+					onDelete={deleteConversation}
+					onLoadMore={loadMoreConversations}
+				/>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Chat Area -->
 	<div class="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+		<!-- Mobile Top Bar -->
+		<div
+			class="flex items-center gap-3 border-b border-gray-200 bg-white p-3 md:hidden dark:border-gray-700 dark:bg-gray-900"
+		>
+			<button
+				type="button"
+				onclick={() => (showMobileSidebar = true)}
+				aria-label="Open conversation history"
+				class="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+			>
+				<Menu class="h-5 w-5" />
+			</button>
+			<span class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+				<MessageSquare class="h-4 w-4" />
+				{currentConversationId
+					? conversationList.find((c) => c.id === currentConversationId)?.title || t('ask.title')
+					: t('ask.title')}
+			</span>
+		</div>
+
 		<!-- Messages Area -->
 		<div bind:this={messagesContainer} class="flex-1 overflow-y-auto">
 			{#if isCheckingConfig}
@@ -923,6 +989,8 @@
 									<div
 										class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
 										style="min-height: 24px;"
+										role="status"
+										aria-live="polite"
 									>
 										<Loader2
 											class="text-primary dark:text-primary-dark h-4 w-4 flex-shrink-0 animate-spin"
@@ -968,6 +1036,7 @@
 						onclick={cancelMessage}
 						class="absolute right-3 rounded-lg bg-red-500 p-2 text-white transition-colors hover:bg-red-600"
 						title="Cancel"
+						aria-label="Cancel message"
 					>
 						<StopCircle class="h-5 w-5" />
 					</button>
@@ -975,6 +1044,7 @@
 					<button
 						onclick={sendMessage}
 						disabled={!question.trim() || !isConnected}
+						aria-label="Send message"
 						class="bg-primary hover:bg-primary/90 absolute right-3 rounded-lg p-2 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						<Send class="h-5 w-5" />
