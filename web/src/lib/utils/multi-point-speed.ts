@@ -20,6 +20,9 @@ export const SPEED_CALCULATION_CONFIG: SpeedCalculationConfig = {
 	MAX_SPEED_THRESHOLD: 500 // Maximum realistic speed in km/h
 };
 
+// ponytail: beyond this accuracy radius a fix is too noisy to trust for speed/mode math.
+const MAX_RELIABLE_ACCURACY_M = 100;
+
 /**
  * Haversine distance calculation in meters
  */
@@ -42,27 +45,41 @@ export function calculateMultiPointSpeed(
 	points: PointData[],
 	windowSize: number = SPEED_CALCULATION_CONFIG.DEFAULT_WINDOW_SIZE
 ): number {
+	// Exclude points with unusably poor accuracy — their speeds/positions only add noise.
+	// Points without an accuracy value are kept (older data + computed fallbacks).
+	const usable = points.filter(
+		(p) => p.accuracy === undefined || p.accuracy <= MAX_RELIABLE_ACCURACY_M
+	);
+	const considered = usable.length >= SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE ? usable : points;
+
 	// Check if points have pre-calculated speeds (from database)
-	const pointsWithSpeed = points.filter(
+	const pointsWithSpeed = considered.filter(
 		(p) => p.speed !== undefined && p.speed !== null && p.speed > 0
 	);
 
 	// If we have enough points with pre-calculated speeds, use those instead of calculating from coordinates
-	if (pointsWithSpeed.length >= Math.min(3, points.length)) {
-		const recentSpeeds = pointsWithSpeed.slice(-windowSize).map((p) => p.speed!);
-
+	if (pointsWithSpeed.length >= Math.min(3, considered.length)) {
+		// Pair each recent speed with its source accuracy so filtering doesn't break alignment
+		const recent = pointsWithSpeed.slice(-windowSize).map((p) => ({
+			speed: p.speed!,
+			accuracy: p.accuracy
+		}));
 		// Filter outliers
-		const speeds = recentSpeeds.filter(
-			(s) => s > 0 && s < SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD
+		const entries = recent.filter(
+			(e) => e.speed > 0 && e.speed < SPEED_CALCULATION_CONFIG.MAX_SPEED_THRESHOLD
 		);
-		if (speeds.length === 0) return 0;
+		if (entries.length === 0) return 0;
 
-		// Calculate weighted average (more weight on recent speeds)
+		// Calculate weighted average (more weight on recent speeds, less on low-accuracy fixes)
 		let weightedSum = 0;
 		let totalWeight = 0;
-		speeds.forEach((speed, index) => {
-			const weight = Math.pow(SPEED_CALCULATION_CONFIG.WEIGHT_DECAY, speeds.length - 1 - index);
-			weightedSum += speed * weight;
+		entries.forEach((entry, index) => {
+			// ponytail: accuracy weighting — halve the weight of fixes above 50m
+			const accuracyFactor = entry.accuracy !== undefined && entry.accuracy > 50 ? 0.5 : 1;
+			const weight =
+				Math.pow(SPEED_CALCULATION_CONFIG.WEIGHT_DECAY, entries.length - 1 - index) *
+				accuracyFactor;
+			weightedSum += entry.speed * weight;
 			totalWeight += weight;
 		});
 
@@ -73,8 +90,8 @@ export function calculateMultiPointSpeed(
 
 	// Fallback: Calculate from coordinates and timestamps
 	// Handle case with only 2 points (simple speed calculation)
-	if (points.length === 2) {
-		const [prev, curr] = points;
+	if (considered.length === 2) {
+		const [prev, curr] = considered;
 		const distance = haversine(prev.lat, prev.lng, curr.lat, curr.lng);
 		const timeDiff = (curr.timestamp - prev.timestamp) / 1000; // seconds
 		if (timeDiff > 0 && distance > SPEED_CALCULATION_CONFIG.MIN_DISTANCE_THRESHOLD) {
@@ -85,12 +102,12 @@ export function calculateMultiPointSpeed(
 		return 0;
 	}
 
-	if (points.length < SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE) {
+	if (considered.length < SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE) {
 		return 0;
 	}
 
 	// Use the most recent points
-	const recentPoints = points.slice(-windowSize);
+	const recentPoints = considered.slice(-windowSize);
 
 	// Calculate distances and times between consecutive points
 	const segments: SpeedSegment[] = [];
@@ -158,11 +175,26 @@ function calculateWeightedAverageSpeed(segments: SpeedSegment[]): number {
 
 /**
  * Get adaptive window size based on GPS data quality
+ *
+ * Prefers the GPS `accuracy` field (a direct measure of fix quality) over the
+ * inter-point-distance heuristic. Larger window => more smoothing for noisy fixes.
  */
 export function getAdaptiveWindowSize(pointHistory: PointData[]): number {
 	if (pointHistory.length < 3) return SPEED_CALCULATION_CONFIG.MIN_WINDOW_SIZE;
 
-	// Calculate GPS accuracy indicators
+	// Direct fix-quality proxy when accuracy is available
+	const accuracies = pointHistory
+		.map((p) => p.accuracy)
+		.filter((a): a is number => typeof a === 'number' && a > 0);
+
+	if (accuracies.length >= Math.min(3, pointHistory.length)) {
+		const avgAccuracy = accuracies.reduce((a, b) => a + b, 0) / accuracies.length;
+		if (avgAccuracy > 50) return 7; // Noisy GPS
+		if (avgAccuracy > 25) return 5; // Moderate noise
+		return 3; // Clean GPS
+	}
+
+	// Fallback: estimate noise from inter-point distance
 	const distances: number[] = [];
 	for (let i = 1; i < pointHistory.length; i++) {
 		const dist = haversine(

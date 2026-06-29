@@ -13,6 +13,7 @@ export interface PointData {
 	timestamp: number;
 	geocode?: GeocodeGeoJSONFeature | null;
 	speed?: number;
+	accuracy?: number; // GPS accuracy radius in meters; lower is better
 }
 
 export interface ModeHistoryEntry {

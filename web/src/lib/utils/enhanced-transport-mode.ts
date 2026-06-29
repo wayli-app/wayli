@@ -33,7 +33,6 @@ import {
 	BothStationsDetectedRule,
 	FinalStationOnlyRule,
 	StartingStationOnlyRule,
-	TrainSpeedWithoutStationRule,
 	TrainJourneyEndRule,
 	UnrealisticTrainSegmentRule
 } from '../rules/train-detection-rules';
@@ -152,7 +151,6 @@ function initializeDetector(): TransportModeDetector {
 	detector.addRule(new UnrealisticTrainSegmentRule()); // 66 NEW - Filters unrealistic short train segments
 	detector.addRule(new TrainJourneyEndRule()); // 65
 	detector.addRule(new SpeedSimilarityRule()); // 65
-	detector.addRule(new TrainSpeedWithoutStationRule()); // 60
 
 	// SPEED ANALYSIS LAYER (50-55)
 	detector.addRule(new MultiPointSpeedRule()); // 55
@@ -183,7 +181,14 @@ function getDetector(): TransportModeDetector {
 
 /**
  * Enhanced transport mode detection using the new rule-based system
+ *
+ * `currentTimestamp` lets callers pass the real event time (e.g. `recorded_at`).
+ * When omitted, wall-clock `Date.now()` is used. Rules read `context.current.timestamp`,
+ * so threading the event time makes batch reprocessing replayable and tests deterministic.
  */
+// ponytail: gap threshold — split continuity after 5 min without a fix (tunnels, phone off, flights).
+const SEGMENT_GAP_MS = 5 * 60 * 1000;
+
 export function detectEnhancedMode(
 	prevLat: number,
 	prevLng: number,
@@ -192,28 +197,44 @@ export function detectEnhancedMode(
 	dt: number, // seconds
 	reverseGeocode: GeocodeGeoJSONFeature | null | undefined,
 	context: EnhancedModeContext,
-	speedMps?: number
+	speedMps?: number,
+	currentTimestamp?: number,
+	accuracyMeters?: number
 ): { mode: string; reason: string } {
 	const detector = getDetector();
+	const eventNow = currentTimestamp ?? Date.now();
+
+	// B6: gap-aware segmentation. After a long gap (tunnel, phone off, flight), prior points and
+	// journey state are stale — reset continuity so we don't fabricate a mode streak across the gap.
+	if (dt * 1000 > SEGMENT_GAP_MS) {
+		context.pointHistory = [];
+		context.isInTrainJourney = false;
+		context.trainJourneyStartTime = undefined;
+		context.trainJourneyStartStation = undefined;
+		context.isInAirplaneJourney = false;
+		context.airplaneJourneyStartTime = undefined;
+		context.airplaneJourneyStartAirport = undefined;
+	}
 
 	// Create current and previous point data
 	const current: PointData = {
 		lat: currLat,
 		lng: currLng,
-		timestamp: Date.now(),
+		timestamp: eventNow,
 		geocode: reverseGeocode,
-		speed: speedMps ? speedMps * 3.6 : undefined
+		speed: speedMps ? speedMps * 3.6 : undefined,
+		accuracy: accuracyMeters
 	};
 
 	const previous: PointData = {
 		lat: prevLat,
 		lng: prevLng,
-		timestamp: Date.now() - dt * 1000,
+		timestamp: eventNow - dt * 1000,
 		geocode: null,
 		speed: context.lastSpeed
 	};
 
-	// Update point history
+	// Update point history with PRIOR points only (current is appended by createDetectionContext).
 	// If point history is empty or doesn't contain a point matching previous coordinates,
 	// add the previous point first to enable 2-point speed calculation
 	if (
@@ -224,7 +245,6 @@ export function detectEnhancedMode(
 		context.pointHistory.push(previous);
 	}
 
-	context.pointHistory.push(current);
 	while (context.pointHistory.length > 20) {
 		// Keep last 20 points
 		context.pointHistory.shift();
@@ -242,7 +262,7 @@ export function detectEnhancedMode(
 	// Update train station tracking
 	if (atTrainStation && stationName) {
 		const stationInfo = {
-			timestamp: Date.now(),
+			timestamp: eventNow,
 			name: stationName,
 			coordinates: { lat: currLat, lng: currLng }
 		};
@@ -253,7 +273,7 @@ export function detectEnhancedMode(
 	// Update airport tracking
 	if (atAirport && airportName) {
 		const airportInfo = {
-			timestamp: Date.now(),
+			timestamp: eventNow,
 			name: airportName,
 			coordinates: { lat: currLat, lng: currLng }
 		};
@@ -265,7 +285,7 @@ export function detectEnhancedMode(
 	const currentJourney = context.isInTrainJourney
 		? {
 				type: 'train' as const,
-				startTime: context.trainJourneyStartTime || Date.now(),
+				startTime: context.trainJourneyStartTime || eventNow,
 				startStation: context.trainJourneyStartStation,
 				endStation: atTrainStation ? stationName : undefined,
 				totalDistance: context.totalDistanceTraveled,
@@ -274,7 +294,7 @@ export function detectEnhancedMode(
 		: context.isInAirplaneJourney
 			? {
 					type: 'airplane' as const,
-					startTime: context.airplaneJourneyStartTime || Date.now(),
+					startTime: context.airplaneJourneyStartTime || eventNow,
 					startAirport: context.airplaneJourneyStartAirport,
 					endAirport: atAirport ? airportName : undefined,
 					totalDistance: context.totalDistanceTraveled,
@@ -308,7 +328,7 @@ export function detectEnhancedMode(
 	// Update journey state
 	if (result.mode === 'train' && !context.isInTrainJourney) {
 		context.isInTrainJourney = true;
-		context.trainJourneyStartTime = Date.now();
+		context.trainJourneyStartTime = eventNow;
 		context.trainJourneyStartStation = stationName || 'Unknown';
 	} else if (result.mode !== 'train' && context.isInTrainJourney) {
 		context.isInTrainJourney = false;
@@ -318,7 +338,7 @@ export function detectEnhancedMode(
 
 	if (result.mode === 'airplane' && !context.isInAirplaneJourney) {
 		context.isInAirplaneJourney = true;
-		context.airplaneJourneyStartTime = Date.now();
+		context.airplaneJourneyStartTime = eventNow;
 		context.airplaneJourneyStartAirport = airportName || 'Unknown';
 	} else if (result.mode !== 'airplane' && context.isInAirplaneJourney) {
 		context.isInAirplaneJourney = false;
@@ -329,7 +349,7 @@ export function detectEnhancedMode(
 	// Update mode history
 	context.modeHistory.push({
 		mode: result.mode,
-		timestamp: Date.now(),
+		timestamp: eventNow,
 		speed: detectionContext.currentSpeed,
 		coordinates: { lat: currLat, lng: currLng },
 		confidence: result.confidence,
@@ -361,7 +381,7 @@ export function detectEnhancedMode(
 		);
 		context.totalDistanceTraveled += distance;
 	}
-	context.lastKnownCoordinates = { lat: currLat, lng: currLng, timestamp: Date.now() };
+	context.lastKnownCoordinates = { lat: currLat, lng: currLng, timestamp: eventNow };
 
 	return {
 		mode: result.mode,

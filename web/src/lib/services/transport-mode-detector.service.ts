@@ -64,21 +64,34 @@ export class TransportModeDetector {
 
 	/**
 	 * Main detection method
+	 *
+	 * Collects results from every applicable rule and returns the highest-confidence one,
+	 * breaking ties by rule priority. This lets the multi-signal combiner and confidence
+	 * math actually decide outcomes, instead of a strict priority-first-wins where a
+	 * high-priority rule at 0.55 always beats a lower-priority rule at 0.95.
 	 */
 	detect(context: DetectionContext): DetectionResult {
 		if (!this.initialized) {
 			throw new Error('🚨 TransportModeDetector not initialized');
 		}
 
-		// Apply rules in priority order
+		let best: { result: DetectionResult; priority: number } | null = null;
+
 		for (const rule of this.rules) {
-			if (rule.canApply(context)) {
-				const result = rule.detect(context);
-				if (result && result.confidence > 0.5) {
-					return result;
-				}
+			if (!rule.canApply(context)) continue;
+			const result = rule.detect(context);
+			if (!result || result.confidence <= 0.5) continue;
+
+			if (
+				!best ||
+				result.confidence > best.result.confidence ||
+				(result.confidence === best.result.confidence && rule.priority > best.priority)
+			) {
+				best = { result, priority: rule.priority };
 			}
 		}
+
+		if (best) return best.result;
 
 		// Fallback if no rules apply - use previous mode if available
 		if (context.modeHistory.length > 0) {
@@ -155,8 +168,12 @@ export class TransportModeDetector {
 	 * Update journey context based on detection result
 	 */
 	updateJourneyContext(context: DetectionContext, result: DetectionResult): any {
-		const now = Date.now();
+		const now = context.current.timestamp;
 		const currentJourney = context.currentJourney;
+
+		// Distance traveled since the previous point: speed (km/h) * time (h) * 1000 m/km.
+		const dtSeconds = Math.max(0, (context.current.timestamp - context.previous.timestamp) / 1000);
+		const stepDistanceMeters = context.currentSpeed * (dtSeconds / 3600) * 1000;
 
 		// Start new journey if mode changed significantly
 		if (!currentJourney || currentJourney.type !== result.mode) {
@@ -177,7 +194,7 @@ export class TransportModeDetector {
 			endStation: context.atTrainStation ? context.stationName : currentJourney.endStation,
 			endAirport: context.atAirport ? context.airportName : currentJourney.endAirport,
 			endCoordinates: { lat: context.current.lat, lng: context.current.lng },
-			totalDistance: currentJourney.totalDistance + context.currentSpeed * 0.001, // Rough estimate
+			totalDistance: (currentJourney.totalDistance || 0) + stepDistanceMeters,
 			averageSpeed: (currentJourney.averageSpeed + context.currentSpeed) / 2
 		};
 	}

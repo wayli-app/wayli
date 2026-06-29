@@ -87,7 +87,7 @@ export class FinalStationOnlyRule implements DetectionRule {
 	private hadTrainSpeedBeforeStation(context: DetectionContext): boolean {
 		// Look back 30 minutes in mode history
 		const lookbackWindow = 30 * 60 * 1000;
-		const cutoffTime = Date.now() - lookbackWindow;
+		const cutoffTime = context.current.timestamp - lookbackWindow;
 
 		const recentModes = context.modeHistory.filter((m) => m.timestamp > cutoffTime);
 
@@ -116,7 +116,7 @@ export class FinalStationOnlyRule implements DetectionRule {
 		factors: string[];
 	} {
 		const lookbackWindow = 30 * 60 * 1000;
-		const cutoffTime = Date.now() - lookbackWindow;
+		const cutoffTime = context.current.timestamp - lookbackWindow;
 
 		const recentModes = context.modeHistory.filter((m) => m.timestamp > cutoffTime);
 		const recentSpeeds = recentModes.map((m) => m.speed);
@@ -191,7 +191,7 @@ export class StartingStationOnlyRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult | null {
 		const journey = context.currentJourney!;
-		const timeSinceStart = Date.now() - journey.startTime;
+		const timeSinceStart = context.current.timestamp - journey.startTime;
 
 		// Continue train journey until significant slowdown (5+ minutes at low speed)
 		const hasSignificantSlowdown = this.checkForSignificantSlowdown(context);
@@ -241,7 +241,7 @@ export class StartingStationOnlyRule implements DetectionRule {
 
 	private hasRecentHighSpeed(context: DetectionContext): boolean {
 		// Check if we had train-like speed in last 3 minutes
-		const threeMinutesAgo = Date.now() - 3 * 60 * 1000;
+		const threeMinutesAgo = context.current.timestamp - 3 * 60 * 1000;
 		const recentSpeeds = context.speedHistory.slice(-15); // Last 15 points
 		const recentHighSpeeds = recentSpeeds.filter((s) => s >= 80);
 		return recentHighSpeeds.length >= 3; // At least 3 high-speed points recently
@@ -249,7 +249,7 @@ export class StartingStationOnlyRule implements DetectionRule {
 
 	private checkForSignificantSlowdown(context: DetectionContext): boolean {
 		// Extended window: 5 minutes instead of 3
-		const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+		const fiveMinutesAgo = context.current.timestamp - 5 * 60 * 1000;
 		const recentModes = context.modeHistory.filter((m) => m.timestamp >= fiveMinutesAgo);
 
 		// Need more data points for reliable slowdown detection
@@ -293,138 +293,6 @@ export class StartingStationOnlyRule implements DetectionRule {
 }
 
 /**
- * Train speed without station context rule
- * DISABLED: Train mode now requires station detection to prevent false positives
- * when driving at highway speeds with navigation enabled.
- */
-export class TrainSpeedWithoutStationRule implements DetectionRule {
-	name = 'Train Speed Without Station';
-	priority = 60;
-
-	canApply(_context: DetectionContext): boolean {
-		// DISABLED: Train mode now requires station detection.
-		// Speed patterns alone are not sufficient to distinguish train from car.
-		// Use TrainStationRule or FinalStationOnlyRule instead.
-		return false;
-	}
-
-	detect(context: DetectionContext): DetectionResult | null {
-		const lastMode = context.modeHistory[context.modeHistory.length - 1].mode;
-
-		// Check historical context
-		const recentlyAtStation = this.wasRecentlyAtTrainStation(context);
-		const wasInTrainMode = lastMode === 'train';
-
-		// Check minimum journey requirements (prevent short highway false positives)
-		const journeyDistance = this.calculateJourneyDistance(context);
-		const journeyDuration = this.calculateJourneyDuration(context);
-		const MIN_DISTANCE_WITHOUT_STATION = 5000; // 5 km
-		const MIN_DURATION_WITHOUT_STATION = 8 * 60 * 1000; // 8 minutes
-
-		// If no recent station visit, require substantial journey length
-		if (!recentlyAtStation && !wasInTrainMode) {
-			if (
-				journeyDistance < MIN_DISTANCE_WITHOUT_STATION &&
-				journeyDuration < MIN_DURATION_WITHOUT_STATION
-			) {
-				// Too short without station context - likely highway, not train
-				return null;
-			}
-		}
-
-		// Check speed pattern
-		const speedMetrics = calculateSpeedVariance(context.speedHistory);
-		const hasTrainSpeed = hasTrainLikeSpeedPattern(context.speedHistory);
-
-		// Check trajectory
-		const points = context.pointHistory.map((p) => ({ lat: p.lat, lng: p.lng }));
-		const isStraight = hasStraightTrajectory(points);
-
-		// Calculate confidence based on multiple signals
-		let confidence = 0.6; // Base confidence
-
-		if (recentlyAtStation) confidence += 0.1;
-		if (wasInTrainMode) confidence += 0.1;
-		if (hasTrainSpeed) confidence += 0.15;
-		if (isStraight) confidence += 0.15;
-
-		// Determine required signals based on journey characteristics
-		// - With station context: 2 signals sufficient
-		// - Without station context but long journey (>5km OR >8min): 2 signals sufficient
-		// - Without station context and short journey: 3 signals required (prevents false positives)
-		const positiveSignals = [recentlyAtStation, wasInTrainMode, hasTrainSpeed, isStraight].filter(
-			Boolean
-		).length;
-
-		const hasLongJourney =
-			journeyDistance >= MIN_DISTANCE_WITHOUT_STATION ||
-			journeyDuration >= MIN_DURATION_WITHOUT_STATION;
-		const requiredSignals = recentlyAtStation || hasLongJourney ? 2 : 3;
-
-		if (positiveSignals >= requiredSignals) {
-			return {
-				mode: 'train',
-				confidence: Math.min(confidence, 0.95),
-				reason: `Train-like speed and movement pattern (CV: ${speedMetrics.coefficientOfVariation.toFixed(3)})`,
-				metadata: {
-					recentlyAtStation,
-					wasInTrainMode,
-					hasTrainSpeed,
-					isStraight,
-					speedCV: speedMetrics.coefficientOfVariation,
-					speed: context.currentSpeed,
-					positiveSignals
-				}
-			};
-		}
-
-		return null;
-	}
-
-	private wasRecentlyAtTrainStation(context: DetectionContext): boolean {
-		const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
-		return context.modeHistory.some((m) => m.timestamp > thirtyMinutesAgo && m.mode === 'train');
-	}
-
-	private calculateJourneyDuration(context: DetectionContext): number {
-		// Calculate duration from earliest to latest point in mode history
-		if (context.modeHistory.length < 2) return 0;
-
-		const oldest = context.modeHistory[0].timestamp;
-		const newest = context.modeHistory[context.modeHistory.length - 1].timestamp;
-		return newest - oldest;
-	}
-
-	private calculateJourneyDistance(context: DetectionContext): number {
-		// Calculate total distance from point history using Haversine
-		if (context.pointHistory.length < 2) return 0;
-
-		let totalDistance = 0;
-		for (let i = 1; i < context.pointHistory.length; i++) {
-			const prev = context.pointHistory[i - 1];
-			const curr = context.pointHistory[i];
-			totalDistance += this.haversine(prev.lat, prev.lng, curr.lat, curr.lng);
-		}
-		return totalDistance;
-	}
-
-	private haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-		const R = 6371e3; // Earth radius in meters
-		const φ1 = (lat1 * Math.PI) / 180;
-		const φ2 = (lat2 * Math.PI) / 180;
-		const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-		const Δλ = ((lng2 - lng1) * Math.PI) / 180;
-
-		const a =
-			Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-			Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-		const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-		return R * c; // Distance in meters
-	}
-}
-
-/**
  * Unrealistic train segment filter - prevents marking very short segments as train
  */
 export class UnrealisticTrainSegmentRule implements DetectionRule {
@@ -442,7 +310,7 @@ export class UnrealisticTrainSegmentRule implements DetectionRule {
 
 		// If there's an active train journey, check its validity
 		if (journey?.type === 'train') {
-			const timeSinceStart = Date.now() - journey.startTime;
+			const timeSinceStart = context.current.timestamp - journey.startTime;
 			const distance = journey.totalDistance || 0;
 
 			// Filter unrealistic train segments:
@@ -496,7 +364,7 @@ export class TrainJourneyEndRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult | null {
 		const journey = context.currentJourney!;
-		const timeSinceStart = Date.now() - journey.startTime;
+		const timeSinceStart = context.current.timestamp - journey.startTime;
 
 		// Check if we're at a different station (journey end)
 		const atDifferentStation =
@@ -528,7 +396,7 @@ export class TrainJourneyEndRule implements DetectionRule {
 	}
 
 	private hasExtendedLowSpeed(context: DetectionContext): boolean {
-		const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+		const fiveMinutesAgo = context.current.timestamp - 5 * 60 * 1000;
 		const recentModes = context.modeHistory.filter((m) => m.timestamp >= fiveMinutesAgo);
 
 		if (recentModes.length < 3) return false;

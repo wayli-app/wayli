@@ -3,6 +3,9 @@
  * Used to distinguish between transport modes when geographic context is unavailable
  */
 
+import { haversine } from './multi-point-speed';
+import { SPEED_CV_THRESHOLDS } from './transport-mode.config';
+
 export interface SpeedPatternMetrics {
 	mean: number;
 	stdDev: number;
@@ -50,9 +53,9 @@ export function hasTrainLikeSpeedPattern(speeds: number[]): boolean {
 
 	const metrics = calculateSpeedVariance(speeds);
 
-	// Trains typically have CV < 0.15 (very consistent)
-	// Cars on highway have CV > 0.3 (variable due to traffic)
-	return metrics.coefficientOfVariation < 0.15 && metrics.mean >= 80;
+	// Trains typically have CV below the train-like threshold (very consistent)
+	// Cars on highway have higher CV (variable due to traffic)
+	return metrics.coefficientOfVariation < SPEED_CV_THRESHOLDS.TRAIN_LIKE && metrics.mean >= 80;
 }
 
 /**
@@ -65,22 +68,24 @@ export function hasCarLikeSpeedPattern(speeds: number[]): boolean {
 	const metrics = calculateSpeedVariance(speeds);
 
 	// Cars have higher variance due to traffic, lights, turns
-	return metrics.coefficientOfVariation > 0.25;
+	return metrics.coefficientOfVariation > SPEED_CV_THRESHOLDS.CAR_LIKE;
 }
 
 /**
  * Check if speed has been sustained for a minimum duration
  * Trains can maintain steady high speed for extended periods
+ *
+ * `referenceTime` should be the current event timestamp (defaults to Date.now() for back-compat).
  */
 export function hasSustainedSpeed(
 	modeHistory: Array<{ speed: number; timestamp: number }>,
 	minSpeed: number,
-	minDurationMs: number
+	minDurationMs: number,
+	referenceTime: number = Date.now()
 ): boolean {
 	if (modeHistory.length < 2) return false;
 
-	const now = Date.now();
-	const cutoff = now - minDurationMs;
+	const cutoff = referenceTime - minDurationMs;
 
 	const recentEntries = modeHistory.filter((m) => m.timestamp >= cutoff);
 
@@ -596,19 +601,4 @@ export function analyzeStopPattern(
 		confidence,
 		likelyMode
 	};
-}
-
-/**
- * Haversine distance calculation (same as multi-point-speed.ts)
- */
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-	const toRad = (x: number) => (x * Math.PI) / 180;
-	const R = 6371e3; // Earth radius in meters
-	const φ1 = toRad(lat1);
-	const φ2 = toRad(lat2);
-	const Δφ = toRad(lat2 - lat1);
-	const Δλ = toRad(lng2 - lng1);
-	const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-	return R * c;
 }

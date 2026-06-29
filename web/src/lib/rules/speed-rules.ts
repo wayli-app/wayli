@@ -218,8 +218,14 @@ export class AccelerationValidationRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult | null {
 		const lastMode = context.modeHistory[context.modeHistory.length - 1].mode;
-		const lastSpeed = context.speedHistory[context.speedHistory.length - 1];
-		const speedChange = Math.abs(context.currentSpeed - lastSpeed);
+		// Compare raw speeds at two points in time (previous vs current), not smoothed-vs-raw.
+		// context.currentSpeed is multi-point smoothed; context.current/previous.speed are the raw DB values.
+		const currentRawSpeed = context.current.speed ?? context.currentSpeed;
+		const lastSpeed =
+			context.previous.speed ??
+			context.speedHistory[context.speedHistory.length - 2] ??
+			currentRawSpeed;
+		const speedChange = Math.abs(currentRawSpeed - lastSpeed);
 
 		// Check mode-specific speed difference limits
 		const continuityLimit = MODE_CONTINUITY_LIMITS[lastMode as keyof typeof MODE_CONTINUITY_LIMITS];
@@ -227,12 +233,12 @@ export class AccelerationValidationRule implements DetectionRule {
 		if (continuityLimit && speedChange > continuityLimit.maxSpeedDiff) {
 			// Speed change exceeds what's possible for this mode
 			// Don't use speed bracket if it would result in the same mode (circular logic)
-			let appropriateMode = getSpeedBracket(context.currentSpeed);
+			let appropriateMode = getSpeedBracket(currentRawSpeed);
 
 			// If speed bracket suggests the same mode that failed continuity, pick a different mode
 			if (appropriateMode === lastMode) {
 				// Try the speed bracket for the higher of the two speeds
-				const higherSpeed = Math.max(lastSpeed, context.currentSpeed);
+				const higherSpeed = Math.max(lastSpeed, currentRawSpeed);
 				appropriateMode = getSpeedBracket(higherSpeed);
 
 				// If still the same, default to 'unknown' to force re-detection
@@ -244,11 +250,11 @@ export class AccelerationValidationRule implements DetectionRule {
 			return {
 				mode: appropriateMode,
 				confidence: 0.7, // Lower confidence since we're guessing
-				reason: `Speed change of ${speedChange.toFixed(1)} km/h (from ${lastSpeed.toFixed(1)} to ${context.currentSpeed.toFixed(1)}) exceeds ${lastMode} limit (max: ${continuityLimit.maxSpeedDiff} km/h), switching to ${appropriateMode}`,
+				reason: `Speed change of ${speedChange.toFixed(1)} km/h (from ${lastSpeed.toFixed(1)} to ${currentRawSpeed.toFixed(1)}) exceeds ${lastMode} limit (max: ${continuityLimit.maxSpeedDiff} km/h), switching to ${appropriateMode}`,
 				metadata: {
 					previousMode: lastMode,
 					previousSpeed: lastSpeed,
-					currentSpeed: context.currentSpeed,
+					currentSpeed: currentRawSpeed,
 					speedChange,
 					maxAllowedChange: continuityLimit.maxSpeedDiff,
 					validationType: 'speed_change_limit'
@@ -270,7 +276,7 @@ export class AccelerationValidationRule implements DetectionRule {
 
 				if (accelLimit && accelerationKmhPerSec > accelLimit) {
 					// Impossible acceleration detected
-					const appropriateMode = getSpeedBracket(context.currentSpeed);
+					const appropriateMode = getSpeedBracket(currentRawSpeed);
 
 					return {
 						mode: appropriateMode,
@@ -279,7 +285,7 @@ export class AccelerationValidationRule implements DetectionRule {
 						metadata: {
 							previousMode: lastMode,
 							previousSpeed: lastSpeed,
-							currentSpeed: context.currentSpeed,
+							currentSpeed: currentRawSpeed,
 							acceleration: accelerationKmhPerSec,
 							maxAcceleration: accelLimit,
 							timeDiff: timeDiffSeconds,

@@ -61,19 +61,38 @@ describe('Geographic Rules', () => {
 			expect(result!.confidence).toBeGreaterThan(0.8);
 		});
 
-		it('should apply when at train station regardless of speed', () => {
-			const slowContext = createMockContext({
-				atTrainStation: true,
-				currentSpeed: 5
-			});
-
+		it('should apply at train speed near a station, and after arriving by train, but not on a cold start', () => {
+			// Fast speed near station → boarding/alighting in motion
 			const fastContext = createMockContext({
 				atTrainStation: true,
 				currentSpeed: 120
 			});
-
-			expect(rule.canApply(slowContext)).toBe(true);
 			expect(rule.canApply(fastContext)).toBe(true);
+
+			// Slow at station but recently arrived at train speed → still boarding/alighting
+			const arrivedContext = createMockContext({
+				atTrainStation: true,
+				currentSpeed: 5,
+				modeHistory: [
+					{
+						mode: 'train',
+						timestamp: Date.now() - 60000,
+						speed: 110,
+						coordinates: { lat: 52, lng: 4 },
+						confidence: 0.8,
+						reason: 'fast'
+					}
+				]
+			});
+			expect(rule.canApply(arrivedContext)).toBe(true);
+
+			// Slow at station with no prior movement → walking through / waiting, NOT train
+			const coldStartContext = createMockContext({
+				atTrainStation: true,
+				currentSpeed: 5,
+				modeHistory: []
+			});
+			expect(rule.canApply(coldStartContext)).toBe(false);
 		});
 
 		it('should not apply when not at train station', () => {

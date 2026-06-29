@@ -84,6 +84,7 @@ export interface TrackerDataPoint {
 	coordinates?: number[]; // GeoJSON coordinates array [lon, lat] (fallback)
 	speed?: number; // Speed in m/s from database
 	distance?: number; // Distance in meters from previous point
+	accuracy?: number; // GPS accuracy (HDOP/radius) in meters
 	tz_diff?: number; // Timezone difference from UTC in hours
 	type?: string;
 	class?: string;
@@ -411,10 +412,11 @@ export class ClientStatisticsService {
 				location,
 				speed,
 				distance,
+				accuracy,
 				tz_diff,
 				geocode->properties->>city,
-				geocode->properties->address->>city,
-				geocode->properties->address->>village
+				geocode->properties->>address->>city,
+				geocode->properties->>address->>village
 			`
 			)
 			.eq('user_id', userId)
@@ -491,7 +493,9 @@ export class ClientStatisticsService {
 						timeDiff, // actual time difference in seconds
 						currentGeocode,
 						this.transportContext,
-						speedMps // pass speed in m/s (detectEnhancedMode will convert to km/h)
+						speedMps, // pass speed in m/s (detectEnhancedMode will convert to km/h)
+						new Date(point.recorded_at).getTime(),
+						point.accuracy
 					);
 
 					transportMode = mode;
@@ -531,7 +535,10 @@ export class ClientStatisticsService {
 							nextCoords[0], // curr lat, lng
 							timeSpent / 1000, // convert to seconds
 							currentGeocode,
-							this.transportContext
+							this.transportContext,
+							undefined,
+							new Date(point.recorded_at).getTime(),
+							point.accuracy
 						);
 
 						transportMode = mode;
