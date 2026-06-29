@@ -4,7 +4,10 @@
 // @fluxbase:timeout 30
 // @fluxbase:memory 256
 
-// Country name to ISO 2-letter code mapping
+// Country name to ISO 2-letter code mapping.
+// ponytail: duplicated in aggregate-visits.ts — Fluxbase MCP tools are synced individually with
+// no bundler/shared-module support, so a shared import would not resolve at runtime. Keep these
+// in sync manually; if the platform adds shared imports, extract to a shared module.
 const COUNTRY_MAP: Record<string, string> = {
   vietnam: 'VN',
   'viet nam': 'VN',
@@ -91,7 +94,7 @@ function parseDateRange(dateRange: string): string | null {
     return "started_at >= CURRENT_DATE - INTERVAL '7 days'";
   }
   if (lower.includes('today')) {
-    return "started_at >= CURRENT_DATE";
+    return 'started_at >= CURRENT_DATE';
   }
 
   return null;
@@ -135,7 +138,7 @@ export default async function handler(
   }
   if (cuisine) {
     const escapedCuisine = escapeSql(cuisine);
-    const isDietary = DIETARY_KEYWORDS.some(kw => cuisine.toLowerCase().includes(kw));
+    const isDietary = DIETARY_KEYWORDS.some((kw) => cuisine.toLowerCase().includes(kw));
 
     if (isDietary) {
       // For dietary terms, check poi_cuisine, poi_tags (OSM dietary tags), and poi_name

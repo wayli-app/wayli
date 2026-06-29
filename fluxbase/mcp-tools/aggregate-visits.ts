@@ -4,6 +4,10 @@
 // @fluxbase:timeout 30
 // @fluxbase:memory 256
 
+// Country name to ISO 2-letter code mapping.
+// ponytail: duplicated in search-visits.ts — Fluxbase MCP tools are synced individually with
+// no bundler/shared-module support, so a shared import would not resolve at runtime. Keep these
+// in sync manually; if the platform adds shared imports, extract to a shared module.
 const COUNTRY_MAP: Record<string, string> = {
   vietnam: 'VN',
   japan: 'JP',
@@ -92,7 +96,10 @@ export default async function handler(
   if (!metric || !groupBy) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: 'Both metric and groupBy parameters are required' }) }
+        {
+          type: 'text',
+          text: JSON.stringify({ error: 'Both metric and groupBy parameters are required' })
+        }
       ]
     };
   }
@@ -115,7 +122,12 @@ export default async function handler(
   if (!metricExpr) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: `Invalid metric: ${metric}. Use total_time, visit_count, or avg_duration` }) }
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: `Invalid metric: ${metric}. Use total_time, visit_count, or avg_duration`
+          })
+        }
       ]
     };
   }
@@ -124,7 +136,12 @@ export default async function handler(
   if (!validGroupBy.includes(groupBy)) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: `Invalid groupBy: ${groupBy}. Use poi_name, poi_category, city, or country_code` }) }
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: `Invalid groupBy: ${groupBy}. Use poi_name, poi_category, city, or country_code`
+          })
+        }
       ]
     };
   }
