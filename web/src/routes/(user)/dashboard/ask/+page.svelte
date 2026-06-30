@@ -256,8 +256,11 @@
 					const imageMap = extractMarkdownImages(currentStreamingContent);
 					let enrichedQueryResults = injectImagesIntoResults(currentQueryResults, imageMap);
 
-					// If no query results came via WebSocket, fetch from persisted conversation
-					// This works around execute_sql not streaming query_result events
+					// If no query results came via WebSocket, fetch from persisted conversation.
+					// ponytail: workaround for execute_sql not streaming query_result events on
+					// @nimbleflux/fluxbase-sdk < 2026.5.4. Deletable once the SDK is bumped to the
+					// upcoming Fluxbase release AND onQueryResult fires reliably for execute_sql
+					// (see docs/fluxbase-chatbot-inventory.md §5.3). Do not remove before the bump.
 					if (enrichedQueryResults.length === 0 && currentConversationId) {
 						// Helper to fetch query results from conversation
 						const fetchQueryResults = async (): Promise<QueryResultData[]> => {
