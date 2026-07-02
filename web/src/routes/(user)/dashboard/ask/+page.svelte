@@ -34,7 +34,8 @@
 		type ChatMessage,
 		type QueryResultData,
 		type ExecutionLog,
-		type AIUserConversationSummary
+		type AIUserConversationSummary,
+		type DailyQuotaSnapshot
 	} from '$lib/services/chat.service';
 	import { sessionStore } from '$lib/stores/auth';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
@@ -64,6 +65,9 @@
 
 	// Streaming details collapse state
 	let streamingDetailsExpanded = $state(false);
+
+	// Daily quota (requests/day). Seeded on load via getUsage, updated live from onDone extras.
+	let dailyQuota = $state<DailyQuotaSnapshot | null>(null);
 
 	// Track which completed messages have expanded query results (by message id)
 	let expandedMessageQueries = $state<Set<string>>(new Set());
@@ -169,7 +173,34 @@
 	onMount(async () => {
 		await checkConfigAndConnect();
 		await loadConversationList();
+		// Seed the quota display; live updates arrive via onDone extras.
+		dailyQuota = await chatService.getDailyUsageForName('location-assistant');
 	});
+
+	// Quota display state derived from the requests counter (tokens ignored for the badge).
+	const CHATBOT_NAME = 'location-assistant';
+	const quotaDisplay = $derived.by(() => {
+		const q = dailyQuota;
+		if (!q || q.requests.limit === 0) return null; // no limits configured / unlimited
+		const remaining = Math.max(0, q.requests.limit - q.requests.used);
+		const pct = q.requests.limit > 0 ? q.requests.used / q.requests.limit : 0;
+		return {
+			remaining,
+			limit: q.requests.limit,
+			exhausted: remaining === 0,
+			warning: pct >= 0.9 && remaining > 0,
+			resetsAt: q.resetsAt
+		};
+	});
+
+	function formatResetTime(iso?: string): string {
+		if (!iso) return '';
+		try {
+			return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		} catch {
+			return '';
+		}
+	}
 
 	// Disconnect on destroy
 	onDestroy(() => {
@@ -251,10 +282,22 @@
 						}
 					];
 				},
-				onDone: async (usage) => {
+				onDone: async (usage, extras) => {
 					// Extract images from markdown content and inject into query results
 					const imageMap = extractMarkdownImages(currentStreamingContent);
 					const enrichedQueryResults = injectImagesIntoResults(currentQueryResults, imageMap);
+
+					// Live quota + telemetry (Fluxbase 2026.6.3). No analytics SDK yet — stub to console.
+					if (extras?.dailyQuota) dailyQuota = extras.dailyQuota;
+					if (extras?.matchedIntentRules?.length) {
+						console.debug('[chat] intent rules fired:', extras.matchedIntentRules);
+					}
+					if (usage?.cachedTokens !== undefined && usage.cachedTokens > 0) {
+						console.debug(
+							'[chat] prompt cache hit:',
+							`${usage.cachedTokens}/${usage.promptTokens} prompt tokens cached`
+						);
+					}
 
 					// Always add a message - use fallback text if no content and no results
 					const hasContent = currentStreamingContent || enrichedQueryResults.length > 0;
@@ -1004,6 +1047,27 @@
 					</button>
 				{/if}
 			</div>
+
+			<!-- Daily quota hint (Fluxbase 2026.6.3). Hidden when no limits configured. -->
+			{#if quotaDisplay}
+				<div class="mt-2 flex items-center justify-center gap-1.5 text-xs">
+					{#if quotaDisplay.exhausted}
+						<span class="font-medium text-red-600 dark:text-red-400">
+							Daily limit reached{#if quotaDisplay.resetsAt}
+								· resets at {formatResetTime(quotaDisplay.resetsAt)}{/if}
+						</span>
+					{:else}
+						<span
+							class={quotaDisplay.warning
+								? 'font-medium text-amber-600 dark:text-amber-400'
+								: 'text-gray-500 dark:text-gray-400'}
+						>
+							{quotaDisplay.remaining}/{quotaDisplay.limit} messages left today{#if quotaDisplay.resetsAt}
+								· resets at {formatResetTime(quotaDisplay.resetsAt)}{/if}
+						</span>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Connection Status -->
 			{#if !isConnected && !configurationError && !isCheckingConfig}

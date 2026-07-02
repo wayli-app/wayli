@@ -268,6 +268,21 @@ class ChatService {
 	}
 
 	/**
+	 * Resolve a chatbot by name and return its daily quota snapshot. Convenience
+	 * for initial UI load (live per-turn updates come via onDone extras).
+	 */
+	async getDailyUsageForName(name: string): Promise<DailyQuotaSnapshot | null> {
+		try {
+			const { data, error } = await fluxbase.ai.lookupChatbot(name);
+			if (error || !data?.chatbot?.id) return null;
+			return this.getDailyUsage(data.chatbot.id);
+		} catch (err) {
+			console.warn('[chat] lookupChatbot threw:', err);
+			return null;
+		}
+	}
+
+	/**
 	 * Start a new chat session with a chatbot
 	 */
 	async startChat(
