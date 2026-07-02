@@ -86,13 +86,44 @@ export interface UsageStats {
 	promptTokens: number;
 	completionTokens: number;
 	totalTokens?: number;
+	/** Prompt tokens served from the provider's prompt cache (0 if none). */
+	cachedTokens?: number;
+}
+
+/** One side of a DailyQuotaSnapshot. limit = 0 means unlimited. */
+export interface QuotaUsage {
+	used: number;
+	limit: number;
+}
+
+/** Per-user daily quota snapshot (mirrors SDK AIDailyQuotaSnapshot). */
+export interface DailyQuotaSnapshot {
+	requests: QuotaUsage;
+	tokens: QuotaUsage;
+	/** RFC3339 timestamp of when the counters roll over to zero. */
+	resetsAt?: string;
+}
+
+/** One intent rule that fired for a turn (mirrors SDK AIMatchedIntentRule). */
+export interface MatchedIntentRule {
+	keyword: string;
+	requiredTable?: string;
+	forbiddenTable?: string;
+	requiredTool?: string;
+	forbiddenTool?: string;
+}
+
+/** Turn metadata surfaced through onDone (Fluxbase 2026.6.3+). */
+export interface TurnExtras {
+	dailyQuota?: DailyQuotaSnapshot;
+	matchedIntentRules?: MatchedIntentRule[];
 }
 
 export interface ChatCallbacks {
 	onContent?: (delta: string, fullContent: string) => void;
 	onProgress?: (step: string, message: string) => void;
 	onQueryResult?: (result: QueryResultData) => void;
-	onDone?: (usage: UsageStats | undefined) => void;
+	onDone?: (usage: UsageStats | undefined, extras?: TurnExtras) => void;
 	onError?: (error: string, code?: string) => void;
 }
 
@@ -151,15 +182,34 @@ class ChatService {
 					data
 				});
 			},
-			onDone: (usage, conversationId) => {
+			onDone: (usage, conversationId, extras) => {
 				const usageStats = usage
 					? {
 							promptTokens: usage.prompt_tokens,
 							completionTokens: usage.completion_tokens,
-							totalTokens: usage.total_tokens
+							totalTokens: usage.total_tokens,
+							cachedTokens: usage.cached_tokens
 						}
 					: undefined;
-				this.currentCallbacks?.onDone?.(usageStats);
+				const turnExtras: TurnExtras | undefined = extras
+					? {
+							dailyQuota: extras.daily_quota
+								? {
+										requests: extras.daily_quota.requests,
+										tokens: extras.daily_quota.tokens,
+										resetsAt: extras.daily_quota.resets_at
+									}
+								: undefined,
+							matchedIntentRules: extras.matched_intent_rules?.map((r) => ({
+								keyword: r.keyword,
+								requiredTable: r.required_table,
+								forbiddenTable: r.forbidden_table,
+								requiredTool: r.required_tool,
+								forbiddenTool: r.forbidden_tool
+							}))
+						}
+					: undefined;
+				this.currentCallbacks?.onDone?.(usageStats, turnExtras);
 			},
 			onError: (error, code, conversationId) => {
 				this.currentCallbacks?.onError?.(error, code);
@@ -190,6 +240,31 @@ class ChatService {
 	 */
 	isConnected(): boolean {
 		return this.chat?.isConnected() ?? false;
+	}
+
+	/**
+	 * Fetch the current user's daily quota snapshot for a chatbot (initial load).
+	 * Live per-turn updates arrive via the `onDone` extras; use this to seed the UI
+	 * before the first turn. `chatbotId` is the Fluxbase chatbot UUID (or resolvable
+	 * identifier). Returns null on error or when no limits are configured.
+	 */
+	async getDailyUsage(chatbotId: string): Promise<DailyQuotaSnapshot | null> {
+		try {
+			const { data, error } = await fluxbase.ai.getUsage(chatbotId);
+			if (error) {
+				console.warn('[chat] getUsage failed:', error);
+				return null;
+			}
+			if (!data) return null;
+			return {
+				requests: data.requests,
+				tokens: data.tokens,
+				resetsAt: data.resets_at
+			};
+		} catch (err) {
+			console.warn('[chat] getUsage threw:', err);
+			return null;
+		}
 	}
 
 	/**
