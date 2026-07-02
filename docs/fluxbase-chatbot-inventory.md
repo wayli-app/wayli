@@ -94,10 +94,13 @@ bundling output. Test both tools end-to-end against the live DB.
 > That is wrong for Wayli: there is a **service layer** in between.
 
 ### 5.1 SDK baseline
-- Current: `@nimbleflux/fluxbase-sdk@^2026.5.4` (`web/package.json`).
-- Target: bump to the released version that ships the AI changes (check Fluxbase
-  CHANGELOG once the RC is cut). New types to verify after bump:
-  `AIMatchedIntentRule`, `AIDailyQuotaSnapshot`, `AIQuota`.
+- **Pinned (Phase 2):** `@nimbleflux/fluxbase-sdk@2026.6.3-rc.1` (`web/package.json`,
+  exact pin — RC pre-releases don't satisfy caret ranges). Gate-verified all new
+  symbols present: `AIMatchedIntentRule`, `AIDailyQuotaSnapshot`, `AIQuota`,
+  `client.ai.getUsage()`, `client.ai.lookupChatbot()`, `onDone` 3rd `extras`
+  argument, `AIUsageStats.cached_tokens`.
+- Live Fluxbase CLI: `fluxbase version` → `2026.6.2` (commit `6b733fd2`), which
+  includes the `_shared/` MCP bundling from PR #238.
 
 ### 5.2 The real seam: `web/src/lib/services/chat.service.ts`
 - `FluxbaseAIChat` is constructed at `chat.service.ts:171`.
@@ -106,35 +109,30 @@ bundling output. Test both tools end-to-end against the live DB.
   - `onDone(usage, conversationId)` → `chat.service.ts:154`, wrapped into a
     `usageStats` object (`promptTokens`/`completionTokens`/`totalTokens`) before
     being passed to the page via `currentCallbacks.onDone`.
-- The page (`ask/+page.svelte:254`) only receives the wrapped `usageStats` —
-  **no `extras`, no `cached_tokens`** today.
+- The page (`ask/+page.svelte`) consumes the wrapped `usageStats` + `extras`.
 
-**To surface the new fields, Phase 2 must (in order):**
-1. Update `chat.service.ts:154` `onDone` to accept the new 3rd `extras` argument
-   from the new SDK and read `extras.daily_quota` + `extras.matched_intent_rules`.
-2. Extend `usage` handling to carry `cached_tokens` (already on the usage object).
-3. Extend the `ChatCallbacks` interface (~`chat.service.ts:94`) and the wrapped
-   payload so the page can consume `daily_quota` / `cached_tokens` /
-   `matched_intent_rules`.
-4. **Then** the page (`ask/+page.svelte`) can render the quota UI and (optionally)
-   log telemetry.
+**DONE (Phase 2):** `chat.service.ts` now accepts the SDK's 3rd `extras` arg in
+its `onDone` wrapper, forwards `extras.daily_quota` + `extras.matched_intent_rules`
+(snake_case → camelCase), adds `cachedTokens` to `UsageStats`, and exposes a
+`getDailyUsageForName(name)` helper (resolves the chatbot UUID via
+`lookupChatbot` then calls `getUsage`). `ChatCallbacks.onDone` reads
+`(usage, extras?)`. New local types: `DailyQuotaSnapshot`, `QuotaUsage`,
+`MatchedIntentRule`, `TurnExtras`.
 
-### 5.3 Delete the retry loop
-- Location: `web/src/routes/(user)/dashboard/ask/+page.svelte:259-304`.
-- It polls `chatService.getConversation()` up to 3× (500 ms apart) to fetch
-  persisted query results when none arrived via WebSocket — a workaround for the
-  pre-`2026.5.4` silent-`execute_sql` behavior.
-- **Deletable once** the SDK is bumped AND `onQueryResult` fires reliably for
-  `execute_sql` results (Fluxbase RC ships this). Smoke test: ask a question that
-  triggers `execute_sql`; the result must render immediately with no "no results"
-  flash and no polling.
+### 5.3 Delete the retry loop — DONE
+- **Deleted (Phase 2).** The 3× polling workaround is gone; `onQueryResult` now
+  fires reliably for `execute_sql` on Fluxbase 2026.6.3 (PR #238 normalized the
+  MCP path to emit `query_result`). Smoke test still pending live deploy: ask a
+  question that triggers `execute_sql`; the result must render immediately with
+  no "no results" flash and no polling.
 
-### 5.4 Quota UI
-- Initial load: `client.ai.getUsage('wayli/location-assistant')` (new SDK method)
-  → render "500 messages/day · N left · resets at …".
-- Live: read `extras.daily_quota` from the extended `onDone` (§5.2).
-- States: unlimited (`limit = 0`), exhausted (`used ≥ limit`), warning
-  (`< 10 %` remaining → warning color).
+### 5.4 Quota UI — DONE
+- Initial load: `chatService.getDailyUsageForName('location-assistant')`
+  (`lookupChatbot` → `getUsage`) seeds `dailyQuota` in `onMount`.
+- Live: `onDone` reads `extras.dailyQuota` each turn.
+- States: hidden when no limits / unlimited (`limit = 0`); amber warning at
+  ≥ 90 % used; red "Daily limit reached" when exhausted; shows `resets at HH:MM`.
+- Token quota is tracked but not shown (requests is the user-facing limit).
 
 ### 5.5 Anthropic switch — OPEN DECISION
 Fluxbase's native Anthropic provider with explicit `cache_control` yields ≈5-10×
@@ -169,12 +167,13 @@ when an analytics provider is chosen. Do not block the quota UI on telemetry.
 - [x] Retry-loop comment enriched (deletable-on-release condition named)
 - [x] This inventory file
 
-**Phase 2 (post-release, gated on SDK bump):**
-- [ ] SDK bumped; new types import cleanly; existing tests pass
-- [ ] `chat.service.ts` `onDone` extended for `extras` + `cached_tokens`
-- [ ] Retry loop deleted; `execute_sql` results render without polling
-- [ ] `client.ai.getUsage()` called on Ask page load
-- [ ] Quota UI live + warning/exhausted states
-- [ ] MCP tools import from `_shared/`; sync shows bundling output
-- [ ] (If Anthropic) provider created; `cached_tokens > 0` on turn 2+
-- [ ] Intent-rule telemetry stubbed to console (real analytics TBD)
+**Phase 2 (consumed on 2026.6.3-rc.1):**
+- [x] SDK pinned to `2026.6.3-rc.1`; new types import cleanly; existing tests pass
+- [x] `chat.service.ts` `onDone` extended for `extras` + `cached_tokens`
+- [x] Retry loop deleted; `execute_sql` results render without polling
+- [x] `client.ai.getUsage()` called on Ask page load (via `lookupChatbot`)
+- [x] Quota UI live + warning/exhausted/unlimited states
+- [x] MCP tools import from `_shared/`; dry-run sync shows bundling output
+- [x] Intent-rule + cache-hit telemetry stubbed to `console.debug` (real analytics TBD)
+- [ ] **Deploy step (you):** `bun run sync:mcp` to push the bundled tools to the live server, then live smoke-test the chat (quota badge, no retry flash)
+- [ ] (If Anthropic) provider created; `cached_tokens > 0` on turn 2+ — **OPEN DECISION**
