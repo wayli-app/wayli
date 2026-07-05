@@ -124,9 +124,8 @@
 
 		// Check if user is already authenticated
 		(async () => {
-			const {
-				data: { user }
-			} = await fluxbase.auth.getUser();
+			const { data } = await fluxbase.auth.getUser();
+			const user = data?.user;
 			console.log('🔐 [SIGNUP] User check:', user ? `Found - ${user.email}` : 'None');
 
 			if (user) {
@@ -148,7 +147,7 @@
 
 				// Check if this is a new user who needs onboarding
 				const { data: profile } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.select('onboarding_completed, first_login_at')
 					.eq('id', user.id)
 					.single();
@@ -157,7 +156,7 @@
 				if (!profile?.onboarding_completed) {
 					if (!profile?.first_login_at) {
 						await fluxbase
-							.from('user_profiles')
+							.from<Record<string, any>>('user_profiles')
 							.update({ first_login_at: new Date().toISOString() })
 							.eq('id', user.id);
 					}
@@ -223,7 +222,7 @@
 			// Check if email verification is required based on Fluxbase Auth's response
 			// If there's no session, email verification is required
 			// If there's a session, the user is auto-confirmed and logged in
-			if (!data.session && data.user && !data.user.email_confirmed_at) {
+			if (!data.session && data.user && !data.user.email_verified) {
 				// Email verification required - redirect to verification page
 				sessionStorage.setItem('pending_verification_email', email);
 				toast.success(t('auth.checkEmailConfirmationLink'));
@@ -235,7 +234,7 @@
 				// Explicitly check profile and redirect (don't rely only on store subscription)
 				try {
 					const { data: profile } = await fluxbase
-						.from('user_profiles')
+						.from<Record<string, any>>('user_profiles')
 						.select('onboarding_completed, first_login_at')
 						.eq('id', data.user.id)
 						.single();
@@ -243,7 +242,7 @@
 					// Update first_login_at if needed
 					if (!profile?.first_login_at) {
 						await fluxbase
-							.from('user_profiles')
+							.from<Record<string, any>>('user_profiles')
 							.update({ first_login_at: new Date().toISOString() })
 							.eq('id', data.user.id);
 					}

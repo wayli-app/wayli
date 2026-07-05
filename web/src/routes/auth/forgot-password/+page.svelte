@@ -64,9 +64,7 @@
 		</div>
 
 		<!-- Forgot Password Form -->
-		<div
-			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-8 text-center">
 				<div
 					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
@@ -103,10 +101,7 @@
 				<form onsubmit={handleSubmit} class="space-y-6">
 					<!-- Email Field -->
 					<div>
-						<label
-							for="email"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
-						>
+						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">

@@ -44,10 +44,8 @@
 		(async () => {
 			// Redirect already-authenticated users to the overview (mirrors /auth and /auth/signup).
 			try {
-				const {
-					data: { user }
-				} = await fluxbase.auth.getUser();
-				if (user) {
+				const { data } = await fluxbase.auth.getUser();
+				if (data?.user) {
 					redirectToDashboard();
 					return;
 				}
@@ -150,8 +148,10 @@
 
 			if (error) throw error;
 
-			// Check if 2FA is required (Fluxbase returns this directly in the response)
-			if (data && 'requires_2fa' in data && data.requires_2fa) {
+			// Check if 2FA is required (Fluxbase returns this directly in the response).
+			// Discriminate on field presence (not the boolean value) so TS narrows the union:
+			// the 2FA arm is the only one carrying 'requires_2fa'.
+			if (data && 'requires_2fa' in data) {
 				console.log('🔐 [SignIn] 2FA required for this user');
 				// User has 2FA enabled - show verification modal
 				twoFactorUserId = data.user_id || '';
@@ -192,7 +192,7 @@
 			// Check onboarding status
 			console.log('🔍 [SignIn] Checking user profile for user:', user.id);
 			const { data: profile, error: profileError } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('onboarding_completed, first_login_at')
 				.eq('id', user.id)
 				.single();
@@ -212,7 +212,7 @@
 			if (!profile?.onboarding_completed) {
 				if (!profile?.first_login_at) {
 					const { error: updateError } = await fluxbase
-						.from('user_profiles')
+						.from<Record<string, any>>('user_profiles')
 						.update({ first_login_at: new Date().toISOString() })
 						.eq('id', user.id);
 
@@ -265,7 +265,7 @@
 				access_token: authData.access_token,
 				refresh_token: authData.refresh_token,
 				expires_at: expiresAt
-			});
+			} as any);
 		}
 
 		// Record login with Remember Me preference

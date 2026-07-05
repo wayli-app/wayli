@@ -12,9 +12,8 @@
 		console.log('🔐 [AUTH] Page mounted');
 		// Check if user is already authenticated
 		(async () => {
-			const {
-				data: { user }
-			} = await fluxbase.auth.getUser();
+			const { data } = await fluxbase.auth.getUser();
+			const user = data?.user;
 			console.log('🔐 [AUTH] User check:', user ? `Found - ${user.email}` : 'None');
 
 			if (user) {
@@ -42,9 +41,7 @@
 
 <div class="flex min-h-screen items-center justify-center px-4 bg-background">
 	<div class="w-full max-w-md">
-		<div
-			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-8 text-center">
 				<h1 class="mb-2 text-2xl font-bold text-foreground">Welcome to Wayli</h1>
 				<p class="text-muted-foreground">Choose how you'd like to get started</p>
