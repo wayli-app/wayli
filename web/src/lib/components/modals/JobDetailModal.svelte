@@ -181,8 +181,8 @@
 			labelKey: 'jobProgress.statusPending'
 		},
 		running: {
-			color: 'text-primary dark:text-primary-dark',
-			bgColor: 'bg-primary/10 dark:bg-primary-dark/20',
+			color: 'text-primary dark:text-primary',
+			bgColor: 'bg-primary/10 dark:bg-primary/20',
 			labelKey: 'jobProgress.statusRunning'
 		},
 		completed: {
@@ -197,7 +197,7 @@
 		},
 		cancelled: {
 			color: 'text-gray-600',
-			bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+			bgColor: 'bg-muted/30',
 			labelKey: 'jobProgress.statusCancelled'
 		}
 	};
@@ -210,8 +210,8 @@
 
 	// Log level colors
 	const logLevelColors: Record<LogLevel, string> = {
-		debug: 'text-gray-500',
-		info: 'text-primary dark:text-primary-dark',
+		debug: 'text-muted-foreground',
+		info: 'text-primary dark:text-primary',
 		warn: 'text-yellow-600',
 		error: 'text-red-600'
 	};
@@ -426,7 +426,7 @@
 		tabindex="0"
 	>
 		<div
-			class="job-detail-modal-content relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+			class="job-detail-modal-content relative w-full max-w-2xl rounded-2xl shadow-2xl bg-card"
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
@@ -435,7 +435,7 @@
 		>
 			<!-- Header -->
 			<div
-				class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700"
+				class="flex items-center justify-between border-b p-6 border-border"
 			>
 				<div class="flex items-center gap-3">
 					<div class="flex h-10 w-10 items-center justify-center rounded-lg {status.bgColor}">
@@ -444,7 +444,7 @@
 					<div>
 						<h2
 							id="job-detail-title"
-							class="text-lg font-semibold text-gray-900 dark:text-gray-100"
+							class="text-lg font-semibold text-foreground"
 						>
 							{getJobTypeDisplayName(displayJob.job_name)}
 						</h2>
@@ -457,7 +457,7 @@
 				</div>
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 					onclick={handleClose}
 					aria-label="Close modal"
 				>
@@ -466,13 +466,13 @@
 			</div>
 
 			<!-- Status Section -->
-			<div class="border-b border-gray-200 p-6 dark:border-gray-700">
+			<div class="border-b p-6 border-border">
 				{#if displayJob.status === 'running' || displayJob.status === 'pending'}
 					<div class="mb-3">
 						{#if !indeterminate}
 							<div class="mb-1 flex items-center justify-between text-sm">
-								<span class="text-gray-600 dark:text-gray-400">Progress</span>
-								<span class="font-medium text-gray-900 dark:text-gray-100"
+								<span class="text-muted-foreground">Progress</span>
+								<span class="font-medium text-foreground"
 									>{displayJob.progress_percent || 0}%</span
 								>
 							</div>
@@ -481,24 +481,24 @@
 							{#if indeterminate}
 								<!-- Indeterminate progress bar with sliding animation -->
 								<div
-									class="bg-primary dark:bg-primary-dark h-3 w-1/2 rounded-full animate-progress-indeterminate"
+									class="bg-primary dark:bg-primary h-3 w-1/2 rounded-full animate-progress-indeterminate"
 								></div>
 							{:else}
 								<!-- Determinate progress bar with percentage -->
 								<div
-									class="bg-primary dark:bg-primary-dark h-3 rounded-full transition-all duration-300"
+									class="bg-primary dark:bg-primary h-3 rounded-full transition-all duration-300"
 									style="width: {displayJob.progress_percent || 0}%"
 								></div>
 							{/if}
 						</div>
 					</div>
 					{#if eta && !indeterminate}
-						<p class="text-sm text-gray-600 dark:text-gray-400">{eta}</p>
+						<p class="text-sm text-muted-foreground">{eta}</p>
 					{:else if !indeterminate}
-						<p class="text-sm text-gray-500 dark:text-gray-400">Determining ETA...</p>
+						<p class="text-sm text-muted-foreground">Determining ETA...</p>
 					{/if}
 					{#if displayJob.progress_message}
-						<p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
+						<p class="mt-1 text-sm text-muted-foreground dark:text-gray-500">
 							{displayJob.progress_message}
 						</p>
 					{/if}
@@ -507,7 +507,7 @@
 						type="button"
 						onclick={handleCancelJob}
 						disabled={isCancelling}
-						class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20"
+						class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 bg-card"
 					>
 						<StopCircle class="h-4 w-4" />
 						{isCancelling ? t('jobProgress.cancelling') : t('jobProgress.cancelJob')}
@@ -519,20 +519,20 @@
 						{displayJob.error || 'Job failed. Check logs for details.'}
 					</p>
 				{:else if displayJob.status === 'cancelled'}
-					<p class="text-sm text-gray-600 dark:text-gray-400">Job was cancelled.</p>
+					<p class="text-sm text-muted-foreground">Job was cancelled.</p>
 				{/if}
 			</div>
 
 			<!-- Logs Section -->
 			<div class="p-6">
 				<div class="mb-3 flex items-center justify-between">
-					<h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Execution Logs</h3>
+					<h3 class="text-sm font-medium text-foreground">Execution Logs</h3>
 
 					<!-- Log Level Selector -->
 					<div class="level-dropdown relative">
 						<button
 							type="button"
-							class="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 							onclick={() => (showLevelDropdown = !showLevelDropdown)}
 						>
 							<span class="capitalize">{selectedLevel}</span>
@@ -541,7 +541,7 @@
 
 						{#if showLevelDropdown}
 							<div
-								class="absolute right-0 z-10 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+								class="absolute right-0 z-10 mt-1 w-32 rounded-lg border py-1 shadow-lg bg-card border-border"
 							>
 								{#each ['debug', 'info', 'warn', 'error'] as const as level}
 									<button
@@ -564,13 +564,13 @@
 				<div
 					bind:this={logsContainer}
 					onscroll={handleScroll}
-					class="overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs dark:border-gray-700 dark:bg-gray-950"
+					class="overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
 					style="height: 256px; min-height: 256px; max-height: 256px;"
 				>
 					{#if isLoadingLogs}
-						<div class="flex h-full items-center justify-center text-gray-500">Loading logs...</div>
+						<div class="flex h-full items-center justify-center text-muted-foreground">Loading logs...</div>
 					{:else if groupedLogs.length === 0}
-						<div class="flex h-full items-center justify-center text-gray-500">
+						<div class="flex h-full items-center justify-center text-muted-foreground">
 							No logs available
 						</div>
 					{:else}
@@ -585,7 +585,7 @@
 										>x{log.count}</span
 									>
 								{/if}
-								<span class="text-gray-700 dark:text-gray-300">{log.message}</span>
+								<span class="text-muted-foreground">{log.message}</span>
 							</div>
 						{/each}
 					{/if}
@@ -594,7 +594,7 @@
 				{#if userHasScrolled && filteredLogs.length > 0}
 					<button
 						type="button"
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-medium text-white dark:hover:bg-blue-600"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-medium text-white dark:hover:bg-blue-600"
 						onclick={() => {
 							userHasScrolled = false;
 							if (logsContainer) {

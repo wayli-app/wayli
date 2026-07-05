@@ -67,7 +67,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			class="animate-fade-in relative w-full max-w-md rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -77,7 +77,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -91,10 +91,10 @@
 					<ShieldOff class="h-6 w-6 text-red-600 dark:text-red-400" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="text-2xl font-bold text-foreground">
 						Disable Two-Factor Authentication
 					</h2>
-					<p class="text-sm text-gray-600 dark:text-gray-400">Confirm your password to continue</p>
+					<p class="text-sm text-muted-foreground">Confirm your password to continue</p>
 				</div>
 			</div>
 
@@ -125,7 +125,7 @@
 			<div class="mb-6">
 				<label
 					for="disable-2fa-password"
-					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					class="mb-2 block text-sm font-medium text-muted-foreground"
 				>
 					Enter your password
 				</label>
@@ -147,7 +147,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+					class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 				>
 					Cancel
 				</button>

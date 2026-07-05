@@ -10,6 +10,7 @@ declare global {
 			_clientSide?: boolean;
 		}
 		// interface Error {}
+		// interface Error {}
 		// interface PageState {}
 		// interface Platform {}
 	}

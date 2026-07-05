@@ -76,7 +76,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
+			class="relative w-full max-w-lg rounded-xl p-8 shadow-2xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -88,15 +88,15 @@
 				<div>
 					<h2
 						id="user-edit-modal-title"
-						class="text-2xl font-bold text-gray-900 dark:text-gray-100"
+						class="text-2xl font-bold text-foreground"
 					>
 						Edit User
 					</h2>
-					<p class="text-gray-500 dark:text-gray-400">Update the user's details and role.</p>
+					<p class="text-muted-foreground">Update the user's details and role.</p>
 				</div>
 				<button
 					onclick={closeModal}
-					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -108,12 +108,12 @@
 				<div class="mb-8 flex items-center gap-4">
 					<UserAvatar user={localUser} />
 					<div>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+						<p class="text-lg font-semibold text-foreground">
 							{localUser.full_name ||
 								`${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() ||
 								'N/A'}
 						</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">{localUser.email}</p>
+						<p class="text-sm text-muted-foreground">{localUser.email}</p>
 					</div>
 				</div>
 			{/if}
@@ -125,16 +125,16 @@
 						<div>
 							<label
 								for="firstName"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>First Name</label
 							>
 							<div class="relative">
-								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 								<input
 									type="text"
 									id="firstName"
 									bind:value={localUser.first_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-[rgb(34,51,95)] focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-[rgb(34,51,95)] dark:focus:ring-[rgb(34,51,95)]"
+									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 									placeholder="e.g. Jane"
 								/>
 							</div>
@@ -143,16 +143,16 @@
 						<div>
 							<label
 								for="lastName"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>Last Name</label
 							>
 							<div class="relative">
-								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 								<input
 									type="text"
 									id="lastName"
 									bind:value={localUser.last_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-[rgb(34,51,95)] focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-[rgb(34,51,95)] dark:focus:ring-[rgb(34,51,95)]"
+									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 									placeholder="e.g. Doe"
 								/>
 							</div>
@@ -162,23 +162,23 @@
 					<div>
 						<label
 							for="email"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>Email Address</label
 						>
 						<div class="relative">
-							<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="email"
 								id="email"
 								bind:value={localUser.email}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-[rgb(34,51,95)] focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-[rgb(34,51,95)] dark:focus:ring-[rgb(34,51,95)]"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 								placeholder="e.g. jane.doe@example.com"
 							/>
 						</div>
 					</div>
 
 					<div>
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span
+						<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span
 						>
 						<RoleSelector bind:role={localUser.role} />
 					</div>

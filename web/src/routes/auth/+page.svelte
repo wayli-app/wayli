@@ -40,14 +40,14 @@
 	});
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+<div class="flex min-h-screen items-center justify-center px-4 bg-background">
 	<div class="w-full max-w-md">
 		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
 		>
 			<div class="mb-8 text-center">
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome to Wayli</h1>
-				<p class="text-gray-600 dark:text-gray-400">Choose how you'd like to get started</p>
+				<h1 class="mb-2 text-2xl font-bold text-foreground">Welcome to Wayli</h1>
+				<p class="text-muted-foreground">Choose how you'd like to get started</p>
 			</div>
 
 			<div class="space-y-4">

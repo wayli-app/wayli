@@ -450,7 +450,7 @@
 			case 'sql':
 				return 'text-orange-500';
 			default:
-				return 'text-gray-500';
+				return 'text-muted-foreground';
 		}
 	}
 
@@ -743,10 +743,10 @@
 	{/if}
 
 	<!-- Chat Area -->
-	<div class="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+	<div class="flex flex-1 flex-col overflow-hidden bg-background">
 		<!-- Mobile Top Bar -->
 		<div
-			class="flex items-center gap-3 border-b border-gray-200 bg-white p-3 md:hidden dark:border-gray-700 dark:bg-gray-900"
+			class="flex items-center gap-3 border-b p-3 md:hidden bg-card border-border"
 		>
 			<button
 				type="button"
@@ -756,7 +756,7 @@
 			>
 				<Menu class="h-5 w-5" />
 			</button>
-			<span class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+			<span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
 				<MessageSquare class="h-4 w-4" />
 				{currentConversationId
 					? conversationList.find((c) => c.id === currentConversationId)?.title || t('ask.title')
@@ -769,8 +769,8 @@
 			{#if isCheckingConfig}
 				<!-- Loading configuration -->
 				<div class="flex h-full flex-col items-center justify-center p-6">
-					<Loader2 class="mb-4 h-12 w-12 animate-spin text-gray-400" />
-					<p class="text-sm text-gray-500 dark:text-gray-400">
+					<Loader2 class="mb-4 h-12 w-12 animate-spin text-muted-foreground" />
+					<p class="text-sm text-muted-foreground">
 						{t('ask.connectingToChat')}
 					</p>
 				</div>
@@ -783,23 +783,23 @@
 						>
 							<AlertCircle class="h-8 w-8 text-orange-600 dark:text-orange-400" />
 						</div>
-						<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
+						<h3 class="mb-2 text-xl font-semibold text-foreground">
 							{t('ask.notConfigured')}
 						</h3>
-						<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+						<p class="mb-4 text-sm text-muted-foreground">
 							{t('ask.notConfiguredDescription')}
 						</p>
-						<ul class="mb-6 text-left text-sm text-gray-500 dark:text-gray-400">
+						<ul class="mb-6 text-left text-sm text-muted-foreground">
 							<li class="flex items-start gap-2 py-1">
-								<span class="text-gray-400">•</span>
+								<span class="text-muted-foreground">•</span>
 								<span>{t('ask.notConfiguredReasons.disabled')}</span>
 							</li>
 							<li class="flex items-start gap-2 py-1">
-								<span class="text-gray-400">•</span>
+								<span class="text-muted-foreground">•</span>
 								<span>{t('ask.notConfiguredReasons.notSynced')}</span>
 							</li>
 							<li class="flex items-start gap-2 py-1">
-								<span class="text-gray-400">•</span>
+								<span class="text-muted-foreground">•</span>
 								<span>{t('ask.notConfiguredReasons.configError')}</span>
 							</li>
 						</ul>
@@ -824,7 +824,7 @@
 							</a>
 						{:else}
 							<!-- User cannot configure, contact admin -->
-							<p class="text-sm text-gray-500 dark:text-gray-400">
+							<p class="text-sm text-muted-foreground">
 								{t('ask.contactAdmin')}
 							</p>
 						{/if}
@@ -833,20 +833,20 @@
 			{:else if messages.length === 0 && !isLoading}
 				<!-- Empty State with Suggestions -->
 				<div class="flex h-full flex-col items-center justify-center p-6">
-					<Bot class="mb-4 h-12 w-12 text-gray-400" />
-					<h3 class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-300">
+					<Bot class="mb-4 h-12 w-12 text-muted-foreground" />
+					<h3 class="mb-2 text-lg font-medium text-muted-foreground">
 						{t('ask.startConversation')}
 					</h3>
-					<p class="mb-6 text-center text-sm text-gray-500 dark:text-gray-400">
+					<p class="mb-6 text-center text-sm text-muted-foreground">
 						{t('ask.askAnything')}
 					</p>
 					<div class="grid w-full max-w-2xl gap-2 sm:grid-cols-2">
 						{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
 							<button
 								onclick={() => useSuggestion(suggestion)}
-								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border border-gray-200 bg-white p-3 text-left text-sm transition-all hover:shadow-sm dark:border-gray-700 dark:bg-gray-800"
+								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
 							>
-								<div class="font-medium text-gray-700 dark:text-gray-300">
+								<div class="font-medium text-muted-foreground">
 									{suggestion.question}
 								</div>
 							</button>
@@ -862,13 +862,13 @@
 								<div
 									class="bg-primary/10 dark:bg-primary/20 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
 								>
-									<Bot class="text-primary dark:text-primary-dark h-5 w-5" />
+									<Bot class="text-primary dark:text-primary h-5 w-5" />
 								</div>
 							{/if}
 							<div
 								class="max-w-[80%] rounded-xl px-4 py-3 {message.role === 'user'
 									? 'bg-primary text-white'
-									: 'bg-white dark:bg-gray-800'}"
+									: 'bg-card'}"
 							>
 								{#if message.role === 'assistant'}
 									{@const hasQueryResults = message.queryResults && message.queryResults.length > 0}
@@ -899,7 +899,7 @@
 									{#if message.executionLogs && message.executionLogs.length > 0}
 										<button
 											onclick={() => openExecutionLogs(message.executionLogs)}
-											class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 mt-2 flex items-center gap-1 text-xs hover:underline"
+											class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 mt-2 flex items-center gap-1 text-xs hover:underline"
 										>
 											<FileText class="h-3 w-3" />
 											{t('ask.viewExecutionLogs', { count: message.executionLogs.length })}
@@ -913,7 +913,7 @@
 								<div
 									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
 								>
-									<User class="h-5 w-5 text-gray-600 dark:text-gray-400" />
+									<User class="h-5 w-5 text-muted-foreground" />
 								</div>
 							{/if}
 						</div>
@@ -925,15 +925,15 @@
 							<div
 								class="bg-primary/10 dark:bg-primary/20 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
 							>
-								<Bot class="text-primary dark:text-primary-dark h-5 w-5" />
+								<Bot class="text-primary dark:text-primary h-5 w-5" />
 							</div>
-							<div class="max-w-[80%] rounded-xl bg-white px-4 py-3 dark:bg-gray-800">
+							<div class="max-w-[80%] rounded-xl px-4 py-3 bg-card">
 								<!-- Collapsible Query Summary -->
 								{#if currentQueryResults.length > 0}
 									<button
 										type="button"
 										onclick={() => (streamingDetailsExpanded = !streamingDetailsExpanded)}
-										class="mt-1 flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+										class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
 									>
 										{#if streamingDetailsExpanded}
 											<ChevronDown class="h-3.5 w-3.5 flex-shrink-0" />
@@ -952,18 +952,18 @@
 									<!-- Expanded Query Details -->
 									{#if streamingDetailsExpanded}
 										<div
-											class="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900"
+											class="mt-2 rounded-lg border p-2 bg-background border-border"
 										>
 											{#each currentQueryResults as queryResult, idx}
 												<div
 													class="flex items-center justify-between py-1 text-xs {idx > 0
-														? 'border-t border-gray-200 dark:border-gray-700'
+														? 'border-t border-border'
 														: ''}"
 												>
-													<span class="text-gray-600 dark:text-gray-400">
+													<span class="text-muted-foreground">
 														{getQueriedTable(queryResult.query)}
 													</span>
-													<span class="text-gray-400">
+													<span class="text-muted-foreground">
 														{queryResult.rowCount} rows
 													</span>
 												</div>
@@ -983,13 +983,13 @@
 								{:else if !currentQueryResults.length}
 									<!-- Status Indicator - only show when no content or query results have arrived yet -->
 									<div
-										class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
+										class="flex items-center gap-2 text-sm text-muted-foreground"
 										style="min-height: 24px;"
 										role="status"
 										aria-live="polite"
 									>
 										<Loader2
-											class="text-primary dark:text-primary-dark h-4 w-4 flex-shrink-0 animate-spin"
+											class="text-primary dark:text-primary h-4 w-4 flex-shrink-0 animate-spin"
 										/>
 										<span class="transition-opacity duration-150">
 											{currentProgress?.message || t('ask.thinking')}
@@ -1015,7 +1015,7 @@
 
 		<!-- Input Area -->
 		<div
-			class="flex-shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
+			class="flex-shrink-0 border-t p-4 bg-card border-border"
 		>
 			<div class="relative flex items-center gap-2">
 				<input
@@ -1025,7 +1025,7 @@
 					onkeydown={(e) => e.key === 'Enter' && sendMessage()}
 					placeholder={isConnected ? t('ask.inputPlaceholder') : t('ask.inputConnecting')}
 					disabled={isLoading || !isConnected}
-					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 bg-white py-3 pr-12 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-12 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:text-white bg-card"
 				/>
 				{#if isLoading}
 					<button
@@ -1060,7 +1060,7 @@
 						<span
 							class={quotaDisplay.warning
 								? 'font-medium text-amber-600 dark:text-amber-400'
-								: 'text-gray-500 dark:text-gray-400'}
+								: 'text-muted-foreground'}
 						>
 							{quotaDisplay.remaining}/{quotaDisplay.limit} messages left today{#if quotaDisplay.resetsAt}
 								· resets at {formatResetTime(quotaDisplay.resetsAt)}{/if}
@@ -1071,7 +1071,7 @@
 
 			<!-- Connection Status -->
 			{#if !isConnected && !configurationError && !isCheckingConfig}
-				<div class="mt-2 flex items-center justify-center gap-2 text-sm text-gray-500">
+				<div class="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
 					<Loader2 class="h-4 w-4 animate-spin" />
 					{t('ask.connectingToChat')}
 				</div>
@@ -1092,7 +1092,7 @@
 		tabindex="0"
 	>
 		<div
-			class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900"
+			class="w-full max-w-lg rounded-xl p-6 shadow-xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1102,13 +1102,13 @@
 			<div class="mb-4 flex items-center justify-between">
 				<h3
 					id="execution-logs-title"
-					class="text-lg font-semibold text-gray-900 dark:text-gray-100"
+					class="text-lg font-semibold text-foreground"
 				>
 					{t('ask.executionLogs')}
 				</h3>
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 					aria-label="Close modal"
 				>
 					<X class="h-5 w-5" />
@@ -1117,10 +1117,10 @@
 
 			<!-- Logs Container -->
 			<div
-				class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs dark:border-gray-700 dark:bg-gray-950"
+				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
 			>
 				{#if selectedMessageLogs.length === 0}
-					<div class="flex h-full items-center justify-center text-gray-500">
+					<div class="flex h-full items-center justify-center text-muted-foreground">
 						{t('ask.noLogsAvailable')}
 					</div>
 				{:else}
@@ -1129,7 +1129,7 @@
 							<span class="flex-shrink-0 uppercase {getStepColor(log.step)}">
 								[{log.step}]
 							</span>
-							<span class="text-gray-700 dark:text-gray-300">{log.message}</span>
+							<span class="text-muted-foreground">{log.message}</span>
 						</div>
 					{/each}
 				{/if}
@@ -1139,7 +1139,7 @@
 			<div class="mt-4 flex justify-end">
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700 bg-muted"
 				>
 					{t('ask.close')}
 				</button>

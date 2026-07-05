@@ -19,6 +19,8 @@
 	let confirmPassword = $state('');
 	let firstName = $state('');
 	let lastName = $state('');
+	// Per-field validation errors (shown inline, not as toasts).
+	let errors = $state<Record<string, string>>({});
 	let loading = $state(false);
 	let showPassword = $state(false);
 	let showConfirmPassword = $state(false);
@@ -182,26 +184,24 @@
 			return;
 		}
 
-		// Validate required fields
+		// Validate required fields — surface inline per field instead of toasting.
+		errors = {};
+		let valid = true;
 		if (!firstName.trim()) {
-			toast.error(t('auth.firstNameRequired'));
-			return;
+			errors.firstName = t('auth.firstNameRequired');
+			valid = false;
 		}
-
 		if (!lastName.trim()) {
-			toast.error(t('auth.lastNameRequired'));
-			return;
+			errors.lastName = t('auth.lastNameRequired');
+			valid = false;
 		}
-
 		if (!isPasswordValid) {
-			toast.error(t('auth.passwordRequirementsNotMet'));
-			return;
+			valid = false; // the requirements checklist below the field already conveys this
 		}
-
 		if (!doPasswordsMatch) {
-			toast.error(t('auth.passwordsDoNotMatch'));
-			return;
+			valid = false; // the inline mismatch note under the confirm field conveys this
 		}
+		if (!valid) return;
 
 		loading = true;
 
@@ -471,23 +471,21 @@
 		{/if}
 
 		<!-- Sign Up Form -->
-		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-8 text-center">
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.createYourAccount')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">{t('auth.joinWayli')}</p>
+				<p class="text-muted-foreground">{t('auth.joinWayli')}</p>
 			</div>
 
 			{#if isLoadingSettings}
 				<div
-					class="bg-primary/5 dark:bg-primary/20 mb-6 rounded-lg border border-[rgb(34,51,95)]/20 p-4 dark:border-[rgb(34,51,95)]/30"
+					class="bg-primary/5 dark:bg-primary/20 mb-6 rounded-lg border border-primary/20 p-4 dark:border-primary/30"
 				>
 					<div class="flex items-center">
 						<div
-							class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+							class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
 						></div>
 						<div>
 							<h3 class="text-primary text-sm font-medium dark:text-gray-200">
@@ -530,7 +528,7 @@
 			{:else if oauthOnlyMode && oauthProviders.length > 0 && !isFirstUser}
 				<!-- OAuth-only mode: show only OAuth buttons -->
 				<div class="space-y-4">
-					<p class="text-center text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-center text-sm text-muted-foreground">
 						{t('auth.signUpWithProvider')}
 					</p>
 					{#each oauthProviders as provider}
@@ -550,11 +548,11 @@
 				</div>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signIn')}
 						</a>
@@ -565,15 +563,12 @@
 					<!-- Name Fields -->
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label
-								for="firstName"
-								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
+							<label for="firstName" class="mb-2 block text-sm font-medium text-muted-foreground">
 								{t('auth.firstName')}
 							</label>
 							<div class="relative">
 								<User
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 								/>
 								<input
 									id="firstName"
@@ -584,13 +579,13 @@
 									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 									placeholder={t('auth.firstName')}
 								/>
+								{#if errors.firstName}
+									<p class="mt-1 text-sm text-destructive">{errors.firstName}</p>
+								{/if}
 							</div>
 						</div>
 						<div>
-							<label
-								for="lastName"
-								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-							>
+							<label for="lastName" class="mb-2 block text-sm font-medium text-muted-foreground">
 								{t('auth.lastName')}
 							</label>
 							<input
@@ -602,20 +597,20 @@
 								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder={t('auth.lastName')}
 							/>
+							{#if errors.lastName}
+								<p class="mt-1 text-sm text-destructive">{errors.lastName}</p>
+							{/if}
 						</div>
 					</div>
 
 					<!-- Email Field -->
 					<div>
-						<label
-							for="email"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>
+						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="email"
@@ -631,15 +626,12 @@
 
 					<!-- Password Field -->
 					<div>
-						<label
-							for="password"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>
+						<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.password')}
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="password"
@@ -654,7 +646,7 @@
 								type="button"
 								onclick={togglePassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -667,7 +659,7 @@
 						<!-- Password Requirements -->
 						{#if password.length > 0}
 							<div class="mt-3 space-y-2">
-								<p class="text-xs font-medium text-gray-700 dark:text-gray-300">
+								<p class="text-xs font-medium text-muted-foreground">
 									{t('auth.passwordRequirements')}
 								</p>
 								<div class="space-y-1">
@@ -758,13 +750,13 @@
 					<div>
 						<label
 							for="confirmPassword"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.confirmPassword')}
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="confirmPassword"
@@ -782,7 +774,7 @@
 								type="button"
 								onclick={toggleConfirmPassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -802,7 +794,7 @@
 					<button
 						type="submit"
 						disabled={loading || !isPasswordValid || !doPasswordsMatch || registrationDisabled}
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loading
 							? t('auth.creatingAccount')
@@ -819,7 +811,7 @@
 							<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+							<span class="px-2 text-muted-foreground dark:text-gray-400 bg-card">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>
@@ -846,11 +838,11 @@
 				{/if}
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signIn')}
 						</a>

@@ -131,7 +131,7 @@
 {#if statisticsUrl}
 	<a
 		href={statisticsUrl}
-		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border text-left transition-all hover:-translate-y-0.5 hover:shadow-md bg-card border-border"
 	>
 		<!-- Image thumbnail -->
 		<div
@@ -168,29 +168,29 @@
 		<div class="min-w-0 flex-1 py-2 pr-3">
 			<!-- Title with link icon -->
 			<h4
-				class="flex items-center gap-1.5 truncate font-medium text-gray-900 dark:text-gray-100"
+				class="flex items-center gap-1.5 truncate font-medium text-foreground"
 				class:text-sm={compact}
 			>
 				<span class="truncate">{trip.title || 'Untitled Trip'}</span>
 				<ExternalLink
-					class="group-hover:text-primary dark:group-hover:text-primary-dark h-3 w-3 flex-shrink-0 text-gray-400"
+					class="group-hover:text-primary dark:group-hover:text-primary h-3 w-3 flex-shrink-0 text-muted-foreground"
 				/>
 			</h4>
 
 			<!-- Date range and duration -->
-			<div class="mt-0.5 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+			<div class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
 				<span class="flex items-center gap-1">
 					<Calendar class="h-3 w-3" />
 					{dateRange}
 				</span>
 				{#if duration}
-					<span class="text-gray-400 dark:text-gray-500">({duration})</span>
+					<span class="text-muted-foreground dark:text-gray-500">({duration})</span>
 				{/if}
 			</div>
 
 			<!-- Cities -->
 			{#if cities && !compact}
-				<div class="mt-1 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground dark:text-gray-500">
 					<MapPin class="h-3 w-3" />
 					<span class="truncate">{cities}</span>
 				</div>
@@ -211,7 +211,7 @@
 {:else}
 	<button
 		type="button"
-		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border text-left transition-all hover:-translate-y-0.5 hover:shadow-md bg-card border-border"
 		{onclick}
 	>
 		<!-- Image thumbnail -->
@@ -248,24 +248,24 @@
 		<!-- Content -->
 		<div class="min-w-0 flex-1 py-2 pr-3">
 			<!-- Title -->
-			<h4 class="truncate font-medium text-gray-900 dark:text-gray-100" class:text-sm={compact}>
+			<h4 class="truncate font-medium text-foreground" class:text-sm={compact}>
 				{trip.title || 'Untitled Trip'}
 			</h4>
 
 			<!-- Date range and duration -->
-			<div class="mt-0.5 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+			<div class="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
 				<span class="flex items-center gap-1">
 					<Calendar class="h-3 w-3" />
 					{dateRange}
 				</span>
 				{#if duration}
-					<span class="text-gray-400 dark:text-gray-500">({duration})</span>
+					<span class="text-muted-foreground dark:text-gray-500">({duration})</span>
 				{/if}
 			</div>
 
 			<!-- Cities -->
 			{#if cities && !compact}
-				<div class="mt-1 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground dark:text-gray-500">
 					<MapPin class="h-3 w-3" />
 					<span class="truncate">{cities}</span>
 				</div>

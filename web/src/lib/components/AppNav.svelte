@@ -18,6 +18,7 @@
 
 	import { translate } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
+	import { fade } from 'svelte/transition';
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 
@@ -158,24 +159,28 @@
 	});
 </script>
 
-<div class="flex h-screen bg-gray-100 dark:bg-gray-900">
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape' && isSidebarOpen) isSidebarOpen = false;
+	}}
+/>
+
+<div class="flex h-screen bg-background">
 	<!-- Sidebar -->
 	<aside
-		class="fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out md:static md:translate-x-0 dark:border-gray-700 dark:bg-gray-800 {isSidebarOpen
+		class="border-border bg-card fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r transition-transform duration-300 ease-in-out md:static md:translate-x-0 {isSidebarOpen
 			? 'translate-x-0'
 			: '-translate-x-full'}"
 	>
 		<!-- Sidebar Header - Fixed at top -->
-		<div
-			class="flex flex-shrink-0 items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700"
-		>
+		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
 			<a href="/dashboard/statistics" class="flex cursor-pointer items-center">
 				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
-				<span class="text-xl font-bold text-gray-900 dark:text-gray-100">Wayli</span>
+				<span class="text-foreground text-xl font-bold">Wayli</span>
 			</a>
 			<button
 				onclick={handleCloseSidebar}
-				class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 md:hidden dark:hover:text-gray-300"
+				class="text-muted-foreground hover:text-foreground cursor-pointer rounded-md p-1 md:hidden"
 			>
 				<X class="h-5 w-5" />
 			</button>
@@ -189,8 +194,8 @@
 						href={item.href}
 						class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
 							.url.pathname === item.href
-							? 'bg-primary dark:bg-primary-dark text-white'
-							: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+							? 'bg-primary text-primary-foreground'
+							: 'text-muted-foreground hover:bg-muted'}"
 						onclick={handleCloseSidebar}
 					>
 						<item.icon class="mr-3 h-5 w-5" />
@@ -201,15 +206,15 @@
 		</nav>
 
 		<!-- Fixed Footer - Always visible at bottom -->
-		<div class="flex-shrink-0 border-t border-gray-200 p-4 dark:border-gray-700">
+		<div class="border-border flex-shrink-0 border-t p-4">
 			<!-- Theme Toggle -->
 			<div class="mb-4 flex justify-start gap-2">
 				<button
 					onclick={() => handleThemeChange('light')}
 					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'light'
-						? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
-						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+						? 'bg-primary/10 text-primary'
+						: 'text-muted-foreground hover:bg-muted'}"
 					title={t('common.navigation.lightMode')}
 				>
 					<Sun class="h-5 w-5" />
@@ -218,8 +223,8 @@
 					onclick={() => handleThemeChange('dark')}
 					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'dark'
-						? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
-						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+						? 'bg-primary/10 text-primary'
+						: 'text-muted-foreground hover:bg-muted'}"
 					title={t('common.navigation.darkMode')}
 				>
 					<Moon class="h-5 w-5" />
@@ -242,8 +247,8 @@
 							href={item.href}
 							class="relative flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
 								.url.pathname === item.href
-								? 'bg-primary dark:bg-primary-dark text-white'
-								: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+								? 'bg-primary text-primary-foreground'
+								: 'text-muted-foreground hover:bg-muted'}"
 							onclick={handleCloseSidebar}
 						>
 							<item.icon class="mr-3 h-5 w-5" />
@@ -264,7 +269,7 @@
 					handleSignOut();
 					handleCloseSidebar();
 				}}
-				class="flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+				class="text-destructive hover:bg-destructive/10 flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
 			>
 				<LogOut class="mr-3 h-5 w-5" />
 				{t('common.navigation.signOut')}
@@ -275,6 +280,7 @@
 	<!-- Mobile overlay -->
 	{#if isSidebarOpen}
 		<div
+			transition:fade={{ duration: 150 }}
 			class="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 md:hidden"
 			onclick={handleCloseSidebar}
 			role="presentation"
@@ -286,19 +292,17 @@
 	<!-- Main Content -->
 	<div class="flex flex-1 flex-col overflow-hidden">
 		<!-- Top bar for mobile -->
-		<div
-			class="border-b border-gray-200 bg-white p-4 md:hidden dark:border-gray-700 dark:bg-gray-800"
-		>
+		<div class="border-border bg-card border-b p-4 md:hidden">
 			<div class="flex items-center justify-between">
 				<button
 					onclick={handleToggleSidebar}
-					class="cursor-pointer rounded-md p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+					class="text-muted-foreground hover:text-foreground cursor-pointer rounded-md p-1"
 				>
 					<Menu class="h-6 w-6" />
 				</button>
 				<a href="/dashboard/trips" class="flex cursor-pointer items-center">
 					<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-6 w-6" />
-					<span class="text-lg font-bold text-gray-900 dark:text-gray-100">Wayli</span>
+					<span class="text-foreground text-lg font-bold">Wayli</span>
 				</a>
 				<div class="w-6"></div>
 			</div>

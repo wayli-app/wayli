@@ -13,6 +13,8 @@
 	import { fluxbase } from '$lib/fluxbase';
 
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { fade } from 'svelte/transition';
 
 	// Snippet prop for rendering children
 	let { children }: { children: Snippet } = $props();
@@ -200,19 +202,23 @@
 	{/if}
 
 	<!-- Main content area -->
-	<div class="min-h-screen bg-gray-50 dark:bg-gray-900 {$userStore?.id && !isCheckingAdmin ? '' : 'p-6'}">
+	<div class="bg-background min-h-screen {$userStore?.id && !isCheckingAdmin ? '' : 'p-6'}">
 		{#if isCheckingAdmin}
 			<div class="flex h-64 items-center justify-center">
 				<div class="text-center">
 					<div
-						class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary dark:border-blue-400"
+						class="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2"
 					></div>
 				</div>
 			</div>
 		{:else}
-			<div class="p-6">
-				{@render children()}
-			</div>
+			{#key page.url.pathname}
+				<!-- in:fade (not transition:fade) so the outgoing page is removed instantly on
+				     route change; a concurrent outro+intro would stack the new page below the old one. -->
+				<div class="p-6" in:fade={{ duration: 150 }}>
+					{@render children()}
+				</div>
+			{/key}
 		{/if}
 	</div>
 </AppNav>

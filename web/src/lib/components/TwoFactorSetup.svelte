@@ -149,7 +149,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			class="animate-fade-in relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -159,7 +159,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -173,14 +173,14 @@
 					<Shield class="text-primary h-6 w-6 dark:text-gray-300" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="text-2xl font-bold text-foreground">
 						{currentStep === 'setup'
 							? 'Set Up Two-Factor Authentication'
 							: currentStep === 'verify'
 								? 'Verify Your Code'
 								: 'Backup Codes'}
 					</h2>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{currentStep === 'setup'
 							? 'Step 1 of 3: Scan QR code'
 							: currentStep === 'verify'
@@ -204,23 +204,23 @@
 				{#if isLoading}
 					<div class="flex flex-col items-center justify-center py-12">
 						<div
-							class="h-12 w-12 animate-spin rounded-full border-4 border-[rgb(34,51,95)] border-t-transparent"
+							class="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"
 						></div>
-						<p class="mt-4 text-sm text-gray-600 dark:text-gray-400">Generating QR code...</p>
+						<p class="mt-4 text-sm text-muted-foreground">Generating QR code...</p>
 					</div>
 				{:else if qrCodeSrc}
 					<div class="space-y-6">
 						<!-- QR Code -->
 						<div class="flex justify-center">
-							<div class="rounded-lg border-4 border-gray-200 bg-white p-4 dark:border-gray-700">
+							<div class="rounded-lg border-4 bg-white p-4 border-border">
 								<img src={qrCodeSrc} alt="2FA QR Code" class="h-48 w-48" />
 							</div>
 						</div>
 
 						<!-- Instructions -->
-						<div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+						<div class="space-y-2 text-sm text-muted-foreground">
 							<p class="font-semibold">Scan this QR code with your authenticator app:</p>
-							<ul class="list-inside list-disc space-y-1 text-gray-600 dark:text-gray-400">
+							<ul class="list-inside list-disc space-y-1 text-muted-foreground">
 								<li>Google Authenticator</li>
 								<li>Microsoft Authenticator</li>
 								<li>Authy</li>
@@ -230,14 +230,14 @@
 
 						<!-- Manual Entry -->
 						<div
-							class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+							class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 						>
-							<p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+							<p class="mb-2 text-sm font-medium text-muted-foreground">
 								Or enter this code manually:
 							</p>
 							<div class="flex items-center gap-2">
 								<code
-									class="flex-1 rounded bg-white px-3 py-2 font-mono text-sm text-gray-900 dark:bg-gray-900 dark:text-gray-100"
+									class="flex-1 rounded px-3 py-2 font-mono text-sm text-gray-900 dark:text-gray-100 bg-card"
 								>
 									{manualEntryKey}
 								</code>
@@ -270,7 +270,7 @@
 			{#if currentStep === 'verify'}
 				<div class="space-y-6">
 					<div>
-						<p class="mb-4 text-sm text-gray-700 dark:text-gray-300">
+						<p class="mb-4 text-sm text-muted-foreground">
 							Enter the 6-digit code from your authenticator app to complete setup:
 						</p>
 						<input
@@ -280,7 +280,7 @@
 							maxlength="6"
 							pattern="[0-9]*"
 							inputmode="numeric"
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-[rgb(34,51,95)] focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 							oninput={(e) => {
 								const target = e.target as HTMLInputElement;
 								target.value = target.value.replace(/[^0-9]/g, '');
@@ -292,7 +292,7 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => (currentStep = 'setup')}
-							class="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 						>
 							Back
 						</button>
@@ -327,7 +327,7 @@
 
 					<!-- Backup Codes -->
 					<div>
-						<p class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+						<p class="mb-3 text-sm font-semibold text-foreground">
 							Save your backup codes:
 						</p>
 						<div
@@ -339,7 +339,7 @@
 							</p>
 						</div>
 						<div
-							class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+							class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 						>
 							<div class="grid grid-cols-2 gap-2 font-mono text-sm">
 								{#each backupCodes as code}
@@ -357,13 +357,13 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => copyToClipboard(backupCodes.join('\n'), 'backupCodes')}
-							class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 						>
 							{backupCodesCopied ? 'Copied!' : 'Copy Codes'}
 						</button>
 						<button
 							onclick={handleBackupCodesDownload}
-							class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 						>
 							Download
 						</button>

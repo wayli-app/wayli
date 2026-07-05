@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { Component } from 'svelte';
-	import { AlertTriangle, Trash2 } from 'lucide-svelte';
+	import { AlertTriangle } from 'lucide-svelte';
 
-	import AccessibleButton from '$lib/components/ui/accessible-button/index.svelte';
 	import Modal from '$lib/components/ui/modal/index.svelte';
 
 	interface Props {
@@ -31,59 +30,63 @@
 
 	const variantConfig = {
 		danger: {
-			iconClass: 'text-red-600 dark:text-red-400',
-			bgClass: 'bg-red-100 dark:bg-red-900/20',
-			buttonClass: 'bg-red-600 hover:bg-red-700 text-white'
+			iconClass: 'text-destructive',
+			bgClass: 'bg-destructive/10',
+			buttonClass: 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
 		},
 		warning: {
-			iconClass: 'text-yellow-600 dark:text-yellow-400',
-			bgClass: 'bg-yellow-100 dark:bg-yellow-900/20',
-			buttonClass: 'bg-yellow-600 hover:bg-yellow-700 text-white'
+			iconClass: 'text-warning',
+			bgClass: 'bg-warning/10',
+			buttonClass: 'bg-warning hover:bg-warning/90 text-white'
 		},
 		info: {
-			iconClass: 'text-primary dark:text-gray-300',
-			bgClass: 'bg-primary/10 dark:bg-primary/20',
-			buttonClass: 'bg-primary hover:bg-primary/90 text-white'
+			iconClass: 'text-primary',
+			bgClass: 'bg-primary/10',
+			buttonClass: 'bg-primary hover:bg-primary/90 text-primary-foreground'
 		}
 	};
 
-	function handleConfirm() {
-		onConfirm?.();
-	}
-
-	function handleCancel() {
-		onCancel?.();
-	}
+	const Icon = $derived(icon);
 </script>
 
-<Modal {open} title="" size="sm" showCloseButton={false} onClose={handleCancel}>
+<Modal {open} title="" size="sm" showCloseButton={false} onClose={onCancel}>
 	<div class="space-y-4 text-center">
 		<!-- Icon -->
 		<div
 			class="mx-auto flex h-12 w-12 items-center justify-center rounded-full {variantConfig[variant]
 				.bgClass}"
 		>
-			<svelte:component this={icon} class="h-6 w-6 {variantConfig[variant].iconClass}" />
+			<Icon class="h-6 w-6 {variantConfig[variant].iconClass}" />
 		</div>
 
 		<!-- Content -->
 		<div>
-			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+			<h3 class="text-foreground mb-2 text-lg font-medium">
 				{title}
 			</h3>
-			<p class="text-sm text-gray-500 dark:text-gray-400">
+			<p class="text-muted-foreground text-sm">
 				{message}
 			</p>
 		</div>
 
 		<!-- Action Buttons -->
 		<div class="flex gap-3 pt-4">
-			<AccessibleButton variant="outline" onClick={handleCancel} class="flex-1">
+			<button
+				type="button"
+				onclick={onCancel}
+				class="border-border text-foreground hover:bg-muted flex-1 rounded-lg border bg-transparent px-4 py-2 text-sm font-medium transition-colors"
+			>
 				{cancelText}
-			</AccessibleButton>
-			<AccessibleButton onClick={handleConfirm} class="flex-1 {variantConfig[variant].buttonClass}">
+			</button>
+			<button
+				type="button"
+				onclick={onConfirm}
+				class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors {variantConfig[
+					variant
+				].buttonClass}"
+			>
 				{confirmText}
-			</AccessibleButton>
+			</button>
 		</div>
 	</div>
 </Modal>

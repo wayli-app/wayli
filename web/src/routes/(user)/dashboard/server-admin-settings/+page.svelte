@@ -156,7 +156,13 @@
 
 	// Handle Escape key for modals
 	$effect(() => {
-		if (showAddUserModal || isModalOpen || showDeleteConfirm || showClearPlaceVisitsConfirm || showClearUserPlaceVisitsConfirm) {
+		if (
+			showAddUserModal ||
+			isModalOpen ||
+			showDeleteConfirm ||
+			showClearPlaceVisitsConfirm ||
+			showClearUserPlaceVisitsConfirm
+		) {
 			const handleKeydown = (e: KeyboardEvent) => {
 				if (e.key === 'Escape') {
 					if (showAddUserModal) {
@@ -458,7 +464,9 @@
 				: getDefaultScopes(oauthFormProvider);
 
 			const providerName = isCustomProvider ? oauthFormCustomName : oauthFormProvider;
-			const displayName = oauthFormDisplayName || (isCustomProvider ? oauthFormCustomName : getDefaultDisplayName(oauthFormProvider));
+			const displayName =
+				oauthFormDisplayName ||
+				(isCustomProvider ? oauthFormCustomName : getDefaultDisplayName(oauthFormProvider));
 
 			if (oauthEditingId) {
 				// Update existing provider
@@ -710,10 +718,14 @@
 
 		isRefreshingPlaceVisits = true;
 		try {
-			const { error } = await fluxbase.jobs.submit('scheduled-detect-place-visits', {}, {
-				namespace: 'wayli',
-				priority: 5
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'scheduled-detect-place-visits',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 5
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.refreshPlaceVisitsQueued'));
@@ -732,10 +744,14 @@
 
 		isReverseGeocodingAllUsers = true;
 		try {
-			const { error } = await fluxbase.jobs.submit('reverse-geocoding', { all_users: true }, {
-				namespace: 'wayli',
-				priority: 4
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'reverse-geocoding',
+				{ all_users: true },
+				{
+					namespace: 'wayli',
+					priority: 4
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.reverseGeocodeQueued'));
@@ -825,10 +841,14 @@
 
 		isClearingPlaceVisits = true;
 		try {
-			const { error } = await fluxbase.jobs.submit('clear-and-rebuild-place-visits', {}, {
-				namespace: 'wayli',
-				priority: 4
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'clear-and-rebuild-place-visits',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 4
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.clearPlaceVisitsQueued'));
@@ -861,10 +881,14 @@
 		isClearingUserPlaceVisits = true;
 
 		try {
-			const { error } = await fluxbase.jobs.submit('clear-and-rebuild-place-visits', { user_id: userId }, {
-				namespace: 'wayli',
-				priority: 4
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'clear-and-rebuild-place-visits',
+				{ user_id: userId },
+				{
+					namespace: 'wayli',
+					priority: 4
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.clearPlaceVisitsQueued'));
@@ -1020,9 +1044,14 @@
 				requireEmailVerification = authSettings.require_email_verification;
 				disablePasswordLogin = authSettings.disable_app_password_login ?? false;
 				// Check if any auth settings have overrides (read-only)
-				authReadOnly = !!(authSettings._overrides && Object.keys(authSettings._overrides).length > 0);
+				authReadOnly = !!(
+					authSettings._overrides && Object.keys(authSettings._overrides).length > 0
+				);
 			} catch (authError) {
-				console.warn('Could not load auth settings from API, falling back to app settings:', authError);
+				console.warn(
+					'Could not load auth settings from API, falling back to app settings:',
+					authError
+				);
 				// Fallback to app settings
 				enableSignup = app.authentication.enable_signup;
 				requireEmailVerification = app.authentication.require_email_verification;
@@ -1215,7 +1244,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
+			class="relative w-full max-w-lg rounded-xl p-8 shadow-2xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1225,14 +1254,14 @@
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>
-					<h2 id="add-user-modal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 id="add-user-modal-title" class="text-2xl font-bold text-foreground">
 						Add New User
 					</h2>
-					<p class="text-gray-500 dark:text-gray-400">Create a new user account.</p>
+					<p class="text-muted-foreground">Create a new user account.</p>
 				</div>
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -1245,11 +1274,11 @@
 					<div>
 						<label
 							for="newUserFirstName"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>First Name *</label
 						>
 						<div class="relative">
-							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="text"
 								id="newUserFirstName"
@@ -1264,11 +1293,11 @@
 					<div>
 						<label
 							for="newUserLastName"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>Last Name *</label
 						>
 						<div class="relative">
-							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="text"
 								id="newUserLastName"
@@ -1284,11 +1313,11 @@
 				<div>
 					<label
 						for="newUserEmail"
-						class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						class="mb-1 block text-sm font-medium text-muted-foreground"
 						>Email Address *</label
 					>
 					<div class="relative">
-						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 						<input
 							type="email"
 							id="newUserEmail"
@@ -1304,11 +1333,11 @@
 					<div>
 						<label
 							for="newUserPassword"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>Password *</label
 						>
 						<div class="relative">
-							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="password"
 								id="newUserPassword"
@@ -1323,11 +1352,11 @@
 					<div>
 						<label
 							for="newUserConfirmPassword"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>Confirm Password *</label
 						>
 						<div class="relative">
-							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="password"
 								id="newUserConfirmPassword"
@@ -1341,7 +1370,7 @@
 				</div>
 
 				<div>
-					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span>
+					<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span>
 					<RoleSelector bind:role={newUserRole} />
 				</div>
 			</div>
@@ -1380,7 +1409,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			class="relative w-full max-w-md rounded-lg p-6 shadow-xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1398,11 +1427,11 @@
 				<div>
 					<h3
 						id="delete-user-modal-title"
-						class="text-lg font-medium text-gray-900 dark:text-gray-100"
+						class="text-lg font-medium text-foreground"
 					>
 						Delete User
 					</h3>
-					<p id="delete-user-modal-description" class="text-sm text-gray-500 dark:text-gray-400">
+					<p id="delete-user-modal-description" class="text-sm text-muted-foreground">
 						Are you sure you want to delete this user? This action cannot be undone.
 					</p>
 				</div>
@@ -1411,10 +1440,10 @@
 			<div class="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
 				<div class="flex items-center">
 					<div>
-						<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+						<div class="text-sm font-medium text-foreground">
 							{getUserDisplayName(userToDelete)}
 						</div>
-						<div class="text-sm text-gray-500 dark:text-gray-400">{userToDelete.email}</div>
+						<div class="text-sm text-muted-foreground">{userToDelete.email}</div>
 					</div>
 				</div>
 			</div>
@@ -1444,20 +1473,20 @@
 		<!-- Header -->
 		<div class="mb-8">
 			<div class="flex items-center gap-3">
-				<Settings class="text-primary dark:text-primary-dark h-7 w-7" />
-				<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+				<Settings class="text-primary dark:text-primary h-7 w-7" />
+				<h1 class="text-3xl font-bold tracking-tight text-foreground">
 					{t('serverAdmin.title')}
 				</h1>
 			</div>
 		</div>
 
 		<!-- Tab Navigation -->
-		<div class="mb-6 border-b border-gray-200 dark:border-gray-700">
+		<div class="mb-6 border-b border-border">
 			<nav class="-mb-px flex space-x-8">
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
-						? 'border-primary text-primary dark:border-primary-dark dark:text-primary-dark'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+						? 'border-primary text-primary dark:border-primary dark:text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1467,8 +1496,8 @@
 				</button>
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
-						? 'border-primary text-primary dark:border-primary-dark dark:text-primary-dark'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+						? 'border-primary text-primary dark:border-primary dark:text-primary'
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1482,11 +1511,11 @@
 		<!-- Users Tab -->
 		{#if activeTab === 'users'}
 			<div
-				class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+				class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card"
 			>
 				<div class="mb-4">
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">User Management</h2>
-					<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+					<h2 class="text-xl font-semibold text-foreground">User Management</h2>
+					<p class="mt-1 text-sm text-muted-foreground">
 						Manage users and their permissions. Total users: {pagination.total}
 						{#if searchQuery}
 							(Showing {users.length} filtered results)
@@ -1497,12 +1526,12 @@
 				<div class="mb-6 flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<div class="relative">
-							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="text"
 								bind:value={searchQuery}
 								placeholder="Search users..."
-								class="focus:border-primary focus:ring-primary w-64 rounded-md border border-[rgb(218,218,221)] bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
+								class="focus:border-primary focus:ring-primary w-64 rounded-md border border-border bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-500"
 								oninput={handleSearchInput}
 							/>
 						</div>
@@ -1510,7 +1539,7 @@
 						<select
 							bind:value={itemsPerPage}
 							onchange={handleItemsPerPageChange}
-							class="focus:border-primary focus:ring-primary rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+							class="focus:border-primary focus:ring-primary rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 						>
 							<option value={5}>5 per page</option>
 							<option value={10}>10 per page</option>
@@ -1528,45 +1557,45 @@
 				</div>
 
 				<div
-					class="overflow-hidden rounded-lg border border-[rgb(218,218,221)] bg-white dark:border-[#3f3f46] dark:bg-[#23232a]"
+					class="overflow-hidden rounded-lg border border-border bg-white dark:border-border dark:bg-card"
 				>
 					{#if users.length === 0}
 						<div class="py-8 text-center">
-							<UserIcon class="mx-auto h-12 w-12 text-gray-400" />
-							<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+							<UserIcon class="mx-auto h-12 w-12 text-muted-foreground" />
+							<h3 class="mt-2 text-sm font-medium text-foreground">
 								No users found
 							</h3>
-							<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+							<p class="mt-1 text-sm text-muted-foreground">
 								{searchQuery
 									? 'Try adjusting your search terms.'
 									: 'No users have been created yet.'}
 							</p>
 						</div>
 					{:else}
-						<table class="min-w-full divide-y divide-[rgb(218,218,221)] dark:divide-[#3f3f46]">
-							<thead class="bg-gray-50 dark:bg-[#2d2d35]">
+						<table class="min-w-full divide-y divide-border dark:divide-border">
+							<thead class="bg-gray-50 dark:bg-muted">
 								<tr>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										User
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										Role
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										Created
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										Status
 									</th>
@@ -1575,19 +1604,17 @@
 									</th>
 								</tr>
 							</thead>
-							<tbody
-								class="divide-y divide-[rgb(218,218,221)] bg-white dark:divide-[#3f3f46] dark:bg-[#23232a]"
-							>
+							<tbody class="divide-y divide-border bg-white dark:divide-border dark:bg-card">
 								{#each users as user (user.id)}
 									<tr>
 										<td class="px-6 py-4 whitespace-nowrap">
 											<div class="flex items-center gap-3">
 												<UserAvatar {user} size="lg" />
 												<div>
-													<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+													<div class="text-sm font-medium text-foreground">
 														{getUserDisplayName(user)}
 													</div>
-													<div class="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+													<div class="text-sm text-muted-foreground">{user.email}</div>
 												</div>
 											</div>
 										</td>
@@ -1602,33 +1629,33 @@
 											</span>
 										</td>
 										<td
-											class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400"
+											class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground"
 										>
 											{formatDate(user.created_at)}
 										</td>
 										<td
-											class="px-6 py-4 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400"
+											class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground"
 										>
 											Active
 										</td>
 										<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 											<div class="flex items-center justify-end gap-2">
 												<button
-													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
 													onclick={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-amber-50 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
 													onclick={() => handleClearUserPlaceVisits(user)}
 													title={t('serverAdmin.clearUserPlaceVisits')}
 												>
 													<RotateCcw class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 													onclick={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
@@ -1644,10 +1671,10 @@
 						<!-- Pagination Controls -->
 						{#if pagination.totalPages > 1}
 							<div
-								class="border-t border-[rgb(218,218,221)] bg-white px-6 py-3 dark:border-[#3f3f46] dark:bg-[#23232a]"
+								class="border-t border-border bg-white px-6 py-3 dark:border-border dark:bg-card"
 							>
 								<div class="flex items-center justify-between">
-									<div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
+									<div class="flex items-center text-sm text-muted-foreground">
 										<span>
 											Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(
 												pagination.page * pagination.limit,
@@ -1660,7 +1687,7 @@
 										<button
 											onclick={goToPreviousPage}
 											disabled={!pagination.hasPrev}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
 											<span class="sr-only">Previous</span>
 											<ChevronLeft class="h-5 w-5" />
@@ -1673,7 +1700,7 @@
 												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
 												currentPage
 													? 'bg-primary text-white'
-													: 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
+													: 'text-muted-foreground hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
 											>
 												{pageNum}
 											</button>
@@ -1683,7 +1710,7 @@
 										<button
 											onclick={goToNextPage}
 											disabled={!pagination.hasNext}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
 											<span class="sr-only">Next</span>
 											<ChevronRight class="h-5 w-5" />
@@ -1701,14 +1728,12 @@
 		{#if activeTab === 'settings'}
 			<div class="space-y-8">
 				<!-- Wayli Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						<h2 class="text-xl font-semibold text-foreground">
 							{t('serverAdmin.wayliSettings')}
 						</h2>
-						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+						<p class="mt-1 text-sm text-muted-foreground">
 							{t('serverAdmin.wayliSettingsDescription')}
 						</p>
 					</div>
@@ -1717,7 +1742,7 @@
 						<div>
 							<label
 								for="serverName"
-								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="block text-sm font-medium text-muted-foreground"
 							>
 								{t('serverAdmin.serverName')}
 							</label>
@@ -1725,7 +1750,7 @@
 								type="text"
 								id="serverName"
 								bind:value={serverName}
-								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 								placeholder={t('serverAdmin.enterServerName')}
 							/>
 						</div>
@@ -1733,7 +1758,7 @@
 						<div>
 							<label
 								for="serverPexelsApiKey"
-								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="block text-sm font-medium text-muted-foreground"
 							>
 								{t('serverAdmin.serverPexelsKey')}
 							</label>
@@ -1764,7 +1789,7 @@
 										type="password"
 										id="serverPexelsApiKey"
 										bind:value={serverPexelsApiKey}
-										class="focus:border-primary focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+										class="focus:border-primary focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 										placeholder={t('serverAdmin.enterNewKeyToReplace')}
 									/>
 								</div>
@@ -1773,18 +1798,18 @@
 									type="password"
 									id="serverPexelsApiKey"
 									bind:value={serverPexelsApiKey}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 									placeholder={t('serverAdmin.enterPexelsApiKey')}
 								/>
 							{/if}
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							<p class="mt-1 text-xs text-muted-foreground">
 								{t('serverAdmin.serverPexelsKeyDescription')}
 							</p>
 						</div>
 
 						<div>
 							<div class="flex items-center justify-between">
-								<span class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+								<span class="block text-sm font-medium text-muted-foreground">
 									Enable Pexels API Rate Limit
 								</span>
 								<Switch
@@ -1792,7 +1817,7 @@
 									label="Enable Pexels API Rate Limit"
 								/>
 							</div>
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							<p class="mt-1 text-xs text-muted-foreground">
 								{#if pexelsRateLimitEnabled}
 									Rate limiting is enabled. Configure the limit below.
 								{:else}
@@ -1804,7 +1829,7 @@
 								<div class="mt-3">
 									<label
 										for="pexelsRateLimit"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										Requests per hour
 									</label>
@@ -1814,10 +1839,10 @@
 										bind:value={pexelsRateLimit}
 										min="1"
 										step="1"
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 										placeholder="200"
 									/>
-									<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+									<p class="mt-1 text-xs text-muted-foreground">
 										Default: 200 (Pexels free tier limit)
 									</p>
 								</div>
@@ -1827,7 +1852,7 @@
 						<div>
 							<label
 								for="peliasEndpoint"
-								class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="block text-sm font-medium text-muted-foreground"
 							>
 								Pelias Geocoding Endpoint
 							</label>
@@ -1835,12 +1860,12 @@
 								type="url"
 								id="peliasEndpoint"
 								bind:value={peliasEndpoint}
-								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 								placeholder="https://pelias.wayli.app"
 								pattern="https?://.+"
 								required
 							/>
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							<p class="mt-1 text-xs text-muted-foreground">
 								Geocoding service URL for address lookups and reverse geocoding
 							</p>
 						</div>
@@ -1857,14 +1882,12 @@
 				</div>
 
 				<!-- Authentication Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						<h2 class="text-xl font-semibold text-foreground">
 							{t('serverAdmin.authenticationSettings')}
 						</h2>
-						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+						<p class="mt-1 text-sm text-muted-foreground">
 							{t('serverAdmin.authSettingsDescription')}
 						</p>
 					</div>
@@ -1887,7 +1910,7 @@
 						{/if}
 
 						<div class="flex items-center justify-between">
-							<span class="text-sm text-gray-700 dark:text-gray-300">
+							<span class="text-sm text-muted-foreground">
 								{t('serverAdmin.enableSignup')}
 							</span>
 							<Switch
@@ -1898,7 +1921,7 @@
 						</div>
 
 						<div class="flex items-center justify-between">
-							<span class="text-sm text-gray-700 dark:text-gray-300">
+							<span class="text-sm text-muted-foreground">
 								{t('serverAdmin.requireEmailVerification')}
 							</span>
 							<Switch
@@ -1910,21 +1933,21 @@
 
 						<div class="flex items-center justify-between">
 							<div>
-								<span class="text-sm text-gray-700 dark:text-gray-300">
+								<span class="text-sm text-muted-foreground">
 									{t('serverAdmin.disablePasswordLogin')}
 								</span>
-								<p class="text-xs text-gray-500 dark:text-gray-400">
+								<p class="text-xs text-muted-foreground">
 									{t('serverAdmin.disablePasswordLoginDescription')}
 								</p>
 							</div>
 							<Switch
 								bind:checked={disablePasswordLogin}
 								label={t('serverAdmin.disablePasswordLogin')}
-								disabled={authReadOnly || oauthProviders.filter(p => p.enabled).length === 0}
+								disabled={authReadOnly || oauthProviders.filter((p) => p.enabled).length === 0}
 							/>
 						</div>
 
-						{#if disablePasswordLogin && oauthProviders.filter(p => p.enabled).length === 0}
+						{#if disablePasswordLogin && oauthProviders.filter((p) => p.enabled).length === 0}
 							<div
 								class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
 							>
@@ -1949,14 +1972,12 @@
 				</div>
 
 				<!-- Email & SMTP Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+						<h2 class="text-xl font-semibold text-foreground">
 							{t('serverAdmin.emailSettings')}
 						</h2>
-						<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+						<p class="mt-1 text-sm text-muted-foreground">
 							{t('serverAdmin.emailSettingsDescription')}
 						</p>
 					</div>
@@ -1979,9 +2000,9 @@
 						{/if}
 
 						<div
-							class="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+							class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 						>
-							<h3 class="font-medium text-gray-900 dark:text-gray-100">
+							<h3 class="font-medium text-foreground">
 								{t('serverAdmin.smtpConfiguration')}
 							</h3>
 
@@ -1989,7 +2010,7 @@
 								<div>
 									<label
 										for="smtpHost"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.smtpHost')}
 									</label>
@@ -2006,7 +2027,7 @@
 								<div>
 									<label
 										for="smtpPort"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.smtpPort')}
 									</label>
@@ -2024,7 +2045,7 @@
 							<div>
 								<label
 									for="smtpUsername"
-									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									class="block text-sm font-medium text-muted-foreground"
 								>
 									{t('serverAdmin.smtpUsername')}
 								</label>
@@ -2041,7 +2062,7 @@
 							<div>
 								<label
 									for="smtpPassword"
-									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									class="block text-sm font-medium text-muted-foreground"
 								>
 									{t('serverAdmin.smtpPassword')}
 								</label>
@@ -2056,7 +2077,7 @@
 							</div>
 
 							<div class="flex items-center justify-between">
-								<span class="text-sm text-gray-700 dark:text-gray-300">
+								<span class="text-sm text-muted-foreground">
 									{t('serverAdmin.smtpUseTls')}
 								</span>
 								<Switch
@@ -2069,7 +2090,7 @@
 							<div>
 								<label
 									for="smtpFromAddress"
-									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									class="block text-sm font-medium text-muted-foreground"
 								>
 									{t('serverAdmin.smtpFromAddress')}
 								</label>
@@ -2086,7 +2107,7 @@
 							<div>
 								<label
 									for="smtpFromName"
-									class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									class="block text-sm font-medium text-muted-foreground"
 								>
 									{t('serverAdmin.smtpFromName')}
 								</label>
@@ -2115,16 +2136,14 @@
 				</div>
 
 				<!-- OAuth Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4 flex items-center gap-3">
 						<Lock class="h-6 w-6 text-indigo-500" />
 						<div>
-							<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+							<h2 class="text-xl font-semibold text-foreground">
 								{t('serverAdmin.oauthSettings')}
 							</h2>
-							<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+							<p class="mt-1 text-sm text-muted-foreground">
 								{t('serverAdmin.oauthSettingsDescription')}
 							</p>
 						</div>
@@ -2134,13 +2153,13 @@
 						<!-- Configured Providers List -->
 						{#if isLoadingOAuth}
 							<div class="flex items-center justify-center py-8">
-								<RefreshCw class="h-5 w-5 animate-spin text-gray-400" />
+								<RefreshCw class="h-5 w-5 animate-spin text-muted-foreground" />
 							</div>
 						{:else if oauthProviders.length > 0}
 							<div class="space-y-2">
 								{#each oauthProviders as provider}
 									<div
-										class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+										class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-gray-800 border-border"
 									>
 										<div class="flex items-center gap-3">
 											<div
@@ -2151,10 +2170,10 @@
 												</span>
 											</div>
 											<div>
-												<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+												<div class="text-sm font-medium text-foreground">
 													{provider.display_name}
 												</div>
-												<div class="text-xs text-gray-500 dark:text-gray-400">
+												<div class="text-xs text-muted-foreground">
 													{provider.provider_name}
 												</div>
 											</div>
@@ -2167,14 +2186,14 @@
 											/>
 											<button
 												onclick={() => editOAuthProvider(provider)}
-												class="rounded p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 												title={t('serverAdmin.edit')}
 											>
 												<Edit class="h-4 w-4" />
 											</button>
 											<button
 												onclick={() => deleteOAuthProvider(provider.id)}
-												class="rounded p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+												class="rounded p-1.5 text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
 												title={t('serverAdmin.delete')}
 											>
 												<Trash2 class="h-4 w-4" />
@@ -2184,7 +2203,7 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+							<p class="py-4 text-center text-sm text-muted-foreground">
 								{t('serverAdmin.noOAuthProviders')}
 							</p>
 						{/if}
@@ -2194,14 +2213,16 @@
 							<div
 								class="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-900/20"
 							>
-								<h3 class="font-medium text-gray-900 dark:text-gray-100">
-									{oauthEditingId ? t('serverAdmin.editOAuthProvider') : t('serverAdmin.addOAuthProvider')}
+								<h3 class="font-medium text-foreground">
+									{oauthEditingId
+										? t('serverAdmin.editOAuthProvider')
+										: t('serverAdmin.addOAuthProvider')}
 								</h3>
 
 								<div>
 									<label
 										for="oauthProvider"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.oauthProvider')}
 									</label>
@@ -2226,7 +2247,7 @@
 									<div>
 										<label
 											for="oauthCustomName"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.oauthCustomName')}
 										</label>
@@ -2237,7 +2258,7 @@
 											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
 											placeholder={t('serverAdmin.oauthCustomNamePlaceholder')}
 										/>
-										<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+										<p class="mt-1 text-xs text-muted-foreground">
 											{t('serverAdmin.oauthCustomNameHint')}
 										</p>
 									</div>
@@ -2246,7 +2267,7 @@
 									<div>
 										<label
 											for="oauthDiscoveryUrl"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.oauthDiscoveryUrl')}
 										</label>
@@ -2272,7 +2293,7 @@
 												{t('serverAdmin.oauthDiscover')}
 											</button>
 										</div>
-										<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+										<p class="mt-1 text-xs text-muted-foreground">
 											{t('serverAdmin.oauthDiscoveryUrlHint')}
 										</p>
 									</div>
@@ -2281,7 +2302,7 @@
 									<div>
 										<label
 											for="oauthAuthorizationUrl"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.oauthAuthorizationUrl')}
 										</label>
@@ -2298,7 +2319,7 @@
 									<div>
 										<label
 											for="oauthTokenUrl"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.oauthTokenUrl')}
 										</label>
@@ -2315,7 +2336,7 @@
 									<div>
 										<label
 											for="oauthUserInfoUrl"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.oauthUserInfoUrl')}
 										</label>
@@ -2332,7 +2353,7 @@
 									<div>
 										<label
 											for="oauthScopes"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.oauthScopes')}
 										</label>
@@ -2343,7 +2364,7 @@
 											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
 											placeholder={t('serverAdmin.oauthScopesPlaceholder')}
 										/>
-										<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+										<p class="mt-1 text-xs text-muted-foreground">
 											{t('serverAdmin.oauthScopesHint')}
 										</p>
 									</div>
@@ -2352,7 +2373,7 @@
 								<div>
 									<label
 										for="oauthDisplayName"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.oauthDisplayName')}
 									</label>
@@ -2361,14 +2382,16 @@
 										type="text"
 										bind:value={oauthFormDisplayName}
 										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-										placeholder={oauthFormProvider === 'custom' ? t('serverAdmin.oauthDisplayNamePlaceholder') : getDefaultDisplayName(oauthFormProvider)}
+										placeholder={oauthFormProvider === 'custom'
+											? t('serverAdmin.oauthDisplayNamePlaceholder')
+											: getDefaultDisplayName(oauthFormProvider)}
 									/>
 								</div>
 
 								<div>
 									<label
 										for="oauthClientId"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.oauthClientId')}
 									</label>
@@ -2384,7 +2407,7 @@
 								<div>
 									<label
 										for="oauthClientSecret"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.oauthClientSecret')}
 									</label>
@@ -2393,12 +2416,14 @@
 										type="password"
 										bind:value={oauthFormClientSecret}
 										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-										placeholder={oauthEditingId ? t('serverAdmin.oauthClientSecretPlaceholderEdit') : t('serverAdmin.oauthClientSecretPlaceholder')}
+										placeholder={oauthEditingId
+											? t('serverAdmin.oauthClientSecretPlaceholderEdit')
+											: t('serverAdmin.oauthClientSecretPlaceholder')}
 									/>
 								</div>
 
 								<div class="flex items-center justify-between">
-									<span class="text-sm text-gray-700 dark:text-gray-300">
+									<span class="text-sm text-muted-foreground">
 										{t('serverAdmin.oauthEnabled')}
 									</span>
 									<Switch bind:checked={oauthFormEnabled} label={t('serverAdmin.oauthEnabled')} />
@@ -2407,7 +2432,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										onclick={resetOAuthForm}
-										class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 									>
 										{t('serverAdmin.cancel')}
 									</button>
@@ -2419,7 +2444,9 @@
 										{#if isSavingOAuth}
 											<RefreshCw class="h-4 w-4 animate-spin" />
 										{/if}
-										{oauthEditingId ? t('serverAdmin.updateProvider') : t('serverAdmin.addProvider')}
+										{oauthEditingId
+											? t('serverAdmin.updateProvider')
+											: t('serverAdmin.addProvider')}
 									</button>
 								</div>
 							</div>
@@ -2435,16 +2462,14 @@
 				</div>
 
 				<!-- AI Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4 flex items-center gap-3">
 						<Bot class="h-6 w-6 text-purple-500" />
 						<div>
-							<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+							<h2 class="text-xl font-semibold text-foreground">
 								{t('serverAdmin.aiSettings')}
 							</h2>
-							<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+							<p class="mt-1 text-sm text-muted-foreground">
 								{t('serverAdmin.aiSettingsDescription')}
 							</p>
 						</div>
@@ -2469,10 +2494,10 @@
 
 						<div class="flex items-center justify-between">
 							<div>
-								<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+								<span class="text-sm font-medium text-muted-foreground">
 									{t('serverAdmin.aiEnabled')}
 								</span>
-								<p class="text-xs text-gray-500 dark:text-gray-400">
+								<p class="text-xs text-muted-foreground">
 									{t('serverAdmin.aiEnabledDescription')}
 								</p>
 							</div>
@@ -2486,10 +2511,10 @@
 						{#if aiEnabled}
 							<div class="flex items-center justify-between">
 								<div>
-									<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+									<span class="text-sm font-medium text-muted-foreground">
 										{t('serverAdmin.allowUserOverride')}
 									</span>
-									<p class="text-xs text-gray-500 dark:text-gray-400">
+									<p class="text-xs text-muted-foreground">
 										{t('serverAdmin.allowUserOverrideDescription')}
 									</p>
 								</div>
@@ -2501,13 +2526,13 @@
 							</div>
 
 							<div
-								class="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+								class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 							>
 								<div class="grid grid-cols-2 gap-4">
 									<div>
 										<label
 											for="providerName"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.aiProviderName')}
 										</label>
@@ -2523,7 +2548,7 @@
 									<div>
 										<label
 											for="providerDisplayName"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.aiDisplayName')}
 										</label>
@@ -2541,7 +2566,7 @@
 								<div>
 									<label
 										for="providerType"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.aiProvider')}
 									</label>
@@ -2560,7 +2585,7 @@
 								<div>
 									<label
 										for="providerModel"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.aiModel')}
 									</label>
@@ -2572,7 +2597,7 @@
 										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 										placeholder="gpt-4.1-mini-2025-04-14"
 									/>
-									<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+									<p class="mt-1 text-xs text-muted-foreground">
 										{t('serverAdmin.aiModelDescription')}
 									</p>
 								</div>
@@ -2580,7 +2605,7 @@
 								<div>
 									<label
 										for="providerApiKey"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										class="block text-sm font-medium text-muted-foreground"
 									>
 										{t('serverAdmin.aiApiKey')}
 									</label>
@@ -2598,7 +2623,7 @@
 									<div>
 										<label
 											for="providerApiEndpoint"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.aiApiEndpoint')}
 										</label>
@@ -2610,7 +2635,7 @@
 											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 											placeholder={t('serverAdmin.aiApiEndpointPlaceholder')}
 										/>
-										<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+										<p class="mt-1 text-xs text-muted-foreground">
 											{t('serverAdmin.aiApiEndpointDescription')}
 										</p>
 									</div>
@@ -2620,7 +2645,7 @@
 									<div>
 										<label
 											for="providerMaxTokens"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.aiMaxTokens')}
 										</label>
@@ -2638,7 +2663,7 @@
 									<div>
 										<label
 											for="providerTemperature"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+											class="block text-sm font-medium text-muted-foreground"
 										>
 											{t('serverAdmin.aiTemperature')}
 										</label>
@@ -2671,16 +2696,14 @@
 				</div>
 
 				<!-- Database Maintenance -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-6 flex items-center gap-3">
 						<Database class="h-6 w-6 text-emerald-500" />
 						<div>
-							<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+							<h2 class="text-xl font-semibold text-foreground">
 								{t('serverAdmin.databaseMaintenance')}
 							</h2>
-							<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+							<p class="mt-1 text-sm text-muted-foreground">
 								{t('serverAdmin.databaseMaintenanceDescription')}
 							</p>
 						</div>
@@ -2688,11 +2711,11 @@
 
 					<div class="space-y-6">
 						<!-- Data Processing Pipeline -->
-						<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-							<h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+						<div class="rounded-lg border p-4 border-border">
+							<h3 class="mb-1 text-sm font-semibold text-foreground">
 								{t('serverAdmin.pipelineTitle')}
 							</h3>
-							<p class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+							<p class="mb-4 text-xs text-muted-foreground">
 								{t('serverAdmin.pipelineDescription')}
 							</p>
 
@@ -2708,10 +2731,10 @@
 											>1</span
 										>
 										<div class="min-w-0">
-											<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+											<span class="text-sm font-medium text-muted-foreground">
 												{t('serverAdmin.reverseGeocode')}
 											</span>
-											<p class="text-xs text-gray-500 dark:text-gray-400">
+											<p class="text-xs text-muted-foreground">
 												{t('serverAdmin.reverseGeocodeDescription')}
 											</p>
 										</div>
@@ -2731,7 +2754,7 @@
 								<!-- Connector -->
 								<div class="flex flex-col items-center py-1">
 									<div class="h-4 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
-									<ChevronDown class="h-4 w-4 text-gray-400" />
+									<ChevronDown class="h-4 w-4 text-muted-foreground" />
 								</div>
 
 								<!-- Step 2: Sync Place Visits -->
@@ -2744,10 +2767,10 @@
 											>2</span
 										>
 										<div class="min-w-0">
-											<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+											<span class="text-sm font-medium text-muted-foreground">
 												{t('serverAdmin.refreshPlaceVisits')}
 											</span>
-											<p class="text-xs text-gray-500 dark:text-gray-400">
+											<p class="text-xs text-muted-foreground">
 												{t('serverAdmin.refreshPlaceVisitsDescription')}
 											</p>
 										</div>
@@ -2769,11 +2792,11 @@
 						</div>
 
 						<!-- Standalone Operations -->
-						<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-							<h3 class="mb-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+						<div class="rounded-lg border p-4 border-border">
+							<h3 class="mb-1 text-sm font-semibold text-foreground">
 								{t('serverAdmin.standaloneTitle')}
 							</h3>
-							<p class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+							<p class="mb-4 text-xs text-muted-foreground">
 								{t('serverAdmin.standaloneDescription')}
 							</p>
 
@@ -2783,10 +2806,10 @@
 									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+										<span class="text-sm font-medium text-muted-foreground">
 											{t('serverAdmin.forceRegeocode')}
 										</span>
-										<p class="text-xs text-gray-500 dark:text-gray-400">
+										<p class="text-xs text-muted-foreground">
 											{t('serverAdmin.forceRegeocodeDescription')}
 										</p>
 									</div>
@@ -2805,10 +2828,10 @@
 									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+										<span class="text-sm font-medium text-muted-foreground">
 											{t('serverAdmin.fillCountryCodes')}
 										</span>
-										<p class="text-xs text-gray-500 dark:text-gray-400">
+										<p class="text-xs text-muted-foreground">
 											{t('serverAdmin.fillCountryCodesDescription')}
 										</p>
 									</div>
@@ -2829,10 +2852,10 @@
 									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+										<span class="text-sm font-medium text-muted-foreground">
 											{t('serverAdmin.clearPlaceVisits')}
 										</span>
-										<p class="text-xs text-gray-500 dark:text-gray-400">
+										<p class="text-xs text-muted-foreground">
 											{t('serverAdmin.clearPlaceVisitsDescription')}
 										</p>
 									</div>
@@ -2847,7 +2870,6 @@
 								</div>
 							</div>
 						</div>
-
 					</div>
 				</div>
 
@@ -2863,15 +2885,15 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-[#23232a]"
+							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
 						>
-							<h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+							<h3 class="mb-2 text-lg font-semibold text-foreground">
 								{t('serverAdmin.forceRegeocodeConfirmTitle')}
 							</h3>
-							<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+							<p class="mb-6 text-sm text-muted-foreground">
 								{t('serverAdmin.forceRegeocodeConfirmMessage')}
 							</p>
 							<div class="flex justify-end gap-3">
@@ -2904,20 +2926,22 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-[#23232a]"
+							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
 						>
 							<div class="mb-4 flex items-center gap-3">
-								<div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
+								>
 									<Trash2 class="h-5 w-5 text-red-600 dark:text-red-400" />
 								</div>
-								<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+								<h3 class="text-lg font-semibold text-foreground">
 									{t('serverAdmin.clearPlaceVisitsConfirmTitle')}
 								</h3>
 							</div>
-							<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+							<p class="mb-6 text-sm text-muted-foreground">
 								{t('serverAdmin.clearPlaceVisitsConfirmMessage')}
 							</p>
 							<div class="flex justify-end gap-3">
@@ -2950,26 +2974,31 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-[#23232a]"
+							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
 						>
 							<div class="mb-4 flex items-center gap-3">
-								<div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30"
+								>
 									<RotateCcw class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 								</div>
-								<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+								<h3 class="text-lg font-semibold text-foreground">
 									{t('serverAdmin.clearUserPlaceVisitsConfirmTitle')}
 								</h3>
 							</div>
 							<div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-								<div class="font-medium text-gray-900 dark:text-gray-100">
-									{userToClearPlaceVisits.first_name || ''} {userToClearPlaceVisits.last_name || ''}
+								<div class="font-medium text-foreground">
+									{userToClearPlaceVisits.first_name || ''}
+									{userToClearPlaceVisits.last_name || ''}
 								</div>
-								<div class="text-sm text-gray-500 dark:text-gray-400">{userToClearPlaceVisits.email}</div>
+								<div class="text-sm text-muted-foreground">
+									{userToClearPlaceVisits.email}
+								</div>
 							</div>
-							<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+							<p class="mb-6 text-sm text-muted-foreground">
 								{t('serverAdmin.clearUserPlaceVisitsConfirmMessage')}
 							</p>
 							<div class="flex justify-end gap-3">
@@ -2995,9 +3024,9 @@
 {:else}
 	<div class="flex h-64 items-center justify-center">
 		<div class="text-center">
-			<Settings class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-			<h2 class="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">Access Denied</h2>
-			<p class="text-gray-600 dark:text-gray-300">You don't have permission to access this page.</p>
+			<Settings class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+			<h2 class="mb-2 text-xl font-semibold text-foreground">Access Denied</h2>
+			<p class="text-muted-foreground">You don't have permission to access this page.</p>
 		</div>
 	</div>
 {/if}

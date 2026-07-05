@@ -65,18 +65,18 @@
 
 		<!-- Forgot Password Form -->
 		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
 		>
 			<div class="mb-8 text-center">
 				<div
-					class="bg-primary dark:bg-primary-dark mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
 				>
 					<KeyRound class="h-6 w-6 text-white" />
 				</div>
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.forgotPasswordTitle')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
+				<p class="text-muted-foreground">
 					{t('auth.forgotPasswordDescription')}
 				</p>
 			</div>
@@ -94,7 +94,7 @@
 					<button
 						type="button"
 						onclick={() => (emailSent = false)}
-						class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 text-sm transition-colors"
+						class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 text-sm transition-colors"
 					>
 						{t('auth.tryDifferentMethod')}
 					</button>
@@ -105,13 +105,13 @@
 					<div>
 						<label
 							for="email"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="email"
@@ -128,18 +128,18 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loading ? t('auth.sendingResetLink') : t('auth.sendResetLink')}
 					</button>
 				</form>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signUp')}
 						</a>

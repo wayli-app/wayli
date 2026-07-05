@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { Skeleton } from '$lib/components/ui';
 
 	import type { Map as LeafletMap } from 'leaflet';
 
@@ -596,7 +597,7 @@
 		return `
 			<div class="p-2">
 				<h3 class="font-semibold text-sm">${place.title}</h3>
-				<p class="text-xs text-gray-500 mt-1">${place.address}</p>
+				<p class="text-xs text-muted-foreground mt-1">${place.address}</p>
 				${place.description ? `<p class="text-xs text-gray-700 mt-2 italic">"${place.description}"</p>` : ''}
 			</div>
 		`;
@@ -965,7 +966,7 @@
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div class="flex items-center gap-3">
 			<Heart class="h-8 w-8 text-red-500" />
-			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+			<h1 class="text-3xl font-bold text-foreground">
 				{t('common.navigation.wantToVisit')}
 			</h1>
 		</div>
@@ -992,9 +993,7 @@
 	</div>
 
 	<!-- Map -->
-	<div
-		class="relative isolate z-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
-	>
+	<div class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border">
 		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
 
 		<!-- Map Instructions -->
@@ -1002,7 +1001,7 @@
 			<div
 				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-gray-800/90"
 			>
-				<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+				<div class="flex items-center gap-2 text-sm text-muted-foreground">
 					<MapPin class="h-4 w-4" />
 					{t('wantToVisit.clickOnMapToAdd')}
 				</div>
@@ -1038,14 +1037,14 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 bg-card"
 				role="dialog"
 				tabindex="0"
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+					<h3 class="text-lg font-bold text-foreground">
 						{t('wantToVisit.addNewPlace')}
 					</h3>
 					<button
@@ -1056,7 +1055,7 @@
 								tempMarker = null;
 							}
 						}}
-						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1066,16 +1065,14 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label
-							for="titleInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<label for="titleInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
@@ -1083,28 +1080,25 @@
 
 					<!-- Search Input -->
 					<div>
-						<label
-							for="searchPlace"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>
+						<label for="searchPlace" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('wantToVisit.searchForPlace')}
 						</label>
 						<div class="relative">
 							<div class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2">
-								<Search class="h-4 w-4 text-gray-400" />
+								<Search class="h-4 w-4 text-muted-foreground" />
 							</div>
 							<input
 								type="text"
 								id="searchPlace"
 								bind:value={searchQuery}
 								oninput={handleSearchInput}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.searchPlaceholder')}
 							/>
 							{#if isSearching}
 								<div class="pointer-events-none absolute top-1/2 right-3 z-10 -translate-y-1/2">
 									<div
-										class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+										class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 									></div>
 								</div>
 							{/if}
@@ -1121,10 +1115,10 @@
 										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
 										onclick={() => selectPlace(result)}
 									>
-										<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+										<div class="text-sm font-medium text-foreground">
 											{result.name.split(',')[0]}
 										</div>
-										<div class="truncate text-xs text-gray-500 dark:text-gray-400">
+										<div class="truncate text-xs text-muted-foreground">
 											{result.name}
 										</div>
 									</button>
@@ -1138,7 +1132,7 @@
 						<div>
 							<label
 								for="latitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.latitude')}</label
 							>
 							<input
@@ -1152,7 +1146,7 @@
 						<div>
 							<label
 								for="longitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.longitude')}</label
 							>
 							<input
@@ -1167,9 +1161,7 @@
 
 					<!-- Address Display -->
 					<div>
-						<label
-							for="addressDisplay"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<label for="addressDisplay" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.address')}</label
 						>
 						<div
@@ -1177,7 +1169,7 @@
 							class="flex min-h-[2.5rem] w-full items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 						>
 							{#if isReverseGeocoding}
-								<div class="flex items-center gap-2 text-gray-500">
+								<div class="flex items-center gap-2 text-muted-foreground">
 									<div
 										class="h-3 w-3 animate-spin rounded-full border border-gray-400 border-t-transparent"
 									></div>
@@ -1191,7 +1183,7 @@
 
 					<!-- Type Selection via Icons -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.type')}</legend
 						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
@@ -1205,7 +1197,7 @@
 									}}
 									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
 									marker.id
-										? 'bg-primary border-[rgb(34,51,95)] text-white'
+										? 'bg-primary border-primary text-white'
 										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 								>
 									<marker.icon class="h-5 w-5" />
@@ -1217,7 +1209,7 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.markerColor')}</legend
 						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
@@ -1235,9 +1227,7 @@
 
 					<!-- Custom Labels -->
 					<div>
-						<label
-							for="labelInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<label for="labelInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
@@ -1262,7 +1252,7 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.addLabelPlaceholder')}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') {
@@ -1285,16 +1275,15 @@
 					<div>
 						<label
 							for="descriptionInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.notes')}</label
 						>
 						<textarea
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder={t('wantToVisit.notesPlaceholder')}
-						></textarea>
+							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.notesPlaceholder')}></textarea>
 					</div>
 
 					<!-- Action Buttons -->
@@ -1347,14 +1336,14 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 bg-card"
 				role="dialog"
 				tabindex="0"
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+					<h3 class="text-lg font-bold text-foreground">
 						{t('wantToVisit.editPlace')}
 					</h3>
 					<button
@@ -1362,7 +1351,7 @@
 							showEditForm = false;
 							resetForm();
 						}}
-						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1372,16 +1361,14 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label
-							for="titleInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<label for="titleInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
@@ -1392,7 +1379,7 @@
 						<div>
 							<label
 								for="latitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.latitude')}</label
 							>
 							<input
@@ -1406,7 +1393,7 @@
 						<div>
 							<label
 								for="longitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.longitude')}</label
 							>
 							<input
@@ -1421,23 +1408,21 @@
 
 					<!-- Address Display -->
 					<div>
-						<label
-							for="addressDisplay"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<label for="addressDisplay" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.address')}</label
 						>
 						<input
 							id="addressDisplay"
 							type="text"
 							bind:value={address}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder={t('wantToVisit.addressPlaceholder')}
 						/>
 					</div>
 
 					<!-- Type Selection via Icons -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.type')}</legend
 						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
@@ -1451,7 +1436,7 @@
 									}}
 									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
 									marker.id
-										? 'bg-primary border-[rgb(34,51,95)] text-white'
+										? 'bg-primary border-primary text-white'
 										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 								>
 									<marker.icon class="h-5 w-5" />
@@ -1463,7 +1448,7 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.markerColor')}</legend
 						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
@@ -1481,9 +1466,7 @@
 
 					<!-- Custom Labels -->
 					<div>
-						<label
-							for="labelInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<label for="labelInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
@@ -1508,7 +1491,7 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.addLabelPlaceholder')}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') {
@@ -1531,16 +1514,15 @@
 					<div>
 						<label
 							for="descriptionInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.notes')}</label
 						>
 						<textarea
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder={t('wantToVisit.notesPlaceholder')}
-						></textarea>
+							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.notesPlaceholder')}></textarea>
 					</div>
 
 					<!-- Action Buttons -->
@@ -1574,7 +1556,7 @@
 		<div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
 			<!-- Type Filter -->
 			<div class="flex flex-col gap-2">
-				<label for="type-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
+				<label for="type-filter" class="text-sm font-medium text-muted-foreground"
 					>{t('wantToVisit.type')}</label
 				>
 				<div id="type-filter" class="flex flex-wrap gap-2">
@@ -1610,20 +1592,20 @@
 			<!-- Search -->
 			<div class="relative w-full lg:w-64">
 				<Search
-					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
 				/>
 				<input
 					type="text"
 					bind:value={searchQuery}
 					placeholder={t('wantToVisit.searchTitlesPlaceholder')}
-					class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 			</div>
 		</div>
 
 		<!-- Results Count -->
 		<div class="flex items-center justify-between">
-			<div class="text-sm text-gray-500 dark:text-gray-400">
+			<div class="text-sm text-muted-foreground">
 				{t('wantToVisit.showingPlacesOf', {
 					filtered: filteredPlaces.length.toLocaleString(),
 					total: places.length.toLocaleString()
@@ -1643,19 +1625,22 @@
 
 	<!-- Places List -->
 	{#if isLoading}
-		<div class="py-12 text-center">
-			<div
-				class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-[rgb(34,51,95)]"
-			></div>
-			<p class="mt-4 text-gray-500 dark:text-gray-400">{t('wantToVisit.loadingPlaces')}</p>
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _, i (i)}
+				<div class="bg-card border-border rounded-xl border p-6">
+					<Skeleton class="h-4 w-3/4" />
+					<Skeleton class="mt-3 h-3 w-1/2" />
+					<Skeleton class="mt-6 h-20 w-full" />
+				</div>
+			{/each}
 		</div>
 	{:else if filteredPlaces.length === 0}
 		<div class="py-12 text-center">
-			<Globe2 class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+			<Globe2 class="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+			<h3 class="mb-2 text-lg font-medium text-foreground">
 				{t('wantToVisit.noPlacesFound')}
 			</h3>
-			<p class="text-gray-500 dark:text-gray-400">
+			<p class="text-muted-foreground">
 				{searchQuery || selectedTypes.length > 1
 					? t('wantToVisit.tryAdjustingFilters')
 					: t('wantToVisit.addFirstPlace')}
@@ -1665,12 +1650,12 @@
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredPlaces as place (place.id)}
 				<div
-					class="group relative rounded-xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+					class="group relative rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg bg-card border-border"
 				>
 					<!-- Favorite Button -->
 					<button
 						onclick={() => toggleFavorite(place)}
-						class="absolute top-4 right-4 rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+						class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 					>
 						<Heart class="h-5 w-5 {place.favorite ? 'fill-red-500 text-red-500' : ''}" />
 					</button>
@@ -1683,7 +1668,7 @@
 						<div class="mb-2 flex items-start justify-between">
 							<!-- Remove name display -->
 						</div>
-						<div class="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+						<div class="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
 							<MapPin class="h-4 w-4" />
 							{place.address || place.coordinates}
 						</div>
@@ -1709,14 +1694,14 @@
 					<!-- Description -->
 					{#if place.description}
 						<div class="mb-4">
-							<p class="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+							<p class="line-clamp-2 text-sm text-muted-foreground">
 								{place.description}
 							</p>
 						</div>
 					{/if}
 
 					<!-- Coordinates -->
-					<div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+					<div class="mb-4 text-xs text-muted-foreground">
 						{place.coordinates}
 					</div>
 
@@ -1734,13 +1719,13 @@
 						</button>
 						<button
 							onclick={() => editPlace(place)}
-							class="hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/20 rounded-lg p-2 text-gray-400 transition-colors"
+							class="hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/20 rounded-lg p-2 text-muted-foreground transition-colors"
 						>
 							<Edit class="h-4 w-4" />
 						</button>
 						<button
 							onclick={() => deletePlace(place.id)}
-							class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+							class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 						>
 							<Trash2 class="h-4 w-4" />
 						</button>

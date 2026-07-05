@@ -43,7 +43,6 @@
 	}
 
 	async function handleSignOut() {
-		console.log('🏠 [LANDING] Signout initiated');
 		try {
 			// Ensure client session/localStorage are cleared first
 			await fluxbase.auth.signOut();
@@ -62,14 +61,11 @@
 				fluxbase.settings.get('wayli.is_setup_complete')
 			);
 
-			console.log('🏠 [LANDING] Setup status check:', { isSetupComplete });
-
 			// Only redirect if setup is explicitly marked as incomplete
 			// If the setting doesn't exist or is undefined, assume setup is complete
 			// (landing page should be accessible by default)
 			const setupValue = isSetupComplete?.value;
 			if (setupValue === false || setupValue === 'false') {
-				console.log('🏠 [LANDING] Setup explicitly incomplete, redirecting to initial setup');
 				goto('/auth/signup');
 				return;
 			}
@@ -82,8 +78,6 @@
 	}
 
 	onMount(() => {
-		console.log('🏠 [LANDING] Page mounted');
-
 		// Initialize theme
 		initializeTheme();
 
@@ -113,16 +107,10 @@
 		})();
 
 		// Subscribe to user store for real-time updates
-		const unsubscribe = userStore.subscribe((user) => {
-			console.log('🏠 [LANDING] User state:', user ? `Logged in - ${user.email}` : 'Not logged in');
-			console.log('🏠 [LANDING] User store value:', user);
-		});
+		const unsubscribe = userStore.subscribe((user) => {});
 
 		// Also subscribe to session store for additional auth state tracking
-		const sessionUnsubscribe = sessionStore.subscribe((session) => {
-			console.log('🏠 [LANDING] Session state:', session ? 'session present' : 'no session');
-			console.log('🏠 [LANDING] Session store value:', session);
-		});
+		const sessionUnsubscribe = sessionStore.subscribe((session) => {});
 
 		return () => {
 			unsubscribe();
@@ -146,10 +134,8 @@
 		class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
 	>
 		<div class="text-center">
-			<div
-				class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[rgb(34,51,95)]"
-			></div>
-			<p class="text-gray-600 dark:text-gray-300">
+			<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
+			<p class="text-muted-foreground">
 				{checkingUserCount ? 'Checking system status...' : 'Loading translations...'}
 			</p>
 		</div>
@@ -169,7 +155,7 @@
 			<button
 				onclick={() => handleThemeChange('light')}
 				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'light'
-					? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
+					? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
 					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 				title={t('landing.lightMode')}
 			>
@@ -178,7 +164,7 @@
 			<button
 				onclick={() => handleThemeChange('dark')}
 				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'dark'
-					? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
+					? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
 					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 				title={t('landing.darkMode')}
 			>
@@ -191,7 +177,7 @@
 			<div class="group relative">
 				<a
 					href="/dashboard/statistics"
-					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 bg-card border-border"
 				>
 					<User class="h-4 w-4" />
 					{($userStore.email?.split('@')[0] || 'User').charAt(0).toUpperCase() +
@@ -200,7 +186,7 @@
 
 				<!-- Dropdown Menu -->
 				<div
-					class="invisible absolute top-full right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100 dark:border-gray-700 dark:bg-gray-800"
+					class="invisible absolute top-full right-0 mt-2 w-48 rounded-lg border opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100 bg-card border-border"
 				>
 					<div class="py-2">
 						<a
@@ -215,7 +201,7 @@
 						>
 							{t('common.navigation.accountSettings')}
 						</a>
-						<hr class="my-2 border-gray-200 dark:border-gray-700" />
+						<hr class="my-2 border-border" />
 						<button
 							onclick={handleSignOut}
 							class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-50 dark:text-red-400 dark:hover:bg-gray-700"
@@ -230,7 +216,7 @@
 			<!-- Login Button -->
 			<button
 				onclick={handleLogin}
-				class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 font-medium text-white shadow-lg transition-colors"
+				class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 font-medium text-white shadow-lg transition-colors"
 			>
 				<LogIn class="h-4 w-4" />
 				{t('landing.login')}
@@ -247,9 +233,7 @@
 			<div class="mx-auto mb-16 max-w-4xl text-center">
 				<!-- Logo with text -->
 				<div class="mx-auto mb-6 flex justify-center">
-					<div
-						class="rounded-2xl bg-white/80 p-4 backdrop-blur-sm dark:bg-white/80 dark:backdrop-blur-md"
-					>
+					<div class="bg-card/80 rounded-2xl p-4 backdrop-blur-sm dark:backdrop-blur-md">
 						<img src="/logo.svg" alt="Wayli logo" class="h-32 w-auto md:h-40" />
 					</div>
 				</div>
@@ -273,7 +257,7 @@
 					</a>
 					<a
 						href="/auth/signin"
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
 					>
 						{t('landing.signIn')}
 					</a>

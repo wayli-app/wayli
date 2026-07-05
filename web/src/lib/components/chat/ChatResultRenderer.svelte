@@ -214,7 +214,7 @@
 		<button
 			type="button"
 			onclick={() => (isTableCollapsed = !isTableCollapsed)}
-			class="flex w-full items-center gap-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+			class="flex w-full items-center gap-2 text-xs text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
 		>
 			{#if isTableCollapsed}
 				<ChevronRight class="h-3.5 w-3.5 shrink-0" />
@@ -229,13 +229,13 @@
 					Query Results
 				{/if}
 			</span>
-			<span class="text-gray-400">
+			<span class="text-muted-foreground">
 				{queryResult.rowCount} row{queryResult.rowCount !== 1 ? 's' : ''}
 			</span>
 		</button>
 
 		{#if !isTableCollapsed && cleanSummary}
-			<div class="mt-2 mb-3 text-sm text-gray-700 dark:text-gray-300">
+			<div class="mt-2 mb-3 text-sm text-muted-foreground">
 				{cleanSummary}
 			</div>
 		{/if}
@@ -261,8 +261,8 @@
 				<!-- Fallback to simple list for other types -->
 				<div class="max-h-48 overflow-y-auto">
 					{#each displayData as row, rowIdx (rowIdx)}
-						<div class="border-t border-gray-200 py-2 first:border-t-0 dark:border-gray-700">
-							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+						<div class="border-t py-2 first:border-t-0 border-border">
+							<div class="text-sm font-medium text-foreground">
 								{getDisplayValue(row)}
 							</div>
 						</div>
@@ -275,7 +275,9 @@
 				{#if hasMultipleColumns}
 					<!-- Multi-column table -->
 					<table class="w-full text-left text-sm">
-						<thead class="sticky top-0 bg-gray-100 text-xs uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+						<thead
+							class="sticky top-0 text-xs uppercase text-gray-600 dark:text-gray-400 bg-muted"
+						>
 							<tr>
 								{#each displayableColumns.slice(0, 5) as col}
 									<th class="whitespace-nowrap px-2 py-1.5 font-medium">
@@ -284,11 +286,11 @@
 								{/each}
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						<tbody class="divide-y divide-border">
 							{#each displayData as row, rowIdx (rowIdx)}
 								<tr class="hover:bg-gray-100 dark:hover:bg-gray-800/50">
 									{#each displayableColumns.slice(0, 5) as col}
-										<td class="px-2 py-1.5 text-gray-900 dark:text-gray-100">
+										<td class="px-2 py-1.5 text-foreground">
 											{formatCellValue(row[col])}
 										</td>
 									{/each}
@@ -299,8 +301,8 @@
 				{:else}
 					<!-- Single-column list -->
 					{#each displayData as row, rowIdx (rowIdx)}
-						<div class="border-t border-gray-200 py-2 first:border-t-0 dark:border-gray-700">
-							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+						<div class="border-t py-2 first:border-t-0 border-border">
+							<div class="text-sm font-medium text-foreground">
 								{getDisplayValue(row)}
 							</div>
 						</div>
@@ -309,7 +311,7 @@
 				{#if safeData.length > maxInitialResults}
 					<button
 						onclick={() => (showAllResults = !showAllResults)}
-						class="dark:text-primary-dark dark:hover:text-primary-dark/80 mt-2 flex w-full items-center justify-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+						class="dark:text-primary dark:hover:text-primary/80 mt-2 flex w-full items-center justify-center gap-1 text-xs text-blue-500 hover:text-blue-600"
 					>
 						{#if showAllResults}
 							<ChevronUp class="h-3 w-3" />

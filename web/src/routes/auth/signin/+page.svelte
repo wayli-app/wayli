@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn } from 'lucide-svelte';
+	import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn, Loader2 } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -399,19 +399,17 @@
 		</div>
 
 		<!-- Sign In Form -->
-		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-8 text-center">
 				<div
-					class="bg-primary dark:bg-primary-dark mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
 				>
 					<LogIn class="h-6 w-6 text-white" />
 				</div>
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.signInToAccount')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
+				<p class="text-muted-foreground">
 					{t('auth.welcomeBack')}
 				</p>
 			</div>
@@ -419,7 +417,7 @@
 			{#if isLoadingSettings}
 				<div class="flex items-center justify-center py-8">
 					<div
-						class="border-t-primary h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700"
+						class="border-t-primary h-8 w-8 animate-spin rounded-full border-4 border-border"
 					></div>
 				</div>
 			{:else if oauthOnlyMode && oauthProviders.length > 0}
@@ -442,11 +440,11 @@
 				</div>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signUp')}
 						</a>
@@ -456,15 +454,12 @@
 				<form onsubmit={handleSignIn} class="space-y-6">
 					<!-- Email Field -->
 					<div>
-						<label
-							for="email"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>
+						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="email"
@@ -479,15 +474,12 @@
 
 					<!-- Password Field -->
 					<div>
-						<label
-							for="password"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-						>
+						<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.password')}
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="password"
@@ -500,7 +492,7 @@
 							<button
 								type="button"
 								onclick={togglePassword}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 dark:hover:text-gray-300"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -519,13 +511,13 @@
 								bind:checked={rememberMe}
 								class="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
 							/>
-							<span class="ml-2 text-sm text-gray-600 dark:text-gray-400">
+							<span class="ml-2 text-sm text-muted-foreground">
 								{t('auth.rememberMe')}
 							</span>
 						</label>
 						<a
 							href="/auth/forgot-password"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 text-sm transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 text-sm transition-colors"
 						>
 							{t('auth.forgotPassword')}
 						</a>
@@ -535,8 +527,9 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-primary-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
+						{#if loading}<Loader2 class="h-5 w-5 animate-spin" />{/if}
 						{loading ? t('auth.signingIn') : t('auth.signIn')}
 					</button>
 				</form>
@@ -548,7 +541,7 @@
 							<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+							<span class="px-2 text-muted-foreground dark:text-gray-400 bg-card">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>
@@ -575,11 +568,11 @@
 				{/if}
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signUp')}
 						</a>

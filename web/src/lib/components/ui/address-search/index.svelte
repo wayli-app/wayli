@@ -161,7 +161,7 @@
 <div class="relative">
 	<label
 		for="address-input"
-		class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+		class="mb-2 block text-sm font-medium text-muted-foreground"
 	>
 		{label}
 		{#if required}
@@ -179,14 +179,14 @@
 		{required}
 		oninput={handleInput}
 		onkeydown={handleKeydown}
-		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 	/>
 
 	{#if showClearButton && inputValue}
 		<button
 			type="button"
 			aria-label="Clear address"
-			class="absolute top-2 right-2 rounded p-1 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
+			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-gray-200 focus:ring-2 focus:ring-primary focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
 			onclick={clearAddress}
 		>
 			✕
@@ -209,7 +209,7 @@
 	<!-- Suggestions Dropdown -->
 	{#if showSuggestions}
 		<div
-			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 		>
 			{#if suggestions.length > 0}
 				{#each suggestions as suggestion, index (suggestion.display_name + index)}
@@ -222,16 +222,16 @@
 							: ''}"
 						onclick={() => selectAddress(suggestion)}
 					>
-						<div class="text-sm text-gray-900 dark:text-gray-100">{suggestion.display_name}</div>
+						<div class="text-sm text-foreground">{suggestion.display_name}</div>
 						{#if suggestion.coordinates}
-							<div class="text-xs text-gray-500 dark:text-gray-400">
+							<div class="text-xs text-muted-foreground">
 								{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 							</div>
 						{/if}
 					</button>
 				{/each}
 			{:else if searchError}
-				<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+				<div class="px-4 py-2 text-sm text-muted-foreground">
 					{searchError}
 				</div>
 			{/if}

@@ -65,7 +65,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			class="animate-fade-in relative w-full max-w-md rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -75,7 +75,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -89,10 +89,10 @@
 					<Shield class="h-6 w-6 text-amber-600 dark:text-amber-400" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="text-2xl font-bold text-foreground">
 						{t('auth.confirmYourIdentity')}
 					</h2>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.confirmYourIdentityDescription')}
 					</p>
 				</div>
@@ -101,10 +101,10 @@
 			<!-- Account Info -->
 			{#if userEmail}
 				<div
-					class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+					class="mb-4 rounded-lg border bg-gray-50 p-3 dark:bg-gray-800 border-border"
 				>
-					<p class="text-xs text-gray-500 dark:text-gray-400">{t('auth.account')}</p>
-					<p class="font-medium text-gray-900 dark:text-gray-100">{userEmail}</p>
+					<p class="text-xs text-muted-foreground">{t('auth.account')}</p>
+					<p class="font-medium text-foreground">{userEmail}</p>
 				</div>
 			{/if}
 
@@ -122,18 +122,18 @@
 			<div class="mb-6">
 				<label
 					for="reauth-password"
-					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					class="mb-2 block text-sm font-medium text-muted-foreground"
 				>
 					{t('auth.password')}
 				</label>
 				<div class="relative">
-					<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+					<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 					<input
 						id="reauth-password"
 						type="password"
 						bind:value={password}
 						placeholder={t('auth.enterPasswordPlaceholder')}
-						class="w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+						class="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500 bg-card"
 						disabled={isLoading}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' && !isLoading && password) {

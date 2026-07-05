@@ -361,24 +361,24 @@
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
-		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('exportJobs.title')}</h3>
+		<h3 class="text-lg font-semibold text-foreground">{t('exportJobs.title')}</h3>
 	</div>
 
 	{#if loading}
 		<div class="flex items-center justify-center py-8">
 			<div
-				class="border-primary dark:border-primary-dark h-6 w-6 animate-spin rounded-full border-b-2"
+				class="border-primary dark:border-primary h-6 w-6 animate-spin rounded-full border-b-2"
 			></div>
 		</div>
 	{:else if filteredExportJobs.length === 0}
-		<div class="py-8 text-center text-gray-500 dark:text-gray-400">
+		<div class="py-8 text-center text-muted-foreground">
 			<p>{t('exportJobs.noJobsFound')}</p>
 		</div>
 	{:else}
 		<div class="space-y-3">
 			{#each filteredExportJobs as job (job.id)}
 				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+					class="rounded-lg border p-4 bg-card border-border"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-3">
@@ -389,29 +389,29 @@
 									? 'bg-green-100 dark:bg-green-900/20'
 									: job.status === 'failed'
 										? 'bg-red-100 dark:bg-red-900/20'
-										: 'bg-primary/10 dark:bg-primary-dark/20'}"
+										: 'bg-primary/10 dark:bg-primary/20'}"
 							>
 								<Check
 									class="h-4 w-4 {job.status === 'completed'
 										? 'text-green-600 dark:text-green-400'
 										: job.status === 'failed'
 											? 'text-red-600 dark:text-red-400'
-											: 'text-primary dark:text-primary-dark'}"
+											: 'text-primary dark:text-primary'}"
 								/>
 							</div>
 
 							<!-- Job info -->
 							<div class="flex-1">
-								<h4 class="font-medium text-gray-900 dark:text-gray-100">
+								<h4 class="font-medium text-foreground">
 									{t('exportJobs.created')}: {new Date(job.created_at).toLocaleString()}
 								</h4>
-								<div class="text-xs text-gray-500 dark:text-gray-400">
+								<div class="text-xs text-muted-foreground">
 									{t('exportJobs.dateRange')}: {job.data?.startDate && job.data?.endDate
 										? `${new Date(job.data.startDate).toISOString().split('T')[0]} ${t('exportJobs.to')} ${new Date(job.data.endDate).toISOString().split('T')[0]}`
 										: t('exportJobs.allData')}
 								</div>
 								{#if job.status === 'completed'}
-									<div class="text-xs text-gray-500 dark:text-gray-400">
+									<div class="text-xs text-muted-foreground">
 										{#if new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) > new Date()}
 											{t('exportJobs.linkValidUntil')}: {new Date(
 												new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000
@@ -422,7 +422,7 @@
 									</div>
 								{/if}
 								{#if job.status === 'running' && getJobETA()}
-									<div class="text-xs text-gray-500 dark:text-gray-400">ETA: {getJobETA()}</div>
+									<div class="text-xs text-muted-foreground">ETA: {getJobETA()}</div>
 								{/if}
 							</div>
 						</div>
@@ -431,7 +431,7 @@
 						{#if job.status === 'completed' && new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) > new Date()}
 							<button
 								onclick={() => downloadExport(job.id)}
-								class="bg-primary hover:bg-primary/90 dark:bg-primary-dark inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors dark:hover:bg-blue-600"
+								class="bg-primary hover:bg-primary/90 dark:bg-primary inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors dark:hover:bg-blue-600"
 							>
 								<Download class="h-4 w-4" />
 								{t('exportJobs.download')}
@@ -442,13 +442,13 @@
 					<!-- Progress bar for running jobs -->
 					{#if job.status === 'running' || job.status === 'queued' || job.status === 'pending'}
 						<div class="mb-3">
-							<div class="mb-1 flex justify-between text-sm text-gray-600 dark:text-gray-400">
+							<div class="mb-1 flex justify-between text-sm text-muted-foreground">
 								<span>{t('exportJobs.progress')}</span>
 								<span>{job.progress}%</span>
 							</div>
 							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
 								<div
-									class="bg-primary dark:bg-primary-dark h-2 rounded-full transition-all duration-300"
+									class="bg-primary dark:bg-primary h-2 rounded-full transition-all duration-300"
 									style="width: {job.progress}%"
 								></div>
 							</div>
@@ -461,7 +461,7 @@
 							<div class="flex flex-wrap gap-2">
 								{#if job.data.includeLocationData}
 									<span
-										class="bg-primary/10 text-primary dark:bg-primary-dark/20 dark:text-primary-dark inline-flex items-center rounded-full px-2 py-1 text-xs"
+										class="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary inline-flex items-center rounded-full px-2 py-1 text-xs"
 									>
 										{t('exportJobs.locationData')}
 									</span>
@@ -482,7 +482,7 @@
 								{/if}
 								{#if job.data.format}
 									<span
-										class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-gray-200 bg-muted"
 									>
 										{job.data.format === 'GeoJSON' ? job.data.format : 'JSON'}
 									</span>
@@ -502,7 +502,7 @@
 
 					<!-- Result info -->
 					{#if job.result && job.status === 'completed'}
-						<div class="mb-3 text-sm text-gray-600 dark:text-gray-400">
+						<div class="mb-3 text-sm text-muted-foreground">
 							{#if job.result.file_size}
 								<span class="mr-4"
 									>{t('exportJobs.size')}: {job.result.file_size

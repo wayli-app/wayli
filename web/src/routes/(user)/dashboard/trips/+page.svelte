@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { format, formatDistanceToNow } from 'date-fns';
+	import { Skeleton } from '$lib/components/ui';
 	import {
 		MapPin,
 		Calendar,
@@ -1339,7 +1340,7 @@
 	<div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
 		<div class="flex items-center gap-3">
 			<Route class="text-primary h-8 w-8 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+			<h1 class="text-3xl font-bold text-foreground">
 				{t('common.navigation.trips')}
 			</h1>
 		</div>
@@ -1364,13 +1365,13 @@
 	<!-- Search and Filters -->
 	<div class="flex flex-col gap-4 md:flex-row">
 		<div class="relative flex-1">
-			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
 			<input
 				type="text"
 				placeholder={t('trips.searchTrips')}
 				bind:value={searchQuery}
 				oninput={handleSearchChange}
-				class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-600 dark:text-gray-100 bg-card"
 			/>
 		</div>
 		<div class="flex gap-2">
@@ -1410,29 +1411,28 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative max-h-[90vh] w-full max-w-lg cursor-default overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+				class="relative max-h-[90vh] w-full max-w-lg cursor-default overflow-y-auto rounded-2xl shadow-2xl bg-card"
 				role="document"
 			>
 				<div class="p-8">
 					<button
-						class="absolute top-4 right-4 cursor-pointer text-gray-400 transition-colors hover:text-red-500"
+						class="absolute top-4 right-4 cursor-pointer text-muted-foreground transition-colors hover:text-red-500"
 						onclick={closeTripModal}
 						aria-label={t('common.actions.close')}>&times;</button
 					>
-					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 id="modal-title" class="mb-6 text-2xl font-bold text-foreground">
 						{isEditing ? t('trips.editTrip') : t('trips.addNewTrip')}
 					</h2>
 					<form onsubmit={(e) => submitTrip(e)} class="space-y-5">
 						<div>
-							<label
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								for="title">{t('trips.tripTitle')}</label
+							<label class="mb-1 block text-sm font-medium text-muted-foreground" for="title"
+								>{t('trips.tripTitle')}</label
 							>
 							<input
 								type="text"
 								id="title"
 								bind:value={tripForm.title}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+								class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 								placeholder={t('trips.tripTitle')}
 								required
 								disabled={isSubmitting}
@@ -1440,54 +1440,48 @@
 						</div>
 						<div class="flex gap-4">
 							<div class="flex-1">
-								<label
-									class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-									for="start_date">{t('trips.startDate')}</label
+								<label class="mb-1 block text-sm font-medium text-muted-foreground" for="start_date"
+									>{t('trips.startDate')}</label
 								>
 								<input
 									type="date"
 									id="start_date"
 									bind:value={tripForm.start_date}
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 									required
 									disabled={isSubmitting}
 								/>
 							</div>
 							<div class="flex-1">
-								<label
-									class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-									for="end_date">{t('trips.endDate')}</label
+								<label class="mb-1 block text-sm font-medium text-muted-foreground" for="end_date"
+									>{t('trips.endDate')}</label
 								>
 								<input
 									type="date"
 									id="end_date"
 									bind:value={tripForm.end_date}
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 									required
 									disabled={isSubmitting}
 								/>
 							</div>
 						</div>
 						<div>
-							<label
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
-								for="description">{t('trips.description')}</label
+							<label class="mb-1 block text-sm font-medium text-muted-foreground" for="description"
+								>{t('trips.description')}</label
 							>
 							<textarea
 								id="description"
 								bind:value={tripForm.description}
 								rows="3"
-								class="focus:ring-primary w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+								class="focus:ring-primary w-full resize-none rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 								placeholder={t('trips.describeTripPlaceholder')}
-								disabled={isSubmitting}
-							></textarea>
+								disabled={isSubmitting}></textarea>
 						</div>
 
 						<!-- Labels Section -->
 						<div>
-							<label
-								for="new-label"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							<label for="new-label" class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('trips.labels')}</label
 							>
 							<div class="space-y-3">
@@ -1499,7 +1493,7 @@
 										bind:value={newLabel}
 										onkeydown={(e) => e?.key === 'Enter' && (e.preventDefault(), addLabel())}
 										placeholder={t('trips.addLabelPlaceholder')}
-										class="focus:ring-primary flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+										class="focus:ring-primary flex-1 rounded-lg border px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 									/>
 									<button
 										type="button"
@@ -1533,9 +1527,7 @@
 						</div>
 
 						<div>
-							<label
-								for="trip-image"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							<label for="trip-image" class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('trips.tripImage')}</label
 							>
 
@@ -1549,7 +1541,7 @@
 											>{t('trips.autoSuggestedImage')}</span
 										>
 										{#if isSuggestingImage}
-											<Loader2 class="text-primary dark:text-primary-dark h-4 w-4 animate-spin" />
+											<Loader2 class="text-primary dark:text-primary h-4 w-4 animate-spin" />
 										{/if}
 									</div>
 
@@ -1579,7 +1571,7 @@
 								type="file"
 								accept="image/*"
 								onchange={handleImageChange}
-								class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold"
+								class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full text-sm text-muted-foreground file:mr-4 file:rounded-lg file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold"
 								disabled={isUploadingImage}
 							/>
 
@@ -1597,11 +1589,9 @@
 							{/if}
 
 							<!-- Stable image suggestion area with fixed height -->
-							<div
-								class="relative mt-2 flex h-40 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800"
-							>
+							<div class="relative mt-2 flex h-40 items-center justify-center rounded-lg bg-muted">
 								{#if isSuggestingImage}
-									<Loader2 class="text-primary dark:text-primary-dark h-10 w-10 animate-spin" />
+									<Loader2 class="text-primary dark:text-primary h-10 w-10 animate-spin" />
 								{:else if imagePreview}
 									<img
 										src={imagePreview}
@@ -1629,7 +1619,7 @@
 									<div class="absolute top-2 left-2">
 										<button
 											type="button"
-											class="text-primary hover:text-primary/80 rounded bg-white/95 px-3 py-1.5 text-xs font-medium shadow-lg transition-all duration-200 hover:bg-white dark:bg-gray-800/95 dark:text-gray-300 dark:hover:bg-gray-800"
+											class="text-primary hover:text-primary/80 rounded bg-white/95 px-3 py-1.5 text-xs font-medium shadow-lg transition-all duration-200 hover:bg-card/95 dark:text-gray-300 dark:hover:bg-gray-800"
 											onclick={suggestTripImage}
 											disabled={isSuggestingImage}
 											title="Get a suggested image based on your travel data"
@@ -1644,14 +1634,14 @@
 
 							<!-- Attribution for suggested images -->
 							{#if imageAttribution && imageAttribution.source === 'pexels' && imageAttribution.photographer}
-								<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+								<div class="mt-2 text-xs text-muted-foreground">
 									Photo by
 									{#if imageAttribution.photographerUrl}
 										<a
 											href={imageAttribution.photographerUrl}
 											target="_blank"
 											rel="noopener noreferrer"
-											class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 underline"
+											class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 underline"
 										>
 											{imageAttribution.photographer}
 										</a>
@@ -1663,7 +1653,7 @@
 										href="https://www.pexels.com"
 										target="_blank"
 										rel="noopener noreferrer"
-										class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 underline"
+										class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 underline"
 									>
 										Pexels
 									</a>
@@ -1699,25 +1689,31 @@
 
 	<!-- Loading State -->
 	{#if isLoading || isInitialLoad}
-		<div class="flex items-center justify-center py-12">
-			<div class="text-center">
-				<Loader2 class="text-primary dark:text-primary-dark mx-auto mb-4 h-8 w-8 animate-spin" />
-				<p class="text-gray-600 dark:text-gray-400">Loading trips...</p>
-			</div>
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _, i (i)}
+				<div class="bg-card border-border overflow-hidden rounded-xl border">
+					<Skeleton class="h-40 w-full rounded-none" />
+					<div class="p-4">
+						<Skeleton class="h-5 w-2/3" />
+						<Skeleton class="mt-3 h-3 w-1/2" />
+						<Skeleton class="mt-2 h-3 w-3/4" />
+					</div>
+				</div>
+			{/each}
 		</div>
 	{:else if filteredTrips.length === 0}
 		<div class="py-12 text-center">
-			<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+			<Route class="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+			<h3 class="mb-2 text-lg font-medium text-foreground">
 				{t('trips.noTripsFound')}
 			</h3>
-			<p class="mb-4 text-gray-600 dark:text-gray-400">
+			<p class="mb-4 text-muted-foreground">
 				{searchQuery || selectedFilter !== 'all'
 					? t('trips.tryAdjustingFilters')
 					: t('trips.startCreatingFirstTrip')}
 			</p>
 			<button
-				class="bg-primary hover:bg-primary/90 cursor-pointer rounded-lg px-6 py-2 font-medium text-white transition-colors"
+				class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center rounded-lg px-6 py-2 font-medium text-primary-foreground transition-colors"
 				onclick={openAddTripModal}
 			>
 				<Plus class="mr-2 inline h-4 w-4" />
@@ -1729,26 +1725,26 @@
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredTrips as trip (trip.id)}
 				<div
-					class="relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
+					class="relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-border dark:bg-card"
 				>
 					<!-- Action Buttons -->
 					<div class="absolute top-3 right-3 z-10 flex gap-2">
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
+							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
 							onclick={() => refreshTripMetadata(trip)}
 							aria-label="Refresh trip metadata"
 						>
 							<RefreshCw class="h-5 w-5" />
 						</button>
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
+							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
 							onclick={() => openEditTripModal(trip)}
 							aria-label="Edit trip"
 						>
 							<Edit class="h-5 w-5" />
 						</button>
 						<button
-							class="cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-gray-700 dark:hover:bg-red-900/30"
+							class="cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-gray-700 dark:hover:bg-red-900/30"
 							onclick={() => confirmDeleteTrip(trip)}
 							aria-label="Delete trip"
 						>
@@ -1763,9 +1759,9 @@
 								<div class="flex h-full w-full items-center justify-center">
 									<div class="text-center">
 										<Loader2
-											class="text-primary dark:text-primary-dark mx-auto h-12 w-12 animate-spin"
+											class="text-primary dark:text-primary mx-auto h-12 w-12 animate-spin"
 										/>
-										<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Loading image...</p>
+										<p class="mt-2 text-sm text-muted-foreground">Loading image...</p>
 									</div>
 								</div>
 							{/if}
@@ -1783,8 +1779,8 @@
 						{:else}
 							<div class="flex h-full w-full items-center justify-center">
 								<div class="text-center">
-									<Route class="mx-auto h-12 w-12 text-gray-400" />
-									<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+									<Route class="mx-auto h-12 w-12 text-muted-foreground" />
+									<p class="mt-2 text-sm text-muted-foreground">
 										{t('trips.noImageAvailable')}
 									</p>
 								</div>
@@ -1794,7 +1790,7 @@
 						<div
 							class="absolute right-3 bottom-3 flex items-center gap-1 rounded bg-black/60 px-3 py-1 text-xs font-medium text-white shadow"
 						>
-							<Route class="text-primary dark:text-primary-dark h-4 w-4" />
+							<Route class="text-primary dark:text-primary h-4 w-4" />
 							{formatDistance(trip.metadata?.distanceTraveled ?? 0)}
 						</div>
 						<!-- Autogenerated label at top left -->
@@ -1810,9 +1806,7 @@
 					<!-- Trip Details and Footer -->
 					<div class="flex min-h-0 flex-1 flex-col p-4">
 						<div class="mb-2 flex flex-wrap items-start justify-between gap-2">
-							<h3
-								class="line-clamp-2 flex-1 text-lg font-semibold text-gray-900 dark:text-gray-100"
-							>
+							<h3 class="line-clamp-2 flex-1 text-lg font-semibold text-foreground">
 								{trip.title}
 							</h3>
 							<!-- Trip type badges -->
@@ -1834,13 +1828,13 @@
 							</div>
 						</div>
 						{#if trip.description}
-							<p class="mb-3 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
+							<p class="mb-3 line-clamp-2 text-sm text-muted-foreground">
 								{trip.description}
 							</p>
 						{/if}
 						<!-- Trip Stats -->
 						<div class="mb-4 space-y-2">
-							<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+							<div class="flex items-center gap-2 text-sm text-muted-foreground">
 								<Calendar class="h-4 w-4" />
 								<span
 									>{format(new Date(trip.start_date), 'MMM d, yyyy')} - {format(
@@ -1849,18 +1843,18 @@
 									)}</span
 								>
 							</div>
-							<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+							<div class="flex items-center gap-2 text-sm text-muted-foreground">
 								<Clock class="h-4 w-4" />
 								<span>{formatDuration(trip.start_date, trip.end_date)}</span>
 							</div>
-							<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+							<div class="flex items-center gap-2 text-sm text-muted-foreground">
 								<MapPin class="h-4 w-4" />
 								<span>{trip.metadata?.dataPoints ?? 0} {t('trips.points')}</span>
 							</div>
 
 							<!-- Pexels attribution -->
 							{#if trip.metadata?.image_attribution?.source === 'pexels' && trip.metadata?.image_attribution?.photographer}
-								<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+								<div class="flex items-center gap-2 text-sm text-muted-foreground">
 									<span class="text-xs">📸</span>
 									<span class="text-xs">
 										{t('trips.photoBy')}
@@ -1869,7 +1863,7 @@
 												href={trip.metadata.image_attribution.photographerUrl}
 												target="_blank"
 												rel="noopener noreferrer"
-												class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 underline"
+												class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 underline"
 											>
 												{trip.metadata.image_attribution.photographer}
 											</a>
@@ -1881,7 +1875,7 @@
 											href="https://www.pexels.com"
 											target="_blank"
 											rel="noopener noreferrer"
-											class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 underline"
+											class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 underline"
 										>
 											Pexels
 										</a>
@@ -1913,15 +1907,13 @@
 							{/if}
 						</div>
 						<!-- Footer: always at the bottom -->
-						<div
-							class="mt-auto flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-700"
-						>
-							<span class="text-xs text-gray-500 dark:text-gray-400">
+						<div class="mt-auto flex items-center justify-between border-t pt-3 border-border">
+							<span class="text-xs text-muted-foreground">
 								{t('trips.updated')}
 								{getRelativeTime(trip.updated_at)}
 							</span>
 							<button
-								class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors"
+								class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors"
 								onclick={() => showTripStatistics(trip)}
 							>
 								<BarChart class="h-4 w-4" />
@@ -1936,7 +1928,7 @@
 		<!-- Loading indicator for infinite scroll -->
 		{#if isLoadingMore}
 			<div class="mt-6 flex justify-center">
-				<div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+				<div class="flex items-center gap-2 text-muted-foreground">
 					<Loader2 class="h-5 w-5 animate-spin" />
 					<span>Loading more trips...</span>
 				</div>
@@ -1945,7 +1937,7 @@
 
 		<!-- Results Summary -->
 		<div class="py-4 text-center">
-			<p class="text-sm text-gray-600 dark:text-gray-400">
+			<p class="text-sm text-muted-foreground">
 				{t('trips.showingTripsOf', { filtered: filteredTrips.length, total: trips.length })}
 			</p>
 		</div>
@@ -1987,23 +1979,21 @@
 
 				{#if isLoadingSuggestedTrips && suggestedTrips.length === 0}
 					<div class="flex items-center justify-center py-12">
-						<Loader2 class="text-primary dark:text-primary-dark h-8 w-8 animate-spin" />
-						<span class="ml-2 text-gray-600 dark:text-gray-400"
-							>{t('trips.loadingSuggestedTrips')}</span
-						>
+						<Loader2 class="text-primary dark:text-primary h-8 w-8 animate-spin" />
+						<span class="ml-2 text-muted-foreground">{t('trips.loadingSuggestedTrips')}</span>
 					</div>
 				{:else if suggestedTrips.length === 0}
 					<div class="py-12 text-center">
-						<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-						<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+						<Route class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+						<h3 class="mb-2 text-lg font-medium text-foreground">
 							{t('trips.noSuggestedTrips')}
 						</h3>
-						<p class="text-gray-600 dark:text-gray-400">{t('trips.noPendingTripSuggestions')}</p>
+						<p class="text-muted-foreground">{t('trips.noPendingTripSuggestions')}</p>
 					</div>
 				{:else}
 					<div class="space-y-4">
 						<div class="flex items-center justify-between">
-							<p class="text-sm text-gray-600 dark:text-gray-400">
+							<p class="text-sm text-muted-foreground">
 								{suggestedTrips.length} suggested trip{suggestedTrips.length !== 1 ? 's' : ''} found
 							</p>
 							<div class="flex gap-2">
@@ -2024,7 +2014,7 @@
 
 						<div class="grid gap-4">
 							{#each suggestedTrips as trip (trip.id)}
-								<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+								<div class="rounded-lg border p-4 border-border">
 									<div class="flex items-start gap-4">
 										<input
 											type="checkbox"
@@ -2046,7 +2036,7 @@
 											<div class="mb-2 flex items-center justify-between">
 												<label
 													for={`trip-${trip.id}`}
-													class="hover:text-primary cursor-pointer text-lg font-semibold text-gray-900 dark:text-gray-100"
+													class="hover:text-primary cursor-pointer text-lg font-semibold text-foreground"
 												>
 													{trip.title}
 												</label>
@@ -2068,12 +2058,10 @@
 													{/if}
 												</div>
 											</div>
-											<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+											<p class="mb-2 text-sm text-muted-foreground">
 												{trip.description}
 											</p>
-											<div
-												class="mb-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400"
-											>
+											<div class="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
 												<span
 													>{t('trips.start')}: {format(
 														new Date(trip.start_date),
@@ -2093,9 +2081,7 @@
 												)}
 												{#if significantCities.length > 0}
 													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-														<div
-															class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300"
-														>
+														<div class="mb-1 text-xs font-semibold text-muted-foreground">
 															{t('trips.visitedCities')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
@@ -2119,9 +2105,7 @@
 												)}
 												{#if validCountries.length > 1}
 													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-														<div
-															class="mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300"
-														>
+														<div class="mb-1 text-xs font-semibold text-muted-foreground">
 															{t('trips.visitedCountries')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
@@ -2150,16 +2134,14 @@
 								<div
 									class="border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
 								></div>
-								<span class="ml-3 text-sm text-gray-600 dark:text-gray-400"
-									>Loading more trips...</span
-								>
+								<span class="ml-3 text-sm text-muted-foreground">Loading more trips...</span>
 							</div>
 						{/if}
 
 						<!-- End of list indicator -->
 						{#if !suggestedTripsPagination.hasMore && suggestedTrips.length > 0}
 							<div class="py-4 text-center">
-								<span class="text-sm text-gray-500 dark:text-gray-400">
+								<span class="text-sm text-muted-foreground">
 									All {suggestedTripsPagination.total} suggested trips loaded
 								</span>
 							</div>
@@ -2169,10 +2151,10 @@
 			</div>
 
 			<!-- Sticky Action Buttons -->
-			<div class="mt-4 flex gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+			<div class="mt-4 flex gap-3 border-t pt-4 border-border">
 				<button
 					onclick={() => (showSuggestedTripsModal = false)}
-					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 				>
 					{t('common.actions.cancel')}
 				</button>
@@ -2243,14 +2225,11 @@
 			}}
 			tabindex="-1"
 		>
-			<div
-				class="relative mx-4 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
-				role="document"
-			>
-				<h2 id="delete-modal-title" class="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+			<div class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card" role="document">
+				<h2 id="delete-modal-title" class="mb-4 text-xl font-bold text-foreground">
 					{t('trips.deleteTrip')}
 				</h2>
-				<p class="mb-6 text-gray-700 dark:text-gray-300">
+				<p class="mb-6 text-muted-foreground">
 					{t('trips.deleteConfirmation', { title: tripToDelete?.title || '' })}
 				</p>
 				<div class="flex justify-end gap-3">
@@ -2275,29 +2254,21 @@
 			aria-modal="true"
 			aria-labelledby="progress-modal-title"
 		>
-			<div
-				class="relative mx-4 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
-				role="document"
-			>
-				<h2
-					id="progress-modal-title"
-					class="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100"
-				>
+			<div class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card" role="document">
+				<h2 id="progress-modal-title" class="mb-4 text-xl font-bold text-foreground">
 					{t('trips.approvingTrips')}
 				</h2>
 
 				<!-- Progress Steps -->
 				<div class="mb-6">
 					<div class="mb-2 flex items-center justify-between">
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300"
+						<span class="text-sm font-medium text-muted-foreground"
 							>{t('trips.stepOf', {
 								current: approvalProgress.currentStep,
 								total: approvalProgress.totalSteps
 							})}</span
 						>
-						<span class="text-sm text-gray-500 dark:text-gray-400"
-							>{approvalProgress.progress}%</span
-						>
+						<span class="text-sm text-muted-foreground">{approvalProgress.progress}%</span>
 					</div>
 
 					<!-- Progress Bar -->
@@ -2324,10 +2295,10 @@
 							{/if}
 						</div>
 						<div class="ml-3">
-							<p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+							<p class="text-sm font-medium text-foreground">
 								{t('trips.generateImages')}
 							</p>
-							<p class="text-xs text-gray-500 dark:text-gray-400">
+							<p class="text-xs text-muted-foreground">
 								{t('trips.creatingImagesDescription')}
 							</p>
 						</div>
@@ -2346,10 +2317,10 @@
 							{/if}
 						</div>
 						<div class="ml-3">
-							<p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+							<p class="text-sm font-medium text-foreground">
 								{t('trips.createTripsStep')}
 							</p>
-							<p class="text-xs text-gray-500 dark:text-gray-400">
+							<p class="text-xs text-muted-foreground">
 								{t('trips.approvingTripsWithImages')}
 							</p>
 						</div>
@@ -2360,9 +2331,9 @@
 				<div class="bg-primary/5 dark:bg-primary/20 mb-6 rounded-lg p-4">
 					<div class="flex items-center">
 						{#if approvalProgress.step === 'generating-images'}
-							<Loader2 class="text-primary dark:text-primary-dark mr-3 h-5 w-5 animate-spin" />
+							<Loader2 class="text-primary dark:text-primary mr-3 h-5 w-5 animate-spin" />
 						{:else if approvalProgress.step === 'creating-trips'}
-							<Loader2 class="text-primary dark:text-primary-dark mr-3 h-5 w-5 animate-spin" />
+							<Loader2 class="text-primary dark:text-primary mr-3 h-5 w-5 animate-spin" />
 						{:else if approvalProgress.step === 'complete'}
 							<Check class="mr-3 h-5 w-5 text-green-600" />
 						{/if}
@@ -2394,7 +2365,7 @@
 	<!-- Powered by Pexels Footer -->
 	<div class="mt-12 text-center">
 		<div
-			class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+			class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-600 dark:text-gray-400 bg-muted"
 		>
 			{t('trips.poweredByPexels')}
 		</div>

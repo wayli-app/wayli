@@ -2,78 +2,110 @@
 @plugin '@tailwindcss/typography';
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Custom theme colors for Tailwind v4 */
+/* Self-hosted Inter (variable) — all subsets bundled, no Google Fonts requests. */
+@import '@fontsource-variable/inter/index.css';
+
+/*
+ * Design system tokens.
+ *
+ * Colors are runtime CSS variables so a single set of utilities (bg-background,
+ * text-foreground, border-border, ...) works in both themes; the `.dark` class
+ * swaps the variable values. `@theme inline` exposes them to Tailwind so
+ * `bg-card`, `text-muted-foreground`, etc. generate `var(--card)` references
+ * rather than inlined literals.
+ */
+:root {
+	--background: #ffffff;
+	--foreground: #0f172a;
+	--card: #ffffff;
+	--card-foreground: #0f172a;
+	--muted: #f1f5f9;
+	--muted-foreground: #64748b;
+	--border: #e2e8f0;
+	--input: #e2e8f0;
+	--ring: #233869;
+	--primary: #233869;
+	--primary-foreground: #ffffff;
+	--accent: #f1f5f9;
+	--accent-foreground: #233869;
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--success: #16a34a;
+	--warning: #d97706;
+	--info: #2563eb;
+}
+
+.dark {
+	--background: #0b1120;
+	--foreground: #e2e8f0;
+	--card: #111827;
+	--card-foreground: #e2e8f0;
+	--muted: #1e293b;
+	--muted-foreground: #94a3b8;
+	--border: #1e293b;
+	--input: #334155;
+	--ring: #60a5fa;
+	--primary: #60a5fa;
+	--primary-foreground: #0b1120;
+	--accent: #1e293b;
+	--accent-foreground: #e2e8f0;
+	--destructive: #f87171;
+	--destructive-foreground: #0b1120;
+	--success: #4ade80;
+	--warning: #fbbf24;
+	--info: #60a5fa;
+}
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-info: var(--info);
+}
+
 @theme {
-	--color-primary: rgb(34, 51, 95);
-	--color-primary-dark: #60a5fa;
+	--font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Enhanced Accessibility & Mobile Responsiveness */
-
-/* Screen reader only content */
-.sr-only {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
-}
-
-/* Focus management */
-.focus-visible\:outline-none {
-	outline: 2px solid transparent;
-	outline-offset: 2px;
-}
-
-.focus-visible\:ring-2 {
-	box-shadow: 0 0 0 2px currentColor;
-}
-
-/* Enhanced touch targets for mobile */
-@media (max-width: 768px) {
-	button,
-	[role='button'],
-	input[type='button'],
-	input[type='submit'],
-	input[type='reset'],
-	a[href] {
-		min-height: 44px;
-		min-width: 44px;
-		padding: 12px;
+/* Base layer: themed defaults so surfaces/borders/typography flip with the .dark class. */
+@layer base {
+	* {
+		border-color: var(--border);
 	}
 
-	/* Ensure form elements are easily tappable */
-	input,
-	select,
-	textarea {
-		min-height: 44px;
-		font-size: 16px; /* Prevents zoom on iOS */
+	body {
+		background-color: var(--background);
+		color: var(--foreground);
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
 	}
 
-	/* Improve spacing for mobile */
-	.mobile-spacing {
-		padding: 16px;
-		gap: 12px;
-	}
-
-	/* Stack elements vertically on mobile */
-	.mobile-stack {
-		flex-direction: column;
-		align-items: stretch;
-	}
-
-	/* Full width on mobile */
-	.mobile-full {
-		width: 100%;
-		max-width: none;
+	/* Inputs use the themed ring on focus instead of a hardcoded color. */
+	input:focus,
+	select:focus,
+	textarea:focus {
+		outline: none;
 	}
 }
 
-/* Reduced motion support */
+/* Reduced motion: honor the OS preference globally. */
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
@@ -85,191 +117,42 @@
 	}
 }
 
-/* High contrast mode support */
+/* High contrast: thicken borders and rings. */
 @media (prefers-contrast: high) {
 	.border {
 		border-width: 2px;
 	}
-
-	.focus-visible\:ring-2 {
-		box-shadow: 0 0 0 4px currentColor;
-	}
 }
 
-/* Enhanced button interactions */
 button:hover:not(:disabled),
 button:focus-visible:not(:disabled) {
 	cursor: pointer;
 }
 
-/* Improved form accessibility */
-input:focus,
-select:focus,
-textarea:focus {
-	outline: 2px solid #2563eb;
-	outline-offset: 2px;
-}
-
-/* Loading states */
-.loading {
-	position: relative;
-	pointer-events: none;
-}
-
-.loading::after {
-	content: '';
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 20px;
-	height: 20px;
-	margin: -10px 0 0 -10px;
-	border: 2px solid #f3f4f6;
-	border-top: 2px solid #2563eb;
-	border-radius: 50%;
-	animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-	0% {
-		transform: rotate(0deg);
-	}
-	100% {
-		transform: rotate(360deg);
-	}
-}
-
-/* Responsive typography */
-@media (max-width: 640px) {
-	.text-responsive {
-		font-size: 0.875rem;
-		line-height: 1.25rem;
-	}
-
-	.text-responsive-lg {
-		font-size: 1rem;
-		line-height: 1.5rem;
-	}
-
-	.text-responsive-xl {
-		font-size: 1.125rem;
-		line-height: 1.75rem;
-	}
-}
-
-@media (min-width: 641px) and (max-width: 1024px) {
-	.text-responsive {
-		font-size: 1rem;
-		line-height: 1.5rem;
-	}
-
-	.text-responsive-lg {
-		font-size: 1.125rem;
-		line-height: 1.75rem;
-	}
-
-	.text-responsive-xl {
-		font-size: 1.25rem;
-		line-height: 1.75rem;
-	}
-}
-
-@media (min-width: 1025px) {
-	.text-responsive {
-		font-size: 1.125rem;
-		line-height: 1.75rem;
-	}
-
-	.text-responsive-lg {
-		font-size: 1.25rem;
-		line-height: 1.75rem;
-	}
-
-	.text-responsive-xl {
-		font-size: 1.5rem;
-		line-height: 2rem;
-	}
-}
-
-/* Grid responsiveness */
-.grid-responsive {
-	display: grid;
-	gap: 1rem;
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-}
-
-@media (max-width: 640px) {
-	.grid-responsive {
-		grid-template-columns: 1fr;
-		gap: 0.75rem;
-	}
-}
-
-/* Container responsiveness */
-.container-responsive {
-	width: 100%;
-	margin-left: auto;
-	margin-right: auto;
-	padding-left: 1rem;
-	padding-right: 1rem;
-}
-
-@media (min-width: 640px) {
-	.container-responsive {
-		max-width: 640px;
-		padding-left: 1.5rem;
-		padding-right: 1.5rem;
-	}
-}
-
-@media (min-width: 768px) {
-	.container-responsive {
-		max-width: 768px;
-	}
-}
-
-@media (min-width: 1024px) {
-	.container-responsive {
-		max-width: 1024px;
-		padding-left: 2rem;
-		padding-right: 2rem;
-	}
-}
-
-@media (min-width: 1280px) {
-	.container-responsive {
-		max-width: 1280px;
-	}
-}
-
-/* Improved scrollbar for better accessibility */
-::-webkit-scrollbar {
+/* Scrollbar — slate palette, scoped to body so it does not clobber Leaflet panes. */
+body::-webkit-scrollbar {
 	width: 8px;
 	height: 8px;
 }
 
-::-webkit-scrollbar-track {
-	background: #f1f5f9;
+body::-webkit-scrollbar-track {
+	background: var(--muted);
 }
 
-::-webkit-scrollbar-thumb {
+body::-webkit-scrollbar-thumb {
 	background: #cbd5e1;
 	border-radius: 4px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+body::-webkit-scrollbar-thumb:hover {
 	background: #94a3b8;
 }
 
-.dark ::-webkit-scrollbar-track {
-	background: #1e293b;
-}
-
-.dark ::-webkit-scrollbar-thumb {
+.dark body::-webkit-scrollbar-thumb {
 	background: #475569;
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
+.dark body::-webkit-scrollbar-thumb:hover {
 	background: #64748b;
 }
 

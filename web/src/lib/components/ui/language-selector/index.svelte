@@ -126,7 +126,7 @@
 	// Variant classes
 	const variantClasses = {
 		default:
-			'bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
+			'bg-card border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
 		minimal: 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800',
 		button: 'bg-primary hover:bg-primary/90 text-white border-0'
 	};
@@ -147,11 +147,11 @@
 	<button
 		type="button"
 		onclick={() => (isOpen = !isOpen)}
-		class="flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-[rgb(34,51,95)] focus:ring-offset-1 focus:outline-none {sizeClasses[
+		class="flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:outline-none {sizeClasses[
 			size
 		]} {variantClasses[variant]} {variant === 'button'
 			? 'text-white'
-			: 'text-gray-700 dark:text-gray-200'}"
+			: 'text-muted-foreground'}"
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 		aria-label="Select language"
@@ -169,16 +169,14 @@
 			class="h-4 w-4 transition-transform duration-200 {isOpen ? 'rotate-180' : ''} {variant ===
 			'button'
 				? 'text-white'
-				: 'text-gray-500 dark:text-gray-400'}"
+				: 'text-muted-foreground'}"
 		/>
 	</button>
 
 	<!-- Dropdown Menu -->
 	{#if isOpen}
 		<div
-			class="absolute z-50 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 {positionClasses[
-				position
-			]}"
+			class="absolute z-50 w-48 rounded-lg border shadow-lg {positionClasses[ position ]} bg-card border-border"
 			role="listbox"
 			aria-label="Language options"
 		>
@@ -190,7 +188,7 @@
 						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 {language.code ===
 						$currentLocale
 							? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-gray-300'
-							: 'text-gray-700 dark:text-gray-200'}"
+							: 'text-muted-foreground'}"
 						role="option"
 						aria-selected={language.code === $currentLocale}
 					>

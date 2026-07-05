@@ -9,6 +9,19 @@
 				fluxbaseUrl: '{{FLUXBASE_PUBLIC_BASE_URL}}',
 				fluxbaseAnonKey: '{{FLUXBASE_ANON_KEY}}'
 			};
+			// Apply the saved theme before first paint to avoid a dark-mode flash (FOUC).
+			// The .dark class drives the CSS token overrides in app.css.
+			(function () {
+				try {
+					var stored = localStorage.getItem('theme');
+					var prefersDark =
+						window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+					var dark = stored ? stored === 'dark' : prefersDark;
+					document.documentElement.classList.toggle('dark', dark);
+				} catch (e) {
+					/* localStorage unavailable; default to light. */
+				}
+			})();
 		</script>
 		%sveltekit.head%
 	</head>

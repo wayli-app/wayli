@@ -180,14 +180,14 @@
 			<div class="mb-3 flex items-center justify-between">
 				<div class="flex items-center gap-2">
 					<Rocket class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-					<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+					<h3 class="font-semibold text-foreground">
 						{t('onboarding.checklistTitle')}
 					</h3>
 				</div>
 				<button
 					onclick={handleDismiss}
 					disabled={isDismissing}
-					class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+					class="text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
 					aria-label={t('common.actions.close')}
 				>
 					<X class="h-5 w-5" />
@@ -197,7 +197,7 @@
 			<!-- Progress bar -->
 			<div class="mb-4">
 				<div class="mb-2 flex items-center justify-between text-sm">
-					<span class="text-gray-600 dark:text-gray-400">
+					<span class="text-muted-foreground">
 						{t('onboarding.checklistProgress', { completed: completedCount, total: totalSteps })}
 					</span>
 					<span class="font-medium text-blue-600 dark:text-blue-400">
@@ -222,9 +222,7 @@
 					{@const Icon = step.icon}
 					<a
 						href={step.route}
-						class="flex items-start gap-3 rounded-lg border p-3 transition-all {step.completed
-							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-							: 'border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600'}"
+						class="flex items-start gap-3 rounded-lg border p-3 transition-all {step.completed ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : ' hover:border-blue-300 dark:hover:border-blue-600'} bg-card border-border"
 					>
 						<!-- Icon with checkmark overlay -->
 						<div class="relative shrink-0">
@@ -248,10 +246,10 @@
 
 						<!-- Text content -->
 						<div class="min-w-0 flex-1">
-							<h4 class="mb-0.5 text-sm font-medium text-gray-900 dark:text-gray-100">
+							<h4 class="mb-0.5 text-sm font-medium text-foreground">
 								{t(step.titleKey)}
 							</h4>
-							<p class="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
+							<p class="line-clamp-2 text-xs text-muted-foreground">
 								{t(step.descriptionKey)}
 							</p>
 						</div>

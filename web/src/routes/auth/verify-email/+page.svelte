@@ -94,7 +94,7 @@
 	<title>{t('auth.verifyYourEmail')} - Wayli</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+<div class="flex min-h-screen items-center justify-center px-4 bg-background">
 	<div class="w-full max-w-md">
 		<!-- Back to signin -->
 		<div class="mb-8">
@@ -109,7 +109,7 @@
 
 		<!-- Verification Card -->
 		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
 		>
 			<div class="mb-6 text-center">
 				<!-- Email Icon -->
@@ -119,10 +119,10 @@
 					<Mail class="text-primary h-8 w-8 dark:text-gray-400" />
 				</div>
 
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.verifyYourEmail')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
+				<p class="text-muted-foreground">
 					{t('auth.verificationEmailSent')}
 				</p>
 			</div>
@@ -130,7 +130,7 @@
 			<!-- Email Address -->
 			{#if email}
 				<div class="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
-					<p class="text-center text-sm font-medium text-gray-900 dark:text-gray-100">
+					<p class="text-center text-sm font-medium text-foreground">
 						{email}
 					</p>
 				</div>
@@ -138,7 +138,7 @@
 
 			<!-- Instructions -->
 			<div class="mb-6 space-y-3">
-				<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+				<div class="flex items-start gap-3 text-sm text-muted-foreground">
 					<div
 						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-gray-300"
 					>
@@ -146,7 +146,7 @@
 					</div>
 					<p>{t('auth.checkInboxForEmail')}</p>
 				</div>
-				<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+				<div class="flex items-start gap-3 text-sm text-muted-foreground">
 					<div
 						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-gray-300"
 					>
@@ -154,7 +154,7 @@
 					</div>
 					<p>{t('auth.clickVerificationLink')}</p>
 				</div>
-				<div class="flex items-start gap-3 text-sm text-gray-600 dark:text-gray-400">
+				<div class="flex items-start gap-3 text-sm text-muted-foreground">
 					<div
 						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-gray-300"
 					>
@@ -187,7 +187,7 @@
 
 			<!-- Help Text -->
 			<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
-				<p class="text-center text-sm text-gray-600 dark:text-gray-400">
+				<p class="text-center text-sm text-muted-foreground">
 					{t('auth.didntReceiveEmail')}
 					<br />
 					<span class="text-xs">{t('auth.checkSpamFolder')}</span>
@@ -197,7 +197,7 @@
 
 		<!-- Additional Help -->
 		<div class="mt-6 text-center">
-			<p class="text-sm text-gray-600 dark:text-gray-400">
+			<p class="text-sm text-muted-foreground">
 				{t('auth.needHelp')}
 				<a
 					href="mailto:support@wayli.app"

@@ -56,7 +56,7 @@
 	></div>
 {:else if error}
 	<div
-		class="icon flex items-center justify-center text-gray-400 dark:text-gray-600 {className}"
+		class="icon flex items-center justify-center text-muted-foreground dark:text-gray-600 {className}"
 		style="width: {size}px; height: {size}px;"
 	>
 		<svg

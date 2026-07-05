@@ -21,7 +21,7 @@
 <div class="space-y-4">
 	<!-- Progress Display -->
 	<div class="flex items-center justify-between">
-		<div class="text-sm font-medium text-gray-700 dark:text-gray-300">
+		<div class="text-sm font-medium text-muted-foreground">
 			Progress: {status}
 		</div>
 		<div class="text-right">

@@ -128,7 +128,7 @@
 	// Status color mapping
 	const statusColors: Record<string, string> = {
 		pending: 'text-yellow-600',
-		running: 'text-primary dark:text-primary-dark',
+		running: 'text-primary dark:text-primary',
 		completed: 'text-green-600',
 		failed: 'text-red-600',
 		cancelled: 'text-gray-600'
@@ -366,11 +366,11 @@
 {#snippet uploadCard(upload: UploadProgress)}
 	<div class="mb-3 flex items-center gap-3">
 		<div class="flex-shrink-0">
-			<Upload class="text-primary dark:text-primary-dark h-5 w-5" />
+			<Upload class="text-primary dark:text-primary h-5 w-5" />
 		</div>
 
 		<div class="min-w-0 flex-1">
-			<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+			<div class="mb-1 text-xs font-medium text-muted-foreground">
 				{t('jobProgress.uploading')}: {upload.fileName}
 			</div>
 
@@ -391,7 +391,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="text-xs text-gray-500 dark:text-gray-400">
+				<div class="text-xs text-muted-foreground">
 					{(upload.loaded / 1024 / 1024).toFixed(1)} / {(upload.total / 1024 / 1024).toFixed(1)} MB
 				</div>
 			{:else if upload.status === 'processing'}
@@ -400,7 +400,7 @@
 						<div class="bg-primary h-4 w-full animate-pulse rounded-full dark:bg-blue-500"></div>
 					</div>
 				</div>
-				<div class="text-xs text-gray-500 dark:text-gray-400">{t('jobProgress.creatingJob')}</div>
+				<div class="text-xs text-muted-foreground">{t('jobProgress.creatingJob')}</div>
 			{:else if upload.status === 'completed'}
 				<div class="text-xs text-green-600 dark:text-green-400">
 					✅ {t('jobProgress.uploadComplete')}
@@ -434,7 +434,7 @@
 		</div>
 
 		<div class="min-w-0 flex-1">
-			<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+			<div class="mb-1 text-xs font-medium text-muted-foreground">
 				{jobTypeName}
 			</div>
 
@@ -464,7 +464,7 @@
 					</div>
 				</div>
 				{#if eta && !indeterminate}
-					<div class="text-xs text-gray-500 dark:text-gray-400">{eta}</div>
+					<div class="text-xs text-muted-foreground">{eta}</div>
 				{/if}
 			{:else if job.status === 'completed'}
 				<div class="text-xs text-green-600 dark:text-green-400">
@@ -473,7 +473,7 @@
 			{:else if job.status === 'failed'}
 				<div class="text-xs text-red-600 dark:text-red-400">❌ Failed</div>
 			{:else if job.status === 'cancelled'}
-				<div class="text-xs text-gray-600 dark:text-gray-400">⏹️ Cancelled</div>
+				<div class="text-xs text-muted-foreground">⏹️ Cancelled</div>
 			{/if}
 		</div>
 
@@ -481,7 +481,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleCancelJob(job, e)}
-				class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-red-500 dark:hover:bg-gray-600 dark:hover:text-red-400"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 hover:text-red-500 dark:hover:bg-gray-600 dark:hover:text-red-400"
 				title={t('jobProgress.cancelJob')}
 				aria-label={t('jobProgress.cancelJob')}
 			>
@@ -491,7 +491,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleDownloadExport(job, e)}
-				class="hover:text-primary flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+				class="hover:text-primary flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-300"
 				title={t('jobProgress.downloadExport')}
 				aria-label={t('jobProgress.downloadExport')}
 			>
@@ -501,7 +501,7 @@
 			<button
 				type="button"
 				onclick={(e) => dismissJob(job.id, e)}
-				class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
 				title={t('jobProgress.dismiss')}
 				aria-label={t('jobProgress.dismiss')}
 			>
@@ -553,12 +553,12 @@
 		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999999 !important; pointer-events: auto !important;"
 	>
 		<div
-			class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg p-6 shadow-xl bg-card"
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 		>
 			<div class="mb-4">
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Cancel Job</h3>
-				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+				<h3 class="text-lg font-semibold text-foreground">Cancel Job</h3>
+				<p class="mt-2 text-sm text-muted-foreground">
 					Are you sure you want to cancel the {getJobTypeDisplayName(
 						jobToCancel.job_name
 					).toLowerCase()} job? This action cannot be undone.

@@ -64,7 +64,7 @@
 
 <button
 	type="button"
-	class="group flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+	class="group flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md bg-card border-border"
 	class:p-2={compact}
 	{onclick}
 >
@@ -81,12 +81,12 @@
 	<!-- Content -->
 	<div class="min-w-0 flex-1">
 		<!-- Name -->
-		<h4 class="truncate font-medium text-gray-900 dark:text-gray-100" class:text-sm={compact}>
+		<h4 class="truncate font-medium text-foreground" class:text-sm={compact}>
 			{place.poi_name || place.city || 'Unknown Place'}
 		</h4>
 
 		<!-- Subtitle: cuisine + amenity type -->
-		<div class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+		<div class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
 			{#if place.poi_cuisine}
 				<span>{formatCuisine(place.poi_cuisine)}</span>
 				<span>•</span>
@@ -96,7 +96,7 @@
 
 		<!-- Location and time info -->
 		<div
-			class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-gray-500"
+			class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground dark:text-gray-500"
 		>
 			{#if place.city || place.country}
 				<span class="flex items-center gap-1">

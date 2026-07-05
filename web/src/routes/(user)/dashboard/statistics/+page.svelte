@@ -686,7 +686,7 @@
 			homeCircle.bindPopup(`
 				<div class="text-sm font-medium">🏠 ${homeName}</div>
 				<div class="text-xs text-gray-600">${homeAddress.display_name || homeAddress.address}</div>
-				<div class="text-xs text-gray-500">Radius: ${formatRadius(homeRadius)}</div>
+				<div class="text-xs text-muted-foreground">Radius: ${formatRadius(homeRadius)}</div>
 			`);
 
 			homeCircle.addTo(map);
@@ -721,7 +721,7 @@
 				exclusionCircle.bindPopup(`
 					<div class="text-sm font-medium">🚫 ${exclusionName}</div>
 					<div class="text-xs text-gray-600">${displayName}</div>
-					<div class="text-xs text-gray-500">Radius: ${formatRadius(exclusionRadius)}</div>
+					<div class="text-xs text-muted-foreground">Radius: ${formatRadius(exclusionRadius)}</div>
 				`);
 
 				exclusionCircle.addTo(map);
@@ -1100,14 +1100,12 @@
 <!-- Large Dataset Warning Modal -->
 {#if showLargeDatasetWarning}
 	<div class="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50">
-		<div class="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+		<div class="mx-4 max-w-md rounded-lg p-6 shadow-xl bg-card">
 			<div class="mb-4 flex items-center">
 				<AlertTriangle class="mr-3 h-6 w-6 text-yellow-500" />
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-					Large Dataset Warning
-				</h3>
+				<h3 class="text-lg font-semibold text-foreground">Large Dataset Warning</h3>
 			</div>
-			<div class="mb-6 text-sm text-gray-600 dark:text-gray-400">
+			<div class="mb-6 text-sm text-muted-foreground">
 				<p class="mb-2">
 					You have <strong>{totalPointsCount.toLocaleString()}</strong> data points in the selected date
 					range.
@@ -1161,9 +1159,7 @@
 
 <div class="space-y-6">
 	<!-- Map -->
-	<div
-		class="relative isolate z-0 h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900"
-	>
+	<div class="relative isolate z-0 h-96 w-full rounded-lg md:h-[600px] bg-muted">
 		<div
 			bind:this={mapContainer}
 			class="h-full w-full rounded-lg"
@@ -1172,36 +1168,34 @@
 
 		<!-- Map Legend -->
 		<div
-			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800"
+			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg p-3 shadow-lg bg-card"
 		>
-			<h4 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+			<h4 class="mb-2 text-sm font-semibold text-muted-foreground">
 				{t('statistics.modeColors')}
 			</h4>
 			<div class="space-y-1">
 				{#each Object.entries(transportModeColors) as [mode, color] (mode)}
 					<div class="flex items-center space-x-2">
 						<div class="h-3 w-3 rounded-full" style="background-color: {color}"></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400"
-							>{translateTransportMode(mode)}</span
-						>
+						<span class="text-xs text-muted-foreground">{translateTransportMode(mode)}</span>
 					</div>
 				{/each}
 				<!-- Exclusion Zones Legend -->
-				<div class="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
-					<div class="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
+				<div class="mt-2 border-t pt-2 border-border">
+					<div class="mb-1 text-xs font-semibold text-muted-foreground">
 						{t('statistics.exclusionZones') || 'Exclusion Zones'}
 					</div>
 					<div class="flex items-center space-x-2">
 						<div
 							class="h-3 w-3 rounded-full border-2 border-dashed border-blue-500 bg-blue-500/10"
 						></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400">🏠 Home</span>
+						<span class="text-xs text-muted-foreground">🏠 Home</span>
 					</div>
 					<div class="flex items-center space-x-2">
 						<div
 							class="h-3 w-3 rounded-full border-2 border-dashed border-red-500 bg-red-500/10"
 						></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400">🚫 Exclusions</span>
+						<span class="text-xs text-muted-foreground">🚫 Exclusions</span>
 					</div>
 				</div>
 			</div>
@@ -1210,15 +1204,15 @@
 		<!-- Point Details Popup -->
 		{#if selectedPoint}
 			<div
-				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg bg-white p-4 shadow-lg sm:left-auto sm:w-80 dark:bg-gray-800"
+				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg p-4 shadow-lg sm:left-auto sm:w-80 bg-card"
 			>
 				<div class="mb-3 flex items-start justify-between">
-					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+					<h4 class="text-sm font-semibold text-muted-foreground">
 						{t('statistics.pointDetails')}
 					</h4>
 					<button
 						onclick={closePointDetails}
-						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+						class="text-muted-foreground hover:text-gray-600 dark:hover:text-gray-300"
 					>
 						<X class="h-4 w-4" />
 					</button>
@@ -1227,17 +1221,13 @@
 				<div class="space-y-2 text-xs">
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.date')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.date')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{formatDateWithTimezoneSync(selectedPoint.recorded_at, selectedPoint.tz_diff)}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.mode')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.mode')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{translateTransportMode(selectedPoint.transport_mode || 'unknown')}
 							</div>
@@ -1246,17 +1236,13 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.coordinates')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.coordinates')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.lat}, {selectedPoint.lon}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.popupSpeed')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.popupSpeed')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
 							</div>
@@ -1265,8 +1251,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.popupDistance')}:</span
+							<span class="font-medium text-muted-foreground">{t('statistics.popupDistance')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.distance
@@ -1275,9 +1260,7 @@
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.country')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.country')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.country_code || 'N/A'}
 							</div>
@@ -1286,9 +1269,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
-								>{t('statistics.popupReason')}</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.popupReason')}</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.detection_reason
 									? getTransportDetectionReasonLabel(
@@ -1308,13 +1289,10 @@
 				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
 			>
 				<div class="text-center">
-					<MapPin class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
-					<h3 class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300">
+					<MapPin class="mx-auto mb-4 h-12 w-12 text-muted-foreground dark:text-gray-500" />
+					<h3 class="mb-4 text-lg font-semibold text-muted-foreground">
 						{t('statistics.noDataMessage')}
 					</h3>
-					<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-						{t('statistics.noDataMessage')}
-					</p>
 					<a
 						href="/dashboard/import-export"
 						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
@@ -1330,9 +1308,7 @@
 	{#if statisticsLoading}
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each Array(8) as _, index (`loading-${index}`)}
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-				>
+				<div class="rounded-lg border p-4 bg-card border-border">
 					<div class="mb-3 flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1350,7 +1326,7 @@
 			{/each}
 		</div>
 	{:else if !statisticsData || Object.keys(statisticsData).length === 0}
-		<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
+		<div class="mb-8 py-8 text-center font-semibold text-muted-foreground">
 			No statistics available for this period.
 		</div>
 	{:else}
@@ -1358,16 +1334,14 @@
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
 				{@const IconComponent = stat.icon}
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-				>
+				<div class="rounded-lg border p-4 bg-card border-border">
 					<div class="flex items-center gap-2">
 						<IconComponent
 							class="h-5 w-5 {stat.color === 'green' ? 'text-green-500' : 'text-blue-500'}"
 						/>
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
+						<span class="text-sm font-medium text-muted-foreground">{stat.title}</span>
 					</div>
-					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<div class="mt-1 text-2xl font-bold text-foreground">
 						{stat.value}
 					</div>
 				</div>
@@ -1380,11 +1354,9 @@
 		<div class="mb-8 flex flex-col gap-6 md:flex-row">
 			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
 				<div class="w-full md:w-1/2">
-					<div
-						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-					>
+					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
-							<Globe2 class="text-primary dark:text-primary-dark h-5 w-5" />
+							<Globe2 class="text-primary dark:text-primary h-5 w-5" />
 							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
 								{t('statistics.countryTimeDistribution')}
 							</span>
@@ -1394,7 +1366,7 @@
 								<div>
 									<div class="mb-1 flex items-center gap-2">
 										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
-										<span class="text-base text-gray-700 dark:text-gray-300">
+										<span class="text-base text-muted-foreground">
 											{$getCountryNameReactive(country.country_code)}
 										</span>
 									</div>
@@ -1411,7 +1383,7 @@
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+						<div class="mt-4 text-xs text-muted-foreground">
 							{t('statistics.ofSelectedPeriod')}
 						</div>
 					</div>
@@ -1420,41 +1392,39 @@
 
 			{#if statisticsData.transport && statisticsData.transport.length > 0}
 				<div class="w-full md:w-1/2">
-					<div
-						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-					>
+					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
-							<Route class="text-primary dark:text-primary-dark h-5 w-5" />
+							<Route class="text-primary dark:text-primary h-5 w-5" />
 							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
 								{t('statistics.transportModes')}
 							</span>
 						</div>
 						<div class="-mx-4 overflow-x-auto px-4">
-							<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+							<table class="min-w-full divide-y divide-border">
 								<thead>
 									<tr>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.mode')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.distanceKm')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.time')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.percentOfTotal')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.points')}
 										</th>
@@ -1466,9 +1436,7 @@
 										.filter((mode) => mode.mode !== 'stationary')
 										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
 										<tr>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-foreground">
 												{translateTransportMode(mode.mode)}
 											</td>
 											<td
@@ -1476,19 +1444,13 @@
 											>
 												{formatDistance(mode.distance)}
 											</td>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
 												{formatSegmentDuration(mode.time || 0)}
 											</td>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
 												{mode.percentage}%
 											</td>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
 												{mode.points || 0}
 											</td>
 										</tr>
@@ -1504,26 +1466,24 @@
 
 	<!-- Train Station Visits Table -->
 	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
-		<div
-			class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
-		>
+		<div class="mb-8 w-full rounded-lg border p-4 md:w-1/2 bg-card border-border">
 			<div class="mb-3 flex items-center gap-2">
-				<Train class="text-primary dark:text-primary-dark h-5 w-5" />
+				<Train class="text-primary dark:text-primary h-5 w-5" />
 				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
 					{t('statistics.trainStationVisits')}
 				</span>
 			</div>
 			<div class="-mx-4 overflow-x-auto px-4">
-				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+				<table class="min-w-full divide-y divide-border">
 					<thead>
 						<tr>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 							>
 								Station
 							</th>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 							>
 								Visits
 							</th>
@@ -1534,7 +1494,7 @@
 							.slice()
 							.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
 							<tr>
-								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-foreground">
 									{station.name}
 								</td>
 								<td
@@ -1576,7 +1536,7 @@
 		>
 			<Loader2 class="text-primary h-16 w-16 animate-spin dark:text-gray-300" />
 			<div class="mt-4 text-center">
-				<div class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
+				<div class="mb-2 text-lg font-medium text-muted-foreground">
 					{loadingStage || t('statistics.loading')}
 				</div>
 				{#if loadingProgress > 0}
@@ -1586,7 +1546,7 @@
 							style="width: {Math.round(loadingProgress)}%"
 						></div>
 					</div>
-					<div class="text-sm text-gray-600 dark:text-gray-400">
+					<div class="text-sm text-muted-foreground">
 						{t('statistics.percentComplete', { percent: Math.round(loadingProgress) })}
 					</div>
 				{/if}

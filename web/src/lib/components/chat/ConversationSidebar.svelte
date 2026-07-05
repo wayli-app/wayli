@@ -109,10 +109,10 @@
 </script>
 
 <aside
-	class="flex h-full w-72 flex-shrink-0 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+	class="flex h-full w-72 flex-shrink-0 flex-col border-r bg-card border-border"
 >
 	<!-- Header with New Conversation button -->
-	<div class="flex-shrink-0 border-b border-gray-200 p-4 dark:border-gray-700">
+	<div class="flex-shrink-0 border-b p-4 border-border">
 		<button
 			type="button"
 			onclick={onNewConversation}
@@ -124,15 +124,15 @@
 	</div>
 
 	<!-- Search -->
-	<div class="flex-shrink-0 border-b border-gray-200 p-3 dark:border-gray-700">
+	<div class="flex-shrink-0 border-b p-3 border-border">
 		<div class="relative">
-			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 			<input
 				type="text"
 				placeholder="Search conversations..."
 				aria-label="Search conversations"
 				bind:value={searchQuery}
-				class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-3 pl-9 text-sm transition-colors placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+				class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-3 pl-9 text-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
 			/>
 		</div>
 	</div>
@@ -141,12 +141,12 @@
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		{#if isLoading}
 			<div class="flex h-32 items-center justify-center">
-				<Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+				<Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
 			</div>
 		{:else if filteredConversations.length === 0}
 			<div class="flex h-32 flex-col items-center justify-center p-4 text-center">
 				<MessageSquare class="mb-2 h-8 w-8 text-gray-300 dark:text-gray-600" />
-				<p class="text-sm text-gray-500 dark:text-gray-400">
+				<p class="text-sm text-muted-foreground">
 					{searchQuery ? 'No conversations found' : 'No conversations yet'}
 				</p>
 			</div>
@@ -155,7 +155,7 @@
 			{#if groupedConversations.today.length > 0}
 				<div class="px-3 pt-3">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						Today
 					</h3>
@@ -173,7 +173,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -181,18 +181,18 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -205,7 +205,7 @@
 			{#if groupedConversations.yesterday.length > 0}
 				<div class="px-3 pt-4">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						Yesterday
 					</h3>
@@ -223,7 +223,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -231,18 +231,18 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -255,7 +255,7 @@
 			{#if groupedConversations.thisWeek.length > 0}
 				<div class="px-3 pt-4">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						This Week
 					</h3>
@@ -273,7 +273,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -281,18 +281,18 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -305,7 +305,7 @@
 			{#if groupedConversations.older.length > 0}
 				<div class="px-3 pt-4">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						Older
 					</h3>
@@ -323,7 +323,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -331,18 +331,18 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -355,7 +355,7 @@
 			{#if hasMore}
 				<div bind:this={sentinelEl} class="flex items-center justify-center py-4">
 					{#if isLoadingMore}
-						<Loader2 class="h-5 w-5 animate-spin text-gray-400" />
+						<Loader2 class="h-5 w-5 animate-spin text-muted-foreground" />
 					{/if}
 				</div>
 			{:else}

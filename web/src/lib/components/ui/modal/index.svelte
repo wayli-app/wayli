@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
+	import { fade, fly } from 'svelte/transition';
 
 	export let open = false;
 	export let title = '';
@@ -39,6 +40,7 @@
 
 {#if open}
 	<div
+		transition:fade={{ duration: 150 }}
 		class="fixed inset-0 z-50 flex cursor-pointer items-start justify-center bg-black/40 p-4 backdrop-blur-sm transition-all"
 		style="height: 100vh; width: 100vw; top: 0; left: 0; right: 0; bottom: 0; position: fixed; min-height: 100vh; max-height: none; overflow: hidden;"
 		role="dialog"
@@ -51,9 +53,8 @@
 		}}
 	>
 		<div
-			class="relative w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[
-				size
-			]} my-4 max-h-[calc(100vh-2rem)] overflow-y-auto"
+			transition:fly={{ y: 8, duration: 200 }}
+			class="relative w-full cursor-default rounded-2xl p-8 shadow-2xl {sizeClasses[ size ]} my-4 max-h-[calc(100vh-2rem)] overflow-y-auto bg-card"
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -66,14 +67,14 @@
 			{#if title || showCloseButton}
 				<div class="mb-6 flex items-start justify-between">
 					{#if title}
-						<h2 id="modal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+						<h2 id="modal-title" class="text-2xl font-bold text-foreground">
 							{title}
 						</h2>
 					{/if}
 					{#if showCloseButton}
 						<button
 							type="button"
-							class="absolute top-4 right-4 cursor-pointer p-1 text-gray-400 transition-colors hover:text-red-500"
+							class="absolute top-4 right-4 cursor-pointer p-1 text-muted-foreground transition-colors hover:text-red-500"
 							onclick={closeModal}
 							onkeydown={(e) => {
 								if (e.key === 'Enter') closeModal();
