@@ -13,4 +13,7 @@ export { default as AlertDialog } from './alert-dialog/index.svelte';
 export { default as Popover } from './popover/index.svelte';
 
 // Feedback components
+export { default as Alert } from './alert/index.svelte';
+export { default as Skeleton } from './skeleton/index.svelte';
+export { default as EmptyState } from './empty-state/index.svelte';
 export { default as Toaster } from './toaster/index.svelte';
