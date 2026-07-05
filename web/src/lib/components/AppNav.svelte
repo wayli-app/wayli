@@ -18,6 +18,7 @@
 
 	import { translate } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
+	import { fade } from 'svelte/transition';
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 
@@ -158,6 +159,12 @@
 	});
 </script>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape' && isSidebarOpen) isSidebarOpen = false;
+	}}
+/>
+
 <div class="flex h-screen bg-gray-100 dark:bg-gray-900">
 	<!-- Sidebar -->
 	<aside
@@ -275,6 +282,7 @@
 	<!-- Mobile overlay -->
 	{#if isSidebarOpen}
 		<div
+			transition:fade={{ duration: 150 }}
 			class="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 md:hidden"
 			onclick={handleCloseSidebar}
 			role="presentation"

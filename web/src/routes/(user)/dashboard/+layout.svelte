@@ -13,6 +13,8 @@
 	import { fluxbase } from '$lib/fluxbase';
 
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { fade } from 'svelte/transition';
 
 	// Snippet prop for rendering children
 	let { children }: { children: Snippet } = $props();
@@ -200,7 +202,11 @@
 	{/if}
 
 	<!-- Main content area -->
-	<div class="min-h-screen bg-gray-50 dark:bg-gray-900 {$userStore?.id && !isCheckingAdmin ? '' : 'p-6'}">
+	<div
+		class="min-h-screen bg-gray-50 dark:bg-gray-900 {$userStore?.id && !isCheckingAdmin
+			? ''
+			: 'p-6'}"
+	>
 		{#if isCheckingAdmin}
 			<div class="flex h-64 items-center justify-center">
 				<div class="text-center">
@@ -210,9 +216,11 @@
 				</div>
 			</div>
 		{:else}
-			<div class="p-6">
-				{@render children()}
-			</div>
+			{#key page.url.pathname}
+				<div class="p-6" transition:fade={{ duration: 150 }}>
+					{@render children()}
+				</div>
+			{/key}
 		{/if}
 	</div>
 </AppNav>
