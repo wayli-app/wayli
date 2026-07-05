@@ -19,6 +19,8 @@
 	let confirmPassword = $state('');
 	let firstName = $state('');
 	let lastName = $state('');
+	// Per-field validation errors (shown inline, not as toasts).
+	let errors = $state<Record<string, string>>({});
 	let loading = $state(false);
 	let showPassword = $state(false);
 	let showConfirmPassword = $state(false);
@@ -182,26 +184,24 @@
 			return;
 		}
 
-		// Validate required fields
+		// Validate required fields — surface inline per field instead of toasting.
+		errors = {};
+		let valid = true;
 		if (!firstName.trim()) {
-			toast.error(t('auth.firstNameRequired'));
-			return;
+			errors.firstName = t('auth.firstNameRequired');
+			valid = false;
 		}
-
 		if (!lastName.trim()) {
-			toast.error(t('auth.lastNameRequired'));
-			return;
+			errors.lastName = t('auth.lastNameRequired');
+			valid = false;
 		}
-
 		if (!isPasswordValid) {
-			toast.error(t('auth.passwordRequirementsNotMet'));
-			return;
+			valid = false; // the requirements checklist below the field already conveys this
 		}
-
 		if (!doPasswordsMatch) {
-			toast.error(t('auth.passwordsDoNotMatch'));
-			return;
+			valid = false; // the inline mismatch note under the confirm field conveys this
 		}
+		if (!valid) return;
 
 		loading = true;
 
@@ -471,9 +471,7 @@
 		{/if}
 
 		<!-- Sign Up Form -->
-		<div
-			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-8 text-center">
 				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.createYourAccount')}
@@ -565,10 +563,7 @@
 					<!-- Name Fields -->
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label
-								for="firstName"
-								class="mb-2 block text-sm font-medium text-muted-foreground"
-							>
+							<label for="firstName" class="mb-2 block text-sm font-medium text-muted-foreground">
 								{t('auth.firstName')}
 							</label>
 							<div class="relative">
@@ -584,13 +579,13 @@
 									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 									placeholder={t('auth.firstName')}
 								/>
+								{#if errors.firstName}
+									<p class="mt-1 text-sm text-destructive">{errors.firstName}</p>
+								{/if}
 							</div>
 						</div>
 						<div>
-							<label
-								for="lastName"
-								class="mb-2 block text-sm font-medium text-muted-foreground"
-							>
+							<label for="lastName" class="mb-2 block text-sm font-medium text-muted-foreground">
 								{t('auth.lastName')}
 							</label>
 							<input
@@ -602,15 +597,15 @@
 								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
 								placeholder={t('auth.lastName')}
 							/>
+							{#if errors.lastName}
+								<p class="mt-1 text-sm text-destructive">{errors.lastName}</p>
+							{/if}
 						</div>
 					</div>
 
 					<!-- Email Field -->
 					<div>
-						<label
-							for="email"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
-						>
+						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
@@ -631,10 +626,7 @@
 
 					<!-- Password Field -->
 					<div>
-						<label
-							for="password"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
-						>
+						<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.password')}
 						</label>
 						<div class="relative">
