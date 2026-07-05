@@ -367,7 +367,7 @@
 	{#if loading}
 		<div class="flex items-center justify-center py-8">
 			<div
-				class="border-primary dark:border-primary-dark h-6 w-6 animate-spin rounded-full border-b-2"
+				class="border-primary dark:border-primary h-6 w-6 animate-spin rounded-full border-b-2"
 			></div>
 		</div>
 	{:else if filteredExportJobs.length === 0}
@@ -389,14 +389,14 @@
 									? 'bg-green-100 dark:bg-green-900/20'
 									: job.status === 'failed'
 										? 'bg-red-100 dark:bg-red-900/20'
-										: 'bg-primary/10 dark:bg-primary-dark/20'}"
+										: 'bg-primary/10 dark:bg-primary/20'}"
 							>
 								<Check
 									class="h-4 w-4 {job.status === 'completed'
 										? 'text-green-600 dark:text-green-400'
 										: job.status === 'failed'
 											? 'text-red-600 dark:text-red-400'
-											: 'text-primary dark:text-primary-dark'}"
+											: 'text-primary dark:text-primary'}"
 								/>
 							</div>
 
@@ -431,7 +431,7 @@
 						{#if job.status === 'completed' && new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) > new Date()}
 							<button
 								onclick={() => downloadExport(job.id)}
-								class="bg-primary hover:bg-primary/90 dark:bg-primary-dark inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors dark:hover:bg-blue-600"
+								class="bg-primary hover:bg-primary/90 dark:bg-primary inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-colors dark:hover:bg-blue-600"
 							>
 								<Download class="h-4 w-4" />
 								{t('exportJobs.download')}
@@ -448,7 +448,7 @@
 							</div>
 							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
 								<div
-									class="bg-primary dark:bg-primary-dark h-2 rounded-full transition-all duration-300"
+									class="bg-primary dark:bg-primary h-2 rounded-full transition-all duration-300"
 									style="width: {job.progress}%"
 								></div>
 							</div>
@@ -461,7 +461,7 @@
 							<div class="flex flex-wrap gap-2">
 								{#if job.data.includeLocationData}
 									<span
-										class="bg-primary/10 text-primary dark:bg-primary-dark/20 dark:text-primary-dark inline-flex items-center rounded-full px-2 py-1 text-xs"
+										class="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary inline-flex items-center rounded-full px-2 py-1 text-xs"
 									>
 										{t('exportJobs.locationData')}
 									</span>

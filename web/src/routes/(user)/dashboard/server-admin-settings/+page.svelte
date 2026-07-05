@@ -156,7 +156,13 @@
 
 	// Handle Escape key for modals
 	$effect(() => {
-		if (showAddUserModal || isModalOpen || showDeleteConfirm || showClearPlaceVisitsConfirm || showClearUserPlaceVisitsConfirm) {
+		if (
+			showAddUserModal ||
+			isModalOpen ||
+			showDeleteConfirm ||
+			showClearPlaceVisitsConfirm ||
+			showClearUserPlaceVisitsConfirm
+		) {
 			const handleKeydown = (e: KeyboardEvent) => {
 				if (e.key === 'Escape') {
 					if (showAddUserModal) {
@@ -458,7 +464,9 @@
 				: getDefaultScopes(oauthFormProvider);
 
 			const providerName = isCustomProvider ? oauthFormCustomName : oauthFormProvider;
-			const displayName = oauthFormDisplayName || (isCustomProvider ? oauthFormCustomName : getDefaultDisplayName(oauthFormProvider));
+			const displayName =
+				oauthFormDisplayName ||
+				(isCustomProvider ? oauthFormCustomName : getDefaultDisplayName(oauthFormProvider));
 
 			if (oauthEditingId) {
 				// Update existing provider
@@ -710,10 +718,14 @@
 
 		isRefreshingPlaceVisits = true;
 		try {
-			const { error } = await fluxbase.jobs.submit('scheduled-detect-place-visits', {}, {
-				namespace: 'wayli',
-				priority: 5
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'scheduled-detect-place-visits',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 5
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.refreshPlaceVisitsQueued'));
@@ -732,10 +744,14 @@
 
 		isReverseGeocodingAllUsers = true;
 		try {
-			const { error } = await fluxbase.jobs.submit('reverse-geocoding', { all_users: true }, {
-				namespace: 'wayli',
-				priority: 4
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'reverse-geocoding',
+				{ all_users: true },
+				{
+					namespace: 'wayli',
+					priority: 4
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.reverseGeocodeQueued'));
@@ -825,10 +841,14 @@
 
 		isClearingPlaceVisits = true;
 		try {
-			const { error } = await fluxbase.jobs.submit('clear-and-rebuild-place-visits', {}, {
-				namespace: 'wayli',
-				priority: 4
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'clear-and-rebuild-place-visits',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 4
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.clearPlaceVisitsQueued'));
@@ -861,10 +881,14 @@
 		isClearingUserPlaceVisits = true;
 
 		try {
-			const { error } = await fluxbase.jobs.submit('clear-and-rebuild-place-visits', { user_id: userId }, {
-				namespace: 'wayli',
-				priority: 4
-			});
+			const { error } = await fluxbase.jobs.submit(
+				'clear-and-rebuild-place-visits',
+				{ user_id: userId },
+				{
+					namespace: 'wayli',
+					priority: 4
+				}
+			);
 			if (error) throw error;
 
 			toast.success(t('serverAdmin.clearPlaceVisitsQueued'));
@@ -1020,9 +1044,14 @@
 				requireEmailVerification = authSettings.require_email_verification;
 				disablePasswordLogin = authSettings.disable_app_password_login ?? false;
 				// Check if any auth settings have overrides (read-only)
-				authReadOnly = !!(authSettings._overrides && Object.keys(authSettings._overrides).length > 0);
+				authReadOnly = !!(
+					authSettings._overrides && Object.keys(authSettings._overrides).length > 0
+				);
 			} catch (authError) {
-				console.warn('Could not load auth settings from API, falling back to app settings:', authError);
+				console.warn(
+					'Could not load auth settings from API, falling back to app settings:',
+					authError
+				);
 				// Fallback to app settings
 				enableSignup = app.authentication.enable_signup;
 				requireEmailVerification = app.authentication.require_email_verification;
@@ -1444,7 +1473,7 @@
 		<!-- Header -->
 		<div class="mb-8">
 			<div class="flex items-center gap-3">
-				<Settings class="text-primary dark:text-primary-dark h-7 w-7" />
+				<Settings class="text-primary dark:text-primary h-7 w-7" />
 				<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
 					{t('serverAdmin.title')}
 				</h1>
@@ -1456,7 +1485,7 @@
 			<nav class="-mb-px flex space-x-8">
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
-						? 'border-primary text-primary dark:border-primary-dark dark:text-primary-dark'
+						? 'border-primary text-primary dark:border-primary dark:text-primary'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'settings')}
 				>
@@ -1467,7 +1496,7 @@
 				</button>
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
-						? 'border-primary text-primary dark:border-primary-dark dark:text-primary-dark'
+						? 'border-primary text-primary dark:border-primary dark:text-primary'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'users')}
 				>
@@ -1482,7 +1511,7 @@
 		<!-- Users Tab -->
 		{#if activeTab === 'users'}
 			<div
-				class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
+				class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card"
 			>
 				<div class="mb-4">
 					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">User Management</h2>
@@ -1502,7 +1531,7 @@
 								type="text"
 								bind:value={searchQuery}
 								placeholder="Search users..."
-								class="focus:border-primary focus:ring-primary w-64 rounded-md border border-[rgb(218,218,221)] bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-500"
+								class="focus:border-primary focus:ring-primary w-64 rounded-md border border-border bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-500"
 								oninput={handleSearchInput}
 							/>
 						</div>
@@ -1510,7 +1539,7 @@
 						<select
 							bind:value={itemsPerPage}
 							onchange={handleItemsPerPageChange}
-							class="focus:border-primary focus:ring-primary rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+							class="focus:border-primary focus:ring-primary rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 						>
 							<option value={5}>5 per page</option>
 							<option value={10}>10 per page</option>
@@ -1528,7 +1557,7 @@
 				</div>
 
 				<div
-					class="overflow-hidden rounded-lg border border-[rgb(218,218,221)] bg-white dark:border-[#3f3f46] dark:bg-[#23232a]"
+					class="overflow-hidden rounded-lg border border-border bg-white dark:border-border dark:bg-card"
 				>
 					{#if users.length === 0}
 						<div class="py-8 text-center">
@@ -1543,8 +1572,8 @@
 							</p>
 						</div>
 					{:else}
-						<table class="min-w-full divide-y divide-[rgb(218,218,221)] dark:divide-[#3f3f46]">
-							<thead class="bg-gray-50 dark:bg-[#2d2d35]">
+						<table class="min-w-full divide-y divide-border dark:divide-border">
+							<thead class="bg-gray-50 dark:bg-muted">
 								<tr>
 									<th
 										scope="col"
@@ -1575,9 +1604,7 @@
 									</th>
 								</tr>
 							</thead>
-							<tbody
-								class="divide-y divide-[rgb(218,218,221)] bg-white dark:divide-[#3f3f46] dark:bg-[#23232a]"
-							>
+							<tbody class="divide-y divide-border bg-white dark:divide-border dark:bg-card">
 								{#each users as user (user.id)}
 									<tr>
 										<td class="px-6 py-4 whitespace-nowrap">
@@ -1644,7 +1671,7 @@
 						<!-- Pagination Controls -->
 						{#if pagination.totalPages > 1}
 							<div
-								class="border-t border-[rgb(218,218,221)] bg-white px-6 py-3 dark:border-[#3f3f46] dark:bg-[#23232a]"
+								class="border-t border-border bg-white px-6 py-3 dark:border-border dark:bg-card"
 							>
 								<div class="flex items-center justify-between">
 									<div class="flex items-center text-sm text-gray-700 dark:text-gray-300">
@@ -1701,9 +1728,7 @@
 		{#if activeTab === 'settings'}
 			<div class="space-y-8">
 				<!-- Wayli Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4">
 						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
 							{t('serverAdmin.wayliSettings')}
@@ -1725,7 +1750,7 @@
 								type="text"
 								id="serverName"
 								bind:value={serverName}
-								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 								placeholder={t('serverAdmin.enterServerName')}
 							/>
 						</div>
@@ -1764,7 +1789,7 @@
 										type="password"
 										id="serverPexelsApiKey"
 										bind:value={serverPexelsApiKey}
-										class="focus:border-primary focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+										class="focus:border-primary focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 										placeholder={t('serverAdmin.enterNewKeyToReplace')}
 									/>
 								</div>
@@ -1773,7 +1798,7 @@
 									type="password"
 									id="serverPexelsApiKey"
 									bind:value={serverPexelsApiKey}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 									placeholder={t('serverAdmin.enterPexelsApiKey')}
 								/>
 							{/if}
@@ -1814,7 +1839,7 @@
 										bind:value={pexelsRateLimit}
 										min="1"
 										step="1"
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 										placeholder="200"
 									/>
 									<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -1835,7 +1860,7 @@
 								type="url"
 								id="peliasEndpoint"
 								bind:value={peliasEndpoint}
-								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-100"
+								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
 								placeholder="https://pelias.wayli.app"
 								pattern="https?://.+"
 								required
@@ -1857,9 +1882,7 @@
 				</div>
 
 				<!-- Authentication Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4">
 						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
 							{t('serverAdmin.authenticationSettings')}
@@ -1920,11 +1943,11 @@
 							<Switch
 								bind:checked={disablePasswordLogin}
 								label={t('serverAdmin.disablePasswordLogin')}
-								disabled={authReadOnly || oauthProviders.filter(p => p.enabled).length === 0}
+								disabled={authReadOnly || oauthProviders.filter((p) => p.enabled).length === 0}
 							/>
 						</div>
 
-						{#if disablePasswordLogin && oauthProviders.filter(p => p.enabled).length === 0}
+						{#if disablePasswordLogin && oauthProviders.filter((p) => p.enabled).length === 0}
 							<div
 								class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
 							>
@@ -1949,9 +1972,7 @@
 				</div>
 
 				<!-- Email & SMTP Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4">
 						<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
 							{t('serverAdmin.emailSettings')}
@@ -2115,9 +2136,7 @@
 				</div>
 
 				<!-- OAuth Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4 flex items-center gap-3">
 						<Lock class="h-6 w-6 text-indigo-500" />
 						<div>
@@ -2195,7 +2214,9 @@
 								class="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-900/20"
 							>
 								<h3 class="font-medium text-gray-900 dark:text-gray-100">
-									{oauthEditingId ? t('serverAdmin.editOAuthProvider') : t('serverAdmin.addOAuthProvider')}
+									{oauthEditingId
+										? t('serverAdmin.editOAuthProvider')
+										: t('serverAdmin.addOAuthProvider')}
 								</h3>
 
 								<div>
@@ -2361,7 +2382,9 @@
 										type="text"
 										bind:value={oauthFormDisplayName}
 										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-										placeholder={oauthFormProvider === 'custom' ? t('serverAdmin.oauthDisplayNamePlaceholder') : getDefaultDisplayName(oauthFormProvider)}
+										placeholder={oauthFormProvider === 'custom'
+											? t('serverAdmin.oauthDisplayNamePlaceholder')
+											: getDefaultDisplayName(oauthFormProvider)}
 									/>
 								</div>
 
@@ -2393,7 +2416,9 @@
 										type="password"
 										bind:value={oauthFormClientSecret}
 										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
-										placeholder={oauthEditingId ? t('serverAdmin.oauthClientSecretPlaceholderEdit') : t('serverAdmin.oauthClientSecretPlaceholder')}
+										placeholder={oauthEditingId
+											? t('serverAdmin.oauthClientSecretPlaceholderEdit')
+											: t('serverAdmin.oauthClientSecretPlaceholder')}
 									/>
 								</div>
 
@@ -2419,7 +2444,9 @@
 										{#if isSavingOAuth}
 											<RefreshCw class="h-4 w-4 animate-spin" />
 										{/if}
-										{oauthEditingId ? t('serverAdmin.updateProvider') : t('serverAdmin.addProvider')}
+										{oauthEditingId
+											? t('serverAdmin.updateProvider')
+											: t('serverAdmin.addProvider')}
 									</button>
 								</div>
 							</div>
@@ -2435,9 +2462,7 @@
 				</div>
 
 				<!-- AI Settings -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4 flex items-center gap-3">
 						<Bot class="h-6 w-6 text-purple-500" />
 						<div>
@@ -2671,9 +2696,7 @@
 				</div>
 
 				<!-- Database Maintenance -->
-				<div
-					class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-6 flex items-center gap-3">
 						<Database class="h-6 w-6 text-emerald-500" />
 						<div>
@@ -2847,7 +2870,6 @@
 								</div>
 							</div>
 						</div>
-
 					</div>
 				</div>
 
@@ -2863,7 +2885,7 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-[#23232a]"
+							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
@@ -2904,13 +2926,15 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-[#23232a]"
+							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
 						>
 							<div class="mb-4 flex items-center gap-3">
-								<div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
+								>
 									<Trash2 class="h-5 w-5 text-red-600 dark:text-red-400" />
 								</div>
 								<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -2950,13 +2974,15 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-[#23232a]"
+							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
 						>
 							<div class="mb-4 flex items-center gap-3">
-								<div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+								<div
+									class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30"
+								>
 									<RotateCcw class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 								</div>
 								<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -2965,9 +2991,12 @@
 							</div>
 							<div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
 								<div class="font-medium text-gray-900 dark:text-gray-100">
-									{userToClearPlaceVisits.first_name || ''} {userToClearPlaceVisits.last_name || ''}
+									{userToClearPlaceVisits.first_name || ''}
+									{userToClearPlaceVisits.last_name || ''}
 								</div>
-								<div class="text-sm text-gray-500 dark:text-gray-400">{userToClearPlaceVisits.email}</div>
+								<div class="text-sm text-gray-500 dark:text-gray-400">
+									{userToClearPlaceVisits.email}
+								</div>
 							</div>
 							<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
 								{t('serverAdmin.clearUserPlaceVisitsConfirmMessage')}

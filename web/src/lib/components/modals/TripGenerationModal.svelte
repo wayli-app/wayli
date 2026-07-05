@@ -216,7 +216,7 @@
 				id="start-date"
 				type="date"
 				bind:value={startDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 
@@ -228,20 +228,20 @@
 				id="end-date"
 				type="date"
 				bind:value={endDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 			/>
 		</div>
 
 		<!-- Date Range Help Text -->
 		<div
-			class="bg-primary/5 dark:bg-primary/20 rounded-md border border-[rgb(34,51,95)]/20 p-3 dark:border-[rgb(34,51,95)]/40"
+			class="bg-primary/5 dark:bg-primary/20 rounded-md border border-primary/20 p-3 dark:border-primary/40"
 		>
 			<div class="flex items-start gap-2">
 				<div class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-gray-300">ℹ️</div>
 				<div class="text-primary text-sm dark:text-gray-300">
 					<strong>Dates are optional:</strong> Leave both dates empty to generate trip suggestions from
-					all your available location data. Set specific dates to limit the analysis to a particular
-					time period.
+					all your available location data. Set specific dates to limit the analysis to a particular time
+					period.
 				</div>
 			</div>
 		</div>
@@ -253,7 +253,7 @@
 				type="checkbox"
 				bind:checked={useCustomHomeAddress}
 				onchange={handleCustomHomeAddressToggle}
-				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-[rgb(34,51,95)] dark:border-gray-600"
+				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-gray-600"
 			/>
 			<label
 				for="custom-home-address-toggle"
@@ -278,7 +278,7 @@
 						oninput={handleCustomHomeAddressInput}
 						onkeydown={handleCustomHomeAddressKeydown}
 						placeholder={t('tripGenerationModal.enterCustomHomeAddress')}
-						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 					/>
 
 					{#if isCustomHomeAddressSearching}
@@ -352,7 +352,7 @@
 				id="clear-existing-suggestions"
 				type="checkbox"
 				bind:checked={clearExistingSuggestions}
-				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-800"
+				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-gray-600 dark:bg-gray-800"
 			/>
 			<label for="clear-existing-suggestions" class="text-sm text-gray-700 dark:text-gray-300">
 				{t('tripGenerationModal.clearExistingSuggestions')}
@@ -363,13 +363,13 @@
 		<div class="flex gap-3 pt-4">
 			<button
 				onclick={closeModal}
-				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-[rgb(34,51,95)] focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
 			>
 				{t('common.actions.cancel')}
 			</button>
 			<button
 				onclick={generateTrip}
-				class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex flex-1 items-center justify-center rounded-lg px-4 py-2 font-medium text-white transition-colors focus:ring-2 focus:ring-[rgb(34,51,95)] focus:ring-offset-2 focus:outline-none"
+				class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 flex flex-1 items-center justify-center rounded-lg px-4 py-2 font-medium text-white transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none"
 			>
 				<Route class="mr-2 h-4 w-4 flex-shrink-0" />
 				<span class="truncate">{t('tripGenerationModal.generateSuggestions')}</span>

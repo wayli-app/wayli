@@ -404,7 +404,7 @@
 		>
 			<div class="mb-8 text-center">
 				<div
-					class="bg-primary dark:bg-primary-dark mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
+					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
 				>
 					<LogIn class="h-6 w-6 text-white" />
 				</div>
@@ -446,7 +446,7 @@
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signUp')}
 						</a>
@@ -525,7 +525,7 @@
 						</label>
 						<a
 							href="/auth/forgot-password"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 text-sm transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 text-sm transition-colors"
 						>
 							{t('auth.forgotPassword')}
 						</a>
@@ -535,7 +535,7 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loading ? t('auth.signingIn') : t('auth.signIn')}
 					</button>
@@ -579,7 +579,7 @@
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signUp')}
 						</a>

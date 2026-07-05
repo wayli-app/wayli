@@ -862,7 +862,7 @@
 								<div
 									class="bg-primary/10 dark:bg-primary/20 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
 								>
-									<Bot class="text-primary dark:text-primary-dark h-5 w-5" />
+									<Bot class="text-primary dark:text-primary h-5 w-5" />
 								</div>
 							{/if}
 							<div
@@ -899,7 +899,7 @@
 									{#if message.executionLogs && message.executionLogs.length > 0}
 										<button
 											onclick={() => openExecutionLogs(message.executionLogs)}
-											class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 mt-2 flex items-center gap-1 text-xs hover:underline"
+											class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 mt-2 flex items-center gap-1 text-xs hover:underline"
 										>
 											<FileText class="h-3 w-3" />
 											{t('ask.viewExecutionLogs', { count: message.executionLogs.length })}
@@ -925,7 +925,7 @@
 							<div
 								class="bg-primary/10 dark:bg-primary/20 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
 							>
-								<Bot class="text-primary dark:text-primary-dark h-5 w-5" />
+								<Bot class="text-primary dark:text-primary h-5 w-5" />
 							</div>
 							<div class="max-w-[80%] rounded-xl bg-white px-4 py-3 dark:bg-gray-800">
 								<!-- Collapsible Query Summary -->
@@ -989,7 +989,7 @@
 										aria-live="polite"
 									>
 										<Loader2
-											class="text-primary dark:text-primary-dark h-4 w-4 flex-shrink-0 animate-spin"
+											class="text-primary dark:text-primary h-4 w-4 flex-shrink-0 animate-spin"
 										/>
 										<span class="transition-opacity duration-150">
 											{currentProgress?.message || t('ask.thinking')}

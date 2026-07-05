@@ -12,7 +12,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
+	class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-border dark:bg-card"
 	on:mouseenter={() => {
 		if (onMouseEnter) {
 			onMouseEnter({ lat, lng });

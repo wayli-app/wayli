@@ -134,7 +134,7 @@
 									type="text"
 									id="firstName"
 									bind:value={localUser.first_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-[rgb(34,51,95)] focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-[rgb(34,51,95)] dark:focus:ring-[rgb(34,51,95)]"
+									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 									placeholder="e.g. Jane"
 								/>
 							</div>
@@ -152,7 +152,7 @@
 									type="text"
 									id="lastName"
 									bind:value={localUser.last_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-[rgb(34,51,95)] focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-[rgb(34,51,95)] dark:focus:ring-[rgb(34,51,95)]"
+									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 									placeholder="e.g. Doe"
 								/>
 							</div>
@@ -171,7 +171,7 @@
 								type="email"
 								id="email"
 								bind:value={localUser.email}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-[rgb(34,51,95)] focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-[rgb(34,51,95)] dark:focus:ring-[rgb(34,51,95)]"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 								placeholder="e.g. jane.doe@example.com"
 							/>
 						</div>

@@ -38,7 +38,9 @@
 				if (code) {
 					// Use SDK's built-in method - it handles redirect_uri automatically
 					// (SDK stores redirect_uri during signInWithOAuth and retrieves it here)
-					console.log('🔍 [OAuth Callback] Authorization code flow detected, exchanging code for session...');
+					console.log(
+						'🔍 [OAuth Callback] Authorization code flow detected, exchanging code for session...'
+					);
 					const exchangeResult = await fluxbase.auth.exchangeCodeForSession(
 						code,
 						state || undefined
@@ -121,7 +123,7 @@
 >
 	<div class="text-center">
 		{#if loading}
-			<Loader2 class="text-primary dark:text-primary-dark mx-auto mb-4 h-8 w-8 animate-spin" />
+			<Loader2 class="text-primary dark:text-primary mx-auto mb-4 h-8 w-8 animate-spin" />
 			<h2 class="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
 				Completing authentication...
 			</h2>

@@ -275,7 +275,9 @@
 				{#if hasMultipleColumns}
 					<!-- Multi-column table -->
 					<table class="w-full text-left text-sm">
-						<thead class="sticky top-0 bg-gray-100 text-xs uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+						<thead
+							class="sticky top-0 bg-gray-100 text-xs uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+						>
 							<tr>
 								{#each displayableColumns.slice(0, 5) as col}
 									<th class="whitespace-nowrap px-2 py-1.5 font-medium">
@@ -309,7 +311,7 @@
 				{#if safeData.length > maxInitialResults}
 					<button
 						onclick={() => (showAllResults = !showAllResults)}
-						class="dark:text-primary-dark dark:hover:text-primary-dark/80 mt-2 flex w-full items-center justify-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+						class="dark:text-primary dark:hover:text-primary/80 mt-2 flex w-full items-center justify-center gap-1 text-xs text-blue-500 hover:text-blue-600"
 					>
 						{#if showAllResults}
 							<ChevronUp class="h-3 w-3" />

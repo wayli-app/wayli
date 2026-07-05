@@ -483,11 +483,11 @@
 
 			{#if isLoadingSettings}
 				<div
-					class="bg-primary/5 dark:bg-primary/20 mb-6 rounded-lg border border-[rgb(34,51,95)]/20 p-4 dark:border-[rgb(34,51,95)]/30"
+					class="bg-primary/5 dark:bg-primary/20 mb-6 rounded-lg border border-primary/20 p-4 dark:border-primary/30"
 				>
 					<div class="flex items-center">
 						<div
-							class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+							class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
 						></div>
 						<div>
 							<h3 class="text-primary text-sm font-medium dark:text-gray-200">
@@ -554,7 +554,7 @@
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signIn')}
 						</a>
@@ -802,7 +802,7 @@
 					<button
 						type="submit"
 						disabled={loading || !isPasswordValid || !doPasswordsMatch || registrationDisabled}
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{loading
 							? t('auth.creatingAccount')
@@ -850,7 +850,7 @@
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"
-							class="text-primary hover:text-primary/80 dark:text-primary-dark dark:hover:text-primary-dark/80 cursor-pointer font-medium transition-colors"
+							class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 cursor-pointer font-medium transition-colors"
 						>
 							{t('auth.signIn')}
 						</a>

@@ -204,7 +204,7 @@
 				{#if isLoading}
 					<div class="flex flex-col items-center justify-center py-12">
 						<div
-							class="h-12 w-12 animate-spin rounded-full border-4 border-[rgb(34,51,95)] border-t-transparent"
+							class="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"
 						></div>
 						<p class="mt-4 text-sm text-gray-600 dark:text-gray-400">Generating QR code...</p>
 					</div>
@@ -280,7 +280,7 @@
 							maxlength="6"
 							pattern="[0-9]*"
 							inputmode="numeric"
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-[rgb(34,51,95)] focus:ring-2 focus:ring-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
 							oninput={(e) => {
 								const target = e.target as HTMLInputElement;
 								target.value = target.value.replace(/[^0-9]/g, '');

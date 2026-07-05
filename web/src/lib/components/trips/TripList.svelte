@@ -74,29 +74,25 @@
 			type="text"
 			bind:value={searchQuery}
 			placeholder="Search trips..."
-			class="w-full rounded-md border border-[rgb(218,218,221)] bg-white py-2 pr-4 pl-10 text-sm placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:ring-[rgb(34,51,95)] focus:outline-none"
+			class="w-full rounded-md border border-border bg-white py-2 pr-4 pl-10 text-sm placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
 		/>
 	</div>
 
-	<div
-		class="rounded-lg border border-[rgb(218,218,221)] bg-white dark:border-[#23232a] dark:bg-[#23232a]"
-	>
+	<div class="rounded-lg border border-border bg-white dark:border-border dark:bg-card">
 		<table class="w-full">
 			<thead>
-				<tr
-					class="border-b border-[rgb(218,218,221)] bg-white dark:border-[#23232a] dark:bg-[#23232a]"
-				>
+				<tr class="border-b border-border bg-white dark:border-border dark:bg-card">
 					<th class="w-8 px-6 py-4">
-						<input type="checkbox" class="rounded border-gray-300 dark:border-[#23232a]" />
+						<input type="checkbox" class="rounded border-gray-300 dark:border-border" />
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary-dark flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
 							onclick={() => toggleSort('title')}
 						>
 							Trip Name
 							{#if sortField === 'title'}
-								<span class="text-primary dark:text-primary-dark">
+								<span class="text-primary dark:text-primary">
 									{#if sortDirection === 'asc'}
 										<ArrowUp class="h-4 w-4" />
 									{:else}
@@ -108,12 +104,12 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary-dark flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
 							onclick={() => toggleSort('labels')}
 						>
 							Labels
 							{#if sortField === 'labels'}
-								<span class="text-primary dark:text-primary-dark">
+								<span class="text-primary dark:text-primary">
 									{#if sortDirection === 'asc'}
 										<ArrowUp class="h-4 w-4" />
 									{:else}
@@ -125,12 +121,12 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary-dark flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
 							onclick={() => toggleSort('distance')}
 						>
 							Distance
 							{#if sortField === 'distance'}
-								<span class="text-primary dark:text-primary-dark">
+								<span class="text-primary dark:text-primary">
 									{#if sortDirection === 'asc'}
 										<ArrowUp class="h-4 w-4" />
 									{:else}
@@ -142,12 +138,12 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary-dark flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
 							onclick={() => toggleSort('startDate')}
 						>
 							Start Date
 							{#if sortField === 'startDate'}
-								<span class="text-primary dark:text-primary-dark">
+								<span class="text-primary dark:text-primary">
 									{#if sortDirection === 'asc'}
 										<ArrowUp class="h-4 w-4" />
 									{:else}
@@ -159,12 +155,12 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary-dark flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
 							onclick={() => toggleSort('duration')}
 						>
 							Duration
 							{#if sortField === 'duration'}
-								<span class="text-primary dark:text-primary-dark">
+								<span class="text-primary dark:text-primary">
 									{#if sortDirection === 'asc'}
 										<ArrowUp class="h-4 w-4" />
 									{:else}
@@ -181,11 +177,11 @@
 			<tbody>
 				{#each sortedTrips as trip (trip.title)}
 					<tr
-						class="border-b border-[rgb(218,218,221)] hover:bg-gray-50 dark:border-[#3f3f46] dark:hover:bg-[#2d2d35]"
+						class="border-b border-border hover:bg-gray-50 dark:border-border dark:hover:bg-muted"
 						onmouseenter={() => handleRowHover(trip)}
 					>
 						<td class="w-8 px-6 py-4">
-							<input type="checkbox" class="rounded border-gray-300 dark:border-[#23232a]" />
+							<input type="checkbox" class="rounded border-gray-300 dark:border-border" />
 						</td>
 						<td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100"
 							>{trip.title}</td
@@ -200,7 +196,7 @@
 											: label === 'Nature'
 												? 'bg-green-100 text-green-700'
 												: label === 'Roadtrip'
-													? 'bg-primary/10 text-primary dark:bg-primary-dark/20 dark:text-primary-dark'
+													? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
 													: label === 'Vacation'
 														? 'bg-purple-100 text-purple-700'
 														: label === 'auto-generated'
@@ -266,19 +262,19 @@
 
 	<div class="flex items-center gap-2">
 		<button
-			class="cursor-pointer rounded-md border border-[rgb(218,218,221)] bg-white p-2 text-gray-600 hover:bg-gray-50 dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-300 dark:hover:bg-[#2d2d35]"
+			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-gray-50 dark:border-border dark:bg-card dark:text-gray-300 dark:hover:bg-muted"
 			class:bg-primary={view === 'list'}
 			class:text-white={view === 'list'}
-			class:border-[rgb(34,51,95)]={view === 'list'}
+			class:border-primary={view === 'list'}
 			onclick={() => (view = 'list')}
 		>
 			<List class="h-5 w-5" />
 		</button>
 		<button
-			class="cursor-pointer rounded-md border border-[rgb(218,218,221)] bg-white p-2 text-gray-600 hover:bg-gray-50 dark:border-[#3f3f46] dark:bg-[#23232a] dark:text-gray-300 dark:hover:bg-[#2d2d35]"
+			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-gray-50 dark:border-border dark:bg-card dark:text-gray-300 dark:hover:bg-muted"
 			class:bg-primary={view === 'tiles'}
 			class:text-white={view === 'tiles'}
-			class:border-[rgb(34,51,95)]={view === 'tiles'}
+			class:border-primary={view === 'tiles'}
 			onclick={() => (view = 'tiles')}
 		>
 			<LayoutGrid class="h-5 w-5" />

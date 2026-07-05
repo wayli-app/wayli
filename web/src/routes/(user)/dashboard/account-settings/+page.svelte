@@ -1052,7 +1052,7 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
-			<User class="text-primary dark:text-primary-dark h-8 w-8" />
+			<User class="text-primary dark:text-primary h-8 w-8" />
 			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
 				Account Settings
 			</h1>
@@ -1068,9 +1068,7 @@
 		</div>
 	{:else}
 		<!-- Profile Settings -->
-		<div
-			class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-		>
+		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div
 					class="flex items-center gap-2"
@@ -1092,7 +1090,7 @@
 				<div class="mb-4">
 					<label
 						for="email"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						>{t('accountSettings.email')}</label
 					>
 					<input
@@ -1100,7 +1098,7 @@
 						type="email"
 						value={profile?.email}
 						disabled
-						class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
+						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
 					/>
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 						{t('accountSettings.emailCannotChange')}
@@ -1111,7 +1109,7 @@
 				<div class="mb-4">
 					<label
 						for="homeAddress"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 					>
 						{t('accountSettings.homeLocationOptional')}
 						{#if !homeAddressInput && !profile?.home_address_skipped}
@@ -1137,24 +1135,24 @@
 							oninput={handleHomeAddressInput}
 							onkeydown={handleHomeAddressKeydown}
 							placeholder={t('accountSettings.startTypingHomeAddress')}
-							class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 						{#if isHomeAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
 								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 								></div>
 							</div>
 						{/if}
 					</div>
 					{#if homeAddressSuggestions.length > 0 && showHomeAddressSuggestions}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-[rgb(218,218,221)] bg-white shadow-lg dark:border-[#3f3f46] dark:bg-[#23232a]"
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
 						>
 							{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-[#2d2d35] dark:focus:bg-[#2d2d35] {selectedHomeAddressIndex ===
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-muted dark:focus:bg-muted {selectedHomeAddressIndex ===
 									index
 										? 'bg-primary/10 dark:bg-primary/20'
 										: ''}"
@@ -1180,7 +1178,7 @@
 						</div>
 					{:else if showHomeAddressSuggestions && homeAddressSearchError}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-[rgb(218,218,221)] bg-white shadow-lg dark:border-[#3f3f46] dark:bg-[#23232a]"
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
 						>
 							<div
 								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
@@ -1224,7 +1222,7 @@
 					<div>
 						<label
 							for="firstName"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.firstName')}</label
 						>
 						<input
@@ -1232,14 +1230,14 @@
 							type="text"
 							bind:value={firstNameInput}
 							placeholder={t('accountSettings.enterFirstName')}
-							class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 
 					<div>
 						<label
 							for="lastName"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.lastName')}</label
 						>
 						<input
@@ -1247,7 +1245,7 @@
 							type="text"
 							bind:value={lastNameInput}
 							placeholder={t('accountSettings.enterLastName')}
-							class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 				</div>
@@ -1263,9 +1261,7 @@
 		</div>
 
 		<!-- Security Settings -->
-		<div
-			class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-		>
+		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Lock class="h-5 w-5 text-gray-400" />
@@ -1282,14 +1278,14 @@
 				<div>
 					<label
 						for="currentPassword"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						>{t('accountSettings.currentPassword')}</label
 					>
 					<input
 						id="currentPassword"
 						type="password"
 						bind:value={currentPassword}
-						class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+						class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 					/>
 				</div>
 
@@ -1297,28 +1293,28 @@
 					<div>
 						<label
 							for="newPassword"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.newPassword')}</label
 						>
 						<input
 							id="newPassword"
 							type="password"
 							bind:value={newPassword}
-							class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 
 					<div>
 						<label
 							for="confirmPassword"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('common.fields.confirmPassword')}</label
 						>
 						<input
 							id="confirmPassword"
 							type="password"
 							bind:value={confirmPassword}
-							class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					</div>
 				</div>
@@ -1336,9 +1332,7 @@
 		</div>
 
 		<!-- Two-Factor Authentication -->
-		<div
-			class="mb-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-		>
+		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Shield class="h-5 w-5 text-gray-400" />
@@ -1354,7 +1348,7 @@
 			{#if isCheckingTwoFactor}
 				<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
 					<div
-						class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+						class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 					></div>
 					<span>{t('auth.checking2FAStatus')}</span>
 				</div>
@@ -1408,7 +1402,7 @@
 
 					<!-- Info Message -->
 					<div
-						class="bg-primary/5 dark:bg-primary/20 flex items-start gap-3 rounded-lg border border-[rgb(34,51,95)]/20 p-3 dark:border-[rgb(34,51,95)]/30"
+						class="bg-primary/5 dark:bg-primary/20 flex items-start gap-3 rounded-lg border border-primary/20 p-3 dark:border-primary/30"
 					>
 						<Info class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-gray-400" />
 						<p class="text-primary text-xs dark:text-gray-300">
@@ -1420,9 +1414,7 @@
 		</div>
 
 		<!-- Preferences -->
-		<div
-			class="rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-		>
+		<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Globe class="h-5 w-5 text-gray-400" />
@@ -1438,7 +1430,7 @@
 			<div class="grid gap-6 md:grid-cols-2">
 				<div>
 					<span
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-[#23232a] dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						id="preferred-language-label">{t('accountSettings.preferredLanguage')}</span
 					>
 					<div class="flex items-center" role="group" aria-labelledby="preferred-language-label">
@@ -1468,9 +1460,7 @@
 		<!-- When aiAllowUserOverride is true, users can configure their own AI provider through the SDK -->
 
 		<!-- Trips Settings -->
-		<div
-			class="mt-8 rounded-xl border border-[rgb(218,218,221)] bg-white p-6 dark:border-[#23232a] dark:bg-[#23232a]"
-		>
+		<div class="mt-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<MapPin class="h-5 w-5 text-gray-400" />
@@ -1546,7 +1536,7 @@
 								id="pexels-api-key"
 								bind:value={pexelsApiKeyInput}
 								placeholder={t('accountSettings.enterNewKeyToReplace')}
-								class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+								class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 							/>
 						</div>
 					{:else}
@@ -1557,7 +1547,7 @@
 							placeholder={serverPexelsApiKeyAvailable
 								? t('accountSettings.leaveEmptyToUseServerKey')
 								: t('accountSettings.enterPexelsApiKey')}
-							class="focus:ring-primary w-full rounded-md border border-[rgb(218,218,221)] bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[rgb(34,51,95)] focus:ring-1 focus:outline-none dark:bg-[#23232a] dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					{/if}
 					<p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -1616,7 +1606,7 @@
 
 				<!-- Info notification -->
 				<div
-					class="bg-primary/5 dark:bg-primary/20 mt-4 flex items-start gap-3 rounded-lg border border-[rgb(34,51,95)]/20 p-3 dark:border-[rgb(34,51,95)]/30"
+					class="bg-primary/5 dark:bg-primary/20 mt-4 flex items-start gap-3 rounded-lg border border-primary/20 p-3 dark:border-primary/30"
 				>
 					<Info class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-gray-400" />
 					<p class="text-primary text-xs dark:text-gray-300">
@@ -1802,7 +1792,7 @@
 						{#if isExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
 								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 								></div>
 							</div>
 						{/if}
@@ -1946,7 +1936,7 @@
 						{#if isEditExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
 								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 								></div>
 							</div>
 						{/if}

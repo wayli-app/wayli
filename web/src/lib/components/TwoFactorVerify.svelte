@@ -144,7 +144,7 @@
 					bind:value={code}
 					placeholder={useBackupCode ? 'XXXXXXXX' : '000000'}
 					maxlength={useBackupCode ? 8 : 6}
-					class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-[rgb(34,51,95)] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+					class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
 					disabled={isLoading}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' && !isLoading) {

@@ -173,7 +173,7 @@
 			>
 				<span class="truncate">{trip.title || 'Untitled Trip'}</span>
 				<ExternalLink
-					class="group-hover:text-primary dark:group-hover:text-primary-dark h-3 w-3 flex-shrink-0 text-gray-400"
+					class="group-hover:text-primary dark:group-hover:text-primary h-3 w-3 flex-shrink-0 text-gray-400"
 				/>
 			</h4>
 

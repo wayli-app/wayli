@@ -253,12 +253,12 @@
 								oninput={handleAddressInput}
 								onkeydown={handleAddressKeydown}
 								placeholder={t('onboarding.homeAddressPlaceholder')}
-								class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-[rgb(34,51,95)] focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+								class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-primary focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
 							/>
 							{#if isSearching}
 								<div class="absolute top-1/2 right-3 -translate-y-1/2">
 									<div
-										class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+										class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 									></div>
 								</div>
 							{/if}
@@ -353,7 +353,9 @@
 							}}
 							class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
 						>
-							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
+							>
 								<Link class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 							</div>
 							<div>
@@ -374,7 +376,9 @@
 							}}
 							class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
 						>
-							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30"
+							>
 								<Import class="h-5 w-5 text-green-600 dark:text-green-400" />
 							</div>
 							<div>
@@ -396,7 +400,9 @@
 								}}
 								class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
 							>
-								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
+								<div
+									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30"
+								>
 									<Settings class="h-5 w-5 text-orange-600 dark:text-orange-400" />
 								</div>
 								<div>
@@ -418,7 +424,9 @@
 							}}
 							class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
 						>
-							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"
+							>
 								<Map class="h-5 w-5 text-purple-600 dark:text-purple-400" />
 							</div>
 							<div>

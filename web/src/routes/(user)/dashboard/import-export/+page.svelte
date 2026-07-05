@@ -348,7 +348,7 @@
 							<input
 								type="checkbox"
 								bind:checked={includeLocationDataExport}
-								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-[rgb(34,51,95)]"
+								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
 							<span class="text-sm text-gray-600 dark:text-gray-300"
 								>{t('importExport.locationData')}</span
@@ -358,7 +358,7 @@
 							<input
 								type="checkbox"
 								bind:checked={includeWantToVisitExport}
-								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-[rgb(34,51,95)]"
+								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
 							<span class="text-sm text-gray-600 dark:text-gray-300"
 								>{t('importExport.wantToVisit')}</span
@@ -368,7 +368,7 @@
 							<input
 								type="checkbox"
 								bind:checked={includeTripsExport}
-								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-[rgb(34,51,95)]"
+								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
 							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.trips')}</span
 							>

@@ -15,7 +15,7 @@
 </script>
 
 <div
-	class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-[#23232a] dark:bg-[#23232a]"
+	class="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-border dark:bg-card"
 >
 	<div class="relative aspect-[4/3] overflow-hidden">
 		<img
@@ -46,7 +46,7 @@
 									: label === 'Roadtrip'
 										? 'bg-green-100 text-green-700'
 										: label === 'Vacation'
-											? 'bg-primary/10 text-primary dark:bg-primary-dark/20 dark:text-primary-dark'
+											? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary'
 											: label === 'auto-generated'
 												? 'bg-gray-100 text-gray-700'
 												: ''}"

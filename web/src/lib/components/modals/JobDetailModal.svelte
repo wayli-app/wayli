@@ -181,8 +181,8 @@
 			labelKey: 'jobProgress.statusPending'
 		},
 		running: {
-			color: 'text-primary dark:text-primary-dark',
-			bgColor: 'bg-primary/10 dark:bg-primary-dark/20',
+			color: 'text-primary dark:text-primary',
+			bgColor: 'bg-primary/10 dark:bg-primary/20',
 			labelKey: 'jobProgress.statusRunning'
 		},
 		completed: {
@@ -211,7 +211,7 @@
 	// Log level colors
 	const logLevelColors: Record<LogLevel, string> = {
 		debug: 'text-gray-500',
-		info: 'text-primary dark:text-primary-dark',
+		info: 'text-primary dark:text-primary',
 		warn: 'text-yellow-600',
 		error: 'text-red-600'
 	};
@@ -481,12 +481,12 @@
 							{#if indeterminate}
 								<!-- Indeterminate progress bar with sliding animation -->
 								<div
-									class="bg-primary dark:bg-primary-dark h-3 w-1/2 rounded-full animate-progress-indeterminate"
+									class="bg-primary dark:bg-primary h-3 w-1/2 rounded-full animate-progress-indeterminate"
 								></div>
 							{:else}
 								<!-- Determinate progress bar with percentage -->
 								<div
-									class="bg-primary dark:bg-primary-dark h-3 rounded-full transition-all duration-300"
+									class="bg-primary dark:bg-primary h-3 rounded-full transition-all duration-300"
 									style="width: {displayJob.progress_percent || 0}%"
 								></div>
 							{/if}
@@ -594,7 +594,7 @@
 				{#if userHasScrolled && filteredLogs.length > 0}
 					<button
 						type="button"
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-medium text-white dark:hover:bg-blue-600"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-medium text-white dark:hover:bg-blue-600"
 						onclick={() => {
 							userHasScrolled = false;
 							if (logsContainer) {

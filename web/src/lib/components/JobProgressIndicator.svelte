@@ -128,7 +128,7 @@
 	// Status color mapping
 	const statusColors: Record<string, string> = {
 		pending: 'text-yellow-600',
-		running: 'text-primary dark:text-primary-dark',
+		running: 'text-primary dark:text-primary',
 		completed: 'text-green-600',
 		failed: 'text-red-600',
 		cancelled: 'text-gray-600'
@@ -366,7 +366,7 @@
 {#snippet uploadCard(upload: UploadProgress)}
 	<div class="mb-3 flex items-center gap-3">
 		<div class="flex-shrink-0">
-			<Upload class="text-primary dark:text-primary-dark h-5 w-5" />
+			<Upload class="text-primary dark:text-primary h-5 w-5" />
 		</div>
 
 		<div class="min-w-0 flex-1">

@@ -1075,7 +1075,7 @@
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
@@ -1098,13 +1098,13 @@
 								id="searchPlace"
 								bind:value={searchQuery}
 								oninput={handleSearchInput}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.searchPlaceholder')}
 							/>
 							{#if isSearching}
 								<div class="pointer-events-none absolute top-1/2 right-3 z-10 -translate-y-1/2">
 									<div
-										class="h-4 w-4 animate-spin rounded-full border-2 border-[rgb(34,51,95)] border-t-transparent"
+										class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 									></div>
 								</div>
 							{/if}
@@ -1205,7 +1205,7 @@
 									}}
 									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
 									marker.id
-										? 'bg-primary border-[rgb(34,51,95)] text-white'
+										? 'bg-primary border-primary text-white'
 										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 								>
 									<marker.icon class="h-5 w-5" />
@@ -1262,7 +1262,7 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.addLabelPlaceholder')}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') {
@@ -1292,9 +1292,8 @@
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder={t('wantToVisit.notesPlaceholder')}
-						></textarea>
+							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.notesPlaceholder')}></textarea>
 					</div>
 
 					<!-- Action Buttons -->
@@ -1381,7 +1380,7 @@
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
@@ -1430,7 +1429,7 @@
 							id="addressDisplay"
 							type="text"
 							bind:value={address}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 							placeholder={t('wantToVisit.addressPlaceholder')}
 						/>
 					</div>
@@ -1451,7 +1450,7 @@
 									}}
 									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
 									marker.id
-										? 'bg-primary border-[rgb(34,51,95)] text-white'
+										? 'bg-primary border-primary text-white'
 										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 								>
 									<marker.icon class="h-5 w-5" />
@@ -1508,7 +1507,7 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 								placeholder={t('wantToVisit.addLabelPlaceholder')}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') {
@@ -1538,9 +1537,8 @@
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-							placeholder={t('wantToVisit.notesPlaceholder')}
-						></textarea>
+							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							placeholder={t('wantToVisit.notesPlaceholder')}></textarea>
 					</div>
 
 					<!-- Action Buttons -->
@@ -1616,7 +1614,7 @@
 					type="text"
 					bind:value={searchQuery}
 					placeholder={t('wantToVisit.searchTitlesPlaceholder')}
-					class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-[rgb(34,51,95)] focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
 				/>
 			</div>
 		</div>
@@ -1644,9 +1642,7 @@
 	<!-- Places List -->
 	{#if isLoading}
 		<div class="py-12 text-center">
-			<div
-				class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-[rgb(34,51,95)]"
-			></div>
+			<div class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
 			<p class="mt-4 text-gray-500 dark:text-gray-400">{t('wantToVisit.loadingPlaces')}</p>
 		</div>
 	{:else if filteredPlaces.length === 0}

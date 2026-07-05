@@ -146,9 +146,7 @@
 		class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
 	>
 		<div class="text-center">
-			<div
-				class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-[rgb(34,51,95)]"
-			></div>
+			<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
 			<p class="text-gray-600 dark:text-gray-300">
 				{checkingUserCount ? 'Checking system status...' : 'Loading translations...'}
 			</p>
@@ -169,7 +167,7 @@
 			<button
 				onclick={() => handleThemeChange('light')}
 				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'light'
-					? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
+					? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
 					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 				title={t('landing.lightMode')}
 			>
@@ -178,7 +176,7 @@
 			<button
 				onclick={() => handleThemeChange('dark')}
 				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'dark'
-					? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
+					? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
 					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 				title={t('landing.darkMode')}
 			>
@@ -230,7 +228,7 @@
 			<!-- Login Button -->
 			<button
 				onclick={handleLogin}
-				class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 font-medium text-white shadow-lg transition-colors"
+				class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 font-medium text-white shadow-lg transition-colors"
 			>
 				<LogIn class="h-4 w-4" />
 				{t('landing.login')}
@@ -273,7 +271,7 @@
 					</a>
 					<a
 						href="/auth/signin"
-						class="bg-primary hover:bg-primary/90 dark:bg-primary-dark dark:hover:bg-primary-dark/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
+						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
 					>
 						{t('landing.signIn')}
 					</a>

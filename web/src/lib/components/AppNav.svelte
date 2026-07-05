@@ -189,7 +189,7 @@
 						href={item.href}
 						class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
 							.url.pathname === item.href
-							? 'bg-primary dark:bg-primary-dark text-white'
+							? 'bg-primary dark:bg-primary text-white'
 							: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 						onclick={handleCloseSidebar}
 					>
@@ -208,7 +208,7 @@
 					onclick={() => handleThemeChange('light')}
 					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'light'
-						? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
+						? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
 						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 					title={t('common.navigation.lightMode')}
 				>
@@ -218,7 +218,7 @@
 					onclick={() => handleThemeChange('dark')}
 					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'dark'
-						? 'bg-primary/10 text-primary dark:bg-primary-dark/40 dark:text-primary-dark'
+						? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
 						: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 					title={t('common.navigation.darkMode')}
 				>
@@ -242,7 +242,7 @@
 							href={item.href}
 							class="relative flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
 								.url.pathname === item.href
-								? 'bg-primary dark:bg-primary-dark text-white'
+								? 'bg-primary dark:bg-primary text-white'
 								: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
 							onclick={handleCloseSidebar}
 						>
