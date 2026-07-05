@@ -18,6 +18,7 @@
 	import { setTheme, initializeTheme, state as appState } from '$lib/stores/app-state.svelte';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
+	import { readSetting } from '$lib/utils/settings';
 
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
@@ -55,8 +56,11 @@
 
 	async function checkSetupStatus() {
 		try {
-			// Read setup status from app.settings (RLS allows anonymous read for public settings)
-			const isSetupComplete = await fluxbase.settings.get('wayli.is_setup_complete');
+			// Read setup status from app.settings (RLS allows anonymous read for public settings).
+			// readSetting treats "Setting not found" (fresh install) as null -> treated as not-complete.
+			const isSetupComplete = await readSetting(() =>
+				fluxbase.settings.get('wayli.is_setup_complete')
+			);
 
 			console.log('🏠 [LANDING] Setup status check:', { isSetupComplete });
 

@@ -23,6 +23,7 @@
 	import { sessionManager } from '$lib/services/session';
 	import { sessionStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
+	import { readSetting } from '$lib/utils/settings';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -216,9 +217,13 @@
 			// For now, we'll assume it's not available unless explicitly configured
 			serverPexelsApiKeyAvailable = false;
 
-			// Load user's personal Pexels rate limit using settings SDK
+			// Load user's personal Pexels rate limit using settings SDK.
+			// "Setting not found" is the normal case for users who haven't configured one;
+			// readSetting returns null for it (so no noisy console.error on every fresh account).
 			try {
-				const userRateLimit = await fluxbase.settings.getUserSetting('wayli.pexels_rate_limit');
+				const userRateLimit = await readSetting(() =>
+					fluxbase.settings.getUserSetting('wayli.pexels_rate_limit')
+				);
 
 				if (userRateLimit === undefined || userRateLimit === null) {
 					// Use server default
@@ -229,7 +234,11 @@
 
 					if (typeof userRateLimit === 'number') {
 						loadedRateLimit = userRateLimit;
-					} else if (typeof userRateLimit === 'object' && userRateLimit !== null && 'value' in userRateLimit) {
+					} else if (
+						typeof userRateLimit === 'object' &&
+						userRateLimit !== null &&
+						'value' in userRateLimit
+					) {
 						const val = userRateLimit.value;
 						loadedRateLimit = typeof val === 'number' ? val : null;
 					}
@@ -1573,11 +1582,9 @@
 							<input
 								type="checkbox"
 								bind:checked={pexelsRateLimitEnabled}
-								class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700"
+								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
 							/>
-							<span class="text-sm text-gray-700 dark:text-gray-300"
-								>Set custom rate limit</span
-							>
+							<span class="text-sm text-gray-700 dark:text-gray-300">Set custom rate limit</span>
 						</label>
 
 						{#if !pexelsRateLimitEnabled}
@@ -1595,7 +1602,7 @@
 										min="1"
 										max="10000"
 										placeholder="200"
-										class="w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+										class="focus:border-primary focus:ring-primary w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
 									/>
 									<span class="text-sm text-gray-700 dark:text-gray-300">requests per hour</span>
 								</div>
@@ -1652,10 +1659,16 @@
 									<div class="font-medium text-gray-900 dark:text-gray-100">{exclusion.name}</div>
 									<!-- Dual-purpose badges -->
 									<div class="mt-1 flex gap-2">
-										<span class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" title={t('accountSettings.excludedZoneTripsBadge')}>
+										<span
+											class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+											title={t('accountSettings.excludedZoneTripsBadge')}
+										>
 											🧳 {t('accountSettings.excludedZoneTripsBadge')}
 										</span>
-										<span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300" title={t('accountSettings.excludedZonePlacesBadge')}>
+										<span
+											class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300"
+											title={t('accountSettings.excludedZonePlacesBadge')}
+										>
 											📍 {t('accountSettings.excludedZonePlacesBadge')}
 										</span>
 									</div>
