@@ -67,7 +67,8 @@ export class SpeedPatternTrainDetectionRule implements DetectionRule {
 		const hasSustained = hasSustainedSpeed(
 			context.modeHistory,
 			90, // 90 km/h minimum
-			10 * 60 * 1000 // 10 minutes
+			10 * 60 * 1000, // 10 minutes
+			context.current.timestamp
 		);
 
 		// Speed transition smoothness

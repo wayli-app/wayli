@@ -19,7 +19,9 @@
 		FileText,
 		ChevronRight,
 		ChevronDown,
-		Database
+		Database,
+		Menu,
+		MessageSquare
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
@@ -32,7 +34,8 @@
 		type ChatMessage,
 		type QueryResultData,
 		type ExecutionLog,
-		type AIUserConversationSummary
+		type AIUserConversationSummary,
+		type DailyQuotaSnapshot
 	} from '$lib/services/chat.service';
 	import { sessionStore } from '$lib/stores/auth';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
@@ -45,6 +48,7 @@
 	let question = $state('');
 	let isConnected = $state(false);
 	let isLoading = $state(false);
+	let showMobileSidebar = $state(false);
 	let messages = $state<ChatMessage[]>([]);
 	let currentStreamingContent = $state('');
 	let currentQueryResults = $state<QueryResultData[]>([]);
@@ -61,6 +65,9 @@
 
 	// Streaming details collapse state
 	let streamingDetailsExpanded = $state(false);
+
+	// Daily quota (requests/day). Seeded on load via getUsage, updated live from onDone extras.
+	let dailyQuota = $state<DailyQuotaSnapshot | null>(null);
 
 	// Track which completed messages have expanded query results (by message id)
 	let expandedMessageQueries = $state<Set<string>>(new Set());
@@ -166,7 +173,34 @@
 	onMount(async () => {
 		await checkConfigAndConnect();
 		await loadConversationList();
+		// Seed the quota display; live updates arrive via onDone extras.
+		dailyQuota = await chatService.getDailyUsageForName('location-assistant');
 	});
+
+	// Quota display state derived from the requests counter (tokens ignored for the badge).
+	const CHATBOT_NAME = 'location-assistant';
+	const quotaDisplay = $derived.by(() => {
+		const q = dailyQuota;
+		if (!q || q.requests.limit === 0) return null; // no limits configured / unlimited
+		const remaining = Math.max(0, q.requests.limit - q.requests.used);
+		const pct = q.requests.limit > 0 ? q.requests.used / q.requests.limit : 0;
+		return {
+			remaining,
+			limit: q.requests.limit,
+			exhausted: remaining === 0,
+			warning: pct >= 0.9 && remaining > 0,
+			resetsAt: q.resetsAt
+		};
+	});
+
+	function formatResetTime(iso?: string): string {
+		if (!iso) return '';
+		try {
+			return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		} catch {
+			return '';
+		}
+	}
 
 	// Disconnect on destroy
 	onDestroy(() => {
@@ -248,49 +282,21 @@
 						}
 					];
 				},
-				onDone: async (usage) => {
+				onDone: async (usage, extras) => {
 					// Extract images from markdown content and inject into query results
 					const imageMap = extractMarkdownImages(currentStreamingContent);
-					let enrichedQueryResults = injectImagesIntoResults(currentQueryResults, imageMap);
+					const enrichedQueryResults = injectImagesIntoResults(currentQueryResults, imageMap);
 
-					// If no query results came via WebSocket, fetch from persisted conversation
-					// This works around execute_sql not streaming query_result events
-					if (enrichedQueryResults.length === 0 && currentConversationId) {
-						// Helper to fetch query results from conversation
-						const fetchQueryResults = async (): Promise<QueryResultData[]> => {
-							const conversation = await chatService.getConversation(currentConversationId!);
-							const lastMessage = conversation.messages[conversation.messages.length - 1];
-							if (lastMessage?.role === 'assistant' && lastMessage.query_results && lastMessage.query_results.length > 0) {
-								return lastMessage.query_results.map((qr) => ({
-									query: qr.query,
-									summary: qr.summary,
-									rowCount: qr.row_count,
-									data: qr.data
-								}));
-							}
-							return [];
-						};
-
-						// Try to fetch with retries to handle persistence timing
-						const maxRetries = 3;
-						const retryDelay = 500; // ms
-
-						for (let attempt = 0; attempt < maxRetries; attempt++) {
-							try {
-								// Add delay before retries to allow backend to persist
-								if (attempt > 0) {
-									await new Promise(resolve => setTimeout(resolve, retryDelay));
-								}
-
-								const results = await fetchQueryResults();
-								if (results.length > 0) {
-									enrichedQueryResults = injectImagesIntoResults(results, imageMap);
-									break;
-								}
-							} catch (err) {
-								console.warn(`Failed to fetch query results (attempt ${attempt + 1}/${maxRetries}):`, err);
-							}
-						}
+					// Live quota + telemetry (Fluxbase 2026.6.3). No analytics SDK yet — stub to console.
+					if (extras?.dailyQuota) dailyQuota = extras.dailyQuota;
+					if (extras?.matchedIntentRules?.length) {
+						console.debug('[chat] intent rules fired:', extras.matchedIntentRules);
+					}
+					if (usage?.cachedTokens !== undefined && usage.cachedTokens > 0) {
+						console.debug(
+							'[chat] prompt cache hit:',
+							`${usage.cachedTokens}/${usage.promptTokens} prompt tokens cached`
+						);
 					}
 
 					// Always add a message - use fallback text if no content and no results
@@ -301,8 +307,7 @@
 						content: currentStreamingContent || (hasContent ? '' : t('ask.noResponse')),
 						timestamp: new Date(),
 						queryResults: enrichedQueryResults.length > 0 ? [...enrichedQueryResults] : undefined,
-						executionLogs:
-							currentExecutionLogs.length > 0 ? [...currentExecutionLogs] : undefined,
+						executionLogs: currentExecutionLogs.length > 0 ? [...currentExecutionLogs] : undefined,
 						usage
 					};
 					messages = [...messages, assistantMessage];
@@ -676,6 +681,16 @@
 			await loadConversationList();
 		}, 500);
 	}
+
+	// Mobile sidebar wrappers — close the drawer after an action
+	function selectConversationMobile(id: string) {
+		loadConversation(id);
+		showMobileSidebar = false;
+	}
+	function startNewConversationMobile() {
+		startNewConversation();
+		showMobileSidebar = false;
+	}
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -685,7 +700,7 @@
 </svelte:head>
 
 <div class="-m-6 flex h-screen">
-	<!-- Conversation Sidebar -->
+	<!-- Conversation Sidebar (desktop) -->
 	<div class="hidden md:block">
 		<ConversationSidebar
 			conversations={conversationList}
@@ -700,8 +715,55 @@
 		/>
 	</div>
 
+	<!-- Conversation Sidebar (mobile drawer) -->
+	{#if showMobileSidebar}
+		<div class="fixed inset-0 z-40 md:hidden">
+			<!-- Backdrop -->
+			<button
+				type="button"
+				aria-label="Close conversations"
+				class="absolute inset-0 bg-black/50"
+				onclick={() => (showMobileSidebar = false)}
+			></button>
+			<!-- Drawer -->
+			<div class="absolute top-0 left-0 h-full w-80 max-w-[85vw] shadow-xl">
+				<ConversationSidebar
+					conversations={conversationList}
+					activeConversationId={currentConversationId}
+					isLoading={isLoadingConversations}
+					hasMore={hasMoreConversations}
+					isLoadingMore={isLoadingMoreConversations}
+					onSelect={selectConversationMobile}
+					onNewConversation={startNewConversationMobile}
+					onDelete={deleteConversation}
+					onLoadMore={loadMoreConversations}
+				/>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Chat Area -->
 	<div class="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+		<!-- Mobile Top Bar -->
+		<div
+			class="flex items-center gap-3 border-b border-gray-200 bg-white p-3 md:hidden dark:border-gray-700 dark:bg-gray-900"
+		>
+			<button
+				type="button"
+				onclick={() => (showMobileSidebar = true)}
+				aria-label="Open conversation history"
+				class="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+			>
+				<Menu class="h-5 w-5" />
+			</button>
+			<span class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+				<MessageSquare class="h-4 w-4" />
+				{currentConversationId
+					? conversationList.find((c) => c.id === currentConversationId)?.title || t('ask.title')
+					: t('ask.title')}
+			</span>
+		</div>
+
 		<!-- Messages Area -->
 		<div bind:this={messagesContainer} class="flex-1 overflow-y-auto">
 			{#if isCheckingConfig}
@@ -923,6 +985,8 @@
 									<div
 										class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
 										style="min-height: 24px;"
+										role="status"
+										aria-live="polite"
 									>
 										<Loader2
 											class="text-primary dark:text-primary-dark h-4 w-4 flex-shrink-0 animate-spin"
@@ -968,6 +1032,7 @@
 						onclick={cancelMessage}
 						class="absolute right-3 rounded-lg bg-red-500 p-2 text-white transition-colors hover:bg-red-600"
 						title="Cancel"
+						aria-label="Cancel message"
 					>
 						<StopCircle class="h-5 w-5" />
 					</button>
@@ -975,12 +1040,34 @@
 					<button
 						onclick={sendMessage}
 						disabled={!question.trim() || !isConnected}
+						aria-label="Send message"
 						class="bg-primary hover:bg-primary/90 absolute right-3 rounded-lg p-2 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						<Send class="h-5 w-5" />
 					</button>
 				{/if}
 			</div>
+
+			<!-- Daily quota hint (Fluxbase 2026.6.3). Hidden when no limits configured. -->
+			{#if quotaDisplay}
+				<div class="mt-2 flex items-center justify-center gap-1.5 text-xs">
+					{#if quotaDisplay.exhausted}
+						<span class="font-medium text-red-600 dark:text-red-400">
+							Daily limit reached{#if quotaDisplay.resetsAt}
+								· resets at {formatResetTime(quotaDisplay.resetsAt)}{/if}
+						</span>
+					{:else}
+						<span
+							class={quotaDisplay.warning
+								? 'font-medium text-amber-600 dark:text-amber-400'
+								: 'text-gray-500 dark:text-gray-400'}
+						>
+							{quotaDisplay.remaining}/{quotaDisplay.limit} messages left today{#if quotaDisplay.resetsAt}
+								· resets at {formatResetTime(quotaDisplay.resetsAt)}{/if}
+						</span>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Connection Status -->
 			{#if !isConnected && !configurationError && !isCheckingConfig}

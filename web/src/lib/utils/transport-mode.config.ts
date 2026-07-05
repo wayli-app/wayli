@@ -54,3 +54,27 @@ export const CAR_TRAIN_OVERLAP_BRACKETS = [
 	{ min: 60, max: 110, mode: 'car' }, // Default to car in overlap
 	{ min: 60, max: 110, mode: 'train' } // Can be overridden by context (station, straight trajectory)
 ];
+
+/**
+ * Coefficient-of-variation thresholds for the train-vs-car decision.
+ * Trains maintain very steady speeds (low CV); cars vary more due to traffic, lights, turns.
+ * These are the canonical "train-like" / "car-like" boundaries shared across detection helpers.
+ */
+export const SPEED_CV_THRESHOLDS = {
+	TRAIN_LIKE: 0.15, // CV below this with high mean speed → train-like
+	CAR_LIKE: 0.25 // CV above this → car-like variance
+} as const;
+
+/**
+ * Map a speed (km/h) to a transport mode using SPEED_BRACKETS (first match wins,
+ * so car takes precedence over train in the 60-110 overlap). Single source of truth
+ * for speed→mode lookup; prefer this over re-implementing bracket logic per call site.
+ */
+export function getModeFromSpeed(speedKmh: number): string {
+	for (const bracket of SPEED_BRACKETS) {
+		if (speedKmh >= bracket.min && speedKmh < bracket.max) {
+			return bracket.mode;
+		}
+	}
+	return 'unknown';
+}

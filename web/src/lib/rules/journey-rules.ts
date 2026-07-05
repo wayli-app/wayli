@@ -6,7 +6,11 @@ import type {
 	DetectionRule
 } from '../types/transport-detection.types';
 import { isPhysicallyPossible } from '../utils/speed-pattern-analysis';
-import { MODE_DETECTION_REQUIREMENTS, MODE_PHYSICAL_LIMITS } from '../utils/transport-mode.config';
+import {
+	MODE_DETECTION_REQUIREMENTS,
+	MODE_PHYSICAL_LIMITS,
+	getModeFromSpeed
+} from '../utils/transport-mode.config';
 import { haversine } from '../utils/multi-point-speed';
 
 /**
@@ -29,7 +33,7 @@ export class MinimumModeDurationRule implements DetectionRule {
 		const recentModes = context.modeHistory.slice(
 			-MODE_DETECTION_REQUIREMENTS.MIN_POINTS_FOR_MODE_CHANGE
 		);
-		const currentModeFromBracket = this.getCurrentModeFromSpeed(context.currentSpeed);
+		const currentModeFromBracket = getModeFromSpeed(context.currentSpeed);
 		const dominantRecentMode = this.getDominantMode(recentModes);
 
 		// If the speed-based mode differs from dominant recent mode
@@ -88,15 +92,6 @@ export class MinimumModeDurationRule implements DetectionRule {
 		return null; // Mode is consistent or has met minimum requirements
 	}
 
-	private getCurrentModeFromSpeed(speed: number): string {
-		if (speed < 2) return 'stationary';
-		if (speed < 10) return 'walking';
-		if (speed < 35) return 'cycling';
-		if (speed < 110) return 'car';
-		if (speed < 200) return 'train';
-		return 'airplane';
-	}
-
 	private getDominantMode(modes: Array<{ mode: string }>): string {
 		const modeCount = new Map<string, number>();
 		modes.forEach((m) => {
@@ -146,7 +141,7 @@ export class TrainJourneyContinuationRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult {
 		const journey = context.currentJourney!;
-		const timeSinceStart = Date.now() - journey.startTime;
+		const timeSinceStart = context.current.timestamp - journey.startTime;
 
 		return {
 			mode: 'train',
@@ -175,7 +170,7 @@ export class AirplaneJourneyContinuationRule implements DetectionRule {
 
 	detect(context: DetectionContext): DetectionResult {
 		const journey = context.currentJourney!;
-		const timeSinceStart = Date.now() - journey.startTime;
+		const timeSinceStart = context.current.timestamp - journey.startTime;
 
 		return {
 			mode: 'airplane',

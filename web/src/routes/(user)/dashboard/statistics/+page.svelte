@@ -589,7 +589,10 @@
 		if (!exclusion) return null;
 
 		// If already has location.coordinates.lat/lng, return as-is
-		if (exclusion.location?.coordinates?.lat !== undefined && exclusion.location?.coordinates?.lng !== undefined) {
+		if (
+			exclusion.location?.coordinates?.lat !== undefined &&
+			exclusion.location?.coordinates?.lng !== undefined
+		) {
 			return exclusion;
 		}
 
@@ -630,7 +633,9 @@
 			const tripExclusionsService = new TripExclusionsApiService({ fluxbase });
 			const exclusionsData = await tripExclusionsService.getTripExclusions(userData.user.id);
 			// Normalize each trip exclusion to handle both coordinate formats
-			tripExclusions = (exclusionsData.exclusions || []).map(normalizeTripExclusion).filter(Boolean);
+			tripExclusions = (exclusionsData.exclusions || [])
+				.map(normalizeTripExclusion)
+				.filter(Boolean);
 
 			// Draw exclusion zones on map
 			drawExclusionZones();
@@ -676,7 +681,8 @@
 			});
 
 			// Add popup with home address info
-			const homeName = homeAddress.layer === 'locality' ? (homeAddress.name || homeAddress.address) : 'Home';
+			const homeName =
+				homeAddress.layer === 'locality' ? homeAddress.name || homeAddress.address : 'Home';
 			homeCircle.bindPopup(`
 				<div class="text-sm font-medium">🏠 ${homeName}</div>
 				<div class="text-xs text-gray-600">${homeAddress.display_name || homeAddress.address}</div>
@@ -708,9 +714,10 @@
 				// Add popup with exclusion info
 				// For cities, show the city name prominently; otherwise show the exclusion name
 				const displayName = exclusion.location?.display_name || exclusion.display_name || '';
-				const exclusionName = layer === 'locality'
-					? (exclusion.location?.name || exclusion.name || 'City Exclusion')
-					: (exclusion.name || 'Exclusion');
+				const exclusionName =
+					layer === 'locality'
+						? exclusion.location?.name || exclusion.name || 'City Exclusion'
+						: exclusion.name || 'Exclusion';
 				exclusionCircle.bindPopup(`
 					<div class="text-sm font-medium">🚫 ${exclusionName}</div>
 					<div class="text-xs text-gray-600">${displayName}</div>
@@ -1136,11 +1143,11 @@
 <div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
 	<div class="flex min-w-0 items-center gap-2">
 		<BarChart class="text-primary h-8 w-8 flex-shrink-0 dark:text-gray-400" />
-		<h1 class="text-3xl font-bold whitespace-nowrap text-gray-900 dark:text-gray-100">
+		<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
 			{t('common.navigation.statistics')}
 		</h1>
 	</div>
-	<div class="flex flex-1 items-center justify-end gap-6">
+	<div class="flex min-w-0 flex-1 items-center justify-start gap-2 md:justify-end">
 		<div class="datepicker-statistics-fix relative">
 			<DateRangePicker
 				bind:startDate={localStartDate}
@@ -1165,7 +1172,7 @@
 
 		<!-- Map Legend -->
 		<div
-			class="absolute bottom-4 left-4 z-[1001] rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800"
+			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800"
 		>
 			<h4 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
 				{t('statistics.modeColors')}
@@ -1185,11 +1192,15 @@
 						{t('statistics.exclusionZones') || 'Exclusion Zones'}
 					</div>
 					<div class="flex items-center space-x-2">
-						<div class="h-3 w-3 rounded-full border-2 border-dashed border-blue-500 bg-blue-500/10"></div>
+						<div
+							class="h-3 w-3 rounded-full border-2 border-dashed border-blue-500 bg-blue-500/10"
+						></div>
 						<span class="text-xs text-gray-600 dark:text-gray-400">🏠 Home</span>
 					</div>
 					<div class="flex items-center space-x-2">
-						<div class="h-3 w-3 rounded-full border-2 border-dashed border-red-500 bg-red-500/10"></div>
+						<div
+							class="h-3 w-3 rounded-full border-2 border-dashed border-red-500 bg-red-500/10"
+						></div>
 						<span class="text-xs text-gray-600 dark:text-gray-400">🚫 Exclusions</span>
 					</div>
 				</div>
@@ -1199,7 +1210,7 @@
 		<!-- Point Details Popup -->
 		{#if selectedPoint}
 			<div
-				class="absolute top-4 right-4 z-[1001] w-80 max-w-sm rounded-lg bg-white p-4 shadow-lg dark:bg-gray-800"
+				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg bg-white p-4 shadow-lg sm:left-auto sm:w-80 dark:bg-gray-800"
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -1351,7 +1362,9 @@
 					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 				>
 					<div class="flex items-center gap-2">
-						<IconComponent class="h-5 w-5 text-{stat.color}-500" />
+						<IconComponent
+							class="h-5 w-5 {stat.color === 'green' ? 'text-green-500' : 'text-blue-500'}"
+						/>
 						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
 					</div>
 					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -1416,71 +1429,73 @@
 								{t('statistics.transportModes')}
 							</span>
 						</div>
-						<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-							<thead>
-								<tr>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-									>
-										{t('statistics.mode')}
-									</th>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-									>
-										{t('statistics.distanceKm')}
-									</th>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-									>
-										{t('statistics.time')}
-									</th>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-									>
-										{t('statistics.percentOfTotal')}
-									</th>
-									<th
-										class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-									>
-										{t('statistics.points')}
-									</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each statisticsData.transport
-									.slice()
-									.filter((mode) => mode.mode !== 'stationary')
-									.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
+						<div class="-mx-4 overflow-x-auto px-4">
+							<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+								<thead>
 									<tr>
-										<td
-											class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
+										<th
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 										>
-											{translateTransportMode(mode.mode)}
-										</td>
-										<td
-											class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-gray-300"
+											{t('statistics.mode')}
+										</th>
+										<th
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 										>
-											{formatDistance(mode.distance)}
-										</td>
-										<td
-											class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+											{t('statistics.distanceKm')}
+										</th>
+										<th
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 										>
-											{formatSegmentDuration(mode.time || 0)}
-										</td>
-										<td
-											class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+											{t('statistics.time')}
+										</th>
+										<th
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 										>
-											{mode.percentage}%
-										</td>
-										<td
-											class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+											{t('statistics.percentOfTotal')}
+										</th>
+										<th
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 										>
-											{mode.points || 0}
-										</td>
+											{t('statistics.points')}
+										</th>
 									</tr>
-								{/each}
-							</tbody>
-						</table>
+								</thead>
+								<tbody>
+									{#each statisticsData.transport
+										.slice()
+										.filter((mode) => mode.mode !== 'stationary')
+										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
+										<tr>
+											<td
+												class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
+											>
+												{translateTransportMode(mode.mode)}
+											</td>
+											<td
+												class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-gray-300"
+											>
+												{formatDistance(mode.distance)}
+											</td>
+											<td
+												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+											>
+												{formatSegmentDuration(mode.time || 0)}
+											</td>
+											<td
+												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+											>
+												{mode.percentage}%
+											</td>
+											<td
+												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+											>
+												{mode.points || 0}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
 					</div>
 				</div>
 			{/if}
@@ -1498,38 +1513,40 @@
 					{t('statistics.trainStationVisits')}
 				</span>
 			</div>
-			<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-				<thead>
-					<tr>
-						<th
-							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-						>
-							Station
-						</th>
-						<th
-							class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-						>
-							Visits
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each statisticsData.trainStationVisits
-						.slice()
-						.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
+			<div class="-mx-4 overflow-x-auto px-4">
+				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+					<thead>
 						<tr>
-							<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
-								{station.name}
-							</td>
-							<td
-								class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-gray-300"
+							<th
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
 							>
-								{station.count}
-							</td>
+								Station
+							</th>
+							<th
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+							>
+								Visits
+							</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each statisticsData.trainStationVisits
+							.slice()
+							.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
+							<tr>
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+									{station.name}
+								</td>
+								<td
+									class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-gray-300"
+								>
+									{station.count}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		</div>
 	{/if}
 
@@ -1563,7 +1580,7 @@
 					{loadingStage || t('statistics.loading')}
 				</div>
 				{#if loadingProgress > 0}
-					<div class="mb-2 h-2 w-64 rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="mb-2 h-2 w-64 max-w-[80vw] rounded-full bg-gray-200 dark:bg-gray-700">
 						<div
 							class="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
 							style="width: {Math.round(loadingProgress)}%"

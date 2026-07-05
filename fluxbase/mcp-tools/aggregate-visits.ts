@@ -4,67 +4,8 @@
 // @fluxbase:timeout 30
 // @fluxbase:memory 256
 
-const COUNTRY_MAP: Record<string, string> = {
-  vietnam: 'VN',
-  japan: 'JP',
-  netherlands: 'NL',
-  france: 'FR',
-  germany: 'DE',
-  'united states': 'US',
-  usa: 'US',
-  'united kingdom': 'GB',
-  uk: 'GB',
-  italy: 'IT',
-  spain: 'ES',
-  thailand: 'TH',
-  indonesia: 'ID',
-  singapore: 'SG',
-  australia: 'AU',
-  canada: 'CA',
-  china: 'CN',
-  'south korea': 'KR',
-  korea: 'KR',
-  taiwan: 'TW',
-  'hong kong': 'HK',
-  portugal: 'PT',
-  belgium: 'BE',
-  switzerland: 'CH',
-  austria: 'AT',
-  poland: 'PL',
-  sweden: 'SE',
-  norway: 'NO',
-  denmark: 'DK',
-  finland: 'FI',
-  greece: 'GR',
-  ireland: 'IE',
-  brazil: 'BR',
-  mexico: 'MX',
-  india: 'IN',
-  'new zealand': 'NZ'
-};
-
-function parseDateRange(dateRange: string): string | null {
-  const lower = dateRange.toLowerCase();
-  if (lower.includes('this year')) {
-    return "started_at >= DATE_TRUNC('year', CURRENT_DATE)";
-  }
-  if (lower.includes('last year')) {
-    return "started_at >= DATE_TRUNC('year', CURRENT_DATE - INTERVAL '1 year') AND started_at < DATE_TRUNC('year', CURRENT_DATE)";
-  }
-  if (lower.includes('last month')) {
-    return "started_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND started_at < DATE_TRUNC('month', CURRENT_DATE)";
-  }
-  if (lower.includes('this month')) {
-    return "started_at >= DATE_TRUNC('month', CURRENT_DATE)";
-  }
-  if (lower.includes('last 30 days') || lower.includes('past 30 days')) {
-    return "started_at >= CURRENT_DATE - INTERVAL '30 days'";
-  }
-  if (lower.includes('last 7 days') || lower.includes('past week')) {
-    return "started_at >= CURRENT_DATE - INTERVAL '7 days'";
-  }
-  return null;
-}
+import { countryCode } from './_shared/countries.ts';
+import { parseDateRange } from './_shared/date-range.ts';
 
 function escapeSql(str: string): string {
   return str.replace(/'/g, "''");
@@ -92,7 +33,10 @@ export default async function handler(
   if (!metric || !groupBy) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: 'Both metric and groupBy parameters are required' }) }
+        {
+          type: 'text',
+          text: JSON.stringify({ error: 'Both metric and groupBy parameters are required' })
+        }
       ]
     };
   }
@@ -115,7 +59,12 @@ export default async function handler(
   if (!metricExpr) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: `Invalid metric: ${metric}. Use total_time, visit_count, or avg_duration` }) }
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: `Invalid metric: ${metric}. Use total_time, visit_count, or avg_duration`
+          })
+        }
       ]
     };
   }
@@ -124,7 +73,12 @@ export default async function handler(
   if (!validGroupBy.includes(groupBy)) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: `Invalid groupBy: ${groupBy}. Use poi_name, poi_category, city, or country_code` }) }
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: `Invalid groupBy: ${groupBy}. Use poi_name, poi_category, city, or country_code`
+          })
+        }
       ]
     };
   }
@@ -132,7 +86,7 @@ export default async function handler(
   const conditions: string[] = [];
 
   if (country) {
-    const code = COUNTRY_MAP[country.toLowerCase()] || country.toUpperCase();
+    const code = countryCode(country);
     conditions.push(`country_code = '${escapeSql(code)}'`);
   }
   if (city) {

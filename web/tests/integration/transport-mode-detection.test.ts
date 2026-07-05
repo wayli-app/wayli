@@ -18,6 +18,27 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 		it('should detect complete train journey with both stations', () => {
 			const now = Date.now();
 
+			// Seed prior train-speed movement so arriving at Amsterdam Central is recognized as
+			// an arriving train (not a cold-start false positive).
+			context.modeHistory.push(
+				{
+					mode: 'train',
+					timestamp: now - 120000,
+					speed: 110,
+					coordinates: { lat: 52.3, lng: 4.8 },
+					confidence: 0.8,
+					reason: 'approaching'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 60000,
+					speed: 100,
+					coordinates: { lat: 52.35, lng: 4.88 },
+					confidence: 0.8,
+					reason: 'approaching'
+				}
+			);
+
 			// Start at train station
 			const result1 = detectEnhancedMode(
 				52.3676,
@@ -97,6 +118,27 @@ describe('Enhanced Transport Mode Detection Integration', () => {
 		});
 
 		it('should handle starting station only scenario', () => {
+			// Seed prior train-speed movement so the starting station is recognized as an arrival.
+			const now = Date.now();
+			context.modeHistory.push(
+				{
+					mode: 'train',
+					timestamp: now - 120000,
+					speed: 110,
+					coordinates: { lat: 52.3, lng: 4.8 },
+					confidence: 0.8,
+					reason: 'approaching'
+				},
+				{
+					mode: 'train',
+					timestamp: now - 60000,
+					speed: 100,
+					coordinates: { lat: 52.35, lng: 4.88 },
+					confidence: 0.8,
+					reason: 'approaching'
+				}
+			);
+
 			// Start at train station
 			const result1 = detectEnhancedMode(
 				52.3676,

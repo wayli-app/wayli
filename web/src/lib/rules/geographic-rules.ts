@@ -44,7 +44,22 @@ export class TrainStationRule implements DetectionRule {
 	canApply(context: DetectionContext): boolean {
 		// Apply when at train station, regardless of speed
 		// This allows detection of train mode when boarding/alighting
-		return context.atTrainStation;
+		if (!context.atTrainStation) return false;
+
+		// Moving at train-like speed near a station → train (boarding/alighting while in motion)
+		if (context.currentSpeed >= 30) return true;
+
+		// Already in a train journey → keep train while stopped at a station
+		if (context.currentJourney?.type === 'train') return true;
+
+		// Arrived by train: recent high speed in the last few points indicates the user traveled
+		// here at train speed, so being stopped at the station is boarding/alighting, not walking past.
+		const recentlyFast = context.modeHistory.slice(-5).some((m) => m.speed >= 60);
+		if (recentlyFast) return true;
+
+		// Otherwise (cold start at a station, or just walking through / waiting) don't force train —
+		// let stationary/walking rules handle it. Avoids "had coffee at a station → train" false positives.
+		return false;
 	}
 
 	detect(context: DetectionContext): DetectionResult | null {
