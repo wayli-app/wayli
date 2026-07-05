@@ -30,6 +30,13 @@
 			handleClickOutside();
 		}
 	}
+
+	function handleTriggerKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleTriggerClick();
+		}
+	}
 </script>
 
 <div class="relative">
@@ -37,6 +44,9 @@
 	<div
 		use:useAriaButton={{ label: 'Toggle popover menu' }}
 		onclick={handleTriggerClick}
+		onkeydown={handleTriggerKeydown}
+		role="button"
+		tabindex="0"
 		aria-expanded={open}
 		aria-haspopup="true"
 		class="cursor-pointer"
