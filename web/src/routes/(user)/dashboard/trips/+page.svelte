@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { format, formatDistanceToNow } from 'date-fns';
+	import { Skeleton } from '$lib/components/ui';
 	import {
 		MapPin,
 		Calendar,
@@ -1424,9 +1425,8 @@
 					</h2>
 					<form onsubmit={(e) => submitTrip(e)} class="space-y-5">
 						<div>
-							<label
-								class="mb-1 block text-sm font-medium text-muted-foreground"
-								for="title">{t('trips.tripTitle')}</label
+							<label class="mb-1 block text-sm font-medium text-muted-foreground" for="title"
+								>{t('trips.tripTitle')}</label
 							>
 							<input
 								type="text"
@@ -1440,9 +1440,8 @@
 						</div>
 						<div class="flex gap-4">
 							<div class="flex-1">
-								<label
-									class="mb-1 block text-sm font-medium text-muted-foreground"
-									for="start_date">{t('trips.startDate')}</label
+								<label class="mb-1 block text-sm font-medium text-muted-foreground" for="start_date"
+									>{t('trips.startDate')}</label
 								>
 								<input
 									type="date"
@@ -1454,9 +1453,8 @@
 								/>
 							</div>
 							<div class="flex-1">
-								<label
-									class="mb-1 block text-sm font-medium text-muted-foreground"
-									for="end_date">{t('trips.endDate')}</label
+								<label class="mb-1 block text-sm font-medium text-muted-foreground" for="end_date"
+									>{t('trips.endDate')}</label
 								>
 								<input
 									type="date"
@@ -1469,9 +1467,8 @@
 							</div>
 						</div>
 						<div>
-							<label
-								class="mb-1 block text-sm font-medium text-muted-foreground"
-								for="description">{t('trips.description')}</label
+							<label class="mb-1 block text-sm font-medium text-muted-foreground" for="description"
+								>{t('trips.description')}</label
 							>
 							<textarea
 								id="description"
@@ -1484,9 +1481,7 @@
 
 						<!-- Labels Section -->
 						<div>
-							<label
-								for="new-label"
-								class="mb-1 block text-sm font-medium text-muted-foreground"
+							<label for="new-label" class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('trips.labels')}</label
 							>
 							<div class="space-y-3">
@@ -1532,9 +1527,7 @@
 						</div>
 
 						<div>
-							<label
-								for="trip-image"
-								class="mb-1 block text-sm font-medium text-muted-foreground"
+							<label for="trip-image" class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('trips.tripImage')}</label
 							>
 
@@ -1596,9 +1589,7 @@
 							{/if}
 
 							<!-- Stable image suggestion area with fixed height -->
-							<div
-								class="relative mt-2 flex h-40 items-center justify-center rounded-lg bg-muted"
-							>
+							<div class="relative mt-2 flex h-40 items-center justify-center rounded-lg bg-muted">
 								{#if isSuggestingImage}
 									<Loader2 class="text-primary dark:text-primary h-10 w-10 animate-spin" />
 								{:else if imagePreview}
@@ -1698,15 +1689,21 @@
 
 	<!-- Loading State -->
 	{#if isLoading || isInitialLoad}
-		<div class="flex items-center justify-center py-12">
-			<div class="text-center">
-				<Loader2 class="text-primary dark:text-primary mx-auto mb-4 h-8 w-8 animate-spin" />
-				<p class="text-muted-foreground">Loading trips...</p>
-			</div>
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _, i (i)}
+				<div class="bg-card border-border overflow-hidden rounded-xl border">
+					<Skeleton class="h-40 w-full rounded-none" />
+					<div class="p-4">
+						<Skeleton class="h-5 w-2/3" />
+						<Skeleton class="mt-3 h-3 w-1/2" />
+						<Skeleton class="mt-2 h-3 w-3/4" />
+					</div>
+				</div>
+			{/each}
 		</div>
 	{:else if filteredTrips.length === 0}
 		<div class="py-12 text-center">
-			<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+			<Route class="text-muted-foreground mx-auto mb-4 h-12 w-12" />
 			<h3 class="mb-2 text-lg font-medium text-foreground">
 				{t('trips.noTripsFound')}
 			</h3>
@@ -1716,7 +1713,7 @@
 					: t('trips.startCreatingFirstTrip')}
 			</p>
 			<button
-				class="bg-primary hover:bg-primary/90 cursor-pointer rounded-lg px-6 py-2 font-medium text-white transition-colors"
+				class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center rounded-lg px-6 py-2 font-medium text-primary-foreground transition-colors"
 				onclick={openAddTripModal}
 			>
 				<Plus class="mr-2 inline h-4 w-4" />
@@ -1809,9 +1806,7 @@
 					<!-- Trip Details and Footer -->
 					<div class="flex min-h-0 flex-1 flex-col p-4">
 						<div class="mb-2 flex flex-wrap items-start justify-between gap-2">
-							<h3
-								class="line-clamp-2 flex-1 text-lg font-semibold text-foreground"
-							>
+							<h3 class="line-clamp-2 flex-1 text-lg font-semibold text-foreground">
 								{trip.title}
 							</h3>
 							<!-- Trip type badges -->
@@ -1912,9 +1907,7 @@
 							{/if}
 						</div>
 						<!-- Footer: always at the bottom -->
-						<div
-							class="mt-auto flex items-center justify-between border-t pt-3 border-border"
-						>
+						<div class="mt-auto flex items-center justify-between border-t pt-3 border-border">
 							<span class="text-xs text-muted-foreground">
 								{t('trips.updated')}
 								{getRelativeTime(trip.updated_at)}
@@ -1987,9 +1980,7 @@
 				{#if isLoadingSuggestedTrips && suggestedTrips.length === 0}
 					<div class="flex items-center justify-center py-12">
 						<Loader2 class="text-primary dark:text-primary h-8 w-8 animate-spin" />
-						<span class="ml-2 text-muted-foreground"
-							>{t('trips.loadingSuggestedTrips')}</span
-						>
+						<span class="ml-2 text-muted-foreground">{t('trips.loadingSuggestedTrips')}</span>
 					</div>
 				{:else if suggestedTrips.length === 0}
 					<div class="py-12 text-center">
@@ -2070,9 +2061,7 @@
 											<p class="mb-2 text-sm text-muted-foreground">
 												{trip.description}
 											</p>
-											<div
-												class="mb-3 flex items-center gap-4 text-xs text-muted-foreground"
-											>
+											<div class="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
 												<span
 													>{t('trips.start')}: {format(
 														new Date(trip.start_date),
@@ -2092,9 +2081,7 @@
 												)}
 												{#if significantCities.length > 0}
 													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-														<div
-															class="mb-1 text-xs font-semibold text-muted-foreground"
-														>
+														<div class="mb-1 text-xs font-semibold text-muted-foreground">
 															{t('trips.visitedCities')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
@@ -2118,9 +2105,7 @@
 												)}
 												{#if validCountries.length > 1}
 													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
-														<div
-															class="mb-1 text-xs font-semibold text-muted-foreground"
-														>
+														<div class="mb-1 text-xs font-semibold text-muted-foreground">
 															{t('trips.visitedCountries')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
@@ -2149,9 +2134,7 @@
 								<div
 									class="border-primary h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
 								></div>
-								<span class="ml-3 text-sm text-muted-foreground"
-									>Loading more trips...</span
-								>
+								<span class="ml-3 text-sm text-muted-foreground">Loading more trips...</span>
 							</div>
 						{/if}
 
@@ -2242,10 +2225,7 @@
 			}}
 			tabindex="-1"
 		>
-			<div
-				class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card"
-				role="document"
-			>
+			<div class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card" role="document">
 				<h2 id="delete-modal-title" class="mb-4 text-xl font-bold text-foreground">
 					{t('trips.deleteTrip')}
 				</h2>
@@ -2274,14 +2254,8 @@
 			aria-modal="true"
 			aria-labelledby="progress-modal-title"
 		>
-			<div
-				class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card"
-				role="document"
-			>
-				<h2
-					id="progress-modal-title"
-					class="mb-4 text-xl font-bold text-foreground"
-				>
+			<div class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card" role="document">
+				<h2 id="progress-modal-title" class="mb-4 text-xl font-bold text-foreground">
 					{t('trips.approvingTrips')}
 				</h2>
 
@@ -2294,9 +2268,7 @@
 								total: approvalProgress.totalSteps
 							})}</span
 						>
-						<span class="text-sm text-muted-foreground"
-							>{approvalProgress.progress}%</span
-						>
+						<span class="text-sm text-muted-foreground">{approvalProgress.progress}%</span>
 					</div>
 
 					<!-- Progress Bar -->

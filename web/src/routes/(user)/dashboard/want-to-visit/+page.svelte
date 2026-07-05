@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { Skeleton } from '$lib/components/ui';
 
 	import type { Map as LeafletMap } from 'leaflet';
 
@@ -992,9 +993,7 @@
 	</div>
 
 	<!-- Map -->
-	<div
-		class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border"
-	>
+	<div class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border">
 		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
 
 		<!-- Map Instructions -->
@@ -1066,9 +1065,7 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label
-							for="titleInput"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="titleInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
@@ -1083,10 +1080,7 @@
 
 					<!-- Search Input -->
 					<div>
-						<label
-							for="searchPlace"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
-						>
+						<label for="searchPlace" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('wantToVisit.searchForPlace')}
 						</label>
 						<div class="relative">
@@ -1167,9 +1161,7 @@
 
 					<!-- Address Display -->
 					<div>
-						<label
-							for="addressDisplay"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="addressDisplay" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.address')}</label
 						>
 						<div
@@ -1235,9 +1227,7 @@
 
 					<!-- Custom Labels -->
 					<div>
-						<label
-							for="labelInput"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="labelInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
@@ -1371,9 +1361,7 @@
 				<div class="space-y-4">
 					<!-- Title Input (required) -->
 					<div>
-						<label
-							for="titleInput"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="titleInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
@@ -1420,9 +1408,7 @@
 
 					<!-- Address Display -->
 					<div>
-						<label
-							for="addressDisplay"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="addressDisplay" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.address')}</label
 						>
 						<input
@@ -1480,9 +1466,7 @@
 
 					<!-- Custom Labels -->
 					<div>
-						<label
-							for="labelInput"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="labelInput" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
@@ -1641,13 +1625,18 @@
 
 	<!-- Places List -->
 	{#if isLoading}
-		<div class="py-12 text-center">
-			<div class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-			<p class="mt-4 text-muted-foreground">{t('wantToVisit.loadingPlaces')}</p>
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+			{#each Array(6) as _, i (i)}
+				<div class="bg-card border-border rounded-xl border p-6">
+					<Skeleton class="h-4 w-3/4" />
+					<Skeleton class="mt-3 h-3 w-1/2" />
+					<Skeleton class="mt-6 h-20 w-full" />
+				</div>
+			{/each}
 		</div>
 	{:else if filteredPlaces.length === 0}
 		<div class="py-12 text-center">
-			<Globe2 class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+			<Globe2 class="text-muted-foreground mx-auto mb-4 h-12 w-12" />
 			<h3 class="mb-2 text-lg font-medium text-foreground">
 				{t('wantToVisit.noPlacesFound')}
 			</h3>
