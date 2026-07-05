@@ -43,31 +43,10 @@ export function setTheme(newTheme: 'light' | 'dark') {
 
 export function initializeTheme() {
 	if (typeof document === 'undefined') return;
-
-	// Check localStorage first
-	const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
-
-	if (savedTheme) {
-		// Apply the saved theme
-		if (savedTheme === 'dark') {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-		}
-		state.theme = savedTheme;
-	} else {
-		// Check system preference
-		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		const systemTheme = prefersDark ? 'dark' : 'light';
-
-		// Apply the system theme
-		if (systemTheme === 'dark') {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-		}
-		state.theme = systemTheme;
-	}
+	// The `.dark` class is applied before first paint by the inline script in
+	// app.html (so there's no FOUC). Here we just mirror it into the reactive
+	// store so the toggle UI stays in sync.
+	state.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 }
 
 // Navigation functions
