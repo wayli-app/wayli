@@ -69,7 +69,7 @@
 
 <div class="space-y-4">
 	<div class="relative">
-		<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+		<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 		<input
 			type="text"
 			bind:value={searchQuery}
@@ -208,9 +208,9 @@
 								{/each}
 							</div>
 						</td>
-						<td class="px-6 py-4 text-sm text-gray-500">{trip.distance}</td>
-						<td class="px-6 py-4 text-sm text-gray-500">{trip.startDate}</td>
-						<td class="px-6 py-4 text-sm text-gray-500">{trip.duration}</td>
+						<td class="px-6 py-4 text-sm text-muted-foreground">{trip.distance}</td>
+						<td class="px-6 py-4 text-sm text-muted-foreground">{trip.startDate}</td>
+						<td class="px-6 py-4 text-sm text-muted-foreground">{trip.duration}</td>
 						<td class="px-6 py-4">
 							<div class="flex gap-1">
 								{#each trip.countries as country (country)}
@@ -225,25 +225,25 @@
 						<td class="px-6 py-4">
 							<div class="flex justify-end gap-2">
 								<button class="cursor-pointer rounded p-1 hover:bg-gray-100" aria-label="Edit">
-									<Edit class="h-4 w-4 text-gray-500" />
+									<Edit class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
 									class="cursor-pointer rounded p-1 hover:bg-gray-100"
 									aria-label="View points of interest"
 								>
-									<MapPin class="h-4 w-4 text-gray-500" />
+									<MapPin class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
 									class="cursor-pointer rounded p-1 hover:bg-gray-100"
 									aria-label="View statistics"
 								>
-									<BarChart2 class="h-4 w-4 text-gray-500" />
+									<BarChart2 class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
 									class="cursor-pointer rounded p-1 hover:bg-gray-100"
 									aria-label="View on map"
 								>
-									<Map class="h-4 w-4 text-gray-500" />
+									<Map class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
 									class="cursor-pointer rounded p-1 text-red-500 hover:bg-gray-100 hover:text-red-600"

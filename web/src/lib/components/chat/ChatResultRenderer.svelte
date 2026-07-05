@@ -214,7 +214,7 @@
 		<button
 			type="button"
 			onclick={() => (isTableCollapsed = !isTableCollapsed)}
-			class="flex w-full items-center gap-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+			class="flex w-full items-center gap-2 text-xs text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
 		>
 			{#if isTableCollapsed}
 				<ChevronRight class="h-3.5 w-3.5 shrink-0" />
@@ -229,7 +229,7 @@
 					Query Results
 				{/if}
 			</span>
-			<span class="text-gray-400">
+			<span class="text-muted-foreground">
 				{queryResult.rowCount} row{queryResult.rowCount !== 1 ? 's' : ''}
 			</span>
 		</button>

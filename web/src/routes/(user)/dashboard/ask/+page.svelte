@@ -450,7 +450,7 @@
 			case 'sql':
 				return 'text-orange-500';
 			default:
-				return 'text-gray-500';
+				return 'text-muted-foreground';
 		}
 	}
 
@@ -769,7 +769,7 @@
 			{#if isCheckingConfig}
 				<!-- Loading configuration -->
 				<div class="flex h-full flex-col items-center justify-center p-6">
-					<Loader2 class="mb-4 h-12 w-12 animate-spin text-gray-400" />
+					<Loader2 class="mb-4 h-12 w-12 animate-spin text-muted-foreground" />
 					<p class="text-sm text-muted-foreground">
 						{t('ask.connectingToChat')}
 					</p>
@@ -791,15 +791,15 @@
 						</p>
 						<ul class="mb-6 text-left text-sm text-muted-foreground">
 							<li class="flex items-start gap-2 py-1">
-								<span class="text-gray-400">•</span>
+								<span class="text-muted-foreground">•</span>
 								<span>{t('ask.notConfiguredReasons.disabled')}</span>
 							</li>
 							<li class="flex items-start gap-2 py-1">
-								<span class="text-gray-400">•</span>
+								<span class="text-muted-foreground">•</span>
 								<span>{t('ask.notConfiguredReasons.notSynced')}</span>
 							</li>
 							<li class="flex items-start gap-2 py-1">
-								<span class="text-gray-400">•</span>
+								<span class="text-muted-foreground">•</span>
 								<span>{t('ask.notConfiguredReasons.configError')}</span>
 							</li>
 						</ul>
@@ -833,7 +833,7 @@
 			{:else if messages.length === 0 && !isLoading}
 				<!-- Empty State with Suggestions -->
 				<div class="flex h-full flex-col items-center justify-center p-6">
-					<Bot class="mb-4 h-12 w-12 text-gray-400" />
+					<Bot class="mb-4 h-12 w-12 text-muted-foreground" />
 					<h3 class="mb-2 text-lg font-medium text-muted-foreground">
 						{t('ask.startConversation')}
 					</h3>
@@ -933,7 +933,7 @@
 									<button
 										type="button"
 										onclick={() => (streamingDetailsExpanded = !streamingDetailsExpanded)}
-										class="mt-1 flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+										class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
 									>
 										{#if streamingDetailsExpanded}
 											<ChevronDown class="h-3.5 w-3.5 flex-shrink-0" />
@@ -963,7 +963,7 @@
 													<span class="text-muted-foreground">
 														{getQueriedTable(queryResult.query)}
 													</span>
-													<span class="text-gray-400">
+													<span class="text-muted-foreground">
 														{queryResult.rowCount} rows
 													</span>
 												</div>
@@ -1071,7 +1071,7 @@
 
 			<!-- Connection Status -->
 			{#if !isConnected && !configurationError && !isCheckingConfig}
-				<div class="mt-2 flex items-center justify-center gap-2 text-sm text-gray-500">
+				<div class="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
 					<Loader2 class="h-4 w-4 animate-spin" />
 					{t('ask.connectingToChat')}
 				</div>
@@ -1108,7 +1108,7 @@
 				</h3>
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 					aria-label="Close modal"
 				>
 					<X class="h-5 w-5" />
@@ -1120,7 +1120,7 @@
 				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
 			>
 				{#if selectedMessageLogs.length === 0}
-					<div class="flex h-full items-center justify-center text-gray-500">
+					<div class="flex h-full items-center justify-center text-muted-foreground">
 						{t('ask.noLogsAvailable')}
 					</div>
 				{:else}

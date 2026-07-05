@@ -126,7 +126,7 @@
 	<!-- Search -->
 	<div class="flex-shrink-0 border-b p-3 border-border">
 		<div class="relative">
-			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 			<input
 				type="text"
 				placeholder="Search conversations..."
@@ -141,7 +141,7 @@
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		{#if isLoading}
 			<div class="flex h-32 items-center justify-center">
-				<Loader2 class="h-6 w-6 animate-spin text-gray-400" />
+				<Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
 			</div>
 		{:else if filteredConversations.length === 0}
 			<div class="flex h-32 flex-col items-center justify-center p-4 text-center">
@@ -155,7 +155,7 @@
 			{#if groupedConversations.today.length > 0}
 				<div class="px-3 pt-3">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						Today
 					</h3>
@@ -185,14 +185,14 @@
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -205,7 +205,7 @@
 			{#if groupedConversations.yesterday.length > 0}
 				<div class="px-3 pt-4">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						Yesterday
 					</h3>
@@ -235,14 +235,14 @@
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -255,7 +255,7 @@
 			{#if groupedConversations.thisWeek.length > 0}
 				<div class="px-3 pt-4">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						This Week
 					</h3>
@@ -285,14 +285,14 @@
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -305,7 +305,7 @@
 			{#if groupedConversations.older.length > 0}
 				<div class="px-3 pt-4">
 					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase dark:text-gray-500"
+						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase dark:text-gray-500"
 					>
 						Older
 					</h3>
@@ -335,14 +335,14 @@
 									{conv.preview}
 								</p>
 							{/if}
-							<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+							<p class="mt-1 text-xs text-muted-foreground dark:text-gray-500">
 								{formatTime(conv.updated_at)}
 							</p>
 						</div>
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -355,7 +355,7 @@
 			{#if hasMore}
 				<div bind:this={sentinelEl} class="flex items-center justify-center py-4">
 					{#if isLoadingMore}
-						<Loader2 class="h-5 w-5 animate-spin text-gray-400" />
+						<Loader2 class="h-5 w-5 animate-spin text-muted-foreground" />
 					{/if}
 				</div>
 			{:else}

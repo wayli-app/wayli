@@ -1261,7 +1261,7 @@
 				</div>
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -1278,7 +1278,7 @@
 							>First Name *</label
 						>
 						<div class="relative">
-							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="text"
 								id="newUserFirstName"
@@ -1297,7 +1297,7 @@
 							>Last Name *</label
 						>
 						<div class="relative">
-							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="text"
 								id="newUserLastName"
@@ -1317,7 +1317,7 @@
 						>Email Address *</label
 					>
 					<div class="relative">
-						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 						<input
 							type="email"
 							id="newUserEmail"
@@ -1337,7 +1337,7 @@
 							>Password *</label
 						>
 						<div class="relative">
-							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="password"
 								id="newUserPassword"
@@ -1356,7 +1356,7 @@
 							>Confirm Password *</label
 						>
 						<div class="relative">
-							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="password"
 								id="newUserConfirmPassword"
@@ -1486,7 +1486,7 @@
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
 						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1497,7 +1497,7 @@
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
 						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1526,7 +1526,7 @@
 				<div class="mb-6 flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<div class="relative">
-							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="text"
 								bind:value={searchQuery}
@@ -1561,7 +1561,7 @@
 				>
 					{#if users.length === 0}
 						<div class="py-8 text-center">
-							<UserIcon class="mx-auto h-12 w-12 text-gray-400" />
+							<UserIcon class="mx-auto h-12 w-12 text-muted-foreground" />
 							<h3 class="mt-2 text-sm font-medium text-foreground">
 								No users found
 							</h3>
@@ -1577,25 +1577,25 @@
 								<tr>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										User
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										Role
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										Created
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
 									>
 										Status
 									</th>
@@ -1641,21 +1641,21 @@
 										<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 											<div class="flex items-center justify-end gap-2">
 												<button
-													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
 													onclick={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-amber-50 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
 													onclick={() => handleClearUserPlaceVisits(user)}
 													title={t('serverAdmin.clearUserPlaceVisits')}
 												>
 													<RotateCcw class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 													onclick={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
@@ -1687,7 +1687,7 @@
 										<button
 											onclick={goToPreviousPage}
 											disabled={!pagination.hasPrev}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
 											<span class="sr-only">Previous</span>
 											<ChevronLeft class="h-5 w-5" />
@@ -1700,7 +1700,7 @@
 												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
 												currentPage
 													? 'bg-primary text-white'
-													: 'text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
+													: 'text-muted-foreground hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
 											>
 												{pageNum}
 											</button>
@@ -1710,7 +1710,7 @@
 										<button
 											onclick={goToNextPage}
 											disabled={!pagination.hasNext}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
 										>
 											<span class="sr-only">Next</span>
 											<ChevronRight class="h-5 w-5" />
@@ -2153,7 +2153,7 @@
 						<!-- Configured Providers List -->
 						{#if isLoadingOAuth}
 							<div class="flex items-center justify-center py-8">
-								<RefreshCw class="h-5 w-5 animate-spin text-gray-400" />
+								<RefreshCw class="h-5 w-5 animate-spin text-muted-foreground" />
 							</div>
 						{:else if oauthProviders.length > 0}
 							<div class="space-y-2">
@@ -2186,14 +2186,14 @@
 											/>
 											<button
 												onclick={() => editOAuthProvider(provider)}
-												class="rounded p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 												title={t('serverAdmin.edit')}
 											>
 												<Edit class="h-4 w-4" />
 											</button>
 											<button
 												onclick={() => deleteOAuthProvider(provider.id)}
-												class="rounded p-1.5 text-gray-500 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+												class="rounded p-1.5 text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
 												title={t('serverAdmin.delete')}
 											>
 												<Trash2 class="h-4 w-4" />
@@ -2754,7 +2754,7 @@
 								<!-- Connector -->
 								<div class="flex flex-col items-center py-1">
 									<div class="h-4 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
-									<ChevronDown class="h-4 w-4 text-gray-400" />
+									<ChevronDown class="h-4 w-4 text-muted-foreground" />
 								</div>
 
 								<!-- Step 2: Sync Place Visits -->
@@ -3024,7 +3024,7 @@
 {:else}
 	<div class="flex h-64 items-center justify-center">
 		<div class="text-center">
-			<Settings class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+			<Settings class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
 			<h2 class="mb-2 text-xl font-semibold text-foreground">Access Denied</h2>
 			<p class="text-muted-foreground">You don't have permission to access this page.</p>
 		</div>

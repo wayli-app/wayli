@@ -568,7 +568,7 @@
 							</label>
 							<div class="relative">
 								<User
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 								/>
 								<input
 									id="firstName"
@@ -610,7 +610,7 @@
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="email"
@@ -631,7 +631,7 @@
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="password"
@@ -646,7 +646,7 @@
 								type="button"
 								onclick={togglePassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -756,7 +756,7 @@
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 							/>
 							<input
 								id="confirmPassword"
@@ -774,7 +774,7 @@
 								type="button"
 								onclick={toggleConfirmPassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -811,7 +811,7 @@
 							<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="px-2 text-gray-500 dark:text-gray-400 bg-card">
+							<span class="px-2 text-muted-foreground dark:text-gray-400 bg-card">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>

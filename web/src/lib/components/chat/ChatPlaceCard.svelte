@@ -96,7 +96,7 @@
 
 		<!-- Location and time info -->
 		<div
-			class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-400 dark:text-gray-500"
+			class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground dark:text-gray-500"
 		>
 			{#if place.city || place.country}
 				<span class="flex items-center gap-1">

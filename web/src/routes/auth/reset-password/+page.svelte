@@ -153,7 +153,7 @@
 							</label>
 							<div class="relative">
 								<Lock
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 								/>
 								<input
 									id="password"
@@ -166,7 +166,7 @@
 								<button
 									type="button"
 									onclick={togglePassword}
-									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 dark:hover:text-gray-300"
 								>
 									{#if showPassword}
 										<EyeOff class="h-5 w-5" />
@@ -190,7 +190,7 @@
 							</label>
 							<div class="relative">
 								<Lock
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400"
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
 								/>
 								<input
 									id="confirmPassword"
@@ -203,7 +203,7 @@
 								<button
 									type="button"
 									onclick={toggleConfirmPassword}
-									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 dark:hover:text-gray-300"
 								>
 									{#if showConfirmPassword}
 										<EyeOff class="h-5 w-5" />

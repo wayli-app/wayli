@@ -186,7 +186,7 @@
 		<button
 			type="button"
 			aria-label="Clear address"
-			class="absolute top-2 right-2 rounded p-1 text-gray-500 hover:bg-gray-200 focus:ring-2 focus:ring-primary focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
+			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-gray-200 focus:ring-2 focus:ring-primary focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
 			onclick={clearAddress}
 		>
 			✕

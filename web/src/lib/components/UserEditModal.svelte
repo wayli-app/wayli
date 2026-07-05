@@ -96,7 +96,7 @@
 				</div>
 				<button
 					onclick={closeModal}
-					class="rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -129,7 +129,7 @@
 								>First Name</label
 							>
 							<div class="relative">
-								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 								<input
 									type="text"
 									id="firstName"
@@ -147,7 +147,7 @@
 								>Last Name</label
 							>
 							<div class="relative">
-								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 								<input
 									type="text"
 									id="lastName"
@@ -166,7 +166,7 @@
 							>Email Address</label
 						>
 						<div class="relative">
-							<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+							<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
 							<input
 								type="email"
 								id="email"

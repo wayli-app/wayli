@@ -74,7 +74,7 @@
 					{#if showCloseButton}
 						<button
 							type="button"
-							class="absolute top-4 right-4 cursor-pointer p-1 text-gray-400 transition-colors hover:text-red-500"
+							class="absolute top-4 right-4 cursor-pointer p-1 text-muted-foreground transition-colors hover:text-red-500"
 							onclick={closeModal}
 							onkeydown={(e) => {
 								if (e.key === 'Enter') closeModal();

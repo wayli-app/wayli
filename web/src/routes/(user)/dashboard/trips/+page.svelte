@@ -1365,7 +1365,7 @@
 	<!-- Search and Filters -->
 	<div class="flex flex-col gap-4 md:flex-row">
 		<div class="relative flex-1">
-			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
 			<input
 				type="text"
 				placeholder={t('trips.searchTrips')}
@@ -1416,7 +1416,7 @@
 			>
 				<div class="p-8">
 					<button
-						class="absolute top-4 right-4 cursor-pointer text-gray-400 transition-colors hover:text-red-500"
+						class="absolute top-4 right-4 cursor-pointer text-muted-foreground transition-colors hover:text-red-500"
 						onclick={closeTripModal}
 						aria-label={t('common.actions.close')}>&times;</button
 					>
@@ -1571,7 +1571,7 @@
 								type="file"
 								accept="image/*"
 								onchange={handleImageChange}
-								class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold"
+								class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full text-sm text-muted-foreground file:mr-4 file:rounded-lg file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold"
 								disabled={isUploadingImage}
 							/>
 
@@ -1730,21 +1730,21 @@
 					<!-- Action Buttons -->
 					<div class="absolute top-3 right-3 z-10 flex gap-2">
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
+							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
 							onclick={() => refreshTripMetadata(trip)}
 							aria-label="Refresh trip metadata"
 						>
 							<RefreshCw class="h-5 w-5" />
 						</button>
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
+							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
 							onclick={() => openEditTripModal(trip)}
 							aria-label="Edit trip"
 						>
 							<Edit class="h-5 w-5" />
 						</button>
 						<button
-							class="cursor-pointer rounded-full bg-gray-100 p-2 text-gray-400 transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-gray-700 dark:hover:bg-red-900/30"
+							class="cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-gray-700 dark:hover:bg-red-900/30"
 							onclick={() => confirmDeleteTrip(trip)}
 							aria-label="Delete trip"
 						>
@@ -1779,7 +1779,7 @@
 						{:else}
 							<div class="flex h-full w-full items-center justify-center">
 								<div class="text-center">
-									<Route class="mx-auto h-12 w-12 text-gray-400" />
+									<Route class="mx-auto h-12 w-12 text-muted-foreground" />
 									<p class="mt-2 text-sm text-muted-foreground">
 										{t('trips.noImageAvailable')}
 									</p>
@@ -1984,7 +1984,7 @@
 					</div>
 				{:else if suggestedTrips.length === 0}
 					<div class="py-12 text-center">
-						<Route class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+						<Route class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
 						<h3 class="mb-2 text-lg font-medium text-foreground">
 							{t('trips.noSuggestedTrips')}
 						</h3>

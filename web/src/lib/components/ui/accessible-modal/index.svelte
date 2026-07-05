@@ -142,7 +142,7 @@
 					{/if}
 					{#if showCloseButton}
 						<button
-							class="absolute top-4 right-4 cursor-pointer rounded-md p-2 text-gray-400 transition-colors hover:text-red-500 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+							class="absolute top-4 right-4 cursor-pointer rounded-md p-2 text-muted-foreground transition-colors hover:text-red-500 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:outline-none"
 							onclick={() => {
 								if (onClose) {
 									onClose();

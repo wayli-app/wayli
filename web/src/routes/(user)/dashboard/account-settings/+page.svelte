@@ -1075,7 +1075,7 @@
 					role="group"
 					aria-labelledby="preferred-language-label"
 				>
-					<User class="h-5 w-5 text-gray-400" />
+					<User class="h-5 w-5 text-muted-foreground" />
 					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.profile')}
 					</h2>
@@ -1098,7 +1098,7 @@
 						type="email"
 						value={profile?.email}
 						disabled
-						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
+						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-muted-foreground placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
 					/>
 					<p class="mt-1 text-xs text-muted-foreground">
 						{t('accountSettings.emailCannotChange')}
@@ -1170,7 +1170,7 @@
 							{/each}
 							{#if homeAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
 								>
 									{homeAddressSearchError}
 								</div>
@@ -1181,7 +1181,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
 							>
 								{homeAddressSearchError}
 							</div>
@@ -1207,7 +1207,7 @@
 						<button
 							type="button"
 							onclick={handleSkipHomeAddressField}
-							class="mt-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+							class="mt-2 text-sm text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
 						>
 							{t('accountSettings.skipThisField')}
 						</button>
@@ -1264,7 +1264,7 @@
 		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Lock class="h-5 w-5 text-gray-400" />
+					<Lock class="h-5 w-5 text-muted-foreground" />
 					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.security')}
 					</h2>
@@ -1335,7 +1335,7 @@
 		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Shield class="h-5 w-5 text-gray-400" />
+					<Shield class="h-5 w-5 text-muted-foreground" />
 					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.twoFactorAuthentication')}
 					</h2>
@@ -1367,7 +1367,7 @@
 								<Shield
 									class="h-5 w-5 {twoFactorEnabled
 										? 'text-green-600 dark:text-green-400'
-										: 'text-gray-400'}"
+										: 'text-muted-foreground'}"
 								/>
 							</div>
 							<div>
@@ -1415,7 +1415,7 @@
 		<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Globe class="h-5 w-5 text-gray-400" />
+					<Globe class="h-5 w-5 text-muted-foreground" />
 					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.preferences')}
 					</h2>
@@ -1461,7 +1461,7 @@
 		<div class="mt-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<MapPin class="h-5 w-5 text-gray-400" />
+					<MapPin class="h-5 w-5 text-muted-foreground" />
 					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.trips')}
 					</h2>
@@ -1474,7 +1474,7 @@
 			<!-- Pexels API Key Section -->
 			<div class="mb-8">
 				<div class="mb-4 flex items-center gap-2">
-					<Image class="h-5 w-5 text-gray-400" />
+					<Image class="h-5 w-5 text-muted-foreground" />
 					<h3 class="text-lg font-semibold text-foreground">
 						{t('accountSettings.tripImageSuggestionsTitle')}
 					</h3>
@@ -1623,7 +1623,7 @@
 			<!-- Excluded Zones Section -->
 			<div>
 				<div class="mb-4 flex items-center gap-2">
-					<MapPin class="h-5 w-5 text-gray-400" />
+					<MapPin class="h-5 w-5 text-muted-foreground" />
 					<h3 class="text-lg font-semibold text-foreground">
 						{t('accountSettings.excludedZones')}
 					</h3>
@@ -1631,7 +1631,7 @@
 				<p class="mb-4 text-sm text-muted-foreground">
 					{t('accountSettings.excludedZonesDescription')}
 				</p>
-				<p class="mb-4 text-xs text-gray-500 dark:text-gray-500">
+				<p class="mb-4 text-xs text-muted-foreground dark:text-gray-500">
 					{t('accountSettings.excludedZonesHelp')}
 				</p>
 			</div>
@@ -1664,7 +1664,7 @@
 										{exclusion.location.display_name}
 									</div>
 									{#if exclusion.location.coordinates}
-										<div class="text-xs text-gray-500 dark:text-gray-500">
+										<div class="text-xs text-muted-foreground dark:text-gray-500">
 											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(
 												6
 											)}
@@ -1820,7 +1820,7 @@
 							{/each}
 							{#if exclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
 								>
 									{exclusionAddressSearchError}
 								</div>
@@ -1831,7 +1831,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
 							>
 								{exclusionAddressSearchError}
 							</div>
@@ -1964,7 +1964,7 @@
 							{/each}
 							{#if editExclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
 								>
 									{editExclusionAddressSearchError}
 								</div>
@@ -1975,7 +1975,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
 							>
 								{editExclusionAddressSearchError}
 							</div>

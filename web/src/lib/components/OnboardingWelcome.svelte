@@ -173,7 +173,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 				aria-label={t('common.close')}
 			>
 				<X class="h-5 w-5" />
@@ -206,7 +206,7 @@
 					<p class="mb-8 text-lg text-muted-foreground">
 						{t('onboarding.welcomeMessage')}
 					</p>
-					<p class="mb-6 text-sm text-gray-500 dark:text-gray-500">
+					<p class="mb-6 text-sm text-muted-foreground dark:text-gray-500">
 						{t('onboarding.stepProgress', { current: 1, total: 3 })}
 					</p>
 					<button
@@ -232,7 +232,7 @@
 						<p class="mb-2 text-muted-foreground">
 							{t('onboarding.homeLocationHelp')}
 						</p>
-						<p class="mb-6 text-sm text-gray-500 dark:text-gray-500">
+						<p class="mb-6 text-sm text-muted-foreground dark:text-gray-500">
 							{t('onboarding.homeLocationOptional')}
 						</p>
 					</div>
@@ -301,13 +301,13 @@
 							</div>
 						{/if}
 
-						<p class="mt-2 text-xs text-gray-500 dark:text-gray-500">
+						<p class="mt-2 text-xs text-muted-foreground dark:text-gray-500">
 							{t('onboarding.homeLocationTip')}
 						</p>
 					</div>
 
 					<!-- Action Buttons -->
-					<p class="mb-4 text-center text-sm text-gray-500 dark:text-gray-500">
+					<p class="mb-4 text-center text-sm text-muted-foreground dark:text-gray-500">
 						{t('onboarding.stepProgress', { current: 2, total: 3 })}
 					</p>
 					<div class="flex gap-4">
@@ -441,7 +441,7 @@
 					</div>
 
 					<!-- Action Button -->
-					<p class="mb-4 text-center text-sm text-gray-500 dark:text-gray-500">
+					<p class="mb-4 text-center text-sm text-muted-foreground dark:text-gray-500">
 						{t('onboarding.stepProgress', { current: 3, total: 3 })}
 					</p>
 					<button

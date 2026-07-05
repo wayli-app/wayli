@@ -481,7 +481,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleCancelJob(job, e)}
-				class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-red-500 dark:hover:bg-gray-600 dark:hover:text-red-400"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 hover:text-red-500 dark:hover:bg-gray-600 dark:hover:text-red-400"
 				title={t('jobProgress.cancelJob')}
 				aria-label={t('jobProgress.cancelJob')}
 			>
@@ -491,7 +491,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleDownloadExport(job, e)}
-				class="hover:text-primary flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+				class="hover:text-primary flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-300"
 				title={t('jobProgress.downloadExport')}
 				aria-label={t('jobProgress.downloadExport')}
 			>
@@ -501,7 +501,7 @@
 			<button
 				type="button"
 				onclick={(e) => dismissJob(job.id, e)}
-				class="flex-shrink-0 rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
 				title={t('jobProgress.dismiss')}
 				aria-label={t('jobProgress.dismiss')}
 			>

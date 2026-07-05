@@ -187,7 +187,7 @@
 				<button
 					onclick={handleDismiss}
 					disabled={isDismissing}
-					class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+					class="text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
 					aria-label={t('common.actions.close')}
 				>
 					<X class="h-5 w-5" />

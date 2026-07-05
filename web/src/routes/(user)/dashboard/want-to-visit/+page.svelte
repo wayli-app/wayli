@@ -597,7 +597,7 @@
 		return `
 			<div class="p-2">
 				<h3 class="font-semibold text-sm">${place.title}</h3>
-				<p class="text-xs text-gray-500 mt-1">${place.address}</p>
+				<p class="text-xs text-muted-foreground mt-1">${place.address}</p>
 				${place.description ? `<p class="text-xs text-gray-700 mt-2 italic">"${place.description}"</p>` : ''}
 			</div>
 		`;
@@ -1055,7 +1055,7 @@
 								tempMarker = null;
 							}
 						}}
-						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1085,7 +1085,7 @@
 						</label>
 						<div class="relative">
 							<div class="pointer-events-none absolute top-1/2 left-3 z-10 -translate-y-1/2">
-								<Search class="h-4 w-4 text-gray-400" />
+								<Search class="h-4 w-4 text-muted-foreground" />
 							</div>
 							<input
 								type="text"
@@ -1169,7 +1169,7 @@
 							class="flex min-h-[2.5rem] w-full items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
 						>
 							{#if isReverseGeocoding}
-								<div class="flex items-center gap-2 text-gray-500">
+								<div class="flex items-center gap-2 text-muted-foreground">
 									<div
 										class="h-3 w-3 animate-spin rounded-full border border-gray-400 border-t-transparent"
 									></div>
@@ -1351,7 +1351,7 @@
 							showEditForm = false;
 							resetForm();
 						}}
-						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1592,7 +1592,7 @@
 			<!-- Search -->
 			<div class="relative w-full lg:w-64">
 				<Search
-					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+					class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
 				/>
 				<input
 					type="text"
@@ -1655,7 +1655,7 @@
 					<!-- Favorite Button -->
 					<button
 						onclick={() => toggleFavorite(place)}
-						class="absolute top-4 right-4 rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+						class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 					>
 						<Heart class="h-5 w-5 {place.favorite ? 'fill-red-500 text-red-500' : ''}" />
 					</button>
@@ -1719,13 +1719,13 @@
 						</button>
 						<button
 							onclick={() => editPlace(place)}
-							class="hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/20 rounded-lg p-2 text-gray-400 transition-colors"
+							class="hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/20 rounded-lg p-2 text-muted-foreground transition-colors"
 						>
 							<Edit class="h-4 w-4" />
 						</button>
 						<button
 							onclick={() => deletePlace(place.id)}
-							class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+							class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
 						>
 							<Trash2 class="h-4 w-4" />
 						</button>

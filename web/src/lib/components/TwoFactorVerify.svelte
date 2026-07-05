@@ -98,7 +98,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />

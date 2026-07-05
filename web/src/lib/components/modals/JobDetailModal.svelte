@@ -210,7 +210,7 @@
 
 	// Log level colors
 	const logLevelColors: Record<LogLevel, string> = {
-		debug: 'text-gray-500',
+		debug: 'text-muted-foreground',
 		info: 'text-primary dark:text-primary',
 		warn: 'text-yellow-600',
 		error: 'text-red-600'
@@ -457,7 +457,7 @@
 				</div>
 				<button
 					type="button"
-					class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 					onclick={handleClose}
 					aria-label="Close modal"
 				>
@@ -498,7 +498,7 @@
 						<p class="text-sm text-muted-foreground">Determining ETA...</p>
 					{/if}
 					{#if displayJob.progress_message}
-						<p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
+						<p class="mt-1 text-sm text-muted-foreground dark:text-gray-500">
 							{displayJob.progress_message}
 						</p>
 					{/if}
@@ -568,9 +568,9 @@
 					style="height: 256px; min-height: 256px; max-height: 256px;"
 				>
 					{#if isLoadingLogs}
-						<div class="flex h-full items-center justify-center text-gray-500">Loading logs...</div>
+						<div class="flex h-full items-center justify-center text-muted-foreground">Loading logs...</div>
 					{:else if groupedLogs.length === 0}
-						<div class="flex h-full items-center justify-center text-gray-500">
+						<div class="flex h-full items-center justify-center text-muted-foreground">
 							No logs available
 						</div>
 					{:else}

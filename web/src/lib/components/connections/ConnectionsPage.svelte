@@ -150,7 +150,7 @@
 		<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Database class="h-5 w-5 text-gray-400" />
+					<Database class="h-5 w-5 text-muted-foreground" />
 					<h2 class="text-xl font-semibold text-foreground">
 						{t('connections.owntracksIntegration')}
 					</h2>
@@ -271,7 +271,7 @@
 				<button
 					type="button"
 					onclick={closeApiKeyModal}
-					class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-md p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				>
 					<X class="h-5 w-5" />
 				</button>

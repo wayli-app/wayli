@@ -173,7 +173,7 @@
 			>
 				<span class="truncate">{trip.title || 'Untitled Trip'}</span>
 				<ExternalLink
-					class="group-hover:text-primary dark:group-hover:text-primary h-3 w-3 flex-shrink-0 text-gray-400"
+					class="group-hover:text-primary dark:group-hover:text-primary h-3 w-3 flex-shrink-0 text-muted-foreground"
 				/>
 			</h4>
 
@@ -184,13 +184,13 @@
 					{dateRange}
 				</span>
 				{#if duration}
-					<span class="text-gray-400 dark:text-gray-500">({duration})</span>
+					<span class="text-muted-foreground dark:text-gray-500">({duration})</span>
 				{/if}
 			</div>
 
 			<!-- Cities -->
 			{#if cities && !compact}
-				<div class="mt-1 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground dark:text-gray-500">
 					<MapPin class="h-3 w-3" />
 					<span class="truncate">{cities}</span>
 				</div>
@@ -259,13 +259,13 @@
 					{dateRange}
 				</span>
 				{#if duration}
-					<span class="text-gray-400 dark:text-gray-500">({duration})</span>
+					<span class="text-muted-foreground dark:text-gray-500">({duration})</span>
 				{/if}
 			</div>
 
 			<!-- Cities -->
 			{#if cities && !compact}
-				<div class="mt-1 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground dark:text-gray-500">
 					<MapPin class="h-3 w-3" />
 					<span class="truncate">{cities}</span>
 				</div>

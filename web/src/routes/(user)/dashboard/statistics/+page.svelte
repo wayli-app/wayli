@@ -686,7 +686,7 @@
 			homeCircle.bindPopup(`
 				<div class="text-sm font-medium">🏠 ${homeName}</div>
 				<div class="text-xs text-gray-600">${homeAddress.display_name || homeAddress.address}</div>
-				<div class="text-xs text-gray-500">Radius: ${formatRadius(homeRadius)}</div>
+				<div class="text-xs text-muted-foreground">Radius: ${formatRadius(homeRadius)}</div>
 			`);
 
 			homeCircle.addTo(map);
@@ -721,7 +721,7 @@
 				exclusionCircle.bindPopup(`
 					<div class="text-sm font-medium">🚫 ${exclusionName}</div>
 					<div class="text-xs text-gray-600">${displayName}</div>
-					<div class="text-xs text-gray-500">Radius: ${formatRadius(exclusionRadius)}</div>
+					<div class="text-xs text-muted-foreground">Radius: ${formatRadius(exclusionRadius)}</div>
 				`);
 
 				exclusionCircle.addTo(map);
@@ -1212,7 +1212,7 @@
 					</h4>
 					<button
 						onclick={closePointDetails}
-						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+						class="text-muted-foreground hover:text-gray-600 dark:hover:text-gray-300"
 					>
 						<X class="h-4 w-4" />
 					</button>
@@ -1289,7 +1289,7 @@
 				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
 			>
 				<div class="text-center">
-					<MapPin class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
+					<MapPin class="mx-auto mb-4 h-12 w-12 text-muted-foreground dark:text-gray-500" />
 					<h3 class="mb-4 text-lg font-semibold text-muted-foreground">
 						{t('statistics.noDataMessage')}
 					</h3>
@@ -1404,27 +1404,27 @@
 								<thead>
 									<tr>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.mode')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.distanceKm')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.time')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.percentOfTotal')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 										>
 											{t('statistics.points')}
 										</th>
@@ -1478,12 +1478,12 @@
 					<thead>
 						<tr>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 							>
 								Station
 							</th>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
 							>
 								Visits
 							</th>

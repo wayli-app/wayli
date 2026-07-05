@@ -249,7 +249,7 @@
 			class="flex flex-col rounded-xl border p-6 bg-card border-border"
 		>
 			<div class="mb-6 flex items-center gap-3">
-				<FileDown class="h-5 w-5 text-gray-400" />
+				<FileDown class="h-5 w-5 text-muted-foreground" />
 				<h2 class="text-xl font-semibold text-foreground">
 					{t('importExport.importData')}
 				</h2>
@@ -277,7 +277,7 @@
 							id="fileInput"
 							bind:this={fileInputEl}
 							accept=".geojson,.json,.kml"
-							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-gray-500 file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
+							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-muted-foreground file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:border-gray-600 dark:text-gray-300 dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
 							onchange={handleFileSelect}
 						/>
 					</div>
@@ -328,7 +328,7 @@
 			class="flex flex-col rounded-xl border p-6 bg-card border-border"
 		>
 			<div class="mb-6 flex items-center gap-3">
-				<FileDown class="h-5 w-5 text-gray-400" />
+				<FileDown class="h-5 w-5 text-muted-foreground" />
 				<h2 class="text-xl font-semibold text-foreground">
 					{t('importExport.exportData')}
 				</h2>
