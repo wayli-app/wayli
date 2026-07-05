@@ -184,13 +184,13 @@
 					{dateRange}
 				</span>
 				{#if duration}
-					<span class="text-muted-foreground dark:text-gray-500">({duration})</span>
+					<span class="text-muted-foreground">({duration})</span>
 				{/if}
 			</div>
 
 			<!-- Cities -->
 			{#if cities && !compact}
-				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground dark:text-gray-500">
+				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
 					<MapPin class="h-3 w-3" />
 					<span class="truncate">{cities}</span>
 				</div>
@@ -259,13 +259,13 @@
 					{dateRange}
 				</span>
 				{#if duration}
-					<span class="text-muted-foreground dark:text-gray-500">({duration})</span>
+					<span class="text-muted-foreground">({duration})</span>
 				{/if}
 			</div>
 
 			<!-- Cities -->
 			{#if cities && !compact}
-				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground dark:text-gray-500">
+				<div class="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
 					<MapPin class="h-3 w-3" />
 					<span class="truncate">{cities}</span>
 				</div>

@@ -1098,7 +1098,7 @@
 						type="email"
 						value={profile?.email}
 						disabled
-						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-muted-foreground placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
+						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-muted-foreground placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:placeholder:text-gray-400"
 					/>
 					<p class="mt-1 text-xs text-muted-foreground">
 						{t('accountSettings.emailCannotChange')}
@@ -1170,7 +1170,7 @@
 							{/each}
 							{#if homeAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 								>
 									{homeAddressSearchError}
 								</div>
@@ -1181,7 +1181,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 							>
 								{homeAddressSearchError}
 							</div>
@@ -1207,7 +1207,7 @@
 						<button
 							type="button"
 							onclick={handleSkipHomeAddressField}
-							class="mt-2 text-sm text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+							class="mt-2 text-sm text-muted-foreground hover:text-muted-foreground"
 						>
 							{t('accountSettings.skipThisField')}
 						</button>
@@ -1631,7 +1631,7 @@
 				<p class="mb-4 text-sm text-muted-foreground">
 					{t('accountSettings.excludedZonesDescription')}
 				</p>
-				<p class="mb-4 text-xs text-muted-foreground dark:text-gray-500">
+				<p class="mb-4 text-xs text-muted-foreground">
 					{t('accountSettings.excludedZonesHelp')}
 				</p>
 			</div>
@@ -1664,7 +1664,7 @@
 										{exclusion.location.display_name}
 									</div>
 									{#if exclusion.location.coordinates}
-										<div class="text-xs text-muted-foreground dark:text-gray-500">
+										<div class="text-xs text-muted-foreground">
 											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(
 												6
 											)}
@@ -1702,7 +1702,7 @@
 				{#if tripExclusions.length < 10}
 					<button
 						onclick={() => (showAddExclusionModal = true)}
-						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-300"
+						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 hover:text-muted-foreground"
 					>
 						<Plus class="h-4 w-4" />
 						{t('accountSettings.addTripExclusion')}
@@ -1802,10 +1802,7 @@
 							{#each exclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedExclusionAddressIndex ===
-									index
-										? 'bg-primary/10 dark:bg-primary/20'
-										: ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:focus:bg-gray-700 {selectedExclusionAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
 									onclick={() => selectExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
@@ -1820,7 +1817,7 @@
 							{/each}
 							{#if exclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 								>
 									{exclusionAddressSearchError}
 								</div>
@@ -1831,7 +1828,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 							>
 								{exclusionAddressSearchError}
 							</div>
@@ -1862,7 +1859,7 @@
 					</button>
 					<button
 						onclick={() => (showAddExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 					>
 						{t('common.actions.cancel')}
 					</button>
@@ -1946,10 +1943,7 @@
 							{#each editExclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedEditExclusionAddressIndex ===
-									index
-										? 'bg-primary/10 dark:bg-primary/20'
-										: ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:focus:bg-gray-700 {selectedEditExclusionAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
 									onclick={() => selectEditExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
@@ -1964,7 +1958,7 @@
 							{/each}
 							{#if editExclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 								>
 									{editExclusionAddressSearchError}
 								</div>
@@ -1975,7 +1969,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 							>
 								{editExclusionAddressSearchError}
 							</div>
@@ -2008,7 +2002,7 @@
 					</button>
 					<button
 						onclick={() => (showEditExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 					>
 						{t('common.actions.cancel')}
 					</button>

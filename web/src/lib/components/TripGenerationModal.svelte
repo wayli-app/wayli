@@ -282,10 +282,7 @@
 						{#each customHomeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 							<button
 								type="button"
-								class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedCustomHomeAddressIndex ===
-								index
-									? 'bg-gray-100 dark:bg-gray-700'
-									: ''}"
+								class="w-full px-4 py-2 text-left focus:bg-gray-100 focus:outline-none dark:focus:bg-gray-700 {selectedCustomHomeAddressIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''} hover:bg-muted"
 								onclick={() => selectCustomHomeAddress(suggestion)}
 							>
 								<div class="text-sm text-foreground">
@@ -335,7 +332,7 @@
 		<div class="flex gap-3 pt-4">
 			<button
 				onclick={closeModal}
-				class="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+				class="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 			>
 				{t('tripGenerationModal.cancel')}
 			</button>

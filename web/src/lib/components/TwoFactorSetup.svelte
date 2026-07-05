@@ -159,7 +159,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -292,7 +292,7 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => (currentStep = 'setup')}
-							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 						>
 							Back
 						</button>
@@ -357,13 +357,13 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => copyToClipboard(backupCodes.join('\n'), 'backupCodes')}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 						>
 							{backupCodesCopied ? 'Copied!' : 'Copy Codes'}
 						</button>
 						<button
 							onclick={handleBackupCodesDownload}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 						>
 							Download
 						</button>

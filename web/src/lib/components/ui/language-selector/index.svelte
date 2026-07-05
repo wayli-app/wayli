@@ -185,10 +185,7 @@
 					<button
 						type="button"
 						onclick={() => handleLanguageChange(language.code)}
-						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 {language.code ===
-						$currentLocale
-							? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-gray-300'
-							: 'text-muted-foreground'}"
+						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors {language.code === $currentLocale ? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-gray-300' : 'text-muted-foreground'} hover:bg-muted"
 						role="option"
 						aria-selected={language.code === $currentLocale}
 					>
