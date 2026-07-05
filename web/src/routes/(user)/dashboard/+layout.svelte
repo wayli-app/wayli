@@ -202,16 +202,12 @@
 	{/if}
 
 	<!-- Main content area -->
-	<div
-		class="min-h-screen bg-gray-50 dark:bg-gray-900 {$userStore?.id && !isCheckingAdmin
-			? ''
-			: 'p-6'}"
-	>
+	<div class="bg-background min-h-screen {$userStore?.id && !isCheckingAdmin ? '' : 'p-6'}">
 		{#if isCheckingAdmin}
 			<div class="flex h-64 items-center justify-center">
 				<div class="text-center">
 					<div
-						class="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-primary dark:border-blue-400"
+						class="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2"
 					></div>
 				</div>
 			</div>
