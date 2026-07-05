@@ -44,10 +44,8 @@
 		(async () => {
 			// Redirect already-authenticated users to the overview (mirrors /auth and /auth/signup).
 			try {
-				const {
-					data: { user }
-				} = await fluxbase.auth.getUser();
-				if (user) {
+				const { data } = await fluxbase.auth.getUser();
+				if (data?.user) {
 					redirectToDashboard();
 					return;
 				}
@@ -150,8 +148,10 @@
 
 			if (error) throw error;
 
-			// Check if 2FA is required (Fluxbase returns this directly in the response)
-			if (data && 'requires_2fa' in data && data.requires_2fa) {
+			// Check if 2FA is required (Fluxbase returns this directly in the response).
+			// Discriminate on field presence (not the boolean value) so TS narrows the union:
+			// the 2FA arm is the only one carrying 'requires_2fa'.
+			if (data && 'requires_2fa' in data) {
 				console.log('🔐 [SignIn] 2FA required for this user');
 				// User has 2FA enabled - show verification modal
 				twoFactorUserId = data.user_id || '';
@@ -265,7 +265,7 @@
 				access_token: authData.access_token,
 				refresh_token: authData.refresh_token,
 				expires_at: expiresAt
-			});
+			} as any);
 		}
 
 		// Record login with Remember Me preference

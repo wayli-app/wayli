@@ -21,11 +21,10 @@
 		const pendingEmail = sessionStorage.getItem('pending_verification_email');
 
 		(async () => {
-			const {
-				data: { user }
-			} = await fluxbase.auth.getUser();
+			const { data } = await fluxbase.auth.getUser();
+			const user = data?.user;
 
-			if (user && user.email_confirmed_at) {
+			if (user && user.email_verified) {
 				// User is already verified, redirect to dashboard
 				console.log('🔄 [VERIFY-EMAIL] User already verified, redirecting to dashboard');
 				sessionStorage.removeItem('pending_verification_email');
@@ -60,7 +59,7 @@
 		resendLoading = true;
 
 		try {
-			const { error } = await fluxbase.auth.resend({
+			const { error } = await fluxbase.auth.resendOtp({
 				type: 'signup',
 				email: email,
 				options: {
@@ -108,9 +107,7 @@
 		</div>
 
 		<!-- Verification Card -->
-		<div
-			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-6 text-center">
 				<!-- Email Icon -->
 				<div

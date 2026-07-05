@@ -124,9 +124,8 @@
 
 		// Check if user is already authenticated
 		(async () => {
-			const {
-				data: { user }
-			} = await fluxbase.auth.getUser();
+			const { data } = await fluxbase.auth.getUser();
+			const user = data?.user;
 			console.log('🔐 [SIGNUP] User check:', user ? `Found - ${user.email}` : 'None');
 
 			if (user) {
@@ -223,7 +222,7 @@
 			// Check if email verification is required based on Fluxbase Auth's response
 			// If there's no session, email verification is required
 			// If there's a session, the user is auto-confirmed and logged in
-			if (!data.session && data.user && !data.user.email_confirmed_at) {
+			if (!data.session && data.user && !data.user.email_verified) {
 				// Email verification required - redirect to verification page
 				sessionStorage.setItem('pending_verification_email', email);
 				toast.success(t('auth.checkEmailConfirmationLink'));
