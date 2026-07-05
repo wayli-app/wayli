@@ -127,7 +127,7 @@ describe('ServiceAdapter', () => {
 				user: {
 					id: 'test-user-id',
 					email: 'test@example.com',
-					user_metadata: {
+					metadata: {
 						first_name: 'Test',
 						last_name: 'User',
 						full_name: 'Test User'
