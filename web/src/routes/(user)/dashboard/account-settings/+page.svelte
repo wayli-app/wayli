@@ -152,7 +152,7 @@
 	async function loadUserData() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 
@@ -265,7 +265,7 @@
 	async function loadAISettings() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) return;
+			if (!session.data || !session.data.session) return;
 
 			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
 
@@ -286,7 +286,7 @@
 	async function checkAdminRole() {
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (!userData.user) return;
+			if (!userData || !userData.user) return;
 
 			const { data: userProfile, error } = await fluxbase
 				.from('user_profiles')
@@ -320,7 +320,7 @@
 		try {
 			// Check if user is authenticated via Fluxbase
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (!userData.user) {
+			if (!userData || !userData.user) {
 				console.warn('⚠️ [AccountSettings] No authenticated user for 2FA status check');
 				return;
 			}
@@ -550,7 +550,7 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 
@@ -586,7 +586,7 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 

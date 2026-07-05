@@ -622,7 +622,7 @@
 	async function loadExclusionZones(): Promise<void> {
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (!userData.user) return;
+			if (!userData || !userData.user) return;
 
 			// Load home address
 			const homeAddressAdapter = new HomeAddressAdapter({ session: { user: userData.user } });

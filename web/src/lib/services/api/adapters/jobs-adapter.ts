@@ -373,7 +373,7 @@ export class JobsAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 

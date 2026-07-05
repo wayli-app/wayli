@@ -321,7 +321,7 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 
@@ -420,7 +420,7 @@
 	async function loadUserPreferences() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 

@@ -71,7 +71,7 @@ export class ServiceAdapter {
 
 		// Get user email and metadata from auth
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -106,7 +106,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -141,7 +141,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -164,7 +164,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -346,7 +346,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -385,7 +385,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -445,7 +445,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -527,7 +527,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -603,7 +603,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -641,7 +641,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -670,7 +670,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -850,7 +850,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -877,7 +877,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1154,7 +1154,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1386,7 +1386,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1409,7 +1409,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1681,7 +1681,7 @@ export class ServiceAdapter {
 
 		// Get user ID and verify admin role
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1714,7 +1714,7 @@ export class ServiceAdapter {
 
 		// Get user ID and verify admin role
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1793,7 +1793,7 @@ export class ServiceAdapter {
 
 		// Get user ID and verify admin role
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1844,7 +1844,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1868,7 +1868,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1917,7 +1917,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -1968,7 +1968,7 @@ export class ServiceAdapter {
 
 		// Get user ID
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
