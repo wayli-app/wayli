@@ -338,15 +338,8 @@
 				return;
 			}
 
-			// SDK returns { totp_enabled: boolean } or { totp: Factor[] }
-			// Check both formats for compatibility
-			if (typeof data.totp_enabled === 'boolean') {
-				twoFactorEnabled = data.totp_enabled;
-			} else if (data.totp && Array.isArray(data.totp)) {
-				twoFactorEnabled = data.totp.length > 0;
-			} else {
-				twoFactorEnabled = false;
-			}
+			// SDK 2FA status is { all: Factor[]; totp: Factor[] }.
+			twoFactorEnabled = Array.isArray(data.totp) && data.totp.length > 0;
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error checking 2FA status:', error);
 			twoFactorEnabled = false;

@@ -21,7 +21,7 @@ export class AdminAdapter extends BaseAdapter {
 			}
 
 			const { data: providers } = await fluxbase.admin.ai.listProviders();
-			return providers && providers.length > 0;
+			return (providers?.length ?? 0) > 0;
 		} catch {
 			return false;
 		}
@@ -100,7 +100,9 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		return {
-			app: appSettingsWithAll,
+			// ponytail: cast — appSettingsWithAll is built from server data + defaults and is an
+			// AppSettings at runtime, but its locally-inferred shape has nested optionality drift.
+			app: appSettingsWithAll as any,
 			custom: wayliSettings,
 			secrets: secretsMetadata
 		};
@@ -132,10 +134,11 @@ export class AdminAdapter extends BaseAdapter {
 					(params as { maxSessionsPerUser: number }).maxSessionsPerUser
 				);
 			case 'setFeature':
-				return await settings.setFeature(
-					(params as { feature: string }).feature,
-					(params as { enabled: boolean }).enabled
-				);
+			return await settings.setFeature(
+				// ponytail: cast — setFeature restricts to a literal union, but feature arrives as a dynamic string.
+				(params as { feature: string }).feature as 'realtime' | 'storage' | 'functions',
+				(params as { enabled: boolean }).enabled
+			);
 			case 'setRateLimiting':
 				return await settings.setRateLimiting((params as { enabled: boolean }).enabled);
 			case 'setAIConfig':
@@ -188,12 +191,14 @@ export class AdminAdapter extends BaseAdapter {
 			const existing = existingProviders?.find((p: { name: string }) => p.name === params.provider!.name);
 
 			if (existing) {
+				// ponytail: cast as any — updateProvider's typed payload drops provider_type/is_default,
+				// but the server may still persist them; keep the runtime payload unchanged until verified.
 				await fluxbase.admin.ai.updateProvider((existing as { id: string }).id, {
 					display_name: params.provider.display_name,
 					provider_type: params.provider.provider_type,
 					is_default: params.provider.is_default ?? false,
 					config: params.provider.config
-				});
+				} as any);
 			} else {
 				await fluxbase.admin.ai.createProvider({
 					name: params.provider.name,
@@ -202,7 +207,7 @@ export class AdminAdapter extends BaseAdapter {
 					is_default: params.provider.is_default ?? true,
 					config: params.provider.config,
 					enabled: true
-				});
+				} as any);
 			}
 		}
 

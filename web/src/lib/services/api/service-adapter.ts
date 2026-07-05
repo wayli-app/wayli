@@ -76,7 +76,7 @@ export class ServiceAdapter {
 		}
 
 		// Extract metadata from auth user (set during signup)
-		const userMetadata = userData.user.user_metadata || {};
+		const userMetadata = (userData.user.metadata ?? {}) as Record<string, any>;
 
 		// Get profile data from user_profiles table
 		const { data: profile, error } = await fluxbase

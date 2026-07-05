@@ -47,7 +47,7 @@ export class ProfileAdapter extends BaseAdapter {
 			throw new Error('User not authenticated');
 		}
 
-		const userMetadata = userData.user.user_metadata || {};
+		const userMetadata = (userData.user.metadata ?? {}) as Record<string, any>;
 
 		const { data: profile, error } = await fluxbase
 			.from<Record<string, any>>('user_profiles')
