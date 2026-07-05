@@ -101,7 +101,7 @@ jobs:
       prev_tag: ${{ steps.calc_version.outputs.prev_tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -228,7 +228,7 @@ jobs:
       PREV_TAG: ${{ needs.get-version.outputs.prev_tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -419,7 +419,7 @@ jobs:
       VERSION: ${{ needs.get-version.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
@@ -456,7 +456,7 @@ jobs:
       VERSION: ${{ needs.get-version.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
@@ -540,7 +540,7 @@ jobs:
       IS_RC: ${{ needs.get-version.outputs.is_rc }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.ref }}
@@ -556,7 +556,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v5
         with:
-          version: v4.2.1
+          version: v4.2.2
 
       - name: Update chart dependencies
         run: |
