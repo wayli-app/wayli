@@ -180,7 +180,7 @@
 			<div class="mb-3 flex items-center justify-between">
 				<div class="flex items-center gap-2">
 					<Rocket class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-					<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+					<h3 class="font-semibold text-foreground">
 						{t('onboarding.checklistTitle')}
 					</h3>
 				</div>
@@ -197,7 +197,7 @@
 			<!-- Progress bar -->
 			<div class="mb-4">
 				<div class="mb-2 flex items-center justify-between text-sm">
-					<span class="text-gray-600 dark:text-gray-400">
+					<span class="text-muted-foreground">
 						{t('onboarding.checklistProgress', { completed: completedCount, total: totalSteps })}
 					</span>
 					<span class="font-medium text-blue-600 dark:text-blue-400">
@@ -248,10 +248,10 @@
 
 						<!-- Text content -->
 						<div class="min-w-0 flex-1">
-							<h4 class="mb-0.5 text-sm font-medium text-gray-900 dark:text-gray-100">
+							<h4 class="mb-0.5 text-sm font-medium text-foreground">
 								{t(step.titleKey)}
 							</h4>
-							<p class="line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
+							<p class="line-clamp-2 text-xs text-muted-foreground">
 								{t(step.descriptionKey)}
 							</p>
 						</div>

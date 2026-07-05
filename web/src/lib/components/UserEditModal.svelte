@@ -88,11 +88,11 @@
 				<div>
 					<h2
 						id="user-edit-modal-title"
-						class="text-2xl font-bold text-gray-900 dark:text-gray-100"
+						class="text-2xl font-bold text-foreground"
 					>
 						Edit User
 					</h2>
-					<p class="text-gray-500 dark:text-gray-400">Update the user's details and role.</p>
+					<p class="text-muted-foreground">Update the user's details and role.</p>
 				</div>
 				<button
 					onclick={closeModal}
@@ -108,12 +108,12 @@
 				<div class="mb-8 flex items-center gap-4">
 					<UserAvatar user={localUser} />
 					<div>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+						<p class="text-lg font-semibold text-foreground">
 							{localUser.full_name ||
 								`${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() ||
 								'N/A'}
 						</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">{localUser.email}</p>
+						<p class="text-sm text-muted-foreground">{localUser.email}</p>
 					</div>
 				</div>
 			{/if}
@@ -125,7 +125,7 @@
 						<div>
 							<label
 								for="firstName"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>First Name</label
 							>
 							<div class="relative">
@@ -143,7 +143,7 @@
 						<div>
 							<label
 								for="lastName"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>Last Name</label
 							>
 							<div class="relative">
@@ -162,7 +162,7 @@
 					<div>
 						<label
 							for="email"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>Email Address</label
 						>
 						<div class="relative">
@@ -178,7 +178,7 @@
 					</div>
 
 					<div>
-						<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Role</span
+						<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span
 						>
 						<RoleSelector bind:role={localUser.role} />
 					</div>

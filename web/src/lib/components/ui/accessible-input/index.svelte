@@ -93,7 +93,7 @@
 		<label
 			bind:this={labelElement}
 			for={inputId}
-			class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+			class="block text-sm font-medium text-muted-foreground"
 		>
 			{label}
 			{#if required}
@@ -139,7 +139,7 @@
 	{/if}
 
 	{#if helperText && !error}
-		<div class="text-sm text-gray-500 dark:text-gray-400">
+		<div class="text-sm text-muted-foreground">
 			{helperText}
 		</div>
 	{/if}

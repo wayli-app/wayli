@@ -146,7 +146,7 @@
 		{:else if filteredConversations.length === 0}
 			<div class="flex h-32 flex-col items-center justify-center p-4 text-center">
 				<MessageSquare class="mb-2 h-8 w-8 text-gray-300 dark:text-gray-600" />
-				<p class="text-sm text-gray-500 dark:text-gray-400">
+				<p class="text-sm text-muted-foreground">
 					{searchQuery ? 'No conversations found' : 'No conversations yet'}
 				</p>
 			</div>
@@ -173,7 +173,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -181,7 +181,7 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
@@ -223,7 +223,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -231,7 +231,7 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
@@ -273,7 +273,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -281,7 +281,7 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}
@@ -323,7 +323,7 @@
 					>
 						<div class="min-w-0 flex-1">
 							<h4
-								class="truncate text-sm font-medium text-gray-900 dark:text-gray-100 {activeConversationId ===
+								class="truncate text-sm font-medium text-foreground {activeConversationId ===
 								conv.id
 									? 'text-primary dark:text-blue-300'
 									: ''}"
@@ -331,7 +331,7 @@
 								{conv.title || 'Untitled Conversation'}
 							</h4>
 							{#if conv.preview}
-								<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
+								<p class="mt-0.5 truncate text-xs text-muted-foreground">
 									{conv.preview}
 								</p>
 							{/if}

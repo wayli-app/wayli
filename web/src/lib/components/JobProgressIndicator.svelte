@@ -370,7 +370,7 @@
 		</div>
 
 		<div class="min-w-0 flex-1">
-			<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+			<div class="mb-1 text-xs font-medium text-muted-foreground">
 				{t('jobProgress.uploading')}: {upload.fileName}
 			</div>
 
@@ -391,7 +391,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="text-xs text-gray-500 dark:text-gray-400">
+				<div class="text-xs text-muted-foreground">
 					{(upload.loaded / 1024 / 1024).toFixed(1)} / {(upload.total / 1024 / 1024).toFixed(1)} MB
 				</div>
 			{:else if upload.status === 'processing'}
@@ -400,7 +400,7 @@
 						<div class="bg-primary h-4 w-full animate-pulse rounded-full dark:bg-blue-500"></div>
 					</div>
 				</div>
-				<div class="text-xs text-gray-500 dark:text-gray-400">{t('jobProgress.creatingJob')}</div>
+				<div class="text-xs text-muted-foreground">{t('jobProgress.creatingJob')}</div>
 			{:else if upload.status === 'completed'}
 				<div class="text-xs text-green-600 dark:text-green-400">
 					✅ {t('jobProgress.uploadComplete')}
@@ -434,7 +434,7 @@
 		</div>
 
 		<div class="min-w-0 flex-1">
-			<div class="mb-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+			<div class="mb-1 text-xs font-medium text-muted-foreground">
 				{jobTypeName}
 			</div>
 
@@ -464,7 +464,7 @@
 					</div>
 				</div>
 				{#if eta && !indeterminate}
-					<div class="text-xs text-gray-500 dark:text-gray-400">{eta}</div>
+					<div class="text-xs text-muted-foreground">{eta}</div>
 				{/if}
 			{:else if job.status === 'completed'}
 				<div class="text-xs text-green-600 dark:text-green-400">
@@ -473,7 +473,7 @@
 			{:else if job.status === 'failed'}
 				<div class="text-xs text-red-600 dark:text-red-400">❌ Failed</div>
 			{:else if job.status === 'cancelled'}
-				<div class="text-xs text-gray-600 dark:text-gray-400">⏹️ Cancelled</div>
+				<div class="text-xs text-muted-foreground">⏹️ Cancelled</div>
 			{/if}
 		</div>
 
@@ -557,8 +557,8 @@
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 		>
 			<div class="mb-4">
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Cancel Job</h3>
-				<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+				<h3 class="text-lg font-semibold text-foreground">Cancel Job</h3>
+				<p class="mt-2 text-sm text-muted-foreground">
 					Are you sure you want to cancel the {getJobTypeDisplayName(
 						jobToCancel.job_name
 					).toLowerCase()} job? This action cannot be undone.

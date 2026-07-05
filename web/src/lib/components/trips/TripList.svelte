@@ -87,7 +87,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
 							onclick={() => toggleSort('title')}
 						>
 							Trip Name
@@ -104,7 +104,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
 							onclick={() => toggleSort('labels')}
 						>
 							Labels
@@ -121,7 +121,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
 							onclick={() => toggleSort('distance')}
 						>
 							Distance
@@ -138,7 +138,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
 							onclick={() => toggleSort('startDate')}
 						>
 							Start Date
@@ -155,7 +155,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-gray-900 dark:text-gray-100"
+							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
 							onclick={() => toggleSort('duration')}
 						>
 							Duration
@@ -170,8 +170,8 @@
 							{/if}
 						</button>
 					</th>
-					<th class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">Countries</th>
-					<th class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">Actions</th>
+					<th class="px-6 py-4 text-sm font-medium text-foreground">Countries</th>
+					<th class="px-6 py-4 text-sm font-medium text-foreground">Actions</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -183,7 +183,7 @@
 						<td class="w-8 px-6 py-4">
 							<input type="checkbox" class="rounded border-gray-300 dark:border-border" />
 						</td>
-						<td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100"
+						<td class="px-6 py-4 text-sm font-medium text-foreground"
 							>{trip.title}</td
 						>
 						<td class="px-6 py-4">

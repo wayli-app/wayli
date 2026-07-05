@@ -173,14 +173,14 @@
 					<Shield class="text-primary h-6 w-6 dark:text-gray-300" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="text-2xl font-bold text-foreground">
 						{currentStep === 'setup'
 							? 'Set Up Two-Factor Authentication'
 							: currentStep === 'verify'
 								? 'Verify Your Code'
 								: 'Backup Codes'}
 					</h2>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{currentStep === 'setup'
 							? 'Step 1 of 3: Scan QR code'
 							: currentStep === 'verify'
@@ -206,7 +206,7 @@
 						<div
 							class="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"
 						></div>
-						<p class="mt-4 text-sm text-gray-600 dark:text-gray-400">Generating QR code...</p>
+						<p class="mt-4 text-sm text-muted-foreground">Generating QR code...</p>
 					</div>
 				{:else if qrCodeSrc}
 					<div class="space-y-6">
@@ -218,9 +218,9 @@
 						</div>
 
 						<!-- Instructions -->
-						<div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+						<div class="space-y-2 text-sm text-muted-foreground">
 							<p class="font-semibold">Scan this QR code with your authenticator app:</p>
-							<ul class="list-inside list-disc space-y-1 text-gray-600 dark:text-gray-400">
+							<ul class="list-inside list-disc space-y-1 text-muted-foreground">
 								<li>Google Authenticator</li>
 								<li>Microsoft Authenticator</li>
 								<li>Authy</li>
@@ -232,7 +232,7 @@
 						<div
 							class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
 						>
-							<p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+							<p class="mb-2 text-sm font-medium text-muted-foreground">
 								Or enter this code manually:
 							</p>
 							<div class="flex items-center gap-2">
@@ -270,7 +270,7 @@
 			{#if currentStep === 'verify'}
 				<div class="space-y-6">
 					<div>
-						<p class="mb-4 text-sm text-gray-700 dark:text-gray-300">
+						<p class="mb-4 text-sm text-muted-foreground">
 							Enter the 6-digit code from your authenticator app to complete setup:
 						</p>
 						<input
@@ -327,7 +327,7 @@
 
 					<!-- Backup Codes -->
 					<div>
-						<p class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+						<p class="mb-3 text-sm font-semibold text-foreground">
 							Save your backup codes:
 						</p>
 						<div

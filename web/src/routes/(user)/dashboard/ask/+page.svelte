@@ -743,7 +743,7 @@
 	{/if}
 
 	<!-- Chat Area -->
-	<div class="flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
+	<div class="flex flex-1 flex-col overflow-hidden bg-background">
 		<!-- Mobile Top Bar -->
 		<div
 			class="flex items-center gap-3 border-b border-gray-200 bg-white p-3 md:hidden dark:border-gray-700 dark:bg-gray-900"
@@ -756,7 +756,7 @@
 			>
 				<Menu class="h-5 w-5" />
 			</button>
-			<span class="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+			<span class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
 				<MessageSquare class="h-4 w-4" />
 				{currentConversationId
 					? conversationList.find((c) => c.id === currentConversationId)?.title || t('ask.title')
@@ -770,7 +770,7 @@
 				<!-- Loading configuration -->
 				<div class="flex h-full flex-col items-center justify-center p-6">
 					<Loader2 class="mb-4 h-12 w-12 animate-spin text-gray-400" />
-					<p class="text-sm text-gray-500 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('ask.connectingToChat')}
 					</p>
 				</div>
@@ -783,13 +783,13 @@
 						>
 							<AlertCircle class="h-8 w-8 text-orange-600 dark:text-orange-400" />
 						</div>
-						<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
+						<h3 class="mb-2 text-xl font-semibold text-foreground">
 							{t('ask.notConfigured')}
 						</h3>
-						<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+						<p class="mb-4 text-sm text-muted-foreground">
 							{t('ask.notConfiguredDescription')}
 						</p>
-						<ul class="mb-6 text-left text-sm text-gray-500 dark:text-gray-400">
+						<ul class="mb-6 text-left text-sm text-muted-foreground">
 							<li class="flex items-start gap-2 py-1">
 								<span class="text-gray-400">•</span>
 								<span>{t('ask.notConfiguredReasons.disabled')}</span>
@@ -824,7 +824,7 @@
 							</a>
 						{:else}
 							<!-- User cannot configure, contact admin -->
-							<p class="text-sm text-gray-500 dark:text-gray-400">
+							<p class="text-sm text-muted-foreground">
 								{t('ask.contactAdmin')}
 							</p>
 						{/if}
@@ -834,10 +834,10 @@
 				<!-- Empty State with Suggestions -->
 				<div class="flex h-full flex-col items-center justify-center p-6">
 					<Bot class="mb-4 h-12 w-12 text-gray-400" />
-					<h3 class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-300">
+					<h3 class="mb-2 text-lg font-medium text-muted-foreground">
 						{t('ask.startConversation')}
 					</h3>
-					<p class="mb-6 text-center text-sm text-gray-500 dark:text-gray-400">
+					<p class="mb-6 text-center text-sm text-muted-foreground">
 						{t('ask.askAnything')}
 					</p>
 					<div class="grid w-full max-w-2xl gap-2 sm:grid-cols-2">
@@ -846,7 +846,7 @@
 								onclick={() => useSuggestion(suggestion)}
 								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border border-gray-200 bg-white p-3 text-left text-sm transition-all hover:shadow-sm dark:border-gray-700 dark:bg-gray-800"
 							>
-								<div class="font-medium text-gray-700 dark:text-gray-300">
+								<div class="font-medium text-muted-foreground">
 									{suggestion.question}
 								</div>
 							</button>
@@ -868,7 +868,7 @@
 							<div
 								class="max-w-[80%] rounded-xl px-4 py-3 {message.role === 'user'
 									? 'bg-primary text-white'
-									: 'bg-white dark:bg-gray-800'}"
+									: 'bg-card'}"
 							>
 								{#if message.role === 'assistant'}
 									{@const hasQueryResults = message.queryResults && message.queryResults.length > 0}
@@ -913,7 +913,7 @@
 								<div
 									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
 								>
-									<User class="h-5 w-5 text-gray-600 dark:text-gray-400" />
+									<User class="h-5 w-5 text-muted-foreground" />
 								</div>
 							{/if}
 						</div>
@@ -957,10 +957,10 @@
 											{#each currentQueryResults as queryResult, idx}
 												<div
 													class="flex items-center justify-between py-1 text-xs {idx > 0
-														? 'border-t border-gray-200 dark:border-gray-700'
+														? 'border-t border-border'
 														: ''}"
 												>
-													<span class="text-gray-600 dark:text-gray-400">
+													<span class="text-muted-foreground">
 														{getQueriedTable(queryResult.query)}
 													</span>
 													<span class="text-gray-400">
@@ -983,7 +983,7 @@
 								{:else if !currentQueryResults.length}
 									<!-- Status Indicator - only show when no content or query results have arrived yet -->
 									<div
-										class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
+										class="flex items-center gap-2 text-sm text-muted-foreground"
 										style="min-height: 24px;"
 										role="status"
 										aria-live="polite"
@@ -1060,7 +1060,7 @@
 						<span
 							class={quotaDisplay.warning
 								? 'font-medium text-amber-600 dark:text-amber-400'
-								: 'text-gray-500 dark:text-gray-400'}
+								: 'text-muted-foreground'}
 						>
 							{quotaDisplay.remaining}/{quotaDisplay.limit} messages left today{#if quotaDisplay.resetsAt}
 								· resets at {formatResetTime(quotaDisplay.resetsAt)}{/if}
@@ -1102,7 +1102,7 @@
 			<div class="mb-4 flex items-center justify-between">
 				<h3
 					id="execution-logs-title"
-					class="text-lg font-semibold text-gray-900 dark:text-gray-100"
+					class="text-lg font-semibold text-foreground"
 				>
 					{t('ask.executionLogs')}
 				</h3>
@@ -1129,7 +1129,7 @@
 							<span class="flex-shrink-0 uppercase {getStepColor(log.step)}">
 								[{log.step}]
 							</span>
-							<span class="text-gray-700 dark:text-gray-300">{log.message}</span>
+							<span class="text-muted-foreground">{log.message}</span>
 						</div>
 					{/each}
 				{/if}

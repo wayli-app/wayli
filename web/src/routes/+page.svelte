@@ -147,7 +147,7 @@
 	>
 		<div class="text-center">
 			<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-			<p class="text-gray-600 dark:text-gray-300">
+			<p class="text-muted-foreground">
 				{checkingUserCount ? 'Checking system status...' : 'Loading translations...'}
 			</p>
 		</div>
@@ -213,7 +213,7 @@
 						>
 							{t('common.navigation.accountSettings')}
 						</a>
-						<hr class="my-2 border-gray-200 dark:border-gray-700" />
+						<hr class="my-2 border-border" />
 						<button
 							onclick={handleSignOut}
 							class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-50 dark:text-red-400 dark:hover:bg-gray-700"

@@ -40,7 +40,7 @@
 				return {
 					icon: WifiOff,
 					color: 'text-gray-400 dark:text-gray-500',
-					bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+					bgColor: 'bg-background/20',
 					label: t('realtime.disconnected'),
 					pulse: false
 				};

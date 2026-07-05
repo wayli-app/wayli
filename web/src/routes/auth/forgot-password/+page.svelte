@@ -73,10 +73,10 @@
 				>
 					<KeyRound class="h-6 w-6 text-white" />
 				</div>
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.forgotPasswordTitle')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
+				<p class="text-muted-foreground">
 					{t('auth.forgotPasswordDescription')}
 				</p>
 			</div>
@@ -105,7 +105,7 @@
 					<div>
 						<label
 							for="email"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.emailAddress')}
 						</label>
@@ -135,7 +135,7 @@
 				</form>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"

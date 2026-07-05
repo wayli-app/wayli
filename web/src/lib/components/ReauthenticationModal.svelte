@@ -89,10 +89,10 @@
 					<Shield class="h-6 w-6 text-amber-600 dark:text-amber-400" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="text-2xl font-bold text-foreground">
 						{t('auth.confirmYourIdentity')}
 					</h2>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.confirmYourIdentityDescription')}
 					</p>
 				</div>
@@ -103,8 +103,8 @@
 				<div
 					class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
 				>
-					<p class="text-xs text-gray-500 dark:text-gray-400">{t('auth.account')}</p>
-					<p class="font-medium text-gray-900 dark:text-gray-100">{userEmail}</p>
+					<p class="text-xs text-muted-foreground">{t('auth.account')}</p>
+					<p class="font-medium text-foreground">{userEmail}</p>
 				</div>
 			{/if}
 
@@ -122,7 +122,7 @@
 			<div class="mb-6">
 				<label
 					for="reauth-password"
-					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					class="mb-2 block text-sm font-medium text-muted-foreground"
 				>
 					{t('auth.password')}
 				</label>

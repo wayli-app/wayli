@@ -1103,11 +1103,11 @@
 		<div class="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
 			<div class="mb-4 flex items-center">
 				<AlertTriangle class="mr-3 h-6 w-6 text-yellow-500" />
-				<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+				<h3 class="text-lg font-semibold text-foreground">
 					Large Dataset Warning
 				</h3>
 			</div>
-			<div class="mb-6 text-sm text-gray-600 dark:text-gray-400">
+			<div class="mb-6 text-sm text-muted-foreground">
 				<p class="mb-2">
 					You have <strong>{totalPointsCount.toLocaleString()}</strong> data points in the selected date
 					range.
@@ -1174,34 +1174,34 @@
 		<div
 			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800"
 		>
-			<h4 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+			<h4 class="mb-2 text-sm font-semibold text-muted-foreground">
 				{t('statistics.modeColors')}
 			</h4>
 			<div class="space-y-1">
 				{#each Object.entries(transportModeColors) as [mode, color] (mode)}
 					<div class="flex items-center space-x-2">
 						<div class="h-3 w-3 rounded-full" style="background-color: {color}"></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400"
+						<span class="text-xs text-muted-foreground"
 							>{translateTransportMode(mode)}</span
 						>
 					</div>
 				{/each}
 				<!-- Exclusion Zones Legend -->
 				<div class="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
-					<div class="mb-1 text-xs font-semibold text-gray-600 dark:text-gray-400">
+					<div class="mb-1 text-xs font-semibold text-muted-foreground">
 						{t('statistics.exclusionZones') || 'Exclusion Zones'}
 					</div>
 					<div class="flex items-center space-x-2">
 						<div
 							class="h-3 w-3 rounded-full border-2 border-dashed border-blue-500 bg-blue-500/10"
 						></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400">🏠 Home</span>
+						<span class="text-xs text-muted-foreground">🏠 Home</span>
 					</div>
 					<div class="flex items-center space-x-2">
 						<div
 							class="h-3 w-3 rounded-full border-2 border-dashed border-red-500 bg-red-500/10"
 						></div>
-						<span class="text-xs text-gray-600 dark:text-gray-400">🚫 Exclusions</span>
+						<span class="text-xs text-muted-foreground">🚫 Exclusions</span>
 					</div>
 				</div>
 			</div>
@@ -1213,7 +1213,7 @@
 				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg bg-white p-4 shadow-lg sm:left-auto sm:w-80 dark:bg-gray-800"
 			>
 				<div class="mb-3 flex items-start justify-between">
-					<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">
+					<h4 class="text-sm font-semibold text-muted-foreground">
 						{t('statistics.pointDetails')}
 					</h4>
 					<button
@@ -1227,7 +1227,7 @@
 				<div class="space-y-2 text-xs">
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.date')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1235,7 +1235,7 @@
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.mode')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1246,7 +1246,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.coordinates')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1254,7 +1254,7 @@
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.popupSpeed')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1265,7 +1265,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.popupDistance')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1275,7 +1275,7 @@
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.country')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1286,7 +1286,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-gray-600 dark:text-gray-400"
+							<span class="font-medium text-muted-foreground"
 								>{t('statistics.popupReason')}</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
@@ -1309,10 +1309,10 @@
 			>
 				<div class="text-center">
 					<MapPin class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
-					<h3 class="mb-2 text-lg font-semibold text-gray-700 dark:text-gray-300">
+					<h3 class="mb-2 text-lg font-semibold text-muted-foreground">
 						{t('statistics.noDataMessage')}
 					</h3>
-					<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+					<p class="mb-4 text-sm text-muted-foreground">
 						{t('statistics.noDataMessage')}
 					</p>
 					<a
@@ -1350,7 +1350,7 @@
 			{/each}
 		</div>
 	{:else if !statisticsData || Object.keys(statisticsData).length === 0}
-		<div class="mb-8 py-8 text-center font-semibold text-gray-500 dark:text-gray-400">
+		<div class="mb-8 py-8 text-center font-semibold text-muted-foreground">
 			No statistics available for this period.
 		</div>
 	{:else}
@@ -1365,9 +1365,9 @@
 						<IconComponent
 							class="h-5 w-5 {stat.color === 'green' ? 'text-green-500' : 'text-blue-500'}"
 						/>
-						<span class="text-sm font-medium text-gray-700 dark:text-gray-300">{stat.title}</span>
+						<span class="text-sm font-medium text-muted-foreground">{stat.title}</span>
 					</div>
-					<div class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<div class="mt-1 text-2xl font-bold text-foreground">
 						{stat.value}
 					</div>
 				</div>
@@ -1394,7 +1394,7 @@
 								<div>
 									<div class="mb-1 flex items-center gap-2">
 										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
-										<span class="text-base text-gray-700 dark:text-gray-300">
+										<span class="text-base text-muted-foreground">
 											{$getCountryNameReactive(country.country_code)}
 										</span>
 									</div>
@@ -1411,7 +1411,7 @@
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+						<div class="mt-4 text-xs text-muted-foreground">
 							{t('statistics.ofSelectedPeriod')}
 						</div>
 					</div>
@@ -1430,7 +1430,7 @@
 							</span>
 						</div>
 						<div class="-mx-4 overflow-x-auto px-4">
-							<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+							<table class="min-w-full divide-y divide-border">
 								<thead>
 									<tr>
 										<th
@@ -1467,7 +1467,7 @@
 										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
 										<tr>
 											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100"
+												class="px-4 py-2 text-sm whitespace-nowrap text-foreground"
 											>
 												{translateTransportMode(mode.mode)}
 											</td>
@@ -1477,17 +1477,17 @@
 												{formatDistance(mode.distance)}
 											</td>
 											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+												class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground"
 											>
 												{formatSegmentDuration(mode.time || 0)}
 											</td>
 											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+												class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground"
 											>
 												{mode.percentage}%
 											</td>
 											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-gray-700 dark:text-gray-300"
+												class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground"
 											>
 												{mode.points || 0}
 											</td>
@@ -1514,7 +1514,7 @@
 				</span>
 			</div>
 			<div class="-mx-4 overflow-x-auto px-4">
-				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+				<table class="min-w-full divide-y divide-border">
 					<thead>
 						<tr>
 							<th
@@ -1534,7 +1534,7 @@
 							.slice()
 							.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
 							<tr>
-								<td class="px-4 py-2 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+								<td class="px-4 py-2 text-sm whitespace-nowrap text-foreground">
 									{station.name}
 								</td>
 								<td
@@ -1576,7 +1576,7 @@
 		>
 			<Loader2 class="text-primary h-16 w-16 animate-spin dark:text-gray-300" />
 			<div class="mt-4 text-center">
-				<div class="mb-2 text-lg font-medium text-gray-700 dark:text-gray-200">
+				<div class="mb-2 text-lg font-medium text-muted-foreground">
 					{loadingStage || t('statistics.loading')}
 				</div>
 				{#if loadingProgress > 0}
@@ -1586,7 +1586,7 @@
 							style="width: {Math.round(loadingProgress)}%"
 						></div>
 					</div>
-					<div class="text-sm text-gray-600 dark:text-gray-400">
+					<div class="text-sm text-muted-foreground">
 						{t('statistics.percentComplete', { percent: Math.round(loadingProgress) })}
 					</div>
 				{/if}

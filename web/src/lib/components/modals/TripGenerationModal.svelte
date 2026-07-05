@@ -209,7 +209,7 @@
 		<div>
 			<label
 				for="start-date"
-				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				class="mb-2 block text-sm font-medium text-muted-foreground"
 				>{t('tripGenerationModal.startDate')}</label
 			>
 			<input
@@ -221,7 +221,7 @@
 		</div>
 
 		<div>
-			<label for="end-date" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			<label for="end-date" class="mb-2 block text-sm font-medium text-muted-foreground"
 				>{t('tripGenerationModal.endDate')}</label
 			>
 			<input
@@ -257,7 +257,7 @@
 			/>
 			<label
 				for="custom-home-address-toggle"
-				class="text-sm font-medium text-gray-700 dark:text-gray-300"
+				class="text-sm font-medium text-muted-foreground"
 				>{t('tripGenerationModal.useCustomHomeAddress')}</label
 			>
 		</div>
@@ -267,7 +267,7 @@
 			<div>
 				<label
 					for="custom-home-address"
-					class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					class="mb-2 block text-sm font-medium text-muted-foreground"
 					>{t('tripGenerationModal.customHomeAddress')}</label
 				>
 				<div class="relative">
@@ -303,18 +303,18 @@
 									: ''}"
 								onclick={() => selectCustomHomeAddress(suggestion)}
 							>
-								<div class="text-sm text-gray-900 dark:text-gray-100">
+								<div class="text-sm text-foreground">
 									{suggestion.display_name}
 								</div>
 								{#if suggestion.coordinates}
-									<div class="text-xs text-gray-500 dark:text-gray-400">
+									<div class="text-xs text-muted-foreground">
 										{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 									</div>
 								{/if}
 							</button>
 						{/each}
 						{#if customHomeAddressSearchError}
-							<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+							<div class="px-4 py-2 text-sm text-muted-foreground">
 								{customHomeAddressSearchError}
 							</div>
 						{/if}
@@ -323,7 +323,7 @@
 					<div
 						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
 					>
-						<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+						<div class="px-4 py-2 text-sm text-muted-foreground">
 							{customHomeAddressSearchError}
 						</div>
 					</div>
@@ -354,7 +354,7 @@
 				bind:checked={clearExistingSuggestions}
 				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-gray-600 dark:bg-gray-800"
 			/>
-			<label for="clear-existing-suggestions" class="text-sm text-gray-700 dark:text-gray-300">
+			<label for="clear-existing-suggestions" class="text-sm text-muted-foreground">
 				{t('tripGenerationModal.clearExistingSuggestions')}
 			</label>
 		</div>

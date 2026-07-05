@@ -197,7 +197,7 @@
 		},
 		cancelled: {
 			color: 'text-gray-600',
-			bgColor: 'bg-gray-100 dark:bg-gray-900/30',
+			bgColor: 'bg-muted/30',
 			labelKey: 'jobProgress.statusCancelled'
 		}
 	};
@@ -444,7 +444,7 @@
 					<div>
 						<h2
 							id="job-detail-title"
-							class="text-lg font-semibold text-gray-900 dark:text-gray-100"
+							class="text-lg font-semibold text-foreground"
 						>
 							{getJobTypeDisplayName(displayJob.job_name)}
 						</h2>
@@ -471,8 +471,8 @@
 					<div class="mb-3">
 						{#if !indeterminate}
 							<div class="mb-1 flex items-center justify-between text-sm">
-								<span class="text-gray-600 dark:text-gray-400">Progress</span>
-								<span class="font-medium text-gray-900 dark:text-gray-100"
+								<span class="text-muted-foreground">Progress</span>
+								<span class="font-medium text-foreground"
 									>{displayJob.progress_percent || 0}%</span
 								>
 							</div>
@@ -493,9 +493,9 @@
 						</div>
 					</div>
 					{#if eta && !indeterminate}
-						<p class="text-sm text-gray-600 dark:text-gray-400">{eta}</p>
+						<p class="text-sm text-muted-foreground">{eta}</p>
 					{:else if !indeterminate}
-						<p class="text-sm text-gray-500 dark:text-gray-400">Determining ETA...</p>
+						<p class="text-sm text-muted-foreground">Determining ETA...</p>
 					{/if}
 					{#if displayJob.progress_message}
 						<p class="mt-1 text-sm text-gray-500 dark:text-gray-500">
@@ -519,14 +519,14 @@
 						{displayJob.error || 'Job failed. Check logs for details.'}
 					</p>
 				{:else if displayJob.status === 'cancelled'}
-					<p class="text-sm text-gray-600 dark:text-gray-400">Job was cancelled.</p>
+					<p class="text-sm text-muted-foreground">Job was cancelled.</p>
 				{/if}
 			</div>
 
 			<!-- Logs Section -->
 			<div class="p-6">
 				<div class="mb-3 flex items-center justify-between">
-					<h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Execution Logs</h3>
+					<h3 class="text-sm font-medium text-foreground">Execution Logs</h3>
 
 					<!-- Log Level Selector -->
 					<div class="level-dropdown relative">
@@ -585,7 +585,7 @@
 										>x{log.count}</span
 									>
 								{/if}
-								<span class="text-gray-700 dark:text-gray-300">{log.message}</span>
+								<span class="text-muted-foreground">{log.message}</span>
 							</div>
 						{/each}
 					{/if}

@@ -124,10 +124,10 @@
 	<div class="text-center">
 		{#if loading}
 			<Loader2 class="text-primary dark:text-primary mx-auto mb-4 h-8 w-8 animate-spin" />
-			<h2 class="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
+			<h2 class="mb-2 text-xl font-semibold text-foreground">
 				Completing authentication...
 			</h2>
-			<p class="text-gray-600 dark:text-gray-400">Please wait while we complete your sign in.</p>
+			<p class="text-muted-foreground">Please wait while we complete your sign in.</p>
 		{:else if error}
 			<div
 				class="max-w-md rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20"

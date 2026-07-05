@@ -235,7 +235,7 @@
 		</button>
 
 		{#if !isTableCollapsed && cleanSummary}
-			<div class="mt-2 mb-3 text-sm text-gray-700 dark:text-gray-300">
+			<div class="mt-2 mb-3 text-sm text-muted-foreground">
 				{cleanSummary}
 			</div>
 		{/if}
@@ -262,7 +262,7 @@
 				<div class="max-h-48 overflow-y-auto">
 					{#each displayData as row, rowIdx (rowIdx)}
 						<div class="border-t border-gray-200 py-2 first:border-t-0 dark:border-gray-700">
-							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+							<div class="text-sm font-medium text-foreground">
 								{getDisplayValue(row)}
 							</div>
 						</div>
@@ -286,11 +286,11 @@
 								{/each}
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+						<tbody class="divide-y divide-border">
 							{#each displayData as row, rowIdx (rowIdx)}
 								<tr class="hover:bg-gray-100 dark:hover:bg-gray-800/50">
 									{#each displayableColumns.slice(0, 5) as col}
-										<td class="px-2 py-1.5 text-gray-900 dark:text-gray-100">
+										<td class="px-2 py-1.5 text-foreground">
 											{formatCellValue(row[col])}
 										</td>
 									{/each}
@@ -302,7 +302,7 @@
 					<!-- Single-column list -->
 					{#each displayData as row, rowIdx (rowIdx)}
 						<div class="border-t border-gray-200 py-2 first:border-t-0 dark:border-gray-700">
-							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+							<div class="text-sm font-medium text-foreground">
 								{getDisplayValue(row)}
 							</div>
 						</div>

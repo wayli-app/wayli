@@ -32,11 +32,11 @@
 				<roleOption.icon
 					class="mr-3 h-5 w-5 {role === roleOption.id
 						? 'text-primary dark:text-gray-300'
-						: 'text-gray-500 dark:text-gray-400'}"
+						: 'text-muted-foreground'}"
 				/>
-				<span class="font-semibold text-gray-900 dark:text-gray-100">{roleOption.label}</span>
+				<span class="font-semibold text-foreground">{roleOption.label}</span>
 			</div>
-			<p class="text-sm text-gray-600 dark:text-gray-400">{roleOption.description}</p>
+			<p class="text-sm text-muted-foreground">{roleOption.description}</p>
 		</button>
 	{/each}
 </div>

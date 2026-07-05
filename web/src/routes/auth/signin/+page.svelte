@@ -408,10 +408,10 @@
 				>
 					<LogIn class="h-6 w-6 text-white" />
 				</div>
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.signInToAccount')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">
+				<p class="text-muted-foreground">
 					{t('auth.welcomeBack')}
 				</p>
 			</div>
@@ -419,7 +419,7 @@
 			{#if isLoadingSettings}
 				<div class="flex items-center justify-center py-8">
 					<div
-						class="border-t-primary h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700"
+						class="border-t-primary h-8 w-8 animate-spin rounded-full border-4 border-border"
 					></div>
 				</div>
 			{:else if oauthOnlyMode && oauthProviders.length > 0}
@@ -442,7 +442,7 @@
 				</div>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
@@ -458,7 +458,7 @@
 					<div>
 						<label
 							for="email"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.emailAddress')}
 						</label>
@@ -481,7 +481,7 @@
 					<div>
 						<label
 							for="password"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.password')}
 						</label>
@@ -519,7 +519,7 @@
 								bind:checked={rememberMe}
 								class="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
 							/>
-							<span class="ml-2 text-sm text-gray-600 dark:text-gray-400">
+							<span class="ml-2 text-sm text-muted-foreground">
 								{t('auth.rememberMe')}
 							</span>
 						</label>
@@ -575,7 +575,7 @@
 				{/if}
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"

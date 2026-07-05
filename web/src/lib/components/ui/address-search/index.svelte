@@ -161,7 +161,7 @@
 <div class="relative">
 	<label
 		for="address-input"
-		class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+		class="mb-2 block text-sm font-medium text-muted-foreground"
 	>
 		{label}
 		{#if required}
@@ -222,16 +222,16 @@
 							: ''}"
 						onclick={() => selectAddress(suggestion)}
 					>
-						<div class="text-sm text-gray-900 dark:text-gray-100">{suggestion.display_name}</div>
+						<div class="text-sm text-foreground">{suggestion.display_name}</div>
 						{#if suggestion.coordinates}
-							<div class="text-xs text-gray-500 dark:text-gray-400">
+							<div class="text-xs text-muted-foreground">
 								{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 							</div>
 						{/if}
 					</button>
 				{/each}
 			{:else if searchError}
-				<div class="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+				<div class="px-4 py-2 text-sm text-muted-foreground">
 					{searchError}
 				</div>
 			{/if}

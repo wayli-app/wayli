@@ -37,7 +37,7 @@
 
 {#if shouldShow}
 	<!-- Spacer to prevent content from being hidden behind fixed banner -->
-	<div class="h-12 bg-gray-100 dark:bg-gray-800"></div>
+	<div class="h-12 bg-muted"></div>
 	<div
 		class="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800"
 		transition:slide={{ duration: 300 }}
@@ -47,8 +47,8 @@
 		<div class="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
 			<div class="flex items-center justify-between gap-4">
 				<div class="flex items-center gap-3">
-					<Info class="h-5 w-5 shrink-0 text-gray-500 dark:text-gray-400" />
-					<p class="text-sm text-gray-600 dark:text-gray-300">
+					<Info class="h-5 w-5 shrink-0 text-muted-foreground" />
+					<p class="text-sm text-muted-foreground">
 						{t('storageNotice.message')}
 					</p>
 				</div>

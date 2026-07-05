@@ -237,7 +237,7 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<Import class="text-primary h-8 w-8 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+			<h1 class="text-3xl font-bold tracking-tight text-foreground">
 				{t('importExport.title')}
 			</h1>
 		</div>
@@ -250,15 +250,15 @@
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+				<h2 class="text-xl font-semibold text-foreground">
 					{t('importExport.importData')}
 				</h2>
 			</div>
-			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+			<p class="mb-6 text-sm text-muted-foreground">
 				{t('importExport.importDescription')}
 			</p>
 			{#if lastSuccessfulImport}
-				<div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+				<div class="mb-4 text-xs text-muted-foreground">
 					{t('importExport.lastSuccessfulImport', { date: lastSuccessfulImport })}
 				</div>
 			{/if}
@@ -267,7 +267,7 @@
 				<div>
 					<label
 						for="fileInput"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-foreground"
 						>{t('importExport.selectFile')}</label
 					>
 					<div class="relative">
@@ -282,7 +282,7 @@
 						/>
 					</div>
 					{#if selectedFile}
-						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+						<p class="mt-1 text-xs text-muted-foreground">
 							{t('importExport.selectedFile', { filename: selectedFile.name })}
 							{#if importFormat}
 								| {t('importExport.detectedFormat', { format: importFormat })}
@@ -292,10 +292,10 @@
 				</div>
 
 				<div class="mt-6">
-					<h3 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+					<h3 class="mb-3 text-sm font-medium text-foreground">
 						{t('importExport.supportedFormats')}
 					</h3>
-					<div class="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+					<div class="space-y-2 text-sm text-muted-foreground">
 						{#each importFormats as format (format.label)}
 							<div class="flex items-center gap-2">
 								<format.icon class="h-4 w-4" />
@@ -329,18 +329,18 @@
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
-				<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+				<h2 class="text-xl font-semibold text-foreground">
 					{t('importExport.exportData')}
 				</h2>
 			</div>
-			<p class="mb-6 text-sm text-gray-600 dark:text-gray-300">
+			<p class="mb-6 text-sm text-muted-foreground">
 				{t('importExport.exportDescription')}
 			</p>
 
 			<div class="flex-1 space-y-4">
 				<div>
 					<label
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-foreground"
 						for="includeLocationData">{t('importExport.include')}</label
 					>
 					<div class="space-y-2">
@@ -350,7 +350,7 @@
 								bind:checked={includeLocationDataExport}
 								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300"
+							<span class="text-sm text-muted-foreground"
 								>{t('importExport.locationData')}</span
 							>
 						</label>
@@ -360,7 +360,7 @@
 								bind:checked={includeWantToVisitExport}
 								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300"
+							<span class="text-sm text-muted-foreground"
 								>{t('importExport.wantToVisit')}</span
 							>
 						</label>
@@ -370,13 +370,13 @@
 								bind:checked={includeTripsExport}
 								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
-							<span class="text-sm text-gray-600 dark:text-gray-300">{t('importExport.trips')}</span
+							<span class="text-sm text-muted-foreground">{t('importExport.trips')}</span
 							>
 						</label>
 					</div>
 				</div>
 				<div class="mt-4">
-					<span class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+					<span class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('importExport.dateRange')}</span
 					>
 					<div class="datepicker-import-export-fix relative">
@@ -389,7 +389,7 @@
 						/>
 					</div>
 					{#if !localExportStartDate && !localExportEndDate}
-						<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+						<p class="mt-2 text-xs text-muted-foreground">
 							{t('importExport.exportAllDataHint')}
 						</p>
 					{/if}

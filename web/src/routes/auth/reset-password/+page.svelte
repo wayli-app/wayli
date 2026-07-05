@@ -99,10 +99,10 @@
 					>
 						<AlertCircle class="h-6 w-6 text-red-600 dark:text-red-400" />
 					</div>
-					<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h1 class="mb-2 text-2xl font-bold text-foreground">
 						{t('auth.invalidResetLink')}
 					</h1>
-					<p class="mb-6 text-gray-600 dark:text-gray-400">
+					<p class="mb-6 text-muted-foreground">
 						{t('auth.invalidResetLinkDescription')}
 					</p>
 					<a
@@ -119,10 +119,10 @@
 					>
 						<Lock class="h-6 w-6 text-white" />
 					</div>
-					<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h1 class="mb-2 text-2xl font-bold text-foreground">
 						{t('auth.resetPassword')}
 					</h1>
-					<p class="text-gray-600 dark:text-gray-400">
+					<p class="text-muted-foreground">
 						{t('auth.enterNewPassword')}
 					</p>
 				</div>
@@ -137,7 +137,7 @@
 								{t('auth.passwordResetSuccess')}
 							</p>
 						</div>
-						<p class="text-sm text-gray-600 dark:text-gray-400">
+						<p class="text-sm text-muted-foreground">
 							{t('auth.redirectingToDashboard')}
 						</p>
 					</div>
@@ -147,7 +147,7 @@
 						<div>
 							<label
 								for="password"
-								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-2 block text-sm font-medium text-muted-foreground"
 							>
 								{t('auth.newPassword')}
 							</label>
@@ -175,7 +175,7 @@
 									{/if}
 								</button>
 							</div>
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							<p class="mt-1 text-xs text-muted-foreground">
 								{t('auth.passwordMinLength')}
 							</p>
 						</div>
@@ -184,7 +184,7 @@
 						<div>
 							<label
 								for="confirmPassword"
-								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-2 block text-sm font-medium text-muted-foreground"
 							>
 								{t('auth.confirmPassword')}
 							</label>

@@ -69,7 +69,7 @@
 			{#if title || showCloseButton}
 				<div class="mb-6 flex items-start justify-between">
 					{#if title}
-						<h2 id="modal-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+						<h2 id="modal-title" class="text-2xl font-bold text-foreground">
 							{title}
 						</h2>
 					{/if}

@@ -1053,7 +1053,7 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<User class="text-primary dark:text-primary h-8 w-8" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+			<h1 class="text-3xl font-bold tracking-tight text-foreground">
 				Account Settings
 			</h1>
 		</div>
@@ -1076,7 +1076,7 @@
 					aria-labelledby="preferred-language-label"
 				>
 					<User class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.profile')}
 					</h2>
 				</div>
@@ -1100,7 +1100,7 @@
 						disabled
 						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-gray-500 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
 					/>
-					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					<p class="mt-1 text-xs text-muted-foreground">
 						{t('accountSettings.emailCannotChange')}
 					</p>
 				</div>
@@ -1122,7 +1122,7 @@
 					</label>
 
 					<!-- Context help -->
-					<p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+					<p class="mb-2 text-sm text-muted-foreground">
 						{t('accountSettings.homeLocationContext')}
 					</p>
 
@@ -1160,7 +1160,7 @@
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
-										<div class="text-xs text-gray-500 dark:text-gray-400">
+										<div class="text-xs text-muted-foreground">
 											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
 												6
 											)}
@@ -1213,7 +1213,7 @@
 						</button>
 					{/if}
 
-					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+					<p class="mt-1 text-xs text-muted-foreground">
 						💡 {t('accountSettings.tripDetectionHelp')}
 					</p>
 				</div>
@@ -1265,7 +1265,7 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Lock class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.security')}
 					</h2>
 				</div>
@@ -1336,7 +1336,7 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Shield class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.twoFactorAuthentication')}
 					</h2>
 				</div>
@@ -1346,7 +1346,7 @@
 			</div>
 
 			{#if isCheckingTwoFactor}
-				<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+				<div class="flex items-center gap-2 text-sm text-muted-foreground">
 					<div
 						class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
 					></div>
@@ -1373,10 +1373,10 @@
 								/>
 							</div>
 							<div>
-								<p class="font-medium text-gray-900 dark:text-gray-100">
+								<p class="font-medium text-foreground">
 									{twoFactorEnabled ? t('accountSettings.enabled') : t('accountSettings.disabled')}
 								</p>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
+								<p class="text-sm text-muted-foreground">
 									{twoFactorEnabled
 										? t('accountSettings.twoFactorEnabled')
 										: t('accountSettings.2faStatusDisabled')}
@@ -1418,7 +1418,7 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Globe class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.preferences')}
 					</h2>
 				</div>
@@ -1464,7 +1464,7 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<MapPin class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-xl font-semibold text-foreground">
 						{t('accountSettings.trips')}
 					</h2>
 				</div>
@@ -1477,12 +1477,12 @@
 			<div class="mb-8">
 				<div class="mb-4 flex items-center gap-2">
 					<Image class="h-5 w-5 text-gray-400" />
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					<h3 class="text-lg font-semibold text-foreground">
 						{t('accountSettings.tripImageSuggestionsTitle')}
 					</h3>
 				</div>
 
-				<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+				<p class="mb-4 text-sm text-muted-foreground">
 					{t('accountSettings.tripImageSuggestionsDescription')}
 				</p>
 
@@ -1503,7 +1503,7 @@
 				<div>
 					<label
 						for="pexels-api-key"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-foreground"
 						>{serverPexelsApiKeyAvailable
 							? t('accountSettings.personalPexelsApiKeyOptional')
 							: t('accountSettings.personalPexelsApiKey')}</label
@@ -1550,7 +1550,7 @@
 							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
 						/>
 					{/if}
-					<p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+					<p class="mt-1.5 text-xs text-muted-foreground">
 						{#if pexelsApiKeyConfigured}
 							✅ {t('accountSettings.usingPersonalApiKey')}
 						{:else if serverPexelsApiKeyAvailable}
@@ -1564,7 +1564,7 @@
 				<!-- Personal Rate Limit Configuration (show if personal key is configured or being entered) -->
 				{#if pexelsApiKeyConfigured || pexelsApiKeyInput.trim().length > 0}
 					<div class="mt-4 space-y-2 border-t border-gray-200 pt-4 dark:border-gray-700">
-						<h4 class="text-sm font-medium text-gray-900 dark:text-gray-100">
+						<h4 class="text-sm font-medium text-foreground">
 							Personal Rate Limit
 						</h4>
 
@@ -1574,11 +1574,11 @@
 								bind:checked={pexelsRateLimitEnabled}
 								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
 							/>
-							<span class="text-sm text-gray-700 dark:text-gray-300">Set custom rate limit</span>
+							<span class="text-sm text-muted-foreground">Set custom rate limit</span>
 						</label>
 
 						{#if !pexelsRateLimitEnabled}
-							<p class="text-xs text-gray-500 dark:text-gray-400">
+							<p class="text-xs text-muted-foreground">
 								Using default: <span class="font-medium">200 requests/hour</span>
 							</p>
 						{/if}
@@ -1594,9 +1594,9 @@
 										placeholder="200"
 										class="focus:border-primary focus:ring-primary w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
 									/>
-									<span class="text-sm text-gray-700 dark:text-gray-300">requests per hour</span>
+									<span class="text-sm text-muted-foreground">requests per hour</span>
 								</div>
-								<p class="text-xs text-gray-500 dark:text-gray-400">
+								<p class="text-xs text-muted-foreground">
 									Pexels free tier: 200/hour. Paid plans offer higher limits.
 								</p>
 							</div>
@@ -1626,11 +1626,11 @@
 			<div>
 				<div class="mb-4 flex items-center gap-2">
 					<MapPin class="h-5 w-5 text-gray-400" />
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					<h3 class="text-lg font-semibold text-foreground">
 						{t('accountSettings.excludedZones')}
 					</h3>
 				</div>
-				<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+				<p class="mb-4 text-sm text-muted-foreground">
 					{t('accountSettings.excludedZonesDescription')}
 				</p>
 				<p class="mb-4 text-xs text-gray-500 dark:text-gray-500">
@@ -1646,7 +1646,7 @@
 								class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
 							>
 								<div class="flex-1">
-									<div class="font-medium text-gray-900 dark:text-gray-100">{exclusion.name}</div>
+									<div class="font-medium text-foreground">{exclusion.name}</div>
 									<!-- Dual-purpose badges -->
 									<div class="mt-1 flex gap-2">
 										<span
@@ -1662,7 +1662,7 @@
 											📍 {t('accountSettings.excludedZonePlacesBadge')}
 										</span>
 									</div>
-									<div class="text-sm text-gray-600 dark:text-gray-400">
+									<div class="text-sm text-muted-foreground">
 										{exclusion.location.display_name}
 									</div>
 									{#if exclusion.location.coordinates}
@@ -1692,7 +1692,7 @@
 						{/each}
 					</div>
 				{:else}
-					<div class="py-8 text-center text-gray-500 dark:text-gray-400">
+					<div class="py-8 text-center text-muted-foreground">
 						<MapPin class="mx-auto mb-4 h-12 w-12 opacity-50" />
 						<p>{t('accountSettings.noExcludedZones')}</p>
 						<p class="text-sm">
@@ -1710,7 +1710,7 @@
 						{t('accountSettings.addTripExclusion')}
 					</button>
 				{:else}
-					<div class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+					<div class="py-4 text-center text-sm text-muted-foreground">
 						{t('accountSettings.maxTripExclusionsReached')}
 					</div>
 				{/if}
@@ -1754,14 +1754,14 @@
 			aria-modal="true"
 			tabindex="-1"
 		>
-			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+			<h3 class="mb-6 text-center text-2xl font-bold text-foreground">
 				{t('accountSettings.addTripExclusionModal')}
 			</h3>
 			<div class="space-y-6">
 				<div>
 					<label
 						for="add-exclusion-name"
-						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.name')}</label
 					>
 					<input
@@ -1775,7 +1775,7 @@
 				<div>
 					<label
 						for="add-exclusion-address"
-						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.address')}</label
 					>
 					<div class="relative">
@@ -1812,7 +1812,7 @@
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
-										<div class="text-xs text-gray-500 dark:text-gray-400">
+										<div class="text-xs text-muted-foreground">
 											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
 												6
 											)}
@@ -1898,14 +1898,14 @@
 			aria-modal="true"
 			tabindex="-1"
 		>
-			<h3 class="mb-6 text-center text-2xl font-bold text-gray-900 dark:text-gray-100">
+			<h3 class="mb-6 text-center text-2xl font-bold text-foreground">
 				{t('accountSettings.editTripExclusionModal')}
 			</h3>
 			<div class="space-y-6">
 				<div>
 					<label
 						for="edit-exclusion-name"
-						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.name')}</label
 					>
 					<input
@@ -1919,7 +1919,7 @@
 				<div>
 					<label
 						for="edit-exclusion-address"
-						class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.address')}</label
 					>
 					<div class="relative">
@@ -1956,7 +1956,7 @@
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
-										<div class="text-xs text-gray-500 dark:text-gray-400">
+										<div class="text-xs text-muted-foreground">
 											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
 												6
 											)}

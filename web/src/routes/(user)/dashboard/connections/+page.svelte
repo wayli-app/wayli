@@ -130,7 +130,7 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<Link class="text-primary h-8 w-8 dark:text-gray-400" />
-			<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+			<h1 class="text-3xl font-bold tracking-tight text-foreground">
 				{t('connections.title')}
 			</h1>
 		</div>
@@ -143,11 +143,11 @@
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
 					<Database class="h-5 w-5 text-gray-400" />
-					<h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-xl font-semibold text-foreground">
 						{t('connections.owntracksIntegration')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+				<p class="mt-1 text-sm text-muted-foreground">
 					{t('connections.owntracksDescription')}
 				</p>
 			</div>
@@ -156,7 +156,7 @@
 				<!-- API Key Status -->
 				<div>
 					<label
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-foreground"
 						for="owntracksApiKey">{t('connections.apiKey')}</label
 					>
 					{#if owntracksApiKeyConfigured}
@@ -168,7 +168,7 @@
 								{t('connections.apiKeyConfigured')}
 							</span>
 						</div>
-						<p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+						<p class="mt-1.5 text-xs text-muted-foreground">
 							{t('connections.apiKeyConfiguredDescription')}
 						</p>
 					{:else}
@@ -196,7 +196,7 @@
 				</button>
 
 				{#if owntracksApiKeyConfigured}
-					<p class="text-xs text-gray-500 dark:text-gray-400">
+					<p class="text-xs text-muted-foreground">
 						{t('connections.regenerateWarning')}
 					</p>
 				{/if}
@@ -233,7 +233,7 @@
 			<div class="mb-4 flex items-start justify-between">
 				<div class="flex items-center gap-2">
 					<AlertTriangle class="h-5 w-5 text-amber-500" />
-					<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+					<h2 class="text-lg font-semibold text-foreground">
 						{t('connections.saveYourApiKey')}
 					</h2>
 				</div>
@@ -259,7 +259,7 @@
 				<div>
 					<label
 						for="api-endpoint"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-foreground"
 					>
 						{t('connections.apiEndpoint')}
 					</label>
@@ -291,7 +291,7 @@
 				<div>
 					<label
 						for="api-key"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:text-gray-100"
+						class="mb-1.5 block text-sm font-medium text-foreground"
 					>
 						{t('connections.apiKey')}
 					</label>

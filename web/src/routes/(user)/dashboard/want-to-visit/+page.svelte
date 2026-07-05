@@ -965,7 +965,7 @@
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div class="flex items-center gap-3">
 			<Heart class="h-8 w-8 text-red-500" />
-			<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
+			<h1 class="text-3xl font-bold text-foreground">
 				{t('common.navigation.wantToVisit')}
 			</h1>
 		</div>
@@ -1002,7 +1002,7 @@
 			<div
 				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-gray-800/90"
 			>
-				<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+				<div class="flex items-center gap-2 text-sm text-muted-foreground">
 					<MapPin class="h-4 w-4" />
 					{t('wantToVisit.clickOnMapToAdd')}
 				</div>
@@ -1045,7 +1045,7 @@
 				onkeydown={(e) => e.stopPropagation()}
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+					<h3 class="text-lg font-bold text-foreground">
 						{t('wantToVisit.addNewPlace')}
 					</h3>
 					<button
@@ -1068,7 +1068,7 @@
 					<div>
 						<label
 							for="titleInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
@@ -1085,7 +1085,7 @@
 					<div>
 						<label
 							for="searchPlace"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('wantToVisit.searchForPlace')}
 						</label>
@@ -1121,10 +1121,10 @@
 										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
 										onclick={() => selectPlace(result)}
 									>
-										<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+										<div class="text-sm font-medium text-foreground">
 											{result.name.split(',')[0]}
 										</div>
-										<div class="truncate text-xs text-gray-500 dark:text-gray-400">
+										<div class="truncate text-xs text-muted-foreground">
 											{result.name}
 										</div>
 									</button>
@@ -1138,7 +1138,7 @@
 						<div>
 							<label
 								for="latitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.latitude')}</label
 							>
 							<input
@@ -1152,7 +1152,7 @@
 						<div>
 							<label
 								for="longitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.longitude')}</label
 							>
 							<input
@@ -1169,7 +1169,7 @@
 					<div>
 						<label
 							for="addressDisplay"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.address')}</label
 						>
 						<div
@@ -1191,7 +1191,7 @@
 
 					<!-- Type Selection via Icons -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.type')}</legend
 						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
@@ -1217,7 +1217,7 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.markerColor')}</legend
 						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
@@ -1237,7 +1237,7 @@
 					<div>
 						<label
 							for="labelInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
@@ -1285,7 +1285,7 @@
 					<div>
 						<label
 							for="descriptionInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.notes')}</label
 						>
 						<textarea
@@ -1353,7 +1353,7 @@
 				onkeydown={(e) => e.stopPropagation()}
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">
+					<h3 class="text-lg font-bold text-foreground">
 						{t('wantToVisit.editPlace')}
 					</h3>
 					<button
@@ -1373,7 +1373,7 @@
 					<div>
 						<label
 							for="titleInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.title')} <span class="text-red-500">*</span></label
 						>
 						<input
@@ -1391,7 +1391,7 @@
 						<div>
 							<label
 								for="latitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.latitude')}</label
 							>
 							<input
@@ -1405,7 +1405,7 @@
 						<div>
 							<label
 								for="longitudeInput"
-								class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-1 block text-sm font-medium text-muted-foreground"
 								>{t('wantToVisit.longitude')}</label
 							>
 							<input
@@ -1422,7 +1422,7 @@
 					<div>
 						<label
 							for="addressDisplay"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.address')}</label
 						>
 						<input
@@ -1436,7 +1436,7 @@
 
 					<!-- Type Selection via Icons -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.type')}</legend
 						>
 						<div class="flex flex-wrap gap-2" role="group" aria-label="Place type selection">
@@ -1462,7 +1462,7 @@
 
 					<!-- Marker Color -->
 					<fieldset>
-						<legend class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+						<legend class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.markerColor')}</legend
 						>
 						<div class="flex flex-wrap gap-1" role="group" aria-label="Marker color selection">
@@ -1482,7 +1482,7 @@
 					<div>
 						<label
 							for="labelInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.labels')}</label
 						>
 						<div class="mb-2 flex flex-wrap gap-2">
@@ -1530,7 +1530,7 @@
 					<div>
 						<label
 							for="descriptionInput"
-							class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-1 block text-sm font-medium text-muted-foreground"
 							>{t('wantToVisit.notes')}</label
 						>
 						<textarea
@@ -1572,7 +1572,7 @@
 		<div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
 			<!-- Type Filter -->
 			<div class="flex flex-col gap-2">
-				<label for="type-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
+				<label for="type-filter" class="text-sm font-medium text-muted-foreground"
 					>{t('wantToVisit.type')}</label
 				>
 				<div id="type-filter" class="flex flex-wrap gap-2">
@@ -1621,7 +1621,7 @@
 
 		<!-- Results Count -->
 		<div class="flex items-center justify-between">
-			<div class="text-sm text-gray-500 dark:text-gray-400">
+			<div class="text-sm text-muted-foreground">
 				{t('wantToVisit.showingPlacesOf', {
 					filtered: filteredPlaces.length.toLocaleString(),
 					total: places.length.toLocaleString()
@@ -1643,15 +1643,15 @@
 	{#if isLoading}
 		<div class="py-12 text-center">
 			<div class="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
-			<p class="mt-4 text-gray-500 dark:text-gray-400">{t('wantToVisit.loadingPlaces')}</p>
+			<p class="mt-4 text-muted-foreground">{t('wantToVisit.loadingPlaces')}</p>
 		</div>
 	{:else if filteredPlaces.length === 0}
 		<div class="py-12 text-center">
 			<Globe2 class="mx-auto mb-4 h-12 w-12 text-gray-400" />
-			<h3 class="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+			<h3 class="mb-2 text-lg font-medium text-foreground">
 				{t('wantToVisit.noPlacesFound')}
 			</h3>
-			<p class="text-gray-500 dark:text-gray-400">
+			<p class="text-muted-foreground">
 				{searchQuery || selectedTypes.length > 1
 					? t('wantToVisit.tryAdjustingFilters')
 					: t('wantToVisit.addFirstPlace')}
@@ -1679,7 +1679,7 @@
 						<div class="mb-2 flex items-start justify-between">
 							<!-- Remove name display -->
 						</div>
-						<div class="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+						<div class="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
 							<MapPin class="h-4 w-4" />
 							{place.address || place.coordinates}
 						</div>
@@ -1705,14 +1705,14 @@
 					<!-- Description -->
 					{#if place.description}
 						<div class="mb-4">
-							<p class="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+							<p class="line-clamp-2 text-sm text-muted-foreground">
 								{place.description}
 							</p>
 						</div>
 					{/if}
 
 					<!-- Coordinates -->
-					<div class="mb-4 text-xs text-gray-500 dark:text-gray-400">
+					<div class="mb-4 text-xs text-muted-foreground">
 						{place.coordinates}
 					</div>
 

@@ -81,12 +81,12 @@
 	<!-- Content -->
 	<div class="min-w-0 flex-1">
 		<!-- Name -->
-		<h4 class="truncate font-medium text-gray-900 dark:text-gray-100" class:text-sm={compact}>
+		<h4 class="truncate font-medium text-foreground" class:text-sm={compact}>
 			{place.poi_name || place.city || 'Unknown Place'}
 		</h4>
 
 		<!-- Subtitle: cuisine + amenity type -->
-		<div class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+		<div class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
 			{#if place.poi_cuisine}
 				<span>{formatCuisine(place.poi_cuisine)}</span>
 				<span>•</span>

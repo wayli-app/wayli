@@ -61,8 +61,8 @@
 >
 	<div class="text-center">
 		<Loader2 class="text-primary dark:text-primary mx-auto mb-4 h-8 w-8 animate-spin" />
-		<h2 class="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">Signing out...</h2>
-		<p class="text-gray-600 dark:text-gray-400">Please wait while we sign you out.</p>
+		<h2 class="mb-2 text-xl font-semibold text-foreground">Signing out...</h2>
+		<p class="text-muted-foreground">Please wait while we sign you out.</p>
 		<p class="mt-2 text-sm text-gray-500 dark:text-gray-500">Redirecting to home page...</p>
 	</div>
 </div>

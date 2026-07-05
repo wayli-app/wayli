@@ -112,10 +112,10 @@
 					<Shield class="text-primary h-6 w-6 dark:text-gray-300" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="text-2xl font-bold text-foreground">
 						Two-Factor Authentication
 					</h2>
-					<p class="text-sm text-gray-600 dark:text-gray-400">Enter your verification code</p>
+					<p class="text-sm text-muted-foreground">Enter your verification code</p>
 				</div>
 			</div>
 
@@ -131,7 +131,7 @@
 
 			<!-- Code Input -->
 			<div class="mb-6">
-				<label for="code" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+				<label for="code" class="mb-2 block text-sm font-medium text-muted-foreground">
 					{#if useBackupCode}
 						Backup Code
 					{:else}
@@ -152,7 +152,7 @@
 						}
 					}}
 				/>
-				<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+				<p class="mt-2 text-xs text-muted-foreground">
 					{#if useBackupCode}
 						Enter one of your 8-character backup codes
 					{:else}

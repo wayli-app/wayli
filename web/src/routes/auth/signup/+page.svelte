@@ -475,10 +475,10 @@
 			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
 		>
 			<div class="mb-8 text-center">
-				<h1 class="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="mb-2 text-2xl font-bold text-foreground">
 					{t('auth.createYourAccount')}
 				</h1>
-				<p class="text-gray-600 dark:text-gray-400">{t('auth.joinWayli')}</p>
+				<p class="text-muted-foreground">{t('auth.joinWayli')}</p>
 			</div>
 
 			{#if isLoadingSettings}
@@ -530,7 +530,7 @@
 			{:else if oauthOnlyMode && oauthProviders.length > 0 && !isFirstUser}
 				<!-- OAuth-only mode: show only OAuth buttons -->
 				<div class="space-y-4">
-					<p class="text-center text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-center text-sm text-muted-foreground">
 						{t('auth.signUpWithProvider')}
 					</p>
 					{#each oauthProviders as provider}
@@ -550,7 +550,7 @@
 				</div>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"
@@ -567,7 +567,7 @@
 						<div>
 							<label
 								for="firstName"
-								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-2 block text-sm font-medium text-muted-foreground"
 							>
 								{t('auth.firstName')}
 							</label>
@@ -589,7 +589,7 @@
 						<div>
 							<label
 								for="lastName"
-								class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+								class="mb-2 block text-sm font-medium text-muted-foreground"
 							>
 								{t('auth.lastName')}
 							</label>
@@ -609,7 +609,7 @@
 					<div>
 						<label
 							for="email"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.emailAddress')}
 						</label>
@@ -633,7 +633,7 @@
 					<div>
 						<label
 							for="password"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.password')}
 						</label>
@@ -667,7 +667,7 @@
 						<!-- Password Requirements -->
 						{#if password.length > 0}
 							<div class="mt-3 space-y-2">
-								<p class="text-xs font-medium text-gray-700 dark:text-gray-300">
+								<p class="text-xs font-medium text-muted-foreground">
 									{t('auth.passwordRequirements')}
 								</p>
 								<div class="space-y-1">
@@ -758,7 +758,7 @@
 					<div>
 						<label
 							for="confirmPassword"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('auth.confirmPassword')}
 						</label>
@@ -846,7 +846,7 @@
 				{/if}
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<p class="text-sm text-muted-foreground">
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"

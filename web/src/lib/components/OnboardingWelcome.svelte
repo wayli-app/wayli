@@ -200,10 +200,10 @@
 					>
 						👋
 					</div>
-					<h2 class="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
+					<h2 class="mb-4 text-3xl font-bold text-foreground">
 						{t('onboarding.welcome')}
 					</h2>
-					<p class="mb-8 text-lg text-gray-600 dark:text-gray-400">
+					<p class="mb-8 text-lg text-muted-foreground">
 						{t('onboarding.welcomeMessage')}
 					</p>
 					<p class="mb-6 text-sm text-gray-500 dark:text-gray-500">
@@ -226,10 +226,10 @@
 						>
 							<Home class="h-8 w-8 text-green-600 dark:text-green-400" />
 						</div>
-						<h2 class="mb-4 text-3xl font-bold text-gray-900 dark:text-gray-100">
+						<h2 class="mb-4 text-3xl font-bold text-foreground">
 							{t('onboarding.setHomeLocation')}
 						</h2>
-						<p class="mb-2 text-gray-600 dark:text-gray-400">
+						<p class="mb-2 text-muted-foreground">
 							{t('onboarding.homeLocationHelp')}
 						</p>
 						<p class="mb-6 text-sm text-gray-500 dark:text-gray-500">
@@ -241,7 +241,7 @@
 					<div class="mb-8">
 						<label
 							for="onboarding-address"
-							class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							class="mb-2 block text-sm font-medium text-muted-foreground"
 						>
 							{t('onboarding.homeAddressLabel')}
 						</label>
@@ -280,7 +280,7 @@
 									>
 										<div class="font-medium">{suggestion.display_name}</div>
 										{#if suggestion.lat && suggestion.lon}
-											<div class="text-xs text-gray-500 dark:text-gray-400">
+											<div class="text-xs text-muted-foreground">
 												📍 {parseFloat(suggestion.lat).toFixed(6)}, {parseFloat(
 													suggestion.lon
 												).toFixed(6)}
@@ -335,10 +335,10 @@
 						>
 							<Rocket class="text-primary h-8 w-8" />
 						</div>
-						<h2 class="mb-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
+						<h2 class="mb-2 text-3xl font-bold text-foreground">
 							{t('onboarding.nextStepsTitle')}
 						</h2>
-						<p class="text-gray-600 dark:text-gray-400">
+						<p class="text-muted-foreground">
 							{t('onboarding.nextStepsSubtitle')}
 						</p>
 					</div>
@@ -359,10 +359,10 @@
 								<Link class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+								<h3 class="font-semibold text-foreground">
 									{t('onboarding.configureOwnTracks')}
 								</h3>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
+								<p class="text-sm text-muted-foreground">
 									{t('onboarding.configureOwnTracksDesc')}
 								</p>
 							</div>
@@ -382,10 +382,10 @@
 								<Import class="h-5 w-5 text-green-600 dark:text-green-400" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+								<h3 class="font-semibold text-foreground">
 									{t('onboarding.importData')}
 								</h3>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
+								<p class="text-sm text-muted-foreground">
 									{t('onboarding.importDataDesc')}
 								</p>
 							</div>
@@ -406,10 +406,10 @@
 									<Settings class="h-5 w-5 text-orange-600 dark:text-orange-400" />
 								</div>
 								<div>
-									<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+									<h3 class="font-semibold text-foreground">
 										{t('onboarding.configureAI')}
 									</h3>
-									<p class="text-sm text-gray-600 dark:text-gray-400">
+									<p class="text-sm text-muted-foreground">
 										{t('onboarding.configureAIDesc')}
 									</p>
 								</div>
@@ -430,10 +430,10 @@
 								<Map class="h-5 w-5 text-purple-600 dark:text-purple-400" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-gray-900 dark:text-gray-100">
+								<h3 class="font-semibold text-foreground">
 									{t('onboarding.generateTrips')}
 								</h3>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
+								<p class="text-sm text-muted-foreground">
 									{t('onboarding.generateTripsDesc')}
 								</p>
 							</div>
