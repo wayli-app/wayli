@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn } from 'lucide-svelte';
+	import { Mail, Lock, Eye, EyeOff, ArrowLeft, LogIn, Loader2 } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -399,9 +399,7 @@
 		</div>
 
 		<!-- Sign In Form -->
-		<div
-			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			<div class="mb-8 text-center">
 				<div
 					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
@@ -456,10 +454,7 @@
 				<form onsubmit={handleSignIn} class="space-y-6">
 					<!-- Email Field -->
 					<div>
-						<label
-							for="email"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
-						>
+						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
@@ -479,10 +474,7 @@
 
 					<!-- Password Field -->
 					<div>
-						<label
-							for="password"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
-						>
+						<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
 							{t('auth.password')}
 						</label>
 						<div class="relative">
@@ -535,8 +527,9 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 w-full cursor-pointer rounded-lg px-4 py-3 font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-primary-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
+						{#if loading}<Loader2 class="h-5 w-5 animate-spin" />{/if}
 						{loading ? t('auth.signingIn') : t('auth.signIn')}
 					</button>
 				</form>

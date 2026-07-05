@@ -43,7 +43,6 @@
 	}
 
 	async function handleSignOut() {
-		console.log('🏠 [LANDING] Signout initiated');
 		try {
 			// Ensure client session/localStorage are cleared first
 			await fluxbase.auth.signOut();
@@ -62,14 +61,11 @@
 				fluxbase.settings.get('wayli.is_setup_complete')
 			);
 
-			console.log('🏠 [LANDING] Setup status check:', { isSetupComplete });
-
 			// Only redirect if setup is explicitly marked as incomplete
 			// If the setting doesn't exist or is undefined, assume setup is complete
 			// (landing page should be accessible by default)
 			const setupValue = isSetupComplete?.value;
 			if (setupValue === false || setupValue === 'false') {
-				console.log('🏠 [LANDING] Setup explicitly incomplete, redirecting to initial setup');
 				goto('/auth/signup');
 				return;
 			}
@@ -82,8 +78,6 @@
 	}
 
 	onMount(() => {
-		console.log('🏠 [LANDING] Page mounted');
-
 		// Initialize theme
 		initializeTheme();
 
@@ -113,16 +107,10 @@
 		})();
 
 		// Subscribe to user store for real-time updates
-		const unsubscribe = userStore.subscribe((user) => {
-			console.log('🏠 [LANDING] User state:', user ? `Logged in - ${user.email}` : 'Not logged in');
-			console.log('🏠 [LANDING] User store value:', user);
-		});
+		const unsubscribe = userStore.subscribe((user) => {});
 
 		// Also subscribe to session store for additional auth state tracking
-		const sessionUnsubscribe = sessionStore.subscribe((session) => {
-			console.log('🏠 [LANDING] Session state:', session ? 'session present' : 'no session');
-			console.log('🏠 [LANDING] Session store value:', session);
-		});
+		const sessionUnsubscribe = sessionStore.subscribe((session) => {});
 
 		return () => {
 			unsubscribe();
@@ -245,9 +233,7 @@
 			<div class="mx-auto mb-16 max-w-4xl text-center">
 				<!-- Logo with text -->
 				<div class="mx-auto mb-6 flex justify-center">
-					<div
-						class="rounded-2xl bg-white/80 p-4 backdrop-blur-sm dark:bg-white/80 dark:backdrop-blur-md"
-					>
+					<div class="bg-card/80 rounded-2xl p-4 backdrop-blur-sm dark:backdrop-blur-md">
 						<img src="/logo.svg" alt="Wayli logo" class="h-32 w-auto md:h-40" />
 					</div>
 				</div>

@@ -1103,9 +1103,7 @@
 		<div class="mx-4 max-w-md rounded-lg p-6 shadow-xl bg-card">
 			<div class="mb-4 flex items-center">
 				<AlertTriangle class="mr-3 h-6 w-6 text-yellow-500" />
-				<h3 class="text-lg font-semibold text-foreground">
-					Large Dataset Warning
-				</h3>
+				<h3 class="text-lg font-semibold text-foreground">Large Dataset Warning</h3>
 			</div>
 			<div class="mb-6 text-sm text-muted-foreground">
 				<p class="mb-2">
@@ -1161,9 +1159,7 @@
 
 <div class="space-y-6">
 	<!-- Map -->
-	<div
-		class="relative isolate z-0 h-96 w-full rounded-lg md:h-[600px] bg-muted"
-	>
+	<div class="relative isolate z-0 h-96 w-full rounded-lg md:h-[600px] bg-muted">
 		<div
 			bind:this={mapContainer}
 			class="h-full w-full rounded-lg"
@@ -1181,9 +1177,7 @@
 				{#each Object.entries(transportModeColors) as [mode, color] (mode)}
 					<div class="flex items-center space-x-2">
 						<div class="h-3 w-3 rounded-full" style="background-color: {color}"></div>
-						<span class="text-xs text-muted-foreground"
-							>{translateTransportMode(mode)}</span
-						>
+						<span class="text-xs text-muted-foreground">{translateTransportMode(mode)}</span>
 					</div>
 				{/each}
 				<!-- Exclusion Zones Legend -->
@@ -1227,17 +1221,13 @@
 				<div class="space-y-2 text-xs">
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.date')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.date')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{formatDateWithTimezoneSync(selectedPoint.recorded_at, selectedPoint.tz_diff)}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.mode')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.mode')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{translateTransportMode(selectedPoint.transport_mode || 'unknown')}
 							</div>
@@ -1246,17 +1236,13 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.coordinates')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.coordinates')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.lat}, {selectedPoint.lon}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.popupSpeed')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.popupSpeed')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
 							</div>
@@ -1265,8 +1251,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.popupDistance')}:</span
+							<span class="font-medium text-muted-foreground">{t('statistics.popupDistance')}:</span
 							>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.distance
@@ -1275,9 +1260,7 @@
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.country')}:</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.country')}:</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.country_code || 'N/A'}
 							</div>
@@ -1286,9 +1269,7 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground"
-								>{t('statistics.popupReason')}</span
-							>
+							<span class="font-medium text-muted-foreground">{t('statistics.popupReason')}</span>
 							<div class="text-gray-800 dark:text-gray-200">
 								{selectedPoint.detection_reason
 									? getTransportDetectionReasonLabel(
@@ -1309,12 +1290,9 @@
 			>
 				<div class="text-center">
 					<MapPin class="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-500" />
-					<h3 class="mb-2 text-lg font-semibold text-muted-foreground">
+					<h3 class="mb-4 text-lg font-semibold text-muted-foreground">
 						{t('statistics.noDataMessage')}
 					</h3>
-					<p class="mb-4 text-sm text-muted-foreground">
-						{t('statistics.noDataMessage')}
-					</p>
 					<a
 						href="/dashboard/import-export"
 						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
@@ -1330,9 +1308,7 @@
 	{#if statisticsLoading}
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each Array(8) as _, index (`loading-${index}`)}
-				<div
-					class="rounded-lg border p-4 bg-card border-border"
-				>
+				<div class="rounded-lg border p-4 bg-card border-border">
 					<div class="mb-3 flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
 						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1358,9 +1334,7 @@
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
 				{@const IconComponent = stat.icon}
-				<div
-					class="rounded-lg border p-4 bg-card border-border"
-				>
+				<div class="rounded-lg border p-4 bg-card border-border">
 					<div class="flex items-center gap-2">
 						<IconComponent
 							class="h-5 w-5 {stat.color === 'green' ? 'text-green-500' : 'text-blue-500'}"
@@ -1380,9 +1354,7 @@
 		<div class="mb-8 flex flex-col gap-6 md:flex-row">
 			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
 				<div class="w-full md:w-1/2">
-					<div
-						class="w-full rounded-lg border p-4 bg-card border-border"
-					>
+					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
 							<Globe2 class="text-primary dark:text-primary h-5 w-5" />
 							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
@@ -1420,9 +1392,7 @@
 
 			{#if statisticsData.transport && statisticsData.transport.length > 0}
 				<div class="w-full md:w-1/2">
-					<div
-						class="w-full rounded-lg border p-4 bg-card border-border"
-					>
+					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
 							<Route class="text-primary dark:text-primary h-5 w-5" />
 							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
@@ -1466,9 +1436,7 @@
 										.filter((mode) => mode.mode !== 'stationary')
 										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
 										<tr>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-foreground"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-foreground">
 												{translateTransportMode(mode.mode)}
 											</td>
 											<td
@@ -1476,19 +1444,13 @@
 											>
 												{formatDistance(mode.distance)}
 											</td>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
 												{formatSegmentDuration(mode.time || 0)}
 											</td>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
 												{mode.percentage}%
 											</td>
-											<td
-												class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground"
-											>
+											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
 												{mode.points || 0}
 											</td>
 										</tr>
@@ -1504,9 +1466,7 @@
 
 	<!-- Train Station Visits Table -->
 	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
-		<div
-			class="mb-8 w-full rounded-lg border p-4 md:w-1/2 bg-card border-border"
-		>
+		<div class="mb-8 w-full rounded-lg border p-4 md:w-1/2 bg-card border-border">
 			<div class="mb-3 flex items-center gap-2">
 				<Train class="text-primary dark:text-primary h-5 w-5" />
 				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">

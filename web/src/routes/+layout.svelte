@@ -52,7 +52,7 @@
 	});
 </script>
 
-<Toaster richColors />
+<Toaster richColors position="top-right" closeButton />
 <StorageNoticeBanner />
 
 <ErrorBoundary>
