@@ -3,7 +3,7 @@
 
 	type Props = {
 		type?: string;
-		value?: string;
+		value?: string | number;
 		disabled?: boolean;
 		invalid?: boolean;
 		/** When set, the input is marked aria-invalid and the message renders below with role="alert". */

@@ -12,6 +12,7 @@
 		Image
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import Input from '$lib/components/ui/input/index.svelte';
 	import { toast } from 'svelte-sonner';
 
 	import OnboardingWelcome from '$lib/components/OnboardingWelcome.svelte';
@@ -487,10 +488,13 @@
 		try {
 			// Mark onboarding as completed and home address as skipped
 			if (profile) {
-				const { error } = await fluxbase.from<Record<string, any>>('user_profiles').eq('id', profile.id).update({
-					onboarding_completed: true,
-					home_address_skipped: true
-				});
+				const { error } = await fluxbase
+					.from<Record<string, any>>('user_profiles')
+					.eq('id', profile.id)
+					.update({
+						onboarding_completed: true,
+						home_address_skipped: true
+					});
 
 				if (error) {
 					console.error('Error marking onboarding as skipped:', error);
@@ -1046,9 +1050,7 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<User class="text-primary dark:text-primary h-8 w-8" />
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">
-				Account Settings
-			</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-foreground">Account Settings</h1>
 		</div>
 	</div>
 
@@ -1086,13 +1088,7 @@
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						>{t('accountSettings.email')}</label
 					>
-					<input
-						id="email"
-						type="email"
-						value={profile?.email}
-						disabled
-						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-muted-foreground placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
-					/>
+					<Input id="email" type="email" value={profile?.email} disabled class="w-full" />
 					<p class="mt-1 text-xs text-muted-foreground">
 						{t('accountSettings.emailCannotChange')}
 					</p>
@@ -1128,7 +1124,7 @@
 							oninput={handleHomeAddressInput}
 							onkeydown={handleHomeAddressKeydown}
 							placeholder={t('accountSettings.startTypingHomeAddress')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 						{#if isHomeAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -1218,12 +1214,12 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.firstName')}</label
 						>
-						<input
+						<Input
 							id="firstName"
 							type="text"
 							bind:value={firstNameInput}
 							placeholder={t('accountSettings.enterFirstName')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					</div>
 
@@ -1233,12 +1229,12 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.lastName')}</label
 						>
-						<input
+						<Input
 							id="lastName"
 							type="text"
 							bind:value={lastNameInput}
 							placeholder={t('accountSettings.enterLastName')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					</div>
 				</div>
@@ -1274,12 +1270,7 @@
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						>{t('accountSettings.currentPassword')}</label
 					>
-					<input
-						id="currentPassword"
-						type="password"
-						bind:value={currentPassword}
-						class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
-					/>
+					<Input id="currentPassword" type="password" bind:value={currentPassword} class="w-full" />
 				</div>
 
 				<div class="grid gap-4 md:grid-cols-2">
@@ -1289,12 +1280,7 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.newPassword')}</label
 						>
-						<input
-							id="newPassword"
-							type="password"
-							bind:value={newPassword}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
-						/>
+						<Input id="newPassword" type="password" bind:value={newPassword} class="w-full" />
 					</div>
 
 					<div>
@@ -1303,11 +1289,11 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('common.fields.confirmPassword')}</label
 						>
-						<input
+						<Input
 							id="confirmPassword"
 							type="password"
 							bind:value={confirmPassword}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					</div>
 				</div>
@@ -1349,7 +1335,9 @@
 				<div class="space-y-4">
 					<!-- Current Status -->
 					<div
-						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : ' bg-gray-50 dark:bg-gray-800'} border-border"
+						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled
+							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+							: ' bg-gray-50 dark:bg-gray-800'} border-border"
 					>
 						<div class="flex items-center gap-3">
 							<div
@@ -1492,9 +1480,7 @@
 				{/if}
 
 				<div>
-					<label
-						for="pexels-api-key"
-						class="mb-1.5 block text-sm font-medium text-foreground"
+					<label for="pexels-api-key" class="mb-1.5 block text-sm font-medium text-foreground"
 						>{serverPexelsApiKeyAvailable
 							? t('accountSettings.personalPexelsApiKeyOptional')
 							: t('accountSettings.personalPexelsApiKey')}</label
@@ -1522,23 +1508,23 @@
 							</button>
 						</div>
 						<div class="mt-2">
-							<input
+							<Input
 								type="password"
 								id="pexels-api-key"
 								bind:value={pexelsApiKeyInput}
 								placeholder={t('accountSettings.enterNewKeyToReplace')}
-								class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+								class="w-full"
 							/>
 						</div>
 					{:else}
-						<input
+						<Input
 							type="password"
 							id="pexels-api-key"
 							bind:value={pexelsApiKeyInput}
 							placeholder={serverPexelsApiKeyAvailable
 								? t('accountSettings.leaveEmptyToUseServerKey')
 								: t('accountSettings.enterPexelsApiKey')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					{/if}
 					<p class="mt-1.5 text-xs text-muted-foreground">
@@ -1555,9 +1541,7 @@
 				<!-- Personal Rate Limit Configuration (show if personal key is configured or being entered) -->
 				{#if pexelsApiKeyConfigured || pexelsApiKeyInput.trim().length > 0}
 					<div class="mt-4 space-y-2 border-t pt-4 border-border">
-						<h4 class="text-sm font-medium text-foreground">
-							Personal Rate Limit
-						</h4>
+						<h4 class="text-sm font-medium text-foreground">Personal Rate Limit</h4>
 
 						<label class="flex items-center gap-2">
 							<input
@@ -1577,7 +1561,7 @@
 						{#if pexelsRateLimitEnabled}
 							<div class="space-y-2">
 								<div class="flex items-center gap-2">
-									<input
+									<Input
 										type="number"
 										bind:value={pexelsRateLimit}
 										min="1"
@@ -1755,12 +1739,12 @@
 						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.name')}</label
 					>
-					<input
+					<Input
 						id="add-exclusion-name"
 						type="text"
 						bind:value={newExclusion.name}
 						placeholder={t('accountSettings.exclusionExampleLabel')}
-						class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full"
 					/>
 				</div>
 				<div>
@@ -1778,7 +1762,7 @@
 							oninput={handleExclusionAddressInput}
 							onkeydown={handleExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full"
 						/>
 						{#if isExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -1899,12 +1883,12 @@
 						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.name')}</label
 					>
-					<input
+					<Input
 						id="edit-exclusion-name"
 						type="text"
 						bind:value={editingExclusion.name}
 						placeholder={t('accountSettings.exclusionExampleLabel')}
-						class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full"
 					/>
 				</div>
 				<div>
@@ -1922,7 +1906,7 @@
 							oninput={handleEditExclusionAddressInput}
 							onkeydown={handleEditExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full"
 						/>
 						{#if isEditExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
