@@ -2154,7 +2154,7 @@
 			<div class="mt-4 flex gap-3 border-t pt-4 border-border">
 				<button
 					onclick={() => (showSuggestedTripsModal = false)}
-					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 				>
 					{t('common.actions.cancel')}
 				</button>

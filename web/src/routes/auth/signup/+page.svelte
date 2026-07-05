@@ -645,7 +645,7 @@
 								type="button"
 								onclick={togglePassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:text-muted-foreground"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -773,7 +773,7 @@
 								type="button"
 								onclick={toggleConfirmPassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:text-gray-300"
+								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:text-muted-foreground"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -810,7 +810,7 @@
 							<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="px-2 text-muted-foreground dark:text-gray-400 bg-card">
+							<span class="px-2 text-muted-foreground bg-card">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>

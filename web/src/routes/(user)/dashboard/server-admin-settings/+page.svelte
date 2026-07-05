@@ -1380,7 +1380,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1450,7 +1450,7 @@
 				<button
 					type="button"
 					onclick={handleCloseDeleteConfirm}
-					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1482,9 +1482,7 @@
 		<div class="mb-6 border-b border-border">
 			<nav class="-mb-px flex space-x-8">
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
-						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1493,9 +1491,7 @@
 					</div>
 				</button>
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
-						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1571,25 +1567,25 @@
 								<tr>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										User
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										Role
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										Created
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										Status
 									</th>
@@ -1631,21 +1627,21 @@
 										<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 											<div class="flex items-center justify-end gap-2">
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
 													onclick={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
 													onclick={() => handleClearUserPlaceVisits(user)}
 													title={t('serverAdmin.clearUserPlaceVisits')}
 												>
 													<RotateCcw class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 													onclick={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
@@ -1677,7 +1673,7 @@
 										<button
 											onclick={goToPreviousPage}
 											disabled={!pagination.hasPrev}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
 										>
 											<span class="sr-only">Previous</span>
 											<ChevronLeft class="h-5 w-5" />
@@ -1687,10 +1683,7 @@
 										{#each getPageNumbers() as pageNum (pageNum)}
 											<button
 												onclick={() => goToPage(pageNum)}
-												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
-												currentPage
-													? 'bg-primary text-white'
-													: 'text-muted-foreground hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
+												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum === currentPage ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-700'}"
 											>
 												{pageNum}
 											</button>
@@ -1700,7 +1693,7 @@
 										<button
 											onclick={goToNextPage}
 											disabled={!pagination.hasNext}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
 										>
 											<span class="sr-only">Next</span>
 											<ChevronRight class="h-5 w-5" />
@@ -2153,7 +2146,7 @@
 											/>
 											<button
 												onclick={() => editOAuthProvider(provider)}
-												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
 												title={t('serverAdmin.edit')}
 											>
 												<Edit class="h-4 w-4" />
@@ -2399,7 +2392,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										onclick={resetOAuthForm}
-										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 									>
 										{t('serverAdmin.cancel')}
 									</button>
@@ -2420,7 +2413,7 @@
 						{:else}
 							<button
 								onclick={() => (showOAuthForm = true)}
-								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-300"
+								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 hover:text-muted-foreground"
 							>
 								+ {t('serverAdmin.addOAuthProvider')}
 							</button>
@@ -2861,7 +2854,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelForceRegeocode}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -2909,7 +2902,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -2966,7 +2959,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearUserPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>

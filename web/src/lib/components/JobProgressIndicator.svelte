@@ -425,7 +425,7 @@
 	<div
 		role="button"
 		tabindex="0"
-		class="mb-3 flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+		class="mb-3 flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted"
 		onclick={() => openJobDetail(job)}
 		onkeydown={(e) => e.key === 'Enter' && openJobDetail(job)}
 	>
@@ -501,7 +501,7 @@
 			<button
 				type="button"
 				onclick={(e) => dismissJob(job.id, e)}
-				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-muted-foreground"
 				title={t('jobProgress.dismiss')}
 				aria-label={t('jobProgress.dismiss')}
 			>

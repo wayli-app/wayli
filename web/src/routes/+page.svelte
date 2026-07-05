@@ -177,7 +177,7 @@
 			<div class="group relative">
 				<a
 					href="/dashboard/statistics"
-					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 bg-card border-border"
+					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors dark:text-gray-300 bg-card border-border hover:bg-muted"
 				>
 					<User class="h-4 w-4" />
 					{($userStore.email?.split('@')[0] || 'User').charAt(0).toUpperCase() +
@@ -191,20 +191,20 @@
 					<div class="py-2">
 						<a
 							href="/dashboard/statistics"
-							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-gray-300 hover:bg-muted"
 						>
 							{t('common.navigation.dashboard')}
 						</a>
 						<a
 							href="/dashboard/account-settings"
-							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-gray-300 hover:bg-muted"
 						>
 							{t('common.navigation.accountSettings')}
 						</a>
 						<hr class="my-2 border-border" />
 						<button
 							onclick={handleSignOut}
-							class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors hover:bg-gray-50 dark:text-red-400 dark:hover:bg-gray-700"
+							class="flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition-colors dark:text-red-400 hover:bg-muted"
 						>
 							<LogOut class="h-4 w-4" />
 							{t('common.navigation.signOut')}
@@ -250,7 +250,7 @@
 				<div class="flex flex-col justify-center gap-4 sm:flex-row">
 					<a
 						href="/auth/signup"
-						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 					>
 						{t('landing.getStarted')}
 						<ArrowRight class="h-5 w-5" />

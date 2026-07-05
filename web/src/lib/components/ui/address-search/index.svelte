@@ -186,7 +186,7 @@
 		<button
 			type="button"
 			aria-label="Clear address"
-			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-gray-200 focus:ring-2 focus:ring-primary focus:outline-none dark:text-gray-300 dark:hover:bg-gray-700"
+			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-gray-200 focus:ring-2 focus:ring-primary focus:outline-none dark:hover:bg-gray-700"
 			onclick={clearAddress}
 		>
 			✕
@@ -216,10 +216,7 @@
 					<button
 						type="button"
 						data-testid="address-suggestion"
-						class="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedIndex ===
-						index
-							? 'bg-gray-100 dark:bg-gray-700'
-							: ''}"
+						class="w-full px-4 py-2 text-left focus:bg-gray-100 focus:outline-none dark:focus:bg-gray-700 {selectedIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''} hover:bg-muted"
 						onclick={() => selectAddress(suggestion)}
 					>
 						<div class="text-sm text-foreground">{suggestion.display_name}</div>

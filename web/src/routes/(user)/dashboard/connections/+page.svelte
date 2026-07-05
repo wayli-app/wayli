@@ -240,7 +240,7 @@
 				<button
 					type="button"
 					onclick={closeApiKeyModal}
-					class="rounded-md p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
 				>
 					<X class="h-5 w-5" />
 				</button>

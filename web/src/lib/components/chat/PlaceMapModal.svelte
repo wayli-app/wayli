@@ -247,7 +247,7 @@
 				</div>
 				<button
 					onclick={onClose}
-					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
 					aria-label="Close"
 				>
 					<X class="h-5 w-5" />
@@ -308,7 +308,7 @@
 						</span>
 					{/if}
 					{#if place.started_at}
-						<span class="text-muted-foreground dark:text-gray-500">
+						<span class="text-muted-foreground">
 							{formatDate(place.started_at)}
 						</span>
 					{/if}
@@ -326,7 +326,7 @@
 						</button>
 						<button
 							onclick={onClose}
-							class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+							class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 						>
 							Close
 						</button>
