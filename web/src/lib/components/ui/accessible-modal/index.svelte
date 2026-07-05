@@ -127,9 +127,7 @@
 		<!-- Modal Content -->
 		<div
 			bind:this={modalElement}
-			class="relative mx-4 w-full cursor-default rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900 {sizeClasses[
-				size
-			]} max-h-[90vh] overflow-y-auto"
+			class="relative mx-4 w-full cursor-default rounded-2xl p-8 shadow-2xl {sizeClasses[ size ]} max-h-[90vh] overflow-y-auto bg-card"
 			role="document"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.key === 'Escape' && onClose?.()}

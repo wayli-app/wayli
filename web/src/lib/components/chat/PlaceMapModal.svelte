@@ -214,12 +214,12 @@
 		tabindex="0"
 	>
 		<div
-			class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl dark:bg-gray-900"
+			class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl shadow-xl bg-card"
 			role="document"
 		>
 			<!-- Header -->
 			<div
-				class="flex items-start justify-between border-b border-gray-200 p-4 dark:border-gray-700"
+				class="flex items-start justify-between border-b p-4 border-border"
 			>
 				<div class="flex items-start gap-3">
 					{#if amenityStyle}
@@ -291,7 +291,7 @@
 			</div>
 
 			<!-- Details -->
-			<div class="border-t border-gray-200 p-4 dark:border-gray-700">
+			<div class="border-t p-4 border-border">
 				<div
 					class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
 				>

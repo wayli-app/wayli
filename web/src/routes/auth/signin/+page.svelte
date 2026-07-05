@@ -400,7 +400,7 @@
 
 		<!-- Sign In Form -->
 		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
 		>
 			<div class="mb-8 text-center">
 				<div
@@ -548,7 +548,7 @@
 							<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="bg-white px-2 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+							<span class="px-2 text-gray-500 dark:text-gray-400 bg-card">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>

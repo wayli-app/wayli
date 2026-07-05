@@ -189,7 +189,7 @@
 			<div class="group relative">
 				<a
 					href="/dashboard/statistics"
-					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700 bg-card border-border"
 				>
 					<User class="h-4 w-4" />
 					{($userStore.email?.split('@')[0] || 'User').charAt(0).toUpperCase() +
@@ -198,7 +198,7 @@
 
 				<!-- Dropdown Menu -->
 				<div
-					class="invisible absolute top-full right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100 dark:border-gray-700 dark:bg-gray-800"
+					class="invisible absolute top-full right-0 mt-2 w-48 rounded-lg border opacity-0 shadow-lg transition-all duration-200 group-hover:visible group-hover:opacity-100 bg-card border-border"
 				>
 					<div class="py-2">
 						<a

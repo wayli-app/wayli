@@ -993,7 +993,7 @@
 
 	<!-- Map -->
 	<div
-		class="relative isolate z-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+		class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border"
 	>
 		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
 
@@ -1038,7 +1038,7 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 bg-card"
 				role="dialog"
 				tabindex="0"
 				onclick={(e) => e.stopPropagation()}
@@ -1346,7 +1346,7 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+				class="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 bg-card"
 				role="dialog"
 				tabindex="0"
 				onclick={(e) => e.stopPropagation()}
@@ -1661,7 +1661,7 @@
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each filteredPlaces as place (place.id)}
 				<div
-					class="group relative rounded-xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg dark:border-gray-700 dark:bg-gray-800"
+					class="group relative rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg bg-card border-border"
 				>
 					<!-- Favorite Button -->
 					<button

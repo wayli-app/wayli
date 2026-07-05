@@ -131,7 +131,7 @@
 {#if statisticsUrl}
 	<a
 		href={statisticsUrl}
-		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border text-left transition-all hover:-translate-y-0.5 hover:shadow-md bg-card border-border"
 	>
 		<!-- Image thumbnail -->
 		<div
@@ -211,7 +211,7 @@
 {:else}
 	<button
 		type="button"
-		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border border-gray-200 bg-white text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+		class="group flex w-full items-start gap-3 overflow-hidden rounded-lg border text-left transition-all hover:-translate-y-0.5 hover:shadow-md bg-card border-border"
 		{onclick}
 	>
 		<!-- Image thumbnail -->

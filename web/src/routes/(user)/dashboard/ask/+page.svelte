@@ -746,7 +746,7 @@
 	<div class="flex flex-1 flex-col overflow-hidden bg-background">
 		<!-- Mobile Top Bar -->
 		<div
-			class="flex items-center gap-3 border-b border-gray-200 bg-white p-3 md:hidden dark:border-gray-700 dark:bg-gray-900"
+			class="flex items-center gap-3 border-b p-3 md:hidden bg-card border-border"
 		>
 			<button
 				type="button"
@@ -844,7 +844,7 @@
 						{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
 							<button
 								onclick={() => useSuggestion(suggestion)}
-								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border border-gray-200 bg-white p-3 text-left text-sm transition-all hover:shadow-sm dark:border-gray-700 dark:bg-gray-800"
+								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
 							>
 								<div class="font-medium text-muted-foreground">
 									{suggestion.question}
@@ -927,7 +927,7 @@
 							>
 								<Bot class="text-primary dark:text-primary h-5 w-5" />
 							</div>
-							<div class="max-w-[80%] rounded-xl bg-white px-4 py-3 dark:bg-gray-800">
+							<div class="max-w-[80%] rounded-xl px-4 py-3 bg-card">
 								<!-- Collapsible Query Summary -->
 								{#if currentQueryResults.length > 0}
 									<button
@@ -952,7 +952,7 @@
 									<!-- Expanded Query Details -->
 									{#if streamingDetailsExpanded}
 										<div
-											class="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-900"
+											class="mt-2 rounded-lg border p-2 bg-background border-border"
 										>
 											{#each currentQueryResults as queryResult, idx}
 												<div
@@ -1015,7 +1015,7 @@
 
 		<!-- Input Area -->
 		<div
-			class="flex-shrink-0 border-t border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
+			class="flex-shrink-0 border-t p-4 bg-card border-border"
 		>
 			<div class="relative flex items-center gap-2">
 				<input
@@ -1025,7 +1025,7 @@
 					onkeydown={(e) => e.key === 'Enter' && sendMessage()}
 					placeholder={isConnected ? t('ask.inputPlaceholder') : t('ask.inputConnecting')}
 					disabled={isLoading || !isConnected}
-					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 bg-white py-3 pr-12 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-12 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:text-white bg-card"
 				/>
 				{#if isLoading}
 					<button
@@ -1092,7 +1092,7 @@
 		tabindex="0"
 	>
 		<div
-			class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900"
+			class="w-full max-w-lg rounded-xl p-6 shadow-xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1117,7 +1117,7 @@
 
 			<!-- Logs Container -->
 			<div
-				class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs dark:border-gray-700 dark:bg-gray-950"
+				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
 			>
 				{#if selectedMessageLogs.length === 0}
 					<div class="flex h-full items-center justify-center text-gray-500">
@@ -1139,7 +1139,7 @@
 			<div class="mt-4 flex justify-end">
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700 bg-muted"
 				>
 					{t('ask.close')}
 				</button>

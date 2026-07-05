@@ -65,7 +65,7 @@
 
 		<!-- Forgot Password Form -->
 		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
 		>
 			<div class="mb-8 text-center">
 				<div

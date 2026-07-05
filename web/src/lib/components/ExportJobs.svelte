@@ -378,7 +378,7 @@
 		<div class="space-y-3">
 			{#each filteredExportJobs as job (job.id)}
 				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+					class="rounded-lg border p-4 bg-card border-border"
 				>
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-3">
@@ -482,7 +482,7 @@
 								{/if}
 								{#if job.data.format}
 									<span
-										class="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-gray-200 bg-muted"
 									>
 										{job.data.format === 'GeoJSON' ? job.data.format : 'JSON'}
 									</span>

@@ -1100,7 +1100,7 @@
 <!-- Large Dataset Warning Modal -->
 {#if showLargeDatasetWarning}
 	<div class="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50">
-		<div class="mx-4 max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+		<div class="mx-4 max-w-md rounded-lg p-6 shadow-xl bg-card">
 			<div class="mb-4 flex items-center">
 				<AlertTriangle class="mr-3 h-6 w-6 text-yellow-500" />
 				<h3 class="text-lg font-semibold text-foreground">
@@ -1162,7 +1162,7 @@
 <div class="space-y-6">
 	<!-- Map -->
 	<div
-		class="relative isolate z-0 h-96 w-full rounded-lg bg-gray-100 md:h-[600px] dark:bg-gray-900"
+		class="relative isolate z-0 h-96 w-full rounded-lg md:h-[600px] bg-muted"
 	>
 		<div
 			bind:this={mapContainer}
@@ -1172,7 +1172,7 @@
 
 		<!-- Map Legend -->
 		<div
-			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg bg-white p-3 shadow-lg dark:bg-gray-800"
+			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg p-3 shadow-lg bg-card"
 		>
 			<h4 class="mb-2 text-sm font-semibold text-muted-foreground">
 				{t('statistics.modeColors')}
@@ -1187,7 +1187,7 @@
 					</div>
 				{/each}
 				<!-- Exclusion Zones Legend -->
-				<div class="mt-2 border-t border-gray-200 pt-2 dark:border-gray-700">
+				<div class="mt-2 border-t pt-2 border-border">
 					<div class="mb-1 text-xs font-semibold text-muted-foreground">
 						{t('statistics.exclusionZones') || 'Exclusion Zones'}
 					</div>
@@ -1210,7 +1210,7 @@
 		<!-- Point Details Popup -->
 		{#if selectedPoint}
 			<div
-				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg bg-white p-4 shadow-lg sm:left-auto sm:w-80 dark:bg-gray-800"
+				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg p-4 shadow-lg sm:left-auto sm:w-80 bg-card"
 			>
 				<div class="mb-3 flex items-start justify-between">
 					<h4 class="text-sm font-semibold text-muted-foreground">
@@ -1331,7 +1331,7 @@
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each Array(8) as _, index (`loading-${index}`)}
 				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+					class="rounded-lg border p-4 bg-card border-border"
 				>
 					<div class="mb-3 flex items-center gap-2">
 						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -1359,7 +1359,7 @@
 			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
 				{@const IconComponent = stat.icon}
 				<div
-					class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+					class="rounded-lg border p-4 bg-card border-border"
 				>
 					<div class="flex items-center gap-2">
 						<IconComponent
@@ -1381,7 +1381,7 @@
 			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
 				<div class="w-full md:w-1/2">
 					<div
-						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+						class="w-full rounded-lg border p-4 bg-card border-border"
 					>
 						<div class="mb-3 flex items-center gap-2">
 							<Globe2 class="text-primary dark:text-primary h-5 w-5" />
@@ -1421,7 +1421,7 @@
 			{#if statisticsData.transport && statisticsData.transport.length > 0}
 				<div class="w-full md:w-1/2">
 					<div
-						class="w-full rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+						class="w-full rounded-lg border p-4 bg-card border-border"
 					>
 						<div class="mb-3 flex items-center gap-2">
 							<Route class="text-primary dark:text-primary h-5 w-5" />
@@ -1505,7 +1505,7 @@
 	<!-- Train Station Visits Table -->
 	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
 		<div
-			class="mb-8 w-full rounded-lg border border-gray-200 bg-white p-4 md:w-1/2 dark:border-gray-700 dark:bg-gray-800"
+			class="mb-8 w-full rounded-lg border p-4 md:w-1/2 bg-card border-border"
 		>
 			<div class="mb-3 flex items-center gap-2">
 				<Train class="text-primary dark:text-primary h-5 w-5" />

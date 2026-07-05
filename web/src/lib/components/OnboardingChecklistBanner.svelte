@@ -222,9 +222,7 @@
 					{@const Icon = step.icon}
 					<a
 						href={step.route}
-						class="flex items-start gap-3 rounded-lg border p-3 transition-all {step.completed
-							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-							: 'border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600'}"
+						class="flex items-start gap-3 rounded-lg border p-3 transition-all {step.completed ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : ' hover:border-blue-300 dark:hover:border-blue-600'} bg-card border-border"
 					>
 						<!-- Icon with checkmark overlay -->
 						<div class="relative shrink-0">

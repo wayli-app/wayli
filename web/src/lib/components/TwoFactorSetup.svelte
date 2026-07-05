@@ -149,7 +149,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			class="animate-fade-in relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -212,7 +212,7 @@
 					<div class="space-y-6">
 						<!-- QR Code -->
 						<div class="flex justify-center">
-							<div class="rounded-lg border-4 border-gray-200 bg-white p-4 dark:border-gray-700">
+							<div class="rounded-lg border-4 bg-white p-4 border-border">
 								<img src={qrCodeSrc} alt="2FA QR Code" class="h-48 w-48" />
 							</div>
 						</div>
@@ -230,14 +230,14 @@
 
 						<!-- Manual Entry -->
 						<div
-							class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+							class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 						>
 							<p class="mb-2 text-sm font-medium text-muted-foreground">
 								Or enter this code manually:
 							</p>
 							<div class="flex items-center gap-2">
 								<code
-									class="flex-1 rounded bg-white px-3 py-2 font-mono text-sm text-gray-900 dark:bg-gray-900 dark:text-gray-100"
+									class="flex-1 rounded px-3 py-2 font-mono text-sm text-gray-900 dark:text-gray-100 bg-card"
 								>
 									{manualEntryKey}
 								</code>
@@ -292,7 +292,7 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => (currentStep = 'setup')}
-							class="flex-1 rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 						>
 							Back
 						</button>
@@ -339,7 +339,7 @@
 							</p>
 						</div>
 						<div
-							class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+							class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 						>
 							<div class="grid grid-cols-2 gap-2 font-mono text-sm">
 								{#each backupCodes as code}
@@ -357,13 +357,13 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => copyToClipboard(backupCodes.join('\n'), 'backupCodes')}
-							class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 						>
 							{backupCodesCopied ? 'Copied!' : 'Copy Codes'}
 						</button>
 						<button
 							onclick={handleBackupCodesDownload}
-							class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 						>
 							Download
 						</button>

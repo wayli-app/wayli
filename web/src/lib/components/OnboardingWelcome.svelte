@@ -163,7 +163,7 @@
 	>
 		<!-- Modal Content -->
 		<div
-			class="relative w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+			class="relative w-full max-w-2xl rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -267,7 +267,7 @@
 						<!-- Suggestions Dropdown -->
 						{#if homeAddressSuggestions.length > 0 && showSuggestions}
 							<div
-								class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+								class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 							>
 								{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 									<button
@@ -351,7 +351,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
+							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
@@ -374,7 +374,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
+							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30"
@@ -398,7 +398,7 @@
 								onclick={() => {
 									handleFinish();
 								}}
-								class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
+								class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
 							>
 								<div
 									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30"
@@ -422,7 +422,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border border-gray-200 p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-primary/50 dark:hover:bg-gray-700/50"
+							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"

@@ -426,7 +426,7 @@
 		tabindex="0"
 	>
 		<div
-			class="job-detail-modal-content relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+			class="job-detail-modal-content relative w-full max-w-2xl rounded-2xl shadow-2xl bg-card"
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
@@ -435,7 +435,7 @@
 		>
 			<!-- Header -->
 			<div
-				class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-700"
+				class="flex items-center justify-between border-b p-6 border-border"
 			>
 				<div class="flex items-center gap-3">
 					<div class="flex h-10 w-10 items-center justify-center rounded-lg {status.bgColor}">
@@ -466,7 +466,7 @@
 			</div>
 
 			<!-- Status Section -->
-			<div class="border-b border-gray-200 p-6 dark:border-gray-700">
+			<div class="border-b p-6 border-border">
 				{#if displayJob.status === 'running' || displayJob.status === 'pending'}
 					<div class="mb-3">
 						{#if !indeterminate}
@@ -507,7 +507,7 @@
 						type="button"
 						onclick={handleCancelJob}
 						disabled={isCancelling}
-						class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:bg-gray-800 dark:text-red-400 dark:hover:bg-red-900/20"
+						class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 bg-card"
 					>
 						<StopCircle class="h-4 w-4" />
 						{isCancelling ? t('jobProgress.cancelling') : t('jobProgress.cancelJob')}
@@ -532,7 +532,7 @@
 					<div class="level-dropdown relative">
 						<button
 							type="button"
-							class="flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 							onclick={() => (showLevelDropdown = !showLevelDropdown)}
 						>
 							<span class="capitalize">{selectedLevel}</span>
@@ -541,7 +541,7 @@
 
 						{#if showLevelDropdown}
 							<div
-								class="absolute right-0 z-10 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+								class="absolute right-0 z-10 mt-1 w-32 rounded-lg border py-1 shadow-lg bg-card border-border"
 							>
 								{#each ['debug', 'info', 'warn', 'error'] as const as level}
 									<button
@@ -564,7 +564,7 @@
 				<div
 					bind:this={logsContainer}
 					onscroll={handleScroll}
-					class="overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs dark:border-gray-700 dark:bg-gray-950"
+					class="overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
 					style="height: 256px; min-height: 256px; max-height: 256px;"
 				>
 					{#if isLoadingLogs}

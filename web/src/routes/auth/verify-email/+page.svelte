@@ -94,7 +94,7 @@
 	<title>{t('auth.verifyYourEmail')} - Wayli</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
+<div class="flex min-h-screen items-center justify-center px-4 bg-background">
 	<div class="w-full max-w-md">
 		<!-- Back to signin -->
 		<div class="mb-8">
@@ -109,7 +109,7 @@
 
 		<!-- Verification Card -->
 		<div
-			class="rounded-2xl border border-gray-200 bg-white p-8 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
 		>
 			<div class="mb-6 text-center">
 				<!-- Email Icon -->

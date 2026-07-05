@@ -1370,7 +1370,7 @@
 				placeholder={t('trips.searchTrips')}
 				bind:value={searchQuery}
 				oninput={handleSearchChange}
-				class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-600 dark:text-gray-100 bg-card"
 			/>
 		</div>
 		<div class="flex gap-2">
@@ -1410,7 +1410,7 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative max-h-[90vh] w-full max-w-lg cursor-default overflow-y-auto rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+				class="relative max-h-[90vh] w-full max-w-lg cursor-default overflow-y-auto rounded-2xl shadow-2xl bg-card"
 				role="document"
 			>
 				<div class="p-8">
@@ -1432,7 +1432,7 @@
 								type="text"
 								id="title"
 								bind:value={tripForm.title}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+								class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 								placeholder={t('trips.tripTitle')}
 								required
 								disabled={isSubmitting}
@@ -1448,7 +1448,7 @@
 									type="date"
 									id="start_date"
 									bind:value={tripForm.start_date}
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 									required
 									disabled={isSubmitting}
 								/>
@@ -1462,7 +1462,7 @@
 									type="date"
 									id="end_date"
 									bind:value={tripForm.end_date}
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 									required
 									disabled={isSubmitting}
 								/>
@@ -1477,7 +1477,7 @@
 								id="description"
 								bind:value={tripForm.description}
 								rows="3"
-								class="focus:ring-primary w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+								class="focus:ring-primary w-full resize-none rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 								placeholder={t('trips.describeTripPlaceholder')}
 								disabled={isSubmitting}></textarea>
 						</div>
@@ -1498,7 +1498,7 @@
 										bind:value={newLabel}
 										onkeydown={(e) => e?.key === 'Enter' && (e.preventDefault(), addLabel())}
 										placeholder={t('trips.addLabelPlaceholder')}
-										class="focus:ring-primary flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+										class="focus:ring-primary flex-1 rounded-lg border px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
 									/>
 									<button
 										type="button"
@@ -1913,7 +1913,7 @@
 						</div>
 						<!-- Footer: always at the bottom -->
 						<div
-							class="mt-auto flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-700"
+							class="mt-auto flex items-center justify-between border-t pt-3 border-border"
 						>
 							<span class="text-xs text-muted-foreground">
 								{t('trips.updated')}
@@ -2023,7 +2023,7 @@
 
 						<div class="grid gap-4">
 							{#each suggestedTrips as trip (trip.id)}
-								<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+								<div class="rounded-lg border p-4 border-border">
 									<div class="flex items-start gap-4">
 										<input
 											type="checkbox"
@@ -2168,10 +2168,10 @@
 			</div>
 
 			<!-- Sticky Action Buttons -->
-			<div class="mt-4 flex gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+			<div class="mt-4 flex gap-3 border-t pt-4 border-border">
 				<button
 					onclick={() => (showSuggestedTripsModal = false)}
-					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 				>
 					{t('common.actions.cancel')}
 				</button>
@@ -2243,7 +2243,7 @@
 			tabindex="-1"
 		>
 			<div
-				class="relative mx-4 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
+				class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card"
 				role="document"
 			>
 				<h2 id="delete-modal-title" class="mb-4 text-xl font-bold text-foreground">
@@ -2275,7 +2275,7 @@
 			aria-labelledby="progress-modal-title"
 		>
 			<div
-				class="relative mx-4 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl dark:bg-gray-900"
+				class="relative mx-4 w-full max-w-md rounded-2xl p-8 shadow-2xl bg-card"
 				role="document"
 			>
 				<h2
@@ -2393,7 +2393,7 @@
 	<!-- Powered by Pexels Footer -->
 	<div class="mt-12 text-center">
 		<div
-			class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+			class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-600 dark:text-gray-400 bg-muted"
 		>
 			{t('trips.poweredByPexels')}
 		</div>

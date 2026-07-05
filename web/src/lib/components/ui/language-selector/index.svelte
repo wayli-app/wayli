@@ -176,9 +176,7 @@
 	<!-- Dropdown Menu -->
 	{#if isOpen}
 		<div
-			class="absolute z-50 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 {positionClasses[
-				position
-			]}"
+			class="absolute z-50 w-48 rounded-lg border shadow-lg {positionClasses[ position ]} bg-card border-border"
 			role="listbox"
 			aria-label="Language options"
 		>

@@ -246,7 +246,7 @@
 	<div class="grid gap-8 md:grid-cols-2">
 		<!-- Import Section -->
 		<div
-			class="flex flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			class="flex flex-col rounded-xl border p-6 bg-card border-border"
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />
@@ -325,7 +325,7 @@
 
 		<!-- Export Section -->
 		<div
-			class="flex flex-col rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			class="flex flex-col rounded-xl border p-6 bg-card border-border"
 		>
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-gray-400" />

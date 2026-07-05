@@ -1244,7 +1244,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-lg rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800"
+			class="relative w-full max-w-lg rounded-xl p-8 shadow-2xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1409,7 +1409,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			class="relative w-full max-w-md rounded-lg p-6 shadow-xl bg-card"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -2000,7 +2000,7 @@
 						{/if}
 
 						<div
-							class="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+							class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 						>
 							<h3 class="font-medium text-foreground">
 								{t('serverAdmin.smtpConfiguration')}
@@ -2159,7 +2159,7 @@
 							<div class="space-y-2">
 								{#each oauthProviders as provider}
 									<div
-										class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+										class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-gray-800 border-border"
 									>
 										<div class="flex items-center gap-3">
 											<div
@@ -2432,7 +2432,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										onclick={resetOAuthForm}
-										class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 									>
 										{t('serverAdmin.cancel')}
 									</button>
@@ -2526,7 +2526,7 @@
 							</div>
 
 							<div
-								class="space-y-3 rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800"
+								class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border"
 							>
 								<div class="grid grid-cols-2 gap-4">
 									<div>
@@ -2711,7 +2711,7 @@
 
 					<div class="space-y-6">
 						<!-- Data Processing Pipeline -->
-						<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+						<div class="rounded-lg border p-4 border-border">
 							<h3 class="mb-1 text-sm font-semibold text-foreground">
 								{t('serverAdmin.pipelineTitle')}
 							</h3>
@@ -2792,7 +2792,7 @@
 						</div>
 
 						<!-- Standalone Operations -->
-						<div class="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+						<div class="rounded-lg border p-4 border-border">
 							<h3 class="mb-1 text-sm font-semibold text-foreground">
 								{t('serverAdmin.standaloneTitle')}
 							</h3>

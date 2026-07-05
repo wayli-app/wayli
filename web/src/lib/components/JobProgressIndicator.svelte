@@ -553,7 +553,7 @@
 		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999999 !important; pointer-events: auto !important;"
 	>
 		<div
-			class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+			class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg p-6 shadow-xl bg-card"
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 		>
 			<div class="mb-4">

@@ -64,7 +64,7 @@
 
 <button
 	type="button"
-	class="group flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+	class="group flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md bg-card border-border"
 	class:p-2={compact}
 	{onclick}
 >

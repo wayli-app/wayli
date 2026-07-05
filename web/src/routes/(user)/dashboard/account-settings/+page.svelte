@@ -1356,9 +1356,7 @@
 				<div class="space-y-4">
 					<!-- Current Status -->
 					<div
-						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled
-							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-							: 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'}"
+						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : ' bg-gray-50 dark:bg-gray-800'} border-border"
 					>
 						<div class="flex items-center gap-3">
 							<div
@@ -1386,7 +1384,7 @@
 						{#if twoFactorEnabled}
 							<button
 								onclick={() => (showTwoFactorDisable = true)}
-								class="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-red-900/20"
+								class="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 bg-card"
 							>
 								{t('accountSettings.disable')}
 							</button>
@@ -1563,7 +1561,7 @@
 
 				<!-- Personal Rate Limit Configuration (show if personal key is configured or being entered) -->
 				{#if pexelsApiKeyConfigured || pexelsApiKeyInput.trim().length > 0}
-					<div class="mt-4 space-y-2 border-t border-gray-200 pt-4 dark:border-gray-700">
+					<div class="mt-4 space-y-2 border-t pt-4 border-border">
 						<h4 class="text-sm font-medium text-foreground">
 							Personal Rate Limit
 						</h4>
@@ -1643,7 +1641,7 @@
 					<div class="space-y-3">
 						{#each tripExclusions as exclusion (exclusion.id)}
 							<div
-								class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+								class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-gray-800 border-border"
 							>
 								<div class="flex-1">
 									<div class="font-medium text-foreground">{exclusion.name}</div>
@@ -1747,7 +1745,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1799,7 +1797,7 @@
 					</div>
 					{#if exclusionAddressSuggestions.length > 0 && showExclusionAddressSuggestions}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							{#each exclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
@@ -1830,7 +1828,7 @@
 						</div>
 					{:else if showExclusionAddressSuggestions && exclusionAddressSearchError}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
 								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
@@ -1864,7 +1862,7 @@
 					</button>
 					<button
 						onclick={() => (showAddExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 					>
 						{t('common.actions.cancel')}
 					</button>
@@ -1891,7 +1889,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border border-gray-200 bg-white p-8 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border p-8 shadow-2xl bg-card border-border"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1943,7 +1941,7 @@
 					</div>
 					{#if editExclusionAddressSuggestions.length > 0 && showEditExclusionAddressSuggestions}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							{#each editExclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
@@ -1974,7 +1972,7 @@
 						</div>
 					{:else if showEditExclusionAddressSuggestions && editExclusionAddressSearchError}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
 								class="cursor-default px-3 py-2 text-center text-sm text-gray-500 select-none dark:text-gray-400"
@@ -2010,7 +2008,7 @@
 					</button>
 					<button
 						onclick={() => (showEditExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 bg-white px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
 					>
 						{t('common.actions.cancel')}
 					</button>

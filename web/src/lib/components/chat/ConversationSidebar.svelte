@@ -109,10 +109,10 @@
 </script>
 
 <aside
-	class="flex h-full w-72 flex-shrink-0 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900"
+	class="flex h-full w-72 flex-shrink-0 flex-col border-r bg-card border-border"
 >
 	<!-- Header with New Conversation button -->
-	<div class="flex-shrink-0 border-b border-gray-200 p-4 dark:border-gray-700">
+	<div class="flex-shrink-0 border-b p-4 border-border">
 		<button
 			type="button"
 			onclick={onNewConversation}
@@ -124,7 +124,7 @@
 	</div>
 
 	<!-- Search -->
-	<div class="flex-shrink-0 border-b border-gray-200 p-3 dark:border-gray-700">
+	<div class="flex-shrink-0 border-b p-3 border-border">
 		<div class="relative">
 			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
 			<input

@@ -292,7 +292,7 @@
 
 				{#if customHomeAddressSuggestions.length > 0 && showCustomHomeAddressSuggestions}
 					<div
-						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 					>
 						{#each customHomeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 							<button
@@ -321,7 +321,7 @@
 					</div>
 				{:else if showCustomHomeAddressSuggestions && customHomeAddressSearchError}
 					<div
-						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 					>
 						<div class="px-4 py-2 text-sm text-muted-foreground">
 							{customHomeAddressSearchError}
@@ -363,7 +363,7 @@
 		<div class="flex gap-3 pt-4">
 			<button
 				onclick={closeModal}
-				class="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				class="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
 			>
 				{t('common.actions.cancel')}
 			</button>

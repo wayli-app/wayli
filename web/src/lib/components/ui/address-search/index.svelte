@@ -209,7 +209,7 @@
 	<!-- Suggestions Dropdown -->
 	{#if showSuggestions}
 		<div
-			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800"
+			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 		>
 			{#if suggestions.length > 0}
 				{#each suggestions as suggestion, index (suggestion.display_name + index)}

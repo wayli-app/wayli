@@ -261,7 +261,7 @@
 				<!-- Fallback to simple list for other types -->
 				<div class="max-h-48 overflow-y-auto">
 					{#each displayData as row, rowIdx (rowIdx)}
-						<div class="border-t border-gray-200 py-2 first:border-t-0 dark:border-gray-700">
+						<div class="border-t py-2 first:border-t-0 border-border">
 							<div class="text-sm font-medium text-foreground">
 								{getDisplayValue(row)}
 							</div>
@@ -276,7 +276,7 @@
 					<!-- Multi-column table -->
 					<table class="w-full text-left text-sm">
 						<thead
-							class="sticky top-0 bg-gray-100 text-xs uppercase text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+							class="sticky top-0 text-xs uppercase text-gray-600 dark:text-gray-400 bg-muted"
 						>
 							<tr>
 								{#each displayableColumns.slice(0, 5) as col}
@@ -301,7 +301,7 @@
 				{:else}
 					<!-- Single-column list -->
 					{#each displayData as row, rowIdx (rowIdx)}
-						<div class="border-t border-gray-200 py-2 first:border-t-0 dark:border-gray-700">
+						<div class="border-t py-2 first:border-t-0 border-border">
 							<div class="text-sm font-medium text-foreground">
 								{getDisplayValue(row)}
 							</div>
