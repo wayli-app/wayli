@@ -192,7 +192,7 @@
 			// Check onboarding status
 			console.log('🔍 [SignIn] Checking user profile for user:', user.id);
 			const { data: profile, error: profileError } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('onboarding_completed, first_login_at')
 				.eq('id', user.id)
 				.single();
@@ -212,7 +212,7 @@
 			if (!profile?.onboarding_completed) {
 				if (!profile?.first_login_at) {
 					const { error: updateError } = await fluxbase
-						.from('user_profiles')
+						.from<Record<string, any>>('user_profiles')
 						.update({ first_login_at: new Date().toISOString() })
 						.eq('id', user.id);
 

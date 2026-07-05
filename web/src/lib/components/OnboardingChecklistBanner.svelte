@@ -111,7 +111,7 @@
 	async function checkOnboardingCompleted() {
 		try {
 			const { data, error } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('onboarding_completed')
 				.eq('id', userId)
 				.single();

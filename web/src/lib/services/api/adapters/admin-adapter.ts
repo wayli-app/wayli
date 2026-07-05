@@ -253,7 +253,7 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -263,7 +263,7 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		const { data: workers, error } = await fluxbase
-			.from('workers')
+			.from<Record<string, any>>('workers')
 			.select('*')
 			.order('created_at', { ascending: false });
 
@@ -286,7 +286,7 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -300,7 +300,7 @@ export class AdminAdapter extends BaseAdapter {
 		switch (actionType) {
 			case 'create': {
 				const { data: newWorker, error } = await fluxbase
-					.from('workers')
+					.from<Record<string, any>>('workers')
 					.insert({
 						name: action.name,
 						type: action.type || 'general',
@@ -319,7 +319,7 @@ export class AdminAdapter extends BaseAdapter {
 
 			case 'update': {
 				const { data: updatedWorker, error } = await fluxbase
-					.from('workers')
+					.from<Record<string, any>>('workers')
 					.update({
 						name: action.name,
 						type: action.type,
@@ -339,7 +339,7 @@ export class AdminAdapter extends BaseAdapter {
 			}
 
 			case 'delete': {
-				const { error } = await fluxbase.from('workers').delete().eq('id', action.id);
+				const { error } = await fluxbase.from<Record<string, any>>('workers').delete().eq('id', action.id);
 
 				if (error) {
 					throw new Error(error.message || 'Failed to delete worker');
@@ -365,7 +365,7 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -379,7 +379,7 @@ export class AdminAdapter extends BaseAdapter {
 		const offset = (page - 1) * limit;
 
 		const { data: users, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*')
 			.order('created_at', { ascending: false })
 			.range(offset, offset + limit - 1);
@@ -388,7 +388,7 @@ export class AdminAdapter extends BaseAdapter {
 			throw new Error(error.message || 'Failed to fetch users');
 		}
 
-		const { count } = await fluxbase.from('user_profiles').select('*', { count: 'exact', head: true });
+		const { count } = await fluxbase.from<Record<string, any>>('user_profiles').select('*', { count: 'exact', head: true });
 
 		return {
 			users: users || [],

@@ -266,7 +266,7 @@ export class ExportService {
 		}
 
 		const { data } = await fluxbase.storage
-			.from('exports')
+			.from<Record<string, any>>('exports')
 			.createSignedUrl(filePath, 3600, { download: true }); // 1 hour expiry
 
 		if (!data?.signedUrl) {

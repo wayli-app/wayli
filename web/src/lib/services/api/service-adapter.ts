@@ -80,7 +80,7 @@ export class ServiceAdapter {
 
 		// Get profile data from user_profiles table
 		const { data: profile, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*')
 			.eq('id', userData.user.id)
 			.single();
@@ -124,7 +124,7 @@ export class ServiceAdapter {
 		// Update profile fields in user_profiles table
 		if (Object.keys(profileFields).length > 0) {
 			const { error: profileError } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.eq('id', userData.user.id)
 				.update(profileFields);
 
@@ -147,7 +147,7 @@ export class ServiceAdapter {
 
 		// Get preferences from user_preferences table
 		const { data: preferences, error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('*')
 			.eq('id', userData.user.id)
 			.single();
@@ -170,7 +170,7 @@ export class ServiceAdapter {
 
 		// Update preferences in user_preferences table
 		const { error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.eq('id', userData.user.id)
 			.update({
 				...preferences,
@@ -325,7 +325,7 @@ export class ServiceAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data, error } = await fluxbase
-			.from('tracker_data')
+			.from<Record<string, any>>('tracker_data')
 			.select('distance')
 			.eq('user_id', userId)
 			.gte('recorded_at', `${startDate}T00:00:00Z`)
@@ -355,7 +355,7 @@ export class ServiceAdapter {
 		const search = options?.search || '';
 
 		let query = fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.eq('status', 'completed') // Only show completed (approved) trips by default
@@ -396,7 +396,7 @@ export class ServiceAdapter {
 
 		// Create trip
 		const { data: newTrip, error: createError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.insert({
 				user_id: userData.user.id,
 				title: trip.title,
@@ -410,7 +410,7 @@ export class ServiceAdapter {
 			.select()
 			.single();
 
-		if (createError) {
+		if (createError || !newTrip) {
 			throw new Error(createError.message || 'Failed to create trip');
 		}
 
@@ -423,7 +423,7 @@ export class ServiceAdapter {
 			);
 
 			const { error: updateError } = await fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update({
 					metadata: {
 						...(newTrip.metadata || {}),
@@ -456,7 +456,7 @@ export class ServiceAdapter {
 
 		// Verify trip belongs to user
 		const { data: existingTrip, error: fetchError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('id')
 			.eq('id', trip.id)
 			.eq('user_id', userData.user.id)
@@ -468,7 +468,7 @@ export class ServiceAdapter {
 
 		// Update trip
 		const { data: updatedTrip, error: updateError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.update({
 				title: trip.title,
 				description: trip.description,
@@ -484,7 +484,7 @@ export class ServiceAdapter {
 			.select()
 			.single();
 
-		if (updateError) {
+		if (updateError || !updatedTrip) {
 			throw new Error(updateError.message || 'Failed to update trip');
 		}
 
@@ -497,7 +497,7 @@ export class ServiceAdapter {
 			);
 
 			const { error: distanceUpdateError } = await fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update({
 					metadata: {
 						...(updatedTrip.metadata || {}),
@@ -538,7 +538,7 @@ export class ServiceAdapter {
 		// Fetch tracker data if requested
 		if (options?.includeTrackerData) {
 			let query = fluxbase
-				.from('tracker_data')
+				.from<Record<string, any>>('tracker_data')
 				.select('*')
 				.eq('user_id', userData.user.id)
 				.order('recorded_at', { ascending: false })
@@ -558,7 +558,7 @@ export class ServiceAdapter {
 		// Fetch locations if requested (assuming there's a locations table)
 		if (options?.includeLocations) {
 			let query = fluxbase
-				.from('locations')
+				.from<Record<string, any>>('locations')
 				.select('*')
 				.eq('user_id', userData.user.id)
 				.order('created_at', { ascending: false })
@@ -578,7 +578,7 @@ export class ServiceAdapter {
 		// Fetch POIs if requested (assuming there's a poi_visits table)
 		if (options?.includePOIs) {
 			let query = fluxbase
-				.from('poi_visits')
+				.from<Record<string, any>>('poi_visits')
 				.select('*')
 				.eq('user_id', userData.user.id)
 				.order('visited_at', { ascending: false })
@@ -616,7 +616,7 @@ export class ServiceAdapter {
 			error,
 			count
 		} = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*', { count: 'exact' })
 			.eq('user_id', userData.user.id)
 			.eq('status', 'pending')
@@ -647,7 +647,7 @@ export class ServiceAdapter {
 
 		// Delete all pending and rejected trips
 		const { error } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.delete()
 			.eq('user_id', userData.user.id)
 			.in('status', ['pending', 'rejected']);
@@ -676,7 +676,7 @@ export class ServiceAdapter {
 
 		// Fetch trips to approve
 		const { data: trips, error: fetchError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.in('id', tripIds);
@@ -728,14 +728,14 @@ export class ServiceAdapter {
 			}
 
 			const { data: updatedTrip, error: updateError } = await fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update(updateData)
 				.eq('id', trip.id)
 				.eq('user_id', userData.user.id)
 				.select()
 				.single();
 
-			if (updateError) {
+			if (updateError || !updatedTrip) {
 				console.error(`Failed to approve trip ${trip.id}:`, updateError);
 				approvedTrips.push({ tripId: trip.id, success: false, error: updateError.message });
 				continue;
@@ -856,7 +856,7 @@ export class ServiceAdapter {
 
 		// Update trips status to 'rejected'
 		const { data: rejectedTrips, error } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.update({
 				status: 'rejected',
 				updated_at: new Date().toISOString()
@@ -883,7 +883,7 @@ export class ServiceAdapter {
 
 		// Fetch the suggested trip
 		const { data: trip, error: fetchError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('id', suggestedTripId)
 			.eq('user_id', userData.user.id)
@@ -906,7 +906,7 @@ export class ServiceAdapter {
 
 		// Update trip status to 'active' and add distance
 		const { data: activeTrip, error: updateError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.update({
 				status: 'completed',
 				metadata: {
@@ -920,7 +920,7 @@ export class ServiceAdapter {
 			.select()
 			.single();
 
-		if (updateError) {
+		if (updateError || !updatedTrip) {
 			throw new Error(updateError.message || 'Failed to create trip from suggestion');
 		}
 
@@ -1035,7 +1035,7 @@ export class ServiceAdapter {
 			// Upload directly to Fluxbase storage with proper metadata
 			// This ensures the RLS policy can validate the upload correctly
 			const { data, error: uploadError } = await fluxbase.storage
-				.from('temp-files')
+				.from<Record<string, any>>('temp-files')
 				.upload(fileName, fileBlob, {
 					contentType: file.type,
 					upsert: false,
@@ -1415,7 +1415,7 @@ export class ServiceAdapter {
 
 		// Query POI visits from database
 		const { data: poiVisits, error } = await fluxbase
-			.from('poi_visits')
+			.from<Record<string, any>>('poi_visits')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.order('visited_at', { ascending: false });
@@ -1687,7 +1687,7 @@ export class ServiceAdapter {
 
 		// Check if user is admin
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -1698,7 +1698,7 @@ export class ServiceAdapter {
 
 		// Fetch all workers (RLS policy will enforce admin access)
 		const { data: workers, error } = await fluxbase
-			.from('workers')
+			.from<Record<string, any>>('workers')
 			.select('*')
 			.order('created_at', { ascending: false });
 
@@ -1720,7 +1720,7 @@ export class ServiceAdapter {
 
 		// Check if user is admin
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -1735,7 +1735,7 @@ export class ServiceAdapter {
 		switch (actionType) {
 			case 'create': {
 				const { data: newWorker, error } = await fluxbase
-					.from('workers')
+					.from<Record<string, any>>('workers')
 					.insert({
 						name: action.name,
 						type: action.type || 'general',
@@ -1754,7 +1754,7 @@ export class ServiceAdapter {
 
 			case 'update': {
 				const { data: updatedWorker, error } = await fluxbase
-					.from('workers')
+					.from<Record<string, any>>('workers')
 					.update({
 						name: action.name,
 						type: action.type,
@@ -1774,7 +1774,7 @@ export class ServiceAdapter {
 			}
 
 			case 'delete': {
-				const { error } = await fluxbase.from('workers').delete().eq('id', action.id);
+				const { error } = await fluxbase.from<Record<string, any>>('workers').delete().eq('id', action.id);
 
 				if (error) {
 					throw new Error(error.message || 'Failed to delete worker');
@@ -1799,7 +1799,7 @@ export class ServiceAdapter {
 
 		// Check if user is admin
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -1814,7 +1814,7 @@ export class ServiceAdapter {
 
 		// Fetch users with pagination
 		const { data: users, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*')
 			.order('created_at', { ascending: false })
 			.range(offset, offset + limit - 1);
@@ -1825,7 +1825,7 @@ export class ServiceAdapter {
 
 		// Get total count for pagination
 		const { count } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*', { count: 'exact', head: true });
 
 		return {
@@ -1850,7 +1850,7 @@ export class ServiceAdapter {
 
 		// Get user preferences
 		const { data: userPreferences, error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -1878,7 +1878,7 @@ export class ServiceAdapter {
 
 		// Get current exclusions
 		const { data: userPreferences } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -1894,7 +1894,7 @@ export class ServiceAdapter {
 		const updatedExclusions = [...currentExclusions, newExclusion];
 
 		// Upsert user preferences with new exclusions
-		const { error: upsertError } = await fluxbase.from('user_preferences').upsert(
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
 			{
 				id: userData.user.id,
 				trip_exclusions: updatedExclusions,
@@ -1927,7 +1927,7 @@ export class ServiceAdapter {
 
 		// Get current exclusions
 		const { data: userPreferences } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -1945,7 +1945,7 @@ export class ServiceAdapter {
 		);
 
 		// Update user preferences
-		const { error: upsertError } = await fluxbase.from('user_preferences').upsert(
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
 			{
 				id: userData.user.id,
 				trip_exclusions: updatedExclusions,
@@ -1978,7 +1978,7 @@ export class ServiceAdapter {
 
 		// Get current exclusions
 		const { data: userPreferences } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -1987,7 +1987,7 @@ export class ServiceAdapter {
 		const updatedExclusions = currentExclusions.filter((ex: any) => ex.id !== exclusionId);
 
 		// Update user preferences
-		const { error: upsertError } = await fluxbase.from('user_preferences').upsert(
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
 			{
 				id: userData.user.id,
 				trip_exclusions: updatedExclusions,

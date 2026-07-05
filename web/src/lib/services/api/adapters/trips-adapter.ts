@@ -90,7 +90,7 @@ export class TripsAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data, error } = await fluxbase
-			.from('tracker_data')
+			.from<Record<string, any>>('tracker_data')
 			.select('distance')
 			.eq('user_id', userId)
 			.gte('recorded_at', `${startDate}T00:00:00Z`)
@@ -135,7 +135,7 @@ export class TripsAdapter extends BaseAdapter {
 		const search = options?.search || '';
 
 		let query = fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.eq('status', 'completed')
@@ -197,7 +197,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { data: newTrip, error: createError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.insert({
 				user_id: userData.user.id,
 				title: trip.title,
@@ -211,8 +211,8 @@ export class TripsAdapter extends BaseAdapter {
 			.select()
 			.single();
 
-		if (createError) {
-			throw new Error(createError.message || 'Failed to create trip');
+		if (createError || !newTrip) {
+			throw new Error(createError?.message || 'Failed to create trip');
 		}
 
 		// Calculate distance if dates provided
@@ -224,7 +224,7 @@ export class TripsAdapter extends BaseAdapter {
 			);
 
 			const { error: updateError } = await fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update({
 					metadata: {
 						...(newTrip.metadata || {}),
@@ -273,7 +273,7 @@ export class TripsAdapter extends BaseAdapter {
 
 		// Verify trip belongs to user
 		const { data: existingTrip, error: fetchError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('id')
 			.eq('id', trip.id)
 			.eq('user_id', userData.user.id)
@@ -284,7 +284,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { data: updatedTrip, error: updateError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.update({
 				title: trip.title,
 				description: trip.description,
@@ -300,8 +300,8 @@ export class TripsAdapter extends BaseAdapter {
 			.select()
 			.single();
 
-		if (updateError) {
-			throw new Error(updateError.message || 'Failed to update trip');
+		if (updateError || !updatedTrip) {
+			throw new Error(updateError?.message || 'Failed to update trip');
 		}
 
 		// Calculate distance if dates provided
@@ -313,7 +313,7 @@ export class TripsAdapter extends BaseAdapter {
 			);
 
 			const { error: distanceUpdateError } = await fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update({
 					metadata: {
 						...(updatedTrip.metadata || {}),
@@ -378,7 +378,7 @@ export class TripsAdapter extends BaseAdapter {
 
 		if (options?.includeTrackerData) {
 			let query = fluxbase
-				.from('tracker_data')
+				.from<Record<string, any>>('tracker_data')
 				.select('*')
 				.eq('user_id', userData.user.id)
 				.order('recorded_at', { ascending: false })
@@ -397,7 +397,7 @@ export class TripsAdapter extends BaseAdapter {
 
 		if (options?.includeLocations) {
 			let query = fluxbase
-				.from('locations')
+				.from<Record<string, any>>('locations')
 				.select('*')
 				.eq('user_id', userData.user.id)
 				.order('created_at', { ascending: false })
@@ -416,7 +416,7 @@ export class TripsAdapter extends BaseAdapter {
 
 		if (options?.includePOIs) {
 			let query = fluxbase
-				.from('poi_visits')
+				.from<Record<string, any>>('poi_visits')
 				.select('*')
 				.eq('user_id', userData.user.id)
 				.order('visited_at', { ascending: false })
@@ -466,7 +466,7 @@ export class TripsAdapter extends BaseAdapter {
 			error,
 			count
 		} = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*', { count: 'exact' })
 			.eq('user_id', userData.user.id)
 			.eq('status', 'pending')
@@ -507,7 +507,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { error } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.delete()
 			.eq('user_id', userData.user.id)
 			.in('status', ['pending', 'rejected']);
@@ -549,7 +549,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { data: trips, error: fetchError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.in('id', tripIds);
@@ -595,16 +595,16 @@ export class TripsAdapter extends BaseAdapter {
 			}
 
 			const { data: updatedTrip, error: updateError } = await fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update(updateData)
 				.eq('id', trip.id)
 				.eq('user_id', userData.user.id)
 				.select()
 				.single();
 
-			if (updateError) {
+			if (updateError || !updatedTrip) {
 				console.error(`Failed to approve trip ${trip.id}:`, updateError);
-				approvedTrips.push({ tripId: trip.id, success: false, error: updateError.message });
+				approvedTrips.push({ tripId: trip.id, success: false, error: updateError?.message });
 				continue;
 			}
 
@@ -721,7 +721,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { data: rejectedTrips, error } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.update({
 				status: 'rejected',
 				updated_at: new Date().toISOString()
@@ -760,7 +760,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { data: trip, error: fetchError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('id', suggestedTripId)
 			.eq('user_id', userData.user.id)
@@ -781,7 +781,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const { data: activeTrip, error: updateError } = await fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.update({
 				status: 'completed',
 				metadata: {

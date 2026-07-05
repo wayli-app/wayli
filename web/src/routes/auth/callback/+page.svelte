@@ -80,7 +80,7 @@
 			if (userData.user) {
 				// Check onboarding status
 				const { data: profile } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.select('onboarding_completed, first_login_at')
 					.eq('id', userData.user.id)
 					.single();
@@ -89,7 +89,7 @@
 				if (!profile?.onboarding_completed) {
 					if (!profile?.first_login_at) {
 						await fluxbase
-							.from('user_profiles')
+							.from<Record<string, any>>('user_profiles')
 							.update({ first_login_at: new Date().toISOString() })
 							.eq('id', userData.user.id);
 					}

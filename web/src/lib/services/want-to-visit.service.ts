@@ -9,7 +9,7 @@ export class WantToVisitService {
 	static async getPlaces(): Promise<Place[]> {
 		// Select all fields (location is returned as GeoJSON automatically)
 		const { data, error } = await fluxbase
-			.from('want_to_visit_places')
+			.from<Record<string, any>>('want_to_visit_places')
 			.select('*')
 			.order('created_at', { ascending: false });
 
@@ -61,7 +61,7 @@ export class WantToVisitService {
 
 		// Use GeoJSON object format for PostGIS geometry
 		const { data: placeData, error } = await fluxbase
-			.from('want_to_visit_places')
+			.from<Record<string, any>>('want_to_visit_places')
 			.insert({
 				user_id: user.id,
 				title: place.title,
@@ -141,7 +141,7 @@ export class WantToVisitService {
 		}
 
 		const { data, error } = await fluxbase
-			.from('want_to_visit_places')
+			.from<Record<string, any>>('want_to_visit_places')
 			.update(updateData)
 			.eq('id', id)
 			.select()
@@ -180,7 +180,7 @@ export class WantToVisitService {
 	 * Delete a want-to-visit place
 	 */
 	static async deletePlace(id: string): Promise<void> {
-		const { error } = await fluxbase.from('want_to_visit_places').delete().eq('id', id);
+		const { error } = await fluxbase.from<Record<string, any>>('want_to_visit_places').delete().eq('id', id);
 
 		if (error) {
 			console.error('Error deleting want-to-visit place:', error);
@@ -193,7 +193,7 @@ export class WantToVisitService {
 	 */
 	static async toggleFavorite(id: string, favorite: boolean): Promise<Place> {
 		const { data, error } = await fluxbase
-			.from('want_to_visit_places')
+			.from<Record<string, any>>('want_to_visit_places')
 			.update({ favorite })
 			.eq('id', id)
 			.select()

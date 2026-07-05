@@ -56,7 +56,7 @@
 			}
 
 			const { data: userProfile, error } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('role')
 				.eq('id', $userStore.id)
 				.single();

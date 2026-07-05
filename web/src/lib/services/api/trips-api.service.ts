@@ -131,7 +131,7 @@ export class TripsApiService {
 
 		// Build query
 		let dbQuery = this.fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*', { count: 'exact' })
 			.eq('user_id', userId)
 			.order('created_at', { ascending: false });
@@ -196,7 +196,7 @@ export class TripsApiService {
 		}
 
 		const { data: trip, error } = await this.fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('id', tripId)
 			.eq('user_id', userId)
@@ -297,7 +297,7 @@ export class TripsApiService {
 
 		// Delete trip
 		const { error } = await this.fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.delete()
 			.eq('id', tripId)
 			.eq('user_id', userId);
@@ -329,7 +329,7 @@ export class TripsApiService {
 		}
 
 		const { data: trips, error } = await this.fluxbase
-			.from('trips')
+			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('user_id', userId)
 			.or(

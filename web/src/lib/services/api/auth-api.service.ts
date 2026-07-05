@@ -62,7 +62,7 @@ export class AuthApiService {
 
 			// Get user preferences from user_preferences table
 			const { data: preferences, error: prefError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('*')
 				.eq('id', userId)
 				.single();

@@ -52,7 +52,7 @@ export class PreferencesApiService {
 		try {
 			// Get user preferences from user_preferences table
 			const { data: preferences, error: prefError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('*')
 				.eq('id', userId)
 				.single();
@@ -72,7 +72,7 @@ export class PreferencesApiService {
 			// If preferences don't exist, create them with defaults
 			if (!preferences) {
 				const { data: newPreferences, error: createError } = await this.fluxbase
-					.from('user_preferences')
+					.from<Record<string, any>>('user_preferences')
 					.insert({
 						id: userId,
 						theme: 'light',
@@ -126,7 +126,7 @@ export class PreferencesApiService {
 
 			// Check if preferences exist
 			const { data: existingPreferences } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('id')
 				.eq('id', userId)
 				.single();
@@ -134,7 +134,7 @@ export class PreferencesApiService {
 			if (existingPreferences) {
 				// Update existing preferences
 				const { data: updatedPreferences, error: updateError } = await this.fluxbase
-					.from('user_preferences')
+					.from<Record<string, any>>('user_preferences')
 					.update({
 						language,
 						notifications_enabled,
@@ -164,7 +164,7 @@ export class PreferencesApiService {
 			} else {
 				// Create new preferences
 				const { data: newPreferences, error: createError } = await this.fluxbase
-					.from('user_preferences')
+					.from<Record<string, any>>('user_preferences')
 					.insert({
 						id: userId,
 						language,

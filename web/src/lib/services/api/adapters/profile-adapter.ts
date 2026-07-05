@@ -50,7 +50,7 @@ export class ProfileAdapter extends BaseAdapter {
 		const userMetadata = userData.user.user_metadata || {};
 
 		const { data: profile, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*')
 			.eq('id', userData.user.id)
 			.single();
@@ -105,7 +105,7 @@ export class ProfileAdapter extends BaseAdapter {
 
 		if (Object.keys(profileFields).length > 0) {
 			const { error: profileError } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.eq('id', userData.user.id)
 				.update(profileFields);
 
@@ -138,7 +138,7 @@ export class ProfileAdapter extends BaseAdapter {
 		}
 
 		const { data: preferences, error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('*')
 			.eq('id', userData.user.id)
 			.single();
@@ -175,7 +175,7 @@ export class ProfileAdapter extends BaseAdapter {
 		}
 
 		const { error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.eq('id', userData.user.id)
 			.update({
 				...preferences,

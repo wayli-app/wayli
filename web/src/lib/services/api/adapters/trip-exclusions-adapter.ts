@@ -74,7 +74,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 		}
 
 		const { data: userPreferences, error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -120,7 +120,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 		}
 
 		const { data: userPreferences } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -135,7 +135,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 
 		const updatedExclusions = [...currentExclusions, newExclusion];
 
-		const { error: upsertError } = await fluxbase.from('user_preferences').upsert(
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
 			{
 				id: userData.user.id,
 				trip_exclusions: updatedExclusions,
@@ -189,7 +189,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 		}
 
 		const { data: userPreferences } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -206,7 +206,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 				: ex
 		);
 
-		const { error: upsertError } = await fluxbase.from('user_preferences').upsert(
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
 			{
 				id: userData.user.id,
 				trip_exclusions: updatedExclusions,
@@ -255,7 +255,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 		}
 
 		const { data: userPreferences } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('trip_exclusions')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -263,7 +263,7 @@ export class TripExclusionsAdapter extends BaseAdapter {
 		const currentExclusions: TripExclusion[] = userPreferences?.trip_exclusions || [];
 		const updatedExclusions = currentExclusions.filter((ex) => ex.id !== exclusionId);
 
-		const { error: upsertError } = await fluxbase.from('user_preferences').upsert(
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
 			{
 				id: userData.user.id,
 				trip_exclusions: updatedExclusions,

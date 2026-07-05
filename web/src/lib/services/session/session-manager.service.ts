@@ -247,7 +247,7 @@ export class SessionManagerService {
 
 			// Check if user has admin role from user_profiles
 			const { data: profile, error } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('role')
 				.eq('id', session.user.id)
 				.single();

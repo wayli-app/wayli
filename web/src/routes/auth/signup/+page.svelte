@@ -148,7 +148,7 @@
 
 				// Check if this is a new user who needs onboarding
 				const { data: profile } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.select('onboarding_completed, first_login_at')
 					.eq('id', user.id)
 					.single();
@@ -157,7 +157,7 @@
 				if (!profile?.onboarding_completed) {
 					if (!profile?.first_login_at) {
 						await fluxbase
-							.from('user_profiles')
+							.from<Record<string, any>>('user_profiles')
 							.update({ first_login_at: new Date().toISOString() })
 							.eq('id', user.id);
 					}
@@ -235,7 +235,7 @@
 				// Explicitly check profile and redirect (don't rely only on store subscription)
 				try {
 					const { data: profile } = await fluxbase
-						.from('user_profiles')
+						.from<Record<string, any>>('user_profiles')
 						.select('onboarding_completed, first_login_at')
 						.eq('id', data.user.id)
 						.single();
@@ -243,7 +243,7 @@
 					// Update first_login_at if needed
 					if (!profile?.first_login_at) {
 						await fluxbase
-							.from('user_profiles')
+							.from<Record<string, any>>('user_profiles')
 							.update({ first_login_at: new Date().toISOString() })
 							.eq('id', data.user.id);
 					}

@@ -192,7 +192,7 @@ export class ClientStatisticsService {
 	 */
 	async getTotalCount(userId: string, startDate?: string, endDate?: string): Promise<number> {
 		let query = this.fluxbase
-			.from('tracker_data')
+			.from<Record<string, any>>('tracker_data')
 			.count('*')
 			.eq('user_id', userId)
 			.not('location', 'is', null);
@@ -403,7 +403,7 @@ export class ClientStatisticsService {
 		endDate?: string
 	): Promise<TrackerDataPoint[]> {
 		let query = this.fluxbase
-			.from('tracker_data')
+			.from<Record<string, any>>('tracker_data')
 			.select(
 				`
 				recorded_at,

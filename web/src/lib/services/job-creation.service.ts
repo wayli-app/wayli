@@ -115,7 +115,7 @@ class JobCreationService {
 
 			// Upload file using resumable chunked uploads for large file support
 			const { error: uploadError } = await fluxbase.storage
-				.from('temp-files')
+				.from<Record<string, any>>('temp-files')
 				.uploadResumable(fileName, file, {
 					chunkSize: 10 * 1024 * 1024, // 10MB chunks
 					maxRetries: 3,

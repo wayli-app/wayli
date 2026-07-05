@@ -9,7 +9,7 @@ export interface ChecklistState {
 export class OnboardingChecklistService {
 	static async getChecklistState(userId: string): Promise<ChecklistState | null> {
 		const { data, error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('preferences')
 			.eq('id', userId)
 			.single();
@@ -22,7 +22,7 @@ export class OnboardingChecklistService {
 	static async markStepCompleted(userId: string, stepId: string): Promise<void> {
 		// Get current preferences
 		const { data } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('preferences')
 			.eq('id', userId)
 			.single();
@@ -38,7 +38,7 @@ export class OnboardingChecklistService {
 			checklist.completed_steps.push(stepId);
 
 			await fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.update({
 					preferences: { ...preferences, onboarding_checklist: checklist }
 				})
@@ -48,7 +48,7 @@ export class OnboardingChecklistService {
 
 	static async dismissChecklist(userId: string): Promise<void> {
 		const { data } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('preferences')
 			.eq('id', userId)
 			.single();
@@ -63,7 +63,7 @@ export class OnboardingChecklistService {
 		checklist.dismissed_at = new Date().toISOString();
 
 		await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.update({
 				preferences: { ...preferences, onboarding_checklist: checklist }
 			})

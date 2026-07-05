@@ -63,7 +63,7 @@ export class TripExclusionsApiService {
 		try {
 			// Get trip exclusions from user preferences
 			const { data: userPreferences, error: userPreferencesError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('trip_exclusions')
 				.eq('id', userId)
 				.maybeSingle();
@@ -116,7 +116,7 @@ export class TripExclusionsApiService {
 
 			// Get current trip exclusions from user preferences
 			const { data: userPreferences, error: preferencesError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('trip_exclusions')
 				.eq('id', userId)
 				.maybeSingle();
@@ -169,7 +169,7 @@ export class TripExclusionsApiService {
 
 			// Update user preferences with new exclusions
 			const { error: updateError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.update({
 					trip_exclusions: updatedExclusions,
 					updated_at: new Date().toISOString()
@@ -219,7 +219,7 @@ export class TripExclusionsApiService {
 
 			// Get current trip exclusions from user preferences
 			const { data: userPreferences, error: preferencesError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('trip_exclusions')
 				.eq('id', userId)
 				.maybeSingle();
@@ -271,7 +271,7 @@ export class TripExclusionsApiService {
 
 			// Update user preferences with updated exclusions
 			const { error: updateError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.update({
 					trip_exclusions: currentExclusions,
 					updated_at: new Date().toISOString()
@@ -321,7 +321,7 @@ export class TripExclusionsApiService {
 
 			// Get current trip exclusions from user preferences
 			const { data: userPreferences, error: preferencesError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('trip_exclusions')
 				.eq('id', userId)
 				.maybeSingle();
@@ -353,7 +353,7 @@ export class TripExclusionsApiService {
 
 			// Update user preferences with updated exclusions
 			const { error: updateError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.update({
 					trip_exclusions: updatedExclusions,
 					updated_at: new Date().toISOString()

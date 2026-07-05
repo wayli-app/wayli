@@ -289,7 +289,7 @@
 			if (!userData || !userData.user) return;
 
 			const { data: userProfile, error } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('role')
 				.eq('id', userData.user.id)
 				.single();
@@ -467,7 +467,7 @@
 			// Mark onboarding as completed
 			if (profile) {
 				const { error } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.eq('id', profile.id)
 					.update({ onboarding_completed: true });
 
@@ -494,7 +494,7 @@
 		try {
 			// Mark onboarding as completed and home address as skipped
 			if (profile) {
-				const { error } = await fluxbase.from('user_profiles').eq('id', profile.id).update({
+				const { error } = await fluxbase.from<Record<string, any>>('user_profiles').eq('id', profile.id).update({
 					onboarding_completed: true,
 					home_address_skipped: true
 				});
@@ -522,7 +522,7 @@
 		try {
 			if (profile) {
 				const { error } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.eq('id', profile.id)
 					.update({ home_address_skipped: true });
 

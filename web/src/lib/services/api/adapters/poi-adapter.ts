@@ -149,7 +149,7 @@ export class POIAdapter extends BaseAdapter {
 		}
 
 		const { data: poiVisits, error } = await fluxbase
-			.from('poi_visits')
+			.from<Record<string, any>>('poi_visits')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.order('visited_at', { ascending: false });
