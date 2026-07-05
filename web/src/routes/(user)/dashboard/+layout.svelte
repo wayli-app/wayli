@@ -217,7 +217,9 @@
 			</div>
 		{:else}
 			{#key page.url.pathname}
-				<div class="p-6" transition:fade={{ duration: 150 }}>
+				<!-- in:fade (not transition:fade) so the outgoing page is removed instantly on
+				     route change; a concurrent outro+intro would stack the new page below the old one. -->
+				<div class="p-6" in:fade={{ duration: 150 }}>
 					{@render children()}
 				</div>
 			{/key}
