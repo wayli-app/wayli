@@ -258,7 +258,7 @@
 		} catch (error: any) {
 			console.error('Error fetching filtered users:', error);
 			const errorMessage = error?.message || error?.error || 'Failed to fetch users';
-			toast.error('Failed to fetch users', { description: errorMessage });
+			toast.error(t('serverAdmin.failedToFetchUsers'), { description: errorMessage });
 		}
 	}
 
@@ -965,7 +965,7 @@
 
 		if (response.ok) {
 			users = users.filter((u: UserProfile) => u.id !== userToDelete!.id);
-			toast.success('User deleted successfully');
+			toast.success(t('serverAdmin.userDeleted'));
 		} else {
 			let errorDescription = 'An unknown error occurred while deleting the user.';
 			try {
@@ -974,7 +974,7 @@
 			} catch {
 				// The response was not JSON, which is fine. The server might have crashed.
 			}
-			toast.error('Failed to delete user', { description: errorDescription });
+			toast.error(t('serverAdmin.failedToDeleteUser'), { description: errorDescription });
 		}
 
 		handleCloseDeleteConfirm();
@@ -1168,17 +1168,17 @@
 
 	async function handleAddUser() {
 		if (!newUserEmail || !newUserFirstName || !newUserLastName) {
-			toast.error('Please fill in all required fields');
+			toast.error(t('serverAdmin.fillRequiredFields'));
 			return;
 		}
 
 		if (!newUserPassword || newUserPassword.length < 6) {
-			toast.error('Password must be at least 6 characters long');
+			toast.error(t('serverAdmin.passwordMinLengthError'));
 			return;
 		}
 
 		if (newUserPassword !== newUserConfirmPassword) {
-			toast.error('Passwords do not match');
+			toast.error(t('serverAdmin.passwordsDoNotMatch'));
 			return;
 		}
 
@@ -1200,17 +1200,17 @@
 			}
 
 			if ((data as any)?.success) {
-				toast.success('User added successfully');
+				toast.success(t('serverAdmin.userAdded'));
 				handleCloseAddUserModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
 				const errorDescription = (data as any)?.error || 'An unknown error occurred while adding the user.';
-				toast.error('Failed to add user', { description: errorDescription });
+				toast.error(t('serverAdmin.failedToAddUser'), { description: errorDescription });
 			}
 		} catch (error: any) {
 			console.error('Error adding user:', error);
 			const errorMessage = error?.message || error?.error || 'An unexpected error occurred.';
-			toast.error('Failed to add user', { description: errorMessage });
+			toast.error(t('serverAdmin.failedToAddUser'), { description: errorMessage });
 		}
 	}
 </script>
