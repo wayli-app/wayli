@@ -16,7 +16,7 @@
  * @fluxbase:temperature 0.1
  * @fluxbase:persist-conversations true
  * @fluxbase:rate-limit 10/min
- * @fluxbase:daily-limit 500
+ * @fluxbase:daily-limit 1000
  * @fluxbase:token-budget 100000/day
  * @fluxbase:http-allowed-domains {{system:wayli.pelias_endpoint}},pelias.wayli.app
  * @fluxbase:mcp-tools execute_sql,http_request,vector_search,custom:search_visits,custom:aggregate_visits,custom:get_visit_summary
