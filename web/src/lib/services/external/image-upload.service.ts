@@ -13,10 +13,8 @@ export async function uploadTripImage(file: File, fileName?: string): Promise<st
 		});
 
 		// Get current user for folder structure
-		const {
-			data: { user },
-			error: userError
-		} = await fluxbase.auth.getUser();
+		const { data: authData, error: userError } = await fluxbase.auth.getUser();
+		const user = authData?.user;
 		console.log('👤 [UPLOAD] fluxbase.auth.getUser() result:', { user, userError });
 		if (userError || !user) {
 			console.error('❌ [UPLOAD] Failed to get user:', userError);
@@ -101,10 +99,8 @@ export async function uploadTripImage(file: File, fileName?: string): Promise<st
 export async function deleteTripImage(imageUrl: string): Promise<boolean> {
 	try {
 		// Get current user
-		const {
-			data: { user },
-			error: userError
-		} = await fluxbase.auth.getUser();
+		const { data: authData, error: userError } = await fluxbase.auth.getUser();
+		const user = authData?.user;
 		if (userError || !user) {
 			console.error('Failed to get user:', userError);
 			return false;

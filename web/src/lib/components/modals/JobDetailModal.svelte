@@ -237,7 +237,7 @@
 				return;
 			}
 
-			const entries = (data || []) as ExecutionLog[];
+			const entries = (data || []) as unknown as ExecutionLog[];
 			console.log('[JobDetailModal] Fetched logs count:', entries.length);
 
 			// Merge backfill logs with any realtime logs that arrived during fetch
@@ -457,7 +457,7 @@
 				</div>
 				<button
 					type="button"
-					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
 					onclick={handleClose}
 					aria-label="Close modal"
 				>
@@ -498,7 +498,7 @@
 						<p class="text-sm text-muted-foreground">Determining ETA...</p>
 					{/if}
 					{#if displayJob.progress_message}
-						<p class="mt-1 text-sm text-muted-foreground dark:text-gray-500">
+						<p class="mt-1 text-sm text-muted-foreground">
 							{displayJob.progress_message}
 						</p>
 					{/if}
@@ -532,7 +532,7 @@
 					<div class="level-dropdown relative">
 						<button
 							type="button"
-							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 							onclick={() => (showLevelDropdown = !showLevelDropdown)}
 						>
 							<span class="capitalize">{selectedLevel}</span>
@@ -546,10 +546,7 @@
 								{#each ['debug', 'info', 'warn', 'error'] as const as level}
 									<button
 										type="button"
-										class="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {selectedLevel ===
-										level
-											? 'bg-gray-100 dark:bg-gray-700'
-											: ''}"
+										class="flex w-full items-center px-3 py-2 text-left text-sm {selectedLevel === level ? 'bg-gray-100 dark:bg-gray-700' : ''} hover:bg-muted"
 										onclick={() => selectLevel(level)}
 									>
 										<span class="capitalize {logLevelColors[level]}">{level}</span>

@@ -85,7 +85,7 @@ export abstract class BaseAdapter {
 		// Invoke the edge function
 		const { data, error } = await fluxbase.functions.invoke(url, {
 			method,
-			...(body && { body })
+			...(body !== undefined ? { body } : {})
 		});
 
 		if (error) {
@@ -118,7 +118,7 @@ export abstract class BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 		const { data: userData } = await fluxbase.auth.getUser();
 
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 

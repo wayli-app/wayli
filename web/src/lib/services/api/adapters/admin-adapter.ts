@@ -21,7 +21,7 @@ export class AdminAdapter extends BaseAdapter {
 			}
 
 			const { data: providers } = await fluxbase.admin.ai.listProviders();
-			return providers && providers.length > 0;
+			return (providers?.length ?? 0) > 0;
 		} catch {
 			return false;
 		}
@@ -100,7 +100,9 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		return {
-			app: appSettingsWithAll,
+			// ponytail: cast — appSettingsWithAll is built from server data + defaults and is an
+			// AppSettings at runtime, but its locally-inferred shape has nested optionality drift.
+			app: appSettingsWithAll as any,
 			custom: wayliSettings,
 			secrets: secretsMetadata
 		};
@@ -132,10 +134,11 @@ export class AdminAdapter extends BaseAdapter {
 					(params as { maxSessionsPerUser: number }).maxSessionsPerUser
 				);
 			case 'setFeature':
-				return await settings.setFeature(
-					(params as { feature: string }).feature,
-					(params as { enabled: boolean }).enabled
-				);
+			return await settings.setFeature(
+				// ponytail: cast — setFeature restricts to a literal union, but feature arrives as a dynamic string.
+				(params as { feature: string }).feature as 'realtime' | 'storage' | 'functions',
+				(params as { enabled: boolean }).enabled
+			);
 			case 'setRateLimiting':
 				return await settings.setRateLimiting((params as { enabled: boolean }).enabled);
 			case 'setAIConfig':
@@ -188,12 +191,14 @@ export class AdminAdapter extends BaseAdapter {
 			const existing = existingProviders?.find((p: { name: string }) => p.name === params.provider!.name);
 
 			if (existing) {
+				// ponytail: cast as any — updateProvider's typed payload drops provider_type/is_default,
+				// but the server may still persist them; keep the runtime payload unchanged until verified.
 				await fluxbase.admin.ai.updateProvider((existing as { id: string }).id, {
 					display_name: params.provider.display_name,
 					provider_type: params.provider.provider_type,
 					is_default: params.provider.is_default ?? false,
 					config: params.provider.config
-				});
+				} as any);
 			} else {
 				await fluxbase.admin.ai.createProvider({
 					name: params.provider.name,
@@ -202,7 +207,7 @@ export class AdminAdapter extends BaseAdapter {
 					is_default: params.provider.is_default ?? true,
 					config: params.provider.config,
 					enabled: true
-				});
+				} as any);
 			}
 		}
 
@@ -248,12 +253,12 @@ export class AdminAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -263,7 +268,7 @@ export class AdminAdapter extends BaseAdapter {
 		}
 
 		const { data: workers, error } = await fluxbase
-			.from('workers')
+			.from<Record<string, any>>('workers')
 			.select('*')
 			.order('created_at', { ascending: false });
 
@@ -281,12 +286,12 @@ export class AdminAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -300,7 +305,7 @@ export class AdminAdapter extends BaseAdapter {
 		switch (actionType) {
 			case 'create': {
 				const { data: newWorker, error } = await fluxbase
-					.from('workers')
+					.from<Record<string, any>>('workers')
 					.insert({
 						name: action.name,
 						type: action.type || 'general',
@@ -319,7 +324,7 @@ export class AdminAdapter extends BaseAdapter {
 
 			case 'update': {
 				const { data: updatedWorker, error } = await fluxbase
-					.from('workers')
+					.from<Record<string, any>>('workers')
 					.update({
 						name: action.name,
 						type: action.type,
@@ -339,7 +344,7 @@ export class AdminAdapter extends BaseAdapter {
 			}
 
 			case 'delete': {
-				const { error } = await fluxbase.from('workers').delete().eq('id', action.id);
+				const { error } = await fluxbase.from<Record<string, any>>('workers').delete().eq('id', action.id);
 
 				if (error) {
 					throw new Error(error.message || 'Failed to delete worker');
@@ -360,12 +365,12 @@ export class AdminAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { data: profile } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('role')
 			.eq('id', userData.user.id)
 			.single();
@@ -379,7 +384,7 @@ export class AdminAdapter extends BaseAdapter {
 		const offset = (page - 1) * limit;
 
 		const { data: users, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*')
 			.order('created_at', { ascending: false })
 			.range(offset, offset + limit - 1);
@@ -388,7 +393,7 @@ export class AdminAdapter extends BaseAdapter {
 			throw new Error(error.message || 'Failed to fetch users');
 		}
 
-		const { count } = await fluxbase.from('user_profiles').select('*', { count: 'exact', head: true });
+		const { count } = await fluxbase.from<Record<string, any>>('user_profiles').select('*', { count: 'exact', head: true });
 
 		return {
 			users: users || [],

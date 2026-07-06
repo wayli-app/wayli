@@ -17,16 +17,15 @@
 
 {#if open}
 	<div class="fixed inset-0 z-50 flex items-center justify-center" transition:fade>
+		<button
+			type="button"
+			class="fixed inset-0 cursor-default bg-black/50"
+			aria-label="Close dialog"
+			tabindex="-1"
+			onclick={() => onClose?.()}
+		></button>
 		<div
-			class="fixed inset-0 bg-black/50"
-			onclick={() => {
-				if (onClose) {
-					onClose();
-				}
-			}}
-		></div>
-		<div
-			class="relative z-50 w-full max-w-lg rounded-lg bg-white p-6 shadow-lg"
+			class="bg-card relative z-50 w-full max-w-lg rounded-lg p-6 shadow-lg"
 			transition:fade={{ duration: 200 }}
 		>
 			<slot />

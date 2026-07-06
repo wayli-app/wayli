@@ -2,7 +2,7 @@ import type { UserProfile } from '$lib/types/user.types';
 
 // Flexible type for Fluxbase client that works with both SDK and job runtime
 type FluxbaseClientLike = {
-	from(table: string): any;
+	from<T = unknown>(table: string): any;
 	auth: any;
 	rpc(fn: string, params?: Record<string, unknown>): Promise<any>;
 };
@@ -35,7 +35,7 @@ export class UserProfileService {
 	): Promise<{ home_address?: any; [key: string]: any } | null> {
 		try {
 			const { data: profile, error } = await this.fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('*')
 				.eq('id', userId)
 				.single();
@@ -59,7 +59,7 @@ export class UserProfileService {
 		try {
 			// Fetch from user_profiles
 			const { data: profileData, error: profileError } = await this.fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('*')
 				.eq('id', userId)
 				.single();
@@ -76,7 +76,7 @@ export class UserProfileService {
 				}
 				// Fetch the newly created profile
 				const { data: newProfile, error: newProfileError } = await this.fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.select('*')
 					.eq('id', userId)
 					.single();
@@ -135,7 +135,7 @@ export class UserProfileService {
 			const user = userData.user;
 			const metadata = user.user_metadata || {};
 
-			const { error: insertError } = await this.fluxbase.from('user_profiles').insert({
+			const { error: insertError } = await this.fluxbase.from<Record<string, any>>('user_profiles').insert({
 				id: userId,
 				first_name: metadata.first_name || '',
 				last_name: metadata.last_name || '',
@@ -220,7 +220,7 @@ export class UserProfileService {
 	 */
 	static async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
 		try {
-			const { error } = await this.fluxbase.from('user_profiles').eq('id', userId).update(updates);
+			const { error } = await this.fluxbase.from<Record<string, any>>('user_profiles').eq('id', userId).update(updates);
 			if (error) {
 				console.error('Error updating user profile:', error);
 				return false;
@@ -244,7 +244,7 @@ export class UserProfileService {
 				return [];
 			}
 
-			return (data.users || []).map((user) => {
+			return (data.users || []).map((user: any) => {
 				const metadata = user.user_metadata || {};
 				return {
 					id: user.id,

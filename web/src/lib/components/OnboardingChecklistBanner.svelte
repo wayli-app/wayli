@@ -111,7 +111,7 @@
 	async function checkOnboardingCompleted() {
 		try {
 			const { data, error } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('onboarding_completed')
 				.eq('id', userId)
 				.single();
@@ -187,7 +187,7 @@
 				<button
 					onclick={handleDismiss}
 					disabled={isDismissing}
-					class="text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+					class="text-muted-foreground hover:text-muted-foreground"
 					aria-label={t('common.actions.close')}
 				>
 					<X class="h-5 w-5" />

@@ -83,7 +83,7 @@ export class TripLocationsService {
 		try {
 			// First, get the trip to get its date range
 			const { data: trip, error: tripError } = await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.select('start_date, end_date, user_id')
 				.eq('id', tripId)
 				.single();
@@ -98,7 +98,7 @@ export class TripLocationsService {
 
 			// Fetch tracker data for the user within the trip's date range
 			const { data: locations, error } = await this.fluxbase
-				.from('tracker_data')
+				.from<Record<string, any>>('tracker_data')
 				.select('*')
 				.eq('user_id', targetUserId)
 				.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
@@ -118,7 +118,7 @@ export class TripLocationsService {
 				trip.end_date,
 				')'
 			);
-			return this.transformLocations(locations || []);
+			return this.transformLocations((locations as any[]) || []);
 		} catch (error) {
 			console.error('❌ Error fetching trip locations:', error);
 			throw error;
@@ -137,7 +137,7 @@ export class TripLocationsService {
 	}> {
 		try {
 			let query = this.fluxbase
-				.from('tracker_data')
+				.from<Record<string, any>>('tracker_data')
 				.select('*', { count: 'exact' })
 				.order('recorded_at', { ascending: true })
 				.range(offset, offset + limit - 1);
@@ -154,7 +154,7 @@ export class TripLocationsService {
 			if (error) throw error;
 
 			const hasMore = count ? offset + limit < count : false;
-			const transformedLocations = this.transformLocations(locations || []);
+			const transformedLocations = this.transformLocations((locations as any[]) || []);
 
 			return {
 				locations: transformedLocations,

@@ -12,6 +12,7 @@
 		Image
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import Input from '$lib/components/ui/input/index.svelte';
 	import { toast } from 'svelte-sonner';
 
 	import OnboardingWelcome from '$lib/components/OnboardingWelcome.svelte';
@@ -152,11 +153,11 @@
 	async function loadUserData() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data?.session) {
 				throw new Error('No session found');
 			}
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Load profile and preferences (server settings loaded via admin endpoint if needed)
 			const [profileResult, preferencesResult] = await Promise.all([
@@ -265,9 +266,9 @@
 	async function loadAISettings() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) return;
+			if (!session.data || !session.data?.session) return;
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Load app-level AI settings to check if user override is allowed
 			const result = await serviceAdapter.getAllSettings();
@@ -286,10 +287,10 @@
 	async function checkAdminRole() {
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (!userData.user) return;
+			if (!userData || !userData.user) return;
 
 			const { data: userProfile, error } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('role')
 				.eq('id', userData.user.id)
 				.single();
@@ -320,7 +321,7 @@
 		try {
 			// Check if user is authenticated via Fluxbase
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (!userData.user) {
+			if (!userData || !userData.user) {
 				console.warn('⚠️ [AccountSettings] No authenticated user for 2FA status check');
 				return;
 			}
@@ -338,15 +339,8 @@
 				return;
 			}
 
-			// SDK returns { totp_enabled: boolean } or { totp: Factor[] }
-			// Check both formats for compatibility
-			if (typeof data.totp_enabled === 'boolean') {
-				twoFactorEnabled = data.totp_enabled;
-			} else if (data.totp && Array.isArray(data.totp)) {
-				twoFactorEnabled = data.totp.length > 0;
-			} else {
-				twoFactorEnabled = false;
-			}
+			// SDK 2FA status is { all: Factor[]; totp: Factor[] }.
+			twoFactorEnabled = Array.isArray(data.totp) && data.totp.length > 0;
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error checking 2FA status:', error);
 			twoFactorEnabled = false;
@@ -454,7 +448,7 @@
 				homeAddressInput = homeAddress.display_name || '';
 
 				const session = await fluxbase.auth.getSession();
-				const serviceAdapter = new ServiceAdapter({ session: session.data.session! });
+				const serviceAdapter = new ServiceAdapter({ session: session.data?.session! });
 
 				await serviceAdapter.updateProfile({
 					first_name: profile.first_name || '',
@@ -467,7 +461,7 @@
 			// Mark onboarding as completed
 			if (profile) {
 				const { error } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.eq('id', profile.id)
 					.update({ onboarding_completed: true });
 
@@ -494,10 +488,13 @@
 		try {
 			// Mark onboarding as completed and home address as skipped
 			if (profile) {
-				const { error } = await fluxbase.from('user_profiles').eq('id', profile.id).update({
-					onboarding_completed: true,
-					home_address_skipped: true
-				});
+				const { error } = await fluxbase
+					.from<Record<string, any>>('user_profiles')
+					.eq('id', profile.id)
+					.update({
+						onboarding_completed: true,
+						home_address_skipped: true
+					});
 
 				if (error) {
 					console.error('Error marking onboarding as skipped:', error);
@@ -522,7 +519,7 @@
 		try {
 			if (profile) {
 				const { error } = await fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.eq('id', profile.id)
 					.update({ home_address_skipped: true });
 
@@ -550,11 +547,11 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data?.session) {
 				throw new Error('No session found');
 			}
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Update profile data
 			profile.first_name = firstNameInput.trim();
@@ -586,11 +583,11 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data?.session) {
 				throw new Error('No session found');
 			}
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Update preferences using service adapter
 			await serviceAdapter.updatePreferences({
@@ -1053,9 +1050,7 @@
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
 			<User class="text-primary dark:text-primary h-8 w-8" />
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">
-				Account Settings
-			</h1>
+			<h1 class="text-3xl font-bold tracking-tight text-foreground">Account Settings</h1>
 		</div>
 	</div>
 
@@ -1093,13 +1088,7 @@
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						>{t('accountSettings.email')}</label
 					>
-					<input
-						id="email"
-						type="email"
-						value={profile?.email}
-						disabled
-						class="focus:ring-primary w-full rounded-md border border-border bg-gray-50 px-3 py-2 text-sm text-muted-foreground placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-gray-700 dark:text-gray-400 dark:placeholder:text-gray-400"
-					/>
+					<Input id="email" type="email" value={profile?.email} disabled class="w-full" />
 					<p class="mt-1 text-xs text-muted-foreground">
 						{t('accountSettings.emailCannotChange')}
 					</p>
@@ -1135,7 +1124,7 @@
 							oninput={handleHomeAddressInput}
 							onkeydown={handleHomeAddressKeydown}
 							placeholder={t('accountSettings.startTypingHomeAddress')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 						{#if isHomeAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -1170,7 +1159,7 @@
 							{/each}
 							{#if homeAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 								>
 									{homeAddressSearchError}
 								</div>
@@ -1181,7 +1170,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 							>
 								{homeAddressSearchError}
 							</div>
@@ -1207,7 +1196,7 @@
 						<button
 							type="button"
 							onclick={handleSkipHomeAddressField}
-							class="mt-2 text-sm text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+							class="mt-2 text-sm text-muted-foreground hover:text-muted-foreground"
 						>
 							{t('accountSettings.skipThisField')}
 						</button>
@@ -1225,12 +1214,12 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.firstName')}</label
 						>
-						<input
+						<Input
 							id="firstName"
 							type="text"
 							bind:value={firstNameInput}
 							placeholder={t('accountSettings.enterFirstName')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					</div>
 
@@ -1240,12 +1229,12 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.lastName')}</label
 						>
-						<input
+						<Input
 							id="lastName"
 							type="text"
 							bind:value={lastNameInput}
 							placeholder={t('accountSettings.enterLastName')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					</div>
 				</div>
@@ -1281,12 +1270,7 @@
 						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 						>{t('accountSettings.currentPassword')}</label
 					>
-					<input
-						id="currentPassword"
-						type="password"
-						bind:value={currentPassword}
-						class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
-					/>
+					<Input id="currentPassword" type="password" bind:value={currentPassword} class="w-full" />
 				</div>
 
 				<div class="grid gap-4 md:grid-cols-2">
@@ -1296,12 +1280,7 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('accountSettings.newPassword')}</label
 						>
-						<input
-							id="newPassword"
-							type="password"
-							bind:value={newPassword}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
-						/>
+						<Input id="newPassword" type="password" bind:value={newPassword} class="w-full" />
 					</div>
 
 					<div>
@@ -1310,11 +1289,11 @@
 							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-gray-100"
 							>{t('common.fields.confirmPassword')}</label
 						>
-						<input
+						<Input
 							id="confirmPassword"
 							type="password"
 							bind:value={confirmPassword}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					</div>
 				</div>
@@ -1356,7 +1335,9 @@
 				<div class="space-y-4">
 					<!-- Current Status -->
 					<div
-						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : ' bg-gray-50 dark:bg-gray-800'} border-border"
+						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled
+							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+							: ' bg-gray-50 dark:bg-gray-800'} border-border"
 					>
 						<div class="flex items-center gap-3">
 							<div
@@ -1499,9 +1480,7 @@
 				{/if}
 
 				<div>
-					<label
-						for="pexels-api-key"
-						class="mb-1.5 block text-sm font-medium text-foreground"
+					<label for="pexels-api-key" class="mb-1.5 block text-sm font-medium text-foreground"
 						>{serverPexelsApiKeyAvailable
 							? t('accountSettings.personalPexelsApiKeyOptional')
 							: t('accountSettings.personalPexelsApiKey')}</label
@@ -1529,23 +1508,23 @@
 							</button>
 						</div>
 						<div class="mt-2">
-							<input
+							<Input
 								type="password"
 								id="pexels-api-key"
 								bind:value={pexelsApiKeyInput}
 								placeholder={t('accountSettings.enterNewKeyToReplace')}
-								class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+								class="w-full"
 							/>
 						</div>
 					{:else}
-						<input
+						<Input
 							type="password"
 							id="pexels-api-key"
 							bind:value={pexelsApiKeyInput}
 							placeholder={serverPexelsApiKeyAvailable
 								? t('accountSettings.leaveEmptyToUseServerKey')
 								: t('accountSettings.enterPexelsApiKey')}
-							class="focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:outline-none dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-400"
+							class="w-full"
 						/>
 					{/if}
 					<p class="mt-1.5 text-xs text-muted-foreground">
@@ -1562,9 +1541,7 @@
 				<!-- Personal Rate Limit Configuration (show if personal key is configured or being entered) -->
 				{#if pexelsApiKeyConfigured || pexelsApiKeyInput.trim().length > 0}
 					<div class="mt-4 space-y-2 border-t pt-4 border-border">
-						<h4 class="text-sm font-medium text-foreground">
-							Personal Rate Limit
-						</h4>
+						<h4 class="text-sm font-medium text-foreground">Personal Rate Limit</h4>
 
 						<label class="flex items-center gap-2">
 							<input
@@ -1584,7 +1561,7 @@
 						{#if pexelsRateLimitEnabled}
 							<div class="space-y-2">
 								<div class="flex items-center gap-2">
-									<input
+									<Input
 										type="number"
 										bind:value={pexelsRateLimit}
 										min="1"
@@ -1631,7 +1608,7 @@
 				<p class="mb-4 text-sm text-muted-foreground">
 					{t('accountSettings.excludedZonesDescription')}
 				</p>
-				<p class="mb-4 text-xs text-muted-foreground dark:text-gray-500">
+				<p class="mb-4 text-xs text-muted-foreground">
 					{t('accountSettings.excludedZonesHelp')}
 				</p>
 			</div>
@@ -1664,7 +1641,7 @@
 										{exclusion.location.display_name}
 									</div>
 									{#if exclusion.location.coordinates}
-										<div class="text-xs text-muted-foreground dark:text-gray-500">
+										<div class="text-xs text-muted-foreground">
 											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(
 												6
 											)}
@@ -1702,7 +1679,7 @@
 				{#if tripExclusions.length < 10}
 					<button
 						onclick={() => (showAddExclusionModal = true)}
-						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-300"
+						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 hover:text-muted-foreground"
 					>
 						<Plus class="h-4 w-4" />
 						{t('accountSettings.addTripExclusion')}
@@ -1762,12 +1739,12 @@
 						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.name')}</label
 					>
-					<input
+					<Input
 						id="add-exclusion-name"
 						type="text"
 						bind:value={newExclusion.name}
 						placeholder={t('accountSettings.exclusionExampleLabel')}
-						class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full"
 					/>
 				</div>
 				<div>
@@ -1785,7 +1762,7 @@
 							oninput={handleExclusionAddressInput}
 							onkeydown={handleExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full"
 						/>
 						{#if isExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -1802,10 +1779,7 @@
 							{#each exclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedExclusionAddressIndex ===
-									index
-										? 'bg-primary/10 dark:bg-primary/20'
-										: ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:focus:bg-gray-700 {selectedExclusionAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
 									onclick={() => selectExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
@@ -1820,7 +1794,7 @@
 							{/each}
 							{#if exclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 								>
 									{exclusionAddressSearchError}
 								</div>
@@ -1831,7 +1805,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 							>
 								{exclusionAddressSearchError}
 							</div>
@@ -1862,7 +1836,7 @@
 					</button>
 					<button
 						onclick={() => (showAddExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 					>
 						{t('common.actions.cancel')}
 					</button>
@@ -1906,12 +1880,12 @@
 						class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('common.fields.name')}</label
 					>
-					<input
+					<Input
 						id="edit-exclusion-name"
 						type="text"
 						bind:value={editingExclusion.name}
 						placeholder={t('accountSettings.exclusionExampleLabel')}
-						class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full"
 					/>
 				</div>
 				<div>
@@ -1929,7 +1903,7 @@
 							oninput={handleEditExclusionAddressInput}
 							onkeydown={handleEditExclusionAddressKeydown}
 							placeholder={t('accountSettings.startTypingAddress')}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full"
 						/>
 						{#if isEditExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -1946,10 +1920,7 @@
 							{#each editExclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedEditExclusionAddressIndex ===
-									index
-										? 'bg-primary/10 dark:bg-primary/20'
-										: ''}"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:focus:bg-gray-700 {selectedEditExclusionAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
 									onclick={() => selectEditExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
@@ -1964,7 +1935,7 @@
 							{/each}
 							{#if editExclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 								>
 									{editExclusionAddressSearchError}
 								</div>
@@ -1975,7 +1946,7 @@
 							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none dark:text-gray-400"
+								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
 							>
 								{editExclusionAddressSearchError}
 							</div>
@@ -2008,7 +1979,7 @@
 					</button>
 					<button
 						onclick={() => (showEditExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800 bg-card"
+						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
 					>
 						{t('common.actions.cancel')}
 					</button>

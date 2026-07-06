@@ -93,7 +93,7 @@ export async function getPeliasEndpoint(): Promise<string> {
 	try {
 		const { fluxbase } = await import('$lib/fluxbase');
 		const { data, error } = await fluxbase
-			.from('app.settings')
+			.from<Record<string, any>>('app.settings')
 			.select('value')
 			.eq('key', 'wayli.pelias_endpoint')
 			.single();

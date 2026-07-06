@@ -58,10 +58,8 @@ export class TripsService {
 			// Get current user if userId is not provided
 			let currentUserId = userId;
 			if (!currentUserId) {
-				const {
-					data: { user },
-					error: userError
-				} = await this.fluxbase.auth.getUser();
+				const { data: authData, error: userError } = await this.fluxbase.auth.getUser();
+			const user = authData?.user;
 				if (userError || !user) {
 					throw new Error('User not authenticated');
 				}
@@ -69,7 +67,7 @@ export class TripsService {
 			}
 
 			const query = this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.select('*')
 				.eq('user_id', currentUserId)
 				.order('created_at', { ascending: false });
@@ -89,7 +87,7 @@ export class TripsService {
 	async getTrip(id: string): Promise<Trip | null> {
 		try {
 			const { data: trip, error } = await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.select('*')
 				.eq('id', id)
 				.single();
@@ -111,7 +109,7 @@ export class TripsService {
 			};
 
 			const { data: trip, error } = await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.insert(insertData)
 				.select()
 				.single();
@@ -136,7 +134,7 @@ export class TripsService {
 				metadata: updateData.metadata ?? {}
 			};
 			const { data: trip, error } = await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update(updatePayload)
 				.eq('id', id)
 				.select()
@@ -158,7 +156,7 @@ export class TripsService {
 
 	async deleteTrip(id: string): Promise<void> {
 		try {
-			const { error } = await this.fluxbase.from('trips').delete().eq('id', id);
+			const { error } = await this.fluxbase.from<Record<string, any>>('trips').delete().eq('id', id);
 
 			if (error) throw error;
 		} catch (error) {
@@ -170,7 +168,7 @@ export class TripsService {
 	async searchTrips(query: string): Promise<Trip[]> {
 		try {
 			const { data: trips, error } = await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.select('*')
 				.or(`title.ilike.%${query}%,description.ilike.%${query}%,labels.cs.{${query}}`)
 				.order('created_at', { ascending: false });
@@ -189,7 +187,7 @@ export class TripsService {
 		try {
 			// Fetch the trip to get user_id and date range
 			const { data: trip, error: tripError } = await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.select('user_id, start_date, end_date, metadata')
 				.eq('id', tripId)
 				.single();
@@ -199,7 +197,7 @@ export class TripsService {
 			let distanceTraveled = 0;
 			if (trip.start_date && trip.end_date) {
 				const { data, error } = await this.fluxbase
-					.from('tracker_data')
+					.from<Record<string, any>>('tracker_data')
 					.select('distance')
 					.eq('user_id', trip.user_id)
 					.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
@@ -208,14 +206,14 @@ export class TripsService {
 				if (!error && data) {
 					// Sum up all distances, treating null/undefined as 0
 					distanceTraveled = data.reduce(
-						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
 						0
 					);
 				}
 			}
 			// Update the trip's metadata.distanceTraveled
 			await this.fluxbase
-				.from('trips')
+				.from<Record<string, any>>('trips')
 				.update({ metadata: { ...trip.metadata, distanceTraveled } })
 				.eq('id', tripId);
 		} catch (error) {

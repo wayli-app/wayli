@@ -272,13 +272,13 @@
 		isLoadingProfile = true;
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session?.user) {
+			if (!session.data?.session?.user) {
 				console.error('No session found');
 				return;
 			}
 
 			// Get user profile using ServiceAdapter (now uses SDK internally)
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 			const profile = (await serviceAdapter.getProfile()) as any;
 
 			userProfile = profile as UserProfile;
@@ -1055,7 +1055,7 @@
 								tempMarker = null;
 							}
 						}}
-						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1297,7 +1297,7 @@
 									tempMarker = null;
 								}
 							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 						>
 							{t('common.actions.cancel')}
 						</button>
@@ -1351,7 +1351,7 @@
 							showEditForm = false;
 							resetForm();
 						}}
-						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+						class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
 					>
 						<X class="h-5 w-5" />
 					</button>
@@ -1533,7 +1533,7 @@
 								showEditForm = false;
 								resetForm();
 							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 						>
 							{t('common.actions.cancel')}
 						</button>
@@ -1614,7 +1614,7 @@
 			{#if searchQuery || selectedTypes.length > 1 || showFavouritedOnly}
 				<button
 					onclick={clearFilters}
-					class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+					class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-gray-600 transition-colors dark:text-gray-400 hover:bg-muted"
 				>
 					<X class="h-3 w-3" />
 					{t('wantToVisit.clearFilters')}

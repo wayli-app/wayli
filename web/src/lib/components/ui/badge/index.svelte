@@ -1,23 +1,29 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { cn } from '$lib/utils';
 
-	type BadgeVariants = {
+	type Props = {
 		variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+		class?: string;
+		children?: Snippet;
+		[key: string]: unknown;
 	};
 
-	const badgeVariants = {
-		variant: {
-			default: 'bg-primary text-primary-foreground hover:bg-primary/80',
-			secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-			destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/80',
-			outline: 'text-foreground'
-		}
+	let {
+		variant = 'default',
+		class: className = '',
+		children,
+		...rest
+	}: Props = $props();
+
+	const variants = {
+		default: 'bg-primary text-primary-foreground hover:bg-primary/80',
+		secondary: 'bg-muted text-muted-foreground hover:bg-muted/80',
+		destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/80',
+		outline: 'text-foreground'
 	} as const;
 
-	export let variant: BadgeVariants['variant'] = 'default';
-	export let className: string = '';
-
-	$: variantClass = badgeVariants.variant[variant ?? 'default'];
+	const variantClass = $derived(variants[variant]);
 </script>
 
 <div
@@ -26,7 +32,7 @@
 		variantClass,
 		className
 	)}
-	{...$$restProps}
+	{...rest}
 >
-	<slot />
+	{@render children?.()}
 </div>

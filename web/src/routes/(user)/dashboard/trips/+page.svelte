@@ -321,7 +321,7 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 
@@ -420,7 +420,7 @@
 	async function loadUserPreferences() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session) {
+			if (!session.data || !session.data.session) {
 				throw new Error('No session found');
 			}
 
@@ -2077,7 +2077,7 @@
 											<!-- Visited Cities -->
 											{#if trip.metadata?.visitedCitiesDetailed && trip.metadata.visitedCitiesDetailed.length > 0}
 												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(
-													(city) => city.durationHours >= 12 && city.city !== 'Unknown'
+													(city: any) => city.durationHours >= 12 && city.city !== 'Unknown'
 												)}
 												{#if significantCities.length > 0}
 													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
@@ -2101,7 +2101,7 @@
 											<!-- Visited Countries (for multi-country trips) -->
 											{#if trip.metadata?.visitedCountriesDetailed && trip.metadata.visitedCountriesDetailed.length > 1}
 												{@const validCountries = trip.metadata.visitedCountriesDetailed.filter(
-													(country) => country.countryCode !== 'Unknown'
+													(country: any) => country.countryCode !== 'Unknown'
 												)}
 												{#if validCountries.length > 1}
 													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
@@ -2154,7 +2154,7 @@
 			<div class="mt-4 flex gap-3 border-t pt-4 border-border">
 				<button
 					onclick={() => (showSuggestedTripsModal = false)}
-					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 				>
 					{t('common.actions.cancel')}
 				</button>
@@ -2376,6 +2376,7 @@
 	.line-clamp-2 {
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

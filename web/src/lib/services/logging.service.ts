@@ -138,7 +138,7 @@ class LoggingService {
 		if (!this.config.enableDatabase || !this.fluxbase) return;
 
 		try {
-			await this.fluxbase.from('application_logs').insert({
+			await this.fluxbase.from<Record<string, any>>('application_logs').insert({
 				timestamp: entry.timestamp,
 				level: LogLevel[entry.level],
 				message: entry.message,

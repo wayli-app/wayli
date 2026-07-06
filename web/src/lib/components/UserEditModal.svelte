@@ -26,8 +26,8 @@
 			// Create a local copy to avoid modifying the original user object directly
 			localUser = JSON.parse(JSON.stringify(user));
 			// Ensure role is always set to a valid value
-			if (!localUser.role || (localUser.role !== 'admin' && localUser.role !== 'user')) {
-				localUser.role = 'user';
+			if (!localUser!.role || (localUser!.role !== 'admin' && localUser!.role !== 'user')) {
+				localUser!.role = 'user';
 			}
 		}
 	});
@@ -189,7 +189,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={closeModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
 				>
 					Cancel
 				</button>

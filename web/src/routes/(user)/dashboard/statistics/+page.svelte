@@ -622,10 +622,10 @@
 	async function loadExclusionZones(): Promise<void> {
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
-			if (!userData.user) return;
+			if (!userData || !userData.user) return;
 
 			// Load home address
-			const homeAddressAdapter = new HomeAddressAdapter({ session: { user: userData.user } });
+			const homeAddressAdapter = new HomeAddressAdapter({ session: { user: userData.user } as any });
 			const homeData = await homeAddressAdapter.getHomeAddress();
 			homeAddress = normalizeHomeAddress(homeData.home_address);
 
@@ -1212,7 +1212,7 @@
 					</h4>
 					<button
 						onclick={closePointDetails}
-						class="text-muted-foreground hover:text-gray-600 dark:hover:text-gray-300"
+						class="text-muted-foreground hover:text-muted-foreground"
 					>
 						<X class="h-4 w-4" />
 					</button>
@@ -1289,7 +1289,7 @@
 				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
 			>
 				<div class="text-center">
-					<MapPin class="mx-auto mb-4 h-12 w-12 text-muted-foreground dark:text-gray-500" />
+					<MapPin class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
 					<h3 class="mb-4 text-lg font-semibold text-muted-foreground">
 						{t('statistics.noDataMessage')}
 					</h3>
@@ -1404,27 +1404,27 @@
 								<thead>
 									<tr>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 										>
 											{t('statistics.mode')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 										>
 											{t('statistics.distanceKm')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 										>
 											{t('statistics.time')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 										>
 											{t('statistics.percentOfTotal')}
 										</th>
 										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 										>
 											{t('statistics.points')}
 										</th>
@@ -1478,12 +1478,12 @@
 					<thead>
 						<tr>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 							>
 								Station
 							</th>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-400"
+								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 							>
 								Visits
 							</th>

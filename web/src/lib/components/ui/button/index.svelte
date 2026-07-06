@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { cn } from '$lib/utils';
 
 	type ButtonVariants = {
@@ -32,6 +33,7 @@
 		};
 		bind?: (el: HTMLButtonElement | HTMLAnchorElement) => void;
 		class?: string;
+		children?: Snippet;
 	};
 
 	let {
@@ -45,7 +47,8 @@
 		icon,
 		on,
 		bind,
-		class: parentClass = ''
+		class: parentClass = '',
+		children
 	}: ButtonProps = $props();
 
 	let element = $state<HTMLButtonElement | HTMLAnchorElement>();
@@ -146,7 +149,7 @@
 			{#if icon}
 				<span class="mr-2">{icon}</span>
 			{/if}
-			<slot />
+			{@render children?.()}
 		</a>
 	{:else}
 		<button
@@ -168,7 +171,7 @@
 			{#if icon}
 				<span class="mr-2">{icon}</span>
 			{/if}
-			<slot />
+			{@render children?.()}
 		</button>
 	{/if}
 {/key}

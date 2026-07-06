@@ -11,7 +11,7 @@
 		confirmText?: string;
 		cancelText?: string;
 		variant?: 'danger' | 'warning' | 'info';
-		icon?: Component;
+		icon?: any;
 		onConfirm?: () => void;
 		onCancel?: () => void;
 	}

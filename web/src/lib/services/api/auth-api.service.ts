@@ -62,7 +62,7 @@ export class AuthApiService {
 
 			// Get user preferences from user_preferences table
 			const { data: preferences, error: prefError } = await this.fluxbase
-				.from('user_preferences')
+				.from<Record<string, any>>('user_preferences')
 				.select('*')
 				.eq('id', userId)
 				.single();
@@ -80,7 +80,7 @@ export class AuthApiService {
 			const {
 				data: { user },
 				error: userError
-			} = await this.fluxbase.auth.admin.getUserById(userId);
+			} = await (this.fluxbase.auth as any).admin.getUserById(userId);
 			if (userError) {
 				throw errorHandler.createError(
 					ErrorCode.DATABASE_ERROR,
@@ -96,7 +96,7 @@ export class AuthApiService {
 
 			return {
 				profile,
-				preferences,
+				preferences: preferences as unknown as UserPreferences,
 				two_factor_enabled,
 				isAdmin,
 				user: {

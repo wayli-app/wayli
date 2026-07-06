@@ -215,7 +215,7 @@
 			const session = $sessionStore;
 			if (session) {
 				// Check user role
-				isAdmin = session.user?.app_metadata?.role === 'admin';
+				isAdmin = session.user?.metadata?.role === 'admin';
 
 				// Check if user override is allowed
 				const serviceAdapter = new ServiceAdapter({ session });
@@ -752,7 +752,7 @@
 				type="button"
 				onclick={() => (showMobileSidebar = true)}
 				aria-label="Open conversation history"
-				class="rounded-lg p-2 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+				class="rounded-lg p-2 text-gray-600 transition-colors dark:text-gray-300 hover:bg-muted"
 			>
 				<Menu class="h-5 w-5" />
 			</button>
@@ -933,7 +933,7 @@
 									<button
 										type="button"
 										onclick={() => (streamingDetailsExpanded = !streamingDetailsExpanded)}
-										class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+										class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-muted-foreground"
 									>
 										{#if streamingDetailsExpanded}
 											<ChevronDown class="h-3.5 w-3.5 flex-shrink-0" />
@@ -1108,7 +1108,7 @@
 				</h3>
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
 					aria-label="Close modal"
 				>
 					<X class="h-5 w-5" />

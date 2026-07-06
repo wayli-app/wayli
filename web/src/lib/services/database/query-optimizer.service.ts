@@ -87,7 +87,7 @@ class QueryOptimizerService {
 				if (!this.fluxbase) throw new Error('Fluxbase client not initialized');
 
 				const { data, error } = await this.fluxbase
-					.from('user_profiles')
+					.from<Record<string, any>>('user_profiles')
 					.select(
 						`
           *,
@@ -118,7 +118,7 @@ class QueryOptimizerService {
 				if (!this.fluxbase) throw new Error('Fluxbase client not initialized');
 
 				let query = this.fluxbase
-					.from('trips')
+					.from<Record<string, any>>('trips')
 					.select('*', { count: 'exact' })
 					.eq('user_id', userId)
 					.order('created_at', { ascending: false });

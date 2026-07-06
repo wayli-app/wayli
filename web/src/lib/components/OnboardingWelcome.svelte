@@ -173,7 +173,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+				class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
 				aria-label={t('common.close')}
 			>
 				<X class="h-5 w-5" />
@@ -206,7 +206,7 @@
 					<p class="mb-8 text-lg text-muted-foreground">
 						{t('onboarding.welcomeMessage')}
 					</p>
-					<p class="mb-6 text-sm text-muted-foreground dark:text-gray-500">
+					<p class="mb-6 text-sm text-muted-foreground">
 						{t('onboarding.stepProgress', { current: 1, total: 3 })}
 					</p>
 					<button
@@ -232,7 +232,7 @@
 						<p class="mb-2 text-muted-foreground">
 							{t('onboarding.homeLocationHelp')}
 						</p>
-						<p class="mb-6 text-sm text-muted-foreground dark:text-gray-500">
+						<p class="mb-6 text-sm text-muted-foreground">
 							{t('onboarding.homeLocationOptional')}
 						</p>
 					</div>
@@ -272,10 +272,7 @@
 								{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 									<button
 										type="button"
-										class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700 {selectedAddressIndex ===
-										index
-											? 'bg-primary/10 dark:bg-primary/20'
-											: ''}"
+										class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:focus:bg-gray-700 {selectedAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
 										onclick={() => selectAddress(suggestion)}
 									>
 										<div class="font-medium">{suggestion.display_name}</div>
@@ -301,19 +298,19 @@
 							</div>
 						{/if}
 
-						<p class="mt-2 text-xs text-muted-foreground dark:text-gray-500">
+						<p class="mt-2 text-xs text-muted-foreground">
 							{t('onboarding.homeLocationTip')}
 						</p>
 					</div>
 
 					<!-- Action Buttons -->
-					<p class="mb-4 text-center text-sm text-muted-foreground dark:text-gray-500">
+					<p class="mb-4 text-center text-sm text-muted-foreground">
 						{t('onboarding.stepProgress', { current: 2, total: 3 })}
 					</p>
 					<div class="flex gap-4">
 						<button
 							onclick={handleSkip}
-							class="flex-1 rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-all hover:scale-105 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+							class="flex-1 rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-all hover:scale-105 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 						>
 							{t('onboarding.skipForNow')}
 						</button>
@@ -441,7 +438,7 @@
 					</div>
 
 					<!-- Action Button -->
-					<p class="mb-4 text-center text-sm text-muted-foreground dark:text-gray-500">
+					<p class="mb-4 text-center text-sm text-muted-foreground">
 						{t('onboarding.stepProgress', { current: 3, total: 3 })}
 					</p>
 					<button

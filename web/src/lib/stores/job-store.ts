@@ -334,7 +334,7 @@ function calculateETA(percent: number, startedAt: string | undefined): number | 
  * - Object (from Realtime): {message: "...", percent: 64, eta_seconds: 120}
  */
 function normalizeJob(job: Record<string, unknown>): JobStoreJob {
-	const normalized = { ...job } as JobStoreJob;
+	const normalized = { ...job } as unknown as JobStoreJob;
 
 	// Handle progress field - can be string (API) or object (Realtime)
 	if (job.progress) {
@@ -354,7 +354,7 @@ function normalizeJob(job: Record<string, unknown>): JobStoreJob {
 			}
 		} else if (typeof job.progress === 'object') {
 			// Realtime returns object directly
-			progressData = job.progress as typeof progressData;
+			progressData = job.progress as unknown as typeof progressData;
 		}
 
 		if (progressData) {
@@ -555,7 +555,7 @@ async function fetchActiveJobs() {
 			jobsStore.update((current) => {
 				const newJobs = new Map(current);
 				for (const job of allJobs) {
-					newJobs.set(job.id, job as JobStoreJob);
+					newJobs.set(job.id, job as unknown as JobStoreJob);
 				}
 				return newJobs;
 			});
@@ -958,7 +958,7 @@ export function subscribeToConnectionStatus(
 	callback: (status: 'connecting' | 'connected' | 'disconnected' | 'error') => void
 ) {
 	// Subscribe to Fluxbase Realtime connection status
-	const subscription = fluxbase.realtime.onConnectionStateChange((state) => {
+	const subscription = (fluxbase.realtime as any).onConnectionStateChange((state: any) => {
 		callback(state as any);
 	});
 

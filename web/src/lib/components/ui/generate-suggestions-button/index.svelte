@@ -32,13 +32,13 @@
 		isLoadingProfile = true;
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session?.user) {
+			if (!session.data?.session?.user) {
 				console.error('No session found');
 				return;
 			}
 
 			// Use the Edge Function to get user profile
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 			const profile = (await serviceAdapter.getProfile()) as UserProfile;
 
 			// Check if user has a home address

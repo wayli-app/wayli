@@ -110,12 +110,12 @@
 
 		if ($userStore) {
 			const { data } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.select('home_address, home_address_skipped, onboarding_dismissed')
 				.eq('id', $userStore.id)
 				.single();
 
-			userProfile = data;
+			userProfile = data as unknown as UserProfile;
 		}
 	});
 

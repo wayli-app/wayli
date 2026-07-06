@@ -88,9 +88,7 @@
 		</div>
 
 		<!-- Reset Password Form -->
-		<div
-			class="rounded-2xl border p-8 shadow-xl bg-card border-border"
-		>
+		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
 			{#if !token}
 				<!-- Invalid or missing token -->
 				<div class="text-center">
@@ -145,10 +143,7 @@
 					<form onsubmit={handlePasswordReset} class="space-y-6">
 						<!-- New Password Field -->
 						<div>
-							<label
-								for="password"
-								class="mb-2 block text-sm font-medium text-muted-foreground"
-							>
+							<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
 								{t('auth.newPassword')}
 							</label>
 							<div class="relative">
@@ -166,7 +161,7 @@
 								<button
 									type="button"
 									onclick={togglePassword}
-									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-muted-foreground"
 								>
 									{#if showPassword}
 										<EyeOff class="h-5 w-5" />
@@ -203,7 +198,7 @@
 								<button
 									type="button"
 									onclick={toggleConfirmPassword}
-									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-gray-600 dark:hover:text-gray-300"
+									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-muted-foreground"
 								>
 									{#if showConfirmPassword}
 										<EyeOff class="h-5 w-5" />

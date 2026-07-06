@@ -67,12 +67,12 @@ export class HomeAddressAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { data: userProfile, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('home_address')
 			.eq('id', userData.user.id)
 			.maybeSingle();
@@ -104,7 +104,7 @@ export class HomeAddressAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -129,7 +129,7 @@ export class HomeAddressAdapter extends BaseAdapter {
 
 		// Store in user_profiles
 		const { error: upsertError } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.upsert(
 				{
 					id: userData.user.id,
@@ -164,12 +164,12 @@ export class HomeAddressAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { error: updateError } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.update({
 				home_address: null,
 				updated_at: new Date().toISOString()

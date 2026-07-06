@@ -21,8 +21,6 @@ export * from './location-cache.service';
 // Feature services
 // Note: trip-image-suggestion.service removed - now running as Fluxbase edge function (trips-suggest-image)
 export * from './export.service';
-export * from './export-processor.service';
-export * from './audit-logger.service';
 export * from './user-profile.service';
 export * from './want-to-visit.service';
 // Note: statistics.service removed - now using client-statistics.service

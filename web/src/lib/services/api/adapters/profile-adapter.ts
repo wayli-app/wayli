@@ -43,14 +43,14 @@ export class ProfileAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
-		const userMetadata = userData.user.user_metadata || {};
+		const userMetadata = (userData.user.metadata ?? {}) as Record<string, any>;
 
 		const { data: profile, error } = await fluxbase
-			.from('user_profiles')
+			.from<Record<string, any>>('user_profiles')
 			.select('*')
 			.eq('id', userData.user.id)
 			.single();
@@ -90,7 +90,7 @@ export class ProfileAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -105,7 +105,7 @@ export class ProfileAdapter extends BaseAdapter {
 
 		if (Object.keys(profileFields).length > 0) {
 			const { error: profileError } = await fluxbase
-				.from('user_profiles')
+				.from<Record<string, any>>('user_profiles')
 				.eq('id', userData.user.id)
 				.update(profileFields);
 
@@ -133,12 +133,12 @@ export class ProfileAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { data: preferences, error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.select('*')
 			.eq('id', userData.user.id)
 			.single();
@@ -170,12 +170,12 @@ export class ProfileAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { error } = await fluxbase
-			.from('user_preferences')
+			.from<Record<string, any>>('user_preferences')
 			.eq('id', userData.user.id)
 			.update({
 				...preferences,

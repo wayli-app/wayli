@@ -164,7 +164,7 @@
 						href="https://play.google.com/store/apps/details?id=org.owntracks.android"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+						class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 					>
 						<Smartphone class="h-4 w-4" />
 						{t('connections.downloadAndroid')}
@@ -174,7 +174,7 @@
 						href="https://apps.apple.com/app/owntracks/id692424691"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+						class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 					>
 						<Smartphone class="h-4 w-4" />
 						{t('connections.downloadIOS')}
@@ -271,7 +271,7 @@
 				<button
 					type="button"
 					onclick={closeApiKeyModal}
-					class="rounded-md p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+					class="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
 				>
 					<X class="h-5 w-5" />
 				</button>
@@ -288,14 +288,15 @@
 			<div class="space-y-4">
 				<!-- API Endpoint -->
 				<div>
-					<label class="mb-1.5 block text-sm font-medium text-foreground">
-						{t('connections.apiEndpoint')}
-					</label>
-					<div class="flex gap-2">
-						<input
-							type="text"
-							value={newlyGeneratedEndpoint}
-							readonly
+				<label for="apiEndpoint" class="mb-1.5 block text-sm font-medium text-foreground">
+					{t('connections.apiEndpoint')}
+				</label>
+				<div class="flex gap-2">
+					<input
+						id="apiEndpoint"
+						type="text"
+						value={newlyGeneratedEndpoint}
+						readonly
 							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 text-xs text-gray-900 dark:border-border dark:bg-card dark:text-gray-100"
 						/>
 						<button
@@ -316,14 +317,15 @@
 
 				<!-- API Key -->
 				<div>
-					<label class="mb-1.5 block text-sm font-medium text-foreground">
-						{t('connections.apiKey')}
-					</label>
-					<div class="flex gap-2">
-						<input
-							type="text"
-							value={newlyGeneratedApiKey}
-							readonly
+				<label for="apiKey" class="mb-1.5 block text-sm font-medium text-foreground">
+					{t('connections.apiKey')}
+				</label>
+				<div class="flex gap-2">
+					<input
+						id="apiKey"
+						type="text"
+						value={newlyGeneratedApiKey}
+						readonly
 							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 dark:border-border dark:bg-card dark:text-gray-100"
 						/>
 						<button

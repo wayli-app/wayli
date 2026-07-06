@@ -24,6 +24,7 @@
 
 	import RoleSelector from '$lib/components/RoleSelector.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import Input from '$lib/components/ui/input/index.svelte';
 	import UserAvatar from '$lib/components/ui/UserAvatar.svelte';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
 	import { translate } from '$lib/i18n';
@@ -204,7 +205,7 @@
 		if (session?.user) {
 			console.log('🔍 [DEBUG] Current user ID:', session.user.id);
 			console.log('🔍 [DEBUG] Current user email:', session.user.email);
-			console.log('🔍 [DEBUG] Current user metadata:', session.user.user_metadata);
+			console.log('🔍 [DEBUG] Current user metadata:', session.user.metadata);
 		}
 
 		await fetchFilteredUsers();
@@ -999,12 +1000,12 @@
 				throw error;
 			}
 
-			if (data?.success) {
+			if ((data as any)?.success) {
 				toast.success(t('serverAdmin.userUpdated'));
 				handleCloseModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
-				const errorDescription = data?.error || t('serverAdmin.failedToUpdateUser');
+				const errorDescription = (data as any)?.error || t('serverAdmin.failedToUpdateUser');
 				toast.error(t('serverAdmin.failedToUpdateUser'), {
 					description: errorDescription
 				});
@@ -1198,12 +1199,12 @@
 				throw error;
 			}
 
-			if (data?.success) {
+			if ((data as any)?.success) {
 				toast.success('User added successfully');
 				handleCloseAddUserModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
-				const errorDescription = data?.error || 'An unknown error occurred while adding the user.';
+				const errorDescription = (data as any)?.error || 'An unknown error occurred while adding the user.';
 				toast.error('Failed to add user', { description: errorDescription });
 			}
 		} catch (error: any) {
@@ -1254,9 +1255,7 @@
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>
-					<h2 id="add-user-modal-title" class="text-2xl font-bold text-foreground">
-						Add New User
-					</h2>
+					<h2 id="add-user-modal-title" class="text-2xl font-bold text-foreground">Add New User</h2>
 					<p class="text-muted-foreground">Create a new user account.</p>
 				</div>
 				<button
@@ -1274,16 +1273,17 @@
 					<div>
 						<label
 							for="newUserFirstName"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
-							>First Name *</label
+							class="mb-1 block text-sm font-medium text-muted-foreground">First Name *</label
 						>
 						<div class="relative">
-							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-							<input
+							<UserIcon
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
 								type="text"
 								id="newUserFirstName"
 								bind:value={newUserFirstName}
-								class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="w-full"
 								placeholder="e.g. Jane"
 								required
 							/>
@@ -1293,16 +1293,17 @@
 					<div>
 						<label
 							for="newUserLastName"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
-							>Last Name *</label
+							class="mb-1 block text-sm font-medium text-muted-foreground">Last Name *</label
 						>
 						<div class="relative">
-							<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-							<input
+							<UserIcon
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
 								type="text"
 								id="newUserLastName"
 								bind:value={newUserLastName}
-								class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="w-full"
 								placeholder="e.g. Doe"
 								required
 							/>
@@ -1311,18 +1312,16 @@
 				</div>
 
 				<div>
-					<label
-						for="newUserEmail"
-						class="mb-1 block text-sm font-medium text-muted-foreground"
+					<label for="newUserEmail" class="mb-1 block text-sm font-medium text-muted-foreground"
 						>Email Address *</label
 					>
 					<div class="relative">
 						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-						<input
+						<Input
 							type="email"
 							id="newUserEmail"
 							bind:value={newUserEmail}
-							class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="w-full"
 							placeholder="e.g. jane.doe@example.com"
 							required
 						/>
@@ -1333,16 +1332,17 @@
 					<div>
 						<label
 							for="newUserPassword"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
-							>Password *</label
+							class="mb-1 block text-sm font-medium text-muted-foreground">Password *</label
 						>
 						<div class="relative">
-							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-							<input
+							<Lock
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
 								type="password"
 								id="newUserPassword"
 								bind:value={newUserPassword}
-								class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="w-full"
 								placeholder="Min. 6 characters"
 								required
 							/>
@@ -1352,16 +1352,17 @@
 					<div>
 						<label
 							for="newUserConfirmPassword"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
-							>Confirm Password *</label
+							class="mb-1 block text-sm font-medium text-muted-foreground">Confirm Password *</label
 						>
 						<div class="relative">
-							<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-							<input
+							<Lock
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
 								type="password"
 								id="newUserConfirmPassword"
 								bind:value={newUserConfirmPassword}
-								class="focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="w-full"
 								placeholder="Confirm password"
 								required
 							/>
@@ -1379,7 +1380,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1425,10 +1426,7 @@
 					</div>
 				</div>
 				<div>
-					<h3
-						id="delete-user-modal-title"
-						class="text-lg font-medium text-foreground"
-					>
+					<h3 id="delete-user-modal-title" class="text-lg font-medium text-foreground">
 						Delete User
 					</h3>
 					<p id="delete-user-modal-description" class="text-sm text-muted-foreground">
@@ -1452,7 +1450,7 @@
 				<button
 					type="button"
 					onclick={handleCloseDeleteConfirm}
-					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1484,9 +1482,7 @@
 		<div class="mb-6 border-b border-border">
 			<nav class="-mb-px flex space-x-8">
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
-						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1495,9 +1491,7 @@
 					</div>
 				</button>
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
-						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1526,21 +1520,19 @@
 				<div class="mb-6 flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<div class="relative">
-							<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-							<input
+							<Search
+								class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
 								type="text"
 								bind:value={searchQuery}
 								placeholder="Search users..."
-								class="focus:border-primary focus:ring-primary w-64 rounded-md border border-border bg-white py-2 pr-4 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100 dark:placeholder:text-gray-500"
+								class="w-full"
 								oninput={handleSearchInput}
 							/>
 						</div>
 						<!-- Items per page selector -->
-						<select
-							bind:value={itemsPerPage}
-							onchange={handleItemsPerPageChange}
-							class="focus:border-primary focus:ring-primary rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
-						>
+						<select bind:value={itemsPerPage} onchange={handleItemsPerPageChange} class="w-full">
 							<option value={5}>5 per page</option>
 							<option value={10}>10 per page</option>
 							<option value={25}>25 per page</option>
@@ -1562,9 +1554,7 @@
 					{#if users.length === 0}
 						<div class="py-8 text-center">
 							<UserIcon class="mx-auto h-12 w-12 text-muted-foreground" />
-							<h3 class="mt-2 text-sm font-medium text-foreground">
-								No users found
-							</h3>
+							<h3 class="mt-2 text-sm font-medium text-foreground">No users found</h3>
 							<p class="mt-1 text-sm text-muted-foreground">
 								{searchQuery
 									? 'Try adjusting your search terms.'
@@ -1577,25 +1567,25 @@
 								<tr>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										User
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										Role
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										Created
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase dark:text-gray-300"
+										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
 									>
 										Status
 									</th>
@@ -1628,34 +1618,30 @@
 												{user.role === 'admin' ? 'Admin' : 'User'}
 											</span>
 										</td>
-										<td
-											class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground"
-										>
+										<td class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
 											{formatDate(user.created_at)}
 										</td>
-										<td
-											class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground"
-										>
+										<td class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
 											Active
 										</td>
 										<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 											<div class="flex items-center justify-end gap-2">
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
 													onclick={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:text-gray-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
 													onclick={() => handleClearUserPlaceVisits(user)}
 													title={t('serverAdmin.clearUserPlaceVisits')}
 												>
 													<RotateCcw class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 													onclick={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
@@ -1687,7 +1673,7 @@
 										<button
 											onclick={goToPreviousPage}
 											disabled={!pagination.hasPrev}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
 										>
 											<span class="sr-only">Previous</span>
 											<ChevronLeft class="h-5 w-5" />
@@ -1697,10 +1683,7 @@
 										{#each getPageNumbers() as pageNum (pageNum)}
 											<button
 												onclick={() => goToPage(pageNum)}
-												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
-												currentPage
-													? 'bg-primary text-white'
-													: 'text-muted-foreground hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'}"
+												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum === currentPage ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-700'}"
 											>
 												{pageNum}
 											</button>
@@ -1710,7 +1693,7 @@
 										<button
 											onclick={goToNextPage}
 											disabled={!pagination.hasNext}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-700"
+											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
 										>
 											<span class="sr-only">Next</span>
 											<ChevronRight class="h-5 w-5" />
@@ -1740,17 +1723,14 @@
 
 					<div class="space-y-4">
 						<div>
-							<label
-								for="serverName"
-								class="block text-sm font-medium text-muted-foreground"
-							>
+							<label for="serverName" class="block text-sm font-medium text-muted-foreground">
 								{t('serverAdmin.serverName')}
 							</label>
-							<input
+							<Input
 								type="text"
 								id="serverName"
 								bind:value={serverName}
-								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
+								class="w-full"
 								placeholder={t('serverAdmin.enterServerName')}
 							/>
 						</div>
@@ -1785,20 +1765,20 @@
 									</button>
 								</div>
 								<div class="mt-2">
-									<input
+									<Input
 										type="password"
 										id="serverPexelsApiKey"
 										bind:value={serverPexelsApiKey}
-										class="focus:border-primary focus:ring-primary w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
+										class="w-full"
 										placeholder={t('serverAdmin.enterNewKeyToReplace')}
 									/>
 								</div>
 							{:else}
-								<input
+								<Input
 									type="password"
 									id="serverPexelsApiKey"
 									bind:value={serverPexelsApiKey}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
+									class="w-full"
 									placeholder={t('serverAdmin.enterPexelsApiKey')}
 								/>
 							{/if}
@@ -1833,13 +1813,13 @@
 									>
 										Requests per hour
 									</label>
-									<input
+									<Input
 										type="number"
 										id="pexelsRateLimit"
 										bind:value={pexelsRateLimit}
 										min="1"
 										step="1"
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
+										class="w-full"
 										placeholder="200"
 									/>
 									<p class="mt-1 text-xs text-muted-foreground">
@@ -1850,17 +1830,14 @@
 						</div>
 
 						<div>
-							<label
-								for="peliasEndpoint"
-								class="block text-sm font-medium text-muted-foreground"
-							>
+							<label for="peliasEndpoint" class="block text-sm font-medium text-muted-foreground">
 								Pelias Geocoding Endpoint
 							</label>
-							<input
+							<Input
 								type="url"
 								id="peliasEndpoint"
 								bind:value={peliasEndpoint}
-								class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-border dark:bg-card dark:text-gray-100"
+								class="w-full"
 								placeholder="https://pelias.wayli.app"
 								pattern="https?://.+"
 								required
@@ -1999,79 +1976,65 @@
 							</div>
 						{/if}
 
-						<div
-							class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border"
-						>
+						<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border">
 							<h3 class="font-medium text-foreground">
 								{t('serverAdmin.smtpConfiguration')}
 							</h3>
 
 							<div class="grid grid-cols-2 gap-4">
 								<div>
-									<label
-										for="smtpHost"
-										class="block text-sm font-medium text-muted-foreground"
-									>
+									<label for="smtpHost" class="block text-sm font-medium text-muted-foreground">
 										{t('serverAdmin.smtpHost')}
 									</label>
-									<input
+									<Input
 										id="smtpHost"
 										type="text"
 										bind:value={smtpHost}
 										disabled={emailSmtpReadOnly}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+										class="w-full"
 										placeholder={t('serverAdmin.smtpHostPlaceholder')}
 									/>
 								</div>
 
 								<div>
-									<label
-										for="smtpPort"
-										class="block text-sm font-medium text-muted-foreground"
-									>
+									<label for="smtpPort" class="block text-sm font-medium text-muted-foreground">
 										{t('serverAdmin.smtpPort')}
 									</label>
-									<input
+									<Input
 										id="smtpPort"
 										type="number"
 										bind:value={smtpPort}
 										disabled={emailSmtpReadOnly}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+										class="w-full"
 										placeholder={t('serverAdmin.smtpPortPlaceholder')}
 									/>
 								</div>
 							</div>
 
 							<div>
-								<label
-									for="smtpUsername"
-									class="block text-sm font-medium text-muted-foreground"
-								>
+								<label for="smtpUsername" class="block text-sm font-medium text-muted-foreground">
 									{t('serverAdmin.smtpUsername')}
 								</label>
-								<input
+								<Input
 									id="smtpUsername"
 									type="text"
 									bind:value={smtpUsername}
 									disabled={emailSmtpReadOnly}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+									class="w-full"
 									placeholder={t('serverAdmin.smtpUsernamePlaceholder')}
 								/>
 							</div>
 
 							<div>
-								<label
-									for="smtpPassword"
-									class="block text-sm font-medium text-muted-foreground"
-								>
+								<label for="smtpPassword" class="block text-sm font-medium text-muted-foreground">
 									{t('serverAdmin.smtpPassword')}
 								</label>
-								<input
+								<Input
 									id="smtpPassword"
 									type="password"
 									bind:value={smtpPassword}
 									disabled={emailSmtpReadOnly}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+									class="w-full"
 									placeholder={t('serverAdmin.smtpPasswordPlaceholder')}
 								/>
 							</div>
@@ -2094,29 +2057,26 @@
 								>
 									{t('serverAdmin.smtpFromAddress')}
 								</label>
-								<input
+								<Input
 									id="smtpFromAddress"
 									type="email"
 									bind:value={smtpFromAddress}
 									disabled={emailSmtpReadOnly}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+									class="w-full"
 									placeholder={t('serverAdmin.smtpFromAddressPlaceholder')}
 								/>
 							</div>
 
 							<div>
-								<label
-									for="smtpFromName"
-									class="block text-sm font-medium text-muted-foreground"
-								>
+								<label for="smtpFromName" class="block text-sm font-medium text-muted-foreground">
 									{t('serverAdmin.smtpFromName')}
 								</label>
-								<input
+								<Input
 									id="smtpFromName"
 									type="text"
 									bind:value={smtpFromName}
 									disabled={emailSmtpReadOnly}
-									class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+									class="w-full"
 									placeholder={t('serverAdmin.smtpFromNamePlaceholder')}
 								/>
 							</div>
@@ -2186,7 +2146,7 @@
 											/>
 											<button
 												onclick={() => editOAuthProvider(provider)}
-												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
 												title={t('serverAdmin.edit')}
 											>
 												<Edit class="h-4 w-4" />
@@ -2230,7 +2190,7 @@
 										id="oauthProvider"
 										bind:value={oauthFormProvider}
 										disabled={!!oauthEditingId}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-800"
+										class="w-full"
 									>
 										<option value="google">Google</option>
 										<option value="github">GitHub</option>
@@ -2251,11 +2211,11 @@
 										>
 											{t('serverAdmin.oauthCustomName')}
 										</label>
-										<input
+										<Input
 											id="oauthCustomName"
 											type="text"
 											bind:value={oauthFormCustomName}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+											class="w-full"
 											placeholder={t('serverAdmin.oauthCustomNamePlaceholder')}
 										/>
 										<p class="mt-1 text-xs text-muted-foreground">
@@ -2272,11 +2232,11 @@
 											{t('serverAdmin.oauthDiscoveryUrl')}
 										</label>
 										<div class="mt-1 flex gap-2">
-											<input
+											<Input
 												id="oauthDiscoveryUrl"
 												type="url"
 												bind:value={oauthFormDiscoveryUrl}
-												class="focus:border-primary focus:ring-primary w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+												class="w-full"
 												placeholder={t('serverAdmin.oauthDiscoveryUrlPlaceholder')}
 											/>
 											<button
@@ -2306,11 +2266,11 @@
 										>
 											{t('serverAdmin.oauthAuthorizationUrl')}
 										</label>
-										<input
+										<Input
 											id="oauthAuthorizationUrl"
 											type="url"
 											bind:value={oauthFormAuthorizationUrl}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+											class="w-full"
 											placeholder={t('serverAdmin.oauthAuthorizationUrlPlaceholder')}
 										/>
 									</div>
@@ -2323,11 +2283,11 @@
 										>
 											{t('serverAdmin.oauthTokenUrl')}
 										</label>
-										<input
+										<Input
 											id="oauthTokenUrl"
 											type="url"
 											bind:value={oauthFormTokenUrl}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+											class="w-full"
 											placeholder={t('serverAdmin.oauthTokenUrlPlaceholder')}
 										/>
 									</div>
@@ -2340,11 +2300,11 @@
 										>
 											{t('serverAdmin.oauthUserInfoUrl')}
 										</label>
-										<input
+										<Input
 											id="oauthUserInfoUrl"
 											type="url"
 											bind:value={oauthFormUserInfoUrl}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+											class="w-full"
 											placeholder={t('serverAdmin.oauthUserInfoUrlPlaceholder')}
 										/>
 									</div>
@@ -2357,11 +2317,11 @@
 										>
 											{t('serverAdmin.oauthScopes')}
 										</label>
-										<input
+										<Input
 											id="oauthScopes"
 											type="text"
 											bind:value={oauthFormScopes}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+											class="w-full"
 											placeholder={t('serverAdmin.oauthScopesPlaceholder')}
 										/>
 										<p class="mt-1 text-xs text-muted-foreground">
@@ -2377,11 +2337,11 @@
 									>
 										{t('serverAdmin.oauthDisplayName')}
 									</label>
-									<input
+									<Input
 										id="oauthDisplayName"
 										type="text"
 										bind:value={oauthFormDisplayName}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+										class="w-full"
 										placeholder={oauthFormProvider === 'custom'
 											? t('serverAdmin.oauthDisplayNamePlaceholder')
 											: getDefaultDisplayName(oauthFormProvider)}
@@ -2395,11 +2355,11 @@
 									>
 										{t('serverAdmin.oauthClientId')}
 									</label>
-									<input
+									<Input
 										id="oauthClientId"
 										type="text"
 										bind:value={oauthFormClientId}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+										class="w-full"
 										placeholder={t('serverAdmin.oauthClientIdPlaceholder')}
 									/>
 								</div>
@@ -2411,11 +2371,11 @@
 									>
 										{t('serverAdmin.oauthClientSecret')}
 									</label>
-									<input
+									<Input
 										id="oauthClientSecret"
 										type="password"
 										bind:value={oauthFormClientSecret}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
+										class="w-full"
 										placeholder={oauthEditingId
 											? t('serverAdmin.oauthClientSecretPlaceholderEdit')
 											: t('serverAdmin.oauthClientSecretPlaceholder')}
@@ -2432,7 +2392,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										onclick={resetOAuthForm}
-										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 bg-card"
+										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
 									>
 										{t('serverAdmin.cancel')}
 									</button>
@@ -2453,7 +2413,7 @@
 						{:else}
 							<button
 								onclick={() => (showOAuthForm = true)}
-								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-gray-300"
+								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 hover:text-muted-foreground"
 							>
 								+ {t('serverAdmin.addOAuthProvider')}
 							</button>
@@ -2525,9 +2485,7 @@
 								/>
 							</div>
 
-							<div
-								class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border"
-							>
+							<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border">
 								<div class="grid grid-cols-2 gap-4">
 									<div>
 										<label
@@ -2536,12 +2494,12 @@
 										>
 											{t('serverAdmin.aiProviderName')}
 										</label>
-										<input
+										<Input
 											id="providerName"
 											type="text"
 											value={providerName}
 											disabled
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+											class="w-full"
 											placeholder={t('serverAdmin.aiProviderNamePlaceholder')}
 										/>
 									</div>
@@ -2552,29 +2510,26 @@
 										>
 											{t('serverAdmin.aiDisplayName')}
 										</label>
-										<input
+										<Input
 											id="providerDisplayName"
 											type="text"
 											bind:value={providerDisplayName}
 											disabled={providerReadOnly}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+											class="w-full"
 											placeholder={t('serverAdmin.aiDisplayNamePlaceholder')}
 										/>
 									</div>
 								</div>
 
 								<div>
-									<label
-										for="providerType"
-										class="block text-sm font-medium text-muted-foreground"
-									>
+									<label for="providerType" class="block text-sm font-medium text-muted-foreground">
 										{t('serverAdmin.aiProvider')}
 									</label>
 									<select
 										id="providerType"
 										bind:value={providerType}
 										disabled={providerReadOnly}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+										class="w-full"
 									>
 										<option value="openai">{t('serverAdmin.aiProviders.openai')}</option>
 										<option value="azure">{t('serverAdmin.aiProviders.azure')}</option>
@@ -2589,12 +2544,12 @@
 									>
 										{t('serverAdmin.aiModel')}
 									</label>
-									<input
+									<Input
 										id="providerModel"
 										type="text"
 										bind:value={providerModel}
 										disabled={providerReadOnly}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+										class="w-full"
 										placeholder="gpt-4.1-mini-2025-04-14"
 									/>
 									<p class="mt-1 text-xs text-muted-foreground">
@@ -2609,12 +2564,12 @@
 									>
 										{t('serverAdmin.aiApiKey')}
 									</label>
-									<input
+									<Input
 										id="providerApiKey"
 										type="password"
 										bind:value={providerApiKey}
 										disabled={providerReadOnly}
-										class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+										class="w-full"
 										placeholder={t('serverAdmin.aiApiKeyPlaceholder')}
 									/>
 								</div>
@@ -2627,12 +2582,12 @@
 										>
 											{t('serverAdmin.aiApiEndpoint')}
 										</label>
-										<input
+										<Input
 											id="providerApiEndpoint"
 											type="text"
 											bind:value={providerApiEndpoint}
 											disabled={providerReadOnly}
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+											class="w-full"
 											placeholder={t('serverAdmin.aiApiEndpointPlaceholder')}
 										/>
 										<p class="mt-1 text-xs text-muted-foreground">
@@ -2649,14 +2604,14 @@
 										>
 											{t('serverAdmin.aiMaxTokens')}
 										</label>
-										<input
+										<Input
 											id="providerMaxTokens"
 											type="number"
 											bind:value={providerMaxTokens}
 											disabled={providerReadOnly}
 											min="256"
 											max="128000"
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+											class="w-full"
 										/>
 									</div>
 
@@ -2667,7 +2622,7 @@
 										>
 											{t('serverAdmin.aiTemperature')}
 										</label>
-										<input
+										<Input
 											id="providerTemperature"
 											type="number"
 											bind:value={providerTemperature}
@@ -2675,7 +2630,7 @@
 											min="0"
 											max="2"
 											step="0.1"
-											class="focus:border-primary focus:ring-primary mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:disabled:bg-gray-800 dark:disabled:text-gray-400"
+											class="w-full"
 										/>
 									</div>
 								</div>
@@ -2899,7 +2854,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelForceRegeocode}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -2947,7 +2902,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -3004,7 +2959,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearUserPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>

@@ -9,6 +9,12 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://opensource.org/licenses/AGPL-3.0)
 [![Version](https://img.shields.io/github/v/release/nimbleflux/wayli)](https://github.com/nimbleflux/wayli/releases)
 
+<p align="center">
+  <a href="https://buymeacoffee.com/nimbleflux" target="_blank" rel="noopener">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy me a coffee" height="40">
+  </a>
+</p>
+
 Privacy-first location tracking and trip analysis. Self-hosted, no third-party data sharing.
 
 ## Features

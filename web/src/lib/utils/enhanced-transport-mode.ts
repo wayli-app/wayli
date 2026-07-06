@@ -312,8 +312,8 @@ export function detectEnhancedMode(
 			atTrainStation,
 			atAirport,
 			onHighway,
-			stationName,
-			airportName
+			stationName: stationName ?? undefined,
+			airportName: airportName ?? undefined
 		},
 		currentJourney
 	);

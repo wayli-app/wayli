@@ -98,7 +98,7 @@ export class POIAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
@@ -144,12 +144,12 @@ export class POIAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		const { data: userData } = await fluxbase.auth.getUser();
-		if (!userData.user) {
+		if (!userData || !userData.user) {
 			throw new Error('User not authenticated');
 		}
 
 		const { data: poiVisits, error } = await fluxbase
-			.from('poi_visits')
+			.from<Record<string, any>>('poi_visits')
 			.select('*')
 			.eq('user_id', userData.user.id)
 			.order('visited_at', { ascending: false });
@@ -158,6 +158,6 @@ export class POIAdapter extends BaseAdapter {
 			throw new Error(error.message || 'Failed to fetch POI visits');
 		}
 
-		return poiVisits || [];
+		return (poiVisits || []) as unknown as POIVisit[];
 	}
 }

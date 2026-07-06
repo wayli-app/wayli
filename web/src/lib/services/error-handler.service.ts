@@ -178,7 +178,7 @@ class ErrorHandlerService {
 		// Database logging for production
 		if (this.fluxbase && !this.isDevelopment) {
 			try {
-				await this.fluxbase.from('error_logs').insert({
+				await this.fluxbase.from<Record<string, any>>('error_logs').insert({
 					timestamp: logEntry.timestamp,
 					level: logEntry.level,
 					code: logEntry.code,
