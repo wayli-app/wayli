@@ -205,7 +205,7 @@
 		if (session?.user) {
 			console.log('🔍 [DEBUG] Current user ID:', session.user.id);
 			console.log('🔍 [DEBUG] Current user email:', session.user.email);
-			console.log('🔍 [DEBUG] Current user metadata:', session.user.user_metadata);
+			console.log('🔍 [DEBUG] Current user metadata:', session.user.metadata);
 		}
 
 		await fetchFilteredUsers();
@@ -1000,12 +1000,12 @@
 				throw error;
 			}
 
-			if (data?.success) {
+			if ((data as any)?.success) {
 				toast.success(t('serverAdmin.userUpdated'));
 				handleCloseModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
-				const errorDescription = data?.error || t('serverAdmin.failedToUpdateUser');
+				const errorDescription = (data as any)?.error || t('serverAdmin.failedToUpdateUser');
 				toast.error(t('serverAdmin.failedToUpdateUser'), {
 					description: errorDescription
 				});
@@ -1199,12 +1199,12 @@
 				throw error;
 			}
 
-			if (data?.success) {
+			if ((data as any)?.success) {
 				toast.success('User added successfully');
 				handleCloseAddUserModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
-				const errorDescription = data?.error || 'An unknown error occurred while adding the user.';
+				const errorDescription = (data as any)?.error || 'An unknown error occurred while adding the user.';
 				toast.error('Failed to add user', { description: errorDescription });
 			}
 		} catch (error: any) {

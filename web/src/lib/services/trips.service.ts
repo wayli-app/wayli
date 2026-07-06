@@ -58,10 +58,8 @@ export class TripsService {
 			// Get current user if userId is not provided
 			let currentUserId = userId;
 			if (!currentUserId) {
-				const {
-					data: { user },
-					error: userError
-				} = await this.fluxbase.auth.getUser();
+				const { data: authData, error: userError } = await this.fluxbase.auth.getUser();
+			const user = authData?.user;
 				if (userError || !user) {
 					throw new Error('User not authenticated');
 				}

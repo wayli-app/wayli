@@ -95,12 +95,14 @@ export class PreferencesApiService {
 				}
 
 				return {
-					preferences: newPreferences as unknown as UserPreferences
+					preferences: newPreferences as unknown as UserPreferences,
+				server_pexels_api_key_available: false
 				};
 			}
 
 			return {
-				preferences: preferences as any
+				preferences: preferences as any,
+			server_pexels_api_key_available: false
 			};
 		} catch (error) {
 			console.error('❌ [PreferencesAPI] Get preferences error:', error);

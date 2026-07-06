@@ -47,7 +47,7 @@ export async function uploadTripImage(file: File, fileName?: string): Promise<st
 		let uploadData, error;
 		try {
 			({ data: uploadData, error } = await fluxbase.storage
-				.from<Record<string, any>>('trip-images')
+				.from('trip-images')
 				.upload(filePath, file, {
 					contentType: file.type,
 					upsert: true

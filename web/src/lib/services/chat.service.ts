@@ -363,7 +363,7 @@ class ChatService {
 		if (error) {
 			throw error;
 		}
-		return data!;
+		return data as unknown as ListConversationsResult;
 	}
 
 	/**
@@ -374,7 +374,7 @@ class ChatService {
 		if (error) {
 			throw error;
 		}
-		return data!;
+		return data as unknown as AIUserConversationDetail;
 	}
 
 	/**

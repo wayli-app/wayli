@@ -2077,7 +2077,7 @@
 											<!-- Visited Cities -->
 											{#if trip.metadata?.visitedCitiesDetailed && trip.metadata.visitedCitiesDetailed.length > 0}
 												{@const significantCities = trip.metadata.visitedCitiesDetailed.filter(
-													(city) => city.durationHours >= 12 && city.city !== 'Unknown'
+													(city: any) => city.durationHours >= 12 && city.city !== 'Unknown'
 												)}
 												{#if significantCities.length > 0}
 													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
@@ -2101,7 +2101,7 @@
 											<!-- Visited Countries (for multi-country trips) -->
 											{#if trip.metadata?.visitedCountriesDetailed && trip.metadata.visitedCountriesDetailed.length > 1}
 												{@const validCountries = trip.metadata.visitedCountriesDetailed.filter(
-													(country) => country.countryCode !== 'Unknown'
+													(country: any) => country.countryCode !== 'Unknown'
 												)}
 												{#if validCountries.length > 1}
 													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">

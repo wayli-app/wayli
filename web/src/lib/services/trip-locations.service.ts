@@ -118,7 +118,7 @@ export class TripLocationsService {
 				trip.end_date,
 				')'
 			);
-			return this.transformLocations(locations || []);
+			return this.transformLocations((locations as any[]) || []);
 		} catch (error) {
 			console.error('❌ Error fetching trip locations:', error);
 			throw error;
@@ -154,7 +154,7 @@ export class TripLocationsService {
 			if (error) throw error;
 
 			const hasMore = count ? offset + limit < count : false;
-			const transformedLocations = this.transformLocations(locations || []);
+			const transformedLocations = this.transformLocations((locations as any[]) || []);
 
 			return {
 				locations: transformedLocations,

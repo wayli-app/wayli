@@ -215,7 +215,7 @@
 			const session = $sessionStore;
 			if (session) {
 				// Check user role
-				isAdmin = session.user?.app_metadata?.role === 'admin';
+				isAdmin = session.user?.metadata?.role === 'admin';
 
 				// Check if user override is allowed
 				const serviceAdapter = new ServiceAdapter({ session });

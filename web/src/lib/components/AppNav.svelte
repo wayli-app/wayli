@@ -115,7 +115,7 @@
 				.eq('id', $userStore.id)
 				.single();
 
-			userProfile = data;
+			userProfile = data as unknown as UserProfile;
 		}
 	});
 

@@ -19,7 +19,7 @@ function createAuthStore() {
 }
 
 // Session store for tracking the current session
-export const sessionStore = writable<Session | null>(null);
+export const sessionStore = writable<AuthSession | null>(null);
 
 export const userStore = createAuthStore();
 

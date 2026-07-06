@@ -129,7 +129,7 @@ export class ExportService {
 
 			return {
 				id: job.id,
-				user_id: job.created_by,
+				user_id: job.created_by || "",
 				status: job.status as 'queued' | 'running' | 'completed' | 'failed' | 'cancelled',
 				format: safe<string>('format', ''),
 				include_location_data: safe<boolean>('includeLocationData', false),
@@ -142,7 +142,7 @@ export class ExportService {
 				result: job.result as Record<string, unknown> | undefined,
 				error: job.error,
 				created_at: job.created_at,
-				updated_at: (job as Record<string, any>).updated_at,
+				updated_at: (job as Record<string, any>).updated_at || "",
 				started_at: job.started_at,
 				completed_at: job.completed_at
 			};
@@ -180,7 +180,7 @@ export class ExportService {
 
 				return {
 					id: job.id,
-					user_id: job.created_by,
+					user_id: job.created_by || "",
 					status: job.status as 'queued' | 'running' | 'completed' | 'failed' | 'cancelled',
 					format: safe<string>('format', ''),
 					include_location_data: safe<boolean>('includeLocationData', false),
@@ -193,11 +193,11 @@ export class ExportService {
 					result: job.result,
 					error: job.error,
 					created_at: job.created_at,
-					updated_at: (job as Record<string, any>).updated_at,
+					updated_at: (job as Record<string, any>).updated_at || "",
 					started_at: job.started_at,
 					completed_at: job.completed_at
 				};
-			});
+			}) as unknown as ExportJob[];
 		} catch (error) {
 			console.error('[ExportService] getUserExportJobs error:', error);
 			throw error;
@@ -266,7 +266,7 @@ export class ExportService {
 		}
 
 		const { data } = await fluxbase.storage
-			.from<Record<string, any>>('exports')
+			.from('exports')
 			.createSignedUrl(filePath, { expiresIn: 3600 }); // 1 hour expiry
 
 		if (!data?.signedUrl) {

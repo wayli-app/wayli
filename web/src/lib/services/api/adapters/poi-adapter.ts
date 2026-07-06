@@ -158,6 +158,6 @@ export class POIAdapter extends BaseAdapter {
 			throw new Error(error.message || 'Failed to fetch POI visits');
 		}
 
-		return poiVisits || [];
+		return (poiVisits || []) as unknown as POIVisit[];
 	}
 }
