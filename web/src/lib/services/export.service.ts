@@ -86,7 +86,7 @@ export class ExportService {
 			// Convert job to ExportJob format for consistency
 			return {
 				id: job.id,
-				user_id: job.created_by,
+				user_id: job.created_by || "",
 				status: job.status as 'queued' | 'running' | 'completed' | 'failed' | 'cancelled',
 				format: options.format as string,
 				include_location_data: options.includeLocationData,
@@ -94,10 +94,10 @@ export class ExportService {
 				include_trips: options.includeTrips,
 				expires_at: expiresAt.toISOString(),
 				progress: job.progress_percent || 0,
-				result: job.result || undefined,
+				result: job.result as Record<string, unknown> | undefined,
 				error: job.error || undefined,
 				created_at: job.created_at || new Date().toISOString(),
-				updated_at: job.updated_at || new Date().toISOString(),
+				updated_at: (job as Record<string, any>).updated_at || new Date().toISOString(),
 				started_at: job.started_at || undefined,
 				completed_at: job.completed_at || undefined
 			};
@@ -139,10 +139,10 @@ export class ExportService {
 				file_size: ((job.result as Record<string, unknown>)?.file_size as number) || 0,
 				expires_at: safe<string>('expires_at', ''),
 				progress: job.progress_percent || 0,
-				result: job.result,
+				result: job.result as Record<string, unknown> | undefined,
 				error: job.error,
 				created_at: job.created_at,
-				updated_at: job.updated_at,
+				updated_at: (job as Record<string, any>).updated_at,
 				started_at: job.started_at,
 				completed_at: job.completed_at
 			};
@@ -193,7 +193,7 @@ export class ExportService {
 					result: job.result,
 					error: job.error,
 					created_at: job.created_at,
-					updated_at: job.updated_at,
+					updated_at: (job as Record<string, any>).updated_at,
 					started_at: job.started_at,
 					completed_at: job.completed_at
 				};
@@ -267,7 +267,7 @@ export class ExportService {
 
 		const { data } = await fluxbase.storage
 			.from<Record<string, any>>('exports')
-			.createSignedUrl(filePath, 3600, { download: true }); // 1 hour expiry
+			.createSignedUrl(filePath, { expiresIn: 3600 }); // 1 hour expiry
 
 		if (!data?.signedUrl) {
 			return null;
@@ -307,6 +307,6 @@ export class ExportService {
 		const { data, error } = await fluxbase.rpc('cleanup_expired_exports');
 
 		if (error) throw error;
-		return data || 0;
+		return Number(data) || 0;
 	}
 }

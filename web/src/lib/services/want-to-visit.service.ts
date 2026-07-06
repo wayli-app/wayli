@@ -112,7 +112,7 @@ export class WantToVisitService {
 			coordinates,
 			markerType: placeData.marker_type,
 			markerColor: placeData.marker_color
-		};
+		} as Place;
 	}
 
 	/**
@@ -147,7 +147,7 @@ export class WantToVisitService {
 			.select()
 			.single();
 
-		if (error) {
+		if (error || !data) {
 			console.error('Error updating want-to-visit place:', error);
 			throw new Error('Failed to update place');
 		}
@@ -173,7 +173,7 @@ export class WantToVisitService {
 			coordinates,
 			markerType: data.marker_type,
 			markerColor: data.marker_color
-		};
+		} as Place;
 	}
 
 	/**
@@ -199,7 +199,7 @@ export class WantToVisitService {
 			.select()
 			.single();
 
-		if (error) {
+		if (error || !data) {
 			console.error('Error toggling favorite:', error);
 			throw new Error('Failed to update favorite status');
 		}
@@ -209,6 +209,6 @@ export class WantToVisitService {
 			...data,
 			markerType: data.marker_type,
 			markerColor: data.marker_color
-		};
+		} as Place;
 	}
 }

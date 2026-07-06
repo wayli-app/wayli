@@ -182,7 +182,7 @@ export class JobsAdapter extends BaseAdapter {
 				result: job.result,
 				error: job.error,
 				created_at: job.created_at,
-				updated_at: job.updated_at,
+				updated_at: (job as Record<string, any>).updated_at,
 				completed_at: job.completed_at
 			};
 		} catch (error) {

@@ -100,7 +100,7 @@ export class TripsAdapter extends BaseAdapter {
 		if (error || !data) return 0;
 
 		return data.reduce(
-			(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+			(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
 			0
 		);
 	}
@@ -392,7 +392,7 @@ export class TripsAdapter extends BaseAdapter {
 			}
 
 			const { data: trackerData } = await query;
-			result.tracker_data = trackerData || [];
+			result.tracker_data = (trackerData as any[]) || [];
 		}
 
 		if (options?.includeLocations) {
@@ -411,7 +411,7 @@ export class TripsAdapter extends BaseAdapter {
 			}
 
 			const { data: locations } = await query;
-			result.locations = locations || [];
+			result.locations = (locations as any[]) || [];
 		}
 
 		if (options?.includePOIs) {
@@ -430,7 +430,7 @@ export class TripsAdapter extends BaseAdapter {
 			}
 
 			const { data: pois } = await query;
-			result.pois = pois || [];
+			result.pois = (pois as any[]) || [];
 		}
 
 		return result;
@@ -563,7 +563,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const approvedTrips = [];
-		for (const trip of trips) {
+		for (const trip of (trips as unknown as Record<string, any>[])) {
 			let distanceTraveled = 0;
 			if (trip.start_date && trip.end_date) {
 				distanceTraveled = await this.calculateTripDistance(

@@ -244,7 +244,7 @@ export class UserProfileService {
 				return [];
 			}
 
-			return (data.users || []).map((user) => {
+			return (data.users || []).map((user: any) => {
 				const metadata = user.user_metadata || {};
 				return {
 					id: user.id,

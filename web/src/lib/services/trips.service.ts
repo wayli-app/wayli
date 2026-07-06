@@ -208,7 +208,7 @@ export class TripsService {
 				if (!error && data) {
 					// Sum up all distances, treating null/undefined as 0
 					distanceTraveled = data.reduce(
-						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
 						0
 					);
 				}

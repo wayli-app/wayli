@@ -95,12 +95,12 @@ export class PreferencesApiService {
 				}
 
 				return {
-					preferences: newPreferences
+					preferences: newPreferences as unknown as UserPreferences
 				};
 			}
 
 			return {
-				preferences
+				preferences: preferences as any
 			};
 		} catch (error) {
 			console.error('❌ [PreferencesAPI] Get preferences error:', error);
@@ -159,7 +159,7 @@ export class PreferencesApiService {
 
 				return {
 					message: 'Preferences updated successfully',
-					preferences: updatedPreferences
+					preferences: updatedPreferences as unknown as UserPreferences
 				};
 			} else {
 				// Create new preferences
@@ -189,7 +189,7 @@ export class PreferencesApiService {
 
 				return {
 					message: 'Preferences created successfully',
-					preferences: newPreferences
+					preferences: newPreferences as unknown as UserPreferences
 				};
 			}
 		} catch (error) {

@@ -45,7 +45,7 @@ export class ServiceAdapter {
 		// Invoke the edge function
 		const { data, error } = await fluxbase.functions.invoke(url, {
 			method,
-			...(body && { body })
+			...(body !== undefined ? { body } : {})
 		});
 
 		if (error) {
@@ -336,7 +336,7 @@ export class ServiceAdapter {
 
 		// Sum up all distances, treating null/undefined as 0
 		return data.reduce(
-			(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+			(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
 			0
 		);
 	}
@@ -411,7 +411,7 @@ export class ServiceAdapter {
 			.single();
 
 		if (createError || !newTrip) {
-			throw new Error(createError.message || 'Failed to create trip');
+			throw new Error(createError?.message || 'Failed to create trip');
 		}
 
 		// Calculate distance if dates provided
@@ -485,7 +485,7 @@ export class ServiceAdapter {
 			.single();
 
 		if (updateError || !updatedTrip) {
-			throw new Error(updateError.message || 'Failed to update trip');
+			throw new Error(updateError?.message || 'Failed to update trip');
 		}
 
 		// Calculate distance if dates provided
@@ -685,13 +685,14 @@ export class ServiceAdapter {
 			throw new Error(fetchError.message || 'Failed to fetch trips');
 		}
 
-		if (!trips || trips.length === 0) {
+		const tripsArray = (trips as unknown as Record<string, any>[]) ?? [];
+		if (tripsArray.length === 0) {
 			throw new Error('No trips found to approve');
 		}
 
 		// Update each trip
 		const approvedTrips = [];
-		for (const trip of trips) {
+		for (const trip of tripsArray) {
 			// Calculate distance if dates are available
 			let distanceTraveled = 0;
 			if (trip.start_date && trip.end_date) {
@@ -737,7 +738,7 @@ export class ServiceAdapter {
 
 			if (updateError || !updatedTrip) {
 				console.error(`Failed to approve trip ${trip.id}:`, updateError);
-				approvedTrips.push({ tripId: trip.id, success: false, error: updateError.message });
+				approvedTrips.push({ tripId: trip.id, success: false, error: updateError?.message });
 				continue;
 			}
 
@@ -920,8 +921,8 @@ export class ServiceAdapter {
 			.select()
 			.single();
 
-		if (updateError || !updatedTrip) {
-			throw new Error(updateError.message || 'Failed to create trip from suggestion');
+		if (updateError) {
+			throw new Error(updateError?.message || 'Failed to create trip from suggestion');
 		}
 
 		return activeTrip;
@@ -1035,8 +1036,8 @@ export class ServiceAdapter {
 			// Upload directly to Fluxbase storage with proper metadata
 			// This ensures the RLS policy can validate the upload correctly
 			const { data, error: uploadError } = await fluxbase.storage
-				.from<Record<string, any>>('temp-files')
-				.upload(fileName, fileBlob, {
+			.from('temp-files')
+			.upload(fileName, fileBlob, {
 					contentType: file.type,
 					upsert: false,
 					metadata: {
@@ -1206,7 +1207,7 @@ export class ServiceAdapter {
 		console.log('[ServiceAdapter] getExportDownloadUrl - generating download URL for:', filePath);
 
 		// Use signed URL for temp-files bucket (requires authentication via RLS)
-		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, 3600, { download: true });
+		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, { expiresIn: 3600 });
 
 		if (error || !data?.signedUrl) {
 			console.error('[ServiceAdapter] getExportDownloadUrl - failed to generate signed URL:', error);
@@ -1306,7 +1307,7 @@ export class ServiceAdapter {
 				result: job.result,
 				error: job.error,
 				created_at: job.created_at,
-				updated_at: job.updated_at,
+				updated_at: (job as Record<string, any>).updated_at,
 				completed_at: job.completed_at
 			};
 		} catch (error) {
@@ -1452,7 +1453,7 @@ export class ServiceAdapter {
 
 			// Also check if a provider is configured
 			const { data: providers } = await fluxbase.admin.ai.listProviders();
-			return providers && providers.length > 0;
+			return (providers?.length ?? 0) > 0;
 		} catch {
 			// Default to false if setting doesn't exist or isn't accessible
 			return false;
@@ -1637,7 +1638,7 @@ export class ServiceAdapter {
 					provider_type: params.provider.provider_type,
 					is_default: params.provider.is_default ?? false,
 					config: params.provider.config
-				});
+				} as any);
 			} else {
 				// Create new provider
 				await fluxbase.admin.ai.createProvider({
@@ -1647,7 +1648,7 @@ export class ServiceAdapter {
 					is_default: params.provider.is_default ?? true,
 					config: params.provider.config,
 					enabled: true
-				});
+				} as any);
 			}
 		}
 

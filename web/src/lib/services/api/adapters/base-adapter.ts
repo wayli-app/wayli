@@ -85,7 +85,7 @@ export abstract class BaseAdapter {
 		// Invoke the edge function
 		const { data, error } = await fluxbase.functions.invoke(url, {
 			method,
-			...(body && { body })
+			...(body !== undefined ? { body } : {})
 		});
 
 		if (error) {
