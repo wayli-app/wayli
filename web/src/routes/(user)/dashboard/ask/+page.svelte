@@ -21,7 +21,8 @@
 		ChevronDown,
 		Database,
 		Menu,
-		MessageSquare
+		MessageSquare,
+		Mic
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
@@ -48,6 +49,40 @@
 	let question = $state('');
 	let isConnected = $state(false);
 	let isLoading = $state(false);
+	let isListening = $state(false);
+	let recognition: any = null;
+
+	const supportsVoiceInput =
+		typeof window !== 'undefined' &&
+		('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+	function toggleVoiceInput() {
+		if (!supportsVoiceInput) return;
+		if (isListening) {
+			recognition?.stop();
+			return;
+		}
+		const SR =
+			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+		recognition = new SR();
+		recognition.continuous = false;
+		recognition.interimResults = true;
+		recognition.lang = 'en-US';
+		recognition.onresult = (event: any) => {
+			const transcript = Array.from(event.results)
+				.map((r: any) => r[0].transcript)
+				.join('');
+			question = transcript;
+		};
+		recognition.onerror = () => {
+			isListening = false;
+		};
+		recognition.onend = () => {
+			isListening = false;
+		};
+		recognition.start();
+		isListening = true;
+	}
 	let showMobileSidebar = $state(false);
 	let messages = $state<ChatMessage[]>([]);
 	let currentStreamingContent = $state('');
@@ -1025,9 +1060,21 @@
 					onkeydown={(e) => e.key === 'Enter' && sendMessage()}
 					placeholder={isConnected ? t('ask.inputPlaceholder') : t('ask.inputConnecting')}
 					disabled={isLoading || !isConnected}
-					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-12 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:text-white bg-card"
-				/>
-				{#if isLoading}
+				class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-24 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:text-white bg-card"
+			/>
+			{#if supportsVoiceInput && !isLoading}
+				<button
+					type="button"
+					onclick={toggleVoiceInput}
+					aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+					class="absolute right-12 rounded-lg p-2 transition-colors {isListening
+						? 'bg-red-500 text-white animate-pulse'
+						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+				>
+					<Mic class="h-5 w-5" />
+				</button>
+			{/if}
+			{#if isLoading}
 					<button
 						onclick={cancelMessage}
 						class="absolute right-3 rounded-lg bg-red-500 p-2 text-white transition-colors hover:bg-red-600"
