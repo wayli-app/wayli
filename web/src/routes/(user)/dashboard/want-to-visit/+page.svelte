@@ -272,13 +272,13 @@
 		isLoadingProfile = true;
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data.session?.user) {
+			if (!session.data?.session?.user) {
 				console.error('No session found');
 				return;
 			}
 
 			// Get user profile using ServiceAdapter (now uses SDK internally)
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 			const profile = (await serviceAdapter.getProfile()) as any;
 
 			userProfile = profile as UserProfile;

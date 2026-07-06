@@ -85,7 +85,7 @@ export class JobsAdapter extends BaseAdapter {
 
 			let filteredJobs: Array<{ job_name?: string }> = Array.isArray(jobs)
 				? jobs
-				: ((jobs as { jobs?: Array<{ job_name?: string }> })?.jobs ?? []);
+				: ((jobs as unknown as { jobs?: Array<{ job_name?: string }> })?.jobs ?? []);
 
 			if (options?.type) {
 				filteredJobs = filteredJobs.filter((job) => job.job_name === options.type);
@@ -409,7 +409,7 @@ export class JobsAdapter extends BaseAdapter {
 			throw new Error('Export file not ready');
 		}
 
-		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, 3600, { download: true });
+		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, { expiresIn: 3600 });
 
 		if (error || !data?.signedUrl) {
 			console.error('[JobsAdapter] getExportDownloadUrl - failed to generate signed URL:', error);

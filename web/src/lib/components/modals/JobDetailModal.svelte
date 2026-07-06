@@ -237,7 +237,7 @@
 				return;
 			}
 
-			const entries = (data || []) as ExecutionLog[];
+			const entries = (data || []) as unknown as ExecutionLog[];
 			console.log('[JobDetailModal] Fetched logs count:', entries.length);
 
 			// Merge backfill logs with any realtime logs that arrived during fetch

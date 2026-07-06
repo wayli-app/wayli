@@ -216,14 +216,14 @@
 			appState.filtersStartDate = localExportStartDate;
 		} else {
 			exportStartDate = undefined;
-			appState.filtersStartDate = undefined;
+			appState.filtersStartDate = null;
 		}
 		if (localExportEndDate instanceof Date) {
 			exportEndDate = localExportEndDate;
 			appState.filtersEndDate = localExportEndDate;
 		} else {
 			exportEndDate = undefined;
-			appState.filtersEndDate = undefined;
+			appState.filtersEndDate = null;
 		}
 	}
 </script>

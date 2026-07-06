@@ -153,11 +153,11 @@
 	async function loadUserData() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data || !session.data.session) {
+			if (!session.data || !session.data?.session) {
 				throw new Error('No session found');
 			}
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Load profile and preferences (server settings loaded via admin endpoint if needed)
 			const [profileResult, preferencesResult] = await Promise.all([
@@ -266,9 +266,9 @@
 	async function loadAISettings() {
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data || !session.data.session) return;
+			if (!session.data || !session.data?.session) return;
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Load app-level AI settings to check if user override is allowed
 			const result = await serviceAdapter.getAllSettings();
@@ -448,7 +448,7 @@
 				homeAddressInput = homeAddress.display_name || '';
 
 				const session = await fluxbase.auth.getSession();
-				const serviceAdapter = new ServiceAdapter({ session: session.data.session! });
+				const serviceAdapter = new ServiceAdapter({ session: session.data?.session! });
 
 				await serviceAdapter.updateProfile({
 					first_name: profile.first_name || '',
@@ -547,11 +547,11 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data || !session.data.session) {
+			if (!session.data || !session.data?.session) {
 				throw new Error('No session found');
 			}
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Update profile data
 			profile.first_name = firstNameInput.trim();
@@ -583,11 +583,11 @@
 
 		try {
 			const session = await fluxbase.auth.getSession();
-			if (!session.data || !session.data.session) {
+			if (!session.data || !session.data?.session) {
 				throw new Error('No session found');
 			}
 
-			const serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
 			// Update preferences using service adapter
 			await serviceAdapter.updatePreferences({

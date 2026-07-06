@@ -207,7 +207,7 @@
 		if (
 			normalizedResult &&
 			(normalizedResult as any).result?.file_path &&
-			!normalizedResult.file_path
+			!normalizedResult?.file_path
 		) {
 			normalizedResult = {
 				...(normalizedResult as any).result,
@@ -271,12 +271,12 @@
 					// Parse result if it's a JSON string (API returns stringified JSON)
 					let normalizedResult = parseResultIfString(job.result);
 					// Also handle old format with nested result
-					if (normalizedResult?.result?.file_path && !normalizedResult.file_path) {
+					if (normalizedResult?.result?.file_path && !normalizedResult?.file_path) {
 						normalizedResult = {
-							...normalizedResult.result,
+							...normalizedResult?.result,
 							...normalizedResult
 						};
-						delete normalizedResult.result;
+						delete normalizedResult?.result;
 					}
 
 					return {
