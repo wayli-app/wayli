@@ -288,14 +288,15 @@
 			<div class="space-y-4">
 				<!-- API Endpoint -->
 				<div>
-					<label class="mb-1.5 block text-sm font-medium text-foreground">
-						{t('connections.apiEndpoint')}
-					</label>
-					<div class="flex gap-2">
-						<input
-							type="text"
-							value={newlyGeneratedEndpoint}
-							readonly
+				<label for="apiEndpoint" class="mb-1.5 block text-sm font-medium text-foreground">
+					{t('connections.apiEndpoint')}
+				</label>
+				<div class="flex gap-2">
+					<input
+						id="apiEndpoint"
+						type="text"
+						value={newlyGeneratedEndpoint}
+						readonly
 							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 text-xs text-gray-900 dark:border-border dark:bg-card dark:text-gray-100"
 						/>
 						<button
@@ -316,14 +317,15 @@
 
 				<!-- API Key -->
 				<div>
-					<label class="mb-1.5 block text-sm font-medium text-foreground">
-						{t('connections.apiKey')}
-					</label>
-					<div class="flex gap-2">
-						<input
-							type="text"
-							value={newlyGeneratedApiKey}
-							readonly
+				<label for="apiKey" class="mb-1.5 block text-sm font-medium text-foreground">
+					{t('connections.apiKey')}
+				</label>
+				<div class="flex gap-2">
+					<input
+						id="apiKey"
+						type="text"
+						value={newlyGeneratedApiKey}
+						readonly
 							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 dark:border-border dark:bg-card dark:text-gray-100"
 						/>
 						<button

@@ -1,19 +1,9 @@
 <script lang="ts">
 	const { progress, status = 'running', jobId = '' } = $props();
 
-	// Debug state to track prop changes
-	let debugInfo = $state({
+	const debugInfo = $derived({
 		receivedProgress: progress,
 		lastUpdate: new Date().toISOString()
-	});
-
-	// Update debug info when props change
-	$effect(() => {
-		debugInfo = {
-			receivedProgress: progress,
-			lastUpdate: new Date().toISOString()
-		};
-		console.log('🎯 JobProgress: Received progress:', progress);
 	});
 </script>
 
