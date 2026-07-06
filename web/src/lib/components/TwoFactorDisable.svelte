@@ -35,7 +35,7 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 			await serviceAdapter.disable2FA(password);
 
-			toast.success('Two-factor authentication has been disabled');
+			toast.success(t('auth.twoFactorDisabled'));
 			dispatch('success');
 			handleClose();
 		} catch (err) {

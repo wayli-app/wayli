@@ -49,7 +49,7 @@
 				throw new Error('No verification response returned');
 			}
 
-			toast.success('Successfully verified! Signing you in...');
+			toast.success(t('auth.twoFactorVerified'));
 			dispatch('success', data);
 			handleClose();
 		} catch (err) {

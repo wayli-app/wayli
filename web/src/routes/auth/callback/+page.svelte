@@ -2,6 +2,7 @@
 	import { Loader2 } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
+	import { t } from '$lib/i18n';
 
 	import { fluxbase } from '$lib/fluxbase';
 
@@ -102,16 +103,16 @@
 					sessionStorage.removeItem('oauth_redirect_to');
 					const redirectTo =
 						$page.url.searchParams.get('redirectTo') || storedRedirectTo || '/dashboard/statistics';
-					toast.success('Authentication successful');
+					toast.success(t('auth.authenticationSuccess'));
 					goto(redirectTo);
 				}
 			} else {
 				error = 'No user found';
-				toast.error('Authentication failed');
+				toast.error(t('auth.authenticationFailedMsg'));
 			}
 		} catch (err: any) {
 			error = err.message || 'Authentication failed';
-			toast.error('Authentication failed');
+			toast.error(t('auth.authenticationFailedMsg'));
 		} finally {
 			loading = false;
 		}

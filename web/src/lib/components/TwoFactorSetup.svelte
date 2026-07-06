@@ -84,7 +84,7 @@
 
 			backupCodes = result.backup_codes || [];
 			currentStep = 'complete';
-			toast.success('Two-factor authentication enabled successfully!');
+			toast.success(t('auth.twoFactorEnabled'));
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to verify code';
 			toast.error(error);
@@ -98,11 +98,11 @@
 			if (type === 'secret') {
 				secretCopied = true;
 				setTimeout(() => (secretCopied = false), 2000);
-				toast.success('Secret copied to clipboard');
+				toast.success(t('auth.secretCopied'));
 			} else {
 				backupCodesCopied = true;
 				setTimeout(() => (backupCodesCopied = false), 2000);
-				toast.success('Backup codes copied to clipboard');
+				toast.success(t('auth.backupCodesCopied'));
 			}
 		});
 	}
@@ -131,7 +131,7 @@
 		a.download = 'wayli-2fa-backup-codes.txt';
 		a.click();
 		URL.revokeObjectURL(url);
-		toast.success('Backup codes downloaded');
+		toast.success(t('auth.backupCodesDownloaded'));
 	}
 </script>
 

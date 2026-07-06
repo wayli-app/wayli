@@ -320,7 +320,7 @@
 			const session = $sessionStore;
 			if (!session) {
 				console.error('❌ No session available for download');
-				toast.error('No session available');
+				toast.error(t('auth.noSessionAvailable'));
 				return;
 			}
 			console.log('🔑 Session available, user ID:', session.user.id);
@@ -342,14 +342,14 @@
 			} else {
 				console.error('❌ Download URL not available in response:', result);
 				console.error('❌ Expected downloadUrl property but got:', result?.downloadUrl);
-				toast.error('Download URL not available');
+				toast.error(t('auth.downloadUrlNotAvailable'));
 			}
 		} catch (error) {
 			console.error('❌ Error downloading export:', error);
 			console.error('❌ Error type:', typeof error);
 			console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
 			console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-			toast.error('Failed to download export');
+			toast.error(t('auth.downloadFailed'));
 		}
 	}
 

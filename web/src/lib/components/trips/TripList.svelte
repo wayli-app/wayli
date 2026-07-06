@@ -11,6 +11,7 @@
 		List,
 		LayoutGrid
 	} from 'lucide-svelte';
+	import { t } from '$lib/i18n';
 
 	export let trips: {
 		title: string;
@@ -73,7 +74,7 @@
 		<input
 			type="text"
 			bind:value={searchQuery}
-			placeholder="Search trips..."
+			placeholder={t('trips.searchTrips')}
 			class="w-full rounded-md border border-border bg-white py-2 pr-4 pl-10 text-sm placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
 		/>
 	</div>
