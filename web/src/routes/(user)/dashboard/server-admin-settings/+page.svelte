@@ -1284,7 +1284,7 @@
 								id="newUserFirstName"
 								bind:value={newUserFirstName}
 								class="w-full"
-								placeholder="e.g. Jane"
+								placeholder={t("serverAdmin.firstNamePlaceholder")}
 								required
 							/>
 						</div>
@@ -1304,7 +1304,7 @@
 								id="newUserLastName"
 								bind:value={newUserLastName}
 								class="w-full"
-								placeholder="e.g. Doe"
+								placeholder={t("serverAdmin.lastNamePlaceholder")}
 								required
 							/>
 						</div>
@@ -1322,7 +1322,7 @@
 							id="newUserEmail"
 							bind:value={newUserEmail}
 							class="w-full"
-							placeholder="e.g. jane.doe@example.com"
+							placeholder={t("serverAdmin.emailPlaceholder")}
 							required
 						/>
 					</div>
@@ -1343,7 +1343,7 @@
 								id="newUserPassword"
 								bind:value={newUserPassword}
 								class="w-full"
-								placeholder="Min. 6 characters"
+								placeholder={t("serverAdmin.passwordMinPlaceholder")}
 								required
 							/>
 						</div>
@@ -1363,7 +1363,7 @@
 								id="newUserConfirmPassword"
 								bind:value={newUserConfirmPassword}
 								class="w-full"
-								placeholder="Confirm password"
+								placeholder={t("serverAdmin.confirmPasswordPlaceholder")}
 								required
 							/>
 						</div>
@@ -1526,7 +1526,7 @@
 							<Input
 								type="text"
 								bind:value={searchQuery}
-								placeholder="Search users..."
+								placeholder={t("serverAdmin.searchUsersPlaceholder")}
 								class="w-full"
 								oninput={handleSearchInput}
 							/>
@@ -1820,7 +1820,7 @@
 										min="1"
 										step="1"
 										class="w-full"
-										placeholder="200"
+										placeholder={t("serverAdmin.rateLimitPlaceholder")}
 									/>
 									<p class="mt-1 text-xs text-muted-foreground">
 										Default: 200 (Pexels free tier limit)
@@ -1838,7 +1838,7 @@
 								id="peliasEndpoint"
 								bind:value={peliasEndpoint}
 								class="w-full"
-								placeholder="https://pelias.wayli.app"
+								placeholder={t("serverAdmin.peliasEndpointPlaceholder")}
 								pattern="https?://.+"
 								required
 							/>
@@ -2550,7 +2550,7 @@
 										bind:value={providerModel}
 										disabled={providerReadOnly}
 										class="w-full"
-										placeholder="gpt-4.1-mini-2025-04-14"
+										placeholder={t("serverAdmin.modelPlaceholder")}
 									/>
 									<p class="mt-1 text-xs text-muted-foreground">
 										{t('serverAdmin.aiModelDescription')}

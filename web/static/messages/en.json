@@ -1224,7 +1224,16 @@
     "noOAuthProvidersWarning": "Warning: No OAuth providers are enabled. Please enable at least one OAuth provider before disabling password login.",
     "fillRequiredFields": "Please fill in all required fields",
     "passwordMinLengthError": "Password must be at least 6 characters long",
-    "passwordsDoNotMatch": "Passwords do not match"
+    "passwordsDoNotMatch": "Passwords do not match",
+    "firstNamePlaceholder": "e.g. Jane",
+    "lastNamePlaceholder": "e.g. Doe",
+    "emailPlaceholder": "e.g. jane.doe@example.com",
+    "passwordMinPlaceholder": "Min. 6 characters",
+    "confirmPasswordPlaceholder": "Confirm password",
+    "searchUsersPlaceholder": "Search users...",
+    "rateLimitPlaceholder": "200",
+    "peliasEndpointPlaceholder": "https://pelias.wayli.app",
+    "modelPlaceholder": "gpt-4.1-mini-2025-04-14"
   },
   "wantToVisit": {
     "addNewPlace": "Add new place",
