@@ -219,6 +219,7 @@
 		if (!q || q.requests.limit === 0) return null; // no limits configured / unlimited
 		const remaining = Math.max(0, q.requests.limit - q.requests.used);
 		const pct = q.requests.limit > 0 ? q.requests.used / q.requests.limit : 0;
+		if (pct < 0.8) return null; // only show when approaching the limit
 		return {
 			remaining,
 			limit: q.requests.limit,

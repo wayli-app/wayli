@@ -1730,21 +1730,21 @@
 					<!-- Action Buttons -->
 					<div class="absolute top-3 right-3 z-10 flex gap-2">
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-muted dark:hover:text-blue-400"
+							class="hover:text-primary bg-muted hover:bg-muted/80 cursor-pointer rounded-full p-2 text-muted-foreground transition-colors"
 							onclick={() => refreshTripMetadata(trip)}
 							aria-label="Refresh trip metadata"
 						>
 							<RefreshCw class="h-5 w-5" />
 						</button>
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-muted dark:hover:text-blue-400"
+							class="hover:text-primary bg-muted hover:bg-muted/80 cursor-pointer rounded-full p-2 text-muted-foreground transition-colors"
 							onclick={() => openEditTripModal(trip)}
 							aria-label="Edit trip"
 						>
 							<Edit class="h-5 w-5" />
 						</button>
 						<button
-							class="cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-muted dark:hover:bg-red-900/30"
+							class="text-destructive hover:text-destructive bg-muted hover:bg-muted/80 cursor-pointer rounded-full p-2 transition-colors"
 							onclick={() => confirmDeleteTrip(trip)}
 							aria-label="Delete trip"
 						>
