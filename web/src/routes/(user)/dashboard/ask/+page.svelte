@@ -876,16 +876,24 @@
 						{t('ask.askAnything')}
 					</p>
 					<div class="grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-						{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
-							<button
-								onclick={() => useSuggestion(suggestion)}
-								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
-							>
-								<div class="font-medium text-muted-foreground">
+					{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
+						<button
+							onclick={() => useSuggestion(suggestion)}
+							class="hover:border-primary/50 dark:hover:border-primary group flex items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
+						>
+							<Sparkles
+								class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 opacity-60 group-hover:opacity-100"
+							/>
+							<div>
+								<div class="font-medium text-foreground">
 									{suggestion.question}
 								</div>
-							</button>
-						{/each}
+								<div class="text-muted-foreground mt-0.5 text-xs">
+									{suggestion.description}
+								</div>
+							</div>
+						</button>
+					{/each}
 					</div>
 				</div>
 			{:else}
