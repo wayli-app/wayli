@@ -1260,7 +1260,7 @@
 				</div>
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-muted"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -1380,7 +1380,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
+					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-muted-foreground hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1435,7 +1435,7 @@
 				</div>
 			</div>
 
-			<div class="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-700">
+			<div class="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-muted">
 				<div class="flex items-center">
 					<div>
 						<div class="text-sm font-medium text-foreground">
@@ -1450,7 +1450,7 @@
 				<button
 					type="button"
 					onclick={handleCloseDeleteConfirm}
-					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
+					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-muted-foreground hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1482,7 +1482,7 @@
 		<div class="mb-6 border-b border-border">
 			<nav class="-mb-px flex space-x-8">
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1491,7 +1491,7 @@
 					</div>
 				</button>
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-gray-300 hover:text-gray-700 dark:hover:text-gray-300'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1613,7 +1613,7 @@
 												class="inline-flex rounded-full px-2 text-xs leading-5 font-semibold {user.role ===
 												'admin'
 													? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-													: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'}"
+													: 'bg-gray-100 text-gray-800 dark:bg-background/20 dark:text-muted-foreground'}"
 											>
 												{user.role === 'admin' ? 'Admin' : 'User'}
 											</span>
@@ -1683,7 +1683,7 @@
 										{#each getPageNumbers() as pageNum (pageNum)}
 											<button
 												onclick={() => goToPage(pageNum)}
-												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum === currentPage ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-gray-50 dark:hover:bg-gray-700'}"
+												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum === currentPage ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted dark:hover:bg-muted'}"
 											>
 												{pageNum}
 											</button>
@@ -1976,7 +1976,7 @@
 							</div>
 						{/if}
 
-						<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border">
+						<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-card border-border">
 							<h3 class="font-medium text-foreground">
 								{t('serverAdmin.smtpConfiguration')}
 							</h3>
@@ -2119,7 +2119,7 @@
 							<div class="space-y-2">
 								{#each oauthProviders as provider}
 									<div
-										class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-gray-800 border-border"
+										class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-card border-border"
 									>
 										<div class="flex items-center gap-3">
 											<div
@@ -2146,7 +2146,7 @@
 											/>
 											<button
 												onclick={() => editOAuthProvider(provider)}
-												class="rounded p-1.5 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
+												class="rounded p-1.5 text-muted-foreground hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
 												title={t('serverAdmin.edit')}
 											>
 												<Edit class="h-4 w-4" />
@@ -2392,7 +2392,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										onclick={resetOAuthForm}
-										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
+										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 									>
 										{t('serverAdmin.cancel')}
 									</button>
@@ -2413,7 +2413,7 @@
 						{:else}
 							<button
 								onclick={() => (showOAuthForm = true)}
-								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-gray-400 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 hover:text-muted-foreground"
+								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground"
 							>
 								+ {t('serverAdmin.addOAuthProvider')}
 							</button>
@@ -2485,7 +2485,7 @@
 								/>
 							</div>
 
-							<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-gray-800 border-border">
+							<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-card border-border">
 								<div class="grid grid-cols-2 gap-4">
 									<div>
 										<label
@@ -2678,7 +2678,7 @@
 							<div class="flex flex-col items-center">
 								<!-- Step 1: Reverse Geocode -->
 								<div
-									class="flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800"
+									class="flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-border dark:bg-card"
 								>
 									<div class="flex items-start gap-3">
 										<span
@@ -2708,13 +2708,13 @@
 
 								<!-- Connector -->
 								<div class="flex flex-col items-center py-1">
-									<div class="h-4 w-0.5 bg-gray-300 dark:bg-gray-600"></div>
+									<div class="h-4 w-0.5 bg-gray-300 dark:bg-muted"></div>
 									<ChevronDown class="h-4 w-4 text-muted-foreground" />
 								</div>
 
 								<!-- Step 2: Sync Place Visits -->
 								<div
-									class="flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800"
+									class="flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-border dark:bg-card"
 								>
 									<div class="flex items-start gap-3">
 										<span
@@ -2758,7 +2758,7 @@
 							<div class="flex flex-wrap gap-3">
 								<!-- Force Re-geocode Card -->
 								<div
-									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800"
+									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-card"
 								>
 									<div class="min-w-0 flex-1">
 										<span class="text-sm font-medium text-muted-foreground">
@@ -2780,7 +2780,7 @@
 
 								<!-- Fill Country Codes Card -->
 								<div
-									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800"
+									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-card"
 								>
 									<div class="min-w-0 flex-1">
 										<span class="text-sm font-medium text-muted-foreground">
@@ -2854,7 +2854,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelForceRegeocode}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -2902,7 +2902,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -2944,7 +2944,7 @@
 									{t('serverAdmin.clearUserPlaceVisitsConfirmTitle')}
 								</h3>
 							</div>
-							<div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+							<div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-card">
 								<div class="font-medium text-foreground">
 									{userToClearPlaceVisits.first_name || ''}
 									{userToClearPlaceVisits.last_name || ''}
@@ -2959,7 +2959,7 @@
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearUserPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground hover:bg-muted"
 								>
 									{t('serverAdmin.cancel')}
 								</button>

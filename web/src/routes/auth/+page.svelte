@@ -59,7 +59,7 @@
 
 				<a
 					href="/auth/signup"
-					class="flex w-full items-center justify-center gap-3 rounded-lg bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+					class="flex w-full items-center justify-center gap-3 rounded-lg bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 				>
 					<Lock class="h-5 w-5" />
 					Create new account
@@ -70,7 +70,7 @@
 			<div class="mt-8 text-center">
 				<a
 					href="/"
-					class="text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+					class="text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
 				>
 					Back to home
 				</a>

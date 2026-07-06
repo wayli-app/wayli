@@ -109,7 +109,7 @@
 				<div
 					class="bg-primary/10 dark:bg-primary/30 flex h-12 w-12 items-center justify-center rounded-full"
 				>
-					<Shield class="text-primary h-6 w-6 dark:text-gray-300" />
+					<Shield class="text-primary h-6 w-6 dark:text-muted-foreground" />
 				</div>
 				<div>
 					<h2 class="text-2xl font-bold text-foreground">
@@ -144,7 +144,7 @@
 					bind:value={code}
 					placeholder={useBackupCode ? 'XXXXXXXX' : '000000'}
 					maxlength={useBackupCode ? 8 : 6}
-					class="w-full rounded-lg border border-gray-300 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500 bg-card"
+					class="w-full rounded-lg border border-gray-300 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-border dark:text-foreground dark:placeholder:text-muted-foreground bg-card"
 					disabled={isLoading}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' && !isLoading) {
@@ -165,7 +165,7 @@
 			<div class="mb-6">
 				<button
 					onclick={toggleCodeType}
-					class="flex w-full items-center justify-center gap-2 rounded-lg border bg-gray-50 px-4 py-2 text-sm text-gray-700 transition-colors dark:bg-gray-800 dark:text-gray-300 border-border hover:bg-muted"
+					class="flex w-full items-center justify-center gap-2 rounded-lg border bg-gray-50 px-4 py-2 text-sm text-gray-700 transition-colors dark:bg-card dark:text-muted-foreground border-border hover:bg-muted"
 					disabled={isLoading}
 				>
 					<Key class="h-4 w-4" />
@@ -181,7 +181,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+					class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
 					disabled={isLoading}
 				>
 					Cancel

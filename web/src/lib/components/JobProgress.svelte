@@ -22,7 +22,7 @@
 	</div>
 
 	<!-- Progress Bar -->
-	<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+	<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-muted">
 		<div
 			class="h-3 rounded-full bg-green-600 transition-all duration-300 ease-out"
 			style="width: {progress}%"

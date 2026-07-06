@@ -787,7 +787,7 @@
 				type="button"
 				onclick={() => (showMobileSidebar = true)}
 				aria-label="Open conversation history"
-				class="rounded-lg p-2 text-gray-600 transition-colors dark:text-gray-300 hover:bg-muted"
+				class="rounded-lg p-2 text-gray-600 transition-colors dark:text-muted-foreground hover:bg-muted"
 			>
 				<Menu class="h-5 w-5" />
 			</button>
@@ -918,7 +918,7 @@
 									<!-- Always show text response first (with Markdown rendering, strip images if cards shown) -->
 									{#if message.content}
 										<div
-											class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
+											class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-muted-foreground"
 										>
 											{@html renderMarkdown(message.content, hasQueryResults)}
 										</div>
@@ -954,7 +954,7 @@
 							</div>
 							{#if message.role === 'user'}
 								<div
-									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-muted"
 								>
 									<User class="h-5 w-5 text-muted-foreground" />
 								</div>
@@ -1018,7 +1018,7 @@
 								<!-- Streaming content (with live Markdown rendering) -->
 								{#if currentStreamingContent}
 									<div
-										class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
+										class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-muted-foreground"
 									>
 										{@html renderMarkdown(currentStreamingContent, currentQueryResults.length > 0)}
 									</div>
@@ -1068,7 +1068,7 @@
 					onkeydown={(e) => e.key === 'Enter' && sendMessage()}
 					placeholder={isConnected ? t('ask.inputPlaceholder') : t('ask.inputConnecting')}
 					disabled={isLoading || !isConnected}
-				class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-24 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:text-white bg-card"
+				class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-24 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-border dark:text-white bg-card"
 			/>
 			{#if supportsVoiceInput && !isLoading}
 				<button
@@ -1172,7 +1172,7 @@
 
 			<!-- Logs Container -->
 			<div
-				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
+				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-background border-border"
 			>
 				{#if selectedMessageLogs.length === 0}
 					<div class="flex h-full items-center justify-center text-muted-foreground">
@@ -1194,7 +1194,7 @@
 			<div class="mt-4 flex justify-end">
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700 bg-muted"
+					class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted bg-muted"
 				>
 					{t('ask.close')}
 				</button>

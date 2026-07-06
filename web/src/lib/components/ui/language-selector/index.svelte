@@ -126,8 +126,8 @@
 	// Variant classes
 	const variantClasses = {
 		default:
-			'bg-card border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
-		minimal: 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800',
+			'bg-card border border-gray-300 dark:border-border hover:bg-muted dark:hover:bg-muted',
+		minimal: 'bg-transparent hover:bg-muted dark:hover:bg-card',
 		button: 'bg-primary hover:bg-primary/90 text-white border-0'
 	};
 
@@ -185,7 +185,7 @@
 					<button
 						type="button"
 						onclick={() => handleLanguageChange(language.code)}
-						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors {language.code === $currentLocale ? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-gray-300' : 'text-muted-foreground'} hover:bg-muted"
+						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors {language.code === $currentLocale ? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-muted-foreground' : 'text-muted-foreground'} hover:bg-muted"
 						role="option"
 						aria-selected={language.code === $currentLocale}
 					>
@@ -197,7 +197,7 @@
 
 						<!-- Check mark for current language -->
 						{#if language.code === $currentLocale}
-							<span class="text-primary dark:text-gray-300">✓</span>
+							<span class="text-primary dark:text-muted-foreground">✓</span>
 						{/if}
 					</button>
 				{/each}

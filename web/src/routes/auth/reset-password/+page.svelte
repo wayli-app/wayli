@@ -80,7 +80,7 @@
 		<div class="mb-8">
 			<a
 				href="/auth/signin"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToSignIn')}
@@ -155,7 +155,7 @@
 									type={showPassword ? 'text' : 'password'}
 									bind:value={password}
 									required
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
 									placeholder={t('auth.enterNewPassword')}
 								/>
 								<button
@@ -192,7 +192,7 @@
 									type={showConfirmPassword ? 'text' : 'password'}
 									bind:value={confirmPassword}
 									required
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
 									placeholder={t('auth.confirmNewPassword')}
 								/>
 								<button

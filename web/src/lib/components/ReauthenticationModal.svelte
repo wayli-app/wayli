@@ -101,7 +101,7 @@
 			<!-- Account Info -->
 			{#if userEmail}
 				<div
-					class="mb-4 rounded-lg border bg-gray-50 p-3 dark:bg-gray-800 border-border"
+					class="mb-4 rounded-lg border bg-gray-50 p-3 dark:bg-card border-border"
 				>
 					<p class="text-xs text-muted-foreground">{t('auth.account')}</p>
 					<p class="font-medium text-foreground">{userEmail}</p>
@@ -133,7 +133,7 @@
 						type="password"
 						bind:value={password}
 						placeholder={t('auth.enterPasswordPlaceholder')}
-						class="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500 bg-card"
+						class="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-border dark:text-foreground dark:placeholder:text-muted-foreground bg-card"
 						disabled={isLoading}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' && !isLoading && password) {
@@ -148,7 +148,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+					class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
 					disabled={isLoading}
 				>
 					{t('common.actions.cancel')}

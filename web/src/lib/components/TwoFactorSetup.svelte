@@ -170,7 +170,7 @@
 				<div
 					class="bg-primary/10 dark:bg-primary/30 flex h-12 w-12 items-center justify-center rounded-full"
 				>
-					<Shield class="text-primary h-6 w-6 dark:text-gray-300" />
+					<Shield class="text-primary h-6 w-6 dark:text-muted-foreground" />
 				</div>
 				<div>
 					<h2 class="text-2xl font-bold text-foreground">
@@ -230,20 +230,20 @@
 
 						<!-- Manual Entry -->
 						<div
-							class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800 border-border"
+							class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border"
 						>
 							<p class="mb-2 text-sm font-medium text-muted-foreground">
 								Or enter this code manually:
 							</p>
 							<div class="flex items-center gap-2">
 								<code
-									class="flex-1 rounded px-3 py-2 font-mono text-sm text-gray-900 dark:text-gray-100 bg-card"
+									class="flex-1 rounded px-3 py-2 font-mono text-sm text-gray-900 dark:text-foreground bg-card"
 								>
 									{manualEntryKey}
 								</code>
 								<button
 									onclick={() => copyToClipboard(manualEntryKey, 'secret')}
-									class="rounded-lg p-2 text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700"
+									class="rounded-lg p-2 text-gray-600 hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 									aria-label="Copy secret"
 								>
 									{#if secretCopied}
@@ -280,7 +280,7 @@
 							maxlength="6"
 							pattern="[0-9]*"
 							inputmode="numeric"
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
 							oninput={(e) => {
 								const target = e.target as HTMLInputElement;
 								target.value = target.value.replace(/[^0-9]/g, '');
@@ -292,7 +292,7 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => (currentStep = 'setup')}
-							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
+							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 						>
 							Back
 						</button>
@@ -339,12 +339,12 @@
 							</p>
 						</div>
 						<div
-							class="rounded-lg border bg-gray-50 p-4 dark:bg-gray-800 border-border"
+							class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border"
 						>
 							<div class="grid grid-cols-2 gap-2 font-mono text-sm">
 								{#each backupCodes as code}
 									<div
-										class="rounded bg-white px-3 py-2 text-gray-900 dark:bg-gray-700 dark:text-gray-100"
+										class="rounded bg-white px-3 py-2 text-gray-900 dark:bg-muted dark:text-foreground"
 									>
 										{code}
 									</div>
@@ -357,13 +357,13 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => copyToClipboard(backupCodes.join('\n'), 'backupCodes')}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 						>
 							{backupCodesCopied ? 'Copied!' : 'Copy Codes'}
 						</button>
 						<button
 							onclick={handleBackupCodesDownload}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 						>
 							Download
 						</button>

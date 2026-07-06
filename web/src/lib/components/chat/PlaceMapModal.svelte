@@ -326,7 +326,7 @@
 						</button>
 						<button
 							onclick={onClose}
-							class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+							class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
 						>
 							Close
 						</button>

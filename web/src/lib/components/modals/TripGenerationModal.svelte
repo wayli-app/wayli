@@ -216,7 +216,7 @@
 				id="start-date"
 				type="date"
 				bind:value={startDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
 			/>
 		</div>
 
@@ -228,7 +228,7 @@
 				id="end-date"
 				type="date"
 				bind:value={endDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
 			/>
 		</div>
 
@@ -237,8 +237,8 @@
 			class="bg-primary/5 dark:bg-primary/20 rounded-md border border-primary/20 p-3 dark:border-primary/40"
 		>
 			<div class="flex items-start gap-2">
-				<div class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-gray-300">ℹ️</div>
-				<div class="text-primary text-sm dark:text-gray-300">
+				<div class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-muted-foreground">ℹ️</div>
+				<div class="text-primary text-sm dark:text-muted-foreground">
 					<strong>Dates are optional:</strong> Leave both dates empty to generate trip suggestions from
 					all your available location data. Set specific dates to limit the analysis to a particular time
 					period.
@@ -253,7 +253,7 @@
 				type="checkbox"
 				bind:checked={useCustomHomeAddress}
 				onchange={handleCustomHomeAddressToggle}
-				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-gray-600"
+				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-border"
 			/>
 			<label
 				for="custom-home-address-toggle"
@@ -278,7 +278,7 @@
 						oninput={handleCustomHomeAddressInput}
 						onkeydown={handleCustomHomeAddressKeydown}
 						placeholder={t('tripGenerationModal.enterCustomHomeAddress')}
-						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+						class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
 					/>
 
 					{#if isCustomHomeAddressSearching}
@@ -292,12 +292,12 @@
 
 				{#if customHomeAddressSuggestions.length > 0 && showCustomHomeAddressSuggestions}
 					<div
-						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
+						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-border bg-card"
 					>
 						{#each customHomeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 							<button
 								type="button"
-								class="w-full px-4 py-2 text-left focus:bg-gray-100 focus:outline-none dark:focus:bg-gray-700 {selectedCustomHomeAddressIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''} hover:bg-muted"
+								class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedCustomHomeAddressIndex === index ? 'bg-gray-100 dark:bg-muted' : ''} hover:bg-muted"
 								onclick={() => selectCustomHomeAddress(suggestion)}
 							>
 								<div class="text-sm text-foreground">
@@ -318,7 +318,7 @@
 					</div>
 				{:else if showCustomHomeAddressSuggestions && customHomeAddressSearchError}
 					<div
-						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
+						class="mt-1 max-h-60 overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-border bg-card"
 					>
 						<div class="px-4 py-2 text-sm text-muted-foreground">
 							{customHomeAddressSearchError}
@@ -349,7 +349,7 @@
 				id="clear-existing-suggestions"
 				type="checkbox"
 				bind:checked={clearExistingSuggestions}
-				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-gray-600 dark:bg-gray-800"
+				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-border dark:bg-card"
 			/>
 			<label for="clear-existing-suggestions" class="text-sm text-muted-foreground">
 				{t('tripGenerationModal.clearExistingSuggestions')}
@@ -360,7 +360,7 @@
 		<div class="flex gap-3 pt-4">
 			<button
 				onclick={closeModal}
-				class="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
+				class="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 			>
 				{t('common.actions.cancel')}
 			</button>

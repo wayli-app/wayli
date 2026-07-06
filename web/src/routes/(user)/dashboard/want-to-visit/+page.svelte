@@ -999,7 +999,7 @@
 		<!-- Map Instructions -->
 		{#if !showAddForm}
 			<div
-				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-gray-800/90"
+				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-card/90"
 			>
 				<div class="flex items-center gap-2 text-sm text-muted-foreground">
 					<MapPin class="h-4 w-4" />
@@ -1072,7 +1072,7 @@
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
@@ -1092,7 +1092,7 @@
 								id="searchPlace"
 								bind:value={searchQuery}
 								oninput={handleSearchInput}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 								placeholder={t('wantToVisit.searchPlaceholder')}
 							/>
 							{#if isSearching}
@@ -1107,12 +1107,12 @@
 						<!-- Search Results -->
 						{#if showSearchResults && searchResults.length > 0}
 							<div
-								class="relative z-[10002] mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700"
+								class="relative z-[10002] mt-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-border dark:bg-muted"
 							>
 								{#each searchResults as result, index (index)}
 									<button
 										type="button"
-										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-600"
+										class="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-muted dark:border-border dark:hover:bg-muted"
 										onclick={() => selectPlace(result)}
 									>
 										<div class="text-sm font-medium text-foreground">
@@ -1140,7 +1140,7 @@
 								type="text"
 								bind:value={latitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-muted-foreground"
 							/>
 						</div>
 						<div>
@@ -1154,7 +1154,7 @@
 								type="text"
 								bind:value={longitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-muted-foreground"
 							/>
 						</div>
 					</div>
@@ -1166,7 +1166,7 @@
 						>
 						<div
 							id="addressDisplay"
-							class="flex min-h-[2.5rem] w-full items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+							class="flex min-h-[2.5rem] w-full items-center rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-muted-foreground"
 						>
 							{#if isReverseGeocoding}
 								<div class="flex items-center gap-2 text-muted-foreground">
@@ -1198,7 +1198,7 @@
 									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
 									marker.id
 										? 'bg-primary border-primary text-white'
-										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-muted dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 								>
 									<marker.icon class="h-5 w-5" />
 									<span class="text-xs">{marker.name}</span>
@@ -1233,7 +1233,7 @@
 						<div class="mb-2 flex flex-wrap gap-2">
 							{#each labels as label (label)}
 								<span
-									class="bg-primary/10 text-primary dark:bg-primary/30 mr-1 mb-1 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-gray-300"
+									class="bg-primary/10 text-primary dark:bg-primary/30 mr-1 mb-1 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-muted-foreground"
 								>
 									{label}
 									<button
@@ -1252,7 +1252,7 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 								placeholder={t('wantToVisit.addLabelPlaceholder')}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') {
@@ -1282,7 +1282,7 @@
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 							placeholder={t('wantToVisit.notesPlaceholder')}></textarea>
 					</div>
 
@@ -1297,7 +1297,7 @@
 									tempMarker = null;
 								}
 							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
 						>
 							{t('common.actions.cancel')}
 						</button>
@@ -1368,7 +1368,7 @@
 							id="titleInput"
 							type="text"
 							bind:value={title}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 							placeholder={t('wantToVisit.titlePlaceholder')}
 							required
 						/>
@@ -1387,7 +1387,7 @@
 								type="text"
 								bind:value={latitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-muted-foreground"
 							/>
 						</div>
 						<div>
@@ -1401,7 +1401,7 @@
 								type="text"
 								bind:value={longitude}
 								readonly
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-muted-foreground"
 							/>
 						</div>
 					</div>
@@ -1415,7 +1415,7 @@
 							id="addressDisplay"
 							type="text"
 							bind:value={address}
-							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 							placeholder={t('wantToVisit.addressPlaceholder')}
 						/>
 					</div>
@@ -1437,7 +1437,7 @@
 									class="flex flex-col items-center justify-center gap-1 rounded-lg border px-3 py-2 transition-colors {placeType ===
 									marker.id
 										? 'bg-primary border-primary text-white'
-										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+										: 'border-gray-200 bg-gray-100 text-gray-700 hover:bg-muted dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 								>
 									<marker.icon class="h-5 w-5" />
 									<span class="text-xs">{marker.name}</span>
@@ -1472,7 +1472,7 @@
 						<div class="mb-2 flex flex-wrap gap-2">
 							{#each labels as label (label)}
 								<span
-									class="bg-primary/10 text-primary dark:bg-primary/30 mr-1 mb-1 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-gray-300"
+									class="bg-primary/10 text-primary dark:bg-primary/30 mr-1 mb-1 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-muted-foreground"
 								>
 									{label}
 									<button
@@ -1491,7 +1491,7 @@
 								id="labelInput"
 								type="text"
 								bind:value={labelInput}
-								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 								placeholder={t('wantToVisit.addLabelPlaceholder')}
 								onkeydown={(e) => {
 									if (e.key === 'Enter') {
@@ -1521,7 +1521,7 @@
 							id="descriptionInput"
 							bind:value={description}
 							rows="3"
-							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+							class="focus:ring-primary relative z-[10001] w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 							placeholder={t('wantToVisit.notesPlaceholder')}></textarea>
 					</div>
 
@@ -1533,7 +1533,7 @@
 								showEditForm = false;
 								resetForm();
 							}}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+							class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
 						>
 							{t('common.actions.cancel')}
 						</button>
@@ -1566,7 +1566,7 @@
 								type.id
 							)
 								? 'bg-primary text-white'
-								: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+								: 'bg-gray-100 text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 							onclick={() => {
 								selectType(type.id);
 							}}
@@ -1578,7 +1578,7 @@
 					<button
 						class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {showFavouritedOnly
 							? 'bg-red-600 text-white'
-							: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+							: 'bg-gray-100 text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 						onclick={() => {
 							showFavouritedOnly = !showFavouritedOnly;
 						}}
@@ -1598,7 +1598,7 @@
 					type="text"
 					bind:value={searchQuery}
 					placeholder={t('wantToVisit.searchTitlesPlaceholder')}
-					class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+					class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 				/>
 			</div>
 		</div>
@@ -1614,7 +1614,7 @@
 			{#if searchQuery || selectedTypes.length > 1 || showFavouritedOnly}
 				<button
 					onclick={clearFilters}
-					class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-gray-600 transition-colors dark:text-gray-400 hover:bg-muted"
+					class="flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-medium text-gray-600 transition-colors dark:text-muted-foreground hover:bg-muted"
 				>
 					<X class="h-3 w-3" />
 					{t('wantToVisit.clearFilters')}
@@ -1662,7 +1662,7 @@
 
 					<!-- Place Info -->
 					<div class="mb-4">
-						<div class="text-primary mb-1 text-base font-bold dark:text-gray-300">
+						<div class="text-primary mb-1 text-base font-bold dark:text-muted-foreground">
 							{place.title}
 						</div>
 						<div class="mb-2 flex items-start justify-between">
@@ -1673,7 +1673,7 @@
 							{place.address || place.coordinates}
 						</div>
 						<span
-							class="bg-primary/10 text-primary dark:bg-primary/30 inline-block rounded-full px-2 py-1 text-xs font-medium dark:text-gray-300"
+							class="bg-primary/10 text-primary dark:bg-primary/30 inline-block rounded-full px-2 py-1 text-xs font-medium dark:text-muted-foreground"
 						>
 							{getMarkerTypeName(place.markerType || place.type || 'default')}
 						</span>
@@ -1682,7 +1682,7 @@
 							<div class="mt-2 flex flex-wrap gap-1">
 								{#each place.labels as label (label)}
 									<span
-										class="bg-primary/5 text-primary dark:bg-primary/40 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-gray-200"
+										class="bg-primary/5 text-primary dark:bg-primary/40 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-muted-foreground"
 									>
 										{label}
 									</span>

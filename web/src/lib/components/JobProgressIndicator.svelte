@@ -376,7 +376,7 @@
 
 			{#if upload.status === 'uploading'}
 				<div class="relative mb-1">
-					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-muted">
 						<div
 							class="bg-primary relative h-4 rounded-full transition-all duration-300 dark:bg-blue-500"
 							style="width: {upload.percentage}%"
@@ -396,7 +396,7 @@
 				</div>
 			{:else if upload.status === 'processing'}
 				<div class="relative mb-1">
-					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-muted">
 						<div class="bg-primary h-4 w-full animate-pulse rounded-full dark:bg-blue-500"></div>
 					</div>
 				</div>
@@ -440,7 +440,7 @@
 
 			{#if job.status === 'running' || job.status === 'pending'}
 				<div class="relative mb-1">
-					<div class="h-4 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="h-4 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-muted">
 						{#if indeterminate}
 							<!-- Indeterminate progress bar with sliding animation -->
 							<div
@@ -481,7 +481,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleCancelJob(job, e)}
-				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 hover:text-red-500 dark:hover:bg-gray-600 dark:hover:text-red-400"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-500 dark:hover:bg-muted dark:hover:text-red-400"
 				title={t('jobProgress.cancelJob')}
 				aria-label={t('jobProgress.cancelJob')}
 			>
@@ -491,7 +491,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleDownloadExport(job, e)}
-				class="hover:text-primary flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+				class="hover:text-primary flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-muted dark:hover:bg-muted dark:hover:text-muted-foreground"
 				title={t('jobProgress.downloadExport')}
 				aria-label={t('jobProgress.downloadExport')}
 			>
@@ -501,7 +501,7 @@
 			<button
 				type="button"
 				onclick={(e) => dismissJob(job.id, e)}
-				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-gray-200 dark:hover:bg-gray-600 hover:text-muted-foreground"
+				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
 				title={t('jobProgress.dismiss')}
 				aria-label={t('jobProgress.dismiss')}
 			>
@@ -567,7 +567,7 @@
 			<div class="flex justify-end gap-3">
 				<button
 					onclick={cancelConfirmation}
-					class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+					class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 				>
 					Keep Running
 				</button>

@@ -99,7 +99,7 @@
 		<div class="mb-8">
 			<a
 				href="/auth/signin"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToSignIn')}
@@ -113,7 +113,7 @@
 				<div
 					class="bg-primary/10 dark:bg-primary/30 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
 				>
-					<Mail class="text-primary h-8 w-8 dark:text-gray-400" />
+					<Mail class="text-primary h-8 w-8 dark:text-muted-foreground" />
 				</div>
 
 				<h1 class="mb-2 text-2xl font-bold text-foreground">
@@ -126,7 +126,7 @@
 
 			<!-- Email Address -->
 			{#if email}
-				<div class="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
+				<div class="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-muted/50">
 					<p class="text-center text-sm font-medium text-foreground">
 						{email}
 					</p>
@@ -137,7 +137,7 @@
 			<div class="mb-6 space-y-3">
 				<div class="flex items-start gap-3 text-sm text-muted-foreground">
 					<div
-						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-gray-300"
+						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-muted-foreground"
 					>
 						1
 					</div>
@@ -145,7 +145,7 @@
 				</div>
 				<div class="flex items-start gap-3 text-sm text-muted-foreground">
 					<div
-						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-gray-300"
+						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-muted-foreground"
 					>
 						2
 					</div>
@@ -153,7 +153,7 @@
 				</div>
 				<div class="flex items-start gap-3 text-sm text-muted-foreground">
 					<div
-						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-gray-300"
+						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-muted-foreground"
 					>
 						3
 					</div>
@@ -167,7 +167,7 @@
 					type="button"
 					onclick={resendVerificationEmail}
 					disabled={resendLoading || resendCooldown > 0}
-					class="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+					class="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted"
 				>
 					{#if resendLoading}
 						<span class="flex items-center justify-center gap-2">
@@ -183,7 +183,7 @@
 			</div>
 
 			<!-- Help Text -->
-			<div class="rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
+			<div class="rounded-lg bg-gray-50 p-4 dark:bg-muted/50">
 				<p class="text-center text-sm text-muted-foreground">
 					{t('auth.didntReceiveEmail')}
 					<br />

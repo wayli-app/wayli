@@ -1121,7 +1121,7 @@
 			<div class="flex justify-end space-x-3">
 				<button
 					onclick={() => handleLargeDatasetConfirmation(false)}
-					class="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+					class="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 				>
 					Cancel
 				</button>
@@ -1140,8 +1140,8 @@
 <!-- Header -->
 <div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
 	<div class="flex min-w-0 items-center gap-2">
-		<BarChart class="text-primary h-8 w-8 flex-shrink-0 dark:text-gray-400" />
-		<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
+		<BarChart class="text-primary h-8 w-8 flex-shrink-0 dark:text-muted-foreground" />
+		<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-foreground">
 			{t('common.navigation.statistics')}
 		</h1>
 	</div>
@@ -1222,13 +1222,13 @@
 					<div class="grid grid-cols-2 gap-2">
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.date')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{formatDateWithTimezoneSync(selectedPoint.recorded_at, selectedPoint.tz_diff)}
 							</div>
 						</div>
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.mode')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{translateTransportMode(selectedPoint.transport_mode || 'unknown')}
 							</div>
 						</div>
@@ -1237,13 +1237,13 @@
 					<div class="grid grid-cols-2 gap-2">
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.coordinates')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{selectedPoint.lat}, {selectedPoint.lon}
 							</div>
 						</div>
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.popupSpeed')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
 							</div>
 						</div>
@@ -1253,7 +1253,7 @@
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.popupDistance')}:</span
 							>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{selectedPoint.distance
 									? `${(selectedPoint.distance / 1000).toFixed(2)} km`
 									: 'N/A'}
@@ -1261,7 +1261,7 @@
 						</div>
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.country')}:</span>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{selectedPoint.country_code || 'N/A'}
 							</div>
 						</div>
@@ -1270,7 +1270,7 @@
 					<div class="grid grid-cols-2 gap-2">
 						<div>
 							<span class="font-medium text-muted-foreground">{t('statistics.popupReason')}</span>
-							<div class="text-gray-800 dark:text-gray-200">
+							<div class="text-gray-800 dark:text-muted-foreground">
 								{selectedPoint.detection_reason
 									? getTransportDetectionReasonLabel(
 											selectedPoint.detection_reason as TransportDetectionReason
@@ -1286,7 +1286,7 @@
 		<!-- No Data Message -->
 		{#if !isLoading && !isInitialLoad && (!statisticsData || Object.keys(statisticsData).length === 0)}
 			<div
-				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80"
+				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-background/80"
 			>
 				<div class="text-center">
 					<MapPin class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
@@ -1310,15 +1310,15 @@
 			{#each Array(8) as _, index (`loading-${index}`)}
 				<div class="rounded-lg border p-4 bg-card border-border">
 					<div class="mb-3 flex items-center gap-2">
-						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
+						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
 					</div>
 					<div class="space-y-3">
 						{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
 							<div class="flex items-center gap-4">
-								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
-								<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-gray-700"></div>
+								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
+								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
+								<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
 							</div>
 						{/each}
 					</div>
@@ -1357,7 +1357,7 @@
 					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
 							<Globe2 class="text-primary dark:text-primary h-5 w-5" />
-							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+							<span class="text-lg font-semibold text-gray-800 dark:text-foreground">
 								{t('statistics.countryTimeDistribution')}
 							</span>
 						</div>
@@ -1371,7 +1371,7 @@
 										</span>
 									</div>
 									<div class="relative w-full">
-										<div class="h-4 rounded bg-gray-200 dark:bg-gray-700">
+										<div class="h-4 rounded bg-gray-200 dark:bg-muted">
 											<div
 												class="bg-primary flex h-4 items-center justify-center rounded text-xs font-bold text-white transition-all duration-300"
 												style="width: {country.percent}%; min-width: 2.5rem;"
@@ -1395,7 +1395,7 @@
 					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
 							<Route class="text-primary dark:text-primary h-5 w-5" />
-							<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+							<span class="text-lg font-semibold text-gray-800 dark:text-foreground">
 								{t('statistics.transportModes')}
 							</span>
 						</div>
@@ -1440,7 +1440,7 @@
 												{translateTransportMode(mode.mode)}
 											</td>
 											<td
-												class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-gray-300"
+												class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-muted-foreground"
 											>
 												{formatDistance(mode.distance)}
 											</td>
@@ -1469,7 +1469,7 @@
 		<div class="mb-8 w-full rounded-lg border p-4 md:w-1/2 bg-card border-border">
 			<div class="mb-3 flex items-center gap-2">
 				<Train class="text-primary dark:text-primary h-5 w-5" />
-				<span class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+				<span class="text-lg font-semibold text-gray-800 dark:text-foreground">
 					{t('statistics.trainStationVisits')}
 				</span>
 			</div>
@@ -1498,7 +1498,7 @@
 									{station.name}
 								</td>
 								<td
-									class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-gray-300"
+									class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-muted-foreground"
 								>
 									{station.count}
 								</td>
@@ -1532,15 +1532,15 @@
 	<!-- Loading Overlay -->
 	{#if isLoading}
 		<div
-			class="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-gray-900/70"
+			class="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-background/70"
 		>
-			<Loader2 class="text-primary h-16 w-16 animate-spin dark:text-gray-300" />
+			<Loader2 class="text-primary h-16 w-16 animate-spin dark:text-muted-foreground" />
 			<div class="mt-4 text-center">
 				<div class="mb-2 text-lg font-medium text-muted-foreground">
 					{loadingStage || t('statistics.loading')}
 				</div>
 				{#if loadingProgress > 0}
-					<div class="mb-2 h-2 w-64 max-w-[80vw] rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="mb-2 h-2 w-64 max-w-[80vw] rounded-full bg-gray-200 dark:bg-muted">
 						<div
 							class="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
 							style="width: {Math.round(loadingProgress)}%"

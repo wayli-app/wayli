@@ -446,7 +446,7 @@
 								<span>{t('exportJobs.progress')}</span>
 								<span>{job.progress}%</span>
 							</div>
-							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-muted">
 								<div
 									class="bg-primary dark:bg-primary h-2 rounded-full transition-all duration-300"
 									style="width: {job.progress}%"
@@ -482,7 +482,7 @@
 								{/if}
 								{#if job.data.format}
 									<span
-										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-gray-200 bg-muted"
+										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-muted-foreground bg-muted"
 									>
 										{job.data.format === 'GeoJSON' ? job.data.format : 'JSON'}
 									</span>

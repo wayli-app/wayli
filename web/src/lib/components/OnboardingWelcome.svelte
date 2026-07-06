@@ -187,7 +187,7 @@
 							? 'bg-primary'
 							: i < currentStep
 								? 'bg-primary/50'
-								: 'bg-gray-300 dark:bg-gray-600'}"
+								: 'bg-gray-300 dark:bg-muted'}"
 					></div>
 				{/each}
 			</div>
@@ -253,7 +253,7 @@
 								oninput={handleAddressInput}
 								onkeydown={handleAddressKeydown}
 								placeholder={t('onboarding.homeAddressPlaceholder')}
-								class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-primary focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+								class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-primary focus:outline-none dark:border-border dark:bg-muted dark:text-foreground"
 							/>
 							{#if isSearching}
 								<div class="absolute top-1/2 right-3 -translate-y-1/2">
@@ -267,12 +267,12 @@
 						<!-- Suggestions Dropdown -->
 						{#if homeAddressSuggestions.length > 0 && showSuggestions}
 							<div
-								class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
+								class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-border bg-card"
 							>
 								{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 									<button
 										type="button"
-										class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:focus:bg-gray-700 {selectedAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+										class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
 										onclick={() => selectAddress(suggestion)}
 									>
 										<div class="font-medium">{suggestion.display_name}</div>
@@ -310,7 +310,7 @@
 					<div class="flex gap-4">
 						<button
 							onclick={handleSkip}
-							class="flex-1 rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-all hover:scale-105 dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+							class="flex-1 rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-all hover:scale-105 dark:border-border dark:text-muted-foreground hover:bg-muted"
 						>
 							{t('onboarding.skipForNow')}
 						</button>
@@ -348,7 +348,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
+							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
@@ -371,7 +371,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
+							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30"
@@ -395,7 +395,7 @@
 								onclick={() => {
 									handleFinish();
 								}}
-								class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
+								class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
 							>
 								<div
 									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30"
@@ -419,7 +419,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-gray-50 dark:hover:border-primary/50 dark:hover:bg-gray-700/50 border-border"
+							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"

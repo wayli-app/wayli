@@ -179,14 +179,14 @@
 		{required}
 		oninput={handleInput}
 		onkeydown={handleKeydown}
-		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
 	/>
 
 	{#if showClearButton && inputValue}
 		<button
 			type="button"
 			aria-label="Clear address"
-			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-gray-200 focus:ring-2 focus:ring-primary focus:outline-none dark:hover:bg-gray-700"
+			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-muted focus:ring-2 focus:ring-primary focus:outline-none dark:hover:bg-muted"
 			onclick={clearAddress}
 		>
 			✕
@@ -209,14 +209,14 @@
 	<!-- Suggestions Dropdown -->
 	{#if showSuggestions}
 		<div
-			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-gray-600 bg-card"
+			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-border bg-card"
 		>
 			{#if suggestions.length > 0}
 				{#each suggestions as suggestion, index (suggestion.display_name + index)}
 					<button
 						type="button"
 						data-testid="address-suggestion"
-						class="w-full px-4 py-2 text-left focus:bg-gray-100 focus:outline-none dark:focus:bg-gray-700 {selectedIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''} hover:bg-muted"
+						class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedIndex === index ? 'bg-gray-100 dark:bg-muted' : ''} hover:bg-muted"
 						onclick={() => selectAddress(suggestion)}
 					>
 						<div class="text-sm text-foreground">{suggestion.display_name}</div>

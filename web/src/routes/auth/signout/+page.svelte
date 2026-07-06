@@ -57,7 +57,7 @@
 </script>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-background dark:via-card dark:to-background"
 >
 	<div class="text-center">
 		<Loader2 class="text-primary dark:text-primary mx-auto mb-4 h-8 w-8 animate-spin" />

@@ -1339,7 +1339,7 @@
 	<!-- Header -->
 	<div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
 		<div class="flex items-center gap-3">
-			<Route class="text-primary h-8 w-8 dark:text-gray-400" />
+			<Route class="text-primary h-8 w-8 dark:text-muted-foreground" />
 			<h1 class="text-3xl font-bold text-foreground">
 				{t('common.navigation.trips')}
 			</h1>
@@ -1371,7 +1371,7 @@
 				placeholder={t('trips.searchTrips')}
 				bind:value={searchQuery}
 				oninput={handleSearchChange}
-				class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 dark:border-gray-600 dark:text-gray-100 bg-card"
+				class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-4 pl-10 text-gray-900 focus:border-transparent focus:ring-2 dark:border-border dark:text-foreground bg-card"
 			/>
 		</div>
 		<div class="flex gap-2">
@@ -1388,7 +1388,7 @@
 					class="rounded-lg px-4 py-2 text-sm font-medium transition-colors {selectedFilter ===
 					filter.value
 						? 'bg-primary text-white'
-						: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
+						: 'bg-gray-100 text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 				>
 					{filter.label}
 				</button>
@@ -1432,7 +1432,7 @@
 								type="text"
 								id="title"
 								bind:value={tripForm.title}
-								class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
+								class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-foreground bg-card border-border"
 								placeholder={t('trips.tripTitle')}
 								required
 								disabled={isSubmitting}
@@ -1447,7 +1447,7 @@
 									type="date"
 									id="start_date"
 									bind:value={tripForm.start_date}
-									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
+									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-foreground bg-card border-border"
 									required
 									disabled={isSubmitting}
 								/>
@@ -1460,7 +1460,7 @@
 									type="date"
 									id="end_date"
 									bind:value={tripForm.end_date}
-									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
+									class="focus:ring-primary w-full rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-foreground bg-card border-border"
 									required
 									disabled={isSubmitting}
 								/>
@@ -1474,7 +1474,7 @@
 								id="description"
 								bind:value={tripForm.description}
 								rows="3"
-								class="focus:ring-primary w-full resize-none rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
+								class="focus:ring-primary w-full resize-none rounded-lg border px-4 py-2 text-gray-900 focus:border-transparent focus:ring-2 dark:text-foreground bg-card border-border"
 								placeholder={t('trips.describeTripPlaceholder')}
 								disabled={isSubmitting}></textarea>
 						</div>
@@ -1493,7 +1493,7 @@
 										bind:value={newLabel}
 										onkeydown={(e) => e?.key === 'Enter' && (e.preventDefault(), addLabel())}
 										placeholder={t('trips.addLabelPlaceholder')}
-										class="focus:ring-primary flex-1 rounded-lg border px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 dark:text-gray-100 bg-card border-border"
+										class="focus:ring-primary flex-1 rounded-lg border px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 dark:text-foreground bg-card border-border"
 									/>
 									<button
 										type="button"
@@ -1509,13 +1509,13 @@
 									<div class="flex flex-wrap gap-2">
 										{#each tripForm.labels as label (label)}
 											<div
-												class="bg-primary/10 text-primary dark:bg-primary/30 flex items-center gap-1 rounded-full px-3 py-1 text-sm dark:text-gray-300"
+												class="bg-primary/10 text-primary dark:bg-primary/30 flex items-center gap-1 rounded-full px-3 py-1 text-sm dark:text-muted-foreground"
 											>
 												<span>{label}</span>
 												<button
 													type="button"
 													onclick={() => removeLabel(label)}
-													class="hover:text-primary ml-1 dark:hover:text-gray-100"
+													class="hover:text-primary ml-1 dark:hover:text-foreground"
 												>
 													<X class="h-3 w-3" />
 												</button>
@@ -1537,7 +1537,7 @@
 									class="border-primary/20 bg-primary/5 dark:border-primary/30 dark:bg-primary/20 mb-3 rounded-lg border p-3"
 								>
 									<div class="mb-2 flex items-center justify-between">
-										<span class="text-primary text-sm font-medium dark:text-gray-300"
+										<span class="text-primary text-sm font-medium dark:text-muted-foreground"
 											>{t('trips.autoSuggestedImage')}</span
 										>
 										{#if isSuggestingImage}
@@ -1546,7 +1546,7 @@
 									</div>
 
 									{#if tripAnalysis && tripAnalysis.primaryCountry}
-										<div class="text-primary mb-2 text-xs dark:text-gray-400">
+										<div class="text-primary mb-2 text-xs dark:text-muted-foreground">
 											Based on your travel to: <strong
 												>{tripAnalysis.primaryCity || tripAnalysis.primaryCountry}</strong
 											>
@@ -1576,7 +1576,7 @@
 							/>
 
 							{#if isUploadingImage}
-								<div class="text-primary mt-2 flex items-center gap-2 dark:text-gray-400">
+								<div class="text-primary mt-2 flex items-center gap-2 dark:text-muted-foreground">
 									<Loader2 class="h-4 w-4 animate-spin" />
 									<span class="text-sm">Uploading image...</span>
 								</div>
@@ -1619,7 +1619,7 @@
 									<div class="absolute top-2 left-2">
 										<button
 											type="button"
-											class="text-primary hover:text-primary/80 rounded bg-white/95 px-3 py-1.5 text-xs font-medium shadow-lg transition-all duration-200 hover:bg-card/95 dark:text-gray-300 dark:hover:bg-gray-800"
+											class="text-primary hover:text-primary/80 rounded bg-white/95 px-3 py-1.5 text-xs font-medium shadow-lg transition-all duration-200 hover:bg-card/95 dark:text-muted-foreground dark:hover:bg-card"
 											onclick={suggestTripImage}
 											disabled={isSuggestingImage}
 											title="Get a suggested image based on your travel data"
@@ -1666,7 +1666,7 @@
 						<div class="flex justify-end gap-3 pt-2">
 							<button
 								type="button"
-								class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 								onclick={closeTripModal}
 								disabled={isSubmitting}>{t('common.actions.cancel')}</button
 							>
@@ -1730,21 +1730,21 @@
 					<!-- Action Buttons -->
 					<div class="absolute top-3 right-3 z-10 flex gap-2">
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
+							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-muted dark:hover:text-blue-400"
 							onclick={() => refreshTripMetadata(trip)}
 							aria-label="Refresh trip metadata"
 						>
 							<RefreshCw class="h-5 w-5" />
 						</button>
 						<button
-							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-gray-700 dark:hover:text-blue-400"
+							class="hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/30 cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors dark:bg-muted dark:hover:text-blue-400"
 							onclick={() => openEditTripModal(trip)}
 							aria-label="Edit trip"
 						>
 							<Edit class="h-5 w-5" />
 						</button>
 						<button
-							class="cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-gray-700 dark:hover:bg-red-900/30"
+							class="cursor-pointer rounded-full bg-gray-100 p-2 text-muted-foreground transition-colors hover:bg-red-100 hover:text-red-500 dark:bg-muted dark:hover:bg-red-900/30"
 							onclick={() => confirmDeleteTrip(trip)}
 							aria-label="Delete trip"
 						>
@@ -1752,7 +1752,7 @@
 						</button>
 					</div>
 					<!-- Trip Image -->
-					<div class="relative h-48 bg-gray-200 dark:bg-gray-700">
+					<div class="relative h-48 bg-gray-200 dark:bg-muted">
 						{#if getTripImage(trip)}
 							{#if imageLoadingStates.get(trip.id) === true}
 								<!-- Loading placeholder -->
@@ -1820,7 +1820,7 @@
 								{/if}
 								{#if trip.metadata?.isMultiCityTrip}
 									<span
-										class="bg-primary/10 text-primary dark:bg-primary/30 rounded-full px-2 py-0.5 text-xs font-medium dark:text-gray-300"
+										class="bg-primary/10 text-primary dark:bg-primary/30 rounded-full px-2 py-0.5 text-xs font-medium dark:text-muted-foreground"
 									>
 										Multi-City
 									</span>
@@ -1889,7 +1889,7 @@
 										<span
 											class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium
 											{label === 'auto-generated'
-												? 'bg-primary/10 text-primary dark:bg-primary/30 dark:text-gray-300'
+												? 'bg-primary/10 text-primary dark:bg-primary/30 dark:text-muted-foreground'
 												: label === 'suggested'
 													? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
 													: label === 'vacation'
@@ -1898,7 +1898,7 @@
 															? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
 															: label === 'adventure'
 																? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
-																: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}"
+																: 'bg-gray-100 text-gray-700 dark:bg-muted dark:text-muted-foreground'}"
 										>
 											{label}
 										</span>
@@ -1998,13 +1998,13 @@
 							</p>
 							<div class="flex gap-2">
 								<button
-									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 									onclick={() => (selectedSuggestedTrips = suggestedTrips.map((t) => t.id))}
 								>
 									{t('trips.selectAll')}
 								</button>
 								<button
-									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+									class="cursor-pointer rounded-lg bg-gray-200 px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 									onclick={() => (selectedSuggestedTrips = [])}
 								>
 									{t('trips.clearSelection')}
@@ -2051,7 +2051,7 @@
 													{/if}
 													{#if trip.metadata?.isMultiCityTrip}
 														<span
-															class="bg-primary/10 text-primary dark:bg-primary/30 rounded-full px-2 py-1 text-xs font-medium dark:text-gray-300"
+															class="bg-primary/10 text-primary dark:bg-primary/30 rounded-full px-2 py-1 text-xs font-medium dark:text-muted-foreground"
 														>
 															Multi-City
 														</span>
@@ -2080,14 +2080,14 @@
 													(city: any) => city.durationHours >= 12 && city.city !== 'Unknown'
 												)}
 												{#if significantCities.length > 0}
-													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+													<div class="mb-2 rounded-md bg-gray-50 p-3 dark:bg-card">
 														<div class="mb-1 text-xs font-semibold text-muted-foreground">
 															{t('trips.visitedCities')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
 															{#each significantCities as city, i (`${city.city}-${i}`)}
 																<span
-																	class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300"
+																	class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-muted dark:text-muted-foreground"
 																>
 																	<MapPin class="h-3 w-3" />
 																	<span class="font-medium">{city.city}</span>
@@ -2104,14 +2104,14 @@
 													(country: any) => country.countryCode !== 'Unknown'
 												)}
 												{#if validCountries.length > 1}
-													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-800">
+													<div class="rounded-md bg-gray-50 p-3 dark:bg-card">
 														<div class="mb-1 text-xs font-semibold text-muted-foreground">
 															{t('trips.visitedCountries')}:
 														</div>
 														<div class="flex flex-wrap gap-2">
 															{#each validCountries as country (country.countryCode)}
 																<span
-																	class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-gray-700 dark:text-gray-300"
+																	class="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs text-gray-700 shadow-sm dark:bg-muted dark:text-muted-foreground"
 																>
 																	<span class="font-medium"
 																		>{$getCountryNameReactive(country.countryCode)}</span
@@ -2154,7 +2154,7 @@
 			<div class="mt-4 flex gap-3 border-t pt-4 border-border">
 				<button
 					onclick={() => (showSuggestedTripsModal = false)}
-					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
+					class="focus:ring-primary flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:outline-none dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 				>
 					{t('common.actions.cancel')}
 				</button>
@@ -2234,7 +2234,7 @@
 				</p>
 				<div class="flex justify-end gap-3">
 					<button
-						class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+						class="cursor-pointer rounded-lg bg-gray-200 px-5 py-2 font-medium text-gray-700 transition-colors hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 						onclick={cancelDeleteTrip}>{t('common.actions.cancel')}</button
 					>
 					<button
@@ -2272,7 +2272,7 @@
 					</div>
 
 					<!-- Progress Bar -->
-					<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+					<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-muted">
 						<div
 							class="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
 							style="width: {approvalProgress.progress}%"
@@ -2337,11 +2337,11 @@
 						{:else if approvalProgress.step === 'complete'}
 							<Check class="mr-3 h-5 w-5 text-green-600" />
 						{/if}
-						<p class="text-primary text-sm dark:text-gray-200">{approvalProgress.message}</p>
+						<p class="text-primary text-sm dark:text-muted-foreground">{approvalProgress.message}</p>
 					</div>
 
 					{#if approvalProgress.imageProgress.currentTrip}
-						<p class="text-primary mt-1 text-xs dark:text-gray-400">
+						<p class="text-primary mt-1 text-xs dark:text-muted-foreground">
 							{t('trips.lastProcessed', { title: approvalProgress.imageProgress.currentTrip })}
 						</p>
 					{/if}
@@ -2365,7 +2365,7 @@
 	<!-- Powered by Pexels Footer -->
 	<div class="mt-12 text-center">
 		<div
-			class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-600 dark:text-gray-400 bg-muted"
+			class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm text-gray-600 dark:text-muted-foreground bg-muted"
 		>
 			{t('trips.poweredByPexels')}
 		</div>

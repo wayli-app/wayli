@@ -96,7 +96,7 @@
 				</div>
 				<button
 					onclick={closeModal}
-					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-gray-200 dark:hover:bg-gray-700"
+					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-muted"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -134,7 +134,7 @@
 									type="text"
 									id="firstName"
 									bind:value={localUser.first_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
+									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 									placeholder="e.g. Jane"
 								/>
 							</div>
@@ -152,7 +152,7 @@
 									type="text"
 									id="lastName"
 									bind:value={localUser.last_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
+									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 									placeholder="e.g. Doe"
 								/>
 							</div>
@@ -171,7 +171,7 @@
 								type="email"
 								id="email"
 								bind:value={localUser.email}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-primary dark:focus:ring-primary"
+								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-white dark:focus:border-primary dark:focus:ring-primary"
 								placeholder="e.g. jane.doe@example.com"
 							/>
 						</div>
@@ -189,7 +189,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={closeModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-muted"
+					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-muted-foreground hover:bg-muted"
 				>
 					Cancel
 				</button>
