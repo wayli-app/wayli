@@ -384,14 +384,14 @@
 </svelte:head>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 dark:from-background dark:via-card dark:to-background"
 >
 	<div class="w-full max-w-md">
 		<!-- Back to home -->
 		<div class="mb-8">
 			<a
 				href="/"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToHome')}
@@ -428,7 +428,7 @@
 							type="button"
 							onclick={() => signInWithOAuth(provider.provider)}
 							disabled={loading}
-							class="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+							class="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 						>
 							{#if isKnownProvider(provider.provider)}
 								{@render providerIcon(provider.provider, 'lg')}
@@ -466,7 +466,7 @@
 								type="email"
 								bind:value={email}
 								required
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
 								placeholder={t('auth.enterYourEmail')}
 							/>
 						</div>
@@ -486,7 +486,7 @@
 								type={showPassword ? 'text' : 'password'}
 								bind:value={password}
 								required
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400"
+								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
 								placeholder={t('auth.enterYourPassword')}
 							/>
 							<button
@@ -509,7 +509,7 @@
 							<input
 								type="checkbox"
 								bind:checked={rememberMe}
-								class="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+								class="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 dark:border-border dark:bg-muted"
 							/>
 							<span class="ml-2 text-sm text-muted-foreground">
 								{t('auth.rememberMe')}
@@ -538,7 +538,7 @@
 				{#if oauthProviders.length > 0}
 					<div class="relative my-6">
 						<div class="absolute inset-0 flex items-center">
-							<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
+							<div class="w-full border-t border-gray-300 dark:border-border"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
 							<span class="px-2 text-muted-foreground bg-card">
@@ -556,7 +556,7 @@
 								type="button"
 								onclick={() => signInWithOAuth(provider.provider)}
 								disabled={loading}
-								class="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+								class="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
 							>
 								{#if isKnownProvider(provider.provider)}
 									{@render providerIcon(provider.provider, 'sm')}

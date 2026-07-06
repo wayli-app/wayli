@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Plus, Search, Trash2, MessageSquare, Loader2 } from 'lucide-svelte';
+	import { t } from '$lib/i18n';
 	import { formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
 	import type { AIUserConversationSummary } from '$lib/services/chat.service';
 
@@ -129,10 +130,10 @@
 			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 			<input
 				type="text"
-				placeholder="Search conversations..."
+				placeholder={t('ask.searchConversations')}
 				aria-label="Search conversations"
 				bind:value={searchQuery}
-				class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-3 pl-9 text-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+				class="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pr-3 pl-9 text-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-white"
 			/>
 		</div>
 	</div>
@@ -145,7 +146,7 @@
 			</div>
 		{:else if filteredConversations.length === 0}
 			<div class="flex h-32 flex-col items-center justify-center p-4 text-center">
-				<MessageSquare class="mb-2 h-8 w-8 text-gray-300 dark:text-gray-600" />
+				<MessageSquare class="mb-2 h-8 w-8 text-gray-300 dark:text-muted-foreground" />
 				<p class="text-sm text-muted-foreground">
 					{searchQuery ? 'No conversations found' : 'No conversations yet'}
 				</p>
@@ -189,7 +190,7 @@
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -236,7 +237,7 @@
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -283,7 +284,7 @@
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />
@@ -330,7 +331,7 @@
 						<button
 							type="button"
 							onclick={(e) => handleDeleteClick(e, conv.id)}
-							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-muted-foreground"
+							class="flex-shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
 							title="Delete conversation"
 						>
 							<Trash2 class="h-4 w-4" />

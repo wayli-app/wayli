@@ -35,7 +35,7 @@
 			const serviceAdapter = new ServiceAdapter({ session });
 			await serviceAdapter.disable2FA(password);
 
-			toast.success('Two-factor authentication has been disabled');
+			toast.success(t('auth.twoFactorDisabled'));
 			dispatch('success');
 			handleClose();
 		} catch (err) {
@@ -134,7 +134,7 @@
 					type="password"
 					bind:value={password}
 					placeholder="••••••••"
-					class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 transition focus:border-red-500 focus:ring-2 focus:ring-red-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+					class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 transition focus:border-red-500 focus:ring-2 focus:ring-red-500 focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
 					onkeydown={(e) => {
 						if (e.key === 'Enter' && password) {
 							handleDisable();
@@ -147,7 +147,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-gray-600 dark:text-gray-200 bg-card hover:bg-muted"
+					class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 				>
 					Cancel
 				</button>

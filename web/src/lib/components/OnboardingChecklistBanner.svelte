@@ -204,7 +204,7 @@
 						{Math.round((completedCount / totalSteps) * 100)}%
 					</span>
 				</div>
-				<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+				<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-muted">
 					<div
 						class="h-2 rounded-full bg-blue-600 transition-all duration-500 dark:bg-blue-500"
 						style="width: {(completedCount / totalSteps) * 100}%"

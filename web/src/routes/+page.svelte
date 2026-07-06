@@ -131,7 +131,7 @@
 <!-- Loading State -->
 {#if !messagesLoaded || checkingUserCount}
 	<div
-		class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+		class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-background dark:via-card dark:to-background"
 	>
 		<div class="text-center">
 			<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
@@ -156,7 +156,7 @@
 				onclick={() => handleThemeChange('light')}
 				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'light'
 					? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
-					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+					: 'text-gray-700 hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 				title={t('landing.lightMode')}
 			>
 				<Sun class="h-4 w-4" />
@@ -165,7 +165,7 @@
 				onclick={() => handleThemeChange('dark')}
 				class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme === 'dark'
 					? 'bg-primary/10 text-primary dark:bg-primary/40 dark:text-primary'
-					: 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}"
+					: 'text-gray-700 hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted'}"
 				title={t('landing.darkMode')}
 			>
 				<Moon class="h-4 w-4" />
@@ -177,7 +177,7 @@
 			<div class="group relative">
 				<a
 					href="/dashboard/statistics"
-					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors dark:text-gray-300 bg-card border-border hover:bg-muted"
+					class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 font-medium text-gray-700 shadow-lg transition-colors dark:text-muted-foreground bg-card border-border hover:bg-muted"
 				>
 					<User class="h-4 w-4" />
 					{($userStore.email?.split('@')[0] || 'User').charAt(0).toUpperCase() +
@@ -191,13 +191,13 @@
 					<div class="py-2">
 						<a
 							href="/dashboard/statistics"
-							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-gray-300 hover:bg-muted"
+							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-muted-foreground hover:bg-muted"
 						>
 							{t('common.navigation.dashboard')}
 						</a>
 						<a
 							href="/dashboard/account-settings"
-							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-gray-300 hover:bg-muted"
+							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-muted-foreground hover:bg-muted"
 						>
 							{t('common.navigation.accountSettings')}
 						</a>
@@ -226,7 +226,7 @@
 
 	<!-- Hero Section -->
 	<div
-		class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 transition-colors duration-300 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+		class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 transition-colors duration-300 dark:from-background dark:via-card dark:to-background"
 	>
 		<div class="container mx-auto px-4 py-16">
 			<!-- Hero Content -->
@@ -238,19 +238,19 @@
 					</div>
 				</div>
 				<p
-					class="mb-4 text-2xl font-semibold text-gray-800 transition-colors duration-300 md:text-3xl dark:text-gray-200"
+					class="mb-4 text-2xl font-semibold text-gray-800 transition-colors duration-300 md:text-3xl dark:text-muted-foreground"
 				>
 					{t('landing.yourPersonalTracker')}
 				</p>
 				<p
-					class="mb-8 text-lg leading-relaxed text-gray-600 transition-colors duration-300 md:text-xl dark:text-gray-400"
+					class="mb-8 text-lg leading-relaxed text-gray-600 transition-colors duration-300 md:text-xl dark:text-muted-foreground"
 				>
 					{t('landing.selfHostedTagline')}
 				</p>
 				<div class="flex flex-col justify-center gap-4 sm:flex-row">
 					<a
 						href="/auth/signup"
-						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 hover:bg-muted"
+						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
 					>
 						{t('landing.getStarted')}
 						<ArrowRight class="h-5 w-5" />
@@ -268,26 +268,26 @@
 			<div class="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 				<!-- Feature 1: Privacy First -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 				>
 					<div
 						class="bg-primary/10 dark:bg-primary/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full transition-colors duration-300"
 					>
-						<Shield class="text-primary h-8 w-8 dark:text-gray-300" />
+						<Shield class="text-primary h-8 w-8 dark:text-muted-foreground" />
 					</div>
 					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
+						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
 					>
 						{t('landing.privacyFirst')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
 						{t('landing.privacyFirstDescription')}
 					</p>
 				</div>
 
 				<!-- Feature 2: Automatic Trip Detection -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 				>
 					<div
 						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 transition-colors duration-300 dark:bg-green-900/20"
@@ -295,18 +295,18 @@
 						<MapPin class="h-8 w-8 text-green-600 dark:text-green-400" />
 					</div>
 					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
+						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
 					>
 						{t('landing.automaticTripDetection')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
 						{t('landing.automaticTripDescription')}
 					</p>
 				</div>
 
 				<!-- Feature 3: Beautiful Analytics -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 				>
 					<div
 						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 transition-colors duration-300 dark:bg-purple-900/20"
@@ -314,18 +314,18 @@
 						<BarChart class="h-8 w-8 text-purple-600 dark:text-purple-400" />
 					</div>
 					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
+						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
 					>
 						{t('landing.beautifulAnalytics')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
 						{t('landing.beautifulAnalyticsDescription')}
 					</p>
 				</div>
 
 				<!-- Feature 4: Multi-User Support -->
 				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-gray-700/50 dark:bg-gray-800/50"
+					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 				>
 					<div
 						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 transition-colors duration-300 dark:bg-orange-900/20"
@@ -333,11 +333,11 @@
 						<Users class="h-8 w-8 text-orange-600 dark:text-orange-400" />
 					</div>
 					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-gray-100"
+						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
 					>
 						{t('landing.multiUserSupport')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-gray-400">
+					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
 						{t('landing.multiUserDescription')}
 					</p>
 				</div>

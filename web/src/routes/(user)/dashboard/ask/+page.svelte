@@ -21,7 +21,8 @@
 		ChevronDown,
 		Database,
 		Menu,
-		MessageSquare
+		MessageSquare,
+		Mic
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
@@ -48,6 +49,40 @@
 	let question = $state('');
 	let isConnected = $state(false);
 	let isLoading = $state(false);
+	let isListening = $state(false);
+	let recognition: any = null;
+
+	const supportsVoiceInput =
+		typeof window !== 'undefined' &&
+		('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+	function toggleVoiceInput() {
+		if (!supportsVoiceInput) return;
+		if (isListening) {
+			recognition?.stop();
+			return;
+		}
+		const SR =
+			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+		recognition = new SR();
+		recognition.continuous = false;
+		recognition.interimResults = true;
+		recognition.lang = 'en-US';
+		recognition.onresult = (event: any) => {
+			const transcript = Array.from(event.results)
+				.map((r: any) => r[0].transcript)
+				.join('');
+			question = transcript;
+		};
+		recognition.onerror = () => {
+			isListening = false;
+		};
+		recognition.onend = () => {
+			isListening = false;
+		};
+		recognition.start();
+		isListening = true;
+	}
 	let showMobileSidebar = $state(false);
 	let messages = $state<ChatMessage[]>([]);
 	let currentStreamingContent = $state('');
@@ -752,7 +787,7 @@
 				type="button"
 				onclick={() => (showMobileSidebar = true)}
 				aria-label="Open conversation history"
-				class="rounded-lg p-2 text-gray-600 transition-colors dark:text-gray-300 hover:bg-muted"
+				class="rounded-lg p-2 text-gray-600 transition-colors dark:text-muted-foreground hover:bg-muted"
 			>
 				<Menu class="h-5 w-5" />
 			</button>
@@ -841,16 +876,24 @@
 						{t('ask.askAnything')}
 					</p>
 					<div class="grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-						{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
-							<button
-								onclick={() => useSuggestion(suggestion)}
-								class="hover:border-primary/50 dark:hover:border-primary rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
-							>
-								<div class="font-medium text-muted-foreground">
+					{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
+						<button
+							onclick={() => useSuggestion(suggestion)}
+							class="hover:border-primary/50 dark:hover:border-primary group flex items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
+						>
+							<Sparkles
+								class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 opacity-60 group-hover:opacity-100"
+							/>
+							<div>
+								<div class="font-medium text-foreground">
 									{suggestion.question}
 								</div>
-							</button>
-						{/each}
+								<div class="text-muted-foreground mt-0.5 text-xs">
+									{suggestion.description}
+								</div>
+							</div>
+						</button>
+					{/each}
 					</div>
 				</div>
 			{:else}
@@ -875,7 +918,7 @@
 									<!-- Always show text response first (with Markdown rendering, strip images if cards shown) -->
 									{#if message.content}
 										<div
-											class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
+											class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-muted-foreground"
 										>
 											{@html renderMarkdown(message.content, hasQueryResults)}
 										</div>
@@ -911,7 +954,7 @@
 							</div>
 							{#if message.role === 'user'}
 								<div
-									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+									class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-muted"
 								>
 									<User class="h-5 w-5 text-muted-foreground" />
 								</div>
@@ -975,7 +1018,7 @@
 								<!-- Streaming content (with live Markdown rendering) -->
 								{#if currentStreamingContent}
 									<div
-										class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
+										class="prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-muted-foreground"
 									>
 										{@html renderMarkdown(currentStreamingContent, currentQueryResults.length > 0)}
 									</div>
@@ -1025,9 +1068,21 @@
 					onkeydown={(e) => e.key === 'Enter' && sendMessage()}
 					placeholder={isConnected ? t('ask.inputPlaceholder') : t('ask.inputConnecting')}
 					disabled={isLoading || !isConnected}
-					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-12 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:text-white bg-card"
-				/>
-				{#if isLoading}
+				class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-24 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-border dark:text-white bg-card"
+			/>
+			{#if supportsVoiceInput && !isLoading}
+				<button
+					type="button"
+					onclick={toggleVoiceInput}
+					aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+					class="absolute right-12 rounded-lg p-2 transition-colors {isListening
+						? 'bg-red-500 text-white animate-pulse'
+						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+				>
+					<Mic class="h-5 w-5" />
+				</button>
+			{/if}
+			{#if isLoading}
 					<button
 						onclick={cancelMessage}
 						class="absolute right-3 rounded-lg bg-red-500 p-2 text-white transition-colors hover:bg-red-600"
@@ -1117,7 +1172,7 @@
 
 			<!-- Logs Container -->
 			<div
-				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
+				class="max-h-64 overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-background border-border"
 			>
 				{#if selectedMessageLogs.length === 0}
 					<div class="flex h-full items-center justify-center text-muted-foreground">
@@ -1139,7 +1194,7 @@
 			<div class="mt-4 flex justify-end">
 				<button
 					onclick={closeExecutionLogsModal}
-					class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700 bg-muted"
+					class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted bg-muted"
 				>
 					{t('ask.close')}
 				</button>

@@ -207,7 +207,7 @@
 <div
 	class={showAsCards
 		? ''
-		: 'rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900'}
+		: 'rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-background'}
 >
 	<!-- Collapsible Header - only show for table view, not cards -->
 	{#if !showAsCards}
@@ -276,7 +276,7 @@
 					<!-- Multi-column table -->
 					<table class="w-full text-left text-sm">
 						<thead
-							class="sticky top-0 text-xs uppercase text-gray-600 dark:text-gray-400 bg-muted"
+							class="sticky top-0 text-xs uppercase text-gray-600 dark:text-muted-foreground bg-muted"
 						>
 							<tr>
 								{#each displayableColumns.slice(0, 5) as col}
@@ -288,7 +288,7 @@
 						</thead>
 						<tbody class="divide-y divide-border">
 							{#each displayData as row, rowIdx (rowIdx)}
-								<tr class="hover:bg-gray-100 dark:hover:bg-gray-800/50">
+								<tr class="hover:bg-muted dark:hover:bg-card/50">
 									{#each displayableColumns.slice(0, 5) as col}
 										<td class="px-2 py-1.5 text-foreground">
 											{formatCellValue(row[col])}

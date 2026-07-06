@@ -477,7 +477,7 @@
 								>
 							</div>
 						{/if}
-						<div class="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+						<div class="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-muted">
 							{#if indeterminate}
 								<!-- Indeterminate progress bar with sliding animation -->
 								<div
@@ -532,7 +532,7 @@
 					<div class="level-dropdown relative">
 						<button
 							type="button"
-							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-gray-600 dark:text-gray-300 bg-card hover:bg-muted"
+							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
 							onclick={() => (showLevelDropdown = !showLevelDropdown)}
 						>
 							<span class="capitalize">{selectedLevel}</span>
@@ -546,7 +546,7 @@
 								{#each ['debug', 'info', 'warn', 'error'] as const as level}
 									<button
 										type="button"
-										class="flex w-full items-center px-3 py-2 text-left text-sm {selectedLevel === level ? 'bg-gray-100 dark:bg-gray-700' : ''} hover:bg-muted"
+										class="flex w-full items-center px-3 py-2 text-left text-sm {selectedLevel === level ? 'bg-gray-100 dark:bg-muted' : ''} hover:bg-muted"
 										onclick={() => selectLevel(level)}
 									>
 										<span class="capitalize {logLevelColors[level]}">{level}</span>
@@ -561,7 +561,7 @@
 				<div
 					bind:this={logsContainer}
 					onscroll={handleScroll}
-					class="overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-gray-950 border-border"
+					class="overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-background border-border"
 					style="height: 256px; min-height: 256px; max-height: 256px;"
 				>
 					{#if isLoadingLogs}
@@ -578,7 +578,7 @@
 								>
 								{#if log.count > 1}
 									<span
-										class="flex-shrink-0 rounded bg-gray-200 px-1.5 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+										class="flex-shrink-0 rounded bg-gray-200 px-1.5 text-gray-600 dark:bg-muted dark:text-muted-foreground"
 										>x{log.count}</span
 									>
 								{/if}

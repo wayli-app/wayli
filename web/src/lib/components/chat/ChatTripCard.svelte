@@ -117,7 +117,7 @@
 		if (lowerLabel === 'vacation')
 			return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300';
 		if (lowerLabel === 'auto-generated' || lowerLabel === 'suggested')
-			return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+			return 'bg-gray-100 text-gray-700 dark:bg-muted dark:text-muted-foreground';
 		return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
 	}
 

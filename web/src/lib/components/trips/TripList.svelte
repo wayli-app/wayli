@@ -11,6 +11,7 @@
 		List,
 		LayoutGrid
 	} from 'lucide-svelte';
+	import { t } from '$lib/i18n';
 
 	export let trips: {
 		title: string;
@@ -73,7 +74,7 @@
 		<input
 			type="text"
 			bind:value={searchQuery}
-			placeholder="Search trips..."
+			placeholder={t('trips.searchTrips')}
 			class="w-full rounded-md border border-border bg-white py-2 pr-4 pl-10 text-sm placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
 		/>
 	</div>
@@ -177,7 +178,7 @@
 			<tbody>
 				{#each sortedTrips as trip (trip.title)}
 					<tr
-						class="border-b border-border hover:bg-gray-50 dark:border-border dark:hover:bg-muted"
+						class="border-b border-border hover:bg-muted dark:border-border dark:hover:bg-muted"
 						onmouseenter={() => handleRowHover(trip)}
 					>
 						<td class="w-8 px-6 py-4">
@@ -224,29 +225,29 @@
 						</td>
 						<td class="px-6 py-4">
 							<div class="flex justify-end gap-2">
-								<button class="cursor-pointer rounded p-1 hover:bg-gray-100" aria-label="Edit">
+								<button class="cursor-pointer rounded p-1 hover:bg-muted" aria-label="Edit">
 									<Edit class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 hover:bg-gray-100"
+									class="cursor-pointer rounded p-1 hover:bg-muted"
 									aria-label="View points of interest"
 								>
 									<MapPin class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 hover:bg-gray-100"
+									class="cursor-pointer rounded p-1 hover:bg-muted"
 									aria-label="View statistics"
 								>
 									<BarChart2 class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 hover:bg-gray-100"
+									class="cursor-pointer rounded p-1 hover:bg-muted"
 									aria-label="View on map"
 								>
 									<Map class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 text-red-500 hover:bg-gray-100 hover:text-red-600"
+									class="cursor-pointer rounded p-1 text-red-500 hover:bg-muted hover:text-red-600"
 									aria-label="Delete"
 									onclick={() => onDelete(trip)}
 								>
@@ -262,7 +263,7 @@
 
 	<div class="flex items-center gap-2">
 		<button
-			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-gray-50 dark:border-border dark:bg-card dark:text-gray-300 dark:hover:bg-muted"
+			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-muted dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-muted"
 			class:bg-primary={view === 'list'}
 			class:text-white={view === 'list'}
 			class:border-primary={view === 'list'}
@@ -271,7 +272,7 @@
 			<List class="h-5 w-5" />
 		</button>
 		<button
-			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-gray-50 dark:border-border dark:bg-card dark:text-gray-300 dark:hover:bg-muted"
+			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-muted dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-muted"
 			class:bg-primary={view === 'tiles'}
 			class:text-white={view === 'tiles'}
 			class:border-primary={view === 'tiles'}

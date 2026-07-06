@@ -39,7 +39,7 @@
 			default:
 				return {
 					icon: WifiOff,
-					color: 'text-muted-foreground dark:text-gray-500',
+					color: 'text-muted-foreground dark:text-muted-foreground',
 					bgColor: 'bg-background/20',
 					label: t('realtime.disconnected'),
 					pulse: false

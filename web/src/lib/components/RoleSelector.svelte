@@ -25,13 +25,13 @@
 			type="button"
 			class="rounded-lg border-2 p-4 text-left transition-all {role === roleOption.id
 				? 'border-primary bg-primary/5 dark:bg-primary/30'
-				: 'border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'}"
+				: 'border-gray-300 hover:border-border dark:border-border dark:hover:border-border'}"
 			onclick={() => (role = roleOption.id as 'admin' | 'user')}
 		>
 			<div class="mb-2 flex items-center">
 				<roleOption.icon
 					class="mr-3 h-5 w-5 {role === roleOption.id
-						? 'text-primary dark:text-gray-300'
+						? 'text-primary dark:text-muted-foreground'
 						: 'text-muted-foreground'}"
 				/>
 				<span class="font-semibold text-foreground">{roleOption.label}</span>

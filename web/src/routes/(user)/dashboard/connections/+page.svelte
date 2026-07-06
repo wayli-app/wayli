@@ -129,7 +129,7 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
-			<Link class="text-primary h-8 w-8 dark:text-gray-400" />
+			<Link class="text-primary h-8 w-8 dark:text-muted-foreground" />
 			<h1 class="text-3xl font-bold tracking-tight text-foreground">
 				{t('connections.title')}
 			</h1>
@@ -269,14 +269,14 @@
 							type="text"
 							value={newlyGeneratedEndpoint}
 							readonly
-							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 text-xs text-gray-900 dark:border-border dark:bg-card dark:text-gray-100"
+							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 text-xs text-gray-900 dark:border-border dark:bg-card dark:text-foreground"
 						/>
 						<button
 							type="button"
 							onclick={() =>
 								newlyGeneratedEndpoint &&
 								copyToClipboard(newlyGeneratedEndpoint, t('connections.apiEndpoint'))}
-							class="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-border dark:text-gray-300 dark:hover:bg-card"
+							class="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-muted dark:border-border dark:text-muted-foreground dark:hover:bg-card"
 						>
 							{#if copiedField === t('connections.apiEndpoint')}
 								<Check class="h-4 w-4" />
@@ -301,14 +301,14 @@
 							type="text"
 							value={newlyGeneratedApiKey}
 							readonly
-							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 dark:border-border dark:bg-card dark:text-gray-100"
+							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 dark:border-border dark:bg-card dark:text-foreground"
 						/>
 						<button
 							type="button"
 							onclick={() =>
 								newlyGeneratedApiKey &&
 								copyToClipboard(newlyGeneratedApiKey, t('connections.apiKey'))}
-							class="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-border dark:text-gray-300 dark:hover:bg-card"
+							class="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-muted dark:border-border dark:text-muted-foreground dark:hover:bg-card"
 						>
 							{#if copiedField === t('connections.apiKey')}
 								<Check class="h-4 w-4" />

@@ -320,7 +320,7 @@
 			const session = $sessionStore;
 			if (!session) {
 				console.error('❌ No session available for download');
-				toast.error('No session available');
+				toast.error(t('auth.noSessionAvailable'));
 				return;
 			}
 			console.log('🔑 Session available, user ID:', session.user.id);
@@ -342,14 +342,14 @@
 			} else {
 				console.error('❌ Download URL not available in response:', result);
 				console.error('❌ Expected downloadUrl property but got:', result?.downloadUrl);
-				toast.error('Download URL not available');
+				toast.error(t('auth.downloadUrlNotAvailable'));
 			}
 		} catch (error) {
 			console.error('❌ Error downloading export:', error);
 			console.error('❌ Error type:', typeof error);
 			console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
 			console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-			toast.error('Failed to download export');
+			toast.error(t('auth.downloadFailed'));
 		}
 	}
 
@@ -446,7 +446,7 @@
 								<span>{t('exportJobs.progress')}</span>
 								<span>{job.progress}%</span>
 							</div>
-							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-muted">
 								<div
 									class="bg-primary dark:bg-primary h-2 rounded-full transition-all duration-300"
 									style="width: {job.progress}%"
@@ -482,7 +482,7 @@
 								{/if}
 								{#if job.data.format}
 									<span
-										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-gray-200 bg-muted"
+										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-muted-foreground bg-muted"
 									>
 										{job.data.format === 'GeoJSON' ? job.data.format : 'JSON'}
 									</span>
