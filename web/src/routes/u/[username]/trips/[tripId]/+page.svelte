@@ -6,6 +6,10 @@
 	import { readSetting } from '$lib/utils/settings';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import TripMap from '$lib/components/TripMap.svelte';
+	import CommentThread from '$lib/components/CommentThread.svelte';
+	import LikeButton from '$lib/components/LikeButton.svelte';
+	import RegisterToComment from '$lib/components/RegisterToComment.svelte';
+	import { userStore } from '$lib/stores/auth';
 	import { ArrowLeft, Calendar, Route, MapPin } from 'lucide-svelte';
 
 	type Trip = {
@@ -237,6 +241,21 @@
 					{/each}
 				</div>
 			</div>
+		{/if}
+
+		<!-- Engagement: likes + comments -->
+		<div class="flex items-center gap-4 border-t border-border pt-4">
+			<LikeButton {tripId} />
+		</div>
+
+		{#if $userStore?.id}
+			<!-- Authenticated: show comment thread -->
+			<div class="bg-card border-border rounded-xl border p-4">
+				<CommentThread {tripId} />
+			</div>
+		{:else}
+			<!-- Anonymous: show register-to-comment card -->
+			<RegisterToComment {tripId} />
 		{/if}
 	</div>
 {/if}

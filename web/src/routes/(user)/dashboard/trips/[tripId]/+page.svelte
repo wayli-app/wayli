@@ -16,6 +16,8 @@
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import VisibilityToggle from '$lib/components/VisibilityToggle.svelte';
+	import CommentThread from '$lib/components/CommentThread.svelte';
+	import LikeButton from '$lib/components/LikeButton.svelte';
 	import { ArrowLeft, Plus, MapPin, Calendar, Route, Save, X } from 'lucide-svelte';
 
 	// Debounced visibility save
@@ -347,5 +349,15 @@
 
 			<TripTimeline {entries} canEdit={true} onEdit={openEditEditor} onDelete={handleDeleteEntry} />
 		</div>
+
+		<!-- Engagement (visible when trip is public) -->
+		{#if trip.visibility === 'public'}
+			<div class="flex items-center gap-4 border-t border-border pt-4">
+				<LikeButton {tripId} />
+			</div>
+			<div class="bg-card border-border rounded-xl border p-4">
+				<CommentThread {tripId} />
+			</div>
+		{/if}
 	</div>
 {/if}
