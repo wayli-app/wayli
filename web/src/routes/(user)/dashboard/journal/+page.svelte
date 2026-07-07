@@ -145,7 +145,7 @@
 	}
 </script>
 
-<div class="mx-auto max-w-3xl space-y-6">
+<div class="space-y-6">
 	<!-- Page header -->
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
