@@ -272,7 +272,10 @@
 								{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 									<button
 										type="button"
-										class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+										class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedAddressIndex ===
+										index
+											? 'bg-primary/10 dark:bg-primary/20'
+											: ''} hover:bg-muted"
 										onclick={() => selectAddress(suggestion)}
 									>
 										<div class="font-medium">{suggestion.display_name}</div>

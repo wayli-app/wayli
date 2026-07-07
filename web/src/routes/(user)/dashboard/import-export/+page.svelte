@@ -245,9 +245,7 @@
 
 	<div class="grid gap-8 md:grid-cols-2">
 		<!-- Import Section -->
-		<div
-			class="flex flex-col rounded-xl border p-6 bg-card border-border"
-		>
+		<div class="flex flex-col rounded-xl border p-6 bg-card border-border">
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-muted-foreground" />
 				<h2 class="text-xl font-semibold text-foreground">
@@ -265,9 +263,7 @@
 
 			<div class="flex-1 space-y-4">
 				<div>
-					<label
-						for="fileInput"
-						class="mb-1.5 block text-sm font-medium text-foreground"
+					<label for="fileInput" class="mb-1.5 block text-sm font-medium text-foreground"
 						>{t('importExport.selectFile')}</label
 					>
 					<div class="relative">
@@ -324,9 +320,7 @@
 		</div>
 
 		<!-- Export Section -->
-		<div
-			class="flex flex-col rounded-xl border p-6 bg-card border-border"
-		>
+		<div class="flex flex-col rounded-xl border p-6 bg-card border-border">
 			<div class="mb-6 flex items-center gap-3">
 				<FileDown class="h-5 w-5 text-muted-foreground" />
 				<h2 class="text-xl font-semibold text-foreground">
@@ -339,9 +333,8 @@
 
 			<div class="flex-1 space-y-4">
 				<div>
-					<label
-						class="mb-1.5 block text-sm font-medium text-foreground"
-						for="includeLocationData">{t('importExport.include')}</label
+					<label class="mb-1.5 block text-sm font-medium text-foreground" for="includeLocationData"
+						>{t('importExport.include')}</label
 					>
 					<div class="space-y-2">
 						<label class="flex items-center gap-2">
@@ -350,9 +343,7 @@
 								bind:checked={includeLocationDataExport}
 								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
-							<span class="text-sm text-muted-foreground"
-								>{t('importExport.locationData')}</span
-							>
+							<span class="text-sm text-muted-foreground">{t('importExport.locationData')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -360,9 +351,7 @@
 								bind:checked={includeWantToVisitExport}
 								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
-							<span class="text-sm text-muted-foreground"
-								>{t('importExport.wantToVisit')}</span
-							>
+							<span class="text-sm text-muted-foreground">{t('importExport.wantToVisit')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
@@ -370,8 +359,7 @@
 								bind:checked={includeTripsExport}
 								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
 							/>
-							<span class="text-sm text-muted-foreground">{t('importExport.trips')}</span
-							>
+							<span class="text-sm text-muted-foreground">{t('importExport.trips')}</span>
 						</label>
 					</div>
 				</div>

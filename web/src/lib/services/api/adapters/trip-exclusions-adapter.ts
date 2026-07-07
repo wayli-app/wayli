@@ -135,16 +135,18 @@ export class TripExclusionsAdapter extends BaseAdapter {
 
 		const updatedExclusions = [...currentExclusions, newExclusion];
 
-		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
-			{
-				id: userData.user.id,
-				trip_exclusions: updatedExclusions,
-				updated_at: new Date().toISOString()
-			},
-			{
-				onConflict: 'id'
-			}
-		);
+		const { error: upsertError } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.upsert(
+				{
+					id: userData.user.id,
+					trip_exclusions: updatedExclusions,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'id'
+				}
+			);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to save exclusion');
@@ -206,16 +208,18 @@ export class TripExclusionsAdapter extends BaseAdapter {
 				: ex
 		);
 
-		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
-			{
-				id: userData.user.id,
-				trip_exclusions: updatedExclusions,
-				updated_at: new Date().toISOString()
-			},
-			{
-				onConflict: 'id'
-			}
-		);
+		const { error: upsertError } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.upsert(
+				{
+					id: userData.user.id,
+					trip_exclusions: updatedExclusions,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'id'
+				}
+			);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to update exclusion');
@@ -263,16 +267,18 @@ export class TripExclusionsAdapter extends BaseAdapter {
 		const currentExclusions: TripExclusion[] = userPreferences?.trip_exclusions || [];
 		const updatedExclusions = currentExclusions.filter((ex) => ex.id !== exclusionId);
 
-		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
-			{
-				id: userData.user.id,
-				trip_exclusions: updatedExclusions,
-				updated_at: new Date().toISOString()
-			},
-			{
-				onConflict: 'id'
-			}
-		);
+		const { error: upsertError } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.upsert(
+				{
+					id: userData.user.id,
+					trip_exclusions: updatedExclusions,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'id'
+				}
+			);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to delete exclusion');

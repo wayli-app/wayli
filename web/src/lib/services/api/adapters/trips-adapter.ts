@@ -100,7 +100,8 @@ export class TripsAdapter extends BaseAdapter {
 		if (error || !data) return 0;
 
 		return data.reduce(
-			(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+			(sum: number, row: Record<string, any>) =>
+				sum + (typeof row.distance === 'number' ? row.distance : 0),
 			0
 		);
 	}
@@ -563,7 +564,7 @@ export class TripsAdapter extends BaseAdapter {
 		}
 
 		const approvedTrips = [];
-		for (const trip of (trips as unknown as Record<string, any>[])) {
+		for (const trip of trips as unknown as Record<string, any>[]) {
 			let distanceTraveled = 0;
 			if (trip.start_date && trip.end_date) {
 				distanceTraveled = await this.calculateTripDistance(
@@ -620,7 +621,11 @@ export class TripsAdapter extends BaseAdapter {
 			const aiEnabled = await this.isAIEnabled();
 			if (aiEnabled) {
 				try {
-					await fluxbase.jobs.submit('sync-trip-embeddings', {}, { namespace: 'wayli', priority: 5 });
+					await fluxbase.jobs.submit(
+						'sync-trip-embeddings',
+						{},
+						{ namespace: 'wayli', priority: 5 }
+					);
 				} catch {
 					// Non-fatal
 				}

@@ -207,9 +207,7 @@
 	<div class="space-y-6">
 		<!-- Date Range Selection -->
 		<div>
-			<label
-				for="start-date"
-				class="mb-2 block text-sm font-medium text-muted-foreground"
+			<label for="start-date" class="mb-2 block text-sm font-medium text-muted-foreground"
 				>{t('tripGenerationModal.startDate')}</label
 			>
 			<input
@@ -255,9 +253,7 @@
 				onchange={handleCustomHomeAddressToggle}
 				class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary dark:border-border"
 			/>
-			<label
-				for="custom-home-address-toggle"
-				class="text-sm font-medium text-muted-foreground"
+			<label for="custom-home-address-toggle" class="text-sm font-medium text-muted-foreground"
 				>{t('tripGenerationModal.useCustomHomeAddress')}</label
 			>
 		</div>
@@ -297,7 +293,10 @@
 						{#each customHomeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 							<button
 								type="button"
-								class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedCustomHomeAddressIndex === index ? 'bg-gray-100 dark:bg-muted' : ''} hover:bg-muted"
+								class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedCustomHomeAddressIndex ===
+								index
+									? 'bg-gray-100 dark:bg-muted'
+									: ''} hover:bg-muted"
 								onclick={() => selectCustomHomeAddress(suggestion)}
 							>
 								<div class="text-sm text-foreground">

@@ -377,9 +377,7 @@
 	{:else}
 		<div class="space-y-3">
 			{#each filteredExportJobs as job (job.id)}
-				<div
-					class="rounded-lg border p-4 bg-card border-border"
-				>
+				<div class="rounded-lg border p-4 bg-card border-border">
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-3">
 							<!-- Status icon -->

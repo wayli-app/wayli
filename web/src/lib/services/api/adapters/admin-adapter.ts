@@ -67,7 +67,9 @@ export class AdminAdapter extends BaseAdapter {
 			const userOverrideSetting = await fluxbase.admin.settings.system.get(
 				'app.ai.allow_user_provider_override'
 			);
-			allowUserOverride = Boolean((userOverrideSetting?.value as { value?: boolean })?.value ?? false);
+			allowUserOverride = Boolean(
+				(userOverrideSetting?.value as { value?: boolean })?.value ?? false
+			);
 		} catch {
 			// Settings don't exist yet
 		}
@@ -89,7 +91,7 @@ export class AdminAdapter extends BaseAdapter {
 			}
 		};
 
-		let secretsMetadata: Record<string, unknown> = {};
+		const secretsMetadata: Record<string, unknown> = {};
 		try {
 			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
 			if (pexelsSecretMeta) {
@@ -117,28 +119,34 @@ export class AdminAdapter extends BaseAdapter {
 
 		switch (action) {
 			case 'updateEmailSettings':
-				return await fluxbase.admin.settings.email.update(params as Parameters<typeof fluxbase.admin.settings.email.update>[0]);
+				return await fluxbase.admin.settings.email.update(
+					params as Parameters<typeof fluxbase.admin.settings.email.update>[0]
+				);
 			case 'enableSignup':
 				return await settings.enableSignup();
 			case 'disableSignup':
 				return await settings.disableSignup();
 			case 'setEmailVerificationRequired':
-				return await settings.setEmailVerificationRequired((params as { required: boolean }).required);
+				return await settings.setEmailVerificationRequired(
+					(params as { required: boolean }).required
+				);
 			case 'setPasswordMinLength':
 				return await settings.setPasswordMinLength((params as { length: number }).length);
 			case 'setPasswordComplexity':
-				return await settings.setPasswordComplexity(params as Parameters<typeof settings.setPasswordComplexity>[0]);
+				return await settings.setPasswordComplexity(
+					params as Parameters<typeof settings.setPasswordComplexity>[0]
+				);
 			case 'setSessionSettings':
 				return await settings.setSessionSettings(
 					(params as { timeoutMinutes: number }).timeoutMinutes,
 					(params as { maxSessionsPerUser: number }).maxSessionsPerUser
 				);
 			case 'setFeature':
-			return await settings.setFeature(
-				// ponytail: cast — setFeature restricts to a literal union, but feature arrives as a dynamic string.
-				(params as { feature: string }).feature as 'realtime' | 'storage' | 'functions',
-				(params as { enabled: boolean }).enabled
-			);
+				return await settings.setFeature(
+					// ponytail: cast — setFeature restricts to a literal union, but feature arrives as a dynamic string.
+					(params as { feature: string }).feature as 'realtime' | 'storage' | 'functions',
+					(params as { enabled: boolean }).enabled
+				);
 			case 'setRateLimiting':
 				return await settings.setRateLimiting((params as { enabled: boolean }).enabled);
 			case 'setAIConfig':
@@ -188,7 +196,9 @@ export class AdminAdapter extends BaseAdapter {
 
 		if (params.provider) {
 			const { data: existingProviders } = await fluxbase.admin.ai.listProviders();
-			const existing = existingProviders?.find((p: { name: string }) => p.name === params.provider!.name);
+			const existing = existingProviders?.find(
+				(p: { name: string }) => p.name === params.provider!.name
+			);
 
 			if (existing) {
 				// ponytail: cast as any — updateProvider's typed payload drops provider_type/is_default,
@@ -240,7 +250,8 @@ export class AdminAdapter extends BaseAdapter {
 			description: description || `Wayli setting: ${key}`,
 			is_public: false,
 			is_secret: key.includes('api_key') || key.includes('secret'),
-			value_type: typeof value === 'object' ? 'json' : (typeof value as 'string' | 'number' | 'boolean')
+			value_type:
+				typeof value === 'object' ? 'json' : (typeof value as 'string' | 'number' | 'boolean')
 		});
 
 		return { updated: key };
@@ -344,7 +355,10 @@ export class AdminAdapter extends BaseAdapter {
 			}
 
 			case 'delete': {
-				const { error } = await fluxbase.from<Record<string, any>>('workers').delete().eq('id', action.id);
+				const { error } = await fluxbase
+					.from<Record<string, any>>('workers')
+					.delete()
+					.eq('id', action.id);
 
 				if (error) {
 					throw new Error(error.message || 'Failed to delete worker');
@@ -393,7 +407,9 @@ export class AdminAdapter extends BaseAdapter {
 			throw new Error(error.message || 'Failed to fetch users');
 		}
 
-		const { count } = await fluxbase.from<Record<string, any>>('user_profiles').select('*', { count: 'exact', head: true });
+		const { count } = await fluxbase
+			.from<Record<string, any>>('user_profiles')
+			.select('*', { count: 'exact', head: true });
 
 		return {
 			users: users || [],

@@ -1204,7 +1204,8 @@
 				handleCloseAddUserModal();
 				await invalidateAll(); // Refresh the user list
 			} else {
-				const errorDescription = (data as any)?.error || 'An unknown error occurred while adding the user.';
+				const errorDescription =
+					(data as any)?.error || 'An unknown error occurred while adding the user.';
 				toast.error(t('serverAdmin.failedToAddUser'), { description: errorDescription });
 			}
 		} catch (error: any) {
@@ -1284,7 +1285,7 @@
 								id="newUserFirstName"
 								bind:value={newUserFirstName}
 								class="w-full"
-								placeholder={t("serverAdmin.firstNamePlaceholder")}
+								placeholder={t('serverAdmin.firstNamePlaceholder')}
 								required
 							/>
 						</div>
@@ -1304,7 +1305,7 @@
 								id="newUserLastName"
 								bind:value={newUserLastName}
 								class="w-full"
-								placeholder={t("serverAdmin.lastNamePlaceholder")}
+								placeholder={t('serverAdmin.lastNamePlaceholder')}
 								required
 							/>
 						</div>
@@ -1322,7 +1323,7 @@
 							id="newUserEmail"
 							bind:value={newUserEmail}
 							class="w-full"
-							placeholder={t("serverAdmin.emailPlaceholder")}
+							placeholder={t('serverAdmin.emailPlaceholder')}
 							required
 						/>
 					</div>
@@ -1343,7 +1344,7 @@
 								id="newUserPassword"
 								bind:value={newUserPassword}
 								class="w-full"
-								placeholder={t("serverAdmin.passwordMinPlaceholder")}
+								placeholder={t('serverAdmin.passwordMinPlaceholder')}
 								required
 							/>
 						</div>
@@ -1363,7 +1364,7 @@
 								id="newUserConfirmPassword"
 								bind:value={newUserConfirmPassword}
 								class="w-full"
-								placeholder={t("serverAdmin.confirmPasswordPlaceholder")}
+								placeholder={t('serverAdmin.confirmPasswordPlaceholder')}
 								required
 							/>
 						</div>
@@ -1482,7 +1483,9 @@
 		<div class="mb-6 border-b border-border">
 			<nav class="-mb-px flex space-x-8">
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
+						? 'border-primary text-primary dark:border-primary dark:text-primary'
+						: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1491,7 +1494,9 @@
 					</div>
 				</button>
 				<button
-					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users' ? 'border-primary text-primary dark:border-primary dark:text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
+					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
+						? 'border-primary text-primary dark:border-primary dark:text-primary'
+						: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1526,7 +1531,7 @@
 							<Input
 								type="text"
 								bind:value={searchQuery}
-								placeholder={t("serverAdmin.searchUsersPlaceholder")}
+								placeholder={t('serverAdmin.searchUsersPlaceholder')}
 								class="w-full"
 								oninput={handleSearchInput}
 							/>
@@ -1683,7 +1688,10 @@
 										{#each getPageNumbers() as pageNum (pageNum)}
 											<button
 												onclick={() => goToPage(pageNum)}
-												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum === currentPage ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted dark:hover:bg-muted'}"
+												class="relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium {pageNum ===
+												currentPage
+													? 'bg-primary text-white'
+													: 'text-muted-foreground hover:bg-muted dark:hover:bg-muted'}"
 											>
 												{pageNum}
 											</button>
@@ -1820,7 +1828,7 @@
 										min="1"
 										step="1"
 										class="w-full"
-										placeholder={t("serverAdmin.rateLimitPlaceholder")}
+										placeholder={t('serverAdmin.rateLimitPlaceholder')}
 									/>
 									<p class="mt-1 text-xs text-muted-foreground">
 										Default: 200 (Pexels free tier limit)
@@ -1838,7 +1846,7 @@
 								id="peliasEndpoint"
 								bind:value={peliasEndpoint}
 								class="w-full"
-								placeholder={t("serverAdmin.peliasEndpointPlaceholder")}
+								placeholder={t('serverAdmin.peliasEndpointPlaceholder')}
 								pattern="https?://.+"
 								required
 							/>
@@ -2550,7 +2558,7 @@
 										bind:value={providerModel}
 										disabled={providerReadOnly}
 										class="w-full"
-										placeholder={t("serverAdmin.modelPlaceholder")}
+										placeholder={t('serverAdmin.modelPlaceholder')}
 									/>
 									<p class="mt-1 text-xs text-muted-foreground">
 										{t('serverAdmin.aiModelDescription')}

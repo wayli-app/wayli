@@ -229,9 +229,7 @@
 						</div>
 
 						<!-- Manual Entry -->
-						<div
-							class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border"
-						>
+						<div class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border">
 							<p class="mb-2 text-sm font-medium text-muted-foreground">
 								Or enter this code manually:
 							</p>
@@ -327,9 +325,7 @@
 
 					<!-- Backup Codes -->
 					<div>
-						<p class="mb-3 text-sm font-semibold text-foreground">
-							Save your backup codes:
-						</p>
+						<p class="mb-3 text-sm font-semibold text-foreground">Save your backup codes:</p>
 						<div
 							class="mb-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20"
 						>
@@ -338,9 +334,7 @@
 								your account if you lose your authenticator device.
 							</p>
 						</div>
-						<div
-							class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border"
-						>
+						<div class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border">
 							<div class="grid grid-cols-2 gap-2 font-mono text-sm">
 								{#each backupCodes as code}
 									<div

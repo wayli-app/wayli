@@ -59,7 +59,7 @@ export class TripsService {
 			let currentUserId = userId;
 			if (!currentUserId) {
 				const { data: authData, error: userError } = await this.fluxbase.auth.getUser();
-			const user = authData?.user;
+				const user = authData?.user;
 				if (userError || !user) {
 					throw new Error('User not authenticated');
 				}
@@ -156,7 +156,10 @@ export class TripsService {
 
 	async deleteTrip(id: string): Promise<void> {
 		try {
-			const { error } = await this.fluxbase.from<Record<string, any>>('trips').delete().eq('id', id);
+			const { error } = await this.fluxbase
+				.from<Record<string, any>>('trips')
+				.delete()
+				.eq('id', id);
 
 			if (error) throw error;
 		} catch (error) {
@@ -206,7 +209,8 @@ export class TripsService {
 				if (!error && data) {
 					// Sum up all distances, treating null/undefined as 0
 					distanceTraveled = data.reduce(
-						(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						(sum: number, row: Record<string, any>) =>
+							sum + (typeof row.distance === 'number' ? row.distance : 0),
 						0
 					);
 				}

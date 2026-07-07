@@ -184,9 +184,7 @@
 						<td class="w-8 px-6 py-4">
 							<input type="checkbox" class="rounded border-gray-300 dark:border-border" />
 						</td>
-						<td class="px-6 py-4 text-sm font-medium text-foreground"
-							>{trip.title}</td
-						>
+						<td class="px-6 py-4 text-sm font-medium text-foreground">{trip.title}</td>
 						<td class="px-6 py-4">
 							<div class="flex gap-1">
 								{#each trip.labels as label (label)}
@@ -240,10 +238,7 @@
 								>
 									<BarChart2 class="h-4 w-4 text-muted-foreground" />
 								</button>
-								<button
-									class="cursor-pointer rounded p-1 hover:bg-muted"
-									aria-label="View on map"
-								>
+								<button class="cursor-pointer rounded p-1 hover:bg-muted" aria-label="View on map">
 									<Map class="h-4 w-4 text-muted-foreground" />
 								</button>
 								<button

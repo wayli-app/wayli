@@ -2,8 +2,8 @@ import { writable } from 'svelte/store';
 
 import { fluxbase } from '$lib/fluxbase';
 
-import type {  UserProfile } from '$lib/types/user.types';
-import type {  AuthSession, User } from '@nimbleflux/fluxbase-sdk';
+import type { UserProfile } from '$lib/types/user.types';
+import type { AuthSession, User } from '@nimbleflux/fluxbase-sdk';
 
 type AuthStore = User & Partial<Pick<UserProfile, 'full_name' | 'avatar_url' | 'role'>>;
 

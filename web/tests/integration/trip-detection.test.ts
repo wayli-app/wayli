@@ -72,12 +72,7 @@ describe('Trip Detection Integration', () => {
 
 		it('should calculate segment distance correctly using Haversine formula', () => {
 			// Haversine distance calculation
-			function haversineDistance(
-				lat1: number,
-				lon1: number,
-				lat2: number,
-				lon2: number
-			): number {
+			function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
 				const R = 6371000; // Earth's radius in meters
 				const dLat = ((lat2 - lat1) * Math.PI) / 180;
 				const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -202,9 +197,10 @@ describe('Trip Detection Integration', () => {
 	});
 
 	describe('Date Range Detection', () => {
-		function detectDateRange(
-			points: Array<{ timestamp: Date }>
-		): { startDate: Date; endDate: Date } {
+		function detectDateRange(points: Array<{ timestamp: Date }>): {
+			startDate: Date;
+			endDate: Date;
+		} {
 			const timestamps = points.map((p) => p.timestamp.getTime());
 			return {
 				startDate: new Date(Math.min(...timestamps)),

@@ -336,7 +336,8 @@ export class ServiceAdapter {
 
 		// Sum up all distances, treating null/undefined as 0
 		return data.reduce(
-			(sum: number, row: Record<string, any>) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+			(sum: number, row: Record<string, any>) =>
+				sum + (typeof row.distance === 'number' ? row.distance : 0),
 			0
 		);
 	}
@@ -358,7 +359,7 @@ export class ServiceAdapter {
 			.from<Record<string, any>>('trips')
 			.select('*')
 			.eq('user_id', userData.user.id)
-			.eq('status', 'completed') // Only show completed (approved) trips by default
+			.in('status', ['active', 'planned', 'completed'])
 			.order('created_at', { ascending: false });
 
 		// Add search filter if provided
@@ -1036,8 +1037,8 @@ export class ServiceAdapter {
 			// Upload directly to Fluxbase storage with proper metadata
 			// This ensures the RLS policy can validate the upload correctly
 			const { data, error: uploadError } = await fluxbase.storage
-			.from('temp-files')
-			.upload(fileName, fileBlob, {
+				.from('temp-files')
+				.upload(fileName, fileBlob, {
 					contentType: file.type,
 					upsert: false,
 					metadata: {
@@ -1179,9 +1180,7 @@ export class ServiceAdapter {
 		// Check if job has completed and has a file path
 		// Handle JSON string result (API returns stringified JSON) and nested formats
 		let result = job.result as
-			| { file_path?: string; result?: { file_path?: string } }
-			| string
-			| null;
+			{ file_path?: string; result?: { file_path?: string } } | string | null;
 
 		// Parse if it's a JSON string
 		if (typeof result === 'string') {
@@ -1207,10 +1206,15 @@ export class ServiceAdapter {
 		console.log('[ServiceAdapter] getExportDownloadUrl - generating download URL for:', filePath);
 
 		// Use signed URL for temp-files bucket (requires authentication via RLS)
-		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, { expiresIn: 3600 });
+		const { data, error } = await fluxbase.storage
+			.from('temp-files')
+			.createSignedUrl(filePath, { expiresIn: 3600 });
 
 		if (error || !data?.signedUrl) {
-			console.error('[ServiceAdapter] getExportDownloadUrl - failed to generate signed URL:', error);
+			console.error(
+				'[ServiceAdapter] getExportDownloadUrl - failed to generate signed URL:',
+				error
+			);
 			throw new Error(`Failed to generate download URL: ${error?.message || 'Unknown error'}`);
 		}
 
@@ -1536,7 +1540,7 @@ export class ServiceAdapter {
 		};
 
 		// Get system secrets metadata
-		let secretsMetadata: any = {};
+		const secretsMetadata: any = {};
 		try {
 			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
 			if (pexelsSecretMeta) {
@@ -1775,7 +1779,10 @@ export class ServiceAdapter {
 			}
 
 			case 'delete': {
-				const { error } = await fluxbase.from<Record<string, any>>('workers').delete().eq('id', action.id);
+				const { error } = await fluxbase
+					.from<Record<string, any>>('workers')
+					.delete()
+					.eq('id', action.id);
 
 				if (error) {
 					throw new Error(error.message || 'Failed to delete worker');
@@ -1895,16 +1902,18 @@ export class ServiceAdapter {
 		const updatedExclusions = [...currentExclusions, newExclusion];
 
 		// Upsert user preferences with new exclusions
-		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
-			{
-				id: userData.user.id,
-				trip_exclusions: updatedExclusions,
-				updated_at: new Date().toISOString()
-			},
-			{
-				onConflict: 'id'
-			}
-		);
+		const { error: upsertError } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.upsert(
+				{
+					id: userData.user.id,
+					trip_exclusions: updatedExclusions,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'id'
+				}
+			);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to save exclusion');
@@ -1946,16 +1955,18 @@ export class ServiceAdapter {
 		);
 
 		// Update user preferences
-		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
-			{
-				id: userData.user.id,
-				trip_exclusions: updatedExclusions,
-				updated_at: new Date().toISOString()
-			},
-			{
-				onConflict: 'id'
-			}
-		);
+		const { error: upsertError } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.upsert(
+				{
+					id: userData.user.id,
+					trip_exclusions: updatedExclusions,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'id'
+				}
+			);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to update exclusion');
@@ -1988,16 +1999,18 @@ export class ServiceAdapter {
 		const updatedExclusions = currentExclusions.filter((ex: any) => ex.id !== exclusionId);
 
 		// Update user preferences
-		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_preferences').upsert(
-			{
-				id: userData.user.id,
-				trip_exclusions: updatedExclusions,
-				updated_at: new Date().toISOString()
-			},
-			{
-				onConflict: 'id'
-			}
-		);
+		const { error: upsertError } = await fluxbase
+			.from<Record<string, any>>('user_preferences')
+			.upsert(
+				{
+					id: userData.user.id,
+					trip_exclusions: updatedExclusions,
+					updated_at: new Date().toISOString()
+				},
+				{
+					onConflict: 'id'
+				}
+			);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to delete exclusion');

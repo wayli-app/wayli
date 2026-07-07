@@ -148,9 +148,7 @@ describe('HomeAddressAdapter', () => {
 		});
 
 		it('should throw when address is empty', async () => {
-			await expect(adapter.setHomeAddress({ address: '' })).rejects.toThrow(
-				'Address is required'
-			);
+			await expect(adapter.setHomeAddress({ address: '' })).rejects.toThrow('Address is required');
 
 			await expect(adapter.setHomeAddress({ address: '   ' })).rejects.toThrow(
 				'Address is required'
@@ -164,9 +162,9 @@ describe('HomeAddressAdapter', () => {
 		it('should throw when geocoding fails', async () => {
 			vi.mocked(forwardGeocode).mockResolvedValue(null);
 
-			await expect(
-				adapter.setHomeAddress({ address: 'Invalid Address' })
-			).rejects.toThrow('Failed to geocode address');
+			await expect(adapter.setHomeAddress({ address: 'Invalid Address' })).rejects.toThrow(
+				'Failed to geocode address'
+			);
 		});
 
 		it('should handle database errors during upsert', async () => {

@@ -100,9 +100,7 @@
 
 			<!-- Account Info -->
 			{#if userEmail}
-				<div
-					class="mb-4 rounded-lg border bg-gray-50 p-3 dark:bg-card border-border"
-				>
+				<div class="mb-4 rounded-lg border bg-gray-50 p-3 dark:bg-card border-border">
 					<p class="text-xs text-muted-foreground">{t('auth.account')}</p>
 					<p class="font-medium text-foreground">{userEmail}</p>
 				</div>
@@ -120,10 +118,7 @@
 
 			<!-- Password Input -->
 			<div class="mb-6">
-				<label
-					for="reauth-password"
-					class="mb-2 block text-sm font-medium text-muted-foreground"
-				>
+				<label for="reauth-password" class="mb-2 block text-sm font-medium text-muted-foreground">
 					{t('auth.password')}
 				</label>
 				<div class="relative">

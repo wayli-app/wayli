@@ -392,7 +392,8 @@ export class JobsAdapter extends BaseAdapter {
 			throw new Error('Not an export job');
 		}
 
-		let result = job.result as { file_path?: string; result?: { file_path?: string } } | string | null;
+		let result = job.result as
+			{ file_path?: string; result?: { file_path?: string } } | string | null;
 
 		if (typeof result === 'string') {
 			try {
@@ -409,7 +410,9 @@ export class JobsAdapter extends BaseAdapter {
 			throw new Error('Export file not ready');
 		}
 
-		const { data, error } = await fluxbase.storage.from('temp-files').createSignedUrl(filePath, { expiresIn: 3600 });
+		const { data, error } = await fluxbase.storage
+			.from('temp-files')
+			.createSignedUrl(filePath, { expiresIn: 3600 });
 
 		if (error || !data?.signedUrl) {
 			console.error('[JobsAdapter] getExportDownloadUrl - failed to generate signed URL:', error);
@@ -455,14 +458,16 @@ export class JobsAdapter extends BaseAdapter {
 			const arrayBuffer = await file.arrayBuffer();
 			const fileBlob = new Blob([arrayBuffer], { type: file.type });
 
-			const { error: uploadError } = await fluxbase.storage.from('temp-files').upload(fileName, fileBlob, {
-				contentType: file.type,
-				upsert: false,
-				metadata: {
-					mimetype: file.type,
-					size: file.size.toString()
-				}
-			});
+			const { error: uploadError } = await fluxbase.storage
+				.from('temp-files')
+				.upload(fileName, fileBlob, {
+					contentType: file.type,
+					upsert: false,
+					metadata: {
+						mimetype: file.type,
+						size: file.size.toString()
+					}
+				});
 
 			if (uploadError) {
 				console.error('[JobsAdapter] File upload failed:', uploadError);

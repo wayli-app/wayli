@@ -135,18 +135,20 @@ export class UserProfileService {
 			const user = userData.user;
 			const metadata = user.user_metadata || {};
 
-			const { error: insertError } = await this.fluxbase.from<Record<string, any>>('user_profiles').insert({
-				id: userId,
-				first_name: metadata.first_name || '',
-				last_name: metadata.last_name || '',
-				full_name:
-					metadata.full_name ||
-					`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
-					'',
-				role: (metadata.role as 'user' | 'admin') || 'user',
-				avatar_url: metadata.avatar_url,
-				home_address: metadata.home_address
-			});
+			const { error: insertError } = await this.fluxbase
+				.from<Record<string, any>>('user_profiles')
+				.insert({
+					id: userId,
+					first_name: metadata.first_name || '',
+					last_name: metadata.last_name || '',
+					full_name:
+						metadata.full_name ||
+						`${metadata.first_name || ''} ${metadata.last_name || ''}`.trim() ||
+						'',
+					role: (metadata.role as 'user' | 'admin') || 'user',
+					avatar_url: metadata.avatar_url,
+					home_address: metadata.home_address
+				});
 
 			if (insertError) {
 				console.error('Error creating user profile:', insertError);
@@ -220,7 +222,10 @@ export class UserProfileService {
 	 */
 	static async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<boolean> {
 		try {
-			const { error } = await this.fluxbase.from<Record<string, any>>('user_profiles').eq('id', userId).update(updates);
+			const { error } = await this.fluxbase
+				.from<Record<string, any>>('user_profiles')
+				.eq('id', userId)
+				.update(updates);
 			if (error) {
 				console.error('Error updating user profile:', error);
 				return false;

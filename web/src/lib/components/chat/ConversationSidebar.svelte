@@ -109,9 +109,7 @@
 	}
 </script>
 
-<aside
-	class="flex h-full w-72 flex-shrink-0 flex-col border-r bg-card border-border"
->
+<aside class="flex h-full w-72 flex-shrink-0 flex-col border-r bg-card border-border">
 	<!-- Header with New Conversation button -->
 	<div class="flex-shrink-0 border-b p-4 border-border">
 		<button
@@ -155,9 +153,7 @@
 			<!-- Today -->
 			{#if groupedConversations.today.length > 0}
 				<div class="px-3 pt-3">
-					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
-					>
+					<h3 class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
 						Today
 					</h3>
 				</div>
@@ -167,7 +163,10 @@
 						tabindex="0"
 						onclick={() => handleConversationClick(conv.id)}
 						onkeydown={(e) => e.key === 'Enter' && handleConversationClick(conv.id)}
-						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId === conv.id ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId ===
+						conv.id
+							? 'bg-primary/10 dark:bg-primary/20'
+							: ''} hover:bg-muted"
 					>
 						<div class="min-w-0 flex-1">
 							<h4
@@ -202,9 +201,7 @@
 			<!-- Yesterday -->
 			{#if groupedConversations.yesterday.length > 0}
 				<div class="px-3 pt-4">
-					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
-					>
+					<h3 class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
 						Yesterday
 					</h3>
 				</div>
@@ -214,7 +211,10 @@
 						tabindex="0"
 						onclick={() => handleConversationClick(conv.id)}
 						onkeydown={(e) => e.key === 'Enter' && handleConversationClick(conv.id)}
-						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId === conv.id ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId ===
+						conv.id
+							? 'bg-primary/10 dark:bg-primary/20'
+							: ''} hover:bg-muted"
 					>
 						<div class="min-w-0 flex-1">
 							<h4
@@ -249,9 +249,7 @@
 			<!-- This Week -->
 			{#if groupedConversations.thisWeek.length > 0}
 				<div class="px-3 pt-4">
-					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
-					>
+					<h3 class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
 						This Week
 					</h3>
 				</div>
@@ -261,7 +259,10 @@
 						tabindex="0"
 						onclick={() => handleConversationClick(conv.id)}
 						onkeydown={(e) => e.key === 'Enter' && handleConversationClick(conv.id)}
-						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId === conv.id ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId ===
+						conv.id
+							? 'bg-primary/10 dark:bg-primary/20'
+							: ''} hover:bg-muted"
 					>
 						<div class="min-w-0 flex-1">
 							<h4
@@ -296,9 +297,7 @@
 			<!-- Older -->
 			{#if groupedConversations.older.length > 0}
 				<div class="px-3 pt-4">
-					<h3
-						class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
-					>
+					<h3 class="mb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
 						Older
 					</h3>
 				</div>
@@ -308,7 +307,10 @@
 						tabindex="0"
 						onclick={() => handleConversationClick(conv.id)}
 						onkeydown={(e) => e.key === 'Enter' && handleConversationClick(conv.id)}
-						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId === conv.id ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+						class="group flex w-full cursor-pointer items-start gap-3 px-3 py-2.5 text-left transition-colors {activeConversationId ===
+						conv.id
+							? 'bg-primary/10 dark:bg-primary/20'
+							: ''} hover:bg-muted"
 					>
 						<div class="min-w-0 flex-1">
 							<h4

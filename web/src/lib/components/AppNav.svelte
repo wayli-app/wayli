@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		BarChart,
+		BookOpen,
 		Import,
 		Star,
 		Link,
@@ -60,6 +61,7 @@
 	let navMain = $derived([
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
 		{ href: '/dashboard/trips', label: t('common.navigation.trips'), icon: Map },
+		{ href: '/dashboard/journal', label: 'Journal', icon: BookOpen },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
 			? [{ href: '/dashboard/ask', label: t('common.navigation.ask') || 'Ask AI', icon: Sparkles }]

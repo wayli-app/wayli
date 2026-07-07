@@ -625,7 +625,9 @@
 			if (!userData || !userData.user) return;
 
 			// Load home address
-			const homeAddressAdapter = new HomeAddressAdapter({ session: { user: userData.user } as any });
+			const homeAddressAdapter = new HomeAddressAdapter({
+				session: { user: userData.user } as any
+			});
 			const homeData = await homeAddressAdapter.getHomeAddress();
 			homeAddress = normalizeHomeAddress(homeData.home_address);
 

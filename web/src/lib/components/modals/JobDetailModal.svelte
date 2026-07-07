@@ -434,18 +434,13 @@
 			tabindex="-1"
 		>
 			<!-- Header -->
-			<div
-				class="flex items-center justify-between border-b p-6 border-border"
-			>
+			<div class="flex items-center justify-between border-b p-6 border-border">
 				<div class="flex items-center gap-3">
 					<div class="flex h-10 w-10 items-center justify-center rounded-lg {status.bgColor}">
 						<JobIcon class="h-5 w-5 {status.color}" />
 					</div>
 					<div>
-						<h2
-							id="job-detail-title"
-							class="text-lg font-semibold text-foreground"
-						>
+						<h2 id="job-detail-title" class="text-lg font-semibold text-foreground">
 							{getJobTypeDisplayName(displayJob.job_name)}
 						</h2>
 						<span
@@ -472,9 +467,7 @@
 						{#if !indeterminate}
 							<div class="mb-1 flex items-center justify-between text-sm">
 								<span class="text-muted-foreground">Progress</span>
-								<span class="font-medium text-foreground"
-									>{displayJob.progress_percent || 0}%</span
-								>
+								<span class="font-medium text-foreground">{displayJob.progress_percent || 0}%</span>
 							</div>
 						{/if}
 						<div class="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-muted">
@@ -546,7 +539,10 @@
 								{#each ['debug', 'info', 'warn', 'error'] as const as level}
 									<button
 										type="button"
-										class="flex w-full items-center px-3 py-2 text-left text-sm {selectedLevel === level ? 'bg-gray-100 dark:bg-muted' : ''} hover:bg-muted"
+										class="flex w-full items-center px-3 py-2 text-left text-sm {selectedLevel ===
+										level
+											? 'bg-gray-100 dark:bg-muted'
+											: ''} hover:bg-muted"
 										onclick={() => selectLevel(level)}
 									>
 										<span class="capitalize {logLevelColors[level]}">{level}</span>
@@ -565,7 +561,9 @@
 					style="height: 256px; min-height: 256px; max-height: 256px;"
 				>
 					{#if isLoadingLogs}
-						<div class="flex h-full items-center justify-center text-muted-foreground">Loading logs...</div>
+						<div class="flex h-full items-center justify-center text-muted-foreground">
+							Loading logs...
+						</div>
 					{:else if groupedLogs.length === 0}
 						<div class="flex h-full items-center justify-center text-muted-foreground">
 							No logs available
