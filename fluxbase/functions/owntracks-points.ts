@@ -538,11 +538,12 @@ async function handler(
           device_id: point.tid || 'owntracks',
           recorded_at: new Date(point.tst * 1000).toISOString(),
           location: `POINT(${point.lon} ${point.lat})`,
-          altitude: point.alt || null,
-          accuracy: point.acc || null,
-          speed: point.vel || null,
-          heading: point.cog || null,
-          battery_level: point.batt || null,
+          altitude: point.alt != null ? Number(point.alt) : null,
+          accuracy: point.acc != null ? Math.abs(Number(point.acc)) : null,
+          speed: point.vel != null ? Number(point.vel) : null,
+          // ponytail: wrap heading into [0,360) — OwnTracks-Android emits cog=360 for due north, which trips the tracker_data_valid_heading CHECK (heading < 360)
+          heading: point.cog != null ? ((Number(point.cog) % 360) + 360) % 360 : null,
+          battery_level: point.batt != null ? Math.min(100, Math.max(0, Number(point.batt))) : null,
           geocode: geocodeData,
           country_code: countryCode,
           tz_diff: tzDiff
