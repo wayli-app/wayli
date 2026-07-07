@@ -4,3 +4,12 @@ pnpm-lock.yaml
 yarn.lock
 bun.lock
 bun.lockb
+
+# Generated build artifacts
+coverage/
+
+# Tool-managed JSON (translations + SvelteKit tsconfig) — not enforced by prettier
+static/messages/*.json
+tsconfig*.json
+.releaserc.json
+static/messages/translate_new_keys.mjs

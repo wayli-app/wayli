@@ -112,9 +112,7 @@
 					<Shield class="text-primary h-6 w-6 dark:text-muted-foreground" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-foreground">
-						Two-Factor Authentication
-					</h2>
+					<h2 class="text-2xl font-bold text-foreground">Two-Factor Authentication</h2>
 					<p class="text-sm text-muted-foreground">Enter your verification code</p>
 				</div>
 			</div>

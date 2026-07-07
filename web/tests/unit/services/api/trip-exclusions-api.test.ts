@@ -109,7 +109,8 @@ describe('TripExclusionsApiService', () => {
 				updated_at: expect.any(String)
 			};
 
-			mockFluxbase.from = vi.fn()
+			mockFluxbase.from = vi
+				.fn()
 				.mockReturnValueOnce({
 					select: vi.fn().mockReturnValue({
 						eq: vi.fn().mockReturnValue({
@@ -228,7 +229,8 @@ describe('TripExclusionsApiService', () => {
 				}
 			];
 
-			mockFluxbase.from = vi.fn()
+			mockFluxbase.from = vi
+				.fn()
 				.mockReturnValueOnce({
 					select: vi.fn().mockReturnValue({
 						eq: vi.fn().mockReturnValue({
@@ -293,7 +295,8 @@ describe('TripExclusionsApiService', () => {
 				}
 			];
 
-			mockFluxbase.from = vi.fn()
+			mockFluxbase.from = vi
+				.fn()
 				.mockReturnValueOnce({
 					select: vi.fn().mockReturnValue({
 						eq: vi.fn().mockReturnValue({
@@ -329,9 +332,9 @@ describe('TripExclusionsApiService', () => {
 				})
 			});
 
-			await expect(
-				service.deleteTripExclusion(mockUserId, { id: '999' })
-			).rejects.toThrow('Trip exclusion not found');
+			await expect(service.deleteTripExclusion(mockUserId, { id: '999' })).rejects.toThrow(
+				'Trip exclusion not found'
+			);
 		});
 	});
 });

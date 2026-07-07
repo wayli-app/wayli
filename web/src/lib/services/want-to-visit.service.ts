@@ -180,7 +180,10 @@ export class WantToVisitService {
 	 * Delete a want-to-visit place
 	 */
 	static async deletePlace(id: string): Promise<void> {
-		const { error } = await fluxbase.from<Record<string, any>>('want_to_visit_places').delete().eq('id', id);
+		const { error } = await fluxbase
+			.from<Record<string, any>>('want_to_visit_places')
+			.delete()
+			.eq('id', id);
 
 		if (error) {
 			console.error('Error deleting want-to-visit place:', error);

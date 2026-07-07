@@ -86,12 +86,7 @@
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>
-					<h2
-						id="user-edit-modal-title"
-						class="text-2xl font-bold text-foreground"
-					>
-						Edit User
-					</h2>
+					<h2 id="user-edit-modal-title" class="text-2xl font-bold text-foreground">Edit User</h2>
 					<p class="text-muted-foreground">Update the user's details and role.</p>
 				</div>
 				<button
@@ -123,13 +118,13 @@
 				<div class="space-y-6">
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label
-								for="firstName"
-								class="mb-1 block text-sm font-medium text-muted-foreground"
+							<label for="firstName" class="mb-1 block text-sm font-medium text-muted-foreground"
 								>First Name</label
 							>
 							<div class="relative">
-								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+								<UserIcon
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								/>
 								<input
 									type="text"
 									id="firstName"
@@ -141,13 +136,13 @@
 						</div>
 
 						<div>
-							<label
-								for="lastName"
-								class="mb-1 block text-sm font-medium text-muted-foreground"
+							<label for="lastName" class="mb-1 block text-sm font-medium text-muted-foreground"
 								>Last Name</label
 							>
 							<div class="relative">
-								<UserIcon class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+								<UserIcon
+									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								/>
 								<input
 									type="text"
 									id="lastName"
@@ -160,13 +155,13 @@
 					</div>
 
 					<div>
-						<label
-							for="email"
-							class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="email" class="mb-1 block text-sm font-medium text-muted-foreground"
 							>Email Address</label
 						>
 						<div class="relative">
-							<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+							<Mail
+								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+							/>
 							<input
 								type="email"
 								id="email"
@@ -178,8 +173,7 @@
 					</div>
 
 					<div>
-						<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span
-						>
+						<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span>
 						<RoleSelector bind:role={localUser.role} />
 					</div>
 				</div>

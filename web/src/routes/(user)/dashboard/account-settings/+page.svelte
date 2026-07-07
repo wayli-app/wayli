@@ -448,7 +448,10 @@
 				homeAddressInput = homeAddress.display_name || '';
 
 				const session = await fluxbase.auth.getSession();
-				const serviceAdapter = new ServiceAdapter({ session: session.data?.session! });
+				if (!session.data?.session) {
+					throw new Error('No active session');
+				}
+				const serviceAdapter = new ServiceAdapter({ session: session.data.session });
 
 				await serviceAdapter.updateProfile({
 					first_name: profile.first_name || '',
@@ -1779,7 +1782,10 @@
 							{#each exclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedExclusionAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedExclusionAddressIndex ===
+									index
+										? 'bg-primary/10 dark:bg-primary/20'
+										: ''} hover:bg-muted"
 									onclick={() => selectExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
@@ -1920,7 +1926,10 @@
 							{#each editExclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedEditExclusionAddressIndex === index ? 'bg-primary/10 dark:bg-primary/20' : ''} hover:bg-muted"
+									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedEditExclusionAddressIndex ===
+									index
+										? 'bg-primary/10 dark:bg-primary/20'
+										: ''} hover:bg-muted"
 									onclick={() => selectEditExclusionAddress(suggestion)}
 								>
 									<div class="font-medium">{suggestion.display_name}</div>

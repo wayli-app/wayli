@@ -125,8 +125,7 @@
 
 	// Variant classes
 	const variantClasses = {
-		default:
-			'bg-card border border-gray-300 dark:border-border hover:bg-muted dark:hover:bg-muted',
+		default: 'bg-card border border-gray-300 dark:border-border hover:bg-muted dark:hover:bg-muted',
 		minimal: 'bg-transparent hover:bg-muted dark:hover:bg-card',
 		button: 'bg-primary hover:bg-primary/90 text-white border-0'
 	};
@@ -149,9 +148,7 @@
 		onclick={() => (isOpen = !isOpen)}
 		class="flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:outline-none {sizeClasses[
 			size
-		]} {variantClasses[variant]} {variant === 'button'
-			? 'text-white'
-			: 'text-muted-foreground'}"
+		]} {variantClasses[variant]} {variant === 'button' ? 'text-white' : 'text-muted-foreground'}"
 		aria-haspopup="listbox"
 		aria-expanded={isOpen}
 		aria-label="Select language"
@@ -176,7 +173,9 @@
 	<!-- Dropdown Menu -->
 	{#if isOpen}
 		<div
-			class="absolute z-50 w-48 rounded-lg border shadow-lg {positionClasses[ position ]} bg-card border-border"
+			class="absolute z-50 w-48 rounded-lg border shadow-lg {positionClasses[
+				position
+			]} bg-card border-border"
 			role="listbox"
 			aria-label="Language options"
 		>
@@ -185,7 +184,10 @@
 					<button
 						type="button"
 						onclick={() => handleLanguageChange(language.code)}
-						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors {language.code === $currentLocale ? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-muted-foreground' : 'text-muted-foreground'} hover:bg-muted"
+						class="flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors {language.code ===
+						$currentLocale
+							? 'bg-primary/5 text-primary dark:bg-primary/20 dark:text-muted-foreground'
+							: 'text-muted-foreground'} hover:bg-muted"
 						role="option"
 						aria-selected={language.code === $currentLocale}
 					>

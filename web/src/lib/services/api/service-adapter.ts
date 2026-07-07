@@ -1540,7 +1540,7 @@ export class ServiceAdapter {
 		};
 
 		// Get system secrets metadata
-		let secretsMetadata: any = {};
+		const secretsMetadata: any = {};
 		try {
 			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
 			if (pexelsSecretMeta) {

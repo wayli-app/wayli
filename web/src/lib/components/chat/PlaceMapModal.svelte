@@ -186,11 +186,7 @@
 </script>
 
 <svelte:head>
-	<link
-		rel="preload"
-		as="style"
-		href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-	/>
+	<link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 	<link
 		rel="stylesheet"
 		href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -218,9 +214,7 @@
 			role="document"
 		>
 			<!-- Header -->
-			<div
-				class="flex items-start justify-between border-b p-4 border-border"
-			>
+			<div class="flex items-start justify-between border-b p-4 border-border">
 				<div class="flex items-start gap-3">
 					{#if amenityStyle}
 						<div
@@ -234,9 +228,7 @@
 						<h2 id="place-map-title" class="text-lg font-semibold text-foreground">
 							{place.poi_name || place.city || 'Unknown Place'}
 						</h2>
-						<div
-							class="mt-0.5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
-						>
+						<div class="mt-0.5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
 							{#if place.poi_cuisine}
 								<span>{formatCuisine(place.poi_cuisine)}</span>
 								<span>•</span>
@@ -265,15 +257,21 @@
 						style="min-height: 256px;"
 					></div>
 					{#if mapLoading}
-						<div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted">
+						<div
+							class="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted"
+						>
 							<div class="text-center text-muted-foreground">
-								<div class="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
+								<div
+									class="mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"
+								></div>
 								<p>Loading map...</p>
 							</div>
 						</div>
 					{/if}
 					{#if mapError}
-						<div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted">
+						<div
+							class="pointer-events-none absolute inset-0 flex items-center justify-center bg-muted"
+						>
 							<div class="text-center text-muted-foreground">
 								<MapPin class="mx-auto mb-2 h-8 w-8" />
 								<p>Failed to load map</p>
@@ -292,9 +290,7 @@
 
 			<!-- Details -->
 			<div class="border-t p-4 border-border">
-				<div
-					class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
-				>
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
 					{#if place.city || place.country}
 						<span class="flex items-center gap-1.5">
 							<MapPin class="h-4 w-4" />

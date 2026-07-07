@@ -9,12 +9,7 @@
 		[key: string]: unknown;
 	};
 
-	let {
-		variant = 'default',
-		class: className = '',
-		children,
-		...rest
-	}: Props = $props();
+	let { variant = 'default', class: className = '', children, ...rest }: Props = $props();
 
 	const variants = {
 		default: 'bg-primary text-primary-foreground hover:bg-primary/80',

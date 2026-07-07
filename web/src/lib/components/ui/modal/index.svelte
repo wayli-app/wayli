@@ -54,7 +54,9 @@
 	>
 		<div
 			transition:fly={{ y: 8, duration: 200 }}
-			class="relative w-full cursor-default rounded-2xl p-8 shadow-2xl {sizeClasses[ size ]} my-4 max-h-[calc(100vh-2rem)] overflow-y-auto bg-card"
+			class="relative w-full cursor-default rounded-2xl p-8 shadow-2xl {sizeClasses[
+				size
+			]} my-4 max-h-[calc(100vh-2rem)] overflow-y-auto bg-card"
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"

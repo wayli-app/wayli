@@ -91,9 +91,7 @@
 					<ShieldOff class="h-6 w-6 text-red-600 dark:text-red-400" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-foreground">
-						Disable Two-Factor Authentication
-					</h2>
+					<h2 class="text-2xl font-bold text-foreground">Disable Two-Factor Authentication</h2>
 					<p class="text-sm text-muted-foreground">Confirm your password to continue</p>
 				</div>
 			</div>

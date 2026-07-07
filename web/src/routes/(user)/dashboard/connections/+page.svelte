@@ -155,9 +155,8 @@
 			<div class="space-y-4">
 				<!-- API Key Status -->
 				<div>
-					<label
-						class="mb-1.5 block text-sm font-medium text-foreground"
-						for="owntracksApiKey">{t('connections.apiKey')}</label
+					<label class="mb-1.5 block text-sm font-medium text-foreground" for="owntracksApiKey"
+						>{t('connections.apiKey')}</label
 					>
 					{#if owntracksApiKeyConfigured}
 						<div
@@ -257,10 +256,7 @@
 			<div class="space-y-4">
 				<!-- API Endpoint -->
 				<div>
-					<label
-						for="api-endpoint"
-						class="mb-1.5 block text-sm font-medium text-foreground"
-					>
+					<label for="api-endpoint" class="mb-1.5 block text-sm font-medium text-foreground">
 						{t('connections.apiEndpoint')}
 					</label>
 					<div class="flex gap-2">
@@ -289,10 +285,7 @@
 
 				<!-- API Key -->
 				<div>
-					<label
-						for="api-key"
-						class="mb-1.5 block text-sm font-medium text-foreground"
-					>
+					<label for="api-key" class="mb-1.5 block text-sm font-medium text-foreground">
 						{t('connections.apiKey')}
 					</label>
 					<div class="flex gap-2">

@@ -52,7 +52,7 @@ describe('Exclusion Zones Integration', () => {
 			id: '1',
 			name: 'Work',
 			location: {
-				coordinates: { lat: 52.50, lng: 13.45 },
+				coordinates: { lat: 52.5, lng: 13.45 },
 				display_name: 'Potsdamer Platz, Berlin, Germany'
 			},
 			created_at: '2024-01-01T00:00:00Z',
@@ -285,7 +285,8 @@ describe('Exclusion Zones Integration', () => {
 			vi.mocked(fluxbase.from).mockReturnValue({
 				select: vi.fn().mockReturnValue({
 					eq: vi.fn().mockReturnValue({
-						maybeSingle: vi.fn()
+						maybeSingle: vi
+							.fn()
 							.mockResolvedValueOnce({
 								data: { home_address: mockHomeAddress },
 								error: null
@@ -321,7 +322,8 @@ describe('Exclusion Zones Integration', () => {
 			vi.mocked(fluxbase.from).mockReturnValue({
 				select: vi.fn().mockReturnValue({
 					eq: vi.fn().mockReturnValue({
-						maybeSingle: vi.fn()
+						maybeSingle: vi
+							.fn()
 							.mockResolvedValueOnce({
 								data: { home_address: null },
 								error: null

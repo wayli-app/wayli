@@ -159,10 +159,7 @@
 </script>
 
 <div class="relative">
-	<label
-		for="address-input"
-		class="mb-2 block text-sm font-medium text-muted-foreground"
-	>
+	<label for="address-input" class="mb-2 block text-sm font-medium text-muted-foreground">
 		{label}
 		{#if required}
 			<span class="text-red-500">*</span>
@@ -216,7 +213,10 @@
 					<button
 						type="button"
 						data-testid="address-suggestion"
-						class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedIndex === index ? 'bg-gray-100 dark:bg-muted' : ''} hover:bg-muted"
+						class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedIndex ===
+						index
+							? 'bg-gray-100 dark:bg-muted'
+							: ''} hover:bg-muted"
 						onclick={() => selectAddress(suggestion)}
 					>
 						<div class="text-sm text-foreground">{suggestion.display_name}</div>

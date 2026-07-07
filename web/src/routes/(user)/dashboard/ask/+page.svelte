@@ -61,8 +61,7 @@
 			recognition?.stop();
 			return;
 		}
-		const SR =
-			(window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+		const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 		recognition = new SR();
 		recognition.continuous = false;
 		recognition.interimResults = true;
@@ -753,9 +752,7 @@
 	<!-- Chat Area -->
 	<div class="flex flex-1 flex-col overflow-hidden bg-background">
 		<!-- Mobile Top Bar -->
-		<div
-			class="flex items-center gap-3 border-b p-3 md:hidden bg-card border-border"
-		>
+		<div class="flex items-center gap-3 border-b p-3 md:hidden bg-card border-border">
 			<button
 				type="button"
 				onclick={() => (showMobileSidebar = true)}
@@ -849,24 +846,24 @@
 						{t('ask.askAnything')}
 					</p>
 					<div class="grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-					{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
-						<button
-							onclick={() => useSuggestion(suggestion)}
-							class="hover:border-primary/50 dark:hover:border-primary group flex items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
-						>
-							<Sparkles
-								class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 opacity-60 group-hover:opacity-100"
-							/>
-							<div>
-								<div class="font-medium text-foreground">
-									{suggestion.question}
+						{#each suggestions.slice(0, 4) as suggestion (suggestion.question)}
+							<button
+								onclick={() => useSuggestion(suggestion)}
+								class="hover:border-primary/50 dark:hover:border-primary group flex items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:shadow-sm bg-card border-border"
+							>
+								<Sparkles
+									class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 opacity-60 group-hover:opacity-100"
+								/>
+								<div>
+									<div class="font-medium text-foreground">
+										{suggestion.question}
+									</div>
+									<div class="text-muted-foreground mt-0.5 text-xs">
+										{suggestion.description}
+									</div>
 								</div>
-								<div class="text-muted-foreground mt-0.5 text-xs">
-									{suggestion.description}
-								</div>
-							</div>
-						</button>
-					{/each}
+							</button>
+						{/each}
 					</div>
 				</div>
 			{:else}
@@ -967,9 +964,7 @@
 
 									<!-- Expanded Query Details -->
 									{#if streamingDetailsExpanded}
-										<div
-											class="mt-2 rounded-lg border p-2 bg-background border-border"
-										>
+										<div class="mt-2 rounded-lg border p-2 bg-background border-border">
 											{#each currentQueryResults as queryResult, idx}
 												<div
 													class="flex items-center justify-between py-1 text-xs {idx > 0
@@ -1030,9 +1025,7 @@
 		</div>
 
 		<!-- Input Area -->
-		<div
-			class="flex-shrink-0 border-t p-4 bg-card border-border"
-		>
+		<div class="flex-shrink-0 border-t p-4 bg-card border-border">
 			<div class="relative flex items-center gap-2">
 				<input
 					type="text"
@@ -1041,21 +1034,21 @@
 					onkeydown={(e) => e.key === 'Enter' && sendMessage()}
 					placeholder={isConnected ? t('ask.inputPlaceholder') : t('ask.inputConnecting')}
 					disabled={isLoading || !isConnected}
-				class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-24 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-border dark:text-white bg-card"
-			/>
-			{#if supportsVoiceInput && !isLoading}
-				<button
-					type="button"
-					onclick={toggleVoiceInput}
-					aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-					class="absolute right-12 rounded-lg p-2 transition-colors {isListening
-						? 'bg-red-500 text-white animate-pulse'
-						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-				>
-					<Mic class="h-5 w-5" />
-				</button>
-			{/if}
-			{#if isLoading}
+					class="focus:border-primary focus:ring-primary/20 dark:focus:border-primary flex-1 rounded-xl border border-gray-300 py-3 pr-24 pl-4 shadow-sm transition-all focus:ring-2 focus:outline-none disabled:opacity-50 dark:border-border dark:text-white bg-card"
+				/>
+				{#if supportsVoiceInput && !isLoading}
+					<button
+						type="button"
+						onclick={toggleVoiceInput}
+						aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+						class="absolute right-12 rounded-lg p-2 transition-colors {isListening
+							? 'bg-red-500 text-white animate-pulse'
+							: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+					>
+						<Mic class="h-5 w-5" />
+					</button>
+				{/if}
+				{#if isLoading}
 					<button
 						onclick={cancelMessage}
 						class="absolute right-3 rounded-lg bg-red-500 p-2 text-white transition-colors hover:bg-red-600"
@@ -1128,10 +1121,7 @@
 		>
 			<!-- Header -->
 			<div class="mb-4 flex items-center justify-between">
-				<h3
-					id="execution-logs-title"
-					class="text-lg font-semibold text-foreground"
-				>
+				<h3 id="execution-logs-title" class="text-lg font-semibold text-foreground">
 					{t('ask.executionLogs')}
 				</h3>
 				<button

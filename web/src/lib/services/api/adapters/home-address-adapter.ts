@@ -128,18 +128,16 @@ export class HomeAddressAdapter extends BaseAdapter {
 		};
 
 		// Store in user_profiles
-		const { error: upsertError } = await fluxbase
-			.from<Record<string, any>>('user_profiles')
-			.upsert(
-				{
-					id: userData.user.id,
-					home_address: homeAddress as unknown as Record<string, unknown>,
-					updated_at: new Date().toISOString()
-				},
-				{
-					onConflict: 'id'
-				}
-			);
+		const { error: upsertError } = await fluxbase.from<Record<string, any>>('user_profiles').upsert(
+			{
+				id: userData.user.id,
+				home_address: homeAddress as unknown as Record<string, unknown>,
+				updated_at: new Date().toISOString()
+			},
+			{
+				onConflict: 'id'
+			}
+		);
 
 		if (upsertError) {
 			throw new Error(upsertError.message || 'Failed to save home address');

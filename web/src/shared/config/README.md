@@ -13,10 +13,10 @@ Wayli is a client-side SvelteKit application. All server-side operations are han
 
 ## Client Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `src/lib/config.ts` | Runtime configuration (Fluxbase URL, anon key) |
-| `src/lib/fluxbase.ts` | Pre-configured Fluxbase client SDK |
+| File                  | Purpose                                        |
+| --------------------- | ---------------------------------------------- |
+| `src/lib/config.ts`   | Runtime configuration (Fluxbase URL, anon key) |
+| `src/lib/fluxbase.ts` | Pre-configured Fluxbase client SDK             |
 
 ## Environment Variables
 
