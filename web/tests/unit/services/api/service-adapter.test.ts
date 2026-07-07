@@ -490,7 +490,7 @@ describe('ServiceAdapter', () => {
 
 	describe('Trips Operations', () => {
 		describe('getTrips', () => {
-			it('should fetch completed trips for user', async () => {
+			it('should fetch trips for user', async () => {
 				const trips = [
 					{ id: 'trip1', title: 'Trip 1', status: 'completed' },
 					{ id: 'trip2', title: 'Trip 2', status: 'completed' }
@@ -502,7 +502,7 @@ describe('ServiceAdapter', () => {
 
 				expect(mockFluxbase.from).toHaveBeenCalledWith('trips');
 				expect(queryMock.eq).toHaveBeenCalledWith('user_id', 'test-user-id');
-				expect(queryMock.eq).toHaveBeenCalledWith('status', 'completed');
+				expect(queryMock.in).toHaveBeenCalledWith('status', ['active', 'planned', 'completed']);
 				expect(result).toEqual(trips);
 			});
 
@@ -837,7 +837,9 @@ describe('ServiceAdapter', () => {
 
 				const result = await adapter.getExportDownloadUrl('job-id');
 
-				expect(result.downloadUrl).toBe('https://storage.example.com/exports/file.json?token=signed');
+				expect(result.downloadUrl).toBe(
+					'https://storage.example.com/exports/file.json?token=signed'
+				);
 			});
 
 			it('should throw error when export not ready', async () => {
