@@ -15,7 +15,29 @@
 	import TripTimeline from '$lib/components/TripTimeline.svelte';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
+	import VisibilityToggle from '$lib/components/VisibilityToggle.svelte';
 	import { ArrowLeft, Plus, MapPin, Calendar, Route, Save, X } from 'lucide-svelte';
+
+	// Debounced visibility save
+	let visibilitySaveTimer: ReturnType<typeof setTimeout> | null = null;
+	async function saveVisibility(newVal: string) {
+		if (!trip) return;
+		if (visibilitySaveTimer) clearTimeout(visibilitySaveTimer);
+		visibilitySaveTimer = setTimeout(async () => {
+			try {
+				await fluxbase.from('trips').update({ visibility: newVal }).eq('id', tripId);
+			} catch (err) {
+				console.error('Failed to update visibility:', err);
+			}
+		}, 1000);
+	}
+
+	// Watch visibility changes
+	$effect(() => {
+		if (trip?.visibility) {
+			saveVisibility(trip.visibility);
+		}
+	});
 
 	type Trip = {
 		id: string;
@@ -242,6 +264,14 @@
 						<span>{Math.round(trip.metadata.distanceTraveled).toLocaleString()} km</span>
 					{/if}
 				</div>
+			</div>
+
+			<!-- Visibility toggle -->
+			<div class="border-border mt-4 border-t pt-4">
+				<span class="text-muted-foreground mb-2 block text-xs font-medium uppercase tracking-wide">
+					Visibility
+				</span>
+				<VisibilityToggle bind:value={trip.visibility} />
 			</div>
 		</div>
 

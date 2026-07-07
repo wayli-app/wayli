@@ -93,7 +93,23 @@
 		}
 
 		// Check setup status first to see if initial setup is needed
-		checkSetupStatus();
+		(async () => {
+			// Check if a landing redirect is configured (single-user blog mode)
+			try {
+				const redirectSetting = await readSetting(() =>
+					fluxbase.settings.get('wayli.landing_redirect_username')
+				);
+				const redirectUser = redirectSetting?.value;
+				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
+					goto(`/u/${redirectUser.trim()}`);
+					return;
+				}
+			} catch {
+				// Setting not available — show normal landing page.
+			}
+
+			await checkSetupStatus();
+		})();
 
 		// Resolve auth state so the top-right chrome doesn't flash the login button for logged-in users
 		(async () => {
@@ -280,7 +296,9 @@
 					>
 						{t('landing.privacyFirst')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
+					<p
+						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+					>
 						{t('landing.privacyFirstDescription')}
 					</p>
 				</div>
@@ -299,7 +317,9 @@
 					>
 						{t('landing.automaticTripDetection')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
+					<p
+						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+					>
 						{t('landing.automaticTripDescription')}
 					</p>
 				</div>
@@ -318,7 +338,9 @@
 					>
 						{t('landing.beautifulAnalytics')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
+					<p
+						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+					>
 						{t('landing.beautifulAnalyticsDescription')}
 					</p>
 				</div>
@@ -337,7 +359,9 @@
 					>
 						{t('landing.multiUserSupport')}
 					</h3>
-					<p class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground">
+					<p
+						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+					>
 						{t('landing.multiUserDescription')}
 					</p>
 				</div>
