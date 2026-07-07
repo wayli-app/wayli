@@ -21,7 +21,8 @@
 		Save,
 		X,
 		Loader2,
-		ArrowRight
+		ArrowRight,
+		ImagePlus
 	} from 'lucide-svelte';
 
 	type JournalEntry = TripEntry & {
@@ -181,20 +182,26 @@
 
 			<!-- Trip + date row -->
 			<div class="flex gap-3">
-				<select
-					bind:value={selectedTripId}
-					class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				>
-					<option value="" disabled>Select a trip...</option>
-					{#each trips as trip (trip.id)}
-						<option value={trip.id}>{trip.title} ({formatShortDate(trip.start_date)})</option>
-					{/each}
-				</select>
-				<input
-					type="date"
-					bind:value={editorDate}
-					class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				/>
+				<label class="flex flex-1 flex-col gap-1">
+					<span class="text-muted-foreground text-xs font-medium">Trip</span>
+					<select
+						bind:value={selectedTripId}
+						class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					>
+						<option value="" disabled>Select a trip...</option>
+						{#each trips as trip (trip.id)}
+							<option value={trip.id}>{trip.title} ({formatShortDate(trip.start_date)})</option>
+						{/each}
+					</select>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-muted-foreground text-xs font-medium">Date</span>
+					<input
+						type="date"
+						bind:value={editorDate}
+						class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					/>
+				</label>
 			</div>
 
 			<!-- Title -->
@@ -313,14 +320,21 @@
 						</div>
 					{/if}
 
-					<!-- Footer: link to trip detail -->
-					<div class="border-border mt-4 flex items-center border-t pt-3">
+					<!-- Footer: links to trip detail -->
+					<div class="border-border mt-4 flex items-center gap-4 border-t pt-3">
 						<a
 							href="/dashboard/trips/{entry.trip_id}"
 							class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
 						>
 							View trip details
 							<ArrowRight class="h-3 w-3" />
+						</a>
+						<a
+							href="/dashboard/trips/{entry.trip_id}"
+							class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
+						>
+							<ImagePlus class="h-3 w-3" />
+							Add photos
 						</a>
 					</div>
 				</article>
