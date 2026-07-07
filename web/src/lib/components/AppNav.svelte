@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		BarChart,
+		BookOpen,
 		Import,
 		Star,
 		Link,
@@ -58,8 +59,8 @@
 
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
+		{ href: '/dashboard/trips', label: 'Journal', icon: BookOpen },
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
-		{ href: '/dashboard/trips', label: t('common.navigation.trips'), icon: Map },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
 			? [{ href: '/dashboard/ask', label: t('common.navigation.ask') || 'Ask AI', icon: Sparkles }]

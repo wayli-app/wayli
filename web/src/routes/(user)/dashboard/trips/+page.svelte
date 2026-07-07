@@ -14,7 +14,8 @@
 		X,
 		RefreshCw,
 		BarChart,
-		Check
+		Check,
+		ChevronRight
 	} from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -1911,18 +1912,18 @@
 							{/if}
 						</div>
 						<!-- Footer: always at the bottom -->
-						<div class="mt-auto flex items-center justify-between border-t pt-3 border-border">
-							<span class="text-xs text-muted-foreground">
+						<div class="border-border mt-auto flex items-center justify-between border-t pt-3">
+							<span class="text-muted-foreground text-xs">
 								{t('trips.updated')}
 								{getRelativeTime(trip.updated_at)}
 							</span>
-							<button
-								class="text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80 flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors"
-								onclick={() => showTripStatistics(trip)}
+							<a
+								href="/dashboard/trips/{trip.id}"
+								class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm font-medium transition-colors"
 							>
-								<BarChart class="h-4 w-4" />
-								{t('trips.showStatistics')}
-							</button>
+								Read journal
+								<ChevronRight class="h-4 w-4" />
+							</a>
 						</div>
 					</div>
 				</div>
