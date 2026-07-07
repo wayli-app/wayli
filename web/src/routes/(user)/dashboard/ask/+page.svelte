@@ -26,8 +26,7 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { format } from 'date-fns';
-	import { marked } from 'marked';
-	import DOMPurify from 'dompurify';
+	import { renderMarkdown } from '$lib/utils/markdown';
 
 	import { translate } from '$lib/i18n';
 	import {
@@ -535,33 +534,6 @@
 				return row;
 			})
 		}));
-	}
-
-	// Render markdown content safely, optionally stripping images
-	function renderMarkdown(content: string, stripImages: boolean = false): string {
-		if (!content) return '';
-		try {
-			let processedContent = content;
-
-			// Strip markdown images if requested (they're shown in cards already)
-			if (stripImages) {
-				// Remove "Image: ![alt](url)" or just "![alt](url)" patterns
-				processedContent = processedContent.replace(/(?:Image:\s*)?!\[([^\]]*)\]\([^)]+\)/gi, '');
-				// Remove lines that are just "Image:" or similar labels left behind
-				processedContent = processedContent.replace(/^(?:Image|Photo|Picture|Cover):\s*$/gim, '');
-				// Remove empty bullet points (bullet with only whitespace after)
-				// Handles: "- ", "* ", "1. ", "2. ", etc. on their own line
-				processedContent = processedContent.replace(/^[\t ]*[-*]\s*$/gm, '');
-				processedContent = processedContent.replace(/^[\t ]*\d+\.\s*$/gm, '');
-				// Remove any leftover empty lines (more than 2 newlines become 2)
-				processedContent = processedContent.replace(/\n{3,}/g, '\n\n').trim();
-			}
-
-			const html = marked.parse(processedContent, { async: false }) as string;
-			return DOMPurify.sanitize(html);
-		} catch {
-			return content;
-		}
 	}
 
 	// Open execution logs modal
