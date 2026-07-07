@@ -14,6 +14,7 @@
 	import TripMap from '$lib/components/TripMap.svelte';
 	import TripTimeline from '$lib/components/TripTimeline.svelte';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
+	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import { ArrowLeft, Plus, MapPin, Calendar, Route, Save, X } from 'lucide-svelte';
 
 	type Trip = {
@@ -123,7 +124,10 @@
 		editingEntry = null;
 		editorTitle = '';
 		editorBody = '';
-		editorDate = trip?.start_date ?? new Date().toISOString().slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+		editorDate =
+			trip?.start_date ??
+			new Date().toISOString().slice(0, 10) ??
+			new Date().toISOString().slice(0, 10);
 		showEditor = true;
 	}
 
@@ -251,6 +255,12 @@
 				<TripMap points={gpsPoints} markers={cityMarkers} class="h-72" />
 			</div>
 		{/if}
+
+		<!-- Photos -->
+		<div class="bg-card border-border rounded-xl border p-4">
+			<h2 class="text-foreground mb-3 text-lg font-semibold">Photos</h2>
+			<PhotoGallery {tripId} />
+		</div>
 
 		<!-- Journal entries -->
 		<div>

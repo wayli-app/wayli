@@ -1,0 +1,111 @@
+/**
+ * TripMediaService — CRUD for trip photos.
+ * Uploads go to Fluxbase Storage (trip-images bucket, public-read).
+ * Metadata rows go to trip_media table (RLS owner-scoped).
+ */
+
+import { fluxbase } from '$lib/fluxbase';
+import type { TripMedia, CreateTripMediaInput } from '$lib/types/media.types';
+
+/**
+ * Upload a blob to the trip-images bucket and return the public URL.
+ * Path: {userId}/{tripId}/{filename}
+ */
+export async function uploadMedia(
+	userId: string,
+	tripId: string,
+	blob: Blob,
+	filename: string
+): Promise<string> {
+	const path = `${userId}/${tripId}/${filename}`;
+	const { error } = await fluxbase.storage.from('trip-images').upload(path, blob, {
+		contentType: blob.type || 'image/jpeg',
+		upsert: false
+	});
+	if (error) throw new Error(error.message);
+
+	const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
+	return data.publicUrl;
+}
+
+/**
+ * Delete a file from storage by its path.
+ */
+export async function deleteMediaFile(storagePath: string): Promise<void> {
+	// Extract the path within the bucket from the public URL or raw path
+	const bucketPath = storagePath.includes('/trip-images/')
+		? storagePath.split('/trip-images/')[1]
+		: storagePath;
+	await fluxbase.storage.from('trip-images').remove([bucketPath]);
+}
+
+/**
+ * List all media for a trip, ordered by sort_order then created_at.
+ */
+export async function listMedia(tripId: string): Promise<TripMedia[]> {
+	const { data, error } = await fluxbase
+		.from<TripMedia>('trip_media')
+		.select('*')
+		.eq('trip_id', tripId)
+		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: false });
+
+	if (error) throw new Error(error.message);
+	return (data as unknown as TripMedia[]) ?? [];
+}
+
+/**
+ * Create a media metadata row.
+ */
+export async function createMedia(
+	input: CreateTripMediaInput & { user_id: string }
+): Promise<TripMedia> {
+	const { data, error } = await fluxbase
+		.from('trip_media')
+		.insert({
+			trip_id: input.trip_id,
+			entry_id: input.entry_id ?? null,
+			user_id: input.user_id,
+			storage_path: input.storage_path,
+			thumbnail_path: input.thumbnail_path ?? input.storage_path,
+			media_type: input.media_type ?? 'image',
+			caption: input.caption ?? '',
+			width: input.width ?? null,
+			height: input.height ?? null,
+			taken_at: input.taken_at ?? null,
+			exif: input.exif ?? null
+		})
+		.select('*')
+		.single();
+
+	if (error) throw new Error(error.message);
+	return data as unknown as TripMedia;
+}
+
+/**
+ * Delete a media row + its file from storage.
+ */
+export async function deleteMedia(media: TripMedia): Promise<void> {
+	// Delete file(s) from storage
+	const paths = [media.storage_path, media.thumbnail_path].filter(
+		(p): p is string => p !== null && p !== media.storage_path
+	);
+	if (media.storage_path) {
+		await deleteMediaFile(media.storage_path);
+	}
+	for (const p of paths) {
+		await deleteMediaFile(p).catch(() => {});
+	}
+
+	// Delete the metadata row
+	const { error } = await fluxbase.from('trip_media').delete().eq('id', media.id);
+	if (error) throw new Error(error.message);
+}
+
+/**
+ * Update caption.
+ */
+export async function updateMediaCaption(mediaId: string, caption: string): Promise<void> {
+	const { error } = await fluxbase.from('trip_media').update({ caption }).eq('id', mediaId);
+	if (error) throw new Error(error.message);
+}
