@@ -11,6 +11,7 @@
 	import type { TripEntry } from '$lib/types/journal.types';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
+	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import {
 		BookOpen,
 		Plus,
@@ -21,8 +22,7 @@
 		Save,
 		X,
 		Loader2,
-		ArrowRight,
-		ImagePlus
+		ArrowRight
 	} from 'lucide-svelte';
 
 	type JournalEntry = TripEntry & {
@@ -320,21 +320,19 @@
 						</div>
 					{/if}
 
-					<!-- Footer: links to trip detail -->
-					<div class="border-border mt-4 flex items-center gap-4 border-t pt-3">
+					<!-- Photos for this entry -->
+					<div class="mt-4">
+						<PhotoGallery tripId={entry.trip_id} entryId={entry.id} />
+					</div>
+
+					<!-- Footer: link to trip detail -->
+					<div class="border-border mt-4 flex items-center border-t pt-3">
 						<a
 							href="/dashboard/trips/{entry.trip_id}"
 							class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
 						>
 							View trip details
 							<ArrowRight class="h-3 w-3" />
-						</a>
-						<a
-							href="/dashboard/trips/{entry.trip_id}"
-							class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
-						>
-							<ImagePlus class="h-3 w-3" />
-							Add photos
 						</a>
 					</div>
 				</article>

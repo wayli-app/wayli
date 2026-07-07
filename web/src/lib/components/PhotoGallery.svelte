@@ -14,9 +14,10 @@
 
 	type Props = {
 		tripId: string;
+		entryId?: string;
 	};
 
-	let { tripId }: Props = $props();
+	let { tripId, entryId }: Props = $props();
 
 	let media = $state<TripMedia[]>([]);
 	let isLoading = $state(true);
@@ -33,7 +34,11 @@
 	async function loadMedia() {
 		isLoading = true;
 		try {
-			media = await listMedia(tripIdSafe);
+			let all = await listMedia(tripIdSafe);
+			if (entryId) {
+				all = all.filter((m) => m.entry_id === entryId);
+			}
+			media = all;
 		} catch (err) {
 			console.error('Failed to load media:', err);
 		} finally {
@@ -73,6 +78,7 @@
 				const created = await createMedia({
 					user_id: $userStore.id,
 					trip_id: tripIdSafe,
+					entry_id: entryId,
 					storage_path: fullPath,
 					thumbnail_path: thumbPath,
 					width: full.width,

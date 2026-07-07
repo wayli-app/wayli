@@ -1917,13 +1917,22 @@
 								{t('trips.updated')}
 								{getRelativeTime(trip.updated_at)}
 							</span>
-							<a
-								href="/dashboard/trips/{trip.id}"
-								class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm font-medium transition-colors"
-							>
-								Read journal
-								<ChevronRight class="h-4 w-4" />
-							</a>
+							<div class="flex items-center gap-3">
+								<button
+									class="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors"
+									onclick={() => showTripStatistics(trip)}
+								>
+									<BarChart class="h-4 w-4" />
+									{t('trips.showStatistics')}
+								</button>
+								<a
+									href="/dashboard/trips/{trip.id}"
+									class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm font-medium transition-colors"
+								>
+									Read journal
+									<ChevronRight class="h-4 w-4" />
+								</a>
+							</div>
 						</div>
 					</div>
 				</div>
