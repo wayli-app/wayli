@@ -59,7 +59,8 @@
 
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
-		{ href: '/dashboard/trips', label: 'Journal', icon: BookOpen },
+		{ href: '/dashboard/journal', label: 'Journal', icon: BookOpen },
+		{ href: '/dashboard/trips', label: t('common.navigation.trips'), icon: Map },
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
