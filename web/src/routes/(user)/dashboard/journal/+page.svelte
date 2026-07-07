@@ -241,7 +241,7 @@
 			<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
 		</div>
 	{:else if entries.length === 0 && !showEditor}
-		<div class="bg-card border-border rounded-xl border p-12 text-center">
+		<div class="bg-card border-border rounded-xl border p-16 text-center">
 			<BookOpen class="text-muted-foreground mx-auto mb-4 h-12 w-12 opacity-40" />
 			<h3 class="text-foreground mb-1 text-lg font-medium">No journal entries yet</h3>
 			<p class="text-muted-foreground mb-4 text-sm">
