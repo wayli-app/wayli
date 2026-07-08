@@ -95,6 +95,8 @@
 	}
 
 	let pexelsApiKeyInput = $state('');
+	let preferredUnit = $state('metric');
+	let preferredTimezone = $state('');
 	let pexelsApiKeyConfigured = $state(false);
 	let pexelsApiKeyUpdatedAt = $state<string | null>(null);
 	let serverPexelsApiKeyAvailable = $state(false);
@@ -245,7 +247,8 @@
 			) {
 				const preferencesData = (preferencesResult as any).data || preferencesResult;
 				preferences = preferencesData as UserPreferences;
-				// timezoneInput = preferences.timezone || 'UTC+00:00 (London, Dublin)'; // Timezone selection hidden
+				preferredTimezone = preferences.timezone || '';
+				preferredUnit = (preferences as any).preferences?.units || 'metric';
 			}
 
 			// Load user Pexels API key secret metadata
@@ -669,8 +672,12 @@
 
 			// Update preferences using service adapter
 			await serviceAdapter.updatePreferences({
-				language: preferences.language
-				// timezone: preferences.timezone, // Timezone selection hidden
+				language: preferences.language,
+				timezone: preferredTimezone || null,
+				preferences: {
+					...(preferences.preferences || {}),
+					units: preferredUnit
+				}
 			});
 
 			// Save Pexels API key as encrypted user secret
@@ -1554,6 +1561,41 @@
 						/>
 					</div>
 				</div>
+
+				<!-- Units -->
+				<div>
+					<span class="mb-1.5 block text-sm font-medium text-foreground">Distance units</span>
+					<select
+						bind:value={preferredUnit}
+						class="border-border focus:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					>
+						<option value="metric">Metric (km, m)</option>
+						<option value="imperial">Imperial (mi, ft)</option>
+					</select>
+				</div>
+
+				<!-- Timezone -->
+				<div>
+					<span class="mb-1.5 block text-sm font-medium text-foreground">Timezone</span>
+					<select
+						bind:value={preferredTimezone}
+						class="border-border focus:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					>
+						<option value="">Browser default</option>
+						<option value="UTC">UTC</option>
+						<option value="Europe/Amsterdam">Europe/Amsterdam</option>
+						<option value="Europe/London">Europe/London</option>
+						<option value="Europe/Berlin">Europe/Berlin</option>
+						<option value="Europe/Paris">Europe/Paris</option>
+						<option value="America/New_York">America/New_York</option>
+						<option value="America/Chicago">America/Chicago</option>
+						<option value="America/Denver">America/Denver</option>
+						<option value="America/Los_Angeles">America/Los_Angeles</option>
+						<option value="Asia/Tokyo">Asia/Tokyo</option>
+						<option value="Asia/Singapore">Asia/Singapore</option>
+						<option value="Australia/Sydney">Australia/Sydney</option>
+					</select>
+				</div>
 			</div>
 
 			<button
@@ -1564,6 +1606,38 @@
 				{isUpdatingPreferences
 					? t('accountSettings.savingPreferences')
 					: t('accountSettings.savePreferences')}
+			</button>
+		</div>
+
+		<!-- Danger Zone -->
+		<div
+			class="mt-8 rounded-xl border border-destructive/30 bg-destructive/5 p-6 dark:border-destructive/30 dark:bg-destructive/5"
+		>
+			<div class="mb-4">
+				<div class="flex items-center gap-2">
+					<Trash2 class="h-5 w-5 text-destructive" />
+					<h2 class="text-xl font-semibold text-foreground">Danger Zone</h2>
+				</div>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Irreversible actions. Proceed with caution.
+				</p>
+			</div>
+			<button
+				type="button"
+				onclick={() => {
+					if (
+						confirm(
+							'This will permanently delete your account and all associated data (trips, journal entries, photos, place visits). This cannot be undone. Are you sure?'
+						)
+					) {
+						toast.error(
+							'Account deletion is not yet implemented. Please contact your server administrator.'
+						);
+					}
+				}}
+				class="border-destructive/40 text-destructive hover:bg-destructive/10 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+			>
+				Delete my account
 			</button>
 		</div>
 

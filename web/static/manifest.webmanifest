@@ -1,0 +1,23 @@
+{
+	"name": "Wayli",
+	"short_name": "Wayli",
+	"description": "Privacy-first location tracking and trip analysis",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#0b1120",
+	"theme_color": "#233869",
+	"icons": [
+		{
+			"src": "/logo-icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/logo.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	]
+}
