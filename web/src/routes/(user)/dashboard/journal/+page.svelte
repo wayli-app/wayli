@@ -37,6 +37,18 @@
 	let entries = $state<JournalEntry[]>([]);
 	let trips = $state<TripOption[]>([]);
 	let isLoading = $state(true);
+	let searchQuery = $state('');
+
+	const filteredEntries = $derived(
+		searchQuery.trim()
+			? entries.filter(
+					(e) =>
+						e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+						e.body.toLowerCase().includes(searchQuery.toLowerCase()) ||
+						e.trip_title.toLowerCase().includes(searchQuery.toLowerCase())
+				)
+			: entries
+	);
 
 	// Inline editor state
 	let showEditor = $state(false);
@@ -153,16 +165,26 @@
 			<BookOpen class="text-primary h-6 w-6" />
 			<h1 class="text-foreground text-2xl font-bold">Journal</h1>
 		</div>
-		{#if !showEditor && trips.length > 0}
-			<button
-				type="button"
-				onclick={openNewEditor}
-				class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
-			>
-				<Plus class="h-4 w-4" />
-				New Entry
-			</button>
-		{/if}
+		<div class="flex items-center gap-2">
+			{#if entries.length > 0}
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search entries..."
+					class="border-border focus:ring-primary w-40 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:w-64 focus:ring-2 focus:outline-none transition-all sm:w-56"
+				/>
+			{/if}
+			{#if !showEditor && trips.length > 0}
+				<button
+					type="button"
+					onclick={openNewEditor}
+					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+				>
+					<Plus class="h-4 w-4" />
+					New Entry
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Inline editor -->
@@ -247,7 +269,7 @@
 		<div class="flex items-center justify-center py-12">
 			<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
 		</div>
-	{:else if entries.length === 0 && !showEditor}
+	{:else if filteredEntries.length === 0 && !showEditor}
 		<div class="bg-card border-border rounded-xl border p-16 text-center">
 			<BookOpen class="text-muted-foreground mx-auto mb-4 h-12 w-12 opacity-40" />
 			<h3 class="text-foreground mb-1 text-lg font-medium">No journal entries yet</h3>
@@ -269,7 +291,7 @@
 		</div>
 	{:else}
 		<div class="space-y-4">
-			{#each entries as entry (entry.id)}
+			{#each filteredEntries as entry (entry.id)}
 				<article class="bg-card border-border group relative rounded-xl border p-5">
 					<!-- Date + trip context -->
 					<div class="mb-3 flex items-center justify-between gap-3">

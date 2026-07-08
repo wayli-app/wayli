@@ -100,11 +100,19 @@
 		};
 	});
 
-	// Track route changes
+	// Track route changes — only mark "visit" steps, not action steps
 	$effect(() => {
 		const pathname = $page.url.pathname;
 		if (shouldShow && pathname) {
-			trackPageVisit(pathname);
+			// Only auto-complete steps that are genuinely "visit" actions.
+			// Steps like import-export and connections require actual user actions
+			// (uploading data, configuring a tracker) and should not be marked
+			// complete just by visiting the page.
+			const visitOnlySteps = ['trips'];
+			const step = steps.find((s) => s.route === pathname);
+			if (step && visitOnlySteps.includes(step.id) && !step.completed) {
+				trackPageVisit(pathname);
+			}
 		}
 	});
 

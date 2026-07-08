@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { Toaster } from 'svelte-sonner';
 
 	import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
@@ -13,6 +14,8 @@
 	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
+
+	let { children }: { children: Snippet } = $props();
 
 	onMount(async () => {
 		// Initialize theme
@@ -56,7 +59,7 @@
 <StorageNoticeBanner />
 
 <ErrorBoundary>
-	<slot />
+	{@render children?.()}
 </ErrorBoundary>
 
 <!-- Global re-authentication modal for sensitive actions -->
