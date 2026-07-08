@@ -204,8 +204,7 @@ export class TripsService {
 					.select('distance')
 					.eq('user_id', trip.user_id)
 					.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
-					.lte('recorded_at', `${trip.end_date}T23:59:59Z`)
-					.not('country_code', 'is', null); // Ignore records with NULL country codes when calculating trip distance
+					.lte('recorded_at', `${trip.end_date}T23:59:59Z`);
 				if (!error && data) {
 					// Sum up all distances, treating null/undefined as 0
 					distanceTraveled = data.reduce(

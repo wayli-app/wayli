@@ -179,14 +179,16 @@
 				endDate: exportEndDate
 			});
 
+			toast.success('Export started — you will be notified when it is ready.');
+
 			// Reset date range only - preserve checkbox preferences
-			exportFormat = 'JSON';
 			exportStartDate = undefined;
 			exportEndDate = undefined;
 			localExportStartDate = undefined;
 			localExportEndDate = undefined;
 		} catch (error) {
 			console.error('Export error:', error);
+			toast.error('Failed to start export. Please try again.');
 		}
 	}
 
@@ -272,7 +274,7 @@
 							type="file"
 							id="fileInput"
 							bind:this={fileInputEl}
-							accept=".geojson,.json,.kml"
+							accept=".geojson,.json,.kml,.gpx,.rec"
 							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-muted-foreground file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:border-border dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
 							onchange={handleFileSelect}
 						/>
@@ -363,6 +365,23 @@
 						</label>
 					</div>
 				</div>
+
+				<!-- Format selector -->
+				<div class="mt-4">
+					<label class="mb-2 block text-sm font-medium text-muted-foreground" for="exportFormat">
+						Format
+					</label>
+					<select
+						id="exportFormat"
+						bind:value={exportFormat}
+						class="border-border focus:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					>
+						<option value="JSON">JSON</option>
+						<option value="GeoJSON">GeoJSON</option>
+						<option value="CSV">CSV</option>
+					</select>
+				</div>
+
 				<div class="mt-4">
 					<span class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('importExport.dateRange')}</span
