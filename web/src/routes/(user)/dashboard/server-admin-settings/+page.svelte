@@ -14,6 +14,7 @@
 		Mail,
 		Lock,
 		Bot,
+		BookOpen,
 		Database,
 		RefreshCw,
 		ArrowRight,
@@ -140,6 +141,14 @@
 	let showClearUserPlaceVisitsConfirm = $state(false);
 	let userToClearPlaceVisits = $state<UserProfile | null>(null);
 	let isClearingUserPlaceVisits = $state(false);
+
+	// Blog mode settings
+	let blogModeEnabled = $state(false);
+	let blogUsername = $state('');
+	let usersWithUsernames = $state<
+		Array<{ id: string; username: string; full_name: string | null }>
+	>([]);
+	let isSavingBlogMode = $state(false);
 
 	// AI Settings - provider-based model
 	let aiEnabled = $state(false);
@@ -1131,6 +1140,31 @@
 			}
 
 			console.log('✅ Settings loaded successfully');
+
+			// Load blog mode setting
+			try {
+				const { data: blogRedirect } = await fluxbase.settings.get(
+					'wayli.landing_redirect_username'
+				);
+				const redirectUser = (blogRedirect as any)?.value;
+				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
+					blogModeEnabled = true;
+					blogUsername = redirectUser.trim();
+				}
+			} catch {
+				// Setting not found — defaults are fine
+			}
+
+			// Load users with usernames (for the dropdown)
+			try {
+				const { data: usersData } = await fluxbase
+					.from('user_profiles')
+					.select('id, username, full_name')
+					.not('username', 'is', null);
+				usersWithUsernames = (usersData as any[]) ?? [];
+			} catch {
+				// Can't load users — dropdown will be empty
+			}
 		} catch (error: any) {
 			console.error('❌ Failed to load settings:', error);
 			toast.error(t('serverAdmin.failedToLoadSettings'), {
@@ -1144,6 +1178,19 @@
 		loadAllSettings();
 		loadOAuthProviders();
 	});
+
+	async function saveBlogMode() {
+		isSavingBlogMode = true;
+		try {
+			const value = blogModeEnabled && blogUsername ? blogUsername : null;
+			await fluxbase.admin.settings.app.setSetting('wayli.landing_redirect_username', { value });
+			toast.success(blogModeEnabled ? 'Blog mode enabled' : 'Blog mode disabled');
+		} catch (err) {
+			toast.error('Failed to save blog mode setting');
+		} finally {
+			isSavingBlogMode = false;
+		}
+	}
 
 	// Add User Modal State
 	let newUserEmail = $state('');
@@ -2426,6 +2473,64 @@
 								+ {t('serverAdmin.addOAuthProvider')}
 							</button>
 						{/if}
+					</div>
+				</div>
+
+				<!-- Blog Mode -->
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+					<div class="mb-4 flex items-center gap-3">
+						<BookOpen class="h-6 w-6 text-primary" />
+						<div>
+							<h2 class="text-xl font-semibold text-foreground">Blog Mode</h2>
+							<p class="mt-1 text-sm text-muted-foreground">
+								Redirect the landing page to a user's public travel journal.
+							</p>
+						</div>
+					</div>
+
+					<div class="space-y-4">
+						<label class="flex items-center gap-3">
+							<input
+								type="checkbox"
+								bind:checked={blogModeEnabled}
+								class="h-4 w-4 rounded border-border"
+							/>
+							<span class="text-sm text-foreground">Use a user's journal as the landing page</span>
+						</label>
+
+						{#if blogModeEnabled}
+							{#if usersWithUsernames.length === 0}
+								<p class="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+									No users have set a public username yet. Users can set one in their Account
+									Settings.
+								</p>
+							{:else}
+								<label class="block">
+									<span class="mb-1.5 block text-sm font-medium text-foreground">Journal owner</span
+									>
+									<select
+										bind:value={blogUsername}
+										class="border-border focus:ring-primary w-full max-w-xs rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+									>
+										<option value="" disabled>Select a user...</option>
+										{#each usersWithUsernames as user (user.id)}
+											<option value={user.username}>
+												{user.full_name || user.username} (@{user.username})
+											</option>
+										{/each}
+									</select>
+								</label>
+							{/if}
+						{/if}
+
+						<button
+							type="button"
+							onclick={saveBlogMode}
+							disabled={isSavingBlogMode || (blogModeEnabled && !blogUsername)}
+							class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+						>
+							{isSavingBlogMode ? 'Saving...' : 'Save'}
+						</button>
 					</div>
 				</div>
 

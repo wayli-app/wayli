@@ -1929,7 +1929,7 @@
 									href="/dashboard/trips/{trip.id}"
 									class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm font-medium transition-colors"
 								>
-									Read journal
+									Journal
 									<ChevronRight class="h-4 w-4" />
 								</a>
 							</div>

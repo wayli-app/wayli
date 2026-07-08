@@ -44,6 +44,15 @@
 	let preferences = $state<UserPreferences | null>(null);
 	let firstNameInput = $state('');
 	let lastNameInput = $state('');
+	let usernameInput = $state('');
+	let usernameStatus = $state<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+
+	const USERNAME_RE = /^[a-z0-9-]{3,30}$/;
+	const usernamePreview = $derived(
+		usernameInput && USERNAME_RE.test(usernameInput)
+			? `${window.location.origin}/u/${usernameInput}`
+			: ''
+	);
 
 	let pexelsApiKeyInput = $state('');
 	let pexelsApiKeyConfigured = $state(false);
@@ -170,6 +179,7 @@
 				const profileData = (profileResult as any).data || profileResult;
 				profile = profileData as UserProfile;
 				firstNameInput = profile.first_name || '';
+				usernameInput = (profile as any).username || '';
 				lastNameInput = profile.last_name || '';
 
 				// Initialize home address if it exists
@@ -559,12 +569,14 @@
 			// Update profile data
 			profile.first_name = firstNameInput.trim();
 			profile.last_name = lastNameInput.trim();
+			(profile as any).username = usernameInput.trim() || null;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
 			// Update profile using service adapter
 			await serviceAdapter.updateProfile({
 				first_name: profile.first_name,
 				last_name: profile.last_name,
+				username: (profile as any).username,
 				email: profile.email || '',
 				home_address: profile.home_address
 			});
@@ -1298,6 +1310,42 @@
 							bind:value={confirmPassword}
 							class="w-full"
 						/>
+					</div>
+				</div>
+
+				<!-- Public Profile -->
+				<div
+					class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card"
+				>
+					<div class="mb-6">
+						<div class="flex items-center gap-2">
+							<Globe class="h-5 w-5 text-muted-foreground" />
+							<h2 class="text-xl font-semibold text-foreground">Public Profile</h2>
+						</div>
+						<p class="mt-1 text-sm text-muted-foreground">
+							Set a public username to share your travel journal with the world.
+						</p>
+					</div>
+
+					<div>
+						<label for="username" class="mb-1.5 block text-sm font-medium text-foreground">
+							Username
+						</label>
+						<input
+							id="username"
+							type="text"
+							bind:value={usernameInput}
+							placeholder="e.g. bart"
+							class="focus:ring-primary w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+						/>
+						<p class="mt-1 text-xs text-muted-foreground">
+							Lowercase letters, numbers, and hyphens. 3–30 characters.
+						</p>
+						{#if usernamePreview}
+							<p class="mt-2 text-xs text-primary break-all">
+								🌐 {usernamePreview}
+							</p>
+						{/if}
 					</div>
 				</div>
 
