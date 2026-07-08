@@ -94,18 +94,27 @@
 
 		// Check setup status first to see if initial setup is needed
 		(async () => {
-			// Check if a landing redirect is configured (single-user blog mode)
+			// Check if a landing redirect URL is configured (admin setting)
 			try {
-				const redirectSetting = await readSetting(() =>
-					fluxbase.settings.get('wayli.landing_redirect_username')
-				);
-				const redirectUser = redirectSetting?.value;
+				const [urlSetting, usernameSetting] = await Promise.all([
+					readSetting(() => fluxbase.settings.get('wayli.landing_redirect_url')),
+					readSetting(() => fluxbase.settings.get('wayli.landing_redirect_username'))
+				]);
+
+				// Prefer the explicit URL setting; fall back to the username setting
+				const redirectUrl = urlSetting?.value;
+				if (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim()) {
+					goto(redirectUrl.trim());
+					return;
+				}
+
+				const redirectUser = usernameSetting?.value;
 				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
 					goto(`/u/${redirectUser.trim()}`);
 					return;
 				}
 			} catch {
-				// Setting not available — show normal landing page.
+				// Settings not available — show normal landing page.
 			}
 
 			await checkSetupStatus();

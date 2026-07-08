@@ -110,8 +110,26 @@ export class ServiceAdapter {
 			throw new Error('User not authenticated');
 		}
 
+		// Whitelist allowed columns to prevent privilege escalation (e.g. role='admin')
+		const ALLOWED_COLUMNS = new Set([
+			'first_name',
+			'last_name',
+			'username',
+			'home_address',
+			'home_address_skipped',
+			'avatar_url'
+		]);
+
 		// Separate email from profile fields
-		const { email, ...profileFields } = profile;
+		const { email, ...rawFields } = profile;
+
+		// Filter to only allowed columns
+		const profileFields: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(rawFields)) {
+			if (ALLOWED_COLUMNS.has(key)) {
+				profileFields[key] = value;
+			}
+		}
 
 		// Update email in auth if provided
 		if (email && typeof email === 'string') {

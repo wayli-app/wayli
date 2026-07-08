@@ -9,7 +9,10 @@
 		MapPin,
 		Plus,
 		Pencil,
-		Image
+		Image,
+		Loader2,
+		Check,
+		X
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import Input from '$lib/components/ui/input/index.svelte';
@@ -46,6 +49,7 @@
 	let lastNameInput = $state('');
 	let usernameInput = $state('');
 	let usernameStatus = $state<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+	let originalUsername = $state('');
 
 	const USERNAME_RE = /^[a-z0-9-]{3,30}$/;
 	const usernamePreview = $derived(
@@ -53,6 +57,42 @@
 			? `${window.location.origin}/u/${usernameInput}`
 			: ''
 	);
+
+	let usernameCheckTimer: ReturnType<typeof setTimeout> | null = null;
+
+	async function checkUsernameAvailability() {
+		const value = usernameInput.trim();
+		if (!value) {
+			usernameStatus = 'idle';
+			return;
+		}
+		if (!USERNAME_RE.test(value)) {
+			usernameStatus = 'invalid';
+			return;
+		}
+		// If unchanged from the user's current username, no need to check
+		if (value === originalUsername) {
+			usernameStatus = 'available';
+			return;
+		}
+		usernameStatus = 'checking';
+		try {
+			const { data } = await fluxbase
+				.from('public_profiles')
+				.select('id')
+				.eq('username', value)
+				.limit(1);
+			usernameStatus = (data as any[])?.length > 0 ? 'taken' : 'available';
+		} catch {
+			usernameStatus = 'idle';
+		}
+	}
+
+	function onUsernameInput() {
+		usernameStatus = 'idle';
+		if (usernameCheckTimer) clearTimeout(usernameCheckTimer);
+		usernameCheckTimer = setTimeout(checkUsernameAvailability, 500);
+	}
 
 	let pexelsApiKeyInput = $state('');
 	let pexelsApiKeyConfigured = $state(false);
@@ -180,6 +220,7 @@
 				profile = profileData as UserProfile;
 				firstNameInput = profile.first_name || '';
 				usernameInput = (profile as any).username || '';
+				originalUsername = (profile as any).username || '';
 				lastNameInput = profile.last_name || '';
 
 				// Initialize home address if it exists
@@ -555,6 +596,23 @@
 	async function handleSaveProfile() {
 		if (!profile) return;
 
+		// Block save if username is invalid or taken
+		const trimmedUsername = usernameInput.trim();
+		if (trimmedUsername && trimmedUsername !== originalUsername) {
+			if (!USERNAME_RE.test(trimmedUsername)) {
+				toast.error('Username format is invalid');
+				return;
+			}
+			if (usernameStatus === 'taken') {
+				toast.error('This username is already taken');
+				return;
+			}
+			if (usernameStatus !== 'available') {
+				toast.error('Please wait for the username check to complete');
+				return;
+			}
+		}
+
 		isUpdatingProfile = true;
 		error = null;
 
@@ -584,7 +642,12 @@
 			toast.success('Profile updated successfully!');
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error updating profile:', error);
-			toast.error('Failed to update profile. Please try again.');
+			const msg = error instanceof Error ? error.message : '';
+			if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already exists')) {
+				toast.error('This username is already taken. Please choose another.');
+			} else {
+				toast.error('Failed to update profile. Please try again.');
+			}
 		} finally {
 			isUpdatingProfile = false;
 		}
@@ -1335,12 +1398,30 @@
 							id="username"
 							type="text"
 							bind:value={usernameInput}
+							oninput={onUsernameInput}
 							placeholder="e.g. bart"
 							class="focus:ring-primary w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 						/>
 						<p class="mt-1 text-xs text-muted-foreground">
 							Lowercase letters, numbers, and hyphens. 3–30 characters.
 						</p>
+						{#if usernameStatus === 'checking'}
+							<p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+								<Loader2 class="h-3 w-3 animate-spin" /> Checking availability...
+							</p>
+						{:else if usernameStatus === 'available'}
+							<p class="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+								<Check class="h-3 w-3" /> Available
+							</p>
+						{:else if usernameStatus === 'taken'}
+							<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+								<X class="h-3 w-3" /> This username is already taken
+							</p>
+						{:else if usernameStatus === 'invalid'}
+							<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+								<X class="h-3 w-3" /> Invalid format (lowercase, numbers, hyphens, 3–30 chars)
+							</p>
+						{/if}
 						{#if usernamePreview}
 							<p class="mt-2 text-xs text-primary break-all">
 								🌐 {usernamePreview}
