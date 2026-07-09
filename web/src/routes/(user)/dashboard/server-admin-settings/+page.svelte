@@ -28,6 +28,7 @@
 	import Input from '$lib/components/ui/input/index.svelte';
 	import UserAvatar from '$lib/components/ui/UserAvatar.svelte';
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
+	import { ensureStorageBuckets } from '$lib/services/bucket-ensure.service';
 	import { translate } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionStore } from '$lib/stores/auth';
@@ -1139,6 +1140,9 @@
 			}
 
 			console.log('✅ Settings loaded successfully');
+
+			// Ensure required storage buckets exist (self-healing)
+			ensureStorageBuckets().catch(() => {});
 
 			// Load landing redirect setting
 			try {
