@@ -115,6 +115,17 @@
 		<a href="/" class="text-primary hover:underline text-sm">← Home</a>
 	</div>
 {:else if profile}
+	<!-- Top bar with sign-in -->
+	<div class="fixed top-0 right-0 z-50 p-4">
+		<a
+			href="/auth/signin"
+			class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
+		>
+			<LogIn class="h-4 w-4" />
+			Sign in
+		</a>
+	</div>
+
 	<div class="mx-auto max-w-4xl">
 		<!-- Hero header -->
 		<div class="bg-card border-border mb-6 overflow-hidden rounded-2xl border">
@@ -144,15 +155,6 @@
 					<Globe class="h-4 w-4" />
 					@{profile.username}
 				</p>
-
-				<!-- Sign in link -->
-				<a
-					href="/auth/signin"
-					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
-				>
-					<LogIn class="h-4 w-4" />
-					Sign in
-				</a>
 			</div>
 		</div>
 
