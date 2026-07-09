@@ -207,6 +207,10 @@
 	let selectedTypes = $state<string[]>(['All']); // Array to support multiple selections
 	let showFavouritedOnly = $state(false); // Filter for favourited places only
 
+	// Pagination
+	const PLACES_PER_PAGE = 24;
+	let visiblePlacesCount = $state(PLACES_PER_PAGE);
+
 	// User profile and loading states
 	let userProfile = $state<UserProfile | null>(null);
 	let hasHomeAddress = $state(false);
@@ -328,12 +332,10 @@
 
 	let filteredPlaces = $derived(
 		places.filter((place) => {
-			// Type filter - match by markerType ID
 			const typeMatch =
 				(selectedTypes.length === 1 && selectedTypes[0] === 'All') ||
 				selectedTypes.some((selectedType) => place.markerType && place.markerType === selectedType);
 
-			// Search filter - search in title, description, labels, and address
 			const searchLower = searchQuery.toLowerCase();
 			const searchMatch =
 				!searchQuery ||
@@ -343,12 +345,23 @@
 				(place.address && place.address.toLowerCase().includes(searchLower)) ||
 				(place.coordinates && place.coordinates.toLowerCase().includes(searchLower));
 
-			// Favourited filter - show only favourited places when enabled
 			const favouritedMatch = !showFavouritedOnly || place.favorite;
 
 			return typeMatch && searchMatch && favouritedMatch;
 		})
 	);
+
+	// Reset pagination when filters change
+	$effect(() => {
+		// Touch the reactive deps so this re-runs when they change
+		void selectedTypes;
+		void searchQuery;
+		void showFavouritedOnly;
+		visiblePlacesCount = PLACES_PER_PAGE;
+	});
+
+	const visiblePlaces = $derived(filteredPlaces.slice(0, visiblePlacesCount));
+	const hasMorePlaces = $derived(visiblePlacesCount < filteredPlaces.length);
 
 	// Update markers when filtered places change
 	$effect(() => {
@@ -1648,7 +1661,7 @@
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each filteredPlaces as place (place.id)}
+			{#each visiblePlaces as place (place.id)}
 				<div
 					class="group relative rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg bg-card border-border"
 				>
@@ -1733,6 +1746,19 @@
 				</div>
 			{/each}
 		</div>
+
+		<!-- Load more -->
+		{#if hasMorePlaces}
+			<div class="mt-6 flex justify-center">
+				<button
+					type="button"
+					onclick={() => (visiblePlacesCount += PLACES_PER_PAGE)}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-6 py-2 text-sm font-medium transition-colors"
+				>
+					Load more places ({filteredPlaces.length - visiblePlacesCount} remaining)
+				</button>
+			</div>
+		{/if}
 	{/if}
 </div>
 
