@@ -25,14 +25,18 @@
 	let visibilitySaveTimer: ReturnType<typeof setTimeout> | null = null;
 	let visibilitySaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 	let visibilitySaveTimeout: ReturnType<typeof setTimeout> | null = null;
+	let lastSavedVisibility = $state<string | null>(null);
 
 	async function saveVisibility(newVal: string) {
 		if (!trip) return;
+		// Don't save if unchanged from what we last saved (or loaded)
+		if (newVal === lastSavedVisibility) return;
 		if (visibilitySaveTimer) clearTimeout(visibilitySaveTimer);
 		visibilitySaveStatus = 'saving';
 		visibilitySaveTimer = setTimeout(async () => {
 			try {
 				await fluxbase.from('trips').update({ visibility: newVal }).eq('id', tripId);
+				lastSavedVisibility = newVal;
 				visibilitySaveStatus = 'saved';
 				toast.success(`Trip is now ${newVal}`);
 				if (visibilitySaveTimeout) clearTimeout(visibilitySaveTimeout);
@@ -103,6 +107,7 @@
 				return;
 			}
 			trip = tripData as unknown as Trip;
+			lastSavedVisibility = trip.visibility;
 
 			// Load journal entries
 			entries = await listEntries(tripId);
@@ -279,8 +284,8 @@
 			</div>
 
 			<!-- Visibility toggle -->
-			<div class="border-border mt-6 border-t pt-6">
-				<span class="text-muted-foreground mb-3 block text-xs font-medium uppercase tracking-wide">
+			<div class="border-border mt-8 border-t px-6 py-6">
+				<span class="text-muted-foreground mb-4 block text-xs font-medium uppercase tracking-wide">
 					Visibility
 				</span>
 				<VisibilityToggle bind:value={trip.visibility} />
