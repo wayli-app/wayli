@@ -50,6 +50,12 @@
 			: entries
 	);
 
+	const ENTRIES_PER_PAGE = 20;
+	let visibleCount = $state(ENTRIES_PER_PAGE);
+
+	const visibleEntries = $derived(filteredEntries.slice(0, visibleCount));
+	const hasMore = $derived(visibleCount < filteredEntries.length);
+
 	// Inline editor state
 	let showEditor = $state(false);
 	let editingEntry = $state<JournalEntry | null>(null);
@@ -291,7 +297,7 @@
 		</div>
 	{:else}
 		<div class="space-y-6">
-			{#each filteredEntries as entry (entry.id)}
+			{#each visibleEntries as entry (entry.id)}
 				<article
 					class="bg-card border-border group overflow-hidden rounded-2xl border transition-shadow hover:shadow-md"
 				>
@@ -387,5 +393,18 @@
 				</article>
 			{/each}
 		</div>
+
+		<!-- Load more -->
+		{#if hasMore}
+			<div class="flex justify-center pt-2">
+				<button
+					type="button"
+					onclick={() => (visibleCount += ENTRIES_PER_PAGE)}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-6 py-2 text-sm font-medium transition-colors"
+				>
+					Load more entries
+				</button>
+			</div>
+		{/if}
 	{/if}
 </div>

@@ -97,6 +97,7 @@
 	let pexelsApiKeyInput = $state('');
 	let preferredUnit = $state('metric');
 	let preferredTimezone = $state('');
+	let notificationsEnabled = $state(false);
 	let pexelsApiKeyConfigured = $state(false);
 	let pexelsApiKeyUpdatedAt = $state<string | null>(null);
 	let serverPexelsApiKeyAvailable = $state(false);
@@ -249,6 +250,7 @@
 				preferences = preferencesData as UserPreferences;
 				preferredTimezone = preferences.timezone || '';
 				preferredUnit = (preferences as any).preferences?.units || 'metric';
+				notificationsEnabled = preferences.notifications_enabled ?? false;
 			}
 
 			// Load user Pexels API key secret metadata
@@ -674,6 +676,7 @@
 			await serviceAdapter.updatePreferences({
 				language: preferences.language,
 				timezone: preferredTimezone || null,
+				notifications_enabled: notificationsEnabled,
 				preferences: {
 					...(preferences.preferences || {}),
 					units: preferredUnit
@@ -1595,6 +1598,19 @@
 						<option value="Asia/Singapore">Asia/Singapore</option>
 						<option value="Australia/Sydney">Australia/Sydney</option>
 					</select>
+				</div>
+
+				<!-- Notifications -->
+				<div>
+					<span class="mb-1.5 block text-sm font-medium text-foreground">Notifications</span>
+					<label class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							bind:checked={notificationsEnabled}
+							class="h-4 w-4 rounded border-border"
+						/>
+						<span class="text-sm text-muted-foreground">Enable in-app notifications</span>
+					</label>
 				</div>
 			</div>
 
