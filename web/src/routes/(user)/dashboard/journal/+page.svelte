@@ -290,72 +290,99 @@
 			{/if}
 		</div>
 	{:else}
-		<div class="space-y-4">
+		<div class="space-y-6">
 			{#each filteredEntries as entry (entry.id)}
-				<article class="bg-card border-border group relative rounded-xl border p-5">
-					<!-- Date + trip context -->
-					<div class="mb-3 flex items-center justify-between gap-3">
-						<div class="flex items-center gap-2">
+				<article
+					class="bg-card border-border group overflow-hidden rounded-2xl border transition-shadow hover:shadow-md"
+				>
+					<!-- Trip context banner (with cover image) -->
+					{#if entry.trip_image_url}
+						<div class="relative h-32 overflow-hidden">
+							<img src={entry.trip_image_url} alt="" class="h-full w-full object-cover" />
 							<div
-								class="bg-primary/10 text-primary flex h-10 w-10 flex-col items-center justify-center rounded-lg text-xs font-semibold leading-tight"
+								class="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent"
+							></div>
+							<a
+								href="/dashboard/trips/{entry.trip_id}"
+								class="text-foreground absolute bottom-2 left-3 inline-flex items-center gap-1.5 text-sm font-medium"
 							>
-								{new Date(entry.entry_date).toLocaleDateString(undefined, { month: 'short' })}
-								{new Date(entry.entry_date).getDate()}
-							</div>
-							<div>
-								<a
-									href="/dashboard/trips/{entry.trip_id}"
-									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
+								<MapPin class="text-primary h-3.5 w-3.5" />
+								{entry.trip_title}
+							</a>
+						</div>
+					{/if}
+
+					<div class="p-6">
+						<!-- Date + actions -->
+						<div class="mb-3 flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
+								<div
+									class="bg-primary/10 text-primary flex h-10 w-10 flex-col items-center justify-center rounded-lg text-[10px] font-bold uppercase leading-tight"
 								>
-									<MapPin class="h-3 w-3" />
-									{entry.trip_title}
-								</a>
-								<p class="text-muted-foreground text-xs">{formatDate(entry.entry_date)}</p>
+									{new Date(entry.entry_date).toLocaleDateString(undefined, { month: 'short' })}
+									<span class="text-base font-extrabold">
+										{new Date(entry.entry_date).getDate()}
+									</span>
+								</div>
+								<div>
+									{#if !entry.trip_image_url}
+										<a
+											href="/dashboard/trips/{entry.trip_id}"
+											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
+										>
+											<MapPin class="h-3 w-3" />
+											{entry.trip_title}
+										</a>
+									{/if}
+									<p class="text-muted-foreground text-xs">
+										{formatDate(entry.entry_date)}
+									</p>
+								</div>
+							</div>
+							<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+								<button
+									type="button"
+									onclick={() => openEditEditor(entry)}
+									class="text-muted-foreground hover:text-foreground hover:bg-muted rounded p-1.5 transition-colors"
+									aria-label="Edit entry"><Pencil class="h-4 w-4" /></button
+								>
+								<button
+									type="button"
+									onclick={() => handleDelete(entry)}
+									class="text-muted-foreground hover:text-destructive hover:bg-muted rounded p-1.5 transition-colors"
+									aria-label="Delete entry"><Trash2 class="h-4 w-4" /></button
+								>
 							</div>
 						</div>
-						<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-							<button
-								type="button"
-								onclick={() => openEditEditor(entry)}
-								class="text-muted-foreground hover:text-foreground hover:bg-muted rounded p-1.5 transition-colors"
-								aria-label="Edit entry"><Pencil class="h-4 w-4" /></button
-							>
-							<button
-								type="button"
-								onclick={() => handleDelete(entry)}
-								class="text-muted-foreground hover:text-destructive hover:bg-muted rounded p-1.5 transition-colors"
-								aria-label="Delete entry"><Trash2 class="h-4 w-4" /></button
-							>
+
+						<!-- Title -->
+						{#if entry.title}
+							<h2 class="text-foreground mb-3 text-xl font-bold">{entry.title}</h2>
+						{/if}
+
+						<!-- Body -->
+						{#if entry.body}
+							<div class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(entry.body)}
+							</div>
+						{/if}
+
+						<!-- Photos for this entry -->
+						<div class="mt-4">
+							<PhotoGallery tripId={entry.trip_id} entryId={entry.id} />
 						</div>
-					</div>
 
-					<!-- Title -->
-					{#if entry.title}
-						<h2 class="text-foreground mb-2 text-xl font-bold">{entry.title}</h2>
-					{/if}
-
-					<!-- Body (rendered markdown) -->
-					{#if entry.body}
-						<div class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-							<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-							{@html renderMarkdown(entry.body)}
+						<!-- Footer -->
+						<div class="border-border mt-4 flex items-center border-t pt-3">
+							<a
+								href="/dashboard/trips/{entry.trip_id}"
+								class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
+							>
+								View trip details
+								<ArrowRight class="h-3 w-3" />
+							</a>
 						</div>
-					{/if}
-
-					<!-- Photos for this entry -->
-					<div class="mt-4">
-						<PhotoGallery tripId={entry.trip_id} entryId={entry.id} />
-					</div>
-
-					<!-- Footer: link to trip detail -->
-					<div class="border-border mt-4 flex items-center border-t pt-3">
-						<a
-							href="/dashboard/trips/{entry.trip_id}"
-							class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
-						>
-							View trip details
-							<ArrowRight class="h-3 w-3" />
-						</a>
 					</div>
 				</article>
 			{/each}
