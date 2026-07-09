@@ -98,7 +98,7 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
-			// Load GPS track via the home-redacted RPC
+			// Load GPS track via the RPC (bypasses tracker_data RLS for public trips)
 			const { data: trackData } = await fluxbase.rpc('get_public_trip_track', {
 				trip_uuid: tripId
 			});

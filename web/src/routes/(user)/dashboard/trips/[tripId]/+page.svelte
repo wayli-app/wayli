@@ -130,12 +130,24 @@
 	async function loadGpsData() {
 		if (!trip) return;
 		try {
-			// Use the home-redacted RPC (excludes 500m around owner's home address)
-			const { data } = await fluxbase.rpc('get_public_trip_track', {
-				trip_uuid: tripId
-			});
+			const { data } = await fluxbase
+				.from('tracker_data')
+				.select('location')
+				.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
+				.lte('recorded_at', `${trip.end_date}T23:59:59Z`)
+				.order('recorded_at', { ascending: true })
+				.limit(5000);
+
 			if (data) {
-				gpsPoints = (data as any[]).map((r) => ({ lat: r.lat, lng: r.lng }));
+				gpsPoints = (data as any[])
+					.map((row) => {
+						const loc = row.location;
+						if (loc?.coordinates && Array.isArray(loc.coordinates)) {
+							return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
+						}
+						return null;
+					})
+					.filter((p): p is { lat: number; lng: number } => p !== null);
 			}
 		} catch {
 			// GPS data is optional — no track shown if unavailable

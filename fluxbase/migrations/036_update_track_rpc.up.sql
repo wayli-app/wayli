@@ -1,6 +1,7 @@
--- 036: Update get_public_trip_track to also serve trip owners
--- Allows authenticated owners to see their own track (with home exclusion)
--- even when the trip is private. Anon users still only get public trips.
+-- 036: Simplify get_public_trip_track — raw track, no home filtering
+-- Home-address exclusion removed; users will control privacy via individual
+-- point removal (planned feature). The RPC now just returns the raw GPS
+-- track for a trip that is public OR owned by the caller.
 
 DROP FUNCTION IF EXISTS get_public_trip_track(uuid);
 
@@ -14,11 +15,7 @@ DECLARE
     trip_user_id uuid;
     trip_start date;
     trip_end date;
-    home_lat double precision;
-    home_lng double precision;
-    home_point geography;
 BEGIN
-    -- Find the trip: allow if public OR if the caller is the owner
     SELECT user_id, start_date, end_date
     INTO trip_user_id, trip_start, trip_end
     FROM trips
@@ -29,20 +26,6 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Get home address coordinates (if set)
-    SELECT
-        (home_address->>'lat')::double precision,
-        (home_address->>'lon')::double precision
-    INTO home_lat, home_lng
-    FROM user_profiles
-    WHERE id = trip_user_id AND home_address IS NOT NULL;
-
-    -- Build a geography point for distance comparison (meters)
-    IF home_lat IS NOT NULL AND home_lng IS NOT NULL THEN
-        home_point := ST_SetSRID(ST_MakePoint(home_lng, home_lat), 4326)::geography;
-    END IF;
-
-    -- Return GPS points within the trip date range, excluding a 500m radius around home
     RETURN QUERY
     SELECT
         ST_Y(location::geometry)::double precision AS lat,
@@ -51,15 +34,11 @@ BEGIN
     WHERE user_id = trip_user_id
         AND recorded_at >= trip_start::timestamptz
         AND recorded_at <= (trip_end + INTERVAL '1 day')::timestamptz
-        AND (
-            home_point IS NULL
-            OR NOT ST_DWithin(location::geography, home_point, 500)
-        )
     ORDER BY recorded_at;
 END;
 $$;
 
 COMMENT ON FUNCTION get_public_trip_track(uuid) IS
-    'Returns the GPS track for a trip (with 500m home-address exclusion). Accessible when the trip is public OR the caller is the owner. SECURITY DEFINER.';
+    'Returns the raw GPS track for a trip. Accessible when the trip is public OR the caller is the owner. SECURITY DEFINER — bypasses tracker_data RLS.';
 
 GRANT EXECUTE ON FUNCTION get_public_trip_track(uuid) TO anon, authenticated;
