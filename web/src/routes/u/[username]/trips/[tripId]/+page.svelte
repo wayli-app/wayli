@@ -8,7 +8,7 @@
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
-	import { ArrowLeft, Calendar, Route, MapPin } from 'lucide-svelte';
+	import { ArrowLeft, Calendar, Route, MapPin, Globe, Compass, LogIn } from 'lucide-svelte';
 
 	type Trip = {
 		id: string;
@@ -38,17 +38,52 @@
 	let trip = $state<Trip | null>(null);
 	let entries = $state<Entry[]>([]);
 	let media = $state<Media[]>([]);
-	let gpsPoints = $state<Array<{ lat: number; lng: number }>>([]);
+	let allGpsPoints = $state<Array<{ lat: number; lng: number; date: string }>>([]);
 	let cityMarkers = $state<Array<{ lat: number; lng: number; label: string }>>([]);
 	let isLoading = $state(true);
 	let notFound = $state(false);
 	let lightbox = $state<Media | null>(null);
+	let activeEntryId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
 	const tripId = $derived(page.params.tripId ?? '');
 
+	// GPS points for the active entry's date (or all if none active)
+	const mapPoints = $derived(allGpsPoints.map((p) => ({ lat: p.lat, lng: p.lng })));
+
+	const highlightPoints = $derived.by(() => {
+		if (!activeEntryId) return [];
+		const entry = entries.find((e) => e.id === activeEntryId);
+		if (!entry) return [];
+		return allGpsPoints
+			.filter((p) => p.date === entry.entry_date)
+			.map((p) => ({ lat: p.lat, lng: p.lng }));
+	});
+
+	let entryElements = $state<Map<string, HTMLElement>>(new Map());
+	let observer: IntersectionObserver | null = null;
+
+	function setupScrollObserver() {
+		if (observer) observer.disconnect();
+		observer = new IntersectionObserver(
+			(entries) => {
+				for (const e of entries) {
+					if (e.isIntersecting) {
+						const id = (e.target as HTMLElement).dataset.entryId;
+						if (id) activeEntryId = id;
+					}
+				}
+			},
+			{ rootMargin: '-30% 0px -50% 0px', threshold: 0 }
+		);
+		entryElements.forEach((el) => observer?.observe(el));
+	}
+
+	function registerEntryElement(id: string, el: HTMLElement) {
+		entryElements.set(id, el);
+	}
+
 	onMount(async () => {
-		// Check if public access requires auth
 		const requireAuth = await readSetting(() =>
 			fluxbase.settings.get('wayli.public_trips_require_auth')
 		);
@@ -66,21 +101,17 @@
 		}
 
 		try {
-			// Load trip (must be public — RLS enforces)
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
-
 			if (!tripData) {
 				notFound = true;
 				return;
 			}
 			trip = tripData as unknown as Trip;
-
 			if (trip.visibility !== 'public') {
 				notFound = true;
 				return;
 			}
 
-			// Load entries (cascading public-read RLS)
 			const { data: entryData } = await fluxbase
 				.from('trip_entries')
 				.select('id, title, body, entry_date')
@@ -88,7 +119,6 @@
 				.order('entry_date', { ascending: true });
 			entries = (entryData as unknown as Entry[]) ?? [];
 
-			// Load media (cascading public-read RLS)
 			const { data: mediaData } = await fluxbase
 				.from('trip_media')
 				.select('id, storage_path, thumbnail_path, caption')
@@ -96,24 +126,38 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
-			// Load GPS track via the RPC (bypasses tracker_data RLS for public trips)
+			// Load GPS track with dates for entry-highlighting
 			const { data: trackData } = await fluxbase.rpc('get_public_trip_track', {
 				trip_uuid: tripId
 			});
 			if (trackData) {
-				gpsPoints = (trackData as any[]).map((r) => ({ lat: r.lat, lng: r.lng }));
+				const raw = trackData as any[];
+				// We need dates — fetch from tracker_data directly (owner can read it)
+				// For public trips, use the RPC result (lat/lng only, no dates).
+				// We'll approximate the date by interpolating across the trip date range.
+				if (raw.length > 0 && trip) {
+					const start = new Date(trip.start_date).getTime();
+					const end = new Date(trip.end_date).getTime() + 86400000;
+					const range = end - start || 86400000;
+					allGpsPoints = raw.map((p, i) => ({
+						lat: p.lat,
+						lng: p.lng,
+						date: new Date(start + (i / raw.length) * range).toISOString().slice(0, 10)
+					}));
+				}
 			}
 
-			// Build city markers from metadata
 			if (trip?.metadata?.visitedCitiesDetailed) {
 				cityMarkers = trip.metadata.visitedCitiesDetailed
 					.filter((c: any) => c.lat && c.lng)
-					.map((c: any) => ({
-						lat: c.lat,
-						lng: c.lng,
-						label: c.city || 'Unknown'
-					}));
+					.map((c: any) => ({ lat: c.lat, lng: c.lng, label: c.city || 'Unknown' }));
 			}
+
+			// Set initial active entry
+			if (entries.length > 0) activeEntryId = entries[0].id;
+
+			// Setup scroll observer after DOM renders
+			setTimeout(() => setupScrollObserver(), 100);
 		} catch {
 			notFound = true;
 		} finally {
@@ -122,7 +166,11 @@
 	});
 
 	function formatDateRange(start: string, end: string): string {
-		const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+		const opts: Intl.DateTimeFormatOptions = {
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric'
+		};
 		return `${new Date(start).toLocaleDateString(undefined, opts)} – ${new Date(end).toLocaleDateString(undefined, opts)}`;
 	}
 </script>
@@ -130,18 +178,28 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (lightbox = null)} />
 
 {#if isLoading}
-	<div class="flex items-center justify-center py-20">
-		<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+	<div class="flex min-h-screen items-center justify-center bg-background">
+		<div class="border-primary h-10 w-10 animate-spin rounded-full border-2"></div>
 	</div>
 {:else if notFound || !trip}
-	<div class="py-20 text-center">
+	<div class="flex min-h-screen flex-col items-center justify-center gap-3 bg-background p-4">
+		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
 		<p class="text-muted-foreground text-lg">Trip not found or not public.</p>
-		<a href="/u/{username}" class="text-primary mt-4 inline-block hover:underline"
-			>← Back to profile</a
-		>
+		<a href="/u/{username}" class="text-primary hover:underline text-sm">← Back to profile</a>
 	</div>
 {:else}
-	<div class="mx-auto max-w-3xl space-y-6 p-4">
+	<!-- Top bar -->
+	<div class="fixed top-0 right-0 z-50 p-4">
+		<a
+			href="/auth/signin"
+			class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
+		>
+			<LogIn class="h-4 w-4" />
+			Sign in
+		</a>
+	</div>
+
+	<div class="mx-auto max-w-7xl px-4 pt-16">
 		<!-- Back link -->
 		<a
 			href="/u/{username}"
@@ -152,12 +210,12 @@
 		</a>
 
 		<!-- Trip header -->
-		<div class="bg-card border-border overflow-hidden rounded-xl border">
+		<div class="bg-card border-border mt-2 overflow-hidden rounded-2xl border">
 			{#if trip.image_url}
-				<img src={trip.image_url} alt={trip.title} class="h-48 w-full object-cover" />
+				<img src={trip.image_url} alt={trip.title} class="h-40 w-full object-cover sm:h-56" />
 			{/if}
 			<div class="p-6">
-				<h1 class="text-foreground mb-2 text-2xl font-bold">{trip.title}</h1>
+				<h1 class="text-foreground mb-2 text-2xl font-bold sm:text-3xl">{trip.title}</h1>
 				{#if trip.description}
 					<p class="text-muted-foreground mb-3 text-sm leading-relaxed">{trip.description}</p>
 				{/if}
@@ -176,49 +234,54 @@
 			</div>
 		</div>
 
-		<!-- Map (polyline is home-redacted) -->
-		{#if gpsPoints.length > 0 || cityMarkers.length > 0}
-			<div class="bg-card border-border overflow-hidden rounded-xl border p-4">
-				<h2 class="text-foreground mb-3 flex items-center gap-2 text-sm font-semibold">
-					<MapPin class="h-4 w-4" />
-					Route
-				</h2>
-				<TripMap points={gpsPoints} markers={cityMarkers} class="h-72" />
-			</div>
-		{/if}
+		<!-- Split layout: sticky map + scrollable feed -->
+		<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_400px]">
+			<!-- Journal feed (scrollable, left on desktop / full on mobile) -->
+			<div class="space-y-6">
+				<!-- Photos (above entries) -->
+				{#if media.length > 0}
+					<div class="bg-card border-border rounded-2xl border p-4">
+						<h2 class="text-foreground mb-3 text-lg font-semibold">Photos</h2>
+						<div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
+							{#each media as item (item.id)}
+								<button
+									type="button"
+									onclick={() => (lightbox = item)}
+									class="aspect-square overflow-hidden rounded-lg"
+									aria-label="View photo"
+								>
+									<img
+										src={item.thumbnail_path ?? item.storage_path}
+										alt={item.caption || 'Photo'}
+										class="h-full w-full object-cover transition-transform hover:scale-105"
+										loading="lazy"
+									/>
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
 
-		<!-- Photos -->
-		{#if media.length > 0}
-			<div class="bg-card border-border rounded-xl border p-4">
-				<h2 class="text-foreground mb-3 text-lg font-semibold">Photos</h2>
-				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-					{#each media as item (item.id)}
-						<button
-							type="button"
-							onclick={() => (lightbox = item)}
-							class="aspect-square overflow-hidden rounded-lg"
-							aria-label="View photo"
-						>
-							<img
-								src={item.thumbnail_path ?? item.storage_path}
-								alt={item.caption || 'Photo'}
-								class="h-full w-full object-cover transition-transform hover:scale-105"
-								loading="lazy"
-							/>
-						</button>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Journal entries (read-only) -->
-		{#if entries.length > 0}
-			<div>
-				<h2 class="text-foreground mb-4 text-lg font-semibold">Journal</h2>
-				<div class="space-y-6">
+				<!-- Journal entries -->
+				{#if entries.length > 0}
 					{#each entries as entry (entry.id)}
-						<article class="bg-card border-border rounded-lg border p-5">
-							<div class="text-muted-foreground mb-2 text-xs font-medium">
+						<article
+							data-entry-id={entry.id}
+							onclick={() => (activeEntryId = entry.id)}
+							class="bg-card border-border scroll-mt-4 rounded-2xl border p-6 transition-shadow cursor-pointer {activeEntryId ===
+							entry.id
+								? 'ring-primary/20 ring-2'
+								: ''}"
+						>
+							<div class="text-muted-foreground mb-3 flex items-center gap-2 text-xs font-medium">
+								<div
+									class="bg-primary/10 text-primary flex h-9 w-9 flex-col items-center justify-center rounded-lg text-[10px] font-bold uppercase leading-tight"
+								>
+									{new Date(entry.entry_date).toLocaleDateString(undefined, { month: 'short' })}
+									<span class="text-sm font-extrabold">
+										{new Date(entry.entry_date).getDate()}
+									</span>
+								</div>
 								{new Date(entry.entry_date).toLocaleDateString(undefined, {
 									weekday: 'long',
 									year: 'numeric',
@@ -227,7 +290,7 @@
 								})}
 							</div>
 							{#if entry.title}
-								<h3 class="text-foreground mb-2 text-lg font-semibold">{entry.title}</h3>
+								<h3 class="text-foreground mb-2 text-xl font-bold">{entry.title}</h3>
 							{/if}
 							{#if entry.body}
 								<div class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
@@ -237,7 +300,7 @@
 							{/if}
 
 							<!-- Per-entry engagement -->
-							<div class="border-border mt-3 flex items-start gap-3 border-t pt-3">
+							<div class="border-border mt-4 flex items-start gap-3 border-t pt-3">
 								<EntryLikeButton {tripId} entryId={entry.id} />
 								<div class="flex-1">
 									<EntryComments {tripId} entryId={entry.id} />
@@ -245,15 +308,87 @@
 							</div>
 						</article>
 					{/each}
+				{:else}
+					<div class="bg-card border-border rounded-2xl border p-12 text-center">
+						<MapPin class="text-muted-foreground mx-auto mb-3 h-10 w-10 opacity-40" />
+						<p class="text-muted-foreground text-sm">No journal entries for this trip.</p>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Sticky map (right sidebar on desktop, hidden on mobile) -->
+			<div class="hidden lg:block">
+				<div class="sticky top-4 space-y-3">
+					<div class="bg-card border-border overflow-hidden rounded-2xl border">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2.5">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-foreground text-sm font-semibold">
+								{#if activeEntryId}
+									{entries.find((e) => e.id === activeEntryId)?.entry_date
+										? new Date(
+												entries.find((e) => e.id === activeEntryId)!.entry_date
+											).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+										: 'Route'}
+								{:else}
+									Route
+								{/if}
+							</span>
+							{#if activeEntryId}
+								<span class="text-muted-foreground ml-auto text-xs">
+									{highlightPoints.length} points
+								</span>
+							{/if}
+						</div>
+						<TripMap points={mapPoints} markers={cityMarkers} {highlightPoints} class="h-[400px]" />
+					</div>
+
+					<!-- Mini entry navigation -->
+					{#if entries.length > 1}
+						<div class="bg-card border-border rounded-2xl border p-3">
+							<div class="flex flex-wrap gap-1.5">
+								{#each entries as entry, i (entry.id)}
+									<button
+										type="button"
+										onclick={() => {
+											activeEntryId = entry.id;
+											document
+												.querySelector(`[data-entry-id="${entry.id}"]`)
+												?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+										}}
+										class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors {activeEntryId ===
+										entry.id
+											? 'bg-primary text-primary-foreground'
+											: 'bg-muted text-muted-foreground hover:bg-muted/80'}"
+									>
+										{i + 1}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
-		{/if}
+		</div>
+	</div>
+{/if}
+
+<!-- Mobile map (below header, collapsible) -->
+{#if !isLoading && !notFound && trip && (allGpsPoints.length > 0 || cityMarkers.length > 0)}
+	<div class="bg-card border-border mt-4 overflow-hidden rounded-xl border p-3 lg:hidden">
+		<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+			<MapPin class="text-primary h-4 w-4" />
+			{#if activeEntryId}
+				Day {entries.findIndex((e) => e.id === activeEntryId) + 1}
+			{:else}
+				Route
+			{/if}
+		</div>
+		<TripMap points={mapPoints} markers={cityMarkers} {highlightPoints} class="h-56" />
 	</div>
 {/if}
 
 <!-- Lightbox -->
 {#if lightbox}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
 		onclick={() => (lightbox = null)}
