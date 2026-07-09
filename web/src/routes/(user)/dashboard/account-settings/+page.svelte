@@ -1386,62 +1386,8 @@
 					</div>
 				</div>
 
-				<!-- Public Profile -->
-				<div
-					class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card"
-				>
-					<div class="mb-6">
-						<div class="flex items-center gap-2">
-							<Globe class="h-5 w-5 text-muted-foreground" />
-							<h2 class="text-xl font-semibold text-foreground">Public Profile</h2>
-						</div>
-						<p class="mt-1 text-sm text-muted-foreground">
-							Set a public username to share your travel journal with the world.
-						</p>
-					</div>
-
-					<div>
-						<label for="username" class="mb-1.5 block text-sm font-medium text-foreground">
-							Username
-						</label>
-						<input
-							id="username"
-							type="text"
-							bind:value={usernameInput}
-							oninput={onUsernameInput}
-							placeholder="e.g. bart"
-							class="focus:ring-primary w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-						/>
-						<p class="mt-1 text-xs text-muted-foreground">
-							Lowercase letters, numbers, and hyphens. 3–30 characters.
-						</p>
-						{#if usernameStatus === 'checking'}
-							<p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-								<Loader2 class="h-3 w-3 animate-spin" /> Checking availability...
-							</p>
-						{:else if usernameStatus === 'available'}
-							<p class="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
-								<Check class="h-3 w-3" /> Available
-							</p>
-						{:else if usernameStatus === 'taken'}
-							<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-								<X class="h-3 w-3" /> This username is already taken
-							</p>
-						{:else if usernameStatus === 'invalid'}
-							<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-								<X class="h-3 w-3" /> Invalid format (lowercase, numbers, hyphens, 3–30 chars)
-							</p>
-						{/if}
-						{#if usernamePreview}
-							<p class="mt-2 text-xs text-primary break-all">
-								🌐 {usernamePreview}
-							</p>
-						{/if}
-					</div>
-				</div>
-
 				<button
-					class="bg-primary hover:bg-primary/90 cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+					class="bg-primary hover:bg-primary/90 mt-4 cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={handleUpdatePassword}
 					disabled={isUpdatingPassword}
 				>
@@ -1450,6 +1396,66 @@
 						: t('accountSettings.updatePassword')}
 				</button>
 			</div>
+		</div>
+
+		<!-- Public Profile -->
+		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+			<div class="mb-6">
+				<div class="flex items-center gap-2">
+					<Globe class="h-5 w-5 text-muted-foreground" />
+					<h2 class="text-xl font-semibold text-foreground">Public Profile</h2>
+				</div>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Set a public username to share your travel journal with the world.
+				</p>
+			</div>
+
+			<div>
+				<label for="username" class="mb-1.5 block text-sm font-medium text-foreground">
+					Username
+				</label>
+				<input
+					id="username"
+					type="text"
+					bind:value={usernameInput}
+					oninput={onUsernameInput}
+					placeholder="e.g. bart"
+					class="focus:ring-primary w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+				/>
+				<p class="mt-1 text-xs text-muted-foreground">
+					Lowercase letters, numbers, and hyphens. 3–30 characters.
+				</p>
+				{#if usernameStatus === 'checking'}
+					<p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+						<Loader2 class="h-3 w-3 animate-spin" /> Checking availability...
+					</p>
+				{:else if usernameStatus === 'available'}
+					<p class="mt-2 flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+						<Check class="h-3 w-3" /> Available
+					</p>
+				{:else if usernameStatus === 'taken'}
+					<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+						<X class="h-3 w-3" /> This username is already taken
+					</p>
+				{:else if usernameStatus === 'invalid'}
+					<p class="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+						<X class="h-3 w-3" /> Invalid format (lowercase, numbers, hyphens, 3–30 chars)
+					</p>
+				{/if}
+				{#if usernamePreview}
+					<p class="mt-2 text-xs text-primary break-all">
+						🌐 {usernamePreview}
+					</p>
+				{/if}
+			</div>
+
+			<button
+				class="bg-primary hover:bg-primary/90 mt-4 cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+				onclick={handleSaveProfile}
+				disabled={isUpdatingProfile}
+			>
+				{isUpdatingProfile ? t('accountSettings.savingChanges') : t('common.actions.saveChanges')}
+			</button>
 		</div>
 
 		<!-- Two-Factor Authentication -->

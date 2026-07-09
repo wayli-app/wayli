@@ -142,8 +142,11 @@
 	let userToClearPlaceVisits = $state<UserProfile | null>(null);
 	let isClearingUserPlaceVisits = $state(false);
 
-	// Landing page redirect
-	let landingRedirectUrl = $state('');
+	// Landing page redirect — select a user whose blog is shown
+	let landingRedirectUsername = $state('');
+	let usersWithUsernames = $state<
+		Array<{ id: string; username: string; full_name: string | null }>
+	>([]);
 	let isSavingLandingRedirect = $state(false);
 
 	// AI Settings - provider-based model
@@ -1139,13 +1142,25 @@
 
 			// Load landing redirect setting
 			try {
-				const { data: redirectData } = await fluxbase.settings.get('wayli.landing_redirect_url');
-				const redirectUrl = (redirectData as any)?.value;
-				if (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim()) {
-					landingRedirectUrl = redirectUrl.trim();
+				const { data: redirectData } = await fluxbase.settings.get(
+					'wayli.landing_redirect_username'
+				);
+				const redirectUser = (redirectData as any)?.value;
+				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
+					landingRedirectUsername = redirectUser.trim();
 				}
 			} catch {
 				// Setting not found — defaults are fine
+			}
+
+			// Load users with usernames (for the selector)
+			try {
+				const { data: usersData } = await fluxbase
+					.from('public_profiles')
+					.select('id, username, full_name');
+				usersWithUsernames = (usersData as any[]) ?? [];
+			} catch {
+				// Can't load users — selector will be empty
 			}
 		} catch (error: any) {
 			console.error('❌ Failed to load settings:', error);
@@ -1164,11 +1179,14 @@
 	async function saveLandingRedirect() {
 		isSavingLandingRedirect = true;
 		try {
-			const value = landingRedirectUrl.trim() || null;
-			await fluxbase.admin.settings.app.setSetting('wayli.landing_redirect_url', { value });
-			toast.success('Landing page redirect saved');
+			const username = landingRedirectUsername || null;
+			await fluxbase.admin.settings.app.setSetting('wayli.landing_redirect_username', {
+				value: username,
+				description: 'Username whose public journal is shown as the landing page'
+			});
+			toast.success(username ? "Landing page set to user's blog" : 'Landing page reset to default');
 		} catch {
-			toast.error('Failed to save landing redirect');
+			toast.error('Failed to save landing page setting');
 		} finally {
 			isSavingLandingRedirect = false;
 		}
@@ -2458,39 +2476,52 @@
 					</div>
 				</div>
 
-				<!-- Landing Page Redirect -->
+				<!-- Landing Page -->
 				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-4 flex items-center gap-3">
 						<BookOpen class="h-6 w-6 text-primary" />
 						<div>
-							<h2 class="text-xl font-semibold text-foreground">Landing Page Redirect</h2>
+							<h2 class="text-xl font-semibold text-foreground">Landing Page</h2>
 							<p class="mt-1 text-sm text-muted-foreground">
-								Redirect visitors from the landing page (/) to a specific URL. Leave empty for the
-								default landing page.
+								Select a user whose public travel journal is shown when visitors land on the site.
 							</p>
 						</div>
 					</div>
 
 					<div class="space-y-4">
-						<label class="block">
-							<span class="mb-1.5 block text-sm font-medium text-foreground">Redirect URL</span>
-							<input
-								type="text"
-								bind:value={landingRedirectUrl}
-								placeholder="e.g. /u/bart"
-								class="border-border focus:ring-primary w-full max-w-md rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-							/>
-							<p class="mt-1 text-xs text-muted-foreground">
-								A relative path (e.g. <code class="bg-muted px-1 rounded">/u/bart</code>) or a full
-								URL. Tip: <code class="bg-muted px-1 rounded">/u/&#123;username&#125;</code> redirects
-								to a user's public travel journal.
+						{#if usersWithUsernames.length === 0}
+							<p class="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+								No users have set a public username yet. Users can set one in their Account Settings
+								under "Public Profile".
 							</p>
-						</label>
+						{:else}
+							<label class="block">
+								<span class="mb-1.5 block text-sm font-medium text-foreground"
+									>Show this user's blog</span
+								>
+								<select
+									bind:value={landingRedirectUsername}
+									class="border-border focus:ring-primary w-full max-w-md rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+								>
+									<option value="">Default landing page (no redirect)</option>
+									{#each usersWithUsernames as user (user.id)}
+										<option value={user.username}>
+											{user.full_name || user.username} (@{user.username})
+										</option>
+									{/each}
+								</select>
+								<p class="mt-1 text-xs text-muted-foreground">
+									Visitors will be redirected to <code class="bg-muted px-1 rounded"
+										>/u/{landingRedirectUsername || 'username'}</code
+									>
+								</p>
+							</label>
+						{/if}
 
 						<button
 							type="button"
 							onclick={saveLandingRedirect}
-							disabled={isSavingLandingRedirect}
+							disabled={isSavingLandingRedirect || usersWithUsernames.length === 0}
 							class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
 						>
 							{isSavingLandingRedirect ? 'Saving...' : 'Save'}
