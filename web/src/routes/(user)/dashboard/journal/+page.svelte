@@ -15,14 +15,14 @@
 	import {
 		BookOpen,
 		Plus,
-		Calendar,
 		MapPin,
 		Pencil,
 		Trash2,
 		Save,
 		X,
 		Loader2,
-		ArrowRight
+		ArrowRight,
+		Calendar
 	} from 'lucide-svelte';
 
 	type JournalEntry = TripEntry & {
@@ -164,259 +164,257 @@
 	}
 </script>
 
-<div class="flex min-h-screen flex-col">
-	<!-- Full-width header band -->
-	<div class="border-border bg-card border-b px-6 py-8">
-		<div class="mx-auto flex max-w-5xl items-center justify-between">
-			<div class="flex items-center gap-3">
-				<BookOpen class="text-primary h-7 w-7" />
-				<div>
-					<h1 class="text-foreground text-2xl font-bold">Journal</h1>
-					<p class="text-muted-foreground text-sm">
-						{filteredEntries.length}
-						{filteredEntries.length === 1 ? 'entry' : 'entries'}
-						{#if trips.length > 0}· {trips.length} {trips.length === 1 ? 'trip' : 'trips'}{/if}
-					</p>
-				</div>
+<div class="space-y-6">
+	<!-- Page header -->
+	<div class="flex items-center justify-between">
+		<div class="flex items-center gap-3">
+			<BookOpen class="text-primary h-6 w-6" />
+			<div>
+				<h1 class="text-foreground text-xl font-bold">Journal</h1>
+				<p class="text-muted-foreground text-sm">
+					{filteredEntries.length}
+					{filteredEntries.length === 1 ? 'entry' : 'entries'}
+					{#if trips.length > 0}· {trips.length} {trips.length === 1 ? 'trip' : 'trips'}{/if}
+				</p>
 			</div>
-			<div class="flex items-center gap-2">
-				{#if entries.length > 0}
-					<input
-						type="text"
-						bind:value={searchQuery}
-						placeholder="Search..."
-						class="border-border focus:ring-primary w-32 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:w-56 focus:ring-2 focus:outline-none transition-all"
-					/>
-				{/if}
-				{#if !showEditor && trips.length > 0}
-					<button
-						type="button"
-						onclick={openNewEditor}
-						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
-					>
-						<Plus class="h-4 w-4" />
-						New Entry
-					</button>
-				{/if}
-			</div>
+		</div>
+		<div class="flex items-center gap-2">
+			{#if entries.length > 0}
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search..."
+					class="border-border focus:ring-primary w-32 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:w-56 focus:ring-2 focus:outline-none transition-all"
+				/>
+			{/if}
+			{#if !showEditor && trips.length > 0}
+				<button
+					type="button"
+					onclick={openNewEditor}
+					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+				>
+					<Plus class="h-4 w-4" />
+					New Entry
+				</button>
+			{/if}
 		</div>
 	</div>
 
-	<!-- Content area -->
-	<div class="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-		<!-- Inline editor -->
-		{#if showEditor}
-			<div class="bg-card border-border space-y-3 rounded-xl border p-5">
-				<div class="flex items-center justify-between">
-					<h2 class="text-foreground text-lg font-semibold">
-						{editingEntry ? 'Edit Entry' : 'New Journal Entry'}
-					</h2>
-					<button
-						type="button"
-						onclick={() => (showEditor = false)}
-						class="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
-						aria-label="Close editor"><X class="h-5 w-5" /></button
-					>
-				</div>
-
-				<!-- Trip + date row -->
-				<div class="flex gap-3">
-					<label class="flex flex-1 flex-col gap-1">
-						<span class="text-muted-foreground text-xs font-medium">Trip</span>
-						<select
-							bind:value={selectedTripId}
-							class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-						>
-							<option value="" disabled>Select a trip...</option>
-							{#each trips as trip (trip.id)}
-								<option value={trip.id}>{trip.title} ({formatShortDate(trip.start_date)})</option>
-							{/each}
-						</select>
-					</label>
-					<label class="flex flex-col gap-1">
-						<span class="text-muted-foreground text-xs font-medium">Date</span>
-						<input
-							type="date"
-							bind:value={editorDate}
-							class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-						/>
-					</label>
-				</div>
-
-				<!-- Title -->
-				<input
-					type="text"
-					bind:value={editorTitle}
-					placeholder="Entry title (optional)"
-					class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				/>
-
-				<!-- Markdown editor -->
-				<MarkdownEditor bind:value={editorBody} />
-
-				<!-- Save bar -->
-				<div class="flex justify-end gap-2">
-					<button
-						type="button"
-						onclick={() => (showEditor = false)}
-						class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-					>
-						Cancel
-					</button>
-					<button
-						type="button"
-						onclick={saveEntry}
-						disabled={isSaving || !selectedTripId || !editorDate}
-						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
-					>
-						{#if isSaving}
-							<Loader2 class="h-4 w-4 animate-spin" />
-							Saving...
-						{:else}
-							<Save class="h-4 w-4" />
-							Save Entry
-						{/if}
-					</button>
-				</div>
+	<!-- Inline editor -->
+	{#if showEditor}
+		<div class="bg-card border-border space-y-3 rounded-xl border p-5">
+			<div class="flex items-center justify-between">
+				<h2 class="text-foreground text-lg font-semibold">
+					{editingEntry ? 'Edit Entry' : 'New Journal Entry'}
+				</h2>
+				<button
+					type="button"
+					onclick={() => (showEditor = false)}
+					class="text-muted-foreground hover:text-foreground rounded-lg p-1.5 transition-colors"
+					aria-label="Close editor"><X class="h-5 w-5" /></button
+				>
 			</div>
-		{/if}
 
-		<!-- Journal feed -->
-		{#if isLoading}
-			<div class="flex items-center justify-center py-12">
-				<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
-			</div>
-		{:else if filteredEntries.length === 0 && !showEditor}
-			<div class="bg-card border-border rounded-xl border p-16 text-center">
-				<BookOpen class="text-muted-foreground mx-auto mb-4 h-12 w-12 opacity-40" />
-				<h3 class="text-foreground mb-1 text-lg font-medium">No journal entries yet</h3>
-				<p class="text-muted-foreground mb-4 text-sm">
-					{trips.length > 0
-						? 'Write your first story by clicking "New Entry".'
-						: 'You need at least one trip before you can write journal entries.'}
-				</p>
-				{#if trips.length > 0}
-					<button
-						type="button"
-						onclick={openNewEditor}
-						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+			<div class="flex gap-3">
+				<label class="flex flex-1 flex-col gap-1">
+					<span class="text-muted-foreground text-xs font-medium">Trip</span>
+					<select
+						bind:value={selectedTripId}
+						class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 					>
-						<Plus class="h-4 w-4" />
-						Write your first entry
-					</button>
-				{/if}
+						<option value="" disabled>Select a trip...</option>
+						{#each trips as trip (trip.id)}
+							<option value={trip.id}>{trip.title} ({formatShortDate(trip.start_date)})</option>
+						{/each}
+					</select>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-muted-foreground text-xs font-medium">Date</span>
+					<input
+						type="date"
+						bind:value={editorDate}
+						class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					/>
+				</label>
 			</div>
-		{:else}
-			<div class="space-y-6">
-				{#each visibleEntries as entry (entry.id)}
-					<article
-						class="bg-card border-border group overflow-hidden rounded-2xl border transition-shadow hover:shadow-md"
-					>
-						<!-- Trip context banner (with cover image) -->
-						{#if entry.trip_image_url}
-							<div class="relative h-32 overflow-hidden">
-								<img src={entry.trip_image_url} alt="" class="h-full w-full object-cover" />
+
+			<input
+				type="text"
+				bind:value={editorTitle}
+				placeholder="Entry title (optional)"
+				class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+			/>
+
+			<MarkdownEditor bind:value={editorBody} />
+
+			<div class="flex justify-end gap-2">
+				<button
+					type="button"
+					onclick={() => (showEditor = false)}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					onclick={saveEntry}
+					disabled={isSaving || !selectedTripId || !editorDate}
+					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+				>
+					{#if isSaving}
+						<Loader2 class="h-4 w-4 animate-spin" />
+						Saving...
+					{:else}
+						<Save class="h-4 w-4" />
+						Save Entry
+					{/if}
+				</button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Journal feed -->
+	{#if isLoading}
+		<div class="flex items-center justify-center py-12">
+			<div class="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+		</div>
+	{:else if filteredEntries.length === 0 && !showEditor}
+		<div class="bg-card border-border rounded-xl border p-16 text-center">
+			<BookOpen class="text-muted-foreground mx-auto mb-4 h-12 w-12 opacity-40" />
+			<h3 class="text-foreground mb-1 text-lg font-medium">No journal entries yet</h3>
+			<p class="text-muted-foreground mb-4 text-sm">
+				{trips.length > 0
+					? 'Write your first story by clicking "New Entry".'
+					: 'You need at least one trip before you can write journal entries.'}
+			</p>
+			{#if trips.length > 0}
+				<button
+					type="button"
+					onclick={openNewEditor}
+					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+				>
+					<Plus class="h-4 w-4" />
+					Write your first entry
+				</button>
+			{/if}
+		</div>
+	{:else}
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+			{#each visibleEntries as entry (entry.id)}
+				<article
+					class="bg-card border-border group flex flex-col overflow-hidden rounded-2xl border transition-all duration-300 hover:shadow-lg"
+				>
+					<!-- Trip cover image banner -->
+					{#if entry.trip_image_url}
+						<div class="relative h-40 overflow-hidden">
+							<img src={entry.trip_image_url} alt="" class="h-full w-full object-cover" />
+							<div
+								class="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent"
+							></div>
+							<a
+								href="/dashboard/trips/{entry.trip_id}"
+								class="text-foreground absolute bottom-2 left-3 inline-flex items-center gap-1.5 text-sm font-medium"
+							>
+								<MapPin class="text-primary h-3.5 w-3.5" />
+								{entry.trip_title}
+							</a>
+						</div>
+					{/if}
+
+					<div class="flex flex-1 flex-col p-5">
+						<!-- Date + actions -->
+						<div class="mb-3 flex items-center justify-between gap-3">
+							<div class="flex items-center gap-2">
 								<div
-									class="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent"
-								></div>
-								<a
-									href="/dashboard/trips/{entry.trip_id}"
-									class="text-foreground absolute bottom-2 left-3 inline-flex items-center gap-1.5 text-sm font-medium"
+									class="bg-primary/10 text-primary flex h-10 w-10 flex-col items-center justify-center rounded-lg text-[10px] font-bold uppercase leading-tight"
 								>
-									<MapPin class="text-primary h-3.5 w-3.5" />
-									{entry.trip_title}
-								</a>
-							</div>
-						{/if}
-
-						<div class="p-6">
-							<!-- Date + actions -->
-							<div class="mb-3 flex items-center justify-between gap-3">
-								<div class="flex items-center gap-2">
-									<div
-										class="bg-primary/10 text-primary flex h-10 w-10 flex-col items-center justify-center rounded-lg text-[10px] font-bold uppercase leading-tight"
-									>
-										{new Date(entry.entry_date).toLocaleDateString(undefined, { month: 'short' })}
-										<span class="text-base font-extrabold">
-											{new Date(entry.entry_date).getDate()}
-										</span>
-									</div>
-									<div>
-										{#if !entry.trip_image_url}
-											<a
-												href="/dashboard/trips/{entry.trip_id}"
-												class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
-											>
-												<MapPin class="h-3 w-3" />
-												{entry.trip_title}
-											</a>
-										{/if}
-										<p class="text-muted-foreground text-xs">
-											{formatDate(entry.entry_date)}
-										</p>
-									</div>
+									{new Date(entry.entry_date).toLocaleDateString(undefined, { month: 'short' })}
+									<span class="text-base font-extrabold">
+										{new Date(entry.entry_date).getDate()}
+									</span>
 								</div>
-								<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-									<button
-										type="button"
-										onclick={() => openEditEditor(entry)}
-										class="text-muted-foreground hover:text-foreground hover:bg-muted rounded p-1.5 transition-colors"
-										aria-label="Edit entry"><Pencil class="h-4 w-4" /></button
-									>
-									<button
-										type="button"
-										onclick={() => handleDelete(entry)}
-										class="text-muted-foreground hover:text-destructive hover:bg-muted rounded p-1.5 transition-colors"
-										aria-label="Delete entry"><Trash2 class="h-4 w-4" /></button
-									>
+								<div>
+									{#if !entry.trip_image_url}
+										<a
+											href="/dashboard/trips/{entry.trip_id}"
+											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
+										>
+											<MapPin class="h-3 w-3" />
+											{entry.trip_title}
+										</a>
+									{/if}
+									<p class="text-muted-foreground flex items-center gap-1 text-xs">
+										<Calendar class="h-3 w-3" />
+										{new Date(entry.entry_date).toLocaleDateString(undefined, {
+											month: 'short',
+											day: 'numeric',
+											year: 'numeric'
+										})}
+									</p>
 								</div>
 							</div>
-
-							<!-- Title -->
-							{#if entry.title}
-								<h2 class="text-foreground mb-3 text-xl font-bold">{entry.title}</h2>
-							{/if}
-
-							<!-- Body -->
-							{#if entry.body}
-								<div class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
-									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-									{@html renderMarkdown(entry.body)}
-								</div>
-							{/if}
-
-							<!-- Photos for this entry -->
-							<div class="mt-4">
-								<PhotoGallery tripId={entry.trip_id} entryId={entry.id} />
-							</div>
-
-							<!-- Footer -->
-							<div class="border-border mt-4 flex items-center border-t pt-3">
-								<a
-									href="/dashboard/trips/{entry.trip_id}"
-									class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
+							<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+								<button
+									type="button"
+									onclick={() => openEditEditor(entry)}
+									class="text-muted-foreground hover:text-foreground hover:bg-muted rounded p-1.5 transition-colors"
+									aria-label="Edit entry"><Pencil class="h-4 w-4" /></button
 								>
-									View trip details
-									<ArrowRight class="h-3 w-3" />
-								</a>
+								<button
+									type="button"
+									onclick={() => handleDelete(entry)}
+									class="text-muted-foreground hover:text-destructive hover:bg-muted rounded p-1.5 transition-colors"
+									aria-label="Delete entry"><Trash2 class="h-4 w-4" /></button
+								>
 							</div>
 						</div>
-					</article>
-				{/each}
-			</div>
 
-			<!-- Load more -->
-			{#if hasMore}
-				<div class="flex justify-center pt-2">
-					<button
-						type="button"
-						onclick={() => (visibleCount += ENTRIES_PER_PAGE)}
-						class="border-border text-foreground hover:bg-muted rounded-lg border px-6 py-2 text-sm font-medium transition-colors"
-					>
-						Load more entries
-					</button>
-				</div>
-			{/if}
+						<!-- Title -->
+						{#if entry.title}
+							<h2 class="text-foreground mb-2 text-lg font-bold">{entry.title}</h2>
+						{/if}
+
+						<!-- Body -->
+						{#if entry.body}
+							<div
+								class="prose prose-sm dark:prose-invert max-w-none flex-1 text-sm leading-relaxed"
+							>
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(entry.body)}
+							</div>
+						{/if}
+
+						<!-- Photos for this entry -->
+						<div class="mt-3">
+							<PhotoGallery tripId={entry.trip_id} entryId={entry.id} />
+						</div>
+
+						<!-- Footer -->
+						<div class="border-border mt-4 flex items-center border-t pt-3">
+							<a
+								href="/dashboard/trips/{entry.trip_id}"
+								class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
+							>
+								View trip details
+								<ArrowRight class="h-3 w-3" />
+							</a>
+						</div>
+					</div>
+				</article>
+			{/each}
+		</div>
+
+		<!-- Load more -->
+		{#if hasMore}
+			<div class="flex justify-center pt-2">
+				<button
+					type="button"
+					onclick={() => (visibleCount += ENTRIES_PER_PAGE)}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-6 py-2 text-sm font-medium transition-colors"
+				>
+					Load more entries
+				</button>
+			</div>
 		{/if}
-	</div>
+	{/if}
 </div>

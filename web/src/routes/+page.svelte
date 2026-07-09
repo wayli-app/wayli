@@ -35,6 +35,7 @@
 
 	// Track if initial auth state has resolved (prevents login-button flash for logged-in users)
 	let authResolved = $state(false);
+	let redirectChecked = $state(false);
 
 	// Local theme state for SSR compatibility
 	let currentTheme = $state<'light' | 'dark'>('light');
@@ -103,13 +104,15 @@
 
 				// settings.get() already returns the unwrapped value (e.g. "bart")
 				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
-					goto(`/u/${redirectUser.trim()}`);
+					// Use replaceState so the back button doesn't return to the landing page
+					await goto(`/u/${redirectUser.trim()}`, { replaceState: true });
 					return;
 				}
 			} catch {
 				// Settings not available — show normal landing page.
 			}
 
+			redirectChecked = true;
 			await checkSetupStatus();
 		})();
 
@@ -248,151 +251,158 @@
 		{/if}
 	</div>
 
-	<!-- Hero Section -->
-	<div
-		class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 transition-colors duration-300 dark:from-background dark:via-card dark:to-background"
-	>
-		<div class="container mx-auto px-4 py-16">
-			<!-- Hero Content -->
-			<div class="mx-auto mb-16 max-w-4xl text-center">
-				<!-- Logo with text -->
-				<div class="mx-auto mb-6 flex justify-center">
-					<div class="bg-card/80 rounded-2xl p-4 backdrop-blur-sm dark:backdrop-blur-md">
-						<img src="/logo.svg" alt="Wayli logo" class="h-32 w-auto md:h-40" />
+	{#if !redirectChecked}
+		<!-- Minimal loader while checking for redirect — prevents landing page flash -->
+		<div class="flex min-h-screen items-center justify-center bg-background">
+			<div class="border-primary h-8 w-8 animate-spin rounded-full border-2"></div>
+		</div>
+	{:else}
+		<!-- Hero Section -->
+		<div
+			class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 transition-colors duration-300 dark:from-background dark:via-card dark:to-background"
+		>
+			<div class="container mx-auto px-4 py-16">
+				<!-- Hero Content -->
+				<div class="mx-auto mb-16 max-w-4xl text-center">
+					<!-- Logo with text -->
+					<div class="mx-auto mb-6 flex justify-center">
+						<div class="bg-card/80 rounded-2xl p-4 backdrop-blur-sm dark:backdrop-blur-md">
+							<img src="/logo.svg" alt="Wayli logo" class="h-32 w-auto md:h-40" />
+						</div>
 					</div>
-				</div>
-				<p
-					class="mb-4 text-2xl font-semibold text-gray-800 transition-colors duration-300 md:text-3xl dark:text-muted-foreground"
-				>
-					{t('landing.yourPersonalTracker')}
-				</p>
-				<p
-					class="mb-8 text-lg leading-relaxed text-gray-600 transition-colors duration-300 md:text-xl dark:text-muted-foreground"
-				>
-					{t('landing.selfHostedTagline')}
-				</p>
-				<div class="flex flex-col justify-center gap-4 sm:flex-row">
-					{#if $userStore && authResolved}
-						<!-- Logged in: Dashboard + Journal -->
-						<a
-							href="/dashboard/statistics"
-							class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
-						>
-							{t('common.navigation.dashboard')}
-							<ArrowRight class="h-5 w-5" />
-						</a>
-						<a
-							href="/dashboard/journal"
-							class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
-						>
-							<BookOpen class="h-5 w-5" />
-							Journal
-						</a>
-					{:else}
-						<!-- Anonymous: Get Started + Sign In -->
-						<a
-							href="/auth/signup"
-							class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
-						>
-							{t('landing.getStarted')}
-							<ArrowRight class="h-5 w-5" />
-						</a>
-						<a
-							href="/auth/signin"
-							class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
-						>
-							{t('landing.signIn')}
-						</a>
-					{/if}
-				</div>
-			</div>
-
-			<!-- Features Grid -->
-			<div class="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-				<!-- Feature 1: Privacy First -->
-				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
-				>
-					<div
-						class="bg-primary/10 dark:bg-primary/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full transition-colors duration-300"
-					>
-						<Shield class="text-primary h-8 w-8 dark:text-muted-foreground" />
-					</div>
-					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
-					>
-						{t('landing.privacyFirst')}
-					</h3>
 					<p
-						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+						class="mb-4 text-2xl font-semibold text-gray-800 transition-colors duration-300 md:text-3xl dark:text-muted-foreground"
 					>
-						{t('landing.privacyFirstDescription')}
+						{t('landing.yourPersonalTracker')}
 					</p>
+					<p
+						class="mb-8 text-lg leading-relaxed text-gray-600 transition-colors duration-300 md:text-xl dark:text-muted-foreground"
+					>
+						{t('landing.selfHostedTagline')}
+					</p>
+					<div class="flex flex-col justify-center gap-4 sm:flex-row">
+						{#if $userStore && authResolved}
+							<!-- Logged in: Dashboard + Journal -->
+							<a
+								href="/dashboard/statistics"
+								class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
+							>
+								{t('common.navigation.dashboard')}
+								<ArrowRight class="h-5 w-5" />
+							</a>
+							<a
+								href="/dashboard/journal"
+								class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
+							>
+								<BookOpen class="h-5 w-5" />
+								Journal
+							</a>
+						{:else}
+							<!-- Anonymous: Get Started + Sign In -->
+							<a
+								href="/auth/signup"
+								class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
+							>
+								{t('landing.getStarted')}
+								<ArrowRight class="h-5 w-5" />
+							</a>
+							<a
+								href="/auth/signin"
+								class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
+							>
+								{t('landing.signIn')}
+							</a>
+						{/if}
+					</div>
 				</div>
 
-				<!-- Feature 2: Automatic Trip Detection -->
-				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
-				>
+				<!-- Features Grid -->
+				<div class="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+					<!-- Feature 1: Privacy First -->
 					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 transition-colors duration-300 dark:bg-green-900/20"
+						class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 					>
-						<MapPin class="h-8 w-8 text-green-600 dark:text-green-400" />
+						<div
+							class="bg-primary/10 dark:bg-primary/20 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full transition-colors duration-300"
+						>
+							<Shield class="text-primary h-8 w-8 dark:text-muted-foreground" />
+						</div>
+						<h3
+							class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
+						>
+							{t('landing.privacyFirst')}
+						</h3>
+						<p
+							class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+						>
+							{t('landing.privacyFirstDescription')}
+						</p>
 					</div>
-					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
-					>
-						{t('landing.automaticTripDetection')}
-					</h3>
-					<p
-						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
-					>
-						{t('landing.automaticTripDescription')}
-					</p>
-				</div>
 
-				<!-- Feature 3: Beautiful Analytics -->
-				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
-				>
+					<!-- Feature 2: Automatic Trip Detection -->
 					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 transition-colors duration-300 dark:bg-purple-900/20"
+						class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 					>
-						<BarChart class="h-8 w-8 text-purple-600 dark:text-purple-400" />
+						<div
+							class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 transition-colors duration-300 dark:bg-green-900/20"
+						>
+							<MapPin class="h-8 w-8 text-green-600 dark:text-green-400" />
+						</div>
+						<h3
+							class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
+						>
+							{t('landing.automaticTripDetection')}
+						</h3>
+						<p
+							class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+						>
+							{t('landing.automaticTripDescription')}
+						</p>
 					</div>
-					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
-					>
-						{t('landing.beautifulAnalytics')}
-					</h3>
-					<p
-						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
-					>
-						{t('landing.beautifulAnalyticsDescription')}
-					</p>
-				</div>
 
-				<!-- Feature 4: Multi-User Support -->
-				<div
-					class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
-				>
+					<!-- Feature 3: Beautiful Analytics -->
 					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 transition-colors duration-300 dark:bg-orange-900/20"
+						class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 					>
-						<Users class="h-8 w-8 text-orange-600 dark:text-orange-400" />
+						<div
+							class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 transition-colors duration-300 dark:bg-purple-900/20"
+						>
+							<BarChart class="h-8 w-8 text-purple-600 dark:text-purple-400" />
+						</div>
+						<h3
+							class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
+						>
+							{t('landing.beautifulAnalytics')}
+						</h3>
+						<p
+							class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+						>
+							{t('landing.beautifulAnalyticsDescription')}
+						</p>
 					</div>
-					<h3
-						class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
+
+					<!-- Feature 4: Multi-User Support -->
+					<div
+						class="rounded-xl border border-gray-200/50 bg-white/50 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg dark:border-border/50 dark:bg-card/50"
 					>
-						{t('landing.multiUserSupport')}
-					</h3>
-					<p
-						class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
-					>
-						{t('landing.multiUserDescription')}
-					</p>
+						<div
+							class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 transition-colors duration-300 dark:bg-orange-900/20"
+						>
+							<Users class="h-8 w-8 text-orange-600 dark:text-orange-400" />
+						</div>
+						<h3
+							class="mb-2 text-xl font-semibold text-gray-900 transition-colors duration-300 dark:text-foreground"
+						>
+							{t('landing.multiUserSupport')}
+						</h3>
+						<p
+							class="text-sm text-gray-600 transition-colors duration-300 dark:text-muted-foreground"
+						>
+							{t('landing.multiUserDescription')}
+						</p>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
+	{/if}
 {/if}
