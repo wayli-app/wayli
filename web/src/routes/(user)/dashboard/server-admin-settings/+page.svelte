@@ -1146,10 +1146,9 @@
 
 			// Load landing redirect setting
 			try {
-				const { data: redirectData } = await fluxbase.settings.get(
-					'wayli.landing_redirect_username'
-				);
-				const redirectUser = (redirectData as any)?.value;
+				const redirectUser = await fluxbase.settings
+					.get('wayli.landing_redirect_username')
+					.catch(() => null);
 				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
 					landingRedirectUsername = redirectUser.trim();
 				}
@@ -1157,11 +1156,13 @@
 				// Setting not found — defaults are fine
 			}
 
-			// Load users with usernames (for the selector)
+			// Load users with usernames (query user_profiles directly —
+			// public_profiles view may not exist on all instances)
 			try {
 				const { data: usersData } = await fluxbase
-					.from('public_profiles')
-					.select('id, username, full_name');
+					.from('user_profiles')
+					.select('id, username, full_name')
+					.not('username', 'is', null);
 				usersWithUsernames = (usersData as any[]) ?? [];
 			} catch {
 				// Can't load users — selector will be empty
