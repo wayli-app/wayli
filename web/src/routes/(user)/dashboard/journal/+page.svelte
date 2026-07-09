@@ -22,7 +22,8 @@
 		X,
 		Loader2,
 		ArrowRight,
-		Calendar
+		Calendar,
+		ExternalLink
 	} from 'lucide-svelte';
 
 	type JournalEntry = TripEntry & {
@@ -64,9 +65,10 @@
 	let editorBody = $state('');
 	let editorDate = $state('');
 	let isSaving = $state(false);
+	let publicJournalUrl = $state('');
 
 	onMount(async () => {
-		await Promise.all([loadEntries(), loadTrips()]);
+		await Promise.all([loadEntries(), loadTrips(), loadPublicUrl()]);
 	});
 
 	async function loadEntries() {
@@ -89,6 +91,23 @@
 			trips = (data as unknown as TripOption[]) ?? [];
 		} catch {
 			// empty trips is fine
+		}
+	}
+
+	async function loadPublicUrl() {
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			if (!userData?.user) return;
+			const { data: profile } = await fluxbase
+				.from('user_profiles')
+				.select('username')
+				.eq('id', userData.user.id)
+				.single();
+			if ((profile as any)?.username) {
+				publicJournalUrl = `/u/${(profile as any).username}`;
+			}
+		} catch {
+			// no username set yet
 		}
 	}
 
@@ -179,6 +198,15 @@
 			</div>
 		</div>
 		<div class="flex items-center gap-2">
+			{#if publicJournalUrl}
+				<a
+					href={publicJournalUrl}
+					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+				>
+					<ExternalLink class="h-3.5 w-3.5" />
+					Public journal
+				</a>
+			{/if}
 			{#if entries.length > 0}
 				<input
 					type="text"

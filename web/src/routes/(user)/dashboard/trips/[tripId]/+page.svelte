@@ -18,20 +18,31 @@
 	import VisibilityToggle from '$lib/components/VisibilityToggle.svelte';
 	import CommentThread from '$lib/components/CommentThread.svelte';
 	import LikeButton from '$lib/components/LikeButton.svelte';
-	import { ArrowLeft, Plus, MapPin, Calendar, Route, Save, X } from 'lucide-svelte';
+	import { ArrowLeft, Plus, MapPin, Calendar, Route, Save, X, Loader2, Check } from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
 
-	// Debounced visibility save
+	// Debounced visibility save with status feedback
 	let visibilitySaveTimer: ReturnType<typeof setTimeout> | null = null;
+	let visibilitySaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	let visibilitySaveTimeout: ReturnType<typeof setTimeout> | null = null;
+
 	async function saveVisibility(newVal: string) {
 		if (!trip) return;
 		if (visibilitySaveTimer) clearTimeout(visibilitySaveTimer);
+		visibilitySaveStatus = 'saving';
 		visibilitySaveTimer = setTimeout(async () => {
 			try {
 				await fluxbase.from('trips').update({ visibility: newVal }).eq('id', tripId);
+				visibilitySaveStatus = 'saved';
+				toast.success(`Trip is now ${newVal}`);
+				if (visibilitySaveTimeout) clearTimeout(visibilitySaveTimeout);
+				visibilitySaveTimeout = setTimeout(() => (visibilitySaveStatus = 'idle'), 2000);
 			} catch (err) {
 				console.error('Failed to update visibility:', err);
+				toast.error('Failed to update visibility');
+				visibilitySaveStatus = 'idle';
 			}
-		}, 1000);
+		}, 500);
 	}
 
 	// Watch visibility changes
@@ -119,25 +130,12 @@
 	async function loadGpsData() {
 		if (!trip) return;
 		try {
-			const { data } = await fluxbase
-				.from('tracker_data')
-				.select('location')
-				.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
-				.lte('recorded_at', `${trip.end_date}T23:59:59Z`)
-				.order('recorded_at', { ascending: true })
-				.limit(5000);
-
+			// Use the home-redacted RPC (excludes 500m around owner's home address)
+			const { data } = await fluxbase.rpc('get_public_trip_track', {
+				trip_uuid: tripId
+			});
 			if (data) {
-				gpsPoints = (data as any[])
-					.map((row) => {
-						const loc = row.location;
-						// PostGIS GeoJSON: { type: 'Point', coordinates: [lng, lat] }
-						if (loc?.coordinates && Array.isArray(loc.coordinates)) {
-							return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
-						}
-						return null;
-					})
-					.filter((p): p is { lat: number; lng: number } => p !== null);
+				gpsPoints = (data as any[]).map((r) => ({ lat: r.lat, lng: r.lng }));
 			}
 		} catch {
 			// GPS data is optional — no track shown if unavailable
@@ -269,11 +267,20 @@
 			</div>
 
 			<!-- Visibility toggle -->
-			<div class="border-border mt-4 border-t pt-4">
-				<span class="text-muted-foreground mb-2 block text-xs font-medium uppercase tracking-wide">
+			<div class="border-border mt-6 border-t pt-6">
+				<span class="text-muted-foreground mb-3 block text-xs font-medium uppercase tracking-wide">
 					Visibility
 				</span>
 				<VisibilityToggle bind:value={trip.visibility} />
+				{#if visibilitySaveStatus === 'saving'}
+					<p class="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
+						<Loader2 class="h-3 w-3 animate-spin" /> Saving...
+					</p>
+				{:else if visibilitySaveStatus === 'saved'}
+					<p class="text-success mt-2 flex items-center gap-1 text-xs">
+						<Check class="h-3 w-3" /> Saved
+					</p>
+				{/if}
 			</div>
 		</div>
 

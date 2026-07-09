@@ -4,7 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
-	import { MapPin, Calendar, Route, Globe, Compass, LogIn } from 'lucide-svelte';
+	import { userStore } from '$lib/stores/auth';
+	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen } from 'lucide-svelte';
 
 	type Profile = {
 		id: string;
@@ -28,10 +29,11 @@
 	let trips = $state<PublicTrip[]>([]);
 	let isLoading = $state(true);
 	let notFound = $state(false);
+	let isOwner = $state(false);
+	let currentUserId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
 
-	// Compute stats from trips
 	const stats = $derived.by(() => {
 		const cities = new Set<string>();
 		const countries = new Set<string>();
@@ -54,17 +56,19 @@
 	});
 
 	onMount(async () => {
+		// Check if current user is logged in
+		try {
+			const { data } = await fluxbase.auth.getUser();
+			currentUserId = data?.user?.id ?? null;
+		} catch {
+			currentUserId = null;
+		}
+
 		const requireAuth = await readSetting(() =>
 			fluxbase.settings.get('wayli.public_trips_require_auth')
 		);
 		if (requireAuth?.value === true || requireAuth?.value === 'true') {
-			try {
-				const { data } = await fluxbase.auth.getUser();
-				if (!data?.user) {
-					goto(`/auth/signin?redirectTo=/u/${username}`);
-					return;
-				}
-			} catch {
+			if (!currentUserId) {
 				goto(`/auth/signin?redirectTo=/u/${username}`);
 				return;
 			}
@@ -83,13 +87,21 @@
 			}
 			profile = profileData as unknown as Profile;
 
-			const { data: tripData } = await fluxbase
+			// Check if the current user is viewing their own profile
+			isOwner = currentUserId === profile.id;
+
+			// Load trips: if owner, load ALL (including private); otherwise only public
+			let tripQuery = fluxbase
 				.from('trips')
 				.select('id, title, description, start_date, end_date, image_url, visibility, metadata')
 				.eq('user_id', profile.id)
-				.eq('visibility', 'public')
 				.order('start_date', { ascending: false });
 
+			if (!isOwner) {
+				tripQuery = tripQuery.eq('visibility', 'public');
+			}
+
+			const { data: tripData } = await tripQuery;
 			trips = (tripData as unknown as PublicTrip[]) ?? [];
 		} catch {
 			notFound = true;
@@ -115,34 +127,44 @@
 		<a href="/" class="text-primary hover:underline text-sm">← Home</a>
 	</div>
 {:else if profile}
-	<!-- Top bar with sign-in -->
+	<!-- Top bar -->
 	<div class="fixed top-0 right-0 z-50 p-4">
-		<a
-			href="/auth/signin"
-			class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
-		>
-			<LogIn class="h-4 w-4" />
-			Sign in
-		</a>
+		{#if isOwner}
+			<a
+				href="/dashboard/journal"
+				class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
+			>
+				<BookOpen class="h-4 w-4" />
+				Dashboard
+			</a>
+		{:else}
+			<a
+				href="/auth/signin"
+				class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
+			>
+				<LogIn class="h-4 w-4" />
+				Sign in
+			</a>
+		{/if}
 	</div>
 
-	<div class="mx-auto max-w-4xl">
+	<div class="mx-auto max-w-6xl px-4 py-6">
 		<!-- Hero header -->
-		<div class="bg-card border-border mb-6 overflow-hidden rounded-2xl border">
+		<div class="bg-card border-border mb-8 overflow-hidden rounded-2xl border">
 			<!-- Gradient banner -->
-			<div class="h-32 bg-gradient-to-br from-primary to-primary/60"></div>
+			<div class="h-40 bg-gradient-to-br from-primary via-primary/70 to-primary/40"></div>
 			<!-- Profile info -->
-			<div class="px-6 pb-6">
-				<div class="-mt-12 mb-4 flex items-end gap-4">
+			<div class="px-8 pb-8">
+				<div class="-mt-16 mb-4 flex items-end gap-5">
 					{#if profile.avatar_url}
 						<img
 							src={profile.avatar_url}
 							alt={profile.full_name ?? profile.username}
-							class="bg-card border-border h-24 w-24 rounded-full border-4 object-cover shadow-lg"
+							class="bg-card border-border h-28 w-28 rounded-full border-4 object-cover shadow-xl"
 						/>
 					{:else}
 						<div
-							class="bg-card border-border flex h-24 w-24 items-center justify-center rounded-full border-4 text-2xl font-bold text-primary shadow-lg"
+							class="bg-card border-border flex h-28 w-28 items-center justify-center rounded-full border-4 text-3xl font-bold text-primary shadow-xl"
 						>
 							{(profile.full_name ?? profile.username)[0]?.toUpperCase()}
 						</div>
@@ -151,7 +173,7 @@
 				<h1 class="text-foreground text-3xl font-bold">
 					{profile.full_name ?? `@${profile.username}`}
 				</h1>
-				<p class="text-muted-foreground flex items-center gap-1.5 text-sm">
+				<p class="text-muted-foreground flex items-center gap-1.5 text-base">
 					<Globe class="h-4 w-4" />
 					@{profile.username}
 				</p>
@@ -160,47 +182,46 @@
 
 		<!-- Stats bar -->
 		{#if stats.trips > 0}
-			<div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<div class="bg-card border-border rounded-xl border p-4 text-center">
-					<div class="text-primary text-2xl font-bold">{stats.trips}</div>
-					<div class="text-muted-foreground text-xs uppercase tracking-wide">Trips</div>
+			<div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+				<div class="bg-card border-border rounded-2xl border p-5 text-center">
+					<div class="text-primary text-3xl font-bold">{stats.trips}</div>
+					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Trips</div>
 				</div>
-				<div class="bg-card border-border rounded-xl border p-4 text-center">
-					<div class="text-primary text-2xl font-bold">{stats.countries}</div>
-					<div class="text-muted-foreground text-xs uppercase tracking-wide">Countries</div>
+				<div class="bg-card border-border rounded-2xl border p-5 text-center">
+					<div class="text-primary text-3xl font-bold">{stats.countries}</div>
+					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Countries</div>
 				</div>
-				<div class="bg-card border-border rounded-xl border p-4 text-center">
-					<div class="text-primary text-2xl font-bold">{stats.cities}</div>
-					<div class="text-muted-foreground text-xs uppercase tracking-wide">Cities</div>
+				<div class="bg-card border-border rounded-2xl border p-5 text-center">
+					<div class="text-primary text-3xl font-bold">{stats.cities}</div>
+					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Cities</div>
 				</div>
-				<div class="bg-card border-border rounded-xl border p-4 text-center">
-					<div class="text-primary text-2xl font-bold">{formatDistance(stats.distance)}</div>
-					<div class="text-muted-foreground text-xs uppercase tracking-wide">Traveled</div>
+				<div class="bg-card border-border rounded-2xl border p-5 text-center">
+					<div class="text-primary text-3xl font-bold">{formatDistance(stats.distance)}</div>
+					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Traveled</div>
 				</div>
 			</div>
 		{/if}
 
 		<!-- Section header -->
-		<div class="mb-4 flex items-center gap-2">
+		<div class="mb-5 flex items-center gap-2">
 			<Route class="text-primary h-5 w-5" />
 			<h2 class="text-foreground text-lg font-semibold">Trips</h2>
 		</div>
 
 		<!-- Trip cards -->
 		{#if trips.length === 0}
-			<div class="bg-card border-border rounded-xl border p-12 text-center">
+			<div class="bg-card border-border rounded-2xl border p-16 text-center">
 				<Route class="text-muted-foreground mx-auto mb-3 h-10 w-10 opacity-40" />
-				<p class="text-muted-foreground text-sm">No public trips yet.</p>
+				<p class="text-muted-foreground text-sm">No trips yet.</p>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 				{#each trips as trip (trip.id)}
 					<a
 						href="/u/{username}/trips/{trip.id}"
-						class="bg-card border-border group overflow-hidden rounded-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+						class="bg-card border-border group overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
 					>
-						<!-- Cover image -->
-						<div class="relative h-44 overflow-hidden">
+						<div class="relative h-48 overflow-hidden">
 							{#if trip.image_url}
 								<img
 									src={trip.image_url}
@@ -212,23 +233,30 @@
 									<Route class="text-muted-foreground h-10 w-10" />
 								</div>
 							{/if}
-							<!-- Gradient overlay for text readability -->
 							<div
 								class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
 							></div>
-							<!-- Date badge -->
-							<div
-								class="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm"
-							>
-								{new Date(trip.start_date).toLocaleDateString(undefined, {
-									month: 'short',
-									day: 'numeric',
-									year: 'numeric'
-								})}
+							<!-- Date + visibility badges -->
+							<div class="absolute bottom-2 left-2 flex items-center gap-2">
+								<div
+									class="rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm"
+								>
+									{new Date(trip.start_date).toLocaleDateString(undefined, {
+										month: 'short',
+										day: 'numeric',
+										year: 'numeric'
+									})}
+								</div>
+								{#if isOwner && trip.visibility !== 'public'}
+									<div
+										class="rounded-md bg-amber-500/80 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm"
+									>
+										{trip.visibility}
+									</div>
+								{/if}
 							</div>
 						</div>
-						<!-- Card body -->
-						<div class="p-4">
+						<div class="p-5">
 							<h3
 								class="text-foreground mb-1 font-semibold transition-colors group-hover:text-primary"
 							>
