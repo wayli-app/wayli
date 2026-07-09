@@ -20,7 +20,7 @@ BEGIN
     INTO trip_user_id, trip_start, trip_end
     FROM trips
     WHERE id = trip_uuid
-    AND (visibility = 'public' OR user_id = auth.uid());
+    AND (visibility = 'public' OR user_id = auth.uid() OR share_token IS NOT NULL);
 
     IF NOT FOUND THEN
         RETURN;
