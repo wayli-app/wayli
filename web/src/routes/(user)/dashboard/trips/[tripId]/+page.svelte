@@ -16,9 +16,23 @@
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import VisibilityToggle from '$lib/components/VisibilityToggle.svelte';
-	import CommentThread from '$lib/components/CommentThread.svelte';
-	import LikeButton from '$lib/components/LikeButton.svelte';
-	import { ArrowLeft, Plus, MapPin, Calendar, Route, Save, X, Loader2, Check } from 'lucide-svelte';
+	import CommentThread from '$lib/components/EntryComments.svelte';
+	import LikeButton from '$lib/components/EntryLikeButton.svelte';
+	import {
+		ArrowLeft,
+		Plus,
+		MapPin,
+		Calendar,
+		Route,
+		Save,
+		X,
+		Loader2,
+		Check,
+		Share2,
+		Link as LinkIcon,
+		Copy,
+		RefreshCw
+	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 
 	// Debounced visibility save with status feedback
@@ -85,6 +99,12 @@
 	let editorDate = $state('');
 	let isSaving = $state(false);
 
+	// Share link state
+	let showShareModal = $state(false);
+	let shareToken = $state<string | null>(null);
+	let shareUrl = $state('');
+	let isGeneratingShare = $state(false);
+
 	const tripId = $derived(page.params.tripId ?? '');
 
 	onMount(async () => {
@@ -108,6 +128,10 @@
 			}
 			trip = tripData as unknown as Trip;
 			lastSavedVisibility = trip.visibility;
+			shareToken = (tripData as any).share_token || null;
+			if (shareToken) {
+				shareUrl = `${window.location.origin}/share/${shareToken}`;
+			}
 
 			// Load journal entries
 			entries = await listEntries(tripId);
@@ -216,6 +240,43 @@
 		}
 	}
 
+	async function generateShareLink() {
+		isGeneratingShare = true;
+		try {
+			const token = crypto.randomUUID();
+			await fluxbase.from('trips').update({ share_token: token }).eq('id', tripId);
+			shareToken = token;
+			shareUrl = `${window.location.origin}/share/${token}`;
+			toast.success('Share link generated');
+		} catch (err) {
+			console.error('Failed to generate share link:', err);
+			toast.error('Failed to generate share link');
+		} finally {
+			isGeneratingShare = false;
+		}
+	}
+
+	async function revokeShareLink() {
+		try {
+			await fluxbase.from('trips').update({ share_token: null }).eq('id', tripId);
+			shareToken = null;
+			shareUrl = '';
+			toast.success('Share link revoked');
+		} catch (err) {
+			console.error('Failed to revoke share link:', err);
+			toast.error('Failed to revoke share link');
+		}
+	}
+
+	async function copyShareUrl() {
+		try {
+			await navigator.clipboard.writeText(shareUrl);
+			toast.success('Link copied to clipboard');
+		} catch {
+			toast.error('Failed to copy');
+		}
+	}
+
 	function formatDateRange(start: string, end: string): string {
 		const s = new Date(start);
 		const e = new Date(end);
@@ -243,14 +304,23 @@
 	</div>
 {:else if trip}
 	<div class="mx-auto max-w-3xl space-y-6">
-		<!-- Back link -->
-		<a
-			href="/dashboard/trips"
-			class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-		>
-			<ArrowLeft class="h-4 w-4" />
-			All trips
-		</a>
+		<div class="flex items-center justify-between">
+			<a
+				href="/dashboard/trips"
+				class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+			>
+				<ArrowLeft class="h-4 w-4" />
+				All trips
+			</a>
+			<button
+				type="button"
+				onclick={() => (showShareModal = true)}
+				class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+			>
+				<Share2 class="h-4 w-4" />
+				Share
+			</button>
+		</div>
 
 		<!-- Trip header -->
 		<div class="bg-card border-border overflow-hidden rounded-xl border">
@@ -284,7 +354,7 @@
 			</div>
 
 			<!-- Visibility toggle -->
-			<div class="border-border mt-8 border-t px-6 py-6">
+			<div class="border-border mt-2 border-t p-6">
 				<span class="text-muted-foreground mb-4 block text-xs font-medium uppercase tracking-wide">
 					Visibility
 				</span>
@@ -373,15 +443,101 @@
 
 			<TripTimeline {entries} canEdit={true} onEdit={openEditEditor} onDelete={handleDeleteEntry} />
 		</div>
+	</div>
+{/if}
 
-		<!-- Engagement (visible when trip is public) -->
-		{#if trip.visibility === 'public'}
-			<div class="flex items-center gap-4 border-t border-border pt-4">
-				<LikeButton {tripId} />
+<svelte:window onkeydown={(e) => e.key === 'Escape' && (showShareModal = false)} />
+
+<!-- Share Modal -->
+{#if showShareModal}
+	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+		onclick={() => (showShareModal = false)}
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+		<div
+			class="bg-card border-border w-full max-w-md rounded-xl border p-6 shadow-2xl"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-foreground flex items-center gap-2 text-lg font-semibold">
+					<Share2 class="h-5 w-5" />
+					Share trip
+				</h2>
+				<button
+					type="button"
+					onclick={() => (showShareModal = false)}
+					class="text-muted-foreground hover:text-foreground rounded-lg p-1"
+					aria-label="Close"><X class="h-5 w-5" /></button
+				>
 			</div>
-			<div class="bg-card border-border rounded-xl border p-4">
-				<CommentThread {tripId} />
-			</div>
-		{/if}
+
+			<p class="text-muted-foreground mb-4 text-sm">
+				Generate a secret link that lets anyone view this trip — including its journal entries,
+				photos, and route map — without needing an account. Works even for private trips.
+			</p>
+
+			{#if shareToken}
+				<!-- Active share link -->
+				<div class="space-y-3">
+					<div class="border-border flex items-center gap-2 rounded-lg border p-3">
+						<LinkIcon class="text-muted-foreground h-4 w-4 flex-shrink-0" />
+						<input
+							type="text"
+							value={shareUrl}
+							readonly
+							class="flex-1 bg-transparent text-sm text-foreground focus:outline-none"
+						/>
+						<button
+							type="button"
+							onclick={copyShareUrl}
+							class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors"
+						>
+							<Copy class="h-3.5 w-3.5" />
+							Copy
+						</button>
+					</div>
+					<div class="flex gap-2">
+						<button
+							type="button"
+							onclick={generateShareLink}
+							disabled={isGeneratingShare}
+							class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+						>
+							<RefreshCw class="h-3.5 w-3.5" />
+							{isGeneratingShare ? 'Generating...' : 'Regenerate'}
+						</button>
+						<button
+							type="button"
+							onclick={() => {
+								if (confirm('Revoke this share link? Anyone with the old link will lose access.')) {
+									revokeShareLink();
+								}
+							}}
+							class="text-destructive hover:bg-destructive/10 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+						>
+							Revoke
+						</button>
+					</div>
+				</div>
+			{:else}
+				<!-- No share link yet -->
+				<button
+					type="button"
+					onclick={generateShareLink}
+					disabled={isGeneratingShare}
+					class="bg-primary hover:bg-primary/90 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+				>
+					{#if isGeneratingShare}
+						<Loader2 class="h-4 w-4 animate-spin" />
+						Generating...
+					{:else}
+						<LinkIcon class="h-4 w-4" />
+						Generate share link
+					{/if}
+				</button>
+			{/if}
+		</div>
 	</div>
 {/if}

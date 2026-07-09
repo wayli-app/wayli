@@ -100,6 +100,8 @@
 	let notificationsEnabled = $state(false);
 	let profileAvatarUrl = $state('');
 	let avatarFileInput: HTMLInputElement | undefined = $state();
+	let profileCoverUrl = $state('');
+	let coverFileInput: HTMLInputElement | undefined = $state();
 
 	async function handleAvatarUpload(event: Event) {
 		const input = event.target as HTMLInputElement;
@@ -143,6 +145,47 @@
 			input.value = '';
 		}
 	}
+
+	async function handleCoverUpload(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (!input.files || input.files.length === 0) return;
+		if (!$userStore?.id) return;
+
+		const file = input.files[0];
+		if (file.size > 5 * 1024 * 1024) {
+			toast.error('Image must be smaller than 5MB');
+			return;
+		}
+
+		try {
+			const { compressImage } = await import('$lib/utils/image-compress');
+			const { full } = await compressImage(file, { maxEdge: 1920, quality: 0.8 });
+
+			const path = `${$userStore.id}/cover-${Date.now()}.jpg`;
+			const { error: uploadError } = await fluxbase.storage
+				.from('trip-images')
+				.upload(path, full.blob, { contentType: 'image/jpeg', upsert: true });
+			if (uploadError) throw uploadError;
+
+			const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
+			profileCoverUrl = data.publicUrl;
+
+			const { data: userData } = await fluxbase.auth.getUser();
+			if (userData?.user) {
+				await fluxbase
+					.from('user_profiles')
+					.update({ cover_photo_url: data.publicUrl })
+					.eq('id', userData.user.id);
+			}
+			toast.success('Cover photo updated');
+		} catch (err) {
+			console.error('Cover upload failed:', err);
+			toast.error('Failed to upload cover photo');
+		} finally {
+			input.value = '';
+		}
+	}
+
 	let pexelsApiKeyConfigured = $state(false);
 	let pexelsApiKeyUpdatedAt = $state<string | null>(null);
 	let serverPexelsApiKeyAvailable = $state(false);
@@ -270,6 +313,7 @@
 				usernameInput = (profile as any).username || '';
 				originalUsername = (profile as any).username || '';
 				profileAvatarUrl = (profile as any).avatar_url || '';
+				profileCoverUrl = (profile as any).cover_photo_url || '';
 				lastNameInput = profile.last_name || '';
 
 				// Initialize home address if it exists
@@ -680,6 +724,7 @@
 			profile.last_name = lastNameInput.trim();
 			(profile as any).username = usernameInput.trim() || null;
 			(profile as any).avatar_url = profileAvatarUrl || null;
+			(profile as any).cover_photo_url = profileCoverUrl || null;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
 			// Update profile using service adapter
@@ -688,6 +733,7 @@
 				last_name: profile.last_name,
 				username: (profile as any).username,
 				avatar_url: (profile as any).avatar_url,
+				cover_photo_url: (profile as any).cover_photo_url,
 				email: profile.email || '',
 				home_address: profile.home_address
 			});
@@ -1540,6 +1586,47 @@
 						🌐 {usernamePreview}
 					</p>
 				{/if}
+			</div>
+
+			<!-- Cover photo -->
+			<div class="mt-6">
+				<span class="mb-1.5 block text-sm font-medium text-foreground"> Cover photo </span>
+				<div class="relative h-32 overflow-hidden rounded-lg border border-border bg-muted">
+					{#if profileCoverUrl}
+						<img src={profileCoverUrl} alt="" class="h-full w-full object-cover" />
+					{:else}
+						<div class="flex h-full items-center justify-center text-muted-foreground text-sm">
+							No cover photo
+						</div>
+					{/if}
+				</div>
+				<input
+					type="file"
+					accept="image/*"
+					bind:this={coverFileInput}
+					class="hidden"
+					onchange={handleCoverUpload}
+				/>
+				<div class="mt-2 flex gap-2">
+					<button
+						type="button"
+						onclick={() => coverFileInput?.click()}
+						class="border-border text-foreground hover:bg-muted rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+					>
+						Upload cover
+					</button>
+					{#if profileCoverUrl}
+						<button
+							type="button"
+							onclick={() => {
+								profileCoverUrl = '';
+							}}
+							class="text-muted-foreground hover:text-destructive text-xs transition-colors"
+						>
+							Remove
+						</button>
+					{/if}
+				</div>
 			</div>
 
 			<button

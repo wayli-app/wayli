@@ -12,6 +12,8 @@
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
+	import EntryComments from '$lib/components/EntryComments.svelte';
+	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import {
 		BookOpen,
 		Plus,
@@ -201,10 +203,20 @@
 			{#if publicJournalUrl}
 				<a
 					href={publicJournalUrl}
+					target="_blank"
+					rel="noopener"
 					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
 				>
 					<ExternalLink class="h-3.5 w-3.5" />
 					Public journal
+				</a>
+			{:else}
+				<a
+					href="/dashboard/account-settings"
+					class="border-border text-muted-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors"
+				>
+					<ExternalLink class="h-3.5 w-3.5" />
+					Set username
 				</a>
 			{/if}
 			{#if entries.length > 0}
@@ -417,13 +429,17 @@
 							<PhotoGallery tripId={entry.trip_id} entryId={entry.id} />
 						</div>
 
-						<!-- Footer -->
-						<div class="border-border mt-4 flex items-center border-t pt-3">
+						<!-- Engagement: like + comments (per entry) -->
+						<div class="border-border mt-4 flex items-center gap-3 border-t pt-3">
+							<EntryLikeButton tripId={entry.trip_id} entryId={entry.id} />
+							<div class="flex-1">
+								<EntryComments tripId={entry.trip_id} entryId={entry.id} />
+							</div>
 							<a
 								href="/dashboard/trips/{entry.trip_id}"
 								class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
 							>
-								View trip details
+								View trip
 								<ArrowRight class="h-3 w-3" />
 							</a>
 						</div>
