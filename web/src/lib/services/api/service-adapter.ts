@@ -117,7 +117,8 @@ export class ServiceAdapter {
 			'username',
 			'home_address',
 			'home_address_skipped',
-			'avatar_url'
+			'avatar_url',
+			'cover_photo_url'
 		]);
 
 		// Separate email from profile fields

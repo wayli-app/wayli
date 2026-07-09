@@ -12,6 +12,7 @@
 		username: string;
 		full_name: string | null;
 		avatar_url: string | null;
+		cover_photo_url: string | null;
 	};
 
 	type PublicTrip = {
@@ -151,8 +152,12 @@
 	<div class="mx-auto max-w-6xl px-4 py-6">
 		<!-- Hero header -->
 		<div class="bg-card border-border mb-8 overflow-hidden rounded-2xl border">
-			<!-- Gradient banner -->
-			<div class="h-40 bg-gradient-to-br from-primary via-primary/70 to-primary/40"></div>
+			<!-- Gradient banner / cover photo -->
+			{#if profile.cover_photo_url}
+				<img src={profile.cover_photo_url} alt="" class="h-40 w-full object-cover" />
+			{:else}
+				<div class="h-40 bg-gradient-to-br from-primary via-primary/70 to-primary/40"></div>
+			{/if}
 			<!-- Profile info -->
 			<div class="px-8 pb-8">
 				<div class="-mt-16 mb-4 flex items-end gap-5">

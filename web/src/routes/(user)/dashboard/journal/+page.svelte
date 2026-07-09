@@ -201,10 +201,20 @@
 			{#if publicJournalUrl}
 				<a
 					href={publicJournalUrl}
+					target="_blank"
+					rel="noopener"
 					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
 				>
 					<ExternalLink class="h-3.5 w-3.5" />
 					Public journal
+				</a>
+			{:else}
+				<a
+					href="/dashboard/account-settings"
+					class="border-border text-muted-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors"
+				>
+					<ExternalLink class="h-3.5 w-3.5" />
+					Set username
 				</a>
 			{/if}
 			{#if entries.length > 0}

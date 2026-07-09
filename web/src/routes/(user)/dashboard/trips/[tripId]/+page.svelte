@@ -284,7 +284,7 @@
 			</div>
 
 			<!-- Visibility toggle -->
-			<div class="border-border mt-8 border-t px-6 py-6">
+			<div class="border-border mt-2 border-t p-6">
 				<span class="text-muted-foreground mb-4 block text-xs font-medium uppercase tracking-wide">
 					Visibility
 				</span>

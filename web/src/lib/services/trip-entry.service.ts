@@ -38,38 +38,46 @@ export async function listAllEntries(): Promise<
 		}
 	>
 > {
-	const { data, error } = await fluxbase
-		.from('trip_entries')
-		.select(
-			`
-			*,
-			trips!inner (
-				title,
-				start_date,
-				end_date,
-				image_url
-			)
-		`
-		)
+	// Fetch entries
+	const { data: entryData, error: entryError } = await fluxbase
+		.from<Record<string, any>>('trip_entries')
+		.select('*')
 		.order('entry_date', { ascending: false });
 
-	if (error) throw new Error(error.message);
+	if (entryError) throw new Error(entryError.message);
 
-	const rows = (data as any[]) ?? [];
-	return rows.map((row) => ({
-		id: row.id,
-		trip_id: row.trip_id,
-		user_id: row.user_id,
-		title: row.title,
-		body: row.body,
-		entry_date: row.entry_date,
-		created_at: row.created_at,
-		updated_at: row.updated_at,
-		trip_title: row.trips?.title ?? 'Unknown trip',
-		trip_start_date: row.trips?.start_date ?? '',
-		trip_end_date: row.trips?.end_date ?? '',
-		trip_image_url: row.trips?.image_url ?? null
-	}));
+	const entries = (entryData as any[]) ?? [];
+	if (entries.length === 0) return [];
+
+	// Batch-fetch trip data for all entries' trip_ids
+	const tripIds = [...new Set(entries.map((e) => e.trip_id))];
+	const { data: tripData } = await fluxbase
+		.from<Record<string, any>>('trips')
+		.select('id, title, start_date, end_date, image_url')
+		.in('id', tripIds);
+
+	const tripMap = new Map<string, any>();
+	for (const t of (tripData as any[]) ?? []) {
+		tripMap.set(t.id, t);
+	}
+
+	return entries.map((row) => {
+		const trip = tripMap.get(row.trip_id);
+		return {
+			id: row.id,
+			trip_id: row.trip_id,
+			user_id: row.user_id,
+			title: row.title || '',
+			body: row.body || '',
+			entry_date: row.entry_date,
+			created_at: row.created_at,
+			updated_at: row.updated_at,
+			trip_title: trip?.title ?? 'Unknown trip',
+			trip_start_date: trip?.start_date ?? '',
+			trip_end_date: trip?.end_date ?? '',
+			trip_image_url: trip?.image_url ?? null
+		};
+	});
 }
 
 /**
