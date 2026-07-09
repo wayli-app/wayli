@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
-	import { MapPin, Calendar, Route, Globe, Compass } from 'lucide-svelte';
+	import { MapPin, Calendar, Route, Globe, Compass, LogIn } from 'lucide-svelte';
 
 	type Profile = {
 		id: string;
@@ -144,6 +144,15 @@
 					<Globe class="h-4 w-4" />
 					@{profile.username}
 				</p>
+
+				<!-- Sign in link -->
+				<a
+					href="/auth/signin"
+					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+				>
+					<LogIn class="h-4 w-4" />
+					Sign in
+				</a>
 			</div>
 		</div>
 

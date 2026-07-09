@@ -25,7 +25,7 @@
 	import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionManager } from '$lib/services/session';
-	import { sessionStore } from '$lib/stores/auth';
+	import { sessionStore, userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
 
@@ -98,6 +98,51 @@
 	let preferredUnit = $state('metric');
 	let preferredTimezone = $state('');
 	let notificationsEnabled = $state(false);
+	let profileAvatarUrl = $state('');
+	let avatarFileInput: HTMLInputElement | undefined = $state();
+
+	async function handleAvatarUpload(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (!input.files || input.files.length === 0) return;
+		if (!$userStore?.id) return;
+
+		const file = input.files[0];
+		if (file.size > 2 * 1024 * 1024) {
+			toast.error('Image must be smaller than 2MB');
+			return;
+		}
+
+		try {
+			// Compress client-side
+			const { compressImage } = await import('$lib/utils/image-compress');
+			const { full } = await compressImage(file, { maxEdge: 256, quality: 0.85 });
+
+			// Upload to trip-images bucket
+			const path = `${$userStore.id}/avatar-${Date.now()}.jpg`;
+			const { error: uploadError } = await fluxbase.storage
+				.from('trip-images')
+				.upload(path, full.blob, { contentType: 'image/jpeg', upsert: true });
+			if (uploadError) throw uploadError;
+
+			const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
+			profileAvatarUrl = data.publicUrl;
+
+			// Save to profile directly
+			const { data: userData } = await fluxbase.auth.getUser();
+			if (userData?.user) {
+				await fluxbase
+					.from('user_profiles')
+					.update({ avatar_url: data.publicUrl })
+					.eq('id', userData.user.id);
+			}
+			toast.success('Profile picture updated');
+		} catch (err) {
+			console.error('Avatar upload failed:', err);
+			toast.error('Failed to upload picture');
+		} finally {
+			input.value = '';
+		}
+	}
 	let pexelsApiKeyConfigured = $state(false);
 	let pexelsApiKeyUpdatedAt = $state<string | null>(null);
 	let serverPexelsApiKeyAvailable = $state(false);
@@ -224,6 +269,7 @@
 				firstNameInput = profile.first_name || '';
 				usernameInput = (profile as any).username || '';
 				originalUsername = (profile as any).username || '';
+				profileAvatarUrl = (profile as any).avatar_url || '';
 				lastNameInput = profile.last_name || '';
 
 				// Initialize home address if it exists
@@ -633,6 +679,7 @@
 			profile.first_name = firstNameInput.trim();
 			profile.last_name = lastNameInput.trim();
 			(profile as any).username = usernameInput.trim() || null;
+			(profile as any).avatar_url = profileAvatarUrl || null;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
 			// Update profile using service adapter
@@ -640,6 +687,7 @@
 				first_name: profile.first_name,
 				last_name: profile.last_name,
 				username: (profile as any).username,
+				avatar_url: (profile as any).avatar_url,
 				email: profile.email || '',
 				home_address: profile.home_address
 			});
@@ -1169,6 +1217,51 @@
 			</div>
 
 			<div class="space-y-6">
+				<!-- Avatar -->
+				<div class="flex items-center gap-4">
+					{#if profileAvatarUrl}
+						<img
+							src={profileAvatarUrl}
+							alt=""
+							class="h-20 w-20 rounded-full object-cover border-2 border-border"
+						/>
+					{:else}
+						<div
+							class="bg-muted flex h-20 w-20 items-center justify-center rounded-full border-2 border-border text-2xl font-bold text-muted-foreground"
+						>
+							{(firstNameInput || '?')[0]?.toUpperCase()}
+						</div>
+					{/if}
+					<div>
+						<input
+							type="file"
+							accept="image/*"
+							bind:this={avatarFileInput}
+							class="hidden"
+							onchange={handleAvatarUpload}
+						/>
+						<button
+							type="button"
+							onclick={() => avatarFileInput?.click()}
+							class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+						>
+							Upload picture
+						</button>
+						{#if profileAvatarUrl}
+							<button
+								type="button"
+								onclick={() => {
+									profileAvatarUrl = '';
+								}}
+								class="text-muted-foreground hover:text-destructive ml-2 text-sm transition-colors"
+							>
+								Remove
+							</button>
+						{/if}
+						<p class="text-muted-foreground mt-1 text-xs">JPG, PNG. Max 2MB.</p>
+					</div>
+				</div>
+
 				<!-- Email Address Field (restored) -->
 				<div class="mb-4">
 					<label

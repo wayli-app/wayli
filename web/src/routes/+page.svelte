@@ -9,7 +9,8 @@
 		User,
 		LogOut,
 		Shield,
-		Users
+		Users,
+		BookOpen
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
@@ -94,21 +95,13 @@
 
 		// Check setup status first to see if initial setup is needed
 		(async () => {
-			// Check if a landing redirect URL is configured (admin setting)
+			// Check if a landing redirect is configured (admin setting)
 			try {
-				const [urlSetting, usernameSetting] = await Promise.all([
-					readSetting(() => fluxbase.settings.get('wayli.landing_redirect_url')),
-					readSetting(() => fluxbase.settings.get('wayli.landing_redirect_username'))
-				]);
+				const redirectUser = await readSetting(() =>
+					fluxbase.settings.get('wayli.landing_redirect_username')
+				);
 
-				// Prefer the explicit URL setting; fall back to the username setting
-				const redirectUrl = urlSetting?.value;
-				if (redirectUrl && typeof redirectUrl === 'string' && redirectUrl.trim()) {
-					goto(redirectUrl.trim());
-					return;
-				}
-
-				const redirectUser = usernameSetting?.value;
+				// settings.get() already returns the unwrapped value (e.g. "bart")
 				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
 					goto(`/u/${redirectUser.trim()}`);
 					return;
@@ -221,6 +214,12 @@
 							{t('common.navigation.dashboard')}
 						</a>
 						<a
+							href="/dashboard/journal"
+							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-muted-foreground hover:bg-muted"
+						>
+							Journal
+						</a>
+						<a
 							href="/dashboard/account-settings"
 							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-muted-foreground hover:bg-muted"
 						>
@@ -273,19 +272,38 @@
 					{t('landing.selfHostedTagline')}
 				</p>
 				<div class="flex flex-col justify-center gap-4 sm:flex-row">
-					<a
-						href="/auth/signup"
-						class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-gray-300 px-8 py-4 font-semibold text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
-					>
-						{t('landing.getStarted')}
-						<ArrowRight class="h-5 w-5" />
-					</a>
-					<a
-						href="/auth/signin"
-						class="bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
-					>
-						{t('landing.signIn')}
-					</a>
+					{#if $userStore && authResolved}
+						<!-- Logged in: Dashboard + Journal -->
+						<a
+							href="/dashboard/statistics"
+							class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
+						>
+							{t('common.navigation.dashboard')}
+							<ArrowRight class="h-5 w-5" />
+						</a>
+						<a
+							href="/dashboard/journal"
+							class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
+						>
+							<BookOpen class="h-5 w-5" />
+							Journal
+						</a>
+					{:else}
+						<!-- Anonymous: Get Started + Sign In -->
+						<a
+							href="/auth/signup"
+							class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
+						>
+							{t('landing.getStarted')}
+							<ArrowRight class="h-5 w-5" />
+						</a>
+						<a
+							href="/auth/signin"
+							class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"
+						>
+							{t('landing.signIn')}
+						</a>
+					{/if}
 				</div>
 			</div>
 
