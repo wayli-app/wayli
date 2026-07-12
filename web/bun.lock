@@ -58,7 +58,7 @@
         "globals": "^17.7.0",
         "jsdom": "^29.1.1",
         "lightningcss": "^1.32.0",
-        "lucide-static": "^1.21.0",
+        "lucide-static": "^1.22.0",
         "prettier": "^3.9.1",
         "prettier-plugin-svelte": "^4.1.1",
         "prettier-plugin-tailwindcss": "^0.8.0",
