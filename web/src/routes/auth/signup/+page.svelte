@@ -422,7 +422,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>{t('auth.signUp')} - Wayli</title>
+	<title>{t('auth.signUp')} · Wayli</title>
 </svelte:head>
 
 <div

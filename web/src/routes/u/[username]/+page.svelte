@@ -6,6 +6,7 @@
 	import { readSetting } from '$lib/utils/settings';
 	import { userStore } from '$lib/stores/auth';
 	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen } from 'lucide-svelte';
+	import PannableCover from '$lib/components/PannableCover.svelte';
 
 	type Profile = {
 		id: string;
@@ -13,6 +14,8 @@
 		full_name: string | null;
 		avatar_url: string | null;
 		cover_photo_url: string | null;
+		cover_focal_x?: number;
+		cover_focal_y?: number;
 	};
 
 	type PublicTrip = {
@@ -57,7 +60,6 @@
 	});
 
 	onMount(async () => {
-		// Check if current user is logged in
 		try {
 			const { data } = await fluxbase.auth.getUser();
 			currentUserId = data?.user?.id ?? null;
@@ -87,15 +89,13 @@
 				return;
 			}
 			profile = profileData as unknown as Profile;
-
-			// Check if the current user is viewing their own profile
 			isOwner = currentUserId === profile.id;
 
-			// Load trips: if owner, load ALL (including private); otherwise only public
 			let tripQuery = fluxbase
 				.from('trips')
 				.select('id, title, description, start_date, end_date, image_url, visibility, metadata')
 				.eq('user_id', profile.id)
+				.in('status', ['active', 'planned', 'completed'])
 				.order('start_date', { ascending: false });
 
 			if (!isOwner) {
@@ -115,7 +115,25 @@
 		if (meters < 1000) return `${Math.round(meters)} m`;
 		return `${(meters / 1000).toFixed(0)} km`;
 	}
+
+	async function saveCoverFocal(x: number, y: number) {
+		if (!isOwner || !profile) return;
+		profile.cover_focal_x = x;
+		profile.cover_focal_y = y;
+		try {
+			await fluxbase
+				.from('user_profiles')
+				.update({ cover_focal_x: x, cover_focal_y: y })
+				.eq('id', profile.id);
+		} catch {
+			// non-critical
+		}
+	}
 </script>
+
+<svelte:head>
+	<title>{profile ? `${profile.full_name ?? '@' + profile.username} · Wayli` : 'Wayli'}</title>
+</svelte:head>
 
 {#if isLoading}
 	<div class="flex min-h-[60vh] items-center justify-center">
@@ -128,12 +146,12 @@
 		<a href="/" class="text-primary hover:underline text-sm">← Home</a>
 	</div>
 {:else if profile}
-	<!-- Top bar -->
+	<!-- Floating top bar -->
 	<div class="fixed top-0 right-0 z-50 p-4">
 		{#if isOwner}
 			<a
-				href="/dashboard/journal"
-				class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
+				href="/dashboard/travel"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<BookOpen class="h-4 w-4" />
 				Dashboard
@@ -141,7 +159,7 @@
 		{:else}
 			<a
 				href="/auth/signin"
-				class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg transition-colors"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<LogIn class="h-4 w-4" />
 				Sign in
@@ -149,129 +167,147 @@
 		{/if}
 	</div>
 
-	<div class="mx-auto max-w-6xl px-4 py-6">
-		<!-- Hero header -->
-		<div class="bg-card border-border mb-8 overflow-hidden rounded-2xl border">
-			<!-- Gradient banner / cover photo -->
-			{#if profile.cover_photo_url}
-				<img src={profile.cover_photo_url} alt="" class="h-40 w-full object-cover" />
-			{:else}
-				<div class="h-40 bg-gradient-to-br from-primary via-primary/70 to-primary/40"></div>
-			{/if}
-			<!-- Profile info -->
-			<div class="px-8 pb-8">
-				<div class="-mt-16 mb-4 flex items-end gap-5">
-					{#if profile.avatar_url}
-						<img
-							src={profile.avatar_url}
-							alt={profile.full_name ?? profile.username}
-							class="bg-card border-border h-28 w-28 rounded-full border-4 object-cover shadow-xl"
-						/>
-					{:else}
-						<div
-							class="bg-card border-border flex h-28 w-28 items-center justify-center rounded-full border-4 text-3xl font-bold text-primary shadow-xl"
-						>
-							{(profile.full_name ?? profile.username)[0]?.toUpperCase()}
-						</div>
-					{/if}
-				</div>
-				<h1 class="text-foreground text-3xl font-bold">
-					{profile.full_name ?? `@${profile.username}`}
-				</h1>
-				<p class="text-muted-foreground flex items-center gap-1.5 text-base">
-					<Globe class="h-4 w-4" />
-					@{profile.username}
-				</p>
-			</div>
-		</div>
-
-		<!-- Stats bar -->
-		{#if stats.trips > 0}
-			<div class="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-				<div class="bg-card border-border rounded-2xl border p-5 text-center">
-					<div class="text-primary text-3xl font-bold">{stats.trips}</div>
-					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Trips</div>
-				</div>
-				<div class="bg-card border-border rounded-2xl border p-5 text-center">
-					<div class="text-primary text-3xl font-bold">{stats.countries}</div>
-					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Countries</div>
-				</div>
-				<div class="bg-card border-border rounded-2xl border p-5 text-center">
-					<div class="text-primary text-3xl font-bold">{stats.cities}</div>
-					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Cities</div>
-				</div>
-				<div class="bg-card border-border rounded-2xl border p-5 text-center">
-					<div class="text-primary text-3xl font-bold">{formatDistance(stats.distance)}</div>
-					<div class="text-muted-foreground mt-1 text-xs uppercase tracking-wide">Traveled</div>
-				</div>
-			</div>
+	<!-- Full-bleed hero -->
+	<div class="relative h-[420px] w-full overflow-hidden">
+		{#if profile.cover_photo_url}
+			<PannableCover
+				src={profile.cover_photo_url}
+				focalX={profile.cover_focal_x ?? 0.5}
+				focalY={profile.cover_focal_y ?? 0.5}
+				editable={isOwner}
+				onFocalChange={saveCoverFocal}
+				class="h-full w-full"
+			/>
+		{:else}
+			<div class="h-full w-full bg-gradient-to-br from-slate-800 via-slate-700 to-slate-500"></div>
 		{/if}
+		<!-- Gradient overlays for text legibility -->
+		<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30"></div>
 
-		<!-- Section header -->
-		<div class="mb-5 flex items-center gap-2">
-			<Route class="text-primary h-5 w-5" />
-			<h2 class="text-foreground text-lg font-semibold">Trips</h2>
+		<!-- Hero content -->
+		<div class="absolute inset-bottom-0 bottom-0 mx-auto max-w-6xl px-6 pb-8">
+			<div class="flex items-end gap-5">
+				<!-- Avatar -->
+				{#if profile.avatar_url}
+					<img
+						src={profile.avatar_url}
+						alt={profile.full_name ?? profile.username}
+						class="h-28 w-28 rounded-3xl border-2 border-white/20 object-cover shadow-2xl"
+					/>
+				{:else}
+					<div
+						class="flex h-28 w-28 items-center justify-center rounded-3xl border-2 border-white/20 bg-white/10 text-4xl font-bold text-white shadow-2xl backdrop-blur-sm"
+					>
+						{(profile.full_name ?? profile.username)[0]?.toUpperCase()}
+					</div>
+				{/if}
+				<!-- Name + handle -->
+				<div class="pb-2">
+					<h1 class="text-3xl font-bold tracking-tight text-white drop-shadow-lg sm:text-4xl">
+						{profile.full_name ?? `@${profile.username}`}
+					</h1>
+					<p class="flex items-center gap-1.5 text-base text-white/70">
+						<Globe class="h-4 w-4" />
+						@{profile.username}
+					</p>
+				</div>
+			</div>
+			<!-- Stats pills -->
+			{#if stats.trips > 0}
+				<div class="mt-5 flex flex-wrap gap-3">
+					<div
+						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
+					>
+						<Route class="h-4 w-4 text-white/60" />
+						<span class="font-bold text-white">{stats.trips}</span>
+						<span class="text-white/60">{stats.trips === 1 ? 'trip' : 'trips'}</span>
+					</div>
+					<div
+						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
+					>
+						<Globe class="h-4 w-4 text-white/60" />
+						<span class="font-bold text-white">{stats.countries}</span>
+						<span class="text-white/60">{stats.countries === 1 ? 'country' : 'countries'}</span>
+					</div>
+					<div
+						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
+					>
+						<MapPin class="h-4 w-4 text-white/60" />
+						<span class="font-bold text-white">{stats.cities}</span>
+						<span class="text-white/60">{stats.cities === 1 ? 'city' : 'cities'}</span>
+					</div>
+					<div
+						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
+					>
+						<Route class="h-4 w-4 text-white/60" />
+						<span class="font-bold text-white">{formatDistance(stats.distance)}</span>
+						<span class="text-white/60">traveled</span>
+					</div>
+				</div>
+			{/if}
 		</div>
+	</div>
 
-		<!-- Trip cards -->
+	<!-- Trip cards -->
+	<div class="mx-auto max-w-6xl px-4 py-10">
 		{#if trips.length === 0}
-			<div class="bg-card border-border rounded-2xl border p-16 text-center">
-				<Route class="text-muted-foreground mx-auto mb-3 h-10 w-10 opacity-40" />
-				<p class="text-muted-foreground text-sm">No trips yet.</p>
+			<div class="flex flex-col items-center justify-center py-20 text-center">
+				<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
+				<p class="text-muted-foreground text-lg">No trips yet.</p>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-				{#each trips as trip (trip.id)}
+				{#each trips as trip, i (trip.id)}
 					<a
 						href="/u/{username}/trips/{trip.id}"
-						class="bg-card border-border group overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+						class="group relative aspect-[4/3] overflow-hidden rounded-3xl shadow-lg transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl animate-fade-in-up"
+						style="animation-delay: {i * 80}ms"
 					>
-						<div class="relative h-48 overflow-hidden">
-							{#if trip.image_url}
-								<img
-									src={trip.image_url}
-									alt={trip.title}
-									class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-								/>
-							{:else}
-								<div class="bg-muted flex h-full items-center justify-center">
-									<Route class="text-muted-foreground h-10 w-10" />
+						<!-- Background image -->
+						{#if trip.image_url}
+							<img
+								src={trip.image_url}
+								alt={trip.title}
+								class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+								loading="lazy"
+							/>
+						{:else}
+							<div class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"></div>
+						{/if}
+						<!-- Gradient overlay -->
+						<div
+							class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
+						></div>
+
+						<!-- Top badges -->
+						<div class="absolute top-3 left-3 flex gap-2">
+							<div
+								class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+							>
+								{new Date(trip.start_date).toLocaleDateString(undefined, {
+									month: 'short',
+									day: 'numeric'
+								})}
+							</div>
+							{#if isOwner && trip.visibility !== 'public'}
+								<div
+									class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+								>
+									{trip.visibility}
 								</div>
 							{/if}
-							<div
-								class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"
-							></div>
-							<!-- Date + visibility badges -->
-							<div class="absolute bottom-2 left-2 flex items-center gap-2">
-								<div
-									class="rounded-md bg-black/50 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm"
-								>
-									{new Date(trip.start_date).toLocaleDateString(undefined, {
-										month: 'short',
-										day: 'numeric',
-										year: 'numeric'
-									})}
-								</div>
-								{#if isOwner && trip.visibility !== 'public'}
-									<div
-										class="rounded-md bg-amber-500/80 px-2 py-1 text-xs font-medium text-white backdrop-blur-sm"
-									>
-										{trip.visibility}
-									</div>
-								{/if}
-							</div>
 						</div>
-						<div class="p-5">
-							<h3
-								class="text-foreground mb-1 font-semibold transition-colors group-hover:text-primary"
-							>
+
+						<!-- Bottom content -->
+						<div class="absolute right-0 bottom-0 left-0 p-5">
+							<h3 class="mb-1 text-xl font-bold tracking-tight text-white drop-shadow-md">
 								{trip.title}
 							</h3>
 							{#if trip.description}
-								<p class="text-muted-foreground line-clamp-2 text-sm">{trip.description}</p>
+								<p class="line-clamp-2 text-sm text-white/60">{trip.description}</p>
 							{/if}
 							{#if trip.metadata?.primaryCity}
-								<div class="text-muted-foreground mt-3 flex items-center gap-1 text-xs">
+								<div class="mt-2 flex items-center gap-1 text-xs text-white/50">
 									<MapPin class="h-3 w-3" />
 									{trip.metadata.primaryCity}
 									{#if trip.metadata?.primaryCountryCode}

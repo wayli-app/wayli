@@ -45,7 +45,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('auth.forgotPasswordTitle')} - Wayli</title>
+	<title>{t('auth.forgotPasswordTitle')} · Wayli</title>
 </svelte:head>
 
 <div

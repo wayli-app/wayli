@@ -55,6 +55,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Wayli</title>
+</svelte:head>
+
 <Toaster richColors position="top-right" closeButton />
 <StorageNoticeBanner />
 

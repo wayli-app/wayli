@@ -1,13 +1,12 @@
 <script lang="ts">
 	import {
 		BarChart,
-		BookOpen,
+		Globe,
 		Import,
 		Star,
 		Link,
 		Settings,
 		User,
-		Map,
 		X,
 		Sun,
 		Moon,
@@ -56,12 +55,12 @@
 	// Local state for SSR compatibility
 	let currentTheme = $state<'light' | 'dark'>('light');
 	let isSidebarOpen = $state(false);
+	let pendingTripCount = $state(0);
 
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
-		{ href: '/dashboard/trips', label: t('common.navigation.trips'), icon: Map },
-		{ href: '/dashboard/journal', label: 'Journal', icon: BookOpen },
+		{ href: '/dashboard/travel', label: 'Travel', icon: Globe },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
 			? [{ href: '/dashboard/ask', label: t('common.navigation.ask') || 'Ask AI', icon: Sparkles }]
@@ -118,6 +117,17 @@
 				.single();
 
 			userProfile = data as unknown as UserProfile;
+
+			// Fetch pending trip suggestions count
+			try {
+				const { count } = await fluxbase
+					.from('trips')
+					.select('*', { count: 'exact', head: true })
+					.eq('status', 'pending');
+				pendingTripCount = count ?? 0;
+			} catch {
+				// non-critical
+			}
 		}
 	});
 
@@ -202,6 +212,13 @@
 					>
 						<item.icon class="mr-3 h-5 w-5" />
 						{item.label}
+						{#if item.href === '/dashboard/travel' && pendingTripCount > 0}
+							<span
+								class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+							>
+								{pendingTripCount}
+							</span>
+						{/if}
 					</a>
 				{/each}
 			</div>
@@ -256,6 +273,13 @@
 							<item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
+								{#if item.href === '/dashboard/travel' && pendingTripCount > 0}
+									<span
+										class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+									>
+										{pendingTripCount}
+									</span>
+								{/if}
 								{#if isAdmin && item.href === '/dashboard/account-settings'}
 									<Crown class="ml-2 h-4 w-4 text-yellow-500" />
 								{/if}

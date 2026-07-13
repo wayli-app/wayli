@@ -703,7 +703,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
-	<title>Ask About Your Travels | Wayli</title>
+	<title>Ask AI · Wayli</title>
 </svelte:head>
 
 <div class="-m-6 flex h-screen">

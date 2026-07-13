@@ -231,17 +231,16 @@
 </script>
 
 <svelte:head>
-	<title>{t('importExport.title')} - Wayli</title>
+	<title>{t('importExport.title')} · Wayli</title>
 </svelte:head>
 
 <div>
 	<!-- Header -->
-	<div class="mb-8">
-		<div class="flex items-center gap-3">
-			<Import class="text-primary h-8 w-8 dark:text-muted-foreground" />
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">
-				{t('importExport.title')}
-			</h1>
+	<div class="mb-8 flex items-center gap-3">
+		<Import class="text-primary h-6 w-6" />
+		<div>
+			<h1 class="text-foreground text-xl font-bold">{t('importExport.title')}</h1>
+			<p class="text-muted-foreground text-sm">Import or export your location data</p>
 		</div>
 	</div>
 
