@@ -569,6 +569,12 @@
 									</div>
 								</div>
 								<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+									<a
+										href="/dashboard/trips/{entry.trip_id}"
+										class="text-muted-foreground hover:text-primary hover:bg-muted rounded p-1.5 transition-colors"
+										aria-label="View trip details"
+										title="View trip"><ExternalLink class="h-4 w-4" /></a
+									>
 									<button
 										type="button"
 										onclick={() => openEditEditor(entry)}
@@ -606,13 +612,6 @@
 								<div class="flex-1">
 									<EntryComments tripId={entry.trip_id} entryId={entry.id} />
 								</div>
-								<a
-									href="/dashboard/trips/{entry.trip_id}"
-									class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium transition-colors"
-								>
-									View trip
-									<ArrowRight class="h-3 w-3" />
-								</a>
 							</div>
 						</div>
 					</article>
@@ -662,7 +661,9 @@
 								class="h-[400px]"
 							/>
 						{:else}
-							<div class="flex h-64 items-center justify-center text-sm text-muted-foreground">
+							<div
+								class="flex h-64 items-center justify-center px-6 text-center text-sm text-muted-foreground"
+							>
 								No GPS data yet. Import location data to see your trips on the map.
 							</div>
 						{/if}

@@ -96,6 +96,7 @@
 				.from('trips')
 				.select('id, title, description, start_date, end_date, image_url, visibility, metadata')
 				.eq('user_id', profile.id)
+				.in('status', ['active', 'planned', 'completed'])
 				.order('start_date', { ascending: false });
 
 			if (!isOwner) {

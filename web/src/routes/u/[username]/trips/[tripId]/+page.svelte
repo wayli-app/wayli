@@ -101,13 +101,23 @@
 		}
 
 		try {
+			let currentUserId: string | null = null;
+			try {
+				const { data: authData } = await fluxbase.auth.getUser();
+				currentUserId = authData?.user?.id ?? null;
+			} catch {
+				// Not logged in
+			}
+
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
 			if (!tripData) {
 				notFound = true;
 				return;
 			}
 			trip = tripData as unknown as Trip;
-			if (trip.visibility !== 'public') {
+
+			// Reject only if not public AND not the owner
+			if (trip.visibility !== 'public' && (trip as any).user_id !== currentUserId) {
 				notFound = true;
 				return;
 			}

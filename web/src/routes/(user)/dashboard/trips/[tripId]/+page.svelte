@@ -31,7 +31,8 @@
 		Share2,
 		Link as LinkIcon,
 		Copy,
-		RefreshCw
+		RefreshCw,
+		ExternalLink
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -104,6 +105,7 @@
 	let shareToken = $state<string | null>(null);
 	let shareUrl = $state('');
 	let isGeneratingShare = $state(false);
+	let publicTripUrl = $state('');
 
 	const tripId = $derived(page.params.tripId ?? '');
 
@@ -133,6 +135,25 @@
 				shareUrl = `${window.location.origin}/share/${shareToken}`;
 			}
 
+			// Load public URL if the user has a username and the trip is public
+			if (trip.visibility === 'public') {
+				try {
+					const { data: userData } = await fluxbase.auth.getUser();
+					if (userData?.user) {
+						const { data: profile } = await fluxbase
+							.from('user_profiles')
+							.select('username')
+							.eq('id', userData.user.id)
+							.single();
+						if ((profile as any)?.username) {
+							publicTripUrl = `/u/${(profile as any).username}/trips/${tripId}`;
+						}
+					}
+				} catch {
+					// No username set
+				}
+			}
+
 			// Load journal entries
 			entries = await listEntries(tripId);
 
@@ -159,13 +180,23 @@
 	async function loadGpsData() {
 		if (!trip) return;
 		try {
-			const { data } = await fluxbase
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			const { data, error } = await fluxbase
 				.from('tracker_data')
 				.select('location')
+				.eq('user_id', userId)
 				.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
 				.lte('recorded_at', `${trip.end_date}T23:59:59Z`)
 				.order('recorded_at', { ascending: true })
 				.limit(5000);
+
+			if (error) {
+				console.error('[trip] GPS query error:', error);
+				return;
+			}
 
 			if (data) {
 				gpsPoints = (data as any[])
@@ -178,8 +209,8 @@
 					})
 					.filter((p): p is { lat: number; lng: number } => p !== null);
 			}
-		} catch {
-			// GPS data is optional — no track shown if unavailable
+		} catch (err) {
+			console.error('[trip] Failed to load GPS data:', err);
 		}
 	}
 
@@ -312,14 +343,27 @@
 				<ArrowLeft class="h-4 w-4" />
 				All trips
 			</a>
-			<button
-				type="button"
-				onclick={() => (showShareModal = true)}
-				class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
-			>
-				<Share2 class="h-4 w-4" />
-				Share
-			</button>
+			<div class="flex items-center gap-2">
+				{#if publicTripUrl}
+					<a
+						href={publicTripUrl}
+						target="_blank"
+						rel="noopener"
+						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+					>
+						<ExternalLink class="h-4 w-4" />
+						View publicly
+					</a>
+				{/if}
+				<button
+					type="button"
+					onclick={() => (showShareModal = true)}
+					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+				>
+					<Share2 class="h-4 w-4" />
+					Share
+				</button>
+			</div>
 		</div>
 
 		<!-- Trip header -->
@@ -442,6 +486,15 @@
 			{/if}
 
 			<TripTimeline {entries} canEdit={true} onEdit={openEditEditor} onDelete={handleDeleteEntry} />
+
+			<!-- Per-entry photos -->
+			{#if entries.length > 0}
+				<div class="space-y-4">
+					{#each entries as entry (entry.id)}
+						<PhotoGallery {tripId} entryId={entry.id} />
+					{/each}
+				</div>
+			{/if}
 		</div>
 	</div>
 {/if}
@@ -452,7 +505,7 @@
 {#if showShareModal}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+		class="fixed inset-0 z-[1001] flex items-center justify-center bg-black/50 p-4"
 		onclick={() => (showShareModal = false)}
 	>
 		<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
