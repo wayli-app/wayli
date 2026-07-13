@@ -266,7 +266,7 @@
 			<div class="space-y-8">
 				{#if entries.length > 0}
 					{#each entries as entry, i (entry.id)}
-						<article
+						<div
 							data-entry-id={entry.id}
 							onclick={() => (activeEntryId = entry.id)}
 							onkeydown={(e) => e.key === 'Enter' && (activeEntryId = entry.id)}
@@ -350,7 +350,7 @@
 									<EntryComments {tripId} entryId={entry.id} />
 								</div>
 							</div>
-						</article>
+						</div>
 					{/each}
 				{:else}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
