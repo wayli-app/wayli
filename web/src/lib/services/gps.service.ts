@@ -41,10 +41,12 @@ export async function fetchTrackPoints(
 		.filter((_, i) => i % stride === 0)
 		.map((p) => {
 			const loc = p.location;
+			const dt = p.recorded_at ? new Date(p.recorded_at) : null;
 			return {
 				lat: loc?.coordinates?.[1],
 				lng: loc?.coordinates?.[0],
-				date: p.recorded_at ? new Date(p.recorded_at).toISOString().slice(0, 10) : ''
+				// Local date (not UTC) so it matches the user's entry_date picker
+				date: dt ? dt.toLocaleDateString('en-CA') : ''
 			};
 		})
 		.filter((p) => p.lat != null && p.lng != null);
