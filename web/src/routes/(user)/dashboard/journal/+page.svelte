@@ -62,10 +62,19 @@
 			)
 	);
 
-	const ENTRIES_PER_PAGE = 20;
-	let visibleCount = $state(ENTRIES_PER_PAGE);
-	const visibleEntries = $derived(filteredEntries.slice(0, visibleCount));
-	const hasMore = $derived(visibleCount < filteredEntries.length);
+	const ENTRIES_PER_PAGE = 10;
+	let currentPage = $state(1);
+	const totalPages = $derived(Math.max(1, Math.ceil(filteredEntries.length / ENTRIES_PER_PAGE)));
+	const visibleEntries = $derived(
+		filteredEntries.slice((currentPage - 1) * ENTRIES_PER_PAGE, currentPage * ENTRIES_PER_PAGE)
+	);
+
+	// Reset to page 1 when filters change
+	$effect(() => {
+		void selectedTripFilter;
+		void searchQuery;
+		currentPage = 1;
+	});
 
 	// Map points: all GPS points as lat/lng pairs
 	const mapPoints = $derived(allGpsPoints.map((p) => ({ lat: p.lat, lng: p.lng })));
@@ -403,6 +412,13 @@
 
 			<MarkdownEditor bind:value={editorBody} />
 
+			{#if editingEntry}
+				<div class="border-border rounded-lg border p-3">
+					<span class="text-muted-foreground mb-2 block text-xs font-medium">Photos</span>
+					<PhotoGallery tripId={editingEntry.trip_id} entryId={editingEntry.id} />
+				</div>
+			{/if}
+
 			<div class="flex justify-end gap-2">
 				<button
 					type="button"
@@ -563,14 +579,26 @@
 					</article>
 				{/each}
 
-				{#if hasMore}
-					<div class="flex justify-center pt-2">
+				{#if totalPages > 1}
+					<div class="flex items-center justify-center gap-4 pt-2">
 						<button
 							type="button"
-							onclick={() => (visibleCount += ENTRIES_PER_PAGE)}
-							class="border-border text-foreground hover:bg-muted rounded-lg border px-6 py-2 text-sm font-medium transition-colors"
+							onclick={() => (currentPage = Math.max(1, currentPage - 1))}
+							disabled={currentPage === 1}
+							class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40"
 						>
-							Load more entries
+							← Prev
+						</button>
+						<span class="text-muted-foreground text-sm">
+							Page {currentPage} of {totalPages}
+						</span>
+						<button
+							type="button"
+							onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
+							disabled={currentPage === totalPages}
+							class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40"
+						>
+							Next →
 						</button>
 					</div>
 				{/if}

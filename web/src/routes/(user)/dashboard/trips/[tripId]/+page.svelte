@@ -35,6 +35,7 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import PannableCover from '$lib/components/PannableCover.svelte';
+	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
 
 	// Debounced visibility save with status feedback
@@ -461,6 +462,12 @@
 						/>
 					</div>
 					<MarkdownEditor bind:value={editorBody} />
+					{#if editingEntry}
+						<div class="border-border rounded-lg border p-3">
+							<span class="text-muted-foreground mb-2 block text-xs font-medium">Photos</span>
+							<PhotoGallery {tripId} entryId={editingEntry.id} />
+						</div>
+					{/if}
 					<div class="flex justify-end gap-2">
 						<button
 							type="button"
