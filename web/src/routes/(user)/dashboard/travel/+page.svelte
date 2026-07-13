@@ -103,6 +103,7 @@
 
 	// ── New trip modal state ──
 	let showTripModal = $state(false);
+	let editingTrip = $state<Trip | null>(null);
 	let tripTitle = $state('');
 	let tripStartDate = $state('');
 	let tripEndDate = $state('');
@@ -507,6 +508,7 @@
 
 	// ── New trip creation ──
 	function openTripModal() {
+		editingTrip = null;
 		tripTitle = '';
 		tripStartDate = '';
 		tripEndDate = '';
@@ -514,23 +516,43 @@
 		showTripModal = true;
 	}
 
-	async function createTrip() {
+	function openEditTripModal(trip: Trip) {
+		editingTrip = trip;
+		tripTitle = trip.title;
+		tripStartDate = (trip.start_date || '').slice(0, 10);
+		tripEndDate = (trip.end_date || '').slice(0, 10);
+		tripDescription = trip.description ?? '';
+		showTripModal = true;
+	}
+
+	async function saveTrip() {
 		if (!tripTitle || !tripStartDate) return;
 		isCreatingTrip = true;
 		try {
 			const tripsService = await getTripsService();
-			await tripsService.createTrip({
-				title: tripTitle,
-				start_date: tripStartDate,
-				end_date: tripEndDate || tripStartDate,
-				description: tripDescription
-			});
-			await loadTrips();
+			if (editingTrip) {
+				const updated = await tripsService.updateTrip({
+					id: editingTrip.id,
+					title: tripTitle,
+					start_date: tripStartDate,
+					end_date: tripEndDate || tripStartDate,
+					description: tripDescription
+				} as any);
+				trips = trips.map((t) => (t.id === updated.id ? (updated as unknown as Trip) : t));
+			} else {
+				await tripsService.createTrip({
+					title: tripTitle,
+					start_date: tripStartDate,
+					end_date: tripEndDate || tripStartDate,
+					description: tripDescription
+				});
+				await loadTrips();
+			}
 			showTripModal = false;
-			toast.success('Trip created');
+			toast.success(editingTrip ? 'Trip updated' : 'Trip created');
 		} catch (err) {
-			console.error('Create trip failed:', err);
-			toast.error('Failed to create trip');
+			console.error('Save trip failed:', err);
+			toast.error('Failed to save trip');
 		} finally {
 			isCreatingTrip = false;
 		}
@@ -767,10 +789,11 @@
 						</p>
 					</div>
 				{:else}
-					{#each trips as trip (trip.id)}
+					{#each trips as trip, i (trip.id)}
 						<div
 							data-trip-id={trip.id}
-							class="bg-card border-border scroll-mt-4 overflow-hidden rounded-2xl border"
+							class="bg-card border-border scroll-mt-4 animate-fade-in-up overflow-hidden rounded-2xl border"
+							style="animation-delay: {Math.min(i * 60, 400)}ms"
 						>
 							<!-- Trip header -->
 							<button
@@ -852,6 +875,14 @@
 										<div class="flex-1"></div>
 										<button
 											type="button"
+											onclick={() => openEditTripModal(trip)}
+											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+											title="Edit trip"
+										>
+											<Pencil class="h-3 w-3" /> Edit
+										</button>
+										<button
+											type="button"
 											onclick={() => toggleVisibility(trip.id, trip.visibility)}
 											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
 											title="Toggle visibility"
@@ -871,6 +902,18 @@
 											<Trash2 class="h-3.5 w-3.5" />
 										</button>
 									</div>
+
+									<!-- Mobile map inside expanded section -->
+									{#if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
+										<div class="border-border border-b lg:hidden">
+											<TripMap
+												points={mapPoints}
+												markers={mapMarkers}
+												{highlightPoints}
+												class="h-48"
+											/>
+										</div>
+									{/if}
 
 									<!-- Entries for this trip -->
 									{#if (entriesByTrip.get(trip.id) ?? []).length === 0}
@@ -1077,7 +1120,9 @@
 							class="border-border bg-card w-full max-w-md space-y-4 rounded-2xl border p-6 shadow-2xl"
 						>
 							<div class="flex items-center justify-between">
-								<h2 class="text-foreground text-lg font-bold">New Trip</h2>
+								<h2 class="text-foreground text-lg font-bold">
+									{editingTrip ? 'Edit Trip' : 'New Trip'}
+								</h2>
 								<button
 									type="button"
 									onclick={() => (showTripModal = false)}
@@ -1126,14 +1171,14 @@
 								</button>
 								<button
 									type="button"
-									onclick={createTrip}
+									onclick={saveTrip}
 									disabled={isCreatingTrip || !tripTitle || !tripStartDate}
 									class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
 								>
 									{#if isCreatingTrip}
 										<Loader2 class="h-4 w-4 animate-spin" />
 									{/if}
-									Create
+									{editingTrip ? 'Save' : 'Create'}
 								</button>
 							</div>
 						</div>
@@ -1178,21 +1223,6 @@
 				</div>
 			</div>
 		</div>
-
-		<!-- Mobile map -->
-		{#if mapPoints.length > 0 || mapMarkers.length > 0}
-			<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border p-3 lg:hidden">
-				<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-					<MapPin class="text-primary h-4 w-4" />
-					{#if activeTripId}
-						{trips.find((t) => t.id === activeTripId)?.title ?? 'Trip'}
-					{:else}
-						Overview
-					{/if}
-				</div>
-				<TripMap points={mapPoints} markers={mapMarkers} {highlightPoints} class="h-56" />
-			</div>
-		{/if}
 	</div>
 {/if}
 
