@@ -156,25 +156,30 @@
 
 	async function loadGpsData() {
 		try {
-			const tripIds = [...new Set((await listAllEntries()).map((e) => e.trip_id))];
+			const allEntries = await listAllEntries();
+			const tripIds = [...new Set(allEntries.map((e) => e.trip_id))];
+			console.log('[gps] tripIds from entries:', tripIds.length, tripIds);
 			if (tripIds.length === 0) return;
 
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
+			console.log('[gps] userId:', userId);
 			if (!userId) return;
 
 			const results = await Promise.all(
 				tripIds.map(async (tripId) => {
-					const { data: tripRow } = await fluxbase
+					const { data: tripRow, error: tripErr } = await fluxbase
 						.from<Record<string, any>>('trips')
 						.select('start_date, end_date, metadata')
 						.eq('id', tripId)
 						.single();
+					console.log('[gps] trip', tripId, 'row:', tripRow, 'err:', tripErr);
 					if (!tripRow) return { tripId, points: [] as GpsPoint[] };
 
 					// Query tracker_data directly (owner's RLS grants access)
 					const sd = (tripRow.start_date || '').slice(0, 10);
 					const ed = (tripRow.end_date || '').slice(0, 10);
+					console.log('[gps] date range:', `${sd}T00:00:00Z`, '→', `${ed}T23:59:59Z`);
 					const { data: trackRows, error: trackErr } = await fluxbase
 						.from<Record<string, any>>('tracker_data')
 						.select('location, recorded_at')
@@ -184,8 +189,9 @@
 						.order('recorded_at', { ascending: true })
 						.limit(5000);
 
-					if (trackErr) {
-						console.error('[journal] tracker_data query error:', trackErr);
+					console.log('[gps] tracker_data rows:', trackRows?.length, 'err:', trackErr);
+					if (trackRows && trackRows.length > 0) {
+						console.log('[gps] first row location:', JSON.stringify(trackRows[0].location));
 					}
 
 					const raw = (trackRows as any[]) ?? [];
@@ -221,6 +227,8 @@
 			);
 
 			allGpsPoints = results.flatMap((r) => r.points);
+			console.log('[gps] total allGpsPoints:', allGpsPoints.length);
+			console.log('[gps] cityMarkers:', cityMarkers.length);
 		} catch (err) {
 			console.error('Failed to load GPS data:', err);
 		}

@@ -182,10 +182,12 @@
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
+			console.log('[trip-gps] userId:', userId);
 			if (!userId) return;
 
 			const startDate = (trip.start_date || '').slice(0, 10);
 			const endDate = (trip.end_date || '').slice(0, 10);
+			console.log('[trip-gps] date range:', `${startDate}T00:00:00Z`, '→', `${endDate}T23:59:59Z`);
 
 			const { data, error } = await fluxbase
 				.from('tracker_data')
@@ -196,13 +198,19 @@
 				.order('recorded_at', { ascending: true })
 				.limit(5000);
 
+			const rawData = (data as any[]) ?? [];
+			console.log('[trip-gps] raw rows:', rawData.length, 'error:', error);
+			if (rawData.length > 0) {
+				console.log('[trip-gps] first row:', JSON.stringify(rawData[0]));
+			}
+
 			if (error) {
 				console.error('[trip] GPS query error:', error);
 				return;
 			}
 
-			if (data) {
-				gpsPoints = (data as any[])
+			if (rawData.length > 0) {
+				gpsPoints = rawData
 					.map((row) => {
 						const loc = row.location;
 						if (loc?.coordinates && Array.isArray(loc.coordinates)) {
@@ -211,6 +219,7 @@
 						return null;
 					})
 					.filter((p): p is { lat: number; lng: number } => p !== null);
+				console.log('[trip-gps] parsed gpsPoints:', gpsPoints.length);
 			}
 		} catch (err) {
 			console.error('[trip] Failed to load GPS data:', err);
