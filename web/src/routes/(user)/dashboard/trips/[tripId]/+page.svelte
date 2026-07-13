@@ -35,6 +35,7 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import PannableCover from '$lib/components/PannableCover.svelte';
+	import { fetchTrackPoints } from '$lib/services/gps.service';
 
 	// Debounced visibility save with status feedback
 	let visibilitySaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -184,35 +185,8 @@
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
-			const startDate = (trip.start_date || '').slice(0, 10);
-			const endDate = (trip.end_date || '').slice(0, 10);
-
-			const { data, error } = await fluxbase
-				.from('tracker_data')
-				.select('location, recorded_at')
-				.eq('user_id', userId)
-				.gte('recorded_at', `${startDate}T00:00:00Z`)
-				.lte('recorded_at', `${endDate}T23:59:59Z`)
-				.order('recorded_at', { ascending: true })
-				.limit(5000);
-
-			if (error) {
-				console.error('[trip] GPS query error:', error);
-				return;
-			}
-
-			const rawData = (data as any[]) ?? [];
-			if (rawData.length > 0) {
-				gpsPoints = rawData
-					.map((row) => {
-						const loc = row.location;
-						if (loc?.coordinates && Array.isArray(loc.coordinates)) {
-							return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
-						}
-						return null;
-					})
-					.filter((p): p is { lat: number; lng: number } => p !== null);
-			}
+			const pts = await fetchTrackPoints(userId, trip.start_date, trip.end_date, 1500);
+			gpsPoints = pts.map((p) => ({ lat: p.lat, lng: p.lng }));
 		} catch (err) {
 			console.error('[trip] Failed to load GPS data:', err);
 		}

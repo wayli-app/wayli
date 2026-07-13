@@ -8,6 +8,7 @@
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
+	import { fetchTrackPoints } from '$lib/services/gps.service';
 	import { ArrowLeft, Calendar, Route, MapPin, Globe, Compass, LogIn } from 'lucide-svelte';
 
 	type Trip = {
@@ -136,39 +137,12 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
-			// Load GPS track — query tracker_data directly
-			// Works for owner (RLS grants access). Anonymous viewers of public
-			// trips get city markers only — no raw GPS without auth.
+			// Load GPS track — paginated fetch (API caps at 1000 rows per request)
 			try {
 				const { data: authData } = await fluxbase.auth.getUser();
 				const viewerId = authData?.user?.id;
-				if (viewerId) {
-					const sd = (trip.start_date || '').slice(0, 10);
-					const ed = (trip.end_date || '').slice(0, 10);
-					const { data: trackRows } = await fluxbase
-						.from('tracker_data')
-						.select('location, recorded_at')
-						.eq('user_id', viewerId)
-						.gte('recorded_at', `${sd}T00:00:00Z`)
-						.lte('recorded_at', `${ed}T23:59:59Z`)
-						.order('recorded_at', { ascending: true })
-						.limit(5000);
-
-					const raw = (trackRows as any[]) ?? [];
-					if (raw.length > 0) {
-						const stride = Math.max(1, Math.ceil(raw.length / 200));
-						allGpsPoints = raw
-							.filter((_, i) => i % stride === 0)
-							.map((p) => {
-								const loc = p.location;
-								return {
-									lat: loc?.coordinates?.[1],
-									lng: loc?.coordinates?.[0],
-									date: p.recorded_at ? new Date(p.recorded_at).toISOString().slice(0, 10) : ''
-								};
-							})
-							.filter((p) => p.lat != null && p.lng != null);
-					}
+				if (viewerId && trip) {
+					allGpsPoints = await fetchTrackPoints(viewerId, trip.start_date, trip.end_date, 500);
 				}
 			} catch {
 				// Not logged in — city markers still show

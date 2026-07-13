@@ -10,6 +10,7 @@
 	} from '$lib/services/trip-entry.service';
 	import type { TripEntry } from '$lib/types/journal.types';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { fetchTrackPoints } from '$lib/services/gps.service';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
@@ -172,31 +173,9 @@
 						.single();
 					if (!tripRow) return { tripId, points: [] as GpsPoint[] };
 
-					const sd = (tripRow.start_date || '').slice(0, 10);
-					const ed = (tripRow.end_date || '').slice(0, 10);
-					const { data: trackRows } = await fluxbase
-						.from<Record<string, any>>('tracker_data')
-						.select('location, recorded_at')
-						.eq('user_id', userId)
-						.gte('recorded_at', `${sd}T00:00:00Z`)
-						.lte('recorded_at', `${ed}T23:59:59Z`)
-						.order('recorded_at', { ascending: true })
-						.limit(5000);
-
-					const raw = (trackRows as any[]) ?? [];
-					if (raw.length === 0) return { tripId, points: [] as GpsPoint[] };
-
-					const stride = Math.max(1, Math.ceil(raw.length / 500));
-					const points: GpsPoint[] = raw
-						.filter((_, i) => i % stride === 0)
-						.map((p) => {
-							const loc = p.location;
-							const lat = loc?.coordinates?.[1] ?? loc?.lat;
-							const lng = loc?.coordinates?.[0] ?? loc?.lng;
-							const date = p.recorded_at ? new Date(p.recorded_at).toISOString().slice(0, 10) : '';
-							return { lat, lng, trip_id: tripId, date };
-						})
-						.filter((p) => p.lat != null && p.lng != null);
+					const points = (
+						await fetchTrackPoints(userId, tripRow.start_date, tripRow.end_date, 500)
+					).map((p) => ({ ...p, trip_id: tripId }));
 
 					if ((tripRow as any).metadata?.visitedCitiesDetailed) {
 						for (const c of (tripRow as any).metadata.visitedCitiesDetailed) {
