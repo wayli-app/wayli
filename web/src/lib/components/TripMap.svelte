@@ -32,9 +32,7 @@
 		mainLayer = L.layerGroup().addTo(map);
 		highlightLayer = L.layerGroup().addTo(map);
 
-		redrawMain();
-		redrawHighlight();
-
+		// Effects will handle initial draw once `map` is set.
 		setTimeout(() => map?.invalidateSize(), 200);
 	});
 
@@ -50,10 +48,10 @@
 			return;
 		}
 
-		// Downsample for polyline
+		// Downsample for polyline (keep enough for a smooth line)
 		const sampled =
-			points.length > 500
-				? points.filter((_, i) => i % Math.ceil(points.length / 500) === 0)
+			points.length > 1500
+				? points.filter((_, i) => i % Math.ceil(points.length / 1500) === 0)
 				: points;
 
 		if (sampled.length > 1) {
@@ -140,16 +138,18 @@
 		}
 	}
 
-	// React to points/markers changes
+	// React to points/markers/map changes
 	$effect(() => {
 		void points;
 		void markers;
+		void map; // re-run when map is ready
 		redrawMain();
 	});
 
-	// React to highlight changes
+	// React to highlight/map changes
 	$effect(() => {
 		void highlightPoints;
+		void map; // re-run when map is ready
 		redrawHighlight();
 	});
 

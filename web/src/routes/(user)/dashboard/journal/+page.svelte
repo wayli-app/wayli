@@ -156,31 +156,25 @@
 
 	async function loadGpsData() {
 		try {
-			const allEntries = await listAllEntries();
-			const tripIds = [...new Set(allEntries.map((e) => e.trip_id))];
-			console.log('[gps] tripIds from entries:', tripIds.length, tripIds);
+			const tripIds = [...new Set((await listAllEntries()).map((e) => e.trip_id))];
 			if (tripIds.length === 0) return;
 
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
-			console.log('[gps] userId:', userId);
 			if (!userId) return;
 
 			const results = await Promise.all(
 				tripIds.map(async (tripId) => {
-					const { data: tripRow, error: tripErr } = await fluxbase
+					const { data: tripRow } = await fluxbase
 						.from<Record<string, any>>('trips')
 						.select('start_date, end_date, metadata')
 						.eq('id', tripId)
 						.single();
-					console.log('[gps] trip', tripId, 'row:', tripRow, 'err:', tripErr);
 					if (!tripRow) return { tripId, points: [] as GpsPoint[] };
 
-					// Query tracker_data directly (owner's RLS grants access)
 					const sd = (tripRow.start_date || '').slice(0, 10);
 					const ed = (tripRow.end_date || '').slice(0, 10);
-					console.log('[gps] date range:', `${sd}T00:00:00Z`, '→', `${ed}T23:59:59Z`);
-					const { data: trackRows, error: trackErr } = await fluxbase
+					const { data: trackRows } = await fluxbase
 						.from<Record<string, any>>('tracker_data')
 						.select('location, recorded_at')
 						.eq('user_id', userId)
@@ -189,16 +183,10 @@
 						.order('recorded_at', { ascending: true })
 						.limit(5000);
 
-					console.log('[gps] tracker_data rows:', trackRows?.length, 'err:', trackErr);
-					if (trackRows && trackRows.length > 0) {
-						console.log('[gps] first row location:', JSON.stringify(trackRows[0].location));
-					}
-
 					const raw = (trackRows as any[]) ?? [];
 					if (raw.length === 0) return { tripId, points: [] as GpsPoint[] };
 
-					// Downsample to max 200 points
-					const stride = Math.max(1, Math.ceil(raw.length / 200));
+					const stride = Math.max(1, Math.ceil(raw.length / 500));
 					const points: GpsPoint[] = raw
 						.filter((_, i) => i % stride === 0)
 						.map((p) => {
@@ -210,7 +198,6 @@
 						})
 						.filter((p) => p.lat != null && p.lng != null);
 
-					// City markers from metadata
 					if ((tripRow as any).metadata?.visitedCitiesDetailed) {
 						for (const c of (tripRow as any).metadata.visitedCitiesDetailed) {
 							if (c.lat && c.lng) {
@@ -227,8 +214,6 @@
 			);
 
 			allGpsPoints = results.flatMap((r) => r.points);
-			console.log('[gps] total allGpsPoints:', allGpsPoints.length);
-			console.log('[gps] cityMarkers:', cityMarkers.length);
 		} catch (err) {
 			console.error('Failed to load GPS data:', err);
 		}
