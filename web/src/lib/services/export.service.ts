@@ -266,7 +266,7 @@ export class ExportService {
 		}
 
 		const { data } = await fluxbase.storage
-			.from('exports')
+			.from('temp-files')
 			.createSignedUrl(filePath, { expiresIn: 3600 }); // 1 hour expiry
 
 		if (!data?.signedUrl) {
