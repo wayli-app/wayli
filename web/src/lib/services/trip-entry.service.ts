@@ -35,6 +35,7 @@ export async function listAllEntries(): Promise<
 			trip_start_date: string;
 			trip_end_date: string;
 			trip_image_url: string | null;
+			cover_image_url: string | null;
 		}
 	>
 > {
@@ -61,8 +62,34 @@ export async function listAllEntries(): Promise<
 		tripMap.set(t.id, t);
 	}
 
+	// Batch-fetch media for all entries to resolve cover photos
+	const { data: mediaData } = await fluxbase
+		.from<Record<string, any>>('trip_media')
+		.select('id, entry_id, storage_path, thumbnail_path')
+		.in('entry_id', entries.map((e) => e.id).filter(Boolean))
+		.order('sort_order', { ascending: true });
+
+	const mediaByEntry = new Map<string, any[]>();
+	for (const m of (mediaData as any[]) ?? []) {
+		const list = mediaByEntry.get(m.entry_id) ?? [];
+		list.push(m);
+		mediaByEntry.set(m.entry_id, list);
+	}
+
 	return entries.map((row) => {
 		const trip = tripMap.get(row.trip_id);
+		const entryMedia = mediaByEntry.get(row.id) ?? [];
+
+		// Resolve cover: explicit cover_media_id → first media → null
+		let coverImageUrl: string | null = null;
+		if (row.cover_media_id) {
+			const coverMedia = entryMedia.find((m) => m.id === row.cover_media_id);
+			coverImageUrl = coverMedia?.thumbnail_path ?? coverMedia?.storage_path ?? null;
+		}
+		if (!coverImageUrl && entryMedia.length > 0) {
+			coverImageUrl = entryMedia[0].thumbnail_path ?? entryMedia[0].storage_path ?? null;
+		}
+
 		return {
 			id: row.id,
 			trip_id: row.trip_id,
@@ -70,12 +97,15 @@ export async function listAllEntries(): Promise<
 			title: row.title || '',
 			body: row.body || '',
 			entry_date: row.entry_date,
+			end_date: row.end_date ?? null,
+			cover_media_id: row.cover_media_id ?? null,
 			created_at: row.created_at,
 			updated_at: row.updated_at,
 			trip_title: trip?.title ?? 'Unknown trip',
 			trip_start_date: trip?.start_date ?? '',
 			trip_end_date: trip?.end_date ?? '',
-			trip_image_url: trip?.image_url ?? null
+			trip_image_url: trip?.image_url ?? null,
+			cover_image_url: coverImageUrl
 		};
 	});
 }

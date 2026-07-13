@@ -10,14 +10,16 @@
 		uploadMedia
 	} from '$lib/services/trip-media.service';
 	import { compressImage } from '$lib/utils/image-compress';
-	import { ImagePlus, Trash2, X, Loader2 } from 'lucide-svelte';
+	import { ImagePlus, Trash2, X, Loader2, Star } from 'lucide-svelte';
 
 	type Props = {
 		tripId: string;
 		entryId?: string;
+		coverMediaId?: string | null;
+		onCoverChange?: (mediaId: string) => void;
 	};
 
-	let { tripId, entryId }: Props = $props();
+	let { tripId, entryId, coverMediaId = null, onCoverChange }: Props = $props();
 
 	let media = $state<TripMedia[]>([]);
 	let isLoading = $state(true);
@@ -143,6 +145,11 @@
 		<div class="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
 			{#each media as item (item.id)}
 				<div class="group relative aspect-square overflow-hidden rounded-md">
+					{#if coverMediaId === item.id}
+						<div class="absolute top-1 left-1 z-10 rounded-full bg-amber-400 p-1 shadow-lg">
+							<Star class="h-3 w-3 text-white fill-white" />
+						</div>
+					{/if}
 					<button
 						type="button"
 						onclick={() => (lightbox = item)}
@@ -162,6 +169,15 @@
 						class="bg-destructive absolute top-1 right-1 rounded-full p-1 text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100"
 						aria-label="Delete photo"><Trash2 class="h-3 w-3" /></button
 					>
+					{#if onCoverChange && entryId && coverMediaId !== item.id}
+						<button
+							type="button"
+							onclick={() => onCoverChange(item.id)}
+							class="absolute bottom-1 left-1 rounded-full bg-black/50 p-1 text-amber-300 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100"
+							aria-label="Set as cover photo"
+							title="Set as cover"><Star class="h-3 w-3" /></button
+						>
+					{/if}
 				</div>
 			{/each}
 			<!-- Add tile -->

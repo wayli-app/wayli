@@ -35,6 +35,7 @@
 		trip_start_date: string;
 		trip_end_date: string;
 		trip_image_url: string | null;
+		cover_image_url: string | null;
 	};
 
 	type TripOption = { id: string; title: string; start_date: string; status?: string };
@@ -272,6 +273,17 @@
 		}
 	}
 
+	async function handleSetCover(mediaId: string) {
+		if (!editingEntry) return;
+		try {
+			const updated = await updateEntry(editingEntry.id, { cover_media_id: mediaId });
+			editingEntry = { ...editingEntry, cover_media_id: mediaId };
+			entries = entries.map((e) => (e.id === updated.id ? { ...e, cover_media_id: mediaId } : e));
+		} catch (err) {
+			console.error('Failed to set cover:', err);
+		}
+	}
+
 	function formatDate(dateStr: string): string {
 		return new Date(dateStr).toLocaleDateString(undefined, {
 			weekday: 'long',
@@ -415,7 +427,12 @@
 			{#if editingEntry}
 				<div class="border-border rounded-lg border p-3">
 					<span class="text-muted-foreground mb-2 block text-xs font-medium">Photos</span>
-					<PhotoGallery tripId={editingEntry.trip_id} entryId={editingEntry.id} />
+					<PhotoGallery
+						tripId={editingEntry.trip_id}
+						entryId={editingEntry.id}
+						coverMediaId={editingEntry.cover_media_id}
+						onCoverChange={handleSetCover}
+					/>
 				</div>
 			{/if}
 
@@ -483,19 +500,27 @@
 							? 'ring-primary/20 ring-2'
 							: ''}"
 					>
-						{#if entry.trip_image_url}
+						{#if entry.cover_image_url}
 							<div class="relative h-32 overflow-hidden">
-								<img src={entry.trip_image_url} alt="" class="h-full w-full object-cover" />
+								<img src={entry.cover_image_url} alt="" class="h-full w-full object-cover" />
 								<div
 									class="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-transparent"
 								></div>
-								<a
-									href="/dashboard/trips/{entry.trip_id}"
+								<span
 									class="text-foreground absolute bottom-2 left-3 inline-flex items-center gap-1.5 text-sm font-medium"
 								>
 									<MapPin class="text-primary h-3.5 w-3.5" />
 									{entry.trip_title}
-								</a>
+								</span>
+							</div>
+						{:else}
+							<div class="px-5 pt-4">
+								<span
+									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium transition-colors"
+								>
+									<MapPin class="h-3 w-3" />
+									{entry.trip_title}
+								</span>
 							</div>
 						{/if}
 
