@@ -150,7 +150,7 @@
 	<div class="fixed top-0 right-0 z-50 p-4">
 		{#if isOwner}
 			<a
-				href="/dashboard/journal"
+				href="/dashboard/travel"
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<BookOpen class="h-4 w-4" />
