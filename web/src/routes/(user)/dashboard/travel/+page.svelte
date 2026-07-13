@@ -158,13 +158,8 @@
 			// not logged in
 		}
 
-		await Promise.all([
-			loadTrips(),
-			loadEntries(),
-			loadGpsData(),
-			loadPendingTrips(),
-			loadPublicUrl()
-		]);
+		await loadTrips();
+		await Promise.all([loadEntries(), loadGpsData(), loadPendingTrips(), loadPublicUrl()]);
 
 		// Check URL for deep-link ?trip={id}
 		const urlTripId = page.url.searchParams.get('trip');
@@ -497,6 +492,19 @@
 		}
 	}
 
+	async function rejectAll() {
+		const ids = pendingTrips.map((t) => t.id);
+		if (ids.length === 0) return;
+		try {
+			if (serviceAdapter) {
+				await serviceAdapter.rejectSuggestedTrips(ids);
+			}
+			pendingTrips = [];
+		} catch (err) {
+			console.error('Reject all failed:', err);
+		}
+	}
+
 	// ── New trip creation ──
 	function openTripModal() {
 		tripTitle = '';
@@ -673,6 +681,16 @@
 							</div>
 							<div class="flex items-center gap-3">
 								{#if suggestionsExpanded}
+									<button
+										type="button"
+										onclick={(e) => {
+											e.stopPropagation();
+											rejectAll();
+										}}
+										class="border-border text-muted-foreground hover:text-destructive rounded-lg border px-3 py-1 text-xs font-medium transition-colors"
+									>
+										Reject All
+									</button>
 									<button
 										type="button"
 										onclick={(e) => {
