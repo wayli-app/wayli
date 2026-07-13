@@ -154,50 +154,51 @@
 
 	async function loadGpsData() {
 		try {
-			// Get unique trip IDs from entries
 			const tripIds = [...new Set((await listAllEntries()).map((e) => e.trip_id))];
 			if (tripIds.length === 0) return;
 
-			// Fetch GPS track for each trip (downsampled)
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
 			const results = await Promise.all(
 				tripIds.map(async (tripId) => {
-					const trip = (await fluxbase
-						.from('trips')
-						.select('start_date, end_date')
+					const { data: tripRow } = await fluxbase
+						.from<Record<string, any>>('trips')
+						.select('start_date, end_date, metadata')
 						.eq('id', tripId)
-						.single()) as any;
-					if (!trip?.data) return { tripId, points: [] as GpsPoint[] };
+						.single();
+					if (!tripRow) return { tripId, points: [] as GpsPoint[] };
 
-					const { data: trackData } = await fluxbase.rpc('get_public_trip_track', {
-						trip_uuid: tripId
-					});
-					const raw = (trackData as any[]) ?? [];
+					// Query tracker_data directly (owner's RLS grants access)
+					const { data: trackRows } = await fluxbase
+						.from<Record<string, any>>('tracker_data')
+						.select('location, recorded_at')
+						.eq('user_id', userId)
+						.gte('recorded_at', `${tripRow.start_date}T00:00:00Z`)
+						.lte('recorded_at', `${tripRow.end_date}T23:59:59Z`)
+						.order('recorded_at', { ascending: true })
+						.limit(5000);
+
+					const raw = (trackRows as any[]) ?? [];
 					if (raw.length === 0) return { tripId, points: [] as GpsPoint[] };
-
-					// Interpolate dates across the trip range
-					const start = new Date(trip.data.start_date).getTime();
-					const end = new Date(trip.data.end_date).getTime() + 86400000;
-					const range = end - start || 86400000;
 
 					// Downsample to max 200 points
 					const stride = Math.max(1, Math.ceil(raw.length / 200));
 					const points: GpsPoint[] = raw
 						.filter((_, i) => i % stride === 0)
-						.map((p, i) => ({
-							lat: p.lat,
-							lng: p.lng,
-							trip_id: tripId,
-							date: new Date(start + ((i * stride) / raw.length) * range).toISOString().slice(0, 10)
-						}));
+						.map((p) => {
+							const loc = p.location;
+							const lat = loc?.coordinates?.[1] ?? loc?.lat;
+							const lng = loc?.coordinates?.[0] ?? loc?.lng;
+							const date = p.recorded_at ? new Date(p.recorded_at).toISOString().slice(0, 10) : '';
+							return { lat, lng, trip_id: tripId, date };
+						})
+						.filter((p) => p.lat != null && p.lng != null);
 
-					// Build city markers from trip metadata
-					const { data: tripMeta } = await fluxbase
-						.from('trips')
-						.select('metadata')
-						.eq('id', tripId)
-						.single();
-					if ((tripMeta as any)?.metadata?.visitedCitiesDetailed) {
-						for (const c of (tripMeta as any).metadata.visitedCitiesDetailed) {
+					// City markers from metadata
+					if ((tripRow as any).metadata?.visitedCitiesDetailed) {
+						for (const c of (tripRow as any).metadata.visitedCitiesDetailed) {
 							if (c.lat && c.lng) {
 								cityMarkers = [
 									...cityMarkers,
