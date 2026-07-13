@@ -118,6 +118,8 @@
 
 	async function saveCoverFocal(x: number, y: number) {
 		if (!isOwner || !profile) return;
+		profile.cover_focal_x = x;
+		profile.cover_focal_y = y;
 		try {
 			await fluxbase
 				.from('user_profiles')

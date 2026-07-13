@@ -163,9 +163,15 @@
 		// Only check authentication after initialization is complete
 		if (isInitializing) return;
 
-		// Check authentication status and redirect if needed
+		// Debounce: during HMR the stores briefly reset to null.
+		// Wait before redirecting so the session can re-populate them.
 		if (!$userStore && !$sessionStore) {
-			goto('/auth/signin');
+			const timer = setTimeout(() => {
+				if (!$userStore && !$sessionStore) {
+					goto('/auth/signin');
+				}
+			}, 1500);
+			return () => clearTimeout(timer);
 		}
 	});
 
