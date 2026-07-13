@@ -122,7 +122,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('connections.title')} - Wayli</title>
+	<title>{t('connections.title')} · Wayli</title>
 </svelte:head>
 
 <div>

@@ -1224,7 +1224,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('accountSettings.title')} - Wayli</title>
+	<title>{t('accountSettings.title')} · Wayli</title>
 </svelte:head>
 
 <div>

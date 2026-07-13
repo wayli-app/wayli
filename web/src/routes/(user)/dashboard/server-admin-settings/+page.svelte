@@ -1269,7 +1269,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('serverAdmin.title')} - Wayli</title>
+	<title>{t('serverAdmin.title')} · Wayli</title>
 </svelte:head>
 
 <svelte:window />

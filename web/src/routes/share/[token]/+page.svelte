@@ -90,6 +90,10 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (lightbox = null)} />
 
+<svelte:head>
+	<title>{data ? `${data.trip.title} · Wayli` : 'Wayli'}</title>
+</svelte:head>
+
 {#if isLoading}
 	<div class="flex min-h-screen items-center justify-center bg-background">
 		<div class="border-primary h-10 w-10 animate-spin rounded-full border-2"></div>

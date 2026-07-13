@@ -231,7 +231,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('importExport.title')} - Wayli</title>
+	<title>{t('importExport.title')} · Wayli</title>
 </svelte:head>
 
 <div>

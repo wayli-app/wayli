@@ -146,7 +146,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('wayli')} - {t('wayliSubtitle')}</title>
+	<title>Wayli · Privacy-first location tracking</title>
 </svelte:head>
 
 <!-- Loading State -->

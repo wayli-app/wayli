@@ -131,6 +131,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{profile ? `${profile.full_name ?? '@' + profile.username} · Wayli` : 'Wayli'}</title>
+</svelte:head>
+
 {#if isLoading}
 	<div class="flex min-h-[60vh] items-center justify-center">
 		<div class="border-primary h-10 w-10 animate-spin rounded-full border-2"></div>

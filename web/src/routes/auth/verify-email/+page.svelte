@@ -90,7 +90,7 @@
 </script>
 
 <svelte:head>
-	<title>{t('auth.verifyYourEmail')} - Wayli</title>
+	<title>{t('auth.verifyYourEmail')} · Wayli</title>
 </svelte:head>
 
 <div class="flex min-h-screen items-center justify-center px-4 bg-background">

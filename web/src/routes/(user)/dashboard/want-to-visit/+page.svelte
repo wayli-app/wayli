@@ -971,7 +971,7 @@
 			height: 36px;
 		}
 	</style>
-	<title>{t('common.navigation.wantToVisit')} - Wayli</title>
+	<title>{t('common.navigation.wantToVisit')} · Wayli</title>
 </svelte:head>
 
 <div class="space-y-6">
