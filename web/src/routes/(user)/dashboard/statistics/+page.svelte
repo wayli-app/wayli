@@ -1139,13 +1139,15 @@
 {/if}
 
 <!-- Header -->
-<!-- Header -->
-<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-start">
-	<div class="flex min-w-0 items-center gap-2">
-		<BarChart class="text-primary h-8 w-8 flex-shrink-0 dark:text-muted-foreground" />
-		<h1 class="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-foreground">
-			{t('common.navigation.statistics')}
-		</h1>
+<div class="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+	<div class="flex items-center gap-3">
+		<BarChart class="text-primary h-6 w-6 flex-shrink-0" />
+		<div>
+			<h1 class="text-foreground text-xl font-bold">
+				{t('common.navigation.statistics')}
+			</h1>
+			<p class="text-muted-foreground text-sm">Your travel data at a glance</p>
+		</div>
 	</div>
 	<div class="flex min-w-0 flex-1 items-center justify-start gap-2 md:justify-end">
 		<div class="datepicker-statistics-fix relative">
