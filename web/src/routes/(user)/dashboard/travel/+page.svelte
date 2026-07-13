@@ -38,6 +38,7 @@
 		Eye,
 		EyeOff,
 		Loader2,
+		RefreshCw,
 		ExternalLink,
 		Star,
 		Save,
@@ -573,6 +574,48 @@
 		}
 	}
 
+	async function recalculateDistance(trip: Trip) {
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			const sd = (trip.start_date || '').slice(0, 10);
+			const ed = (trip.end_date || '').slice(0, 10);
+			let total = 0;
+			let offset = 0;
+
+			while (true) {
+				const { data } = await fluxbase
+					.from<Record<string, any>>('tracker_data')
+					.select('distance')
+					.eq('user_id', userId)
+					.gte('recorded_at', `${sd}T00:00:00Z`)
+					.lte('recorded_at', `${ed}T23:59:59Z`)
+					.range(offset, offset + 999);
+
+				const batch = (data as any[]) ?? [];
+				if (batch.length === 0) break;
+
+				total += batch.reduce(
+					(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+					0
+				);
+
+				if (batch.length < 1000) break;
+				offset += 1000;
+			}
+
+			const newMetadata = { ...(trip.metadata ?? {}), distanceTraveled: Math.round(total) };
+			await fluxbase.from('trips').update({ metadata: newMetadata }).eq('id', trip.id);
+			trips = trips.map((t) => (t.id === trip.id ? { ...t, metadata: newMetadata } : t));
+			toast.success(`Distance updated: ${(total / 1000).toFixed(0)} km`);
+		} catch (err) {
+			console.error('Recalculate failed:', err);
+			toast.error('Failed to recalculate distance');
+		}
+	}
+
 	async function toggleVisibility(tripId: string, current: string) {
 		const next = current === 'public' ? 'private' : 'public';
 		try {
@@ -873,6 +916,14 @@
 											Add Entry
 										</button>
 										<div class="flex-1"></div>
+										<button
+											type="button"
+											onclick={() => recalculateDistance(trip)}
+											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+											title="Recalculate distance"
+										>
+											<RefreshCw class="h-3 w-3" /> Stats
+										</button>
 										<button
 											type="button"
 											onclick={() => openEditTripModal(trip)}
