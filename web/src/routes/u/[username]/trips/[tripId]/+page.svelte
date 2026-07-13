@@ -269,6 +269,9 @@
 						<article
 							data-entry-id={entry.id}
 							onclick={() => (activeEntryId = entry.id)}
+							onkeydown={(e) => e.key === 'Enter' && (activeEntryId = entry.id)}
+							role="button"
+							tabindex="0"
 							class="animate-fade-in-up scroll-mt-4 rounded-3xl bg-card border-border border p-6 transition-all duration-300 cursor-pointer {activeEntryId ===
 							entry.id
 								? 'ring-primary/30 ring-2 shadow-lg'
