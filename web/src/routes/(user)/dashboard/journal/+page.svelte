@@ -76,6 +76,8 @@
 		const entry = entries.find((e) => e.id === activeEntryId);
 		if (!entry) return [];
 
+		const entryDay = (entry.entry_date || '').slice(0, 10);
+
 		let matched: GpsPoint[];
 
 		// Use highlight_start/end if set, otherwise the full day
@@ -88,9 +90,7 @@
 				return ts >= start && ts <= end;
 			});
 		} else {
-			matched = allGpsPoints.filter(
-				(p) => p.trip_id === entry.trip_id && p.date === entry.entry_date
-			);
+			matched = allGpsPoints.filter((p) => p.trip_id === entry.trip_id && p.date === entryDay);
 		}
 
 		return matched.map((p) => ({ lat: p.lat, lng: p.lng }));

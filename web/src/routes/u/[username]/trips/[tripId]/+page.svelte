@@ -56,9 +56,8 @@
 		if (!activeEntryId) return [];
 		const entry = entries.find((e) => e.id === activeEntryId);
 		if (!entry) return [];
-		return allGpsPoints
-			.filter((p) => p.date === entry.entry_date)
-			.map((p) => ({ lat: p.lat, lng: p.lng }));
+		const entryDay = (entry.entry_date || '').slice(0, 10);
+		return allGpsPoints.filter((p) => p.date === entryDay).map((p) => ({ lat: p.lat, lng: p.lng }));
 	});
 
 	let entryElements = $state<Map<string, HTMLElement>>(new Map());
