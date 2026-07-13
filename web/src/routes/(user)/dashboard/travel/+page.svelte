@@ -1,0 +1,1070 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { fluxbase } from '$lib/fluxbase';
+	import { userStore, sessionStore } from '$lib/stores/auth';
+	import {
+		listAllEntries,
+		createEntry,
+		updateEntry,
+		deleteEntry
+	} from '$lib/services/trip-entry.service';
+	import { fetchTrackPoints } from '$lib/services/gps.service';
+	import { ServiceAdapter } from '$lib/services/api/service-adapter';
+	import { getTripsService } from '$lib/services/service-layer-adapter';
+	import { renderMarkdown } from '$lib/utils/markdown';
+	import { compressImage } from '$lib/utils/image-compress';
+	import { uploadMedia } from '$lib/services/trip-media.service';
+	import TripMap from '$lib/components/TripMap.svelte';
+	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
+	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
+	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
+	import EntryComments from '$lib/components/EntryComments.svelte';
+	import {
+		Plus,
+		ChevronDown,
+		ChevronRight,
+		MapPin,
+		Calendar,
+		Route,
+		Globe,
+		Sparkles,
+		Check,
+		X,
+		Pencil,
+		Trash2,
+		Share2,
+		Eye,
+		EyeOff,
+		Loader2,
+		ExternalLink,
+		Star,
+		Save,
+		ImagePlus,
+		Upload
+	} from 'lucide-svelte';
+	import { toast } from 'svelte-sonner';
+
+	type Trip = {
+		id: string;
+		title: string;
+		description: string | null;
+		start_date: string;
+		end_date: string;
+		image_url: string | null;
+		visibility: string;
+		status: string;
+		metadata: Record<string, any> | null;
+	};
+
+	type JournalEntry = {
+		id: string;
+		trip_id: string;
+		user_id: string;
+		title: string;
+		body: string;
+		entry_date: string;
+		end_date?: string | null;
+		cover_media_id?: string | null;
+		created_at: string;
+		updated_at: string;
+		trip_title: string;
+		trip_image_url: string | null;
+		cover_image_url: string | null;
+	};
+
+	type GpsPoint = { lat: number; lng: number; trip_id: string; date: string };
+
+	// ── State ──
+	let trips = $state<Trip[]>([]);
+	let entries = $state<JournalEntry[]>([]);
+	let pendingTrips = $state<Trip[]>([]);
+	let allGpsPoints = $state<GpsPoint[]>([]);
+	let cityMarkers = $state<Array<{ lat: number; lng: number; label: string }>>([]);
+	let isLoading = $state(true);
+	let activeTripId = $state<string | null>(null);
+	let activeEntryId = $state<string | null>(null);
+	let expandedTrips = $state<Set<string>>(new Set());
+	let publicJournalUrl = $state('');
+	let searchQuery = $state('');
+	let approvingIds = $state<Set<string>>(new Set());
+
+	// ── Editor state ──
+	let showEditor = $state(false);
+	let editingEntry = $state<JournalEntry | null>(null);
+	let editorTripId = $state('');
+	let editorTitle = $state('');
+	let editorBody = $state('');
+	let editorDate = $state('');
+	let editorEndDate = $state('');
+	let isSaving = $state(false);
+
+	// ── New trip modal state ──
+	let showTripModal = $state(false);
+	let tripTitle = $state('');
+	let tripStartDate = $state('');
+	let tripEndDate = $state('');
+	let tripDescription = $state('');
+	let isCreatingTrip = $state(false);
+
+	// ── Service ──
+	let serviceAdapter: ServiceAdapter | null = null;
+
+	// ── Derived ──
+	const entriesByTrip = $derived.by(() => {
+		const map = new Map<string, JournalEntry[]>();
+		for (const e of entries) {
+			const list = map.get(e.trip_id) ?? [];
+			list.push(e);
+			map.set(e.trip_id, list);
+		}
+		return map;
+	});
+
+	const activeTripGpsPoints = $derived(
+		activeTripId
+			? allGpsPoints
+					.filter((p) => p.trip_id === activeTripId)
+					.map((p) => ({ lat: p.lat, lng: p.lng }))
+			: []
+	);
+
+	const highlightPoints = $derived.by(() => {
+		if (!activeEntryId) return [];
+		const entry = entries.find((e) => e.id === activeEntryId);
+		if (!entry) return [];
+		const startDay = (entry.entry_date || '').slice(0, 10);
+		const endDay = (entry.end_date || entry.entry_date || '').slice(0, 10);
+		return allGpsPoints
+			.filter((p) => p.trip_id === entry.trip_id && p.date >= startDay && p.date <= endDay)
+			.map((p) => ({ lat: p.lat, lng: p.lng }));
+	});
+
+	const pendingCount = $derived(pendingTrips.length);
+
+	// ── Map state: overview (markers only) vs trip-detail (track) ──
+	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
+	const mapMarkers = $derived(activeTripId ? [] : cityMarkers);
+
+	onMount(async () => {
+		try {
+			const session = await fluxbase.auth.getSession();
+			if (session.data?.session) {
+				serviceAdapter = new ServiceAdapter({ session: session.data.session });
+			}
+		} catch {
+			// not logged in
+		}
+
+		await Promise.all([
+			loadTrips(),
+			loadEntries(),
+			loadGpsData(),
+			loadPendingTrips(),
+			loadPublicUrl()
+		]);
+
+		// Expand first trip by default
+		if (trips.length > 0) {
+			expandedTrips = new Set([trips[0].id]);
+			activeTripId = trips[0].id;
+			const firstTripEntries = entriesByTrip.get(trips[0].id);
+			if (firstTripEntries && firstTripEntries.length > 0) {
+				activeEntryId = firstTripEntries[0].id;
+			}
+		}
+
+		// Check URL for deep-link ?trip={id}
+		const urlTripId = page.url.searchParams.get('trip');
+		if (urlTripId) {
+			expandedTrips = new Set([...expandedTrips, urlTripId]);
+			activeTripId = urlTripId;
+			setTimeout(() => {
+				document
+					.querySelector(`[data-trip-id="${urlTripId}"]`)
+					?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			}, 200);
+		}
+
+		isLoading = false;
+		setupObserver();
+	});
+
+	// ── Data loaders ──
+
+	async function loadTrips() {
+		try {
+			const { data } = await fluxbase
+				.from('trips')
+				.select(
+					'id, title, description, start_date, end_date, image_url, visibility, status, metadata'
+				)
+				.in('status', ['active', 'planned', 'completed'])
+				.order('start_date', { ascending: false });
+			trips = (data as unknown as Trip[]) ?? [];
+		} catch {
+			// empty
+		}
+	}
+
+	async function loadPendingTrips() {
+		try {
+			const { data } = await fluxbase
+				.from('trips')
+				.select(
+					'id, title, description, start_date, end_date, image_url, visibility, status, metadata'
+				)
+				.eq('status', 'pending')
+				.order('start_date', { ascending: false });
+			pendingTrips = (data as unknown as Trip[]) ?? [];
+		} catch {
+			// empty
+		}
+	}
+
+	async function loadEntries() {
+		try {
+			entries = await listAllEntries();
+		} catch (err) {
+			console.error('Failed to load entries:', err);
+		}
+	}
+
+	async function loadGpsData() {
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId || trips.length === 0) return;
+
+			const results = await Promise.all(
+				trips.map(async (trip) => {
+					const pts = (await fetchTrackPoints(userId, trip.start_date, trip.end_date, 500)).map(
+						(p) => ({ ...p, trip_id: trip.id })
+					);
+
+					if (trip.metadata?.visitedCitiesDetailed) {
+						for (const c of trip.metadata.visitedCitiesDetailed) {
+							if (c.lat && c.lng && !cityMarkers.some((m) => m.lat === c.lat && m.lng === c.lng)) {
+								cityMarkers = [
+									...cityMarkers,
+									{ lat: c.lat, lng: c.lng, label: c.city || 'Unknown' }
+								];
+							}
+						}
+					}
+
+					return pts;
+				})
+			);
+			allGpsPoints = results.flat();
+		} catch (err) {
+			console.error('Failed to load GPS:', err);
+		}
+	}
+
+	async function loadPublicUrl() {
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			if (!userData?.user) return;
+			const { data: profile } = await fluxbase
+				.from('user_profiles')
+				.select('username')
+				.eq('id', userData.user.id)
+				.single();
+			const profileData = profile as any;
+			if (profileData?.username) {
+				publicJournalUrl = `${window.location.origin}/u/${profileData.username}`;
+			}
+		} catch {
+			// empty
+		}
+	}
+
+	// ── IntersectionObserver for entry highlighting ──
+	let observer: IntersectionObserver | null = null;
+
+	function setupObserver() {
+		if (observer) observer.disconnect();
+		observer = new IntersectionObserver(
+			(els) => {
+				for (const e of els) {
+					if (e.isIntersecting) {
+						const entryId = (e.target as HTMLElement).dataset.entryId;
+						const tripId = (e.target as HTMLElement).dataset.tripId;
+						if (entryId) activeEntryId = entryId;
+						if (tripId) activeTripId = tripId;
+					}
+				}
+			},
+			{ rootMargin: '-30% 0px -50% 0px', threshold: 0 }
+		);
+		document.querySelectorAll('[data-entry-id]').forEach((el) => observer?.observe(el));
+	}
+
+	// ── Trip section expand/collapse ──
+	function toggleTrip(tripId: string) {
+		const next = new Set(expandedTrips);
+		if (next.has(tripId)) {
+			next.delete(tripId);
+		} else {
+			next.add(tripId);
+			activeTripId = tripId;
+		}
+		expandedTrips = next;
+	}
+
+	// ── Entry editor ──
+	function openNewEditor(tripId: string) {
+		editingEntry = null;
+		editorTripId = tripId;
+		editorTitle = '';
+		editorBody = '';
+		editorDate = new Date().toISOString().slice(0, 10);
+		editorEndDate = '';
+		showEditor = true;
+	}
+
+	function openEditEditor(entry: JournalEntry) {
+		editingEntry = entry;
+		editorTripId = entry.trip_id;
+		editorTitle = entry.title;
+		editorBody = entry.body;
+		editorDate = entry.entry_date?.slice(0, 10) ?? '';
+		editorEndDate = entry.end_date?.slice(0, 10) ?? '';
+		showEditor = true;
+	}
+
+	async function saveEntry() {
+		if (!$userStore?.id || !editorTripId || !editorDate) return;
+		isSaving = true;
+		try {
+			if (editingEntry) {
+				const updated = await updateEntry(editingEntry.id, {
+					title: editorTitle,
+					body: editorBody,
+					entry_date: editorDate,
+					end_date: editorEndDate || null
+				});
+				entries = entries.map((e) => (e.id === updated.id ? { ...e, ...updated } : e));
+			} else {
+				await createEntry($userStore.id, {
+					trip_id: editorTripId,
+					title: editorTitle,
+					body: editorBody,
+					entry_date: editorDate,
+					end_date: editorEndDate || null
+				});
+				await loadEntries();
+			}
+			showEditor = false;
+			setTimeout(() => setupObserver(), 100);
+		} catch (err) {
+			console.error('Save failed:', err);
+			toast.error('Failed to save entry');
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	async function handleDeleteEntry(entry: JournalEntry) {
+		if (!confirm('Delete this entry?')) return;
+		try {
+			await deleteEntry(entry.id);
+			entries = entries.filter((e) => e.id !== entry.id);
+		} catch (err) {
+			console.error('Delete failed:', err);
+		}
+	}
+
+	async function handleSetCover(mediaId: string) {
+		if (!editingEntry) return;
+		try {
+			await updateEntry(editingEntry!.id, { cover_media_id: mediaId });
+			editingEntry = { ...editingEntry!, cover_media_id: mediaId };
+			entries = entries.map((e) =>
+				e.id === editingEntry!.id ? { ...e, cover_media_id: mediaId } : e
+			);
+		} catch (err) {
+			console.error('Failed to set cover:', err);
+		}
+	}
+
+	// ── Suggestion approve/reject ──
+	async function approveSuggestion(tripId: string) {
+		approvingIds = new Set([...approvingIds, tripId]);
+		try {
+			if (serviceAdapter) {
+				await serviceAdapter.generateSuggestedTripImages([tripId]);
+				await serviceAdapter.approveSuggestedTrips([tripId]);
+			}
+			pendingTrips = pendingTrips.filter((t) => t.id !== tripId);
+			await loadTrips();
+			await loadGpsData();
+			toast.success('Trip approved');
+		} catch (err) {
+			console.error('Approve failed:', err);
+			toast.error('Failed to approve trip');
+		} finally {
+			const next = new Set(approvingIds);
+			next.delete(tripId);
+			approvingIds = next;
+		}
+	}
+
+	async function rejectSuggestion(tripId: string) {
+		try {
+			if (serviceAdapter) {
+				await serviceAdapter.rejectSuggestedTrips([tripId]);
+			}
+			pendingTrips = pendingTrips.filter((t) => t.id !== tripId);
+		} catch (err) {
+			console.error('Reject failed:', err);
+		}
+	}
+
+	async function approveAll() {
+		const ids = pendingTrips.map((t) => t.id);
+		if (ids.length === 0) return;
+		approvingIds = new Set(ids);
+		try {
+			if (serviceAdapter) {
+				await serviceAdapter.generateSuggestedTripImages(ids);
+				await serviceAdapter.approveSuggestedTrips(ids);
+			}
+			pendingTrips = [];
+			await loadTrips();
+			await loadGpsData();
+			toast.success(`${ids.length} trips approved`);
+		} catch (err) {
+			console.error('Approve all failed:', err);
+		} finally {
+			approvingIds = new Set();
+		}
+	}
+
+	// ── New trip creation ──
+	function openTripModal() {
+		tripTitle = '';
+		tripStartDate = '';
+		tripEndDate = '';
+		tripDescription = '';
+		showTripModal = true;
+	}
+
+	async function createTrip() {
+		if (!tripTitle || !tripStartDate) return;
+		isCreatingTrip = true;
+		try {
+			const tripsService = await getTripsService();
+			await tripsService.createTrip({
+				title: tripTitle,
+				start_date: tripStartDate,
+				end_date: tripEndDate || tripStartDate,
+				description: tripDescription
+			});
+			await loadTrips();
+			showTripModal = false;
+			toast.success('Trip created');
+		} catch (err) {
+			console.error('Create trip failed:', err);
+			toast.error('Failed to create trip');
+		} finally {
+			isCreatingTrip = false;
+		}
+	}
+
+	// ── Trip management ──
+	async function deleteTrip(tripId: string) {
+		if (!confirm('Delete this trip and all its entries?')) return;
+		try {
+			const tripsService = await getTripsService();
+			await tripsService.deleteTrip(tripId);
+			trips = trips.filter((t) => t.id !== tripId);
+			entries = entries.filter((e) => e.trip_id !== tripId);
+			if (activeTripId === tripId) activeTripId = null;
+			toast.success('Trip deleted');
+		} catch (err) {
+			console.error('Delete trip failed:', err);
+		}
+	}
+
+	async function toggleVisibility(tripId: string, current: string) {
+		const next = current === 'public' ? 'private' : 'public';
+		try {
+			await fluxbase.from('trips').update({ visibility: next }).eq('id', tripId);
+			trips = trips.map((t) => (t.id === tripId ? { ...t, visibility: next } : t));
+		} catch (err) {
+			console.error('Visibility toggle failed:', err);
+		}
+	}
+
+	// ── Helpers ──
+	function formatDistance(meters: number): string {
+		if (!meters) return '';
+		if (meters < 1000) return `${Math.round(meters)} m`;
+		return `${(meters / 1000).toFixed(0)} km`;
+	}
+
+	function tripDuration(start: string, end: string): number {
+		const days = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000);
+		return Math.max(1, days + 1);
+	}
+</script>
+
+<svelte:head>
+	<title>Travel · Wayli</title>
+</svelte:head>
+
+{#if isLoading}
+	<div class="flex min-h-[60vh] items-center justify-center">
+		<div class="border-primary h-10 w-10 animate-spin rounded-full border-2"></div>
+	</div>
+{:else}
+	<div class="space-y-6">
+		<!-- Header -->
+		<div class="flex items-center justify-between">
+			<div class="flex items-center gap-3">
+				<Globe class="text-primary h-6 w-6" />
+				<div>
+					<h1 class="text-foreground text-xl font-bold">Travel</h1>
+					<p class="text-muted-foreground text-sm">
+						{trips.length}
+						{trips.length === 1 ? 'trip' : 'trips'}
+						{#if entries.length > 0}· {entries.length} entries{/if}
+						{#if pendingCount > 0}
+							· <span class="text-amber-500 font-medium">{pendingCount} suggested</span>
+						{/if}
+					</p>
+				</div>
+			</div>
+			<div class="flex items-center gap-2">
+				{#if publicJournalUrl}
+					<a
+						href={publicJournalUrl}
+						target="_blank"
+						rel="noopener"
+						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+					>
+						<ExternalLink class="h-3.5 w-3.5" />
+						Public
+					</a>
+				{/if}
+				<button
+					type="button"
+					onclick={openTripModal}
+					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+				>
+					<Plus class="h-4 w-4" />
+					New Trip
+				</button>
+			</div>
+		</div>
+
+		<!-- Split layout: timeline + sticky map -->
+		<div class="grid gap-6 lg:grid-cols-[1fr_400px]">
+			<!-- Timeline (scrollable, left) -->
+			<div class="space-y-5">
+				<!-- Pending suggestions -->
+				{#if pendingTrips.length > 0}
+					<div
+						class="border-amber-300/40 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border-2 border-dashed p-4"
+					>
+						<div class="mb-3 flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<Sparkles class="h-4 w-4 text-amber-500" />
+								<span class="text-sm font-semibold text-foreground">
+									{pendingCount} suggested {pendingCount === 1 ? 'trip' : 'trips'}
+								</span>
+							</div>
+							<button
+								type="button"
+								onclick={approveAll}
+								class="bg-amber-500 hover:bg-amber-600 rounded-lg px-3 py-1 text-xs font-medium text-white transition-colors"
+							>
+								Approve All
+							</button>
+						</div>
+						<div class="space-y-3">
+							{#each pendingTrips as trip (trip.id)}
+								<div class="bg-card border-border flex items-center gap-3 rounded-xl border p-3">
+									<div class="flex-1">
+										<h3 class="text-foreground text-sm font-semibold">{trip.title}</h3>
+										<p class="text-muted-foreground text-xs">
+											{new Date(trip.start_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric'
+											})}
+											– {new Date(trip.end_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric'
+											})}
+											{#if trip.metadata?.distanceTraveled}
+												· {formatDistance(trip.metadata.distanceTraveled)}
+											{/if}
+											{#if trip.metadata?.primaryCity}
+												· {trip.metadata.primaryCity}
+											{/if}
+										</p>
+									</div>
+									{#if approvingIds.has(trip.id)}
+										<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+									{:else}
+										<button
+											type="button"
+											onclick={() => approveSuggestion(trip.id)}
+											class="bg-primary hover:bg-primary/90 rounded-lg px-3 py-1 text-xs font-medium text-primary-foreground transition-colors"
+										>
+											Approve
+										</button>
+										<button
+											type="button"
+											onclick={() => rejectSuggestion(trip.id)}
+											class="text-muted-foreground hover:text-destructive rounded-lg px-2 py-1 text-xs transition-colors"
+										>
+											<X class="h-4 w-4" />
+										</button>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				<!-- Trip sections -->
+				{#if trips.length === 0}
+					<div class="flex flex-col items-center justify-center py-20 text-center">
+						<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
+						<p class="text-muted-foreground text-lg">No trips yet.</p>
+						<p class="text-muted-foreground mt-1 text-sm">
+							Import location data or create a trip manually.
+						</p>
+					</div>
+				{:else}
+					{#each trips as trip (trip.id)}
+						<div
+							data-trip-id={trip.id}
+							class="bg-card border-border scroll-mt-4 overflow-hidden rounded-2xl border"
+						>
+							<!-- Trip header -->
+							<button
+								type="button"
+								onclick={() => toggleTrip(trip.id)}
+								class="hover:bg-muted/50 flex w-full items-center gap-4 p-4 text-left transition-colors"
+							>
+								<!-- Cover thumbnail -->
+								<div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl">
+									{#if trip.image_url}
+										<img
+											src={trip.image_url}
+											alt={trip.title}
+											class="h-full w-full object-cover"
+											loading="lazy"
+										/>
+									{:else}
+										<div
+											class="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-500 to-slate-700"
+										>
+											<Route class="h-6 w-6 text-white/50" />
+										</div>
+									{/if}
+								</div>
+
+								<!-- Trip info -->
+								<div class="min-w-0 flex-1">
+									<h2 class="text-foreground truncate font-bold">{trip.title}</h2>
+									<div
+										class="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs"
+									>
+										<span class="flex items-center gap-1">
+											<Calendar class="h-3 w-3" />
+											{new Date(trip.start_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric'
+											})}
+											– {new Date(trip.end_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric'
+											})}
+										</span>
+										{#if trip.metadata?.distanceTraveled}
+											<span class="flex items-center gap-1">
+												<Route class="h-3 w-3" />
+												{formatDistance(trip.metadata.distanceTraveled)}
+											</span>
+										{/if}
+										{#if trip.metadata?.primaryCity}
+											<span class="flex items-center gap-1">
+												<MapPin class="h-3 w-3" />
+												{trip.metadata.primaryCity}
+											</span>
+										{/if}
+									</div>
+								</div>
+
+								<!-- Expand/collapse chevron -->
+								{#if expandedTrips.has(trip.id)}
+									<ChevronDown class="text-muted-foreground h-5 w-5 flex-shrink-0" />
+								{:else}
+									<ChevronRight class="text-muted-foreground h-5 w-5 flex-shrink-0" />
+								{/if}
+							</button>
+
+							<!-- Expanded entries -->
+							{#if expandedTrips.has(trip.id)}
+								<div class="border-border border-t">
+									<!-- Trip actions bar -->
+									<div class="border-border bg-muted/30 flex items-center gap-2 border-b px-4 py-2">
+										<button
+											type="button"
+											onclick={() => openNewEditor(trip.id)}
+											class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+										>
+											<Plus class="h-3 w-3" />
+											Add Entry
+										</button>
+										<div class="flex-1"></div>
+										<button
+											type="button"
+											onclick={() => toggleVisibility(trip.id, trip.visibility)}
+											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+											title="Toggle visibility"
+										>
+											{#if trip.visibility === 'public'}
+												<Eye class="h-3 w-3" /> Public
+											{:else}
+												<EyeOff class="h-3 w-3" /> Private
+											{/if}
+										</button>
+										<button
+											type="button"
+											onclick={() => deleteTrip(trip.id)}
+											class="text-muted-foreground hover:text-destructive rounded-lg p-1 transition-colors"
+											title="Delete trip"
+										>
+											<Trash2 class="h-3.5 w-3.5" />
+										</button>
+									</div>
+
+									<!-- Entries for this trip -->
+									{#if (entriesByTrip.get(trip.id) ?? []).length === 0}
+										<div class="text-muted-foreground px-4 py-6 text-center text-sm">
+											No entries yet. Click "Add Entry" to start writing.
+										</div>
+									{:else}
+										<div class="space-y-3 p-4">
+											{#each entriesByTrip.get(trip.id) ?? [] as entry (entry.id)}
+												<article
+													data-entry-id={entry.id}
+													data-trip-id={trip.id}
+													onclick={() => {
+														activeEntryId = entry.id;
+														activeTripId = trip.id;
+													}}
+													class="border-border bg-background rounded-xl border p-4 transition-all {activeEntryId ===
+													entry.id
+														? 'ring-primary/20 ring-2'
+														: ''}"
+												>
+													<!-- Entry cover photo -->
+													{#if entry.cover_image_url}
+														<div class="mb-3 h-28 overflow-hidden rounded-lg">
+															<img
+																src={entry.cover_image_url}
+																alt=""
+																class="h-full w-full object-cover"
+															/>
+														</div>
+													{/if}
+
+													<!-- Date badge -->
+													<div class="mb-2 flex items-center gap-2">
+														<div
+															class="bg-primary/10 text-primary flex h-9 w-9 flex-col items-center justify-center rounded-lg text-[10px] font-bold uppercase leading-tight"
+														>
+															{new Date(entry.entry_date).toLocaleDateString(undefined, {
+																month: 'short'
+															})}
+															<span class="text-sm font-extrabold">
+																{new Date(entry.entry_date).getDate()}
+															</span>
+														</div>
+														<span class="text-muted-foreground text-xs">
+															{new Date(entry.entry_date).toLocaleDateString(undefined, {
+																weekday: 'long',
+																year: 'numeric',
+																month: 'long',
+																day: 'numeric'
+															})}
+														</span>
+														<div class="flex-1"></div>
+														<button
+															type="button"
+															onclick={() => openEditEditor(entry)}
+															class="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
+														>
+															<Pencil class="h-3.5 w-3.5" />
+														</button>
+														<button
+															type="button"
+															onclick={() => handleDeleteEntry(entry)}
+															class="text-muted-foreground hover:text-destructive rounded p-1 transition-colors"
+														>
+															<Trash2 class="h-3.5 w-3.5" />
+														</button>
+													</div>
+
+													{#if entry.title}
+														<h3 class="text-foreground mb-1 font-semibold">{entry.title}</h3>
+													{/if}
+													{#if entry.body}
+														<div
+															class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
+														>
+															<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+															{@html renderMarkdown(entry.body)}
+														</div>
+													{/if}
+
+													<!-- Photos -->
+													<div class="mt-3">
+														<PhotoGallery
+															tripId={trip.id}
+															entryId={entry.id}
+															coverMediaId={entry.cover_media_id}
+															onCoverChange={handleSetCover}
+														/>
+													</div>
+
+													<!-- Engagement -->
+													<div class="border-border mt-3 flex items-start gap-3 border-t pt-2">
+														<EntryLikeButton tripId={trip.id} entryId={entry.id} />
+														<div class="flex-1">
+															<EntryComments tripId={trip.id} entryId={entry.id} />
+														</div>
+													</div>
+												</article>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{/each}
+				{/if}
+
+				<!-- Entry editor modal -->
+				{#if showEditor}
+					<div
+						class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+					>
+						<div
+							class="border-border bg-card w-full max-w-2xl space-y-4 rounded-2xl border p-6 shadow-2xl"
+						>
+							<div class="flex items-center justify-between">
+								<h2 class="text-foreground text-lg font-bold">
+									{editingEntry ? 'Edit Entry' : 'New Entry'}
+								</h2>
+								<button
+									type="button"
+									onclick={() => (showEditor = false)}
+									class="text-muted-foreground hover:text-foreground"
+								>
+									<X class="h-5 w-5" />
+								</button>
+							</div>
+
+							<div class="flex gap-3">
+								<label class="flex flex-col gap-1">
+									<span class="text-muted-foreground text-xs font-medium">Start date</span>
+									<input
+										type="date"
+										bind:value={editorDate}
+										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+									/>
+								</label>
+								<label class="flex flex-col gap-1">
+									<span class="text-muted-foreground text-xs font-medium">End date (optional)</span>
+									<input
+										type="date"
+										bind:value={editorEndDate}
+										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+									/>
+								</label>
+							</div>
+
+							<input
+								type="text"
+								bind:value={editorTitle}
+								placeholder="Entry title (optional)"
+								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							/>
+
+							<MarkdownEditor bind:value={editorBody} />
+
+							{#if editingEntry}
+								<div class="border-border rounded-lg border p-3">
+									<span class="text-muted-foreground mb-2 block text-xs font-medium">Photos</span>
+									<PhotoGallery
+										tripId={editingEntry.trip_id}
+										entryId={editingEntry.id}
+										coverMediaId={editingEntry.cover_media_id}
+										onCoverChange={handleSetCover}
+									/>
+								</div>
+							{/if}
+
+							<div class="flex justify-end gap-2">
+								<button
+									type="button"
+									onclick={() => (showEditor = false)}
+									class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									onclick={saveEntry}
+									disabled={isSaving || !editorDate}
+									class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+								>
+									{#if isSaving}
+										<Loader2 class="h-4 w-4 animate-spin" />
+										Saving...
+									{:else}
+										<Save class="h-4 w-4" />
+										Save Entry
+									{/if}
+								</button>
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- New trip modal -->
+				{#if showTripModal}
+					<div
+						class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+						onkeydown={(e) => e.key === 'Escape' && (showTripModal = false)}
+					>
+						<div
+							class="border-border bg-card w-full max-w-md space-y-4 rounded-2xl border p-6 shadow-2xl"
+						>
+							<div class="flex items-center justify-between">
+								<h2 class="text-foreground text-lg font-bold">New Trip</h2>
+								<button
+									type="button"
+									onclick={() => (showTripModal = false)}
+									class="text-muted-foreground hover:text-foreground"
+								>
+									<X class="h-5 w-5" />
+								</button>
+							</div>
+							<input
+								type="text"
+								bind:value={tripTitle}
+								placeholder="Trip title"
+								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							/>
+							<div class="flex gap-3">
+								<label class="flex flex-1 flex-col gap-1">
+									<span class="text-muted-foreground text-xs">Start date</span>
+									<input
+										type="date"
+										bind:value={tripStartDate}
+										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+									/>
+								</label>
+								<label class="flex flex-1 flex-col gap-1">
+									<span class="text-muted-foreground text-xs">End date</span>
+									<input
+										type="date"
+										bind:value={tripEndDate}
+										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+									/>
+								</label>
+							</div>
+							<textarea
+								bind:value={tripDescription}
+								placeholder="Description (optional)"
+								rows="2"
+								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							></textarea>
+							<div class="flex justify-end gap-2">
+								<button
+									type="button"
+									onclick={() => (showTripModal = false)}
+									class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									onclick={createTrip}
+									disabled={isCreatingTrip || !tripTitle || !tripStartDate}
+									class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+								>
+									{#if isCreatingTrip}
+										<Loader2 class="h-4 w-4 animate-spin" />
+									{/if}
+									Create
+								</button>
+							</div>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Sticky map sidebar (desktop) -->
+			<div class="hidden lg:block">
+				<div class="sticky top-20 space-y-4">
+					<div class="border-border bg-card overflow-hidden rounded-2xl border shadow-sm">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2.5">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-foreground text-sm font-semibold">
+								{#if activeTripId}
+									{trips.find((t) => t.id === activeTripId)?.title ?? 'Trip'}
+								{:else}
+									Overview
+								{/if}
+							</span>
+							{#if highlightPoints.length > 0}
+								<span class="text-muted-foreground ml-auto text-xs">
+									{highlightPoints.length} pts
+								</span>
+							{/if}
+						</div>
+						{#if mapPoints.length > 0 || mapMarkers.length > 0}
+							<TripMap
+								points={mapPoints}
+								markers={mapMarkers}
+								{highlightPoints}
+								class="h-[420px]"
+							/>
+						{:else}
+							<div
+								class="text-muted-foreground flex h-64 items-center justify-center px-6 text-center text-sm"
+							>
+								No location data yet.
+							</div>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Mobile map -->
+		{#if mapPoints.length > 0 || mapMarkers.length > 0}
+			<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border p-3 lg:hidden">
+				<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+					<MapPin class="text-primary h-4 w-4" />
+					{#if activeTripId}
+						{trips.find((t) => t.id === activeTripId)?.title ?? 'Trip'}
+					{:else}
+						Overview
+					{/if}
+				</div>
+				<TripMap points={mapPoints} markers={mapMarkers} {highlightPoints} class="h-56" />
+			</div>
+		{/if}
+	</div>
+{/if}
