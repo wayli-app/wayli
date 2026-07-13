@@ -1229,10 +1229,11 @@
 
 <div>
 	<!-- Header -->
-	<div class="mb-8">
-		<div class="flex items-center gap-3">
-			<User class="text-primary dark:text-primary h-8 w-8" />
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">Account Settings</h1>
+	<div class="mb-8 flex items-center gap-3">
+		<User class="text-primary h-6 w-6" />
+		<div>
+			<h1 class="text-foreground text-xl font-bold">Account Settings</h1>
+			<p class="text-muted-foreground text-sm">Manage your profile and preferences</p>
 		</div>
 	</div>
 

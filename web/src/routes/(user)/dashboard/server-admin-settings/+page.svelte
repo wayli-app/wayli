@@ -1522,12 +1522,11 @@
 {#if isAdmin}
 	<div>
 		<!-- Header -->
-		<div class="mb-8">
-			<div class="flex items-center gap-3">
-				<Settings class="text-primary dark:text-primary h-7 w-7" />
-				<h1 class="text-3xl font-bold tracking-tight text-foreground">
-					{t('serverAdmin.title')}
-				</h1>
+		<div class="mb-8 flex items-center gap-3">
+			<Settings class="text-primary h-6 w-6" />
+			<div>
+				<h1 class="text-foreground text-xl font-bold">{t('serverAdmin.title')}</h1>
+				<p class="text-muted-foreground text-sm">Server configuration and administration</p>
 			</div>
 		</div>
 

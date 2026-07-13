@@ -20,6 +20,7 @@
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
+	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
 	import {
 		Plus,
 		ChevronDown,
@@ -315,16 +316,49 @@
 
 	let isGenerating = $state(false);
 
-	async function generateSuggestions() {
+	// ── Suggestion modal state ──
+	let showGenerationModal = $state(false);
+	let genStartDate = $state('');
+	let genEndDate = $state('');
+	let genUseCustomHome = $state(false);
+	let genCustomHomeInput = $state('');
+	let genHomeSuggestions = $state<any[]>([]);
+	let genShowSuggestions = $state(false);
+	let genSelectedSuggestionIdx = $state(-1);
+	let genHomeError = $state<string | null>(null);
+	let genSelectedHome = $state<any>(null);
+	let genIsSearching = $state(false);
+	let genClearExisting = $state(false);
+
+	async function generateSuggestions(data: {
+		startDate: string;
+		endDate: string;
+		useCustomHomeAddress: boolean;
+		customHomeAddress: string | null;
+		customHomeAddressGeocode: any | null;
+		clearExistingSuggestions: boolean;
+	}) {
 		isGenerating = true;
+		showGenerationModal = false;
 		try {
-			const { fluxbase: fb } = await import('$lib/fluxbase');
-			const { data, error } = await fb.jobs.submit(
-				'trip-generation',
-				{},
-				{ namespace: 'wayli', priority: 5 }
-			);
+			if (data.clearExistingSuggestions && serviceAdapter) {
+				await serviceAdapter.clearAllSuggestedTrips();
+				pendingTrips = [];
+			}
+
+			const jobData: Record<string, unknown> = {};
+			if (data.startDate) jobData.start_date = data.startDate;
+			if (data.endDate) jobData.end_date = data.endDate;
+			if (data.useCustomHomeAddress && data.customHomeAddressGeocode) {
+				jobData.home_address = data.customHomeAddressGeocode;
+			}
+
+			const { error } = await fluxbase.jobs.submit('trip-generation', jobData, {
+				namespace: 'wayli',
+				priority: 5
+			});
 			if (error) throw error;
+
 			toast.success('Generating trip suggestions — check back in a minute.');
 		} catch (err) {
 			console.error('Generation failed:', err);
@@ -572,7 +606,7 @@
 				{/if}
 				<button
 					type="button"
-					onclick={generateSuggestions}
+					onclick={() => (showGenerationModal = true)}
 					disabled={isGenerating}
 					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
 					title="Detect new trips from your location data"
@@ -1143,3 +1177,21 @@
 		{/if}
 	</div>
 {/if}
+
+<!-- Trip Generation Modal -->
+<TripGenerationModal
+	bind:open={showGenerationModal}
+	bind:startDate={genStartDate}
+	bind:endDate={genEndDate}
+	bind:useCustomHomeAddress={genUseCustomHome}
+	bind:customHomeAddressInput={genCustomHomeInput}
+	bind:customHomeAddressSuggestions={genHomeSuggestions}
+	bind:showCustomHomeAddressSuggestions={genShowSuggestions}
+	bind:selectedCustomHomeAddressIndex={genSelectedSuggestionIdx}
+	bind:customHomeAddressSearchError={genHomeError}
+	bind:selectedCustomHomeAddress={genSelectedHome}
+	bind:isCustomHomeAddressSearching={genIsSearching}
+	bind:clearExistingSuggestions={genClearExisting}
+	onGenerate={generateSuggestions}
+	onClose={() => (showGenerationModal = false)}
+/>
