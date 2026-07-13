@@ -171,7 +171,7 @@
 					if (!tripRow) return { tripId, points: [] as GpsPoint[] };
 
 					// Query tracker_data directly (owner's RLS grants access)
-					const { data: trackRows } = await fluxbase
+					const { data: trackRows, error: trackErr } = await fluxbase
 						.from<Record<string, any>>('tracker_data')
 						.select('location, recorded_at')
 						.eq('user_id', userId)
@@ -179,6 +179,10 @@
 						.lte('recorded_at', `${tripRow.end_date}T23:59:59Z`)
 						.order('recorded_at', { ascending: true })
 						.limit(5000);
+
+					if (trackErr) {
+						console.error('[journal] tracker_data query error:', trackErr);
+					}
 
 					const raw = (trackRows as any[]) ?? [];
 					if (raw.length === 0) return { tripId, points: [] as GpsPoint[] };
