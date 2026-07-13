@@ -105,7 +105,9 @@ export async function createEntry(userId: string, input: CreateTripEntryInput): 
 			user_id: userId,
 			title: input.title,
 			body: input.body,
-			entry_date: input.entry_date
+			entry_date: input.entry_date,
+			highlight_start: input.highlight_start ?? null,
+			highlight_end: input.highlight_end ?? null
 		})
 		.select('*')
 		.single();
