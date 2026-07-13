@@ -27,6 +27,7 @@
 		title: string;
 		body: string;
 		entry_date: string;
+		end_date?: string | null;
 	};
 
 	type Media = {
@@ -34,6 +35,7 @@
 		storage_path: string;
 		thumbnail_path: string | null;
 		caption: string;
+		entry_id: string | null;
 	};
 
 	let trip = $state<Trip | null>(null);
@@ -56,8 +58,11 @@
 		if (!activeEntryId) return [];
 		const entry = entries.find((e) => e.id === activeEntryId);
 		if (!entry) return [];
-		const entryDay = (entry.entry_date || '').slice(0, 10);
-		return allGpsPoints.filter((p) => p.date === entryDay).map((p) => ({ lat: p.lat, lng: p.lng }));
+		const startDay = (entry.entry_date || '').slice(0, 10);
+		const endDay = (entry.end_date || entry.entry_date || '').slice(0, 10);
+		return allGpsPoints
+			.filter((p) => p.date >= startDay && p.date <= endDay)
+			.map((p) => ({ lat: p.lat, lng: p.lng }));
 	});
 
 	let entryElements = $state<Map<string, HTMLElement>>(new Map());
@@ -131,7 +136,7 @@
 
 			const { data: mediaData } = await fluxbase
 				.from('trip_media')
-				.select('id, storage_path, thumbnail_path, caption')
+				.select('id, storage_path, thumbnail_path, caption, entry_id')
 				.eq('trip_id', tripId)
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
@@ -238,30 +243,6 @@
 		<div class="mt-6 grid gap-6 lg:grid-cols-[1fr_400px]">
 			<!-- Journal feed (scrollable, left on desktop / full on mobile) -->
 			<div class="space-y-6">
-				<!-- Photos (above entries) -->
-				{#if media.length > 0}
-					<div class="bg-card border-border rounded-2xl border p-4">
-						<h2 class="text-foreground mb-3 text-lg font-semibold">Photos</h2>
-						<div class="grid grid-cols-3 gap-2 sm:grid-cols-4">
-							{#each media as item (item.id)}
-								<button
-									type="button"
-									onclick={() => (lightbox = item)}
-									class="aspect-square overflow-hidden rounded-lg"
-									aria-label="View photo"
-								>
-									<img
-										src={item.thumbnail_path ?? item.storage_path}
-										alt={item.caption || 'Photo'}
-										class="h-full w-full object-cover transition-transform hover:scale-105"
-										loading="lazy"
-									/>
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
-
 				<!-- Journal entries -->
 				{#if entries.length > 0}
 					{#each entries as entry (entry.id)}
@@ -296,6 +277,27 @@
 								<div class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
 									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 									{@html renderMarkdown(entry.body)}
+								</div>
+							{/if}
+
+							<!-- Per-entry photos -->
+							{#if media.filter((m) => m.entry_id === entry.id).length > 0}
+								<div class="mt-3 grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+									{#each media.filter((m) => m.entry_id === entry.id) as item (item.id)}
+										<button
+											type="button"
+											onclick={() => (lightbox = item)}
+											class="aspect-square overflow-hidden rounded-md"
+											aria-label="View photo"
+										>
+											<img
+												src={item.thumbnail_path ?? item.storage_path}
+												alt={item.caption || 'Photo'}
+												class="h-full w-full object-cover transition-transform hover:scale-105"
+												loading="lazy"
+											/>
+										</button>
+									{/each}
 								</div>
 							{/if}
 

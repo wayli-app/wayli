@@ -106,6 +106,7 @@ export async function createEntry(userId: string, input: CreateTripEntryInput): 
 			title: input.title,
 			body: input.body,
 			entry_date: input.entry_date,
+			end_date: input.end_date ?? null,
 			highlight_start: input.highlight_start ?? null,
 			highlight_end: input.highlight_end ?? null
 		})

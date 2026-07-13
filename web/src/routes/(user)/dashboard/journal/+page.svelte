@@ -70,28 +70,18 @@
 	// Map points: all GPS points as lat/lng pairs
 	const mapPoints = $derived(allGpsPoints.map((p) => ({ lat: p.lat, lng: p.lng })));
 
-	// Highlighted points: GPS points for the active entry's date (or highlight window)
+	// Highlighted points: GPS points for the active entry's date range
 	const highlightPoints = $derived.by(() => {
 		if (!activeEntryId) return [];
 		const entry = entries.find((e) => e.id === activeEntryId);
 		if (!entry) return [];
 
-		const entryDay = (entry.entry_date || '').slice(0, 10);
+		const startDay = (entry.entry_date || '').slice(0, 10);
+		const endDay = (entry.end_date || entry.entry_date || '').slice(0, 10);
 
-		let matched: GpsPoint[];
-
-		// Use highlight_start/end if set, otherwise the full day
-		if (entry.highlight_start && entry.highlight_end) {
-			const start = new Date(entry.highlight_start).getTime();
-			const end = new Date(entry.highlight_end).getTime();
-			matched = allGpsPoints.filter((p) => {
-				if (p.trip_id !== entry.trip_id) return false;
-				const ts = new Date(p.date + 'T12:00:00Z').getTime();
-				return ts >= start && ts <= end;
-			});
-		} else {
-			matched = allGpsPoints.filter((p) => p.trip_id === entry.trip_id && p.date === entryDay);
-		}
+		const matched = allGpsPoints.filter(
+			(p) => p.trip_id === entry.trip_id && p.date >= startDay && p.date <= endDay
+		);
 
 		return matched.map((p) => ({ lat: p.lat, lng: p.lng }));
 	});
@@ -103,9 +93,7 @@
 	let editorTitle = $state('');
 	let editorBody = $state('');
 	let editorDate = $state('');
-	let editorHighlightStart = $state('');
-	let editorHighlightEnd = $state('');
-	let showHighlightEditor = $state(false);
+	let editorEndDate = $state('');
 	let isSaving = $state(false);
 
 	let observer: IntersectionObserver | null = null;
@@ -220,9 +208,7 @@
 		editorTitle = '';
 		editorBody = '';
 		editorDate = new Date().toISOString().slice(0, 10);
-		editorHighlightStart = '';
-		editorHighlightEnd = '';
-		showHighlightEditor = false;
+		editorEndDate = '';
 		selectedTripId = selectedTripFilter || trips[0]?.id || '';
 		showEditor = true;
 	}
@@ -232,9 +218,7 @@
 		editorTitle = entry.title;
 		editorBody = entry.body;
 		editorDate = entry.entry_date;
-		editorHighlightStart = entry.highlight_start?.slice(0, 16) ?? '';
-		editorHighlightEnd = entry.highlight_end?.slice(0, 16) ?? '';
-		showHighlightEditor = !!(entry.highlight_start || entry.highlight_end);
+		editorEndDate = entry.end_date?.slice(0, 10) ?? '';
 		selectedTripId = entry.trip_id;
 		showEditor = true;
 	}
@@ -243,18 +227,12 @@
 		if (!$userStore?.id || !selectedTripId || !editorDate) return;
 		isSaving = true;
 		try {
-			const highlightStart = editorHighlightStart
-				? new Date(editorHighlightStart).toISOString()
-				: null;
-			const highlightEnd = editorHighlightEnd ? new Date(editorHighlightEnd).toISOString() : null;
-
 			if (editingEntry) {
 				await updateEntry(editingEntry.id, {
 					title: editorTitle,
 					body: editorBody,
 					entry_date: editorDate,
-					highlight_start: highlightStart,
-					highlight_end: highlightEnd
+					end_date: editorEndDate || null
 				});
 			} else {
 				await createEntry($userStore.id, {
@@ -262,8 +240,7 @@
 					title: editorTitle,
 					body: editorBody,
 					entry_date: editorDate,
-					highlight_start: highlightStart,
-					highlight_end: highlightEnd
+					end_date: editorEndDate || null
 				});
 			}
 			showEditor = false;
@@ -400,10 +377,18 @@
 					</select>
 				</label>
 				<label class="flex flex-col gap-1">
-					<span class="text-muted-foreground text-xs font-medium">Date</span>
+					<span class="text-muted-foreground text-xs font-medium">Start date</span>
 					<input
 						type="date"
 						bind:value={editorDate}
+						class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					/>
+				</label>
+				<label class="flex flex-col gap-1">
+					<span class="text-muted-foreground text-xs font-medium">End date (optional)</span>
+					<input
+						type="date"
+						bind:value={editorEndDate}
 						class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 					/>
 				</label>
@@ -417,41 +402,6 @@
 			/>
 
 			<MarkdownEditor bind:value={editorBody} />
-
-			<!-- Optional map highlight -->
-			<div class="border-border rounded-lg border p-3">
-				<label class="flex cursor-pointer items-center gap-2">
-					<input
-						type="checkbox"
-						bind:checked={showHighlightEditor}
-						class="h-4 w-4 rounded border-border"
-					/>
-					<span class="text-sm font-medium text-foreground">Narrow map highlight (optional)</span>
-				</label>
-				{#if showHighlightEditor}
-					<div class="mt-3 flex gap-3">
-						<label class="flex flex-1 flex-col gap-1">
-							<span class="text-muted-foreground text-xs">From</span>
-							<input
-								type="datetime-local"
-								bind:value={editorHighlightStart}
-								class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-1.5 text-xs focus:ring-2 focus:outline-none"
-							/>
-						</label>
-						<label class="flex flex-1 flex-col gap-1">
-							<span class="text-muted-foreground text-xs">To</span>
-							<input
-								type="datetime-local"
-								bind:value={editorHighlightEnd}
-								class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-1.5 text-xs focus:ring-2 focus:outline-none"
-							/>
-						</label>
-					</div>
-					<p class="text-muted-foreground mt-2 text-xs">
-						Leave empty to show the full day on the map.
-					</p>
-				{/if}
-			</div>
 
 			<div class="flex justify-end gap-2">
 				<button

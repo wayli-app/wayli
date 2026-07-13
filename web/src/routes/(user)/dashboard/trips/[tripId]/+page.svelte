@@ -99,6 +99,7 @@
 	let editorTitle = $state('');
 	let editorBody = $state('');
 	let editorDate = $state('');
+	let editorEndDate = $state('');
 	let isSaving = $state(false);
 
 	// Share link state
@@ -196,10 +197,8 @@
 		editingEntry = null;
 		editorTitle = '';
 		editorBody = '';
-		editorDate =
-			trip?.start_date ??
-			new Date().toISOString().slice(0, 10) ??
-			new Date().toISOString().slice(0, 10);
+		editorDate = trip?.start_date?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+		editorEndDate = '';
 		showEditor = true;
 	}
 
@@ -207,7 +206,8 @@
 		editingEntry = entry;
 		editorTitle = entry.title;
 		editorBody = entry.body;
-		editorDate = entry.entry_date;
+		editorDate = entry.entry_date?.slice(0, 10) ?? '';
+		editorEndDate = entry.end_date?.slice(0, 10) ?? '';
 		showEditor = true;
 	}
 
@@ -219,7 +219,8 @@
 				const updated = await updateEntry(editingEntry.id, {
 					title: editorTitle,
 					body: editorBody,
-					entry_date: editorDate
+					entry_date: editorDate,
+					end_date: editorEndDate || null
 				});
 				entries = entries.map((e) => (e.id === updated.id ? updated : e));
 			} else {
@@ -227,7 +228,8 @@
 					trip_id: tripId,
 					title: editorTitle,
 					body: editorBody,
-					entry_date: editorDate
+					entry_date: editorDate,
+					end_date: editorEndDate || null
 				});
 				entries = [...entries, created].sort((a, b) => a.entry_date.localeCompare(b.entry_date));
 			}
@@ -449,6 +451,12 @@
 						<input
 							type="date"
 							bind:value={editorDate}
+							class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+						/>
+						<input
+							type="date"
+							bind:value={editorEndDate}
+							placeholder="End"
 							class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 						/>
 					</div>

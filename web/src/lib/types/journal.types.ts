@@ -7,10 +7,11 @@ export interface TripEntry {
 	trip_id: string;
 	user_id: string;
 	title: string;
-	body: string; // markdown source
-	entry_date: string; // ISO date (YYYY-MM-DD)
-	highlight_start?: string | null; // ISO timestamp — narrows the map highlight
-	highlight_end?: string | null; // ISO timestamp — narrows the map highlight
+	body: string;
+	entry_date: string;
+	end_date?: string | null;
+	highlight_start?: string | null;
+	highlight_end?: string | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -20,6 +21,7 @@ export interface CreateTripEntryInput {
 	title: string;
 	body: string;
 	entry_date: string;
+	end_date?: string | null;
 	highlight_start?: string | null;
 	highlight_end?: string | null;
 }
@@ -28,6 +30,7 @@ export interface UpdateTripEntryInput {
 	title?: string;
 	body?: string;
 	entry_date?: string;
+	end_date?: string | null;
 	highlight_start?: string | null;
 	highlight_end?: string | null;
 }
