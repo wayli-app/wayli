@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { Map as LeafletMap } from 'leaflet';
-	import type * as LeafletNS from 'leaflet';
 
 	type Props = {
 		points: Array<{ lat: number; lng: number }>;
@@ -14,11 +13,9 @@
 
 	let mapContainer: HTMLDivElement;
 	let map = $state<LeafletMap | null>(null);
-	// ponytail: L loaded dynamically, typed as any to avoid leaflet types quirk
 	let L: any = null;
-	let mainPolyline: LeafletNS.Polyline | null = null;
-	let mainLayer: LeafletNS.LayerGroup | null = null;
-	let highlightLayer: LeafletNS.LayerGroup | null = null;
+	let mainLayer: any = null;
+	let highlightLayer: any = null;
 
 	onMount(async () => {
 		L = (await import('leaflet')).default;
@@ -32,125 +29,111 @@
 		mainLayer = L.layerGroup().addTo(map);
 		highlightLayer = L.layerGroup().addTo(map);
 
-		// Effects will handle initial draw once `map` is set.
 		setTimeout(() => map?.invalidateSize(), 200);
 	});
 
-	function redrawMain() {
-		if (!map || !L || !mainLayer) return;
-		mainLayer.clearLayers();
-		if (mainPolyline) {
-			mainPolyline = null;
+	// Single effect: redraws everything when any input changes.
+	// Reads all reactive values at the top so Svelte tracks them.
+	$effect(() => {
+		const m = map;
+		const pts = points;
+		const mkrs = markers;
+		const hp = highlightPoints;
+		const lib = L;
+		const ml = mainLayer;
+		const hl = highlightLayer;
+
+		if (!m || !lib || !ml || !hl) return;
+
+		// --- Main layer ---
+		ml.clearLayers();
+		let mainPolyline: any = null;
+
+		if (pts.length > 0 || mkrs.length > 0) {
+			const sampled =
+				pts.length > 1500 ? pts.filter((_, i) => i % Math.ceil(pts.length / 1500) === 0) : pts;
+
+			if (sampled.length > 1) {
+				const latlngs = sampled.map((p) => [p.lat, p.lng] as [number, number]);
+				mainPolyline = lib.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.6 });
+				mainPolyline.addTo(ml);
+			}
+
+			if (sampled.length > 0) {
+				lib
+					.circleMarker([sampled[0].lat, sampled[0].lng], {
+						radius: 5,
+						fillColor: '#22c55e',
+						color: '#fff',
+						weight: 2,
+						fillOpacity: 1
+					})
+					.addTo(ml);
+			}
+			if (sampled.length > 1) {
+				const last = sampled[sampled.length - 1];
+				lib
+					.circleMarker([last.lat, last.lng], {
+						radius: 5,
+						fillColor: '#ef4444',
+						color: '#fff',
+						weight: 2,
+						fillOpacity: 1
+					})
+					.addTo(ml);
+			}
+
+			for (const marker of mkrs) {
+				lib
+					.circleMarker([marker.lat, marker.lng], {
+						radius: 6,
+						fillColor: '#233869',
+						color: '#fff',
+						weight: 2,
+						fillOpacity: 0.9
+					})
+					.bindPopup(marker.label)
+					.addTo(ml);
+			}
 		}
 
-		if (points.length === 0 && markers.length === 0) {
-			map.setView([0, 0], 2);
-			return;
-		}
+		// --- Highlight layer ---
+		hl.clearLayers();
 
-		// Downsample for polyline (keep enough for a smooth line)
-		const sampled =
-			points.length > 1500
-				? points.filter((_, i) => i % Math.ceil(points.length / 1500) === 0)
-				: points;
+		if (hp.length > 0) {
+			const hlatlngs = hp.map((p) => [p.lat, p.lng] as [number, number]);
+			lib.polyline(hlatlngs, { color: '#233869', weight: 6, opacity: 0.9 }).addTo(hl);
 
-		if (sampled.length > 1) {
-			const latlngs = sampled.map((p) => [p.lat, p.lng] as [number, number]);
-			mainPolyline = L.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.6 });
-			mainPolyline!.addTo(mainLayer);
-		}
-
-		// Start marker
-		if (sampled.length > 0) {
-			L.circleMarker([sampled[0].lat, sampled[0].lng], {
-				radius: 5,
-				fillColor: '#22c55e',
-				color: '#fff',
-				weight: 2,
-				fillOpacity: 1
-			}).addTo(mainLayer);
-		}
-		// End marker
-		if (sampled.length > 1) {
-			const last = sampled[sampled.length - 1];
-			L.circleMarker([last.lat, last.lng], {
-				radius: 5,
-				fillColor: '#ef4444',
-				color: '#fff',
-				weight: 2,
-				fillOpacity: 1
-			}).addTo(mainLayer);
-		}
-
-		// City markers
-		for (const m of markers) {
-			L.circleMarker([m.lat, m.lng], {
-				radius: 6,
-				fillColor: '#233869',
-				color: '#fff',
-				weight: 2,
-				fillOpacity: 0.9
-			})
-				.bindPopup(m.label)
-				.addTo(mainLayer);
-		}
-
-		// Fit bounds to everything
-		const all = [...sampled.map((p) => [p.lat, p.lng]), ...markers.map((m) => [m.lat, m.lng])];
-		if (all.length > 0) {
-			map.fitBounds(L.latLngBounds(all as [number, number][]), { padding: [30, 30] });
-		}
-	}
-
-	function redrawHighlight() {
-		if (!map || !L || !highlightLayer) return;
-		highlightLayer.clearLayers();
-
-		if (highlightPoints.length > 0) {
-			const latlngs = highlightPoints.map((p) => [p.lat, p.lng] as [number, number]);
-			L.polyline(latlngs, { color: '#233869', weight: 6, opacity: 0.9 }).addTo(highlightLayer);
-
-			if (latlngs.length > 0) {
-				L.circleMarker(latlngs[0], {
+			lib
+				.circleMarker(hlatlngs[0], {
 					radius: 7,
 					fillColor: '#233869',
 					color: '#fff',
 					weight: 2,
 					fillOpacity: 1
-				}).addTo(highlightLayer);
-				if (latlngs.length > 1) {
-					L.circleMarker(latlngs[latlngs.length - 1], {
+				})
+				.addTo(hl);
+			if (hlatlngs.length > 1) {
+				lib
+					.circleMarker(hlatlngs[hlatlngs.length - 1], {
 						radius: 7,
 						fillColor: '#233869',
 						color: '#fff',
 						weight: 2,
 						fillOpacity: 1
-					}).addTo(highlightLayer);
-				}
+					})
+					.addTo(hl);
 			}
 
-			map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50], maxZoom: 14 });
+			m.fitBounds(lib.latLngBounds(hlatlngs), { padding: [50, 50], maxZoom: 14 });
 		} else if (mainPolyline) {
 			const bounds = mainPolyline.getBounds();
 			if (bounds.isValid()) {
-				map.fitBounds(bounds, { padding: [30, 30] });
+				m.fitBounds(bounds, { padding: [30, 30] });
 			}
+		} else if (pts.length === 0 && mkrs.length === 0) {
+			m.setView([0, 0], 2);
 		}
-	}
-
-	// React to points/markers/map changes
-	$effect(() => {
-		void points;
-		void markers;
-		void map; // re-run when map is ready
-		redrawMain();
-	});
-
-	// React to highlight/map changes
-	$effect(() => {
-		void highlightPoints;
-		void map; // re-run when map is ready
-		redrawHighlight();
 	});
 
 	onDestroy(() => {
