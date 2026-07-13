@@ -2,15 +2,17 @@
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { Pencil, Trash2, Calendar } from 'lucide-svelte';
 	import type { TripEntry } from '$lib/types/journal.types';
+	import PhotoGallery from './PhotoGallery.svelte';
 
 	type Props = {
 		entries: TripEntry[];
+		tripId: string;
 		canEdit?: boolean;
 		onEdit?: (entry: TripEntry) => void;
 		onDelete?: (entry: TripEntry) => void;
 	};
 
-	let { entries, canEdit = false, onEdit, onDelete }: Props = $props();
+	let { entries, tripId, canEdit = false, onEdit, onDelete }: Props = $props();
 </script>
 
 {#if entries.length === 0}
@@ -66,6 +68,11 @@
 						{@html renderMarkdown(entry.body)}
 					</div>
 				{/if}
+
+				<!-- Per-entry photos -->
+				<div class="mt-3">
+					<PhotoGallery {tripId} entryId={entry.id} />
+				</div>
 			</article>
 		{/each}
 	</div>

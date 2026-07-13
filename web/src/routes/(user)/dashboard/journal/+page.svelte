@@ -36,7 +36,7 @@
 		trip_image_url: string | null;
 	};
 
-	type TripOption = { id: string; title: string; start_date: string };
+	type TripOption = { id: string; title: string; start_date: string; status?: string };
 	type GpsPoint = { lat: number; lng: number; trip_id: string; date: string };
 
 	let entries = $state<JournalEntry[]>([]);
@@ -47,16 +47,18 @@
 	let searchQuery = $state('');
 	let publicJournalUrl = $state('');
 	let activeEntryId = $state<string | null>(null);
+	let selectedTripFilter = $state('');
 
 	const filteredEntries = $derived(
-		searchQuery.trim()
-			? entries.filter(
-					(e) =>
-						e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-						e.body.toLowerCase().includes(searchQuery.toLowerCase()) ||
-						e.trip_title.toLowerCase().includes(searchQuery.toLowerCase())
-				)
-			: entries
+		entries
+			.filter((e) => !selectedTripFilter || e.trip_id === selectedTripFilter)
+			.filter(
+				(e) =>
+					!searchQuery.trim() ||
+					e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					e.body.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					e.trip_title.toLowerCase().includes(searchQuery.toLowerCase())
+			)
 	);
 
 	const ENTRIES_PER_PAGE = 20;
@@ -144,7 +146,7 @@
 		try {
 			const { data } = await fluxbase
 				.from('trips')
-				.select('id, title, start_date, end_date')
+				.select('id, title, start_date, end_date, status')
 				.order('start_date', { ascending: false });
 			trips = (data as unknown as TripOption[]) ?? [];
 		} catch {
@@ -171,12 +173,14 @@
 					if (!tripRow) return { tripId, points: [] as GpsPoint[] };
 
 					// Query tracker_data directly (owner's RLS grants access)
+					const sd = (tripRow.start_date || '').slice(0, 10);
+					const ed = (tripRow.end_date || '').slice(0, 10);
 					const { data: trackRows, error: trackErr } = await fluxbase
 						.from<Record<string, any>>('tracker_data')
 						.select('location, recorded_at')
 						.eq('user_id', userId)
-						.gte('recorded_at', `${tripRow.start_date}T00:00:00Z`)
-						.lte('recorded_at', `${tripRow.end_date}T23:59:59Z`)
+						.gte('recorded_at', `${sd}T00:00:00Z`)
+						.lte('recorded_at', `${ed}T23:59:59Z`)
 						.order('recorded_at', { ascending: true })
 						.limit(5000);
 
@@ -247,7 +251,7 @@
 		editorHighlightStart = '';
 		editorHighlightEnd = '';
 		showHighlightEditor = false;
-		selectedTripId = trips[0]?.id ?? '';
+		selectedTripId = selectedTripFilter || trips[0]?.id || '';
 		showEditor = true;
 	}
 
@@ -359,14 +363,6 @@
 					Public journal
 				</a>
 			{/if}
-			{#if entries.length > 0}
-				<input
-					type="text"
-					bind:value={searchQuery}
-					placeholder="Search..."
-					class="border-border focus:ring-primary w-32 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:w-56 focus:ring-2 focus:outline-none transition-all"
-				/>
-			{/if}
 			{#if !showEditor && trips.length > 0}
 				<button
 					type="button"
@@ -379,6 +375,29 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Trip filter bar -->
+	{#if trips.length > 0}
+		<div class="flex flex-wrap items-center gap-2">
+			<select
+				bind:value={selectedTripFilter}
+				class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+			>
+				<option value="">All trips ({trips.length})</option>
+				{#each trips as trip (trip.id)}
+					<option value={trip.id}>{trip.title} ({formatShortDate(trip.start_date)})</option>
+				{/each}
+			</select>
+			{#if entries.length > 0}
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search entries..."
+					class="border-border focus:ring-primary w-40 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:w-56 focus:ring-2 focus:outline-none transition-all"
+				/>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Inline editor -->
 	{#if showEditor}

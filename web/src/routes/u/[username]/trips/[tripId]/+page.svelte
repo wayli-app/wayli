@@ -136,25 +136,42 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
-			// Load GPS track with dates for entry-highlighting
-			const { data: trackData } = await fluxbase.rpc('get_public_trip_track', {
-				trip_uuid: tripId
-			});
-			if (trackData) {
-				const raw = trackData as any[];
-				// We need dates — fetch from tracker_data directly (owner can read it)
-				// For public trips, use the RPC result (lat/lng only, no dates).
-				// We'll approximate the date by interpolating across the trip date range.
-				if (raw.length > 0 && trip) {
-					const start = new Date(trip.start_date).getTime();
-					const end = new Date(trip.end_date).getTime() + 86400000;
-					const range = end - start || 86400000;
-					allGpsPoints = raw.map((p, i) => ({
-						lat: p.lat,
-						lng: p.lng,
-						date: new Date(start + (i / raw.length) * range).toISOString().slice(0, 10)
-					}));
+			// Load GPS track — query tracker_data directly
+			// Works for owner (RLS grants access). Anonymous viewers of public
+			// trips get city markers only — no raw GPS without auth.
+			try {
+				const { data: authData } = await fluxbase.auth.getUser();
+				const viewerId = authData?.user?.id;
+				if (viewerId) {
+					const sd = (trip.start_date || '').slice(0, 10);
+					const ed = (trip.end_date || '').slice(0, 10);
+					const { data: trackRows } = await fluxbase
+						.from('tracker_data')
+						.select('location, recorded_at')
+						.eq('user_id', viewerId)
+						.gte('recorded_at', `${sd}T00:00:00Z`)
+						.lte('recorded_at', `${ed}T23:59:59Z`)
+						.order('recorded_at', { ascending: true })
+						.limit(5000);
+
+					const raw = (trackRows as any[]) ?? [];
+					if (raw.length > 0) {
+						const stride = Math.max(1, Math.ceil(raw.length / 200));
+						allGpsPoints = raw
+							.filter((_, i) => i % stride === 0)
+							.map((p) => {
+								const loc = p.location;
+								return {
+									lat: loc?.coordinates?.[1],
+									lng: loc?.coordinates?.[0],
+									date: p.recorded_at ? new Date(p.recorded_at).toISOString().slice(0, 10) : ''
+								};
+							})
+							.filter((p) => p.lat != null && p.lng != null);
+					}
 				}
+			} catch {
+				// Not logged in — city markers still show
 			}
 
 			if (trip?.metadata?.visitedCitiesDetailed) {

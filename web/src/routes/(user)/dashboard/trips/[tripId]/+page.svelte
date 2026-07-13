@@ -14,7 +14,6 @@
 	import TripMap from '$lib/components/TripMap.svelte';
 	import TripTimeline from '$lib/components/TripTimeline.svelte';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
-	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import VisibilityToggle from '$lib/components/VisibilityToggle.svelte';
 	import CommentThread from '$lib/components/EntryComments.svelte';
 	import LikeButton from '$lib/components/EntryLikeButton.svelte';
@@ -35,6 +34,7 @@
 		ExternalLink
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import PannableCover from '$lib/components/PannableCover.svelte';
 
 	// Debounced visibility save with status feedback
 	let visibilitySaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -184,12 +184,15 @@
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
+			const startDate = (trip.start_date || '').slice(0, 10);
+			const endDate = (trip.end_date || '').slice(0, 10);
+
 			const { data, error } = await fluxbase
 				.from('tracker_data')
-				.select('location')
+				.select('location, recorded_at')
 				.eq('user_id', userId)
-				.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
-				.lte('recorded_at', `${trip.end_date}T23:59:59Z`)
+				.gte('recorded_at', `${startDate}T00:00:00Z`)
+				.lte('recorded_at', `${endDate}T23:59:59Z`)
 				.order('recorded_at', { ascending: true })
 				.limit(5000);
 
@@ -322,6 +325,16 @@
 		);
 		return Math.max(1, days + 1);
 	}
+
+	async function saveImageFocal(x: number, y: number) {
+		try {
+			const newMeta = { ...(trip?.metadata ?? {}), image_focal_x: x, image_focal_y: y };
+			await fluxbase.from('trips').update({ metadata: newMeta }).eq('id', tripId);
+			if (trip) trip.metadata = newMeta;
+		} catch {
+			// non-critical
+		}
+	}
 </script>
 
 {#if isLoading}
@@ -369,7 +382,14 @@
 		<!-- Trip header -->
 		<div class="bg-card border-border overflow-hidden rounded-xl border">
 			{#if trip.image_url}
-				<img src={trip.image_url} alt={trip.title} class="h-48 w-full object-cover" />
+				<PannableCover
+					src={trip.image_url}
+					focalX={trip.metadata?.image_focal_x ?? 0.5}
+					focalY={trip.metadata?.image_focal_y ?? 0.5}
+					editable={true}
+					onFocalChange={saveImageFocal}
+					class="h-48 w-full"
+				/>
 			{/if}
 			<div class="p-6">
 				<h1 class="text-foreground mb-2 text-2xl font-bold">{trip.title}</h1>
@@ -426,12 +446,6 @@
 			</div>
 		{/if}
 
-		<!-- Photos -->
-		<div class="bg-card border-border rounded-xl border p-4">
-			<h2 class="text-foreground mb-3 text-lg font-semibold">Photos</h2>
-			<PhotoGallery {tripId} />
-		</div>
-
 		<!-- Journal entries -->
 		<div>
 			<div class="mb-4 flex items-center justify-between">
@@ -485,16 +499,13 @@
 				</div>
 			{/if}
 
-			<TripTimeline {entries} canEdit={true} onEdit={openEditEditor} onDelete={handleDeleteEntry} />
-
-			<!-- Per-entry photos -->
-			{#if entries.length > 0}
-				<div class="space-y-4">
-					{#each entries as entry (entry.id)}
-						<PhotoGallery {tripId} entryId={entry.id} />
-					{/each}
-				</div>
-			{/if}
+			<TripTimeline
+				{entries}
+				{tripId}
+				canEdit={true}
+				onEdit={openEditEditor}
+				onDelete={handleDeleteEntry}
+			/>
 		</div>
 	</div>
 {/if}

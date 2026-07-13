@@ -6,6 +6,7 @@
 	import { readSetting } from '$lib/utils/settings';
 	import { userStore } from '$lib/stores/auth';
 	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen } from 'lucide-svelte';
+	import PannableCover from '$lib/components/PannableCover.svelte';
 
 	type Profile = {
 		id: string;
@@ -13,6 +14,8 @@
 		full_name: string | null;
 		avatar_url: string | null;
 		cover_photo_url: string | null;
+		cover_focal_x?: number;
+		cover_focal_y?: number;
 	};
 
 	type PublicTrip = {
@@ -116,6 +119,18 @@
 		if (meters < 1000) return `${Math.round(meters)} m`;
 		return `${(meters / 1000).toFixed(0)} km`;
 	}
+
+	async function saveCoverFocal(x: number, y: number) {
+		if (!isOwner || !profile) return;
+		try {
+			await fluxbase
+				.from('user_profiles')
+				.update({ cover_focal_x: x, cover_focal_y: y })
+				.eq('id', profile.id);
+		} catch {
+			// non-critical
+		}
+	}
 </script>
 
 {#if isLoading}
@@ -155,7 +170,14 @@
 		<div class="bg-card border-border mb-8 overflow-hidden rounded-2xl border">
 			<!-- Gradient banner / cover photo -->
 			{#if profile.cover_photo_url}
-				<img src={profile.cover_photo_url} alt="" class="h-40 w-full object-cover" />
+				<PannableCover
+					src={profile.cover_photo_url}
+					focalX={profile.cover_focal_x ?? 0.5}
+					focalY={profile.cover_focal_y ?? 0.5}
+					editable={isOwner}
+					onFocalChange={saveCoverFocal}
+					class="h-40 w-full"
+				/>
 			{:else}
 				<div class="h-40 bg-gradient-to-br from-primary via-primary/70 to-primary/40"></div>
 			{/if}
