@@ -85,7 +85,7 @@
 	let activeTripId = $state<string | null>(null);
 	let activeEntryId = $state<string | null>(null);
 	let expandedTrips = $state<Set<string>>(new Set());
-	let suggestionsExpanded = $state(true);
+	let suggestionsExpanded = $state(false);
 	let publicJournalUrl = $state('');
 	let searchQuery = $state('');
 	let approvingIds = $state<Set<string>>(new Set());
@@ -164,16 +164,6 @@
 			loadPendingTrips(),
 			loadPublicUrl()
 		]);
-
-		// Expand first trip by default
-		if (trips.length > 0) {
-			expandedTrips = new Set([trips[0].id]);
-			activeTripId = trips[0].id;
-			const firstTripEntries = entriesByTrip.get(trips[0].id);
-			if (firstTripEntries && firstTripEntries.length > 0) {
-				activeEntryId = firstTripEntries[0].id;
-			}
-		}
 
 		// Check URL for deep-link ?trip={id}
 		const urlTripId = page.url.searchParams.get('trip');
@@ -312,6 +302,36 @@
 			activeTripId = tripId;
 		}
 		expandedTrips = next;
+	}
+
+	function expandAllTrips() {
+		expandedTrips = new Set(trips.map((t) => t.id));
+	}
+
+	function collapseAllTrips() {
+		expandedTrips = new Set();
+		activeTripId = null;
+	}
+
+	let isGenerating = $state(false);
+
+	async function generateSuggestions() {
+		isGenerating = true;
+		try {
+			const { fluxbase: fb } = await import('$lib/fluxbase');
+			const { data, error } = await fb.jobs.submit(
+				'trip-generation',
+				{},
+				{ namespace: 'wayli', priority: 5 }
+			);
+			if (error) throw error;
+			toast.success('Generating trip suggestions — check back in a minute.');
+		} catch (err) {
+			console.error('Generation failed:', err);
+			toast.error('Failed to start trip generation');
+		} finally {
+			isGenerating = false;
+		}
 	}
 
 	// ── Entry editor ──
@@ -549,6 +569,42 @@
 						<ExternalLink class="h-3.5 w-3.5" />
 						Public
 					</a>
+				{/if}
+				<button
+					type="button"
+					onclick={generateSuggestions}
+					disabled={isGenerating}
+					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+					title="Detect new trips from your location data"
+				>
+					{#if isGenerating}
+						<Loader2 class="h-3.5 w-3.5 animate-spin" />
+						Generating...
+					{:else}
+						<Sparkles class="h-3.5 w-3.5" />
+						Suggest Trips
+					{/if}
+				</button>
+				{#if trips.length > 0}
+					<button
+						type="button"
+						onclick={() => {
+							if (expandedTrips.size === trips.length) {
+								collapseAllTrips();
+							} else {
+								expandAllTrips();
+							}
+						}}
+						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+					>
+						{#if expandedTrips.size === trips.length}
+							<ChevronDown class="h-3.5 w-3.5" />
+							Collapse All
+						{:else}
+							<ChevronRight class="h-3.5 w-3.5" />
+							Expand All
+						{/if}
+					</button>
 				{/if}
 				<button
 					type="button"
