@@ -343,22 +343,35 @@ export class ServiceAdapter {
 	): Promise<number> {
 		const { fluxbase } = await import('$lib/fluxbase');
 
-		const { data, error } = await fluxbase
-			.from<Record<string, any>>('tracker_data')
-			.select('distance')
-			.eq('user_id', userId)
-			.gte('recorded_at', `${startDate}T00:00:00Z`)
-			.lte('recorded_at', `${endDate}T23:59:59Z`)
-			.not('country_code', 'is', null); // Ignore NULL country codes
+		const sd = (startDate || '').slice(0, 10);
+		const ed = (endDate || '').slice(0, 10);
 
-		if (error || !data) return 0;
+		let total = 0;
+		let offset = 0;
 
-		// Sum up all distances, treating null/undefined as 0
-		return data.reduce(
-			(sum: number, row: Record<string, any>) =>
-				sum + (typeof row.distance === 'number' ? row.distance : 0),
-			0
-		);
+		while (true) {
+			const { data, error } = await fluxbase
+				.from<Record<string, any>>('tracker_data')
+				.select('distance')
+				.eq('user_id', userId)
+				.gte('recorded_at', `${sd}T00:00:00Z`)
+				.lte('recorded_at', `${ed}T23:59:59Z`)
+				.not('country_code', 'is', null)
+				.range(offset, offset + 999);
+
+			if (error || !data) break;
+
+			total += data.reduce(
+				(sum: number, row: Record<string, any>) =>
+					sum + (typeof row.distance === 'number' ? row.distance : 0),
+				0
+			);
+
+			if (data.length < 1000) break;
+			offset += 1000;
+		}
+
+		return total;
 	}
 
 	async getTrips(options?: { limit?: number; offset?: number; search?: string }) {

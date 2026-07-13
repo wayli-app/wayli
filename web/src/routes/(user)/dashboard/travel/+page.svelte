@@ -85,6 +85,7 @@
 	let activeTripId = $state<string | null>(null);
 	let activeEntryId = $state<string | null>(null);
 	let expandedTrips = $state<Set<string>>(new Set());
+	let suggestionsExpanded = $state(true);
 	let publicJournalUrl = $state('');
 	let searchQuery = $state('');
 	let approvingIds = $state<Set<string>>(new Set());
@@ -144,7 +145,7 @@
 
 	// ── Map state: overview (markers only) vs trip-detail (track) ──
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
-	const mapMarkers = $derived(activeTripId ? [] : cityMarkers);
+	const mapMarkers = $derived(cityMarkers);
 
 	onMount(async () => {
 		try {
@@ -564,69 +565,87 @@
 		<div class="grid gap-6 lg:grid-cols-[1fr_400px]">
 			<!-- Timeline (scrollable, left) -->
 			<div class="space-y-5">
-				<!-- Pending suggestions -->
+				<!-- Pending suggestions (collapsible) -->
 				{#if pendingTrips.length > 0}
 					<div
-						class="border-amber-300/40 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border-2 border-dashed p-4"
+						class="border-amber-300/40 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border-2 border-dashed"
 					>
-						<div class="mb-3 flex items-center justify-between">
+						<button
+							type="button"
+							onclick={() => (suggestionsExpanded = !suggestionsExpanded)}
+							class="hover:bg-amber-100/30 dark:hover:bg-amber-950/20 flex w-full items-center justify-between p-4 transition-colors"
+						>
 							<div class="flex items-center gap-2">
 								<Sparkles class="h-4 w-4 text-amber-500" />
 								<span class="text-sm font-semibold text-foreground">
 									{pendingCount} suggested {pendingCount === 1 ? 'trip' : 'trips'}
 								</span>
 							</div>
-							<button
-								type="button"
-								onclick={approveAll}
-								class="bg-amber-500 hover:bg-amber-600 rounded-lg px-3 py-1 text-xs font-medium text-white transition-colors"
-							>
-								Approve All
-							</button>
-						</div>
-						<div class="space-y-3">
-							{#each pendingTrips as trip (trip.id)}
-								<div class="bg-card border-border flex items-center gap-3 rounded-xl border p-3">
-									<div class="flex-1">
-										<h3 class="text-foreground text-sm font-semibold">{trip.title}</h3>
-										<p class="text-muted-foreground text-xs">
-											{new Date(trip.start_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric'
-											})}
-											– {new Date(trip.end_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric'
-											})}
-											{#if trip.metadata?.distanceTraveled}
-												· {formatDistance(trip.metadata.distanceTraveled)}
-											{/if}
-											{#if trip.metadata?.primaryCity}
-												· {trip.metadata.primaryCity}
-											{/if}
-										</p>
+							<div class="flex items-center gap-3">
+								{#if suggestionsExpanded}
+									<button
+										type="button"
+										onclick={(e) => {
+											e.stopPropagation();
+											approveAll();
+										}}
+										class="bg-amber-500 hover:bg-amber-600 rounded-lg px-3 py-1 text-xs font-medium text-white transition-colors"
+									>
+										Approve All
+									</button>
+								{/if}
+								{#if suggestionsExpanded}
+									<ChevronDown class="text-muted-foreground h-5 w-5" />
+								{:else}
+									<ChevronRight class="text-muted-foreground h-5 w-5" />
+								{/if}
+							</div>
+						</button>
+						{#if suggestionsExpanded}
+							<div class="space-y-3 px-4 pb-4">
+								{#each pendingTrips as trip (trip.id)}
+									<div class="bg-card border-border flex items-center gap-3 rounded-xl border p-3">
+										<div class="flex-1">
+											<h3 class="text-foreground text-sm font-semibold">{trip.title}</h3>
+											<p class="text-muted-foreground text-xs">
+												{new Date(trip.start_date).toLocaleDateString(undefined, {
+													month: 'short',
+													day: 'numeric'
+												})}
+												– {new Date(trip.end_date).toLocaleDateString(undefined, {
+													month: 'short',
+													day: 'numeric'
+												})}
+												{#if trip.metadata?.distanceTraveled}
+													· {formatDistance(trip.metadata.distanceTraveled)}
+												{/if}
+												{#if trip.metadata?.primaryCity}
+													· {trip.metadata.primaryCity}
+												{/if}
+											</p>
+										</div>
+										{#if approvingIds.has(trip.id)}
+											<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+										{:else}
+											<button
+												type="button"
+												onclick={() => approveSuggestion(trip.id)}
+												class="bg-primary hover:bg-primary/90 rounded-lg px-3 py-1 text-xs font-medium text-primary-foreground transition-colors"
+											>
+												Approve
+											</button>
+											<button
+												type="button"
+												onclick={() => rejectSuggestion(trip.id)}
+												class="text-muted-foreground hover:text-destructive rounded-lg px-2 py-1 text-xs transition-colors"
+											>
+												<X class="h-4 w-4" />
+											</button>
+										{/if}
 									</div>
-									{#if approvingIds.has(trip.id)}
-										<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
-									{:else}
-										<button
-											type="button"
-											onclick={() => approveSuggestion(trip.id)}
-											class="bg-primary hover:bg-primary/90 rounded-lg px-3 py-1 text-xs font-medium text-primary-foreground transition-colors"
-										>
-											Approve
-										</button>
-										<button
-											type="button"
-											onclick={() => rejectSuggestion(trip.id)}
-											class="text-muted-foreground hover:text-destructive rounded-lg px-2 py-1 text-xs transition-colors"
-										>
-											<X class="h-4 w-4" />
-										</button>
-									{/if}
-								</div>
-							{/each}
-						</div>
+								{/each}
+							</div>
+						{/if}
 					</div>
 				{/if}
 

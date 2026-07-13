@@ -196,22 +196,28 @@ export class TripsService {
 				.single();
 			if (tripError || !trip) throw tripError || new Error('Trip not found');
 
-			// Calculate distanceTraveled using a direct SUM query
+			// Calculate distanceTraveled using paginated fetch (API caps at 1000 rows)
 			let distanceTraveled = 0;
 			if (trip.start_date && trip.end_date) {
-				const { data, error } = await this.fluxbase
-					.from<Record<string, any>>('tracker_data')
-					.select('distance')
-					.eq('user_id', trip.user_id)
-					.gte('recorded_at', `${trip.start_date}T00:00:00Z`)
-					.lte('recorded_at', `${trip.end_date}T23:59:59Z`);
-				if (!error && data) {
-					// Sum up all distances, treating null/undefined as 0
-					distanceTraveled = data.reduce(
+				const sd = (trip.start_date || '').slice(0, 10);
+				const ed = (trip.end_date || '').slice(0, 10);
+				let offset = 0;
+				while (true) {
+					const { data, error } = await this.fluxbase
+						.from<Record<string, any>>('tracker_data')
+						.select('distance')
+						.eq('user_id', trip.user_id)
+						.gte('recorded_at', `${sd}T00:00:00Z`)
+						.lte('recorded_at', `${ed}T23:59:59Z`)
+						.range(offset, offset + 999);
+					if (!data || error) break;
+					distanceTraveled += data.reduce(
 						(sum: number, row: Record<string, any>) =>
 							sum + (typeof row.distance === 'number' ? row.distance : 0),
 						0
 					);
+					if (data.length < 1000) break;
+					offset += 1000;
 				}
 			}
 			// Update the trip's metadata.distanceTraveled
