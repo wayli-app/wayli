@@ -609,7 +609,7 @@
 											<!-- Tooltip on hover -->
 											{#if d.total > 0}
 												<div
-													class="bg-popover border-border pointer-events-none absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-2 text-xs shadow-lg group-hover:block"
+													class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-3 text-xs shadow-xl group-hover:block"
 												>
 													<div class="text-foreground font-bold">
 														Day {d.day}: {d.total.toFixed(0)}

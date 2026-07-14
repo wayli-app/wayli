@@ -40,6 +40,7 @@
 	let selectedCount = $state(0);
 	let isDeleting = $state(false);
 	let showDeleteConfirm = $state(false);
+	let editingPoint = $state<DataPoint | null>(null);
 
 	type SelectionMode = 'none' | 'box' | 'add';
 	let selectionMode = $state<SelectionMode>('none');
@@ -182,7 +183,9 @@
 			drawPoints();
 			drawStart = null;
 
-			if (count > 0) toast.info(`Selected ${count} points`);
+			if (count > 0) {
+				selectedCount = allPoints.filter((p) => p.selected).length;
+			}
 		});
 
 		// Fit bounds to data
@@ -220,11 +223,10 @@
 			});
 
 			marker.on('click', () => {
+				if (selectionMode === 'box' || selectionMode === 'add') return;
 				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
 				if (found) {
-					found.selected = !found.selected;
-					selectedCount = allPoints.filter((ap) => ap.selected).length;
-					drawPoints();
+					editingPoint = { ...found };
 				}
 			});
 
@@ -455,7 +457,61 @@
 		}
 		selectedCount = allPoints.length;
 		drawPoints();
-		toast.info(`Selected all ${allPoints.length} points`);
+	}
+
+	async function savePointEdits() {
+		if (!editingPoint) return;
+		const ep = editingPoint;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			await fluxbase
+				.from('tracker_data')
+				.update({
+					location: { type: 'Point', coordinates: [ep.lng, ep.lat] }
+				})
+				.eq('user_id', userId)
+				.eq('recorded_at', ep.recorded_at);
+
+			// Update local state
+			const idx = allPoints.findIndex((p) => p.recorded_at === ep.recorded_at);
+			if (idx >= 0) {
+				allPoints[idx] = { ...allPoints[idx], lat: ep.lat, lng: ep.lng };
+			}
+			drawPoints();
+			toast.success('Point updated');
+			editingPoint = null;
+		} catch (err) {
+			console.error('Update failed:', err);
+			toast.error('Failed to update point');
+		}
+	}
+
+	async function deleteSinglePoint() {
+		if (!editingPoint) return;
+		const ep = editingPoint;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			await fluxbase
+				.from('tracker_data')
+				.delete()
+				.eq('user_id', userId)
+				.eq('recorded_at', ep.recorded_at);
+
+			allPoints = allPoints.filter((p) => p.recorded_at !== ep.recorded_at);
+			totalCount--;
+			drawPoints();
+			toast.success('Point deleted');
+			editingPoint = null;
+		} catch (err) {
+			console.error('Delete failed:', err);
+			toast.error('Failed to delete point');
+		}
 	}
 
 	function clearSelection() {
@@ -715,6 +771,71 @@
 				{/if}
 			</div>
 
+			<!-- Point edit panel -->
+			{#if editingPoint}
+				<div class="border-border border-t p-4">
+					<div class="mb-3 flex items-center justify-between">
+						<span class="text-foreground text-xs font-bold uppercase">Edit point</span>
+						<button
+							type="button"
+							onclick={() => (editingPoint = null)}
+							class="text-muted-foreground hover:text-foreground"
+						>
+							<X class="h-4 w-4" />
+						</button>
+					</div>
+					<div class="text-muted-foreground mb-3 text-[10px]">
+						{new Date(editingPoint.recorded_at).toLocaleString()}
+					</div>
+					<div class="space-y-2">
+						<label class="block">
+							<span class="text-muted-foreground mb-0.5 block text-[10px]">Latitude</span>
+							<input
+								type="number"
+								bind:value={editingPoint.lat}
+								step="0.0001"
+								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-2 py-1 text-xs focus:ring-2 focus:outline-none"
+							/>
+						</label>
+						<label class="block">
+							<span class="text-muted-foreground mb-0.5 block text-[10px]">Longitude</span>
+							<input
+								type="number"
+								bind:value={editingPoint.lng}
+								step="0.0001"
+								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-2 py-1 text-xs focus:ring-2 focus:outline-none"
+							/>
+						</label>
+						{#if editingPoint.speed}
+							<div class="text-muted-foreground text-[10px]">
+								Speed: {editingPoint.speed.toFixed(1)} km/h
+							</div>
+						{/if}
+						{#if editingPoint.accuracy}
+							<div class="text-muted-foreground text-[10px]">
+								Accuracy: ±{editingPoint.accuracy.toFixed(0)}m
+							</div>
+						{/if}
+						<div class="flex gap-2 pt-1">
+							<button
+								type="button"
+								onclick={savePointEdits}
+								class="bg-primary hover:bg-primary/90 flex-1 rounded-lg px-3 py-1.5 text-xs font-medium text-primary-foreground"
+							>
+								Save
+							</button>
+							<button
+								type="button"
+								onclick={deleteSinglePoint}
+								class="bg-destructive hover:bg-destructive/90 rounded-lg px-3 py-1.5 text-xs font-medium text-white"
+							>
+								Delete
+							</button>
+						</div>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Exclusion zones -->
 			{#if exclusionZones.length > 0}
 				<div class="p-4">
@@ -851,8 +972,8 @@
 				</div>
 			{:else}
 				<p class="text-muted-foreground mb-3 text-sm">
-					Remove points that are too close to the previous kept point. Works through {selectedCount} points
-					in time order.
+					Remove points that are too close to the previous kept point. Set a field to 0 to ignore
+					it.
 				</p>
 				<label class="mb-3 block">
 					<span class="text-foreground mb-1 block text-xs font-medium">
@@ -879,7 +1000,8 @@
 					/>
 				</label>
 				<p class="text-muted-foreground mb-4 text-xs">
-					Set either or both. Points closer than both thresholds will be removed.
+					Example: 50m + 0s keeps points ≥50m apart (ignores time). 0m + 30s keeps points ≥30s apart
+					(ignores distance).
 				</p>
 			{/if}
 
