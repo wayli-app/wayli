@@ -22,6 +22,7 @@
 		X,
 		Check,
 		Loader2,
+		Eye,
 		UserPlus,
 		Users,
 		MapPin,
@@ -41,6 +42,7 @@
 		metadata: Record<string, any> | null;
 		budget_total: number | null;
 		budget_currency: string | null;
+		plan_items_public: boolean | null;
 	};
 
 	const tripId = $derived(page.params.tripId ?? '');
@@ -415,6 +417,19 @@
 		await removeCollaborator(id);
 		collaborators = collaborators.filter((c) => c.id !== id);
 	}
+
+	async function togglePlanPublic() {
+		if (!trip) return;
+		const next = !trip.plan_items_public;
+		trip.plan_items_public = next;
+		try {
+			await fluxbase.from('trips').update({ plan_items_public: next }).eq('id', tripId);
+			toast.success(next ? 'Plan is now public' : 'Plan is now private');
+		} catch {
+			trip.plan_items_public = !next;
+			toast.error('Failed to update');
+		}
+	}
 </script>
 
 <svelte:head>
@@ -493,6 +508,22 @@
 					title="Invite collaborator"
 				>
 					<UserPlus class="h-4 w-4" />
+				</button>
+				<button
+					type="button"
+					onclick={togglePlanPublic}
+					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {trip.plan_items_public
+						? 'border-green-500/40 bg-green-500/10 text-green-600'
+						: 'border-border text-muted-foreground hover:text-foreground'}"
+					title={trip.plan_items_public
+						? 'Plan and costs are visible on your public page'
+						: 'Click to make plan and costs visible on your public page'}
+				>
+					{#if trip.plan_items_public}
+						<Check class="h-3 w-3" /> Public plan
+					{:else}
+						<Eye class="h-3 w-3" /> Private plan
+					{/if}
 				</button>
 			</div>
 		</div>

@@ -9,7 +9,35 @@
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
-	import { ArrowLeft, Calendar, Route, MapPin, Globe, Compass, LogIn } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		Calendar,
+		Route,
+		MapPin,
+		Globe,
+		Compass,
+		LogIn,
+		BookOpen
+	} from 'lucide-svelte';
+
+	const TYPE_ICONS: Record<string, string> = {
+		sightseeing: '📷',
+		food: '🍴',
+		activity: '🎯',
+		transport: '🚇',
+		accommodation: '🏨',
+		rest: '☕',
+		shopping: '🛍️'
+	};
+	const TYPE_COLORS: Record<string, string> = {
+		sightseeing: '#3b82f6',
+		food: '#f59e0b',
+		activity: '#22c55e',
+		transport: '#8b5cf6',
+		accommodation: '#ec4899',
+		rest: '#6b7280',
+		shopping: '#14b8a6'
+	};
 
 	type Trip = {
 		id: string;
@@ -20,6 +48,7 @@
 		image_url: string | null;
 		metadata: Record<string, any> | null;
 		visibility: string;
+		plan_items_public?: boolean | null;
 	};
 
 	type Entry = {
@@ -41,6 +70,27 @@
 	let trip = $state<Trip | null>(null);
 	let entries = $state<Entry[]>([]);
 	let media = $state<Media[]>([]);
+	let planItems = $state<any[]>([]);
+
+	const planTotalCost = $derived(
+		planItems.reduce((s: number, i: any) => s + (i.cost_estimate ?? 0), 0)
+	);
+	const planCurrency = $derived(planItems[0]?.currency ?? 'EUR');
+	const planBudgetByCat = $derived(
+		planItems.reduce((acc: Record<string, number>, item: any) => {
+			const cat = item.type || 'activity';
+			acc[cat] = (acc[cat] ?? 0) + (item.cost_estimate ?? 0);
+			return acc;
+		}, {})
+	);
+	const planByDay = $derived(
+		planItems.reduce((acc: Record<number, any[]>, item: any) => {
+			const d = item.day_number ?? 1;
+			if (!acc[d]) acc[d] = [];
+			acc[d].push(item);
+			return acc;
+		}, {})
+	);
 	let allGpsPoints = $state<Array<{ lat: number; lng: number; date: string }>>([]);
 	let cityMarkers = $state<Array<{ lat: number; lng: number; label: string }>>([]);
 	let isLoading = $state(true);
@@ -48,6 +98,7 @@
 	let lightbox = $state<Media | null>(null);
 	let activeEntryId = $state<string | null>(null);
 	let scrollProgress = $state(0);
+	let currentUserId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
 	const tripId = $derived(page.params.tripId ?? '');
@@ -97,8 +148,8 @@
 		);
 		if (requireAuth?.value === true || requireAuth?.value === 'true') {
 			try {
-				const { data } = await fluxbase.auth.getUser();
-				if (!data?.user) {
+				const { data: session } = await fluxbase.auth.getSession();
+				if (!session?.session?.user) {
 					goto(`/auth/signin?redirectTo=/u/${username}/trips/${tripId}`);
 					return;
 				}
@@ -108,15 +159,15 @@
 			}
 		}
 
+		// Get current user ID (if logged in)
 		try {
-			let currentUserId: string | null = null;
-			try {
-				const { data: authData } = await fluxbase.auth.getUser();
-				currentUserId = authData?.user?.id ?? null;
-			} catch {
-				// Not logged in
-			}
+			const { data: session } = await fluxbase.auth.getSession();
+			currentUserId = session?.session?.user?.id ?? null;
+		} catch {
+			currentUserId = null;
+		}
 
+		try {
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
 			if (!tripData) {
 				notFound = true;
@@ -143,11 +194,20 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
+			// Load plan items if public
+			if (trip?.plan_items_public) {
+				const { data: planData } = await fluxbase
+					.from('trip_plan_items')
+					.select('title, type, start_time, cost_estimate, currency, day_number')
+					.eq('trip_id', tripId)
+					.order('day_number', { ascending: true })
+					.order('sort_order', { ascending: true });
+				planItems = (planData as any[]) ?? [];
+			}
+
 			try {
-				const { data: authData } = await fluxbase.auth.getUser();
-				const viewerId = authData?.user?.id;
-				if (viewerId && trip) {
-					allGpsPoints = await fetchTrackPoints(viewerId, trip.start_date, trip.end_date, 500);
+				if (currentUserId && trip) {
+					allGpsPoints = await fetchTrackPoints(currentUserId, trip.start_date, trip.end_date, 500);
 				}
 			} catch {
 				// Not logged in
@@ -199,15 +259,25 @@
 		></div>
 	</div>
 
-	<!-- Floating sign-in -->
+	<!-- Floating button -->
 	<div class="fixed top-4 right-4 z-50">
-		<a
-			href="/auth/signin"
-			class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
-		>
-			<LogIn class="h-4 w-4" />
-			Sign in
-		</a>
+		{#if currentUserId}
+			<a
+				href="/dashboard/travel"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<BookOpen class="h-4 w-4" />
+				My Travel
+			</a>
+		{:else}
+			<a
+				href="/auth/signin"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<LogIn class="h-4 w-4" />
+				Sign in
+			</a>
+		{/if}
 	</div>
 
 	<!-- Full-bleed trip hero -->
@@ -380,6 +450,63 @@
 					</div>
 				{/if}
 			</div>
+
+			<!-- Public plan items + budget -->
+			{#if planItems.length > 0}
+				<div class="bg-card border-border mt-8 rounded-2xl border p-6">
+					<h2 class="text-foreground mb-4 text-lg font-bold">Trip plan & costs</h2>
+
+					<!-- Budget summary -->
+					{#if planTotalCost > 0}
+						<div class="mb-4 flex items-center gap-2">
+							<span class="text-muted-foreground text-sm">Total:</span>
+							<span class="text-foreground text-xl font-bold"
+								>{planCurrency} {planTotalCost.toFixed(0)}</span
+							>
+						</div>
+						<div class="mb-4 flex flex-wrap gap-3">
+							{#each Object.entries(planBudgetByCat).sort(([, a], [, b]) => b - a) as [cat, amount]}
+								<div class="flex items-center gap-1.5 text-xs">
+									<span
+										class="h-2 w-2 rounded-full"
+										style="background: {TYPE_COLORS[cat] ?? '#6b7280'}"
+									></span>
+									<span class="text-muted-foreground">{cat}</span>
+									<span class="text-foreground font-medium">{amount.toFixed(0)}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<!-- Plan items by day -->
+					<div class="space-y-3">
+						{#each Object.entries(planByDay).sort(([a], [b]) => Number(a) - Number(b)) as [day, dayItems]}
+							<div>
+								<div class="text-muted-foreground mb-1 text-xs font-medium uppercase">
+									Day {day}
+								</div>
+								<div class="flex flex-wrap gap-2">
+									{#each dayItems as item}
+										<span
+											class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
+											style="background: {TYPE_COLORS[item.type] ??
+												'#6b7280'}20; color: {TYPE_COLORS[item.type] ?? '#6b7280'}"
+										>
+											{TYPE_ICONS[item.type] ?? '📌'}
+											{item.title}
+											{#if item.cost_estimate}
+												<span class="opacity-70"
+													>· {item.currency} {item.cost_estimate.toFixed(0)}</span
+												>
+											{/if}
+										</span>
+									{/each}
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<!-- Sticky map sidebar -->
 			<div class="hidden lg:block">
