@@ -131,7 +131,12 @@
 			if (bounds.isValid()) {
 				m.fitBounds(bounds, { padding: [30, 30] });
 			}
-		} else if (pts.length === 0 && mkrs.length === 0) {
+		} else if (pts.length > 0) {
+			// Single point or markers only: center on first point
+			m.setView([pts[0].lat, pts[0].lng], 13);
+		} else if (mkrs.length > 0) {
+			m.setView([mkrs[0].lat, mkrs[0].lng], 3);
+		} else {
 			m.setView([0, 0], 2);
 		}
 	});
