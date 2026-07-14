@@ -124,6 +124,20 @@
 		return [...totals.entries()].map(([currency, total]) => ({ currency, total }));
 	});
 
+	const budgetByCategory = $derived.by(() => {
+		const totals = new Map<string, { total: number; count: number }>();
+		for (const item of items) {
+			if (item.cost_estimate) {
+				const cat = item.type || 'activity';
+				const existing = totals.get(cat) ?? { total: 0, count: 0 };
+				totals.set(cat, { total: existing.total + item.cost_estimate, count: existing.count + 1 });
+			}
+		}
+		return [...totals.entries()]
+			.map(([category, data]) => ({ category, ...data }))
+			.sort((a, b) => b.total - a.total);
+	});
+
 	onMount(async () => {
 		try {
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
@@ -780,17 +794,59 @@
 		<div class="space-y-4">
 			<div class="bg-card border-border sticky top-20 rounded-2xl border p-4">
 				<h3 class="text-foreground mb-3 text-sm font-bold uppercase tracking-wide">Budget</h3>
+
 				{#if budgetByCurrency.length > 0}
-					<div class="space-y-2">
-						{#each budgetByCurrency as entry (entry.currency)}
-							<div class="flex items-center justify-between">
-								<span class="text-muted-foreground text-sm">{entry.currency}</span>
-								<span class="text-foreground font-mono text-sm font-bold">
-									{entry.total.toFixed(2)}
-								</span>
-							</div>
-						{/each}
+					<!-- Total by currency -->
+					<div class="mb-4">
+						<div class="text-muted-foreground mb-1.5 text-[10px] font-medium uppercase">Total</div>
+						<div class="space-y-1">
+							{#each budgetByCurrency as entry (entry.currency)}
+								<div class="flex items-center justify-between">
+									<span class="text-muted-foreground text-sm">{entry.currency}</span>
+									<span class="text-foreground font-mono text-base font-bold">
+										{entry.total.toFixed(2)}
+									</span>
+								</div>
+							{/each}
+						</div>
 					</div>
+
+					<!-- Breakdown by category -->
+					{#if budgetByCategory.length > 0}
+						<div class="border-border border-t pt-3">
+							<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
+								By category
+							</div>
+							<div class="space-y-2">
+								{#each budgetByCategory as cat (cat.category)}
+									<div>
+										<div class="flex items-center justify-between text-xs">
+											<span class="text-foreground flex items-center gap-1.5">
+												<span>{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
+												{TYPE_CONFIG[cat.category]?.label ?? cat.category}
+											</span>
+											<span class="text-muted-foreground font-mono">
+												{cat.total.toFixed(0)}
+											</span>
+										</div>
+										<!-- Progress bar relative to max category -->
+										<div class="bg-muted mt-1 h-1.5 overflow-hidden rounded-full">
+											<div
+												class="h-full rounded-full transition-all"
+												style="width: {Math.round(
+													(cat.total / Math.max(...budgetByCategory.map((c) => c.total))) * 100
+												)}%; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
+											></div>
+										</div>
+										<div class="text-muted-foreground mt-0.5 text-[10px]">
+											{cat.count}
+											{cat.count === 1 ? 'item' : 'items'}
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 				{:else}
 					<p class="text-muted-foreground text-xs">No costs added yet.</p>
 				{/if}
