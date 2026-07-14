@@ -239,11 +239,19 @@
 				}
 			});
 
+			marker.on('dragstart', () => {
+				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
+				if (found) {
+					marker._prevLatLng = { lat: found.lat, lng: found.lng };
+				}
+			});
+
 			marker.on('dragend', async () => {
 				const ll = marker.getLatLng();
 				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
 				if (!found) return;
 
+				const prev = marker._prevLatLng ?? { lat: p.lat, lng: p.lng };
 				found.lat = ll.lat;
 				found.lng = ll.lng;
 
@@ -258,10 +266,36 @@
 						.eq('user_id', userId)
 						.eq('recorded_at', p.recorded_at);
 
-					toast.success('Point moved');
 					if (editingPoint?.recorded_at === p.recorded_at) {
 						editingPoint = { ...found };
 					}
+
+					toast.success('Point moved', {
+						action: {
+							label: 'Undo',
+							onClick: async () => {
+								try {
+									await fluxbase
+										.from('tracker_data')
+										.update({
+											location: { type: 'Point', coordinates: [prev.lng, prev.lat] }
+										})
+										.eq('user_id', userId)
+										.eq('recorded_at', p.recorded_at);
+
+									found.lat = prev.lat;
+									found.lng = prev.lng;
+									if (editingPoint?.recorded_at === p.recorded_at) {
+										editingPoint = { ...found };
+									}
+									drawPoints();
+									toast.success('Move undone');
+								} catch {
+									toast.error('Failed to undo');
+								}
+							}
+						}
+					});
 				} catch (err) {
 					console.error('Move failed:', err);
 					toast.error('Failed to move point');
