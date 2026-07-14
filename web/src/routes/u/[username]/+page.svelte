@@ -156,6 +156,14 @@
 				<BookOpen class="h-4 w-4" />
 				Dashboard
 			</a>
+		{:else if currentUserId}
+			<a
+				href="/dashboard/travel"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<BookOpen class="h-4 w-4" />
+				My Travel
+			</a>
 		{:else}
 			<a
 				href="/auth/signin"
@@ -264,21 +272,26 @@
 					return acc;
 				}, {})
 			).sort(([a], [b]) => Number(b) - Number(a))}
-			<div class="space-y-10">
+			<div class="space-y-8">
 				{#each tripsByYear as [year, yearTrips], yearIdx (year)}
-					<div>
-						<h2 class="text-foreground mb-4 text-2xl font-extrabold tracking-tight">
-							{year}
-							<span class="text-muted-foreground ml-2 text-sm font-normal">
-								{yearTrips.length}
-								{yearTrips.length === 1 ? 'trip' : 'trips'}
-							</span>
-						</h2>
-						<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+					<div class="flex gap-6">
+						<!-- Year label (sticky left column) -->
+						<div class="hidden w-20 flex-shrink-0 sm:block">
+							<div class="sticky top-4">
+								<div class="text-foreground text-3xl font-extrabold tracking-tight">{year}</div>
+								<div class="text-muted-foreground text-xs">
+									{yearTrips.length}
+									{yearTrips.length === 1 ? 'trip' : 'trips'}
+								</div>
+							</div>
+						</div>
+
+						<!-- Trip cards for this year -->
+						<div class="grid min-w-0 flex-1 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 							{#each yearTrips as trip, i (trip.id)}
 								<a
 									href="/u/{username}/trips/{trip.id}"
-									class="group relative aspect-[4/3] overflow-hidden rounded-3xl shadow-lg transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl animate-fade-in-up"
+									class="group relative aspect-[16/10] overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up"
 									style="animation-delay: {yearIdx * 80 + i * 40}ms"
 								>
 									<!-- Background image -->
@@ -319,26 +332,38 @@
 										{/if}
 									</div>
 
+									<!-- Mobile year label -->
+									<div class="mb-2 sm:hidden">
+										<span class="text-foreground text-lg font-bold">{year}</span>
+										<span class="text-muted-foreground ml-2 text-xs"
+											>{yearTrips.length} {yearTrips.length === 1 ? 'trip' : 'trips'}</span
+										>
+									</div>
+
 									<!-- Bottom content -->
-									<div class="absolute right-0 bottom-0 left-0 p-5">
-										<h3 class="mb-1 text-xl font-bold tracking-tight text-white drop-shadow-md">
+									<div class="absolute right-0 bottom-0 left-0 p-4">
+										<h3 class="mb-0.5 text-base font-bold tracking-tight text-white drop-shadow-md">
 											{trip.title}
 										</h3>
-										{#if trip.description}
-											<p class="line-clamp-2 text-sm text-white/60">{trip.description}</p>
-										{/if}
+										<div class="flex items-center gap-2 text-xs text-white/50">
+											{new Date(trip.start_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric'
+											})}
+											– {new Date(trip.end_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric',
+												year: 'numeric'
+											})}
+										</div>
 										{#if trip.metadata?.primaryCity}
-											<div class="mt-2 flex items-center gap-1 text-xs text-white/50">
+											<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
 												<MapPin class="h-3 w-3" />
 												{trip.metadata.primaryCity}
-												{#if trip.metadata?.primaryCountryCode}
-													<span class="opacity-50">·</span>
-													{trip.metadata.primaryCountryCode}
-												{/if}
 											</div>
 										{/if}
 										{#if trip.metadata?.image_attribution?.photographer}
-											<p class="mt-1 text-[10px] text-white/30">
+											<p class="mt-0.5 text-[9px] text-white/25">
 												Photo: {trip.metadata.image_attribution.photographer}/Pexels
 											</p>
 										{/if}
