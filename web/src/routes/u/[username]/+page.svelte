@@ -316,6 +316,11 @@
 									{/if}
 								</div>
 							{/if}
+							{#if trip.metadata?.image_attribution?.photographer}
+								<p class="mt-1 text-[10px] text-white/30">
+									Photo: {trip.metadata.image_attribution.photographer}/Pexels
+								</p>
+							{/if}
 						</div>
 					</a>
 				{/each}

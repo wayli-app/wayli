@@ -109,7 +109,11 @@
 	let tripStartDate = $state('');
 	let tripEndDate = $state('');
 	let tripDescription = $state('');
+	let tripImageUrl = $state<string | null>(null);
+	let tripImageAttribution = $state<any>(null);
 	let isCreatingTrip = $state(false);
+	let isUploadingImage = $state(false);
+	let tripImageInput = $state<HTMLInputElement | null>(null);
 
 	// ── Service ──
 	let serviceAdapter: ServiceAdapter | null = null;
@@ -547,6 +551,8 @@
 		tripStartDate = '';
 		tripEndDate = '';
 		tripDescription = '';
+		tripImageUrl = null;
+		tripImageAttribution = null;
 		showTripModal = true;
 	}
 
@@ -556,6 +562,8 @@
 		tripStartDate = (trip.start_date || '').slice(0, 10);
 		tripEndDate = (trip.end_date || '').slice(0, 10);
 		tripDescription = trip.description ?? '';
+		tripImageUrl = trip.image_url;
+		tripImageAttribution = trip.metadata?.image_attribution ?? null;
 		showTripModal = true;
 	}
 
@@ -565,12 +573,18 @@
 		try {
 			const tripsService = await getTripsService();
 			if (editingTrip) {
+				const newMetadata = {
+					...(editingTrip.metadata ?? {}),
+					image_attribution: tripImageAttribution
+				};
 				const updated = await tripsService.updateTrip({
 					id: editingTrip.id,
 					title: tripTitle,
 					start_date: tripStartDate,
 					end_date: tripEndDate || tripStartDate,
-					description: tripDescription
+					description: tripDescription,
+					image_url: tripImageUrl,
+					metadata: newMetadata
 				} as any);
 				trips = trips.map((t) => (t.id === updated.id ? (updated as unknown as Trip) : t));
 			} else {
@@ -578,8 +592,9 @@
 					title: tripTitle,
 					start_date: tripStartDate,
 					end_date: tripEndDate || tripStartDate,
-					description: tripDescription
-				});
+					description: tripDescription,
+					image_url: tripImageUrl
+				} as any);
 				await loadTrips();
 			}
 			showTripModal = false;
@@ -589,6 +604,55 @@
 			toast.error('Failed to save trip');
 		} finally {
 			isCreatingTrip = false;
+		}
+	}
+
+	async function handleTripImageUpload(file: File) {
+		if (!$userStore?.id) return;
+		isUploadingImage = true;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			const compressed = await compressImage(file, { maxEdge: 1200, quality: 0.8 });
+			const filename = `cover-${Date.now()}.jpg`;
+			const url = await uploadMedia(userId, 'covers', compressed.full.blob, filename);
+			tripImageUrl = url;
+			tripImageAttribution = null;
+			toast.success('Image uploaded');
+		} catch (err) {
+			console.error('Upload failed:', err);
+			toast.error('Failed to upload image');
+		} finally {
+			isUploadingImage = false;
+		}
+	}
+
+	async function fetchPexelsImage() {
+		if (!editingTrip) {
+			toast.info('Save the trip first, then fetch an image');
+			return;
+		}
+		try {
+			if (!serviceAdapter) {
+				toast.error('Service unavailable');
+				return;
+			}
+			toast.info('Fetching from Pexels...');
+			const result = await serviceAdapter.suggestTripImages(editingTrip.id);
+			const data =
+				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
+			if (data?.suggestedImageUrl) {
+				tripImageUrl = data.suggestedImageUrl;
+				tripImageAttribution = data.attribution ?? null;
+				toast.success('Image found');
+			} else {
+				toast.error('No image found for this trip');
+			}
+		} catch (err) {
+			console.error('Pexels fetch failed:', err);
+			toast.error('Failed to fetch image');
 		}
 	}
 
@@ -1062,16 +1126,6 @@
 										>
 											<RefreshCw class="h-3 w-3" /> Stats
 										</button>
-										{#if !trip.image_url}
-											<button
-												type="button"
-												onclick={() => fetchTripImage(trip)}
-												class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-												title="Fetch cover image from Pexels"
-											>
-												<ImagePlus class="h-3 w-3" /> Image
-											</button>
-										{/if}
 										<button
 											type="button"
 											onclick={() => openEditTripModal(trip)}
@@ -1369,6 +1423,83 @@
 								rows="2"
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 							></textarea>
+
+							<!-- Cover image management -->
+							<div class="space-y-2">
+								<span class="text-muted-foreground text-xs font-medium">Cover image</span>
+								<input
+									bind:this={tripImageInput}
+									type="file"
+									accept="image/*"
+									class="hidden"
+									onchange={(e) => {
+										const f = (e.target as HTMLInputElement).files?.[0];
+										if (f) handleTripImageUpload(f);
+									}}
+								/>
+								{#if tripImageUrl}
+									<div class="relative h-32 overflow-hidden rounded-lg">
+										<img src={tripImageUrl} alt="Cover" class="h-full w-full object-cover" />
+										<button
+											type="button"
+											onclick={() => {
+												tripImageUrl = null;
+												tripImageAttribution = null;
+											}}
+											class="bg-destructive absolute top-2 right-2 rounded-full p-1.5 text-white shadow-lg"
+											title="Remove image"><X class="h-4 w-4" /></button
+										>
+									</div>
+									{#if tripImageAttribution?.photographer}
+										<p class="text-muted-foreground text-[10px]">
+											Photo by
+											<a
+												href={tripImageAttribution.photographer_url}
+												target="_blank"
+												rel="noopener"
+												class="hover:underline">{tripImageAttribution.photographer}</a
+											>
+											on
+											<a
+												href={tripImageAttribution.pexels_url}
+												target="_blank"
+												rel="noopener"
+												class="hover:underline">Pexels</a
+											>
+										</p>
+									{/if}
+								{:else}
+									<div
+										class="border-border flex h-20 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground"
+									>
+										No cover image
+									</div>
+								{/if}
+								<div class="flex gap-2">
+									<button
+										type="button"
+										onclick={() => tripImageInput?.click()}
+										disabled={isUploadingImage}
+										class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+									>
+										{#if isUploadingImage}
+											<Loader2 class="h-3 w-3 animate-spin" /> Uploading...
+										{:else}
+											<Upload class="h-3 w-3" /> Upload
+										{/if}
+									</button>
+									{#if editingTrip}
+										<button
+											type="button"
+											onclick={fetchPexelsImage}
+											class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+										>
+											<Sparkles class="h-3 w-3" /> Fetch from Pexels
+										</button>
+									{/if}
+								</div>
+							</div>
+
 							<div class="flex justify-end gap-2">
 								<button
 									type="button"

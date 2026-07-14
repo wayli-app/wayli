@@ -350,6 +350,27 @@
 									<EntryComments {tripId} entryId={entry.id} />
 								</div>
 							</div>
+
+							<!-- Pexels attribution -->
+							{#if trip.metadata?.image_attribution?.photographer}
+								<p class="absolute right-4 bottom-3 z-10 text-[10px] text-white/40">
+									Photo by
+									<a
+										href={trip.metadata.image_attribution.photographer_url}
+										target="_blank"
+										rel="noopener"
+										class="hover:text-white/60 hover:underline"
+										>{trip.metadata.image_attribution.photographer}</a
+									>
+									on
+									<a
+										href={trip.metadata.image_attribution.pexels_url}
+										target="_blank"
+										rel="noopener"
+										class="hover:text-white/60 hover:underline">Pexels</a
+									>
+								</p>
+							{/if}
 						</div>
 					{/each}
 				{:else}
