@@ -239,30 +239,40 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       tripsImported++;
     }
 
-    // Import journal entries (steps) + photos
-    for (const step of tripJson.all_steps ?? []) {
-      const entryDate = dateFromUnix(step.start_time);
+		// Import journal entries (steps) + photos
+		const steps = tripJson.all_steps ?? [];
+		console.log(`[polarsteps] Trip "${tripJson.name}" has ${steps.length} steps, isNewTrip=${isNewTrip}`);
 
-      // Skip if entry already exists (for merge case)
-      if (!isNewTrip) {
-        const { data: existing } = await fluxbaseService
-          .from('trip_entries')
-          .select('id')
-          .eq('trip_id', tripId)
-          .eq('entry_date', entryDate)
-          .limit(1);
-        if (existing && existing.length > 0) continue;
-      }
+		for (const step of steps) {
+			const entryDate = dateFromUnix(step.start_time);
 
-      await fluxbaseService.from('trip_entries').insert({
-        trip_id: tripId,
-        user_id: userId,
-        title: step.name || '',
-        body: step.description || '',
-        entry_date: entryDate,
-        created_at: unixToISO(step.start_time)
-      });
-      entriesCreated++;
+			// Skip if entry already exists (for merge case)
+			if (!isNewTrip) {
+				const { data: existing } = await fluxbaseService
+					.from('trip_entries')
+					.select('id')
+					.eq('trip_id', tripId)
+					.eq('entry_date', entryDate)
+					.limit(1);
+				if (existing && existing.length > 0) continue;
+			}
+
+			const { error: entryError } = await fluxbaseService
+				.from('trip_entries')
+				.insert({
+					trip_id: tripId,
+					user_id: userId,
+					title: step.name || '',
+					body: step.description || '',
+					entry_date: entryDate,
+					created_at: unixToISO(step.start_time)
+				});
+
+			if (entryError) {
+				console.error(`[polarsteps] Failed to create entry "${step.name}": ${entryError.message}`);
+				continue;
+			}
+			entriesCreated++;
 
       // Find and upload photos for this step (by step ID in path)
       const photoFiles = findZipFiles(
