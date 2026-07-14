@@ -259,15 +259,27 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
         if (existing && existing.length > 0) {
           // Still upload photos for existing entries
           const existingEntryId = (existing[0] as any).id;
-          await uploadPhotosForStep(
-            fluxbase,
-            userId,
-            tripId,
-            existingEntryId,
-            step,
-            tripDirPrefix,
-            findZipFiles
+          const existingPhotos = findZipFiles(
+            new RegExp(`${tripDirPrefix}[^/]*${step.id}[^/]*/photos/.+\\.jpg`, 'i')
           );
+          for (const photoFile of existingPhotos) {
+            try {
+              const photoName = photoFile.path.split('/').pop() || `photo-${Date.now()}.jpg`;
+              const storagePath = `${userId}/${tripId}/${photoName}`;
+              const blob = new Blob([photoFile.data], { type: 'image/jpeg' });
+              const { error: uploadErr } = await fluxbase.storage
+                .from('trip-images')
+                .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
+              if (uploadErr) { photosSkipped++; continue; }
+              const { data: urlData } = fluxbase.storage.from('trip-images').getPublicUrl(storagePath);
+              await fluxbase.from('trip_media').insert({
+                trip_id: tripId, user_id: userId, entry_id: existingEntryId,
+                storage_path: urlData.publicUrl, thumbnail_path: urlData.publicUrl,
+                media_type: 'image', caption: '', sort_order: photosUploaded
+              });
+              photosUploaded++;
+            } catch { photosSkipped++; }
+          }
           continue;
         }
       }
