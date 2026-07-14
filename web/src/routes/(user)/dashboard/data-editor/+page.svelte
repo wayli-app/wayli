@@ -676,7 +676,7 @@
 <!-- Delete confirmation modal -->
 {#if showDeleteConfirm}
 	<div
-		class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+		class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"
 	>
 		<div class="border-border bg-card w-full max-w-md rounded-2xl border p-6 shadow-2xl">
 			<div class="mb-4 flex items-center gap-3">
@@ -730,7 +730,7 @@
 <!-- Sample modal -->
 {#if showSampleModal}
 	<div
-		class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+		class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"
 	>
 		<div class="border-border bg-card w-full max-w-sm rounded-2xl border p-6 shadow-2xl">
 			<h2 class="text-foreground mb-2 text-lg font-bold">Sample data points</h2>

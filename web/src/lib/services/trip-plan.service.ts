@@ -158,8 +158,9 @@ function serializeLocation(item: any): any {
 	if (!item) return item;
 	const { location, ...rest } = item;
 	if (location && location.lat != null && location.lng != null) {
-		// PostGIS GeoJSON format
 		rest.location = { type: 'Point', coordinates: [location.lng, location.lat] };
+	} else {
+		rest.location = null;
 	}
 	return rest;
 }
