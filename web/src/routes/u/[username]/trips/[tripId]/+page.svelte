@@ -19,6 +19,9 @@
 		LogIn,
 		BookOpen
 	} from 'lucide-svelte';
+	import { translate } from '$lib/i18n';
+
+	let t = $derived($translate);
 
 	const TYPE_ICONS: Record<string, string> = {
 		sightseeing: '📷',
@@ -253,8 +256,10 @@
 {:else if notFound || !trip}
 	<div class="flex min-h-screen flex-col items-center justify-center gap-3 bg-background p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
-		<p class="text-muted-foreground text-lg">Trip not found or not public.</p>
-		<a href="/u/{username}" class="text-primary hover:underline text-sm">← Back to profile</a>
+		<p class="text-muted-foreground text-lg">{t('publicTrip.tripNotFound')}</p>
+		<a href="/u/{username}" class="text-primary hover:underline text-sm"
+			>{t('publicTrip.backToProfile')}</a
+		>
 	</div>
 {:else}
 	<!-- Reading progress bar -->
@@ -273,7 +278,7 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<BookOpen class="h-4 w-4" />
-				My Travel
+				{t('publicTrip.myTravel')}
 			</a>
 		{:else}
 			<a
@@ -281,7 +286,7 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<LogIn class="h-4 w-4" />
-				Sign in
+				{t('auth.signIn')}
 			</a>
 		{/if}
 	</div>
@@ -377,9 +382,11 @@
 									</div>
 									{#if entry.end_date && entry.end_date !== entry.entry_date}
 										<div class="text-xs text-muted-foreground/60">
-											until {new Date(entry.end_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric'
+											{t('publicTrip.until', {
+												date: new Date(entry.end_date).toLocaleDateString(undefined, {
+													month: 'short',
+													day: 'numeric'
+												})
 											})}
 										</div>
 									{/if}
@@ -430,7 +437,7 @@
 							<!-- Pexels attribution -->
 							{#if trip.metadata?.image_attribution?.photographer}
 								<p class="absolute right-4 bottom-3 z-10 text-[10px] text-white/40">
-									Photo by
+									{t('common.photoBy')}
 									<a
 										href={trip.metadata.image_attribution.photographer_url}
 										target="_blank"
@@ -438,7 +445,7 @@
 										class="hover:text-white/60 hover:underline"
 										>{trip.metadata.image_attribution.photographer}</a
 									>
-									on
+									{t('common.on')}
 									<a
 										href={trip.metadata.image_attribution.pexels_url}
 										target="_blank"
@@ -452,7 +459,7 @@
 				{:else}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
 						<MapPin class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-						<p class="text-muted-foreground text-lg">No journal entries for this trip.</p>
+						<p class="text-muted-foreground text-lg">{t('publicTrip.noEntries')}</p>
 					</div>
 				{/if}
 			</div>
@@ -460,12 +467,12 @@
 			<!-- Public plan items + budget -->
 			{#if planItems.length > 0}
 				<div class="bg-card border-border mt-8 rounded-2xl border p-6">
-					<h2 class="text-foreground mb-4 text-lg font-bold">Trip plan & costs</h2>
+					<h2 class="text-foreground mb-4 text-lg font-bold">{t('publicTrip.tripPlanCosts')}</h2>
 
 					<!-- Budget summary -->
 					{#if planTotalCost > 0}
 						<div class="mb-4 flex items-center gap-2">
-							<span class="text-muted-foreground text-sm">Total:</span>
+							<span class="text-muted-foreground text-sm">{t('common.total')}</span>
 							<span class="text-foreground text-xl font-bold"
 								>{planCurrency} {planTotalCost.toFixed(0)}</span
 							>
@@ -489,7 +496,7 @@
 						{#each Object.entries(planByDay).sort(([a], [b]) => Number(a) - Number(b)) as [day, dayItems]}
 							<div>
 								<div class="text-muted-foreground mb-1 text-xs font-medium uppercase">
-									Day {day}
+									{t('plan.dayLabel', { day })}
 								</div>
 								<div class="flex flex-wrap gap-2">
 									{#each dayItems as item}
@@ -526,14 +533,14 @@
 										? new Date(
 												entries.find((e) => e.id === activeEntryId)!.entry_date
 											).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-										: 'Route'}
+										: t('publicTrip.route')}
 								{:else}
-									Route
+									{t('publicTrip.route')}
 								{/if}
 							</span>
 							{#if highlightPoints.length > 0}
 								<span class="ml-auto text-xs text-muted-foreground">
-									{highlightPoints.length} points
+									{t('publicTrip.points', { count: highlightPoints.length })}
 								</span>
 							{/if}
 						</div>
@@ -548,7 +555,7 @@
 							<div
 								class="flex h-64 items-center justify-center px-6 text-center text-sm text-muted-foreground"
 							>
-								No GPS data available for this trip.
+								{t('publicTrip.noGpsData')}
 							</div>
 						{/if}
 					</div>
@@ -557,7 +564,7 @@
 					{#if entries.length > 1}
 						<div class="rounded-2xl border border-border bg-card p-4 shadow-sm">
 							<div class="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-								Entries
+								{t('publicTrip.entries')}
 							</div>
 							<div class="flex flex-wrap gap-2">
 								{#each entries as entry, i (entry.id)}
@@ -594,9 +601,9 @@
 		<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
 			<MapPin class="text-primary h-4 w-4" />
 			{#if activeEntryId}
-				Day {entries.findIndex((e) => e.id === activeEntryId) + 1}
+				{t('plan.dayLabel', { day: entries.findIndex((e) => e.id === activeEntryId) + 1 })}
 			{:else}
-				Route
+				{t('publicTrip.route')}
 			{/if}
 		</div>
 		<TripMap points={mapPoints} markers={cityMarkers} {highlightPoints} class="h-56" />

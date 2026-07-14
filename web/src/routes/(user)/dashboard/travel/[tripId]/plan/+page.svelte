@@ -31,6 +31,9 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import TripMap from '$lib/components/TripMap.svelte';
+	import { translate } from '$lib/i18n';
+
+	let t = $derived($translate);
 
 	type Trip = {
 		id: string;
@@ -279,7 +282,7 @@
 
 	function selectSearchResult(feature: any) {
 		const [lng, lat] = feature.geometry.coordinates;
-		newItemTitle = feature.properties.label || feature.properties.name || 'Unnamed';
+		newItemTitle = feature.properties.label || feature.properties.name || t('common.unnamed');
 		searchQuery = newItemTitle;
 		searchResults = [];
 		selectedCoords = { lat, lng };
@@ -288,7 +291,7 @@
 
 	// ── Item management ──
 	async function addItem(dayNumber: number) {
-		const title = newItemTitle.trim() || 'New item';
+		const title = newItemTitle.trim() || t('plan.newItem');
 		const userId = await getCurrentUserId();
 
 		// Auto-select first search result if user hasn't clicked one
@@ -325,7 +328,7 @@
 		});
 		items = [...items, newItem];
 		resetNewItemForm();
-		toast.success('Added to Day ' + dayNumber);
+		toast.success(t('plan.addedToDay', { day: dayNumber }));
 	}
 
 	async function saveItem(item: PlanItem) {
@@ -345,7 +348,7 @@
 			});
 		} catch (err) {
 			console.error('Save failed:', err);
-			toast.error('Failed to save item');
+			toast.error(t('plan.saveFailed'));
 		}
 	}
 
@@ -401,13 +404,13 @@
 			const collab = await addCollaborator(tripId, collaboratorUsername.trim());
 			if (collab) {
 				collaborators = [...collaborators, collab];
-				toast.success(`Added @${collaboratorUsername}`);
+				toast.success(t('plan.collaboratorAdded', { username: collaboratorUsername }));
 				collaboratorUsername = '';
 			} else {
-				toast.error('User not found');
+				toast.error(t('plan.userNotFound'));
 			}
 		} catch {
-			toast.error('Failed to add collaborator');
+			toast.error(t('plan.addCollaboratorFailed'));
 		} finally {
 			isAddingCollaborator = false;
 		}
@@ -424,10 +427,10 @@
 		trip.plan_items_public = next;
 		try {
 			await fluxbase.from('trips').update({ plan_items_public: next }).eq('id', tripId);
-			toast.success(next ? 'Plan is now public' : 'Plan is now private');
+			toast.success(next ? t('plan.planPublic') : t('plan.planPrivate'));
 		} catch {
 			trip.plan_items_public = !next;
-			toast.error('Failed to update');
+			toast.error(t('plan.updateFailed'));
 		}
 	}
 </script>
@@ -448,13 +451,15 @@
 				href="/dashboard/travel?trip={tripId}"
 				class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
 			>
-				<ArrowLeft class="h-4 w-4" /> Back to Travel
+				<ArrowLeft class="h-4 w-4" />
+				{t('plan.backToTravel')}
 			</a>
 			<a
 				href="/dashboard/travel"
 				class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"
 			>
-				<Calendar class="h-3.5 w-3.5" /> Journal
+				<Calendar class="h-3.5 w-3.5" />
+				{t('plan.journal')}
 			</a>
 		</div>
 
@@ -473,7 +478,7 @@
 						year: 'numeric'
 					})}
 					· {numDays}
-					{numDays === 1 ? 'day' : 'days'}
+					{numDays === 1 ? t('common.day') : t('common.days')}
 				</p>
 			</div>
 
@@ -505,7 +510,7 @@
 					type="button"
 					onclick={() => (showCollaboratorModal = true)}
 					class="border-border text-muted-foreground hover:text-foreground inline-flex h-8 w-8 items-center justify-center rounded-full border"
-					title="Invite collaborator"
+					title={t('plan.inviteCollaborator')}
 				>
 					<UserPlus class="h-4 w-4" />
 				</button>
@@ -520,9 +525,9 @@
 						: 'Click to make plan and costs visible on your public page'}
 				>
 					{#if trip.plan_items_public}
-						<Check class="h-3 w-3" /> Public plan
+						<Check class="h-3 w-3" /> {t('plan.publicPlan')}
 					{:else}
-						<Eye class="h-3 w-3" /> Private plan
+						<Eye class="h-3 w-3" /> {t('plan.privatePlan')}
 					{/if}
 				</button>
 			</div>
@@ -574,14 +579,14 @@
 				<!-- Category legend with bars -->
 				<div class="space-y-1.5">
 					<div class="text-muted-foreground mb-1 text-[10px] font-medium uppercase">
-						By category
+						{t('plan.byCategory')}
 					</div>
 					{#each budgetByCategory as cat (cat.category)}
 						{@const maxCat = Math.max(...budgetByCategory.map((c) => c.total))}
 						<div class="flex items-center gap-2 text-xs">
 							<span class="w-4 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
 							<span class="text-muted-foreground w-20 truncate">
-								{TYPE_CONFIG[cat.category]?.label ?? cat.category}
+								{t('plan.type.' + cat.category)}
 							</span>
 							<div class="bg-muted h-2 flex-1 overflow-hidden rounded-full">
 								<div
@@ -602,7 +607,7 @@
 				{#if dailyCosts.some((d) => d.cost > 0)}
 					<div class="border-border md:border-l md:pl-4">
 						<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
-							Cost per day · {dailyCosts[0]?.currency ?? 'EUR'}
+							{t('plan.costPerDay', { currency: dailyCosts[0]?.currency ?? 'EUR' })}
 						</div>
 						<div class="flex gap-1">
 							<!-- Y-axis -->
@@ -643,13 +648,15 @@
 													class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-3 text-xs shadow-xl group-hover:block"
 												>
 													<div class="text-foreground font-bold">
-														Day {d.day}: {d.total.toFixed(0)}
-														{d.currency}
+														{t('plan.dayCost', {
+															day: d.day,
+															cost: `${d.total.toFixed(0)} ${d.currency}`
+														})}
 													</div>
 													{#each d.categories as cat (cat.category)}
 														<div class="text-muted-foreground flex items-center gap-1.5">
 															<span>{TYPE_CONFIG[cat.category]?.icon}</span>
-															{TYPE_CONFIG[cat.category]?.label}: {cat.amount.toFixed(0)}
+															{t('plan.type.' + cat.category)}: {cat.amount.toFixed(0)}
 														</div>
 													{/each}
 												</div>
@@ -696,7 +703,9 @@
 						<!-- Header -->
 						<div class="mb-2 flex items-center justify-between">
 							<div>
-								<div class="text-foreground text-sm font-bold">Day {day.number}</div>
+								<div class="text-foreground text-sm font-bold">
+									{t('plan.dayLabel', { day: day.number })}
+								</div>
 								{#if day.date}
 									<div class="text-muted-foreground text-[10px]">{formatDateShort(day.date)}</div>
 								{/if}
@@ -726,7 +735,9 @@
 								</div>
 							{/each}
 							{#if day.items.length > 4}
-								<div class="text-muted-foreground text-[10px]">+{day.items.length - 4} more</div>
+								<div class="text-muted-foreground text-[10px]">
+									{t('plan.moreCount', { count: day.items.length - 4 })}
+								</div>
 							{/if}
 						</div>
 						<!-- Cost at bottom-right -->
@@ -744,20 +755,20 @@
 			<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
 				<div class="border-border flex items-center gap-2 border-b px-4 py-2">
 					<MapPin class="text-primary h-4 w-4" />
-					<span class="text-sm font-semibold text-foreground">Entire route</span>
+					<span class="text-sm font-semibold text-foreground">{t('plan.entireRoute')}</span>
 					{#if allMapPoints.length > 0}
 						<span class="text-muted-foreground ml-auto text-xs"
-							>{allMapPoints.length} stops across {numDays} days</span
+							>{t('plan.stopsAcrossDays', { stops: allMapPoints.length, days: numDays })}</span
 						>
 					{:else}
-						<span class="text-muted-foreground ml-auto text-xs">Add locations to stops</span>
+						<span class="text-muted-foreground ml-auto text-xs">{t('plan.addLocationsHint')}</span>
 					{/if}
 				</div>
 				{#if allMapPoints.length > 0}
 					<TripMap points={allMapPoints} class="h-64" />
 				{:else}
 					<div class="text-muted-foreground flex h-40 items-center justify-center text-sm">
-						Search for places when adding stops to see the route on the map.
+						{t('plan.searchPlacesHint')}
 					</div>
 				{/if}
 			</div>
@@ -770,10 +781,10 @@
 						onclick={() => (selectedDay = null)}
 						class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
 					>
-						← Back to calendar
+						{t('plan.backToCalendar')}
 					</button>
 					<h2 class="text-foreground text-lg font-bold">
-						Day {selectedDay}
+						{t('plan.dayLabel', { day: selectedDay })}
 						{#if days[selectedDay - 1]?.date}
 							<span class="text-muted-foreground text-sm font-normal">
 								· {days[selectedDay - 1].date!.toLocaleDateString(undefined, {
@@ -790,7 +801,7 @@
 				<div class="bg-card border-border rounded-xl border p-4">
 					<div class="mb-3 flex items-center gap-2">
 						<Plus class="text-primary h-4 w-4" />
-						<span class="text-sm font-medium text-foreground">Add stop</span>
+						<span class="text-sm font-medium text-foreground">{t('plan.addStop')}</span>
 					</div>
 					<!-- Search input -->
 					<div class="relative mb-3">
@@ -799,7 +810,7 @@
 							type="text"
 							bind:value={searchQuery}
 							oninput={handleSearch}
-							placeholder="Search for a place..."
+							placeholder={t('plan.searchPlacePlaceholder')}
 							class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
 						/>
 						{#if isSearching}
@@ -817,7 +828,7 @@
 									class="hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
 								>
 									<MapPin class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
-									<span class="truncate">{result.properties?.label ?? 'Unknown'}</span>
+									<span class="truncate">{result.properties?.label ?? t('common.unknown')}</span>
 								</button>
 							{/each}
 						</div>
@@ -827,7 +838,7 @@
 						<input
 							type="text"
 							bind:value={newItemTitle}
-							placeholder="Title"
+							placeholder={t('plan.titlePlaceholder')}
 							class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
 						/>
 						<select
@@ -835,7 +846,7 @@
 							class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
 						>
 							{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
-								<option value={key}>{cfg.icon} {cfg.label}</option>
+								<option value={key}>{cfg.icon} {t('plan.type.' + key)}</option>
 							{/each}
 						</select>
 						<input
@@ -846,7 +857,7 @@
 						<input
 							type="number"
 							bind:value={newItemCost}
-							placeholder="Cost"
+							placeholder={t('plan.costPlaceholder')}
 							step="0.01"
 							class="border-border w-20 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
 						/>
@@ -861,7 +872,7 @@
 							onclick={() => addItem(selectedDay!)}
 							class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-1.5 text-sm font-medium text-primary-foreground"
 						>
-							Add
+							{t('plan.add')}
 						</button>
 					</div>
 				</div>
@@ -913,12 +924,12 @@
 													: 'text-muted-foreground'}"
 											>
 												{#if item.booking_status === 'booked'}
-													<Check class="inline h-3 w-3" /> Booked
+													<Check class="inline h-3 w-3" /> {t('plan.booked')}
 												{:else}
 													<div
 														class="inline-block h-3 w-3 rounded-full border border-current"
 													></div>
-													Pending
+													{t('plan.pending')}
 												{/if}
 											</button>
 										{/if}
@@ -928,7 +939,7 @@
 											class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
 										>
 											{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
-												<option value={key}>{cfg.label}</option>
+												<option value={key}>{t('plan.type.' + key)}</option>
 											{/each}
 										</select>
 										<!-- Move to day -->
@@ -939,7 +950,7 @@
 											class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
 										>
 											{#each Array.from({ length: numDays }, (_, i) => i + 1) as d (d)}
-												<option value={d}>Day {d}</option>
+												<option value={d}>{t('plan.dayLabel', { day: d })}</option>
 											{/each}
 										</select>
 									</div>
@@ -949,11 +960,11 @@
 										<summary
 											class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
 										>
-											Edit details
+											{t('plan.editDetails')}
 										</summary>
 										<div class="mt-2 grid grid-cols-2 gap-2">
 											<label class="flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">Start time</span>
+												<span class="text-muted-foreground text-[10px]">{t('plan.startTime')}</span>
 												<input
 													type="time"
 													bind:value={item.start_time}
@@ -962,7 +973,7 @@
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">Cost</span>
+												<span class="text-muted-foreground text-[10px]">{t('plan.cost')}</span>
 												<input
 													type="number"
 													bind:value={item.cost_estimate}
@@ -973,7 +984,7 @@
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">Currency</span>
+												<span class="text-muted-foreground text-[10px]">{t('plan.currency')}</span>
 												<input
 													type="text"
 													bind:value={item.currency}
@@ -983,7 +994,8 @@
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">Booking URL</span>
+												<span class="text-muted-foreground text-[10px]">{t('plan.bookingUrl')}</span
+												>
 												<input
 													type="url"
 													bind:value={item.booking_url}
@@ -993,7 +1005,7 @@
 												/>
 											</label>
 											<label class="col-span-2 flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">Address</span>
+												<span class="text-muted-foreground text-[10px]">{t('plan.address')}</span>
 												<input
 													type="text"
 													bind:value={item.address}
@@ -1002,7 +1014,7 @@
 												/>
 											</label>
 											<label class="col-span-2 flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">Notes</span>
+												<span class="text-muted-foreground text-[10px]">{t('plan.notes')}</span>
 												<textarea
 													bind:value={item.notes}
 													onchange={() => saveItem(item)}
@@ -1030,8 +1042,12 @@
 					<div class="border-border bg-card overflow-hidden rounded-xl border">
 						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
 							<MapPin class="text-primary h-4 w-4" />
-							<span class="text-sm font-semibold text-foreground">Route for Day {selectedDay}</span>
-							<span class="text-muted-foreground ml-auto text-xs">{dayMapPoints.length} stops</span>
+							<span class="text-sm font-semibold text-foreground"
+								>{t('plan.routeForDay', { day: selectedDay })}</span
+							>
+							<span class="text-muted-foreground ml-auto text-xs"
+								>{t('plan.stops', { count: dayMapPoints.length })}</span
+							>
 						</div>
 						<TripMap points={dayMapPoints} class="h-64" />
 					</div>
@@ -1039,7 +1055,7 @@
 					<div class="border-border bg-card overflow-hidden rounded-xl border">
 						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
 							<MapPin class="text-primary h-4 w-4" />
-							<span class="text-sm font-semibold text-foreground">Stop location</span>
+							<span class="text-sm font-semibold text-foreground">{t('plan.stopLocation')}</span>
 						</div>
 						<TripMap points={dayMapPoints} class="h-48" />
 					</div>
@@ -1056,7 +1072,8 @@
 			<div class="border-border bg-card w-full max-w-sm rounded-2xl border p-6 shadow-2xl">
 				<div class="mb-4 flex items-center justify-between">
 					<h2 class="text-foreground flex items-center gap-2 text-lg font-bold">
-						<Users class="h-5 w-5" /> Invite collaborator
+						<Users class="h-5 w-5" />
+						{t('plan.inviteCollaborator')}
 					</h2>
 					<button
 						type="button"
@@ -1078,7 +1095,7 @@
 						type="button"
 						onclick={() => (showCollaboratorModal = false)}
 						class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm"
-						>Cancel</button
+						>{t('common.actions.cancel')}</button
 					>
 					<button
 						type="button"
@@ -1086,7 +1103,9 @@
 						disabled={isAddingCollaborator}
 						class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
 					>
-						{#if isAddingCollaborator}<Loader2 class="h-4 w-4 animate-spin" />{:else}Invite{/if}
+						{#if isAddingCollaborator}<Loader2 class="h-4 w-4 animate-spin" />{:else}{t(
+								'plan.invite'
+							)}{/if}
 					</button>
 				</div>
 			</div>
@@ -1094,7 +1113,9 @@
 	{/if}
 {:else}
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3">
-		<p class="text-muted-foreground text-lg">Trip not found.</p>
-		<a href="/dashboard/travel" class="text-primary text-sm hover:underline">← Back to Travel</a>
+		<p class="text-muted-foreground text-lg">{t('plan.tripNotFound')}</p>
+		<a href="/dashboard/travel" class="text-primary text-sm hover:underline"
+			>{t('plan.backToTravel')}</a
+		>
 	</div>
 {/if}

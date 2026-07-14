@@ -7,6 +7,9 @@
 	import { userStore } from '$lib/stores/auth';
 	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen } from 'lucide-svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
+	import { translate } from '$lib/i18n';
+
+	let t = $derived($translate);
 
 	type Profile = {
 		id: string;
@@ -148,8 +151,8 @@
 {:else if notFound}
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
-		<p class="text-muted-foreground text-lg">Traveler not found.</p>
-		<a href="/" class="text-primary hover:underline text-sm">← Home</a>
+		<p class="text-muted-foreground text-lg">{t('profile.travelerNotFound')}</p>
+		<a href="/" class="text-primary hover:underline text-sm">{t('profile.home')}</a>
 	</div>
 {:else if profile}
 	<!-- Floating top bar -->
@@ -160,7 +163,7 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<BookOpen class="h-4 w-4" />
-				Dashboard
+				{t('common.navigation.dashboard')}
 			</a>
 		{:else if currentUserId}
 			<a
@@ -168,7 +171,7 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<BookOpen class="h-4 w-4" />
-				My Travel
+				{t('profile.myTravel')}
 			</a>
 		{:else}
 			<a
@@ -176,7 +179,7 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<LogIn class="h-4 w-4" />
-				Sign in
+				{t('auth.signIn')}
 			</a>
 		{/if}
 	</div>
@@ -234,28 +237,34 @@
 					>
 						<Route class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{stats.trips}</span>
-						<span class="text-white/60">{stats.trips === 1 ? 'trip' : 'trips'}</span>
+						<span class="text-white/60"
+							>{stats.trips === 1 ? t('common.trip') : t('common.trips')}</span
+						>
 					</div>
 					<div
 						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
 					>
 						<Globe class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{stats.countries}</span>
-						<span class="text-white/60">{stats.countries === 1 ? 'country' : 'countries'}</span>
+						<span class="text-white/60"
+							>{stats.countries === 1 ? t('common.country') : t('common.countries')}</span
+						>
 					</div>
 					<div
 						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
 					>
 						<MapPin class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{stats.cities}</span>
-						<span class="text-white/60">{stats.cities === 1 ? 'city' : 'cities'}</span>
+						<span class="text-white/60"
+							>{stats.cities === 1 ? t('common.city') : t('common.cities')}</span
+						>
 					</div>
 					<div
 						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
 					>
 						<Route class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{formatDistance(stats.distance)}</span>
-						<span class="text-white/60">traveled</span>
+						<span class="text-white/60">{t('profile.traveled')}</span>
 					</div>
 				</div>
 			{/if}
@@ -267,7 +276,7 @@
 		{#if trips.length === 0}
 			<div class="flex flex-col items-center justify-center py-20 text-center">
 				<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-				<p class="text-muted-foreground text-lg">No trips yet.</p>
+				<p class="text-muted-foreground text-lg">{t('profile.noTrips')}</p>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -337,7 +346,9 @@
 							{/if}
 							{#if trip.metadata?.image_attribution?.photographer}
 								<p class="mt-0.5 text-[9px] text-white/25">
-									Photo: {trip.metadata.image_attribution.photographer}/Pexels
+									{t('common.photoCredit', {
+										photographer: trip.metadata.image_attribution.photographer
+									})}
 								</p>
 							{/if}
 						</div>

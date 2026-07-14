@@ -47,6 +47,7 @@
 		Upload
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { translate } from '$lib/i18n';
 
 	type Trip = {
 		id: string;
@@ -323,6 +324,7 @@
 	}
 
 	let isGenerating = $state(false);
+	let t = $derived($translate);
 	let isRecalculating = $state(false);
 
 	// ── Suggestion modal state ──
@@ -368,7 +370,7 @@
 			});
 			if (error) throw error;
 
-			toast.success('Generating trip suggestions — check back in a minute.');
+			toast.success(t('travel.generatingSuggestions'));
 
 			// Poll for new pending trips until they appear
 			const prevCount = pendingTrips.length;
@@ -385,7 +387,7 @@
 			}, 5000);
 		} catch (err) {
 			console.error('Generation failed:', err);
-			toast.error('Failed to start trip generation');
+			toast.error(t('travel.generationFailed'));
 		} finally {
 			isGenerating = false;
 		}
@@ -438,14 +440,14 @@
 			setTimeout(() => setupObserver(), 100);
 		} catch (err) {
 			console.error('Save failed:', err);
-			toast.error('Failed to save entry');
+			toast.error(t('travel.saveEntryFailed'));
 		} finally {
 			isSaving = false;
 		}
 	}
 
 	async function handleDeleteEntry(entry: JournalEntry) {
-		if (!confirm('Delete this entry?')) return;
+		if (!confirm(t('travel.confirmDeleteEntry'))) return;
 		try {
 			await deleteEntry(entry.id);
 			entries = entries.filter((e) => e.id !== entry.id);
@@ -487,10 +489,10 @@
 			pendingTrips = pendingTrips.filter((t) => t.id !== tripId);
 			await loadTrips();
 			await loadGpsData();
-			toast.success('Trip approved');
+			toast.success(t('travel.tripApproved'));
 		} catch (err) {
 			console.error('Approve failed:', err);
-			toast.error('Failed to approve trip');
+			toast.error(t('travel.approveFailed'));
 		} finally {
 			const next = new Set(approvingIds);
 			next.delete(tripId);
@@ -530,7 +532,7 @@
 			pendingTrips = [];
 			await loadTrips();
 			await loadGpsData();
-			toast.success(`${ids.length} trips approved`);
+			toast.success(t('travel.tripsApproved').replace('{count}', String(ids.length)));
 		} catch (err) {
 			console.error('Approve all failed:', err);
 		} finally {
@@ -627,10 +629,10 @@
 				await loadTrips();
 			}
 			showTripModal = false;
-			toast.success(editingTrip ? 'Trip updated' : 'Trip created');
+			toast.success(editingTrip ? t('travel.tripUpdated') : t('travel.tripCreated'));
 		} catch (err) {
 			console.error('Save trip failed:', err);
-			toast.error('Failed to save trip');
+			toast.error(t('travel.saveTripFailed'));
 		} finally {
 			isCreatingTrip = false;
 		}
@@ -649,10 +651,10 @@
 			const url = await uploadMedia(userId, 'covers', compressed.full.blob, filename);
 			tripImageUrl = url;
 			tripImageAttribution = null;
-			toast.success('Image uploaded');
+			toast.success(t('travel.imageUploaded'));
 		} catch (err) {
 			console.error('Upload failed:', err);
-			toast.error('Failed to upload image');
+			toast.error(t('travel.uploadFailed'));
 		} finally {
 			isUploadingImage = false;
 		}
@@ -661,7 +663,7 @@
 	async function fetchPexelsImage() {
 		try {
 			if (!serviceAdapter) {
-				toast.error('Service unavailable');
+				toast.error(t('travel.serviceUnavailable'));
 				return;
 			}
 
@@ -669,10 +671,10 @@
 			let tripIdForFetch = editingTrip?.id;
 			if (!tripIdForFetch) {
 				if (!tripTitle || !tripStartDate) {
-					toast.info('Enter a title and start date first');
+					toast.info(t('travel.enterTitleAndDate'));
 					return;
 				}
-				toast.info('Saving trip first...');
+				toast.info(t('travel.savingTripFirst'));
 				const { data: userData } = await fluxbase.auth.getUser();
 				const userId = userData?.user?.id;
 				if (!userId) return;
@@ -695,20 +697,20 @@
 				editingTrip = { ...(editingTrip ?? {}), id: tripIdForFetch } as Trip;
 			}
 
-			toast.info('Fetching from Pexels...');
+			toast.info(t('travel.fetchingFromPexels'));
 			const result = await serviceAdapter.suggestTripImages(tripIdForFetch!);
 			const data =
 				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
 			if (data?.suggestedImageUrl) {
 				tripImageUrl = data.suggestedImageUrl;
 				tripImageAttribution = data.attribution ?? null;
-				toast.success('Image found');
+				toast.success(t('travel.imageFound'));
 			} else {
-				toast.error('No image found for this trip');
+				toast.error(t('travel.noImageFound'));
 			}
 		} catch (err) {
 			console.error('Pexels fetch failed:', err);
-			toast.error('Failed to fetch image');
+			toast.error(t('travel.fetchImageFailed'));
 		}
 	}
 
@@ -716,16 +718,16 @@
 	async function fetchTripImage(trip: Trip) {
 		try {
 			if (!serviceAdapter) {
-				toast.error('Service unavailable');
+				toast.error(t('travel.serviceUnavailable'));
 				return;
 			}
-			toast.info('Fetching cover image...');
+			toast.info(t('travel.fetchingCoverImage'));
 			const result = await serviceAdapter.suggestTripImages(trip.id);
 			const data =
 				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
 			const imageUrl = data?.suggestedImageUrl;
 			if (!imageUrl) {
-				toast.error('No image found for this trip');
+				toast.error(t('travel.noImageFound'));
 				return;
 			}
 			const attribution = data?.attribution;
@@ -737,22 +739,22 @@
 			trips = trips.map((t) =>
 				t.id === trip.id ? { ...t, image_url: imageUrl, metadata: newMetadata } : t
 			);
-			toast.success('Cover image added');
+			toast.success(t('travel.coverImageAdded'));
 		} catch (err) {
 			console.error('Fetch image failed:', err);
-			toast.error('Failed to fetch cover image');
+			toast.error(t('travel.fetchCoverFailed'));
 		}
 	}
 
 	async function deleteTrip(tripId: string) {
-		if (!confirm('Delete this trip and all its entries?')) return;
+		if (!confirm(t('travel.confirmDeleteTrip'))) return;
 		try {
 			const tripsService = await getTripsService();
 			await tripsService.deleteTrip(tripId);
 			trips = trips.filter((t) => t.id !== tripId);
 			entries = entries.filter((e) => e.trip_id !== tripId);
 			if (activeTripId === tripId) activeTripId = null;
-			toast.success('Trip deleted');
+			toast.success(t('travel.tripDeleted'));
 		} catch (err) {
 			console.error('Delete trip failed:', err);
 		}
@@ -796,7 +798,7 @@
 			toast.success(`Distance updated: ${(total / 1000).toFixed(0)} km`);
 		} catch (err) {
 			console.error('Recalculate failed:', err);
-			toast.error('Failed to recalculate distance');
+			toast.error(t('travel.recalcDistanceFailed'));
 		}
 	}
 
@@ -840,7 +842,7 @@
 			toast.success(`Recalculated distance for ${trips.length} trips`);
 		} catch (err) {
 			console.error('Recalculate all failed:', err);
-			toast.error('Failed to recalculate');
+			toast.error(t('travel.recalcFailed'));
 		} finally {
 			isRecalculating = false;
 		}
@@ -870,7 +872,7 @@
 </script>
 
 <svelte:head>
-	<title>Travel · Wayli</title>
+	<title>{t('travel.pageTitle')}</title>
 </svelte:head>
 
 {#if isLoading}
@@ -884,7 +886,7 @@
 			<div class="flex items-center gap-3">
 				<Globe class="text-primary h-6 w-6" />
 				<div>
-					<h1 class="text-foreground text-xl font-bold">Travel</h1>
+					<h1 class="text-foreground text-xl font-bold">{t('travel.heading')}</h1>
 					<p class="text-muted-foreground text-sm">
 						{trips.length}
 						{trips.length === 1 ? 'trip' : 'trips'}
@@ -1077,7 +1079,7 @@
 				{#if trips.length === 0}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
 						<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-						<p class="text-muted-foreground text-lg">No trips yet.</p>
+						<p class="text-muted-foreground text-lg">{t('travel.noTrips')}</p>
 						<p class="text-muted-foreground mt-1 text-sm">
 							Import location data or create a trip manually.
 						</p>
@@ -1394,7 +1396,9 @@
 
 							{#if editingEntry}
 								<div class="border-border rounded-lg border p-3">
-									<span class="text-muted-foreground mb-2 block text-xs font-medium">Photos</span>
+									<span class="text-muted-foreground mb-2 block text-xs font-medium"
+										>{t('travel.photos')}</span
+									>
 									<PhotoGallery
 										tripId={editingEntry.trip_id}
 										entryId={editingEntry.id}
@@ -1488,7 +1492,9 @@
 
 							<!-- Cover image management -->
 							<div class="space-y-2">
-								<span class="text-muted-foreground text-xs font-medium">Cover image</span>
+								<span class="text-muted-foreground text-xs font-medium"
+									>{t('travel.coverImage')}</span
+								>
 								<input
 									bind:this={tripImageInput}
 									type="file"

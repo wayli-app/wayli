@@ -22,6 +22,7 @@
 		ScatterChart
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { translate } from '$lib/i18n';
 
 	type SelectedPoint = DataPoint & { selected: boolean; excluded: boolean };
 
@@ -32,6 +33,7 @@
 
 	let allPoints = $state<SelectedPoint[]>([]);
 	let totalCount = $state(0);
+	let t = $derived($translate);
 	let exclusionZones = $state<ExclusionZone[]>([]);
 	let homeAddress = $state<{ lat: number; lng: number } | null>(null);
 
@@ -102,7 +104,7 @@
 			selectedCount = 0;
 		} catch (err) {
 			console.error('Failed to load data:', err);
-			toast.error('Failed to load data points');
+			toast.error(t('dataEditor.loadFailed'));
 		} finally {
 			isLoading = false;
 		}
@@ -270,9 +272,9 @@
 						editingPoint = { ...found };
 					}
 
-					toast.success('Point moved', {
+					toast.success(t('dataEditor.pointMoved'), {
 						action: {
-							label: 'Undo',
+							label: t('common.undo'),
 							onClick: async () => {
 								try {
 									await fluxbase
@@ -289,27 +291,27 @@
 										editingPoint = { ...found };
 									}
 									drawPoints();
-									toast.success('Move undone');
+									toast.success(t('dataEditor.moveUndone'));
 								} catch {
-									toast.error('Failed to undo');
+									toast.error(t('dataEditor.undoFailed'));
 								}
 							}
 						}
 					});
 				} catch (err) {
 					console.error('Move failed:', err);
-					toast.error('Failed to move point');
+					toast.error(t('dataEditor.moveFailed'));
 				}
 			});
 
 			marker.bindPopup(
 				`<div style="font-size:12px">
-					<strong>${new Date(p.recorded_at).toLocaleString()}</strong><br>
-					${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}<br>
-					${p.activity_type ? `Mode: ${p.activity_type}` : ''}<br>
-					${p.speed ? `Speed: ${p.speed.toFixed(1)} km/h` : ''}<br>
-					${p.accuracy ? `Accuracy: ±${p.accuracy.toFixed(0)}m` : ''}
-				</div>`
+				<strong>${new Date(p.recorded_at).toLocaleString()}</strong><br>
+				${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}<br>
+				${p.activity_type ? `${t('dataEditor.transportMode')}: ${p.activity_type}` : ''}<br>
+				${p.speed ? `Speed: ${p.speed.toFixed(1)} km/h` : ''}<br>
+				${p.accuracy ? `Accuracy: ±${p.accuracy.toFixed(0)}m` : ''}
+			</div>`
 			);
 
 			marker.addTo(map);
@@ -382,7 +384,7 @@
 			});
 
 			if (error) {
-				toast.error('Failed to add point: ' + error.message);
+				toast.error(t('dataEditor.addPointFailed'));
 				return;
 			}
 
@@ -404,10 +406,10 @@
 			];
 			totalCount++;
 			drawPoints();
-			toast.success('Point added');
+			toast.success(t('dataEditor.pointAdded'));
 		} catch (err) {
 			console.error('Add point failed:', err);
-			toast.error('Failed to add point');
+			toast.error(t('dataEditor.addPointFailed'));
 		}
 	}
 
@@ -420,7 +422,7 @@
 	async function applySampling() {
 		const selected = allPoints.filter((p) => p.selected);
 		if (selected.length === 0) {
-			toast.info('Select points first, then sample will thin the selection');
+			toast.info(t('dataEditor.selectPointsFirst'));
 			showSampleModal = false;
 			return;
 		}
@@ -431,7 +433,7 @@
 		const toRemove = selected.filter((_, i) => i % stride !== 0);
 
 		if (toRemove.length === 0) {
-			toast.info('Nothing to sample with this percentage');
+			toast.info(t('dataEditor.nothingToSample'));
 			showSampleModal = false;
 			return;
 		}
@@ -447,7 +449,10 @@
 		selectedCount = toRemove.length;
 		drawPoints();
 		toast.info(
-			`Will delete ${toRemove.length} points (kept ${selected.length - toRemove.length} of ${selected.length})`
+			t('dataEditor.willDeletePoints')
+				.replace('{delete}', String(toRemove.length))
+				.replace('{keep}', String(selected.length - toRemove.length))
+				.replace('{total}', String(selected.length))
 		);
 	}
 
@@ -464,7 +469,7 @@
 	async function applyDistanceSampling() {
 		const selected = allPoints.filter((p) => p.selected);
 		if (selected.length === 0) {
-			toast.info('Select points first');
+			toast.info(t('dataEditor.selectPointsFirst'));
 			showSampleModal = false;
 			return;
 		}
@@ -496,7 +501,7 @@
 		const toRemove = selected.filter((p) => !keepIds.has(p.recorded_at));
 
 		if (toRemove.length === 0) {
-			toast.info('All points meet the threshold — nothing to remove');
+			toast.info(t('dataEditor.allMeetThreshold'));
 			showSampleModal = false;
 			return;
 		}
@@ -511,7 +516,10 @@
 		selectedCount = toRemove.length;
 		drawPoints();
 		toast.info(
-			`Will delete ${toRemove.length} points (kept ${toKeep.length} of ${selected.length})`
+			t('dataEditor.willDeletePoints')
+				.replace('{delete}', String(toRemove.length))
+				.replace('{keep}', String(toKeep.length))
+				.replace('{total}', String(selected.length))
 		);
 	}
 
@@ -553,11 +561,11 @@
 				allPoints[idx] = { ...allPoints[idx], lat: ep.lat, lng: ep.lng };
 			}
 			drawPoints();
-			toast.success('Point updated');
+			toast.success(t('dataEditor.pointUpdated'));
 			editingPoint = null;
 		} catch (err) {
 			console.error('Update failed:', err);
-			toast.error('Failed to update point');
+			toast.error(t('dataEditor.updateFailed'));
 		}
 	}
 
@@ -578,11 +586,11 @@
 			allPoints = allPoints.filter((p) => p.recorded_at !== ep.recorded_at);
 			totalCount--;
 			drawPoints();
-			toast.success('Point deleted');
+			toast.success(t('dataEditor.pointDeleted'));
 			editingPoint = null;
 		} catch (err) {
 			console.error('Delete failed:', err);
-			toast.error('Failed to delete point');
+			toast.error(t('dataEditor.deleteFailed'));
 		}
 	}
 
@@ -612,10 +620,10 @@
 			selectedCount = 0;
 			drawPoints();
 
-			toast.success(`Permanently deleted ${deleted} points`);
+			toast.success(t('dataEditor.permanentlyDeleted').replace('{count}', String(deleted)));
 		} catch (err) {
 			console.error('Delete failed:', err);
-			toast.error('Failed to delete points');
+			toast.error(t('dataEditor.deletePointsFailed'));
 		} finally {
 			isDeleting = false;
 			showDeleteConfirm = false;
@@ -645,7 +653,7 @@
 </script>
 
 <svelte:head>
-	<title>Data Editor · Wayli</title>
+	<title>{t('dataEditor.pageTitle')}</title>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </svelte:head>
 
@@ -654,7 +662,7 @@
 	<div class="border-border bg-card flex flex-wrap items-center gap-3 border-b px-4 py-3">
 		<div class="flex items-center gap-2">
 			<Database class="text-primary h-5 w-5" />
-			<h1 class="text-foreground text-lg font-bold">Data Editor</h1>
+			<h1 class="text-foreground text-lg font-bold">{t('dataEditor.heading')}</h1>
 		</div>
 
 		<div class="flex items-center gap-2">
@@ -706,7 +714,8 @@
 					? 'bg-primary text-primary-foreground border-primary'
 					: 'border-border text-muted-foreground hover:text-foreground'}"
 			>
-				<Plus class="h-3 w-3" /> Add Point
+				<Plus class="h-3 w-3" />
+				{t('dataEditor.addPoint')}
 			</button>
 			<button
 				type="button"
@@ -717,7 +726,8 @@
 					: 'border-border text-muted-foreground hover:text-foreground'}"
 				title="Click-drag to select. Hold Shift to box-select without toggling mode."
 			>
-				<Square class="h-3 w-3" /> Box Select
+				<Square class="h-3 w-3" />
+				{t('dataEditor.boxSelect')}
 			</button>
 			<button
 				type="button"
@@ -726,7 +736,8 @@
 				class="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 border-border text-muted-foreground hover:text-foreground"
 				title="Thin out selected points (keep only a percentage)"
 			>
-				<ScatterChart class="h-3 w-3" /> Sample
+				<ScatterChart class="h-3 w-3" />
+				{t('dataEditor.sample')}
 			</button>
 		</div>
 
@@ -736,7 +747,7 @@
 			disabled={allPoints.length === 0}
 			class="border-border text-muted-foreground hover:text-foreground rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
 		>
-			Select All
+			{t('dataEditor.selectAll')}
 		</button>
 		<button
 			type="button"
@@ -744,7 +755,8 @@
 			disabled={selectedCount === 0}
 			class="border-border text-muted-foreground hover:text-foreground rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
 		>
-			<X class="inline h-3 w-3" /> Clear
+			<X class="inline h-3 w-3" />
+			{t('dataEditor.clear')}
 		</button>
 	</div>
 
@@ -756,7 +768,9 @@
 				<div class="absolute inset-0 flex items-center justify-center bg-muted/50">
 					<div class="text-muted-foreground flex flex-col items-center gap-2">
 						<Loader2 class="h-8 w-8 animate-spin" />
-						<span class="text-sm">Loading {totalCount} points...</span>
+						<span class="text-sm"
+							>{t('dataEditor.loadingPoints').replace('{count}', String(totalCount))}</span
+						>
 					</div>
 				</div>
 			{/if}
@@ -767,7 +781,7 @@
 				<div
 					class="bg-card/90 border-border absolute bottom-4 left-4 rounded-lg border p-3 text-xs backdrop-blur-md"
 				>
-					<div class="mb-1 font-semibold text-foreground">Transport mode</div>
+					<div class="mb-1 font-semibold text-foreground">{t('dataEditor.transportMode')}</div>
 					{#each Object.entries(COLOR_BY_MODE) as [mode, color]}
 						<div class="flex items-center gap-2 py-0.5">
 							<div class="h-2 w-2 rounded-full" style="background:{color}"></div>
@@ -776,11 +790,11 @@
 					{/each}
 					<div class="mt-1 flex items-center gap-2 border-t border-border pt-1">
 						<div class="h-2 w-2 rounded-full bg-gray-400 opacity-30"></div>
-						<span class="text-muted-foreground">Excluded</span>
+						<span class="text-muted-foreground">{t('dataEditor.excluded')}</span>
 					</div>
 					<div class="flex items-center gap-2 py-0.5">
 						<div class="h-2 w-2 rounded-full bg-red-500"></div>
-						<span class="text-muted-foreground">Selected</span>
+						<span class="text-muted-foreground">{t('dataEditor.selected')}</span>
 					</div>
 				</div>
 			{/if}
@@ -790,12 +804,14 @@
 		<div class="border-border bg-card w-72 overflow-y-auto border-l">
 			<!-- Stats -->
 			<div class="border-border border-b p-4">
-				<div class="text-muted-foreground text-xs">Showing date range</div>
+				<div class="text-muted-foreground text-xs">{t('dataEditor.showingDateRange')}</div>
 				<div class="text-foreground text-sm font-medium">
 					{new Date(startDate).toLocaleDateString()} → {new Date(endDate).toLocaleDateString()}
 				</div>
 				<div class="text-muted-foreground mt-2 text-xs">
-					{allPoints.length} loaded (of {totalCount} total)
+					{t('dataEditor.loadedOfTotal')
+						.replace('{loaded}', String(allPoints.length))
+						.replace('{total}', String(totalCount))}
 				</div>
 			</div>
 
@@ -806,7 +822,7 @@
 						<div class="bg-red-500/10 inline-flex h-8 w-8 items-center justify-center rounded-full">
 							<span class="text-red-500 text-sm font-bold">{selectedCount}</span>
 						</div>
-						<span class="text-foreground text-sm font-medium">selected</span>
+						<span class="text-foreground text-sm font-medium">{t('dataEditor.selected')}</span>
 					</div>
 
 					{#if selectedPoints.length > 0}
@@ -825,19 +841,20 @@
 						class="bg-destructive hover:bg-destructive/90 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
 					>
 						{#if isDeleting}
-							<Loader2 class="h-4 w-4 animate-spin" /> Deleting...
+							<Loader2 class="h-4 w-4 animate-spin" /> {t('dataEditor.deleting')}
 						{:else}
-							<Trash2 class="h-4 w-4" /> Delete {selectedCount} points
+							<Trash2 class="h-4 w-4" />
+							{t('dataEditor.deletePoints').replace('{count}', String(selectedCount))}
 						{/if}
 					</button>
 				{:else}
 					<div class="text-muted-foreground py-4 text-center text-xs">
 						{#if selectionMode === 'none'}
-							Select a mode (Point or Box) to start selecting points for deletion.
+							{t('dataEditor.selectModeHint')}
 						{:else}
 							{selectionMode === 'box'
-								? 'Click and drag on the map to select points.'
-								: 'Click on individual points to select them.'}
+								? t('dataEditor.boxSelectHint')
+								: t('dataEditor.addPointHint')}
 						{/if}
 					</div>
 				{/if}
@@ -847,7 +864,9 @@
 			{#if editingPoint}
 				<div class="border-border border-t p-4">
 					<div class="mb-3 flex items-center justify-between">
-						<span class="text-foreground text-xs font-bold uppercase">Edit point</span>
+						<span class="text-foreground text-xs font-bold uppercase"
+							>{t('dataEditor.editPoint')}</span
+						>
 						<button
 							type="button"
 							onclick={() => (editingPoint = null)}
@@ -861,7 +880,9 @@
 					</div>
 					<div class="space-y-2">
 						<label class="block">
-							<span class="text-muted-foreground mb-0.5 block text-[10px]">Latitude</span>
+							<span class="text-muted-foreground mb-0.5 block text-[10px]"
+								>{t('dataEditor.latitude')}</span
+							>
 							<input
 								type="number"
 								bind:value={editingPoint.lat}
@@ -870,7 +891,9 @@
 							/>
 						</label>
 						<label class="block">
-							<span class="text-muted-foreground mb-0.5 block text-[10px]">Longitude</span>
+							<span class="text-muted-foreground mb-0.5 block text-[10px]"
+								>{t('dataEditor.longitude')}</span
+							>
 							<input
 								type="number"
 								bind:value={editingPoint.lng}
@@ -894,14 +917,14 @@
 								onclick={savePointEdits}
 								class="bg-primary hover:bg-primary/90 flex-1 rounded-lg px-3 py-1.5 text-xs font-medium text-primary-foreground"
 							>
-								Save
+								{t('common.actions.save')}
 							</button>
 							<button
 								type="button"
 								onclick={deleteSinglePoint}
 								class="bg-destructive hover:bg-destructive/90 rounded-lg px-3 py-1.5 text-xs font-medium text-white"
 							>
-								Delete
+								{t('common.actions.delete')}
 							</button>
 						</div>
 					</div>
@@ -912,7 +935,7 @@
 			{#if exclusionZones.length > 0}
 				<div class="p-4">
 					<div class="text-muted-foreground mb-2 text-xs font-medium">
-						Exclusion zones ({exclusionZones.length})
+						{t('dataEditor.exclusionZones').replace('{count}', String(exclusionZones.length))}
 					</div>
 					<div class="space-y-1">
 						{#each exclusionZones as zone (zone.name)}
@@ -933,7 +956,7 @@
 				<div class="border-border border-t p-4">
 					<div class="flex items-center gap-2 text-xs">
 						<Home class="h-3.5 w-3.5 text-blue-500" />
-						<span class="text-muted-foreground">Home address set</span>
+						<span class="text-muted-foreground">{t('dataEditor.homeAddressSet')}</span>
 					</div>
 				</div>
 			{/if}
@@ -952,14 +975,16 @@
 					<AlertTriangle class="h-6 w-6 text-destructive" />
 				</div>
 				<div>
-					<h2 class="text-foreground text-lg font-bold">Delete {selectedCount} points?</h2>
-					<p class="text-muted-foreground text-sm">This cannot be undone.</p>
+					<h2 class="text-foreground text-lg font-bold">
+						{t('dataEditor.deleteConfirmTitle').replace('{count}', String(selectedCount))}
+					</h2>
+					<p class="text-muted-foreground text-sm">{t('dataEditor.cannotBeUndone')}</p>
 				</div>
 			</div>
 
 			{#if selectedPoints.length > 0}
 				<div class="bg-muted/50 mb-4 rounded-lg p-3 text-xs">
-					<div class="text-muted-foreground mb-1">Points to delete:</div>
+					<div class="text-muted-foreground mb-1">{t('dataEditor.pointsToDelete')}</div>
 					<div class="text-foreground">
 						{new Date(selectedPoints[0].recorded_at).toLocaleString()}
 						{#if selectedCount > 1}
@@ -975,7 +1000,7 @@
 					onclick={() => (showDeleteConfirm = false)}
 					class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
 				>
-					Cancel
+					{t('common.actions.cancel')}
 				</button>
 				<button
 					type="button"
@@ -988,7 +1013,7 @@
 					{:else}
 						<Trash2 class="h-4 w-4" />
 					{/if}
-					Delete Permanently
+					{t('dataEditor.deletePermanently')}
 				</button>
 			</div>
 		</div>
@@ -1001,7 +1026,7 @@
 		class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"
 	>
 		<div class="border-border bg-card w-full max-w-sm rounded-2xl border p-6 shadow-2xl">
-			<h2 class="text-foreground mb-4 text-lg font-bold">Sample data points</h2>
+			<h2 class="text-foreground mb-4 text-lg font-bold">{t('dataEditor.sampleDataPoints')}</h2>
 
 			<!-- Mode tabs -->
 			<div class="border-border mb-4 flex gap-1 border-b">
@@ -1013,7 +1038,7 @@
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground'}"
 				>
-					Percentage
+					{t('dataEditor.percentage')}
 				</button>
 				<button
 					type="button"
@@ -1023,7 +1048,7 @@
 						? 'border-primary text-primary'
 						: 'border-transparent text-muted-foreground'}"
 				>
-					Min distance / time
+					{t('dataEditor.minDistanceTime')}
 				</button>
 			</div>
 
@@ -1049,7 +1074,7 @@
 				</p>
 				<label class="mb-3 block">
 					<span class="text-foreground mb-1 block text-xs font-medium">
-						Minimum distance (meters)
+						{t('dataEditor.minDistance')}
 					</span>
 					<input
 						type="number"
@@ -1061,7 +1086,7 @@
 				</label>
 				<label class="mb-4 block">
 					<span class="text-foreground mb-1 block text-xs font-medium">
-						Minimum time gap (seconds)
+						{t('dataEditor.minTimeGap')}
 					</span>
 					<input
 						type="number"
@@ -1083,14 +1108,14 @@
 					onclick={() => (showSampleModal = false)}
 					class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
 				>
-					Cancel
+					{t('common.actions.cancel')}
 				</button>
 				<button
 					type="button"
 					onclick={handleSampleApply}
 					class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground"
 				>
-					Apply
+					{t('common.actions.apply')}
 				</button>
 			</div>
 		</div>
