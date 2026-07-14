@@ -9,6 +9,7 @@
  * @fluxbase:memory 1024
  * @fluxbase:allow-net true
  * @fluxbase:allow-read true
+ * @fluxbase:allow-write true
  * @fluxbase:allow-env true
  */
 
@@ -75,6 +76,18 @@ export async function handler(
   fluxbaseService: FluxbaseClient,
   job: JobUtils
 ) {
+  try {
+    return await doImport(fluxbase, fluxbaseService, job);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[polarsteps-import] FATAL:', msg);
+    if (error instanceof Error && error.stack) console.error(error.stack);
+    try { job.reportProgress(0, `Import failed: ${msg}`); } catch {}
+    throw error;
+  }
+}
+
+async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClient, job: JobUtils) {
   const ctx = job.getJobContext();
   const userId = ctx.user?.id;
   if (!userId) throw new Error('No user ID in job context');
@@ -401,25 +414,25 @@ async function downloadAndUploadPhoto(
 }
 
 function findStepPhotosDir(tripPath: string, stepSlug: string, stepId: number): string | null {
-  // Polarsteps stores photos in: trip/{trip_slug}/  {step_slug}_{step_id}/photos/
-  // We need to find the directory by globbing since slugs may have special characters
-  try {
-    const entries = Array.from(Deno.readDirSync(tripPath));
-    for (const entry of entries) {
-      if (entry.isDirectory && entry.name.includes(String(stepId))) {
-        const photosDir = `${tripPath}/${entry.name}/photos`;
-        try {
-          const photos = Array.from(Deno.readDirSync(photosDir));
-          if (photos.length > 0) return photosDir;
-        } catch {
-          // no photos dir
-        }
-      }
-    }
-  } catch {
-    // dir not readable
-  }
-  return null;
+	// Polarsteps stores photos in: trip/{trip_slug}/  {step_slug}_{step_id}/photos/
+	// We need to find the directory by scanning since slugs may have special characters
+	try {
+		const entries = [...Deno.readDirSync(tripPath)];
+		for (const entry of entries) {
+			if (entry.isDirectory && entry.name.includes(String(stepId))) {
+				const photosDir = `${tripPath}/${entry.name}/photos`;
+				try {
+					const photos = [...Deno.readDirSync(photosDir)];
+					if (photos.length > 0) return photosDir;
+				} catch {
+					// no photos dir
+				}
+			}
+		}
+	} catch {
+		// dir not readable
+	}
+	return null;
 }
 
 async function uploadStepPhotos(
@@ -431,10 +444,10 @@ async function uploadStepPhotos(
   let uploaded = 0;
   let skipped = 0;
 
-  try {
-    const files = Array.from(Deno.readDirSync(photosDir)).filter(
-      (f) => f.isFile && f.name.endsWith('.jpg')
-    );
+	try {
+		const files = [...Deno.readDirSync(photosDir)].filter(
+			(f) => f.isFile && f.name.endsWith('.jpg')
+		);
 
     for (const file of files) {
       try {
