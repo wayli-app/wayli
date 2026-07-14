@@ -1117,6 +1117,12 @@
 											<Plus class="h-3 w-3" />
 											Add Entry
 										</button>
+										<a
+											href="/dashboard/travel/{trip.id}/plan"
+											class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+										>
+											<Calendar class="h-3 w-3" /> Plan
+										</a>
 										<div class="flex-1"></div>
 										<button
 											type="button"
