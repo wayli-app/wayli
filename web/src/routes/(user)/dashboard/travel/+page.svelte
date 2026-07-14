@@ -588,13 +588,21 @@
 				} as any);
 				trips = trips.map((t) => (t.id === updated.id ? (updated as unknown as Trip) : t));
 			} else {
-				await tripsService.createTrip({
+				const { data: userData } = await fluxbase.auth.getUser();
+				const userId = userData?.user?.id;
+				if (!userId) throw new Error('Not authenticated');
+
+				const { error: createError } = await fluxbase.from('trips').insert({
+					user_id: userId,
 					title: tripTitle,
 					start_date: tripStartDate,
 					end_date: tripEndDate || tripStartDate,
-					description: tripDescription,
-					image_url: tripImageUrl
-				} as any);
+					description: tripDescription || null,
+					image_url: tripImageUrl || null,
+					status: 'planned',
+					visibility: 'private'
+				});
+				if (createError) throw createError;
 				await loadTrips();
 			}
 			showTripModal = false;
@@ -630,17 +638,44 @@
 	}
 
 	async function fetchPexelsImage() {
-		if (!editingTrip) {
-			toast.info('Save the trip first, then fetch an image');
-			return;
-		}
 		try {
 			if (!serviceAdapter) {
 				toast.error('Service unavailable');
 				return;
 			}
+
+			// For new trips, save first so we have a trip_id
+			let tripIdForFetch = editingTrip?.id;
+			if (!tripIdForFetch) {
+				if (!tripTitle || !tripStartDate) {
+					toast.info('Enter a title and start date first');
+					return;
+				}
+				toast.info('Saving trip first...');
+				const { data: userData } = await fluxbase.auth.getUser();
+				const userId = userData?.user?.id;
+				if (!userId) return;
+
+				const { data: newTrip, error } = await fluxbase
+					.from('trips')
+					.insert({
+						user_id: userId,
+						title: tripTitle,
+						start_date: tripStartDate,
+						end_date: tripEndDate || tripStartDate,
+						description: tripDescription || null,
+						status: 'planned',
+						visibility: 'private'
+					})
+					.select('id')
+					.single();
+				if (error) throw error;
+				tripIdForFetch = (newTrip as any).id;
+				editingTrip = { ...(editingTrip ?? {}), id: tripIdForFetch } as Trip;
+			}
+
 			toast.info('Fetching from Pexels...');
-			const result = await serviceAdapter.suggestTripImages(editingTrip.id);
+			const result = await serviceAdapter.suggestTripImages(tripIdForFetch!);
 			const data =
 				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
 			if (data?.suggestedImageUrl) {

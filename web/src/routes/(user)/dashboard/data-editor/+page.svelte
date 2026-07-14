@@ -15,10 +15,11 @@
 		Trash2,
 		Loader2,
 		AlertTriangle,
-		MousePointer2,
 		Square,
 		Home,
-		X
+		X,
+		Plus,
+		ScatterChart
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -40,7 +41,7 @@
 	let isDeleting = $state(false);
 	let showDeleteConfirm = $state(false);
 
-	type SelectionMode = 'none' | 'point' | 'box';
+	type SelectionMode = 'none' | 'box' | 'add';
 	let selectionMode = $state<SelectionMode>('none');
 	let isDrawing = $state(false);
 	let drawStart = $state<{ lat: number; lng: number } | null>(null);
@@ -128,11 +129,17 @@
 		drawExclusionZones();
 		drawHomeAddress();
 
-		// Box selection
+		// Box selection: shift-drag always works, or box mode disables dragging
 		map.on('mousedown', (e: any) => {
-			if (selectionMode !== 'box') return;
+			if (selectionMode === 'add') {
+				// Add a point at the clicked location
+				addPointAt(e.latlng.lat, e.latlng.lng);
+				return;
+			}
+			if (selectionMode !== 'box' && !e.originalEvent.shiftKey) return;
 			isDrawing = true;
 			drawStart = { lat: e.latlng.lat, lng: e.latlng.lng };
+			map.dragging.disable();
 			if (boxLayer) {
 				map.removeLayer(boxLayer);
 				boxLayer = null;
@@ -154,6 +161,7 @@
 		map.on('mouseup', (e: any) => {
 			if (!isDrawing || !drawStart) return;
 			isDrawing = false;
+			map.dragging.enable();
 
 			const bounds = L.latLngBounds(drawStart, e.latlng);
 			if (boxLayer) {
@@ -211,16 +219,14 @@
 				opacity: p.excluded ? 0.3 : 1
 			});
 
-			if (selectionMode === 'point') {
-				marker.on('click', () => {
-					const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
-					if (found) {
-						found.selected = !found.selected;
-						selectedCount = allPoints.filter((ap) => ap.selected).length;
-						drawPoints();
-					}
-				});
-			}
+			marker.on('click', () => {
+				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
+				if (found) {
+					found.selected = !found.selected;
+					selectedCount = allPoints.filter((ap) => ap.selected).length;
+					drawPoints();
+				}
+			});
 
 			marker.bindPopup(
 				`<div style="font-size:12px">
@@ -271,8 +277,101 @@
 	// ── Selection controls ──
 	function setMode(mode: SelectionMode) {
 		selectionMode = selectionMode === mode ? 'none' : mode;
-		map.getContainer().style.cursor = selectionMode === 'box' ? 'crosshair' : '';
+		if (map) {
+			map.getContainer().style.cursor =
+				selectionMode === 'box' ? 'crosshair' : selectionMode === 'add' ? 'copy' : '';
+			if (selectionMode === 'box') {
+				map.dragging.disable();
+			} else {
+				map.dragging.enable();
+			}
+		}
 		drawPoints();
+	}
+
+	async function addPointAt(lat: number, lng: number) {
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			const now = new Date().toISOString();
+			const { error } = await fluxbase.from('tracker_data').insert({
+				user_id: userId,
+				tracker_type: 'manual',
+				recorded_at: now,
+				location: { type: 'Point', coordinates: [lng, lat] },
+				country_code: null,
+				speed: null,
+				distance: 0,
+				time_spent: 0
+			});
+
+			if (error) {
+				toast.error('Failed to add point: ' + error.message);
+				return;
+			}
+
+			// Add to local state
+			allPoints = [
+				...allPoints,
+				{
+					recorded_at: now,
+					lat,
+					lng,
+					speed: null,
+					distance: null,
+					accuracy: null,
+					country_code: null,
+					activity_type: null,
+					selected: false,
+					excluded: false
+				}
+			];
+			totalCount++;
+			drawPoints();
+			toast.success('Point added');
+		} catch (err) {
+			console.error('Add point failed:', err);
+			toast.error('Failed to add point');
+		}
+	}
+
+	let showSampleModal = $state(false);
+	let samplePercent = $state(50);
+
+	async function applySampling() {
+		const toDelete = allPoints.filter((p) => !p.selected);
+		if (toDelete.length === 0) {
+			toast.info('Select points first, then sample will thin the selection');
+			showSampleModal = false;
+			return;
+		}
+
+		// Keep only the selected percentage of selected points
+		const keepCount = Math.ceil(toDelete.length * (samplePercent / 100));
+		const stride = Math.ceil(toDelete.length / keepCount);
+		const toRemove = toDelete.filter((_, i) => i % stride !== 0);
+
+		if (toRemove.length === 0) {
+			toast.info('Nothing to sample with this percentage');
+			showSampleModal = false;
+			return;
+		}
+
+		showDeleteConfirm = true;
+		showSampleModal = false;
+		// Mark only the toRemove points as selected for deletion
+		for (const p of allPoints) p.selected = false;
+		for (const p of toRemove) {
+			const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
+			if (found) found.selected = true;
+		}
+		selectedCount = toRemove.length;
+		drawPoints();
+		toast.info(
+			`Will delete ${toRemove.length} points (kept ${toDelete.length - toRemove.length} of ${toDelete.length})`
+		);
 	}
 
 	function selectAllInView() {
@@ -394,17 +493,17 @@
 
 		<div class="flex-1"></div>
 
-		<!-- Selection mode buttons -->
+		<!-- Action mode buttons -->
 		<div class="flex items-center gap-1">
 			<button
 				type="button"
-				onclick={() => setMode('point')}
+				onclick={() => setMode('add')}
 				class="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors {selectionMode ===
-				'point'
+				'add'
 					? 'bg-primary text-primary-foreground border-primary'
 					: 'border-border text-muted-foreground hover:text-foreground'}"
 			>
-				<MousePointer2 class="h-3 w-3" /> Point
+				<Plus class="h-3 w-3" /> Add Point
 			</button>
 			<button
 				type="button"
@@ -413,8 +512,18 @@
 				'box'
 					? 'bg-primary text-primary-foreground border-primary'
 					: 'border-border text-muted-foreground hover:text-foreground'}"
+				title="Click-drag to select. Hold Shift to box-select without toggling mode."
 			>
-				<Square class="h-3 w-3" /> Box
+				<Square class="h-3 w-3" /> Box Select
+			</button>
+			<button
+				type="button"
+				onclick={() => (showSampleModal = true)}
+				disabled={selectedCount === 0}
+				class="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 border-border text-muted-foreground hover:text-foreground"
+				title="Thin out selected points (keep only a percentage)"
+			>
+				<ScatterChart class="h-3 w-3" /> Sample
 			</button>
 		</div>
 
@@ -612,6 +721,48 @@
 						<Trash2 class="h-4 w-4" />
 					{/if}
 					Delete Permanently
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Sample modal -->
+{#if showSampleModal}
+	<div
+		class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+	>
+		<div class="border-border bg-card w-full max-w-sm rounded-2xl border p-6 shadow-2xl">
+			<h2 class="text-foreground mb-2 text-lg font-bold">Sample data points</h2>
+			<p class="text-muted-foreground mb-4 text-sm">
+				Keep only {samplePercent}% of the {selectedCount} selected points. The rest will be marked for
+				deletion.
+			</p>
+			<input
+				type="range"
+				min="10"
+				max="90"
+				step="5"
+				bind:value={samplePercent}
+				class="mb-2 w-full"
+			/>
+			<div class="text-muted-foreground mb-4 text-center text-sm font-bold">
+				{samplePercent}% = keep {Math.ceil((selectedCount * samplePercent) / 100)} of {selectedCount}
+			</div>
+			<div class="flex justify-end gap-2">
+				<button
+					type="button"
+					onclick={() => (showSampleModal = false)}
+					class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					onclick={applySampling}
+					class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground"
+				>
+					Apply
 				</button>
 			</div>
 		</div>

@@ -61,10 +61,11 @@
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer = $state<any>(null);
-	let searchQuery = $state(''); // Search query for location lookup and filtering
+	let searchQuery = $state(''); // Search query for filtering places on the page
+	let modalSearchQuery = $state(''); // Search query inside the add/edit modal
 	let markerClusterGroup = $state<any>(null); // Add cluster group variable
 	let showAddForm = $state(false);
-	let mapExpanded = $state(false);
+	let mapExpanded = $state(true);
 	let sortBy = $state<'title' | 'type' | 'date' | 'rating'>('date');
 	let groupBy = $state<'none' | 'city' | 'country' | 'type'>('none');
 	let showEditForm = $state(false);
@@ -268,6 +269,7 @@
 		labels = [];
 		editingPlace = null;
 		searchQuery = '';
+		modalSearchQuery = '';
 		searchResults = [];
 		showSearchResults = false;
 		showFavouritedOnly = false;
@@ -329,6 +331,7 @@
 		showEditForm = true;
 		// Reset search fields for edit mode
 		searchQuery = '';
+		modalSearchQuery = '';
 		searchResults = [];
 		showSearchResults = false;
 	}
@@ -656,7 +659,7 @@
 	}
 
 	const searchPlaces = debounce(async () => {
-		if (!searchQuery || searchQuery.length < 3) {
+		if (!modalSearchQuery || modalSearchQuery.length < 3) {
 			searchResults = [];
 			showSearchResults = false;
 			return;
@@ -664,16 +667,13 @@
 
 		isSearching = true;
 		try {
-			// Get Pelias endpoint from database settings
 			const { getPeliasEndpoint } = await import('$lib/services/external/pelias.service');
 			const peliasEndpoint = await getPeliasEndpoint();
 
-			// Use Pelias autocomplete endpoint for faster results
 			const response = await fetch(
-				`${peliasEndpoint}/v1/autocomplete?text=${encodeURIComponent(searchQuery)}&size=5`,
+				`${peliasEndpoint}/v1/autocomplete?text=${encodeURIComponent(modalSearchQuery)}&size=5`,
 				{
 					headers: {
-						'User-Agent': 'WayliApp/1.0',
 						Accept: 'application/json'
 					}
 				}
@@ -1081,21 +1081,23 @@
 	</div>
 
 	<!-- Collapsible Map -->
-	{#if mapExpanded}
-		<div class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border">
-			<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
-			{#if !showAddForm}
-				<div
-					class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-card/90"
-				>
-					<div class="flex items-center gap-2 text-sm text-muted-foreground">
-						<MapPin class="h-4 w-4" />
-						{t('wantToVisit.clickOnMapToAdd')}
-					</div>
+	<div
+		class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border transition-all {mapExpanded
+			? ''
+			: 'hidden'}"
+	>
+		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
+		{#if !showAddForm}
+			<div
+				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-card/90"
+			>
+				<div class="flex items-center gap-2 text-sm text-muted-foreground">
+					<MapPin class="h-4 w-4" />
+					{t('wantToVisit.clickOnMapToAdd')}
 				</div>
-			{/if}
-		</div>
-	{/if}
+			</div>
+		{/if}
+	</div>
 
 	<!-- Simple Modal Overlay -->
 	{#if showAddForm}
@@ -1178,7 +1180,7 @@
 							<input
 								type="text"
 								id="searchPlace"
-								bind:value={searchQuery}
+								bind:value={modalSearchQuery}
 								oninput={handleSearchInput}
 								class="focus:ring-primary w-full rounded-lg border border-gray-300 py-2 pr-10 pl-10 text-sm focus:border-primary focus:ring-1 dark:border-border dark:bg-muted dark:text-white"
 								placeholder={t('wantToVisit.searchPlaceholder')}
