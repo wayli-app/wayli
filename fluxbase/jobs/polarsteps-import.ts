@@ -199,7 +199,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       if (tripJson.cover_photo_path) {
         try {
           imageUrl = await downloadAndUploadPhoto(
-            fluxbaseService,
+            fluxbase,
             tripJson.cover_photo_path,
             userId,
             'covers',
@@ -210,7 +210,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
         }
       }
 
-      const { data: newTrip, error: tripError } = await fluxbaseService
+      const { data: newTrip, error: tripError } = await fluxbase
         .from('trips')
         .insert({
           user_id: userId,
@@ -239,53 +239,63 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       tripsImported++;
     }
 
-		// Import journal entries (steps) + photos
-		const steps = tripJson.all_steps ?? [];
-		console.log(`[polarsteps] Trip "${tripJson.name}" has ${steps.length} steps, isNewTrip=${isNewTrip}`);
+    // Import journal entries (steps) + photos
+    const steps = tripJson.all_steps ?? [];
+    console.log(
+      `[polarsteps] Trip "${tripJson.name}" has ${steps.length} steps, isNewTrip=${isNewTrip}`
+    );
 
-		for (const step of steps) {
-			const entryDate = dateFromUnix(step.start_time);
+    for (const step of steps) {
+      const entryDate = dateFromUnix(step.start_time);
 
-			// Skip if entry already exists (for merge case)
-			if (!isNewTrip) {
-				const { data: existing } = await fluxbaseService
-					.from('trip_entries')
-					.select('id')
-					.eq('trip_id', tripId)
-					.eq('entry_date', entryDate)
-					.limit(1);
-				if (existing && existing.length > 0) continue;
-			}
+      // Skip if entry already exists (for merge case)
+      if (!isNewTrip) {
+        const { data: existing } = await fluxbase
+          .from('trip_entries')
+          .select('id')
+          .eq('trip_id', tripId)
+          .eq('entry_date', entryDate)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          // Still upload photos for existing entries
+          const existingEntryId = (existing[0] as any).id;
+          await uploadPhotosForStep(
+            fluxbase,
+            userId,
+            tripId,
+            existingEntryId,
+            step,
+            tripDirPrefix,
+            findZipFiles
+          );
+          continue;
+        }
+      }
 
-			const entryPayload = {
-				trip_id: tripId,
-				user_id: userId,
-				title: step.name || '',
-				body: step.description || '',
-				entry_date: entryDate
-			};
+      const entryPayload = {
+        trip_id: tripId,
+        user_id: userId,
+        title: step.name || '',
+        body: step.description || '',
+        entry_date: entryDate
+      };
 
-			const { error: entryError } = await fluxbaseService
-				.from('trip_entries')
-				.insert(entryPayload);
+      // Use fluxbase (user context) — service role fails with PGRST000
+      const { data: entryData, error: entryError } = await fluxbase
+        .from('trip_entries')
+        .insert(entryPayload)
+        .select('id')
+        .single();
 
-			if (entryError) {
-				console.error(
-					`[polarsteps] Entry insert failed for "${step.name}":`,
-					JSON.stringify(entryError)
-				);
-
-				// Retry with fluxbase (user context) as fallback
-				const { error: entryError2 } = await fluxbase.from('trip_entries').insert(entryPayload);
-				if (entryError2) {
-					console.error(
-						`[polarsteps] Retry also failed:`,
-						JSON.stringify(entryError2)
-					);
-					continue;
-				}
-			}
-			entriesCreated++;
+      if (entryError || !entryData) {
+        console.error(
+          `[polarsteps] Entry insert failed for "${step.name}":`,
+          JSON.stringify(entryError)
+        );
+        continue;
+      }
+      const entryId = (entryData as any).id;
+      entriesCreated++;
 
       // Find and upload photos for this step (by step ID in path)
       const photoFiles = findZipFiles(
@@ -298,7 +308,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
           const storagePath = `${userId}/${tripId}/${photoName}`;
           const blob = new Blob([photoFile.data], { type: 'image/jpeg' });
 
-          const { error: uploadErr } = await fluxbaseService.storage
+          const { error: uploadErr } = await fluxbase.storage
             .from('trip-images')
             .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
 
@@ -307,13 +317,12 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
             continue;
           }
 
-          const { data: urlData } = fluxbaseService.storage
-            .from('trip-images')
-            .getPublicUrl(storagePath);
+          const { data: urlData } = fluxbase.storage.from('trip-images').getPublicUrl(storagePath);
 
-          await fluxbaseService.from('trip_media').insert({
+          await fluxbase.from('trip_media').insert({
             trip_id: tripId,
             user_id: userId,
+            entry_id: entryId,
             storage_path: urlData.publicUrl,
             thumbnail_path: urlData.publicUrl,
             media_type: 'image',
@@ -355,7 +364,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
               distance: 0,
               time_spent: 0
             }));
-            await fluxbaseService.from('tracker_data').insert(rows);
+            await fluxbase.from('tracker_data').insert(rows);
             gpsPointsImported += batch.length;
           }
         }
@@ -409,7 +418,7 @@ async function findExistingTrip(
 }
 
 async function downloadAndUploadPhoto(
-  fluxbaseService: FluxbaseClient,
+  fluxbase: FluxbaseClient,
   url: string,
   userId: string,
   subFolder: string,

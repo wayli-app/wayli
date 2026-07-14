@@ -256,73 +256,97 @@
 				<p class="text-muted-foreground text-lg">No trips yet.</p>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-				{#each trips as trip, i (trip.id)}
-					<a
-						href="/u/{username}/trips/{trip.id}"
-						class="group relative aspect-[4/3] overflow-hidden rounded-3xl shadow-lg transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl animate-fade-in-up"
-						style="animation-delay: {i * 80}ms"
-					>
-						<!-- Background image -->
-						{#if trip.image_url}
-							<img
-								src={trip.image_url}
-								alt={trip.title}
-								class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-								loading="lazy"
-							/>
-						{:else}
-							<div class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"></div>
-						{/if}
-						<!-- Gradient overlay -->
-						<div
-							class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
-						></div>
-
-						<!-- Top badges -->
-						<div class="absolute top-3 left-3 flex gap-2">
-							<div
-								class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
-							>
-								{new Date(trip.start_date).toLocaleDateString(undefined, {
-									month: 'short',
-									day: 'numeric'
-								})}
-							</div>
-							{#if isOwner && trip.visibility !== 'public'}
-								<div
-									class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+			{@const tripsByYear = Object.entries(
+				trips.reduce((acc: Record<string, typeof trips>, trip) => {
+					const year = new Date(trip.start_date).getFullYear();
+					if (!acc[year]) acc[year] = [];
+					acc[year].push(trip);
+					return acc;
+				}, {})
+			).sort(([a], [b]) => Number(b) - Number(a))}
+			<div class="space-y-10">
+				{#each tripsByYear as [year, yearTrips], yearIdx (year)}
+					<div>
+						<h2 class="text-foreground mb-4 text-2xl font-extrabold tracking-tight">
+							{year}
+							<span class="text-muted-foreground ml-2 text-sm font-normal">
+								{yearTrips.length}
+								{yearTrips.length === 1 ? 'trip' : 'trips'}
+							</span>
+						</h2>
+						<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+							{#each yearTrips as trip, i (trip.id)}
+								<a
+									href="/u/{username}/trips/{trip.id}"
+									class="group relative aspect-[4/3] overflow-hidden rounded-3xl shadow-lg transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl animate-fade-in-up"
+									style="animation-delay: {yearIdx * 80 + i * 40}ms"
 								>
-									{trip.visibility}
-								</div>
-							{/if}
-						</div>
-
-						<!-- Bottom content -->
-						<div class="absolute right-0 bottom-0 left-0 p-5">
-							<h3 class="mb-1 text-xl font-bold tracking-tight text-white drop-shadow-md">
-								{trip.title}
-							</h3>
-							{#if trip.description}
-								<p class="line-clamp-2 text-sm text-white/60">{trip.description}</p>
-							{/if}
-							{#if trip.metadata?.primaryCity}
-								<div class="mt-2 flex items-center gap-1 text-xs text-white/50">
-									<MapPin class="h-3 w-3" />
-									{trip.metadata.primaryCity}
-									{#if trip.metadata?.primaryCountryCode}
-										<span class="opacity-50">·</span>
-										{trip.metadata.primaryCountryCode}
+									<!-- Background image -->
+									{#if trip.image_url}
+										<img
+											src={trip.image_url}
+											alt={trip.title}
+											class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+											loading="lazy"
+										/>
+									{:else}
+										<div
+											class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"
+										></div>
 									{/if}
-								</div>
-							{/if}
-							{#if trip.metadata?.image_attribution?.photographer}
-								<p class="mt-1 text-[10px] text-white/30">
-									Photo: {trip.metadata.image_attribution.photographer}/Pexels
-								</p>
-							{/if}
+									<!-- Gradient overlay -->
+									<div
+										class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
+									></div>
+
+									<!-- Top badges -->
+									<div class="absolute top-3 left-3 flex gap-2">
+										<div
+											class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+										>
+											{new Date(trip.start_date).toLocaleDateString(undefined, {
+												month: 'short',
+												day: 'numeric',
+												year: 'numeric'
+											})}
+										</div>
+										{#if isOwner && trip.visibility !== 'public'}
+											<div
+												class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+											>
+												{trip.visibility}
+											</div>
+										{/if}
+									</div>
+
+									<!-- Bottom content -->
+									<div class="absolute right-0 bottom-0 left-0 p-5">
+										<h3 class="mb-1 text-xl font-bold tracking-tight text-white drop-shadow-md">
+											{trip.title}
+										</h3>
+										{#if trip.description}
+											<p class="line-clamp-2 text-sm text-white/60">{trip.description}</p>
+										{/if}
+										{#if trip.metadata?.primaryCity}
+											<div class="mt-2 flex items-center gap-1 text-xs text-white/50">
+												<MapPin class="h-3 w-3" />
+												{trip.metadata.primaryCity}
+												{#if trip.metadata?.primaryCountryCode}
+													<span class="opacity-50">·</span>
+													{trip.metadata.primaryCountryCode}
+												{/if}
+											</div>
+										{/if}
+										{#if trip.metadata?.image_attribution?.photographer}
+											<p class="mt-1 text-[10px] text-white/30">
+												Photo: {trip.metadata.image_attribution.photographer}/Pexels
+											</p>
+										{/if}
+									</div>
+								</a>
+							{/each}
 						</div>
-					</a>
+					</div>
 				{/each}
 			</div>
 		{/if}
