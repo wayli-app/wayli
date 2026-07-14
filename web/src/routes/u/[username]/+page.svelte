@@ -67,10 +67,16 @@
 			currentUserId = null;
 		}
 
-		const requireAuth = await readSetting(() =>
-			fluxbase.settings.get('wayli.public_trips_require_auth')
-		);
-		if (requireAuth?.value === true || requireAuth?.value === 'true') {
+		let requireAuth = false;
+		try {
+			const setting = await readSetting(() =>
+				fluxbase.settings.get('wayli.public_trips_require_auth')
+			);
+			requireAuth = setting?.value === true || setting?.value === 'true';
+		} catch {
+			// Settings endpoint requires auth — default to open for anonymous
+		}
+		if (requireAuth && !currentUserId) {
 			if (!currentUserId) {
 				goto(`/auth/signin?redirectTo=/u/${username}`);
 				return;

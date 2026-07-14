@@ -143,10 +143,16 @@
 	onMount(async () => {
 		window.addEventListener('scroll', onScroll, { passive: true });
 
-		const requireAuth = await readSetting(() =>
-			fluxbase.settings.get('wayli.public_trips_require_auth')
-		);
-		if (requireAuth?.value === true || requireAuth?.value === 'true') {
+		let requireAuth = false;
+		try {
+			const setting = await readSetting(() =>
+				fluxbase.settings.get('wayli.public_trips_require_auth')
+			);
+			requireAuth = setting?.value === true || setting?.value === 'true';
+		} catch {
+			// Settings endpoint requires auth — default to open
+		}
+		if (requireAuth) {
 			try {
 				const { data: session } = await fluxbase.auth.getSession();
 				if (!session?.session?.user) {
