@@ -38,12 +38,11 @@ export async function getPlanItems(tripId: string): Promise<PlanItem[]> {
 	const { data, error } = await fluxbase
 		.from('trip_plan_items')
 		.select(
-			'id,trip_id,user_id,day_number,sort_order,title,description,type,start_time,end_time,location,address,cost_estimate,currency,booking_url,booking_status,want_to_visit_id,notes,created_by,created_at,updated_at'
+			'id,trip_id,user_id,day_number,sort_order,title,description,type,start_time,end_time,location_lat,location_lng,address,cost_estimate,currency,booking_url,booking_status,want_to_visit_id,notes,created_by,created_at,updated_at'
 		)
 		.eq('trip_id', tripId)
 		.order('day_number', { ascending: true })
-		.order('sort_order', { ascending: true })
-		.order('start_time', { ascending: true, nullsFirst: false });
+		.order('sort_order', { ascending: true });
 
 	if (error) throw new Error(error.message);
 	return (data as any[])?.map(parseLocation) ?? [];
@@ -146,12 +145,9 @@ export async function removeCollaborator(collaboratorId: string): Promise<void> 
 // ── Helpers ──
 
 function parseLocation(row: any): PlanItem {
-	const loc = row.location;
 	let location: { lat: number; lng: number } | null = null;
-	if (loc?.coordinates && Array.isArray(loc.coordinates)) {
-		location = { lat: loc.coordinates[1], lng: loc.coordinates[0] };
-	} else if (loc?.lat != null && loc?.lng != null) {
-		location = { lat: loc.lat, lng: loc.lng };
+	if (row.location_lat != null && row.location_lng != null) {
+		location = { lat: row.location_lat, lng: row.location_lng };
 	}
 	return { ...row, location };
 }
@@ -160,9 +156,11 @@ function serializeLocation(item: any): any {
 	if (!item) return item;
 	const { location, ...rest } = item;
 	if (location && location.lat != null && location.lng != null) {
-		rest.location = { type: 'Point', coordinates: [location.lng, location.lat] };
+		rest.location_lat = location.lat;
+		rest.location_lng = location.lng;
 	} else {
-		rest.location = null;
+		rest.location_lat = null;
+		rest.location_lng = null;
 	}
 	return rest;
 }
