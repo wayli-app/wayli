@@ -285,26 +285,27 @@ export class SessionManagerService {
 		// Stop background refresh mechanisms
 		this.stopBackgroundRefresh();
 
+		// Clear localStorage FIRST — prevents the SDK from sending the
+		// expired token on subsequent calls (signOut makes an API call)
+		this.clearSessionData();
+
 		try {
-			// Clear client-side session
+			// Now signOut (will be a no-op or fail silently since session is gone)
 			await fluxbase.auth.signOut();
-		} catch (error) {
-			console.warn('⚠️ [SessionManager] Error during signout:', error);
+		} catch {
+			// Expected — token already cleared
 		}
 
 		// Update stores
 		await this.updateAuthStores(null);
 
-		// Clean up session-related localStorage
-		this.clearSessionData();
-
 		// Cleanup realtime job monitoring
 		cleanupJobStore();
 
-		// Redirect to login if not already on auth pages
+		// Only redirect to login from protected pages — not public pages
 		if (typeof window !== 'undefined') {
 			const currentPath = window.location.pathname;
-			if (!currentPath.startsWith('/auth') && currentPath !== '/') {
+			if (currentPath.startsWith('/dashboard')) {
 				goto('/auth/signin');
 			}
 		}
