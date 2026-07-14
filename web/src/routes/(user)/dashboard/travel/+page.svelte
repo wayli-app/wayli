@@ -312,6 +312,7 @@
 	}
 
 	let isGenerating = $state(false);
+	let isRecalculating = $state(false);
 
 	// ── Suggestion modal state ──
 	let showGenerationModal = $state(false);
@@ -344,8 +345,8 @@
 			}
 
 			const jobData: Record<string, unknown> = {};
-			if (data.startDate) jobData.start_date = data.startDate;
-			if (data.endDate) jobData.end_date = data.endDate;
+			if (data.startDate) jobData.startDate = data.startDate;
+			if (data.endDate) jobData.endDate = data.endDate;
 			if (data.useCustomHomeAddress && data.customHomeAddressGeocode) {
 				jobData.home_address = data.customHomeAddressGeocode;
 			}
@@ -446,8 +447,17 @@
 		approvingIds = new Set([...approvingIds, tripId]);
 		try {
 			if (serviceAdapter) {
-				await serviceAdapter.generateSuggestedTripImages([tripId]);
-				await serviceAdapter.approveSuggestedTrips([tripId]);
+				const imageResults = await serviceAdapter.generateSuggestedTripImages([tripId]);
+				const preGenerated: Record<string, { image_url: string; attribution?: unknown }> = {};
+				for (const r of imageResults.results) {
+					if (r.success && r.image_url) {
+						preGenerated[r.suggested_trip_id] = {
+							image_url: r.image_url,
+							attribution: r.attribution
+						};
+					}
+				}
+				await serviceAdapter.approveSuggestedTrips([tripId], preGenerated);
 			}
 			pendingTrips = pendingTrips.filter((t) => t.id !== tripId);
 			await loadTrips();
@@ -480,8 +490,17 @@
 		approvingIds = new Set(ids);
 		try {
 			if (serviceAdapter) {
-				await serviceAdapter.generateSuggestedTripImages(ids);
-				await serviceAdapter.approveSuggestedTrips(ids);
+				const imageResults = await serviceAdapter.generateSuggestedTripImages(ids);
+				const preGenerated: Record<string, { image_url: string; attribution?: unknown }> = {};
+				for (const r of imageResults.results) {
+					if (r.success && r.image_url) {
+						preGenerated[r.suggested_trip_id] = {
+							image_url: r.image_url,
+							attribution: r.attribution
+						};
+					}
+				}
+				await serviceAdapter.approveSuggestedTrips(ids, preGenerated);
 			}
 			pendingTrips = [];
 			await loadTrips();
@@ -560,6 +579,37 @@
 	}
 
 	// ── Trip management ──
+	async function fetchTripImage(trip: Trip) {
+		try {
+			if (!serviceAdapter) {
+				toast.error('Service unavailable');
+				return;
+			}
+			toast.info('Fetching cover image...');
+			const result = await serviceAdapter.suggestTripImages(trip.id);
+			const data =
+				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
+			const imageUrl = data?.suggestedImageUrl;
+			if (!imageUrl) {
+				toast.error('No image found for this trip');
+				return;
+			}
+			const attribution = data?.attribution;
+			const newMetadata = { ...(trip.metadata ?? {}), image_attribution: attribution };
+			await fluxbase
+				.from('trips')
+				.update({ image_url: imageUrl, metadata: newMetadata })
+				.eq('id', trip.id);
+			trips = trips.map((t) =>
+				t.id === trip.id ? { ...t, image_url: imageUrl, metadata: newMetadata } : t
+			);
+			toast.success('Cover image added');
+		} catch (err) {
+			console.error('Fetch image failed:', err);
+			toast.error('Failed to fetch cover image');
+		}
+	}
+
 	async function deleteTrip(tripId: string) {
 		if (!confirm('Delete this trip and all its entries?')) return;
 		try {
@@ -613,6 +663,52 @@
 		} catch (err) {
 			console.error('Recalculate failed:', err);
 			toast.error('Failed to recalculate distance');
+		}
+	}
+
+	async function recalculateAllDistances() {
+		isRecalculating = true;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			for (const trip of trips) {
+				const sd = (trip.start_date || '').slice(0, 10);
+				const ed = (trip.end_date || '').slice(0, 10);
+				let total = 0;
+				let offset = 0;
+
+				while (true) {
+					const { data } = await fluxbase
+						.from<Record<string, any>>('tracker_data')
+						.select('distance')
+						.eq('user_id', userId)
+						.gte('recorded_at', `${sd}T00:00:00Z`)
+						.lte('recorded_at', `${ed}T23:59:59Z`)
+						.range(offset, offset + 999);
+
+					const batch = (data as any[]) ?? [];
+					if (batch.length === 0) break;
+					total += batch.reduce(
+						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						0
+					);
+					if (batch.length < 1000) break;
+					offset += 1000;
+				}
+
+				const newMetadata = { ...(trip.metadata ?? {}), distanceTraveled: Math.round(total) };
+				await fluxbase.from('trips').update({ metadata: newMetadata }).eq('id', trip.id);
+			}
+
+			await loadTrips();
+			toast.success(`Recalculated distance for ${trips.length} trips`);
+		} catch (err) {
+			console.error('Recalculate all failed:', err);
+			toast.error('Failed to recalculate');
+		} finally {
+			isRecalculating = false;
 		}
 	}
 
@@ -713,6 +809,22 @@
 						{/if}
 					</button>
 				{/if}
+				{#if trips.length > 0}
+					<button
+						type="button"
+						onclick={recalculateAllDistances}
+						disabled={isRecalculating}
+						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+						title="Recalculate distance for all trips"
+					>
+						{#if isRecalculating}
+							<Loader2 class="h-3.5 w-3.5 animate-spin" />
+						{:else}
+							<RefreshCw class="h-3.5 w-3.5" />
+						{/if}
+						Refresh All
+					</button>
+				{/if}
 				<button
 					type="button"
 					onclick={openTripModal}
@@ -783,11 +895,13 @@
 											<p class="text-muted-foreground text-xs">
 												{new Date(trip.start_date).toLocaleDateString(undefined, {
 													month: 'short',
-													day: 'numeric'
+													day: 'numeric',
+													year: 'numeric'
 												})}
 												– {new Date(trip.end_date).toLocaleDateString(undefined, {
 													month: 'short',
-													day: 'numeric'
+													day: 'numeric',
+													year: 'numeric'
 												})}
 												{#if trip.metadata?.distanceTraveled}
 													· {formatDistance(trip.metadata.distanceTraveled)}
@@ -872,11 +986,13 @@
 											<Calendar class="h-3 w-3" />
 											{new Date(trip.start_date).toLocaleDateString(undefined, {
 												month: 'short',
-												day: 'numeric'
+												day: 'numeric',
+												year: 'numeric'
 											})}
 											– {new Date(trip.end_date).toLocaleDateString(undefined, {
 												month: 'short',
-												day: 'numeric'
+												day: 'numeric',
+												year: 'numeric'
 											})}
 										</span>
 										{#if trip.metadata?.distanceTraveled}
@@ -889,6 +1005,11 @@
 											<span class="flex items-center gap-1">
 												<MapPin class="h-3 w-3" />
 												{trip.metadata.primaryCity}
+											</span>
+										{/if}
+										{#if trip.metadata?.image_attribution?.photographer}
+											<span class="text-muted-foreground/60 text-[10px]">
+												Photo: {trip.metadata.image_attribution.photographer}/Pexels
 											</span>
 										{/if}
 									</div>
@@ -924,6 +1045,16 @@
 										>
 											<RefreshCw class="h-3 w-3" /> Stats
 										</button>
+										{#if !trip.image_url}
+											<button
+												type="button"
+												onclick={() => fetchTripImage(trip)}
+												class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+												title="Fetch cover image from Pexels"
+											>
+												<ImagePlus class="h-3 w-3" /> Image
+											</button>
+										{/if}
 										<button
 											type="button"
 											onclick={() => openEditTripModal(trip)}

@@ -8,7 +8,7 @@
 	import { t, changeLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionManager } from '$lib/services/session';
-	import { ensureStorageBuckets } from '$lib/services/bucket-ensure.service';
+	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { connectionStatusStore, reconnectedStore } from '$lib/stores/job-store';
 	import { fluxbase } from '$lib/fluxbase';
@@ -67,11 +67,6 @@
 				isAdmin = false;
 			} else {
 				isAdmin = userProfile?.role === 'admin';
-
-				// Ensure required storage buckets exist on first admin login
-				if (isAdmin) {
-					ensureStorageBuckets().catch(() => {});
-				}
 			}
 		} catch (error) {
 			console.error('❌ [Dashboard] Error checking admin role:', error);
