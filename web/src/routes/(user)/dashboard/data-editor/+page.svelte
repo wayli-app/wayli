@@ -341,17 +341,17 @@
 	let samplePercent = $state(50);
 
 	async function applySampling() {
-		const toDelete = allPoints.filter((p) => !p.selected);
-		if (toDelete.length === 0) {
+		const selected = allPoints.filter((p) => p.selected);
+		if (selected.length === 0) {
 			toast.info('Select points first, then sample will thin the selection');
 			showSampleModal = false;
 			return;
 		}
 
 		// Keep only the selected percentage of selected points
-		const keepCount = Math.ceil(toDelete.length * (samplePercent / 100));
-		const stride = Math.ceil(toDelete.length / keepCount);
-		const toRemove = toDelete.filter((_, i) => i % stride !== 0);
+		const keepCount = Math.ceil(selected.length * (samplePercent / 100));
+		const stride = Math.ceil(selected.length / keepCount);
+		const toRemove = selected.filter((_, i) => i % stride !== 0);
 
 		if (toRemove.length === 0) {
 			toast.info('Nothing to sample with this percentage');
@@ -370,7 +370,7 @@
 		selectedCount = toRemove.length;
 		drawPoints();
 		toast.info(
-			`Will delete ${toRemove.length} points (kept ${toDelete.length - toRemove.length} of ${toDelete.length})`
+			`Will delete ${toRemove.length} points (kept ${selected.length - toRemove.length} of ${selected.length})`
 		);
 	}
 
