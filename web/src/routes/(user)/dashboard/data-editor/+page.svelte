@@ -339,6 +339,9 @@
 
 	let showSampleModal = $state(false);
 	let samplePercent = $state(50);
+	let sampleMode = $state<'percent' | 'distance'>('percent');
+	let sampleMinDistance = $state(50);
+	let sampleMinTime = $state(30);
 
 	async function applySampling() {
 		const selected = allPoints.filter((p) => p.selected);
@@ -372,6 +375,78 @@
 		toast.info(
 			`Will delete ${toRemove.length} points (kept ${selected.length - toRemove.length} of ${selected.length})`
 		);
+	}
+
+	function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+		const R = 6371000;
+		const dLat = ((lat2 - lat1) * Math.PI) / 180;
+		const dLng = ((lng2 - lng1) * Math.PI) / 180;
+		const a =
+			Math.sin(dLat / 2) ** 2 +
+			Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+		return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+	}
+
+	async function applyDistanceSampling() {
+		const selected = allPoints.filter((p) => p.selected);
+		if (selected.length === 0) {
+			toast.info('Select points first');
+			showSampleModal = false;
+			return;
+		}
+
+		// Sort by recorded_at to ensure correct order
+		selected.sort((a, b) => a.recorded_at.localeCompare(b.recorded_at));
+
+		// Walk through points, keeping only those that meet the threshold
+		const toKeep: typeof selected = [selected[0]];
+		for (let i = 1; i < selected.length; i++) {
+			const last = toKeep[toKeep.length - 1];
+			const curr = selected[i];
+
+			let keep = true;
+			if (sampleMinDistance > 0) {
+				const dist = haversineMeters(last.lat, last.lng, curr.lat, curr.lng);
+				if (dist < sampleMinDistance) keep = false;
+			}
+			if (keep && sampleMinTime > 0) {
+				const dt =
+					(new Date(curr.recorded_at).getTime() - new Date(last.recorded_at).getTime()) / 1000;
+				if (dt < sampleMinTime) keep = false;
+			}
+
+			if (keep) toKeep.push(curr);
+		}
+
+		const keepIds = new Set(toKeep.map((p) => p.recorded_at));
+		const toRemove = selected.filter((p) => !keepIds.has(p.recorded_at));
+
+		if (toRemove.length === 0) {
+			toast.info('All points meet the threshold — nothing to remove');
+			showSampleModal = false;
+			return;
+		}
+
+		showDeleteConfirm = true;
+		showSampleModal = false;
+		for (const p of allPoints) p.selected = false;
+		for (const p of toRemove) {
+			const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
+			if (found) found.selected = true;
+		}
+		selectedCount = toRemove.length;
+		drawPoints();
+		toast.info(
+			`Will delete ${toRemove.length} points (kept ${toKeep.length} of ${selected.length})`
+		);
+	}
+
+	function handleSampleApply() {
+		if (sampleMode === 'percent') {
+			applySampling();
+		} else {
+			applyDistanceSampling();
+		}
 	}
 
 	function selectAllInView() {
@@ -733,22 +808,81 @@
 		class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"
 	>
 		<div class="border-border bg-card w-full max-w-sm rounded-2xl border p-6 shadow-2xl">
-			<h2 class="text-foreground mb-2 text-lg font-bold">Sample data points</h2>
-			<p class="text-muted-foreground mb-4 text-sm">
-				Keep only {samplePercent}% of the {selectedCount} selected points. The rest will be marked for
-				deletion.
-			</p>
-			<input
-				type="range"
-				min="10"
-				max="90"
-				step="5"
-				bind:value={samplePercent}
-				class="mb-2 w-full"
-			/>
-			<div class="text-muted-foreground mb-4 text-center text-sm font-bold">
-				{samplePercent}% = keep {Math.ceil((selectedCount * samplePercent) / 100)} of {selectedCount}
+			<h2 class="text-foreground mb-4 text-lg font-bold">Sample data points</h2>
+
+			<!-- Mode tabs -->
+			<div class="border-border mb-4 flex gap-1 border-b">
+				<button
+					type="button"
+					onclick={() => (sampleMode = 'percent')}
+					class="px-3 py-2 text-sm font-medium border-b-2 transition-colors {sampleMode ===
+					'percent'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground'}"
+				>
+					Percentage
+				</button>
+				<button
+					type="button"
+					onclick={() => (sampleMode = 'distance')}
+					class="px-3 py-2 text-sm font-medium border-b-2 transition-colors {sampleMode ===
+					'distance'
+						? 'border-primary text-primary'
+						: 'border-transparent text-muted-foreground'}"
+				>
+					Min distance / time
+				</button>
 			</div>
+
+			{#if sampleMode === 'percent'}
+				<p class="text-muted-foreground mb-3 text-sm">
+					Keep only {samplePercent}% of the {selectedCount} selected points.
+				</p>
+				<input
+					type="range"
+					min="10"
+					max="90"
+					step="5"
+					bind:value={samplePercent}
+					class="mb-2 w-full"
+				/>
+				<div class="text-muted-foreground mb-4 text-center text-sm font-bold">
+					{samplePercent}% = keep {Math.ceil((selectedCount * samplePercent) / 100)} of {selectedCount}
+				</div>
+			{:else}
+				<p class="text-muted-foreground mb-3 text-sm">
+					Remove points that are too close to the previous kept point. Works through {selectedCount} points
+					in time order.
+				</p>
+				<label class="mb-3 block">
+					<span class="text-foreground mb-1 block text-xs font-medium">
+						Minimum distance (meters)
+					</span>
+					<input
+						type="number"
+						min="0"
+						step="10"
+						bind:value={sampleMinDistance}
+						class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					/>
+				</label>
+				<label class="mb-4 block">
+					<span class="text-foreground mb-1 block text-xs font-medium">
+						Minimum time gap (seconds)
+					</span>
+					<input
+						type="number"
+						min="0"
+						step="5"
+						bind:value={sampleMinTime}
+						class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					/>
+				</label>
+				<p class="text-muted-foreground mb-4 text-xs">
+					Set either or both. Points closer than both thresholds will be removed.
+				</p>
+			{/if}
+
 			<div class="flex justify-end gap-2">
 				<button
 					type="button"
@@ -759,7 +893,7 @@
 				</button>
 				<button
 					type="button"
-					onclick={applySampling}
+					onclick={handleSampleApply}
 					class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground"
 				>
 					Apply
