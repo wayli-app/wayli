@@ -64,6 +64,9 @@
 	let searchQuery = $state(''); // Search query for location lookup and filtering
 	let markerClusterGroup = $state<any>(null); // Add cluster group variable
 	let showAddForm = $state(false);
+	let mapExpanded = $state(false);
+	let sortBy = $state<'title' | 'type' | 'date' | 'rating'>('date');
+	let groupBy = $state<'none' | 'city' | 'country' | 'type'>('none');
 	let showEditForm = $state(false);
 	let tempMarker = $state<any>(null);
 	let isReverseGeocoding = $state(false);
@@ -360,7 +363,43 @@
 		visiblePlacesCount = PLACES_PER_PAGE;
 	});
 
-	const visiblePlaces = $derived(filteredPlaces.slice(0, visiblePlacesCount));
+	const sortedPlaces = $derived.by(() => {
+		const sorted = [...filteredPlaces];
+		switch (sortBy) {
+			case 'title':
+				return sorted.sort((a, b) => a.title.localeCompare(b.title));
+			case 'type':
+				return sorted.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
+			case 'rating':
+				return sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+			case 'date':
+			default:
+				return sorted.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+		}
+	});
+
+	const groupedPlaces = $derived.by(() => {
+		if (groupBy === 'none') return [{ key: '', items: sortedPlaces }];
+		const groups = new Map<string, typeof sortedPlaces>();
+		for (const p of sortedPlaces) {
+			let key = 'Other';
+			if (groupBy === 'city') {
+				key = p.location?.split(',')[0]?.trim() || 'Unknown city';
+			} else if (groupBy === 'country') {
+				const parts = p.location?.split(',');
+				key = parts?.[1]?.trim() || parts?.[0]?.trim() || 'Unknown country';
+			} else if (groupBy === 'type') {
+				key = p.type || 'default';
+			}
+			if (!groups.has(key)) groups.set(key, []);
+			groups.get(key)!.push(p);
+		}
+		return [...groups.entries()].map(([key, items]) => ({ key, items }));
+	});
+
+	const favoritePlaces = $derived(sortedPlaces.filter((p) => p.favorite));
+
+	const visiblePlaces = $derived(sortedPlaces.slice(0, visiblePlacesCount));
 	const hasMorePlaces = $derived(visiblePlacesCount < filteredPlaces.length);
 
 	// Update markers when filtered places change
@@ -983,47 +1022,80 @@
 				<h1 class="text-foreground text-xl font-bold">
 					{t('common.navigation.wantToVisit')}
 				</h1>
-				<p class="text-muted-foreground text-sm">Places you'd like to go</p>
+				<p class="text-muted-foreground text-sm">
+					{places.length}
+					{places.length === 1 ? 'place' : 'places'}
+					{#if favoritePlaces.length > 0}· {favoritePlaces.length} favorited{/if}
+				</p>
 			</div>
 		</div>
-		<button
-			class="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-			onclick={() => {
-				showAddForm = true;
-				// Clear form data when opening
-				title = '';
-				latitude = '';
-				longitude = '';
-				description = '';
-				address = '';
-				placeType = 'default';
-				searchResults = [];
-				showSearchResults = false;
-				labels = []; // Clear labels when opening
-				labelInput = ''; // Clear input when opening
-			}}
-		>
-			<Plus class="h-4 w-4" />
-			{t('wantToVisit.addNewPlace')}
-		</button>
-	</div>
-
-	<!-- Map -->
-	<div class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border">
-		<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
-
-		<!-- Map Instructions -->
-		{#if !showAddForm}
-			<div
-				class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-card/90"
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				onclick={() => (mapExpanded = !mapExpanded)}
+				class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors"
 			>
-				<div class="flex items-center gap-2 text-sm text-muted-foreground">
-					<MapPin class="h-4 w-4" />
-					{t('wantToVisit.clickOnMapToAdd')}
-				</div>
-			</div>
-		{/if}
+				<MapPin class="h-4 w-4" />
+				{mapExpanded ? 'Hide Map' : 'Show Map'}
+			</button>
+			<select
+				bind:value={sortBy}
+				class="border-border rounded-lg border bg-transparent px-2 py-2 text-sm"
+				title="Sort by"
+			>
+				<option value="date">Recent</option>
+				<option value="title">A–Z</option>
+				<option value="type">Type</option>
+				<option value="rating">Rating</option>
+			</select>
+			<select
+				bind:value={groupBy}
+				class="border-border rounded-lg border bg-transparent px-2 py-2 text-sm"
+				title="Group by"
+			>
+				<option value="none">No grouping</option>
+				<option value="city">By city</option>
+				<option value="country">By country</option>
+				<option value="type">By type</option>
+			</select>
+			<button
+				class="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+				onclick={() => {
+					showAddForm = true;
+					title = '';
+					latitude = '';
+					longitude = '';
+					description = '';
+					address = '';
+					placeType = 'default';
+					searchResults = [];
+					showSearchResults = false;
+					labels = [];
+					labelInput = '';
+				}}
+			>
+				<Plus class="h-4 w-4" />
+				{t('wantToVisit.addNewPlace')}
+			</button>
+		</div>
 	</div>
+
+	<!-- Collapsible Map -->
+	{#if mapExpanded}
+		<div class="relative isolate z-0 overflow-hidden rounded-xl border bg-card border-border">
+			<div bind:this={mapContainer} class="h-96 w-full md:h-[500px]"></div>
+			{#if !showAddForm}
+				<div
+					class="absolute top-4 left-4 z-10 rounded-lg bg-white/90 p-3 shadow-lg backdrop-blur-sm dark:bg-card/90"
+				>
+					<div class="flex items-center gap-2 text-sm text-muted-foreground">
+						<MapPin class="h-4 w-4" />
+						{t('wantToVisit.clickOnMapToAdd')}
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Simple Modal Overlay -->
 	{#if showAddForm}
@@ -1663,95 +1735,152 @@
 			</p>
 		</div>
 	{:else}
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-			{#each visiblePlaces as place (place.id)}
-				<div
-					class="group relative rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg bg-card border-border"
+		<!-- Shortlist (favorites) -->
+		{#if favoritePlaces.length > 0 && groupBy === 'none'}
+			<div class="space-y-3">
+				<h2
+					class="text-foreground flex items-center gap-2 text-sm font-bold uppercase tracking-wide"
 				>
-					<!-- Favorite Button -->
-					<button
-						onclick={() => toggleFavorite(place)}
-						class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
-					>
-						<Heart class="h-5 w-5 {place.favorite ? 'fill-red-500 text-red-500' : ''}" />
-					</button>
-
-					<!-- Place Info -->
-					<div class="mb-4">
-						<div class="text-primary mb-1 text-base font-bold dark:text-muted-foreground">
-							{place.title}
-						</div>
-						<div class="mb-2 flex items-start justify-between">
-							<!-- Remove name display -->
-						</div>
-						<div class="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
-							<MapPin class="h-4 w-4" />
-							{place.address || place.coordinates}
-						</div>
-						<span
-							class="bg-primary/10 text-primary dark:bg-primary/30 inline-block rounded-full px-2 py-1 text-xs font-medium dark:text-muted-foreground"
+					<Heart class="h-4 w-4 fill-red-500 text-red-500" />
+					Shortlist ({favoritePlaces.length})
+				</h2>
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					{#each favoritePlaces.slice(0, 8) as place (place.id)}
+						<div
+							class="bg-card border-border group relative overflow-hidden rounded-xl border transition-all hover:-translate-y-1 hover:shadow-lg"
 						>
-							{getMarkerTypeName(place.markerType || place.type || 'default')}
-						</span>
-						<!-- Labels -->
-						{#if place.labels && place.labels.length > 0}
-							<div class="mt-2 flex flex-wrap gap-1">
-								{#each place.labels as label (label)}
-									<span
-										class="bg-primary/5 text-primary dark:bg-primary/40 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-muted-foreground"
+							<div class="p-4">
+								<h3 class="text-foreground truncate font-bold">{place.title}</h3>
+								{#if place.location}
+									<p class="text-muted-foreground truncate text-xs">{place.location}</p>
+								{/if}
+								{#if place.rating && place.rating > 0}
+									<div class="text-amber-500 mt-1 text-xs">
+										{'★'.repeat(place.rating)}<span class="text-muted-foreground"
+											>{'★'.repeat(5 - place.rating)}</span
+										>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Grouped or flat grid -->
+		{#each groupedPlaces as group (group.key)}
+			{#if group.key}
+				<h2 class="text-foreground mt-6 mb-3 text-sm font-bold uppercase tracking-wide">
+					{group.key} ({group.items.length})
+				</h2>
+			{/if}
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+				{#each group.key ? group.items : visiblePlaces as place (place.id)}
+					<div
+						class="group relative rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg bg-card border-border"
+					>
+						<!-- Favorite Button -->
+						<button
+							onclick={() => toggleFavorite(place)}
+							class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+						>
+							<Heart class="h-5 w-5 {place.favorite ? 'fill-red-500 text-red-500' : ''}" />
+						</button>
+
+						<!-- Place Info -->
+						<div class="mb-4">
+							<div class="text-primary mb-1 text-base font-bold dark:text-muted-foreground">
+								{place.title}
+							</div>
+							<!-- Rating stars -->
+							<div class="mb-1 flex gap-0.5">
+								{#each [1, 2, 3, 4, 5] as star (star)}
+									<button
+										type="button"
+										onclick={() =>
+											WantToVisitService.setRating(place.id, star === place.rating ? 0 : star)}
+										class="text-sm transition-colors {star <= (place.rating ?? 0)
+											? 'text-amber-500'
+											: 'text-muted-foreground/30 hover:text-amber-400'}"
+										aria-label="Rate {star} stars"
 									>
-										{label}
-									</span>
+										★
+									</button>
 								{/each}
 							</div>
-						{/if}
-					</div>
-
-					<!-- Description -->
-					{#if place.description}
-						<div class="mb-4">
-							<p class="line-clamp-2 text-sm text-muted-foreground">
-								{place.description}
-							</p>
+							<div class="mb-2 flex items-start justify-between">
+								<!-- Remove name display -->
+							</div>
+							<div class="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+								<MapPin class="h-4 w-4" />
+								{place.address || place.coordinates}
+							</div>
+							<span
+								class="bg-primary/10 text-primary dark:bg-primary/30 inline-block rounded-full px-2 py-1 text-xs font-medium dark:text-muted-foreground"
+							>
+								{getMarkerTypeName(place.markerType || place.type || 'default')}
+							</span>
+							<!-- Labels -->
+							{#if place.labels && place.labels.length > 0}
+								<div class="mt-2 flex flex-wrap gap-1">
+									{#each place.labels as label (label)}
+										<span
+											class="bg-primary/5 text-primary dark:bg-primary/40 inline-flex items-center rounded-full px-2 py-1 text-xs dark:text-muted-foreground"
+										>
+											{label}
+										</span>
+									{/each}
+								</div>
+							{/if}
 						</div>
-					{/if}
 
-					<!-- Coordinates -->
-					<div class="mb-4 text-xs text-muted-foreground">
-						{place.coordinates}
-					</div>
+						<!-- Description -->
+						{#if place.description}
+							<div class="mb-4">
+								<p class="line-clamp-2 text-sm text-muted-foreground">
+									{place.description}
+								</p>
+							</div>
+						{/if}
 
-					<!-- Action Buttons -->
-					<div class="flex gap-2">
-						<button
-							onclick={() => {
-								const [lat, lng] = place.coordinates.split(',').map(Number);
-								map.setView([lat, lng], 15);
-							}}
-							class="text-primary hover:bg-primary/5 dark:hover:bg-primary/20 flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-						>
-							<MapPin class="h-4 w-4" />
-							{t('wantToVisit.showOnMap')}
-						</button>
-						<button
-							onclick={() => editPlace(place)}
-							class="hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/20 rounded-lg p-2 text-muted-foreground transition-colors"
-						>
-							<Edit class="h-4 w-4" />
-						</button>
-						<button
-							onclick={() => deletePlace(place.id)}
-							class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
-						>
-							<Trash2 class="h-4 w-4" />
-						</button>
+						<!-- Coordinates -->
+						<div class="mb-4 text-xs text-muted-foreground">
+							{place.coordinates}
+						</div>
+
+						<!-- Action Buttons -->
+						<div class="flex gap-2">
+							<button
+								onclick={() => {
+									const [lat, lng] = place.coordinates.split(',').map(Number);
+									map.setView([lat, lng], 15);
+								}}
+								class="text-primary hover:bg-primary/5 dark:hover:bg-primary/20 flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+							>
+								<MapPin class="h-4 w-4" />
+								{t('wantToVisit.showOnMap')}
+							</button>
+							<button
+								onclick={() => editPlace(place)}
+								class="hover:bg-primary/5 hover:text-primary dark:hover:bg-primary/20 rounded-lg p-2 text-muted-foreground transition-colors"
+							>
+								<Edit class="h-4 w-4" />
+							</button>
+							<button
+								onclick={() => deletePlace(place.id)}
+								class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+							>
+								<Trash2 class="h-4 w-4" />
+							</button>
+						</div>
 					</div>
-				</div>
-			{/each}
-		</div>
+				{/each}
+			</div>
+		{/each}
 
 		<!-- Load more -->
-		{#if hasMorePlaces}
+		{#if hasMorePlaces && groupBy === 'none'}
 			<div class="mt-6 flex justify-center">
 				<button
 					type="button"

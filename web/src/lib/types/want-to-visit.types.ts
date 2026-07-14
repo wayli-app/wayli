@@ -11,6 +11,9 @@ export interface Place {
 	markerColor?: string;
 	labels?: string[];
 	favorite?: boolean;
+	rating?: number;
+	image_url?: string | null;
+	image_attribution?: { photographer?: string; photographer_url?: string; pexels_url?: string } | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -26,6 +29,7 @@ export interface CreatePlaceData {
 	markerColor?: string;
 	labels?: string[];
 	favorite?: boolean;
+	rating?: number;
 }
 
 export interface UpdatePlaceData {
@@ -39,4 +43,7 @@ export interface UpdatePlaceData {
 	markerColor?: string;
 	labels?: string[];
 	favorite?: boolean;
+	rating?: number;
+	image_url?: string | null;
+	image_attribution?: object | null;
 }
