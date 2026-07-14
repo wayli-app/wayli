@@ -443,447 +443,402 @@
 		</div>
 	</div>
 
-	<div class="grid gap-6 lg:grid-cols-[1fr_240px]">
-		<!-- Calendar grid -->
-		<div>
-			{#if selectedDay === null}
-				<!-- Calendar overview -->
-				<div
-					class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7"
-				>
-					{#each days as day (day.number)}
-						<div
-							role="button"
-							tabindex="0"
-							onclick={() => openDay(day.number)}
-							onkeydown={(e) => e.key === 'Enter' && openDay(day.number)}
-							ondragover={onDragOver}
-							ondrop={(e) => onDrop(e, day.number)}
-							class="bg-card border-border min-h-32 cursor-pointer rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md {day
-								.items.length > 0
-								? 'border-primary/30'
-								: ''}"
-						>
-							<div class="mb-2 flex items-center justify-between">
-								<div>
-									<div class="text-foreground text-sm font-bold">Day {day.number}</div>
-									{#if day.date}
-										<div class="text-muted-foreground text-[10px]">{formatDateShort(day.date)}</div>
-									{/if}
-								</div>
-								<div class="flex items-center gap-1.5">
-									{#if dayCost(day.items) > 0}
-										<span class="text-muted-foreground text-[10px] font-medium">
-											{day.items[0]?.currency ?? ''}
-											{dayCost(day.items).toFixed(0)}
-										</span>
-									{/if}
-									{#if day.items.length > 0}
-										<span
-											class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold"
-										>
-											{day.items.length}
-										</span>
-									{/if}
-								</div>
-							</div>
-							<div class="space-y-1">
-								{#each day.items.slice(0, 3) as item (item.id)}
-									<div
-										draggable="true"
-										ondragstart={(e) => onDragStart(e, item)}
-										class="truncate rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
-										style="background: {TYPE_CONFIG[item.type]?.color ?? '#6b7280'}"
-										title={item.title}
-									>
-										{TYPE_CONFIG[item.type]?.icon}
-										{#if item.start_time}{formatTime(item.start_time)}
-										{/if}
-										{item.title}
-									</div>
-								{/each}
-								{#if day.items.length > 3}
-									<div class="text-muted-foreground text-[10px]">+{day.items.length - 3} more</div>
+	<!-- Budget bar (top, full width) -->
+	{#if budgetByCurrency.length > 0}
+		<div
+			class="bg-card border-border mb-4 flex flex-wrap items-center gap-4 rounded-xl border px-4 py-2.5"
+		>
+			<span class="text-muted-foreground text-[10px] font-medium uppercase">Budget</span>
+			{#each budgetByCurrency as entry (entry.currency)}
+				<div class="flex items-center gap-1">
+					<span class="text-muted-foreground text-xs">{entry.currency}</span>
+					<span class="text-foreground font-mono text-sm font-bold">{entry.total.toFixed(0)}</span>
+				</div>
+			{/each}
+			<div class="border-border ml-2 flex items-center gap-3 border-l pl-3">
+				{#each budgetByCategory as cat (cat.category)}
+					<div class="flex items-center gap-1" title="{cat.count} items">
+						<span class="text-xs">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
+						<span class="text-muted-foreground text-xs">{cat.total.toFixed(0)}</span>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Calendar + day detail (full width) -->
+	<div>
+		{#if selectedDay === null}
+			<!-- Calendar overview -->
+			<div
+				class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7"
+			>
+				{#each days as day (day.number)}
+					<div
+						role="button"
+						tabindex="0"
+						onclick={() => openDay(day.number)}
+						onkeydown={(e) => e.key === 'Enter' && openDay(day.number)}
+						ondragover={onDragOver}
+						ondrop={(e) => onDrop(e, day.number)}
+						class="bg-card border-border flex min-h-44 cursor-pointer flex-col rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md {day
+							.items.length > 0
+							? 'border-primary/30'
+							: ''}"
+					>
+						<!-- Header -->
+						<div class="mb-2 flex items-center justify-between">
+							<div>
+								<div class="text-foreground text-sm font-bold">Day {day.number}</div>
+								{#if day.date}
+									<div class="text-muted-foreground text-[10px]">{formatDateShort(day.date)}</div>
 								{/if}
+							</div>
+							{#if day.items.length > 0}
+								<span
+									class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold"
+								>
+									{day.items.length}
+								</span>
+							{/if}
+						</div>
+						<!-- Items (flex-1 fills space) -->
+						<div class="flex-1 space-y-1">
+							{#each day.items.slice(0, 4) as item (item.id)}
+								<div
+									draggable="true"
+									ondragstart={(e) => onDragStart(e, item)}
+									class="truncate rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+									style="background: {TYPE_CONFIG[item.type]?.color ?? '#6b7280'}"
+									title={item.title}
+								>
+									{TYPE_CONFIG[item.type]?.icon}
+									{#if item.start_time}{formatTime(item.start_time)}
+									{/if}
+									{item.title}
+								</div>
+							{/each}
+							{#if day.items.length > 4}
+								<div class="text-muted-foreground text-[10px]">+{day.items.length - 4} more</div>
+							{/if}
+						</div>
+						<!-- Cost at bottom-right -->
+						{#if dayCost(day.items) > 0}
+							<div class="text-muted-foreground mt-1 text-right text-[10px] font-medium">
+								{day.items[0]?.currency ?? ''}
+								{dayCost(day.items).toFixed(0)}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+
+			<!-- Overview map: entire route across all days -->
+			<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
+				<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+					<MapPin class="text-primary h-4 w-4" />
+					<span class="text-sm font-semibold text-foreground">Entire route</span>
+					{#if allMapPoints.length > 0}
+						<span class="text-muted-foreground ml-auto text-xs"
+							>{allMapPoints.length} stops across {numDays} days</span
+						>
+					{:else}
+						<span class="text-muted-foreground ml-auto text-xs">Add locations to stops</span>
+					{/if}
+				</div>
+				{#if allMapPoints.length > 0}
+					<TripMap points={allMapPoints} class="h-64" />
+				{:else}
+					<div class="text-muted-foreground flex h-40 items-center justify-center text-sm">
+						Search for places when adding stops to see the route on the map.
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<!-- Day detail view -->
+			<div class="space-y-4">
+				<div class="flex items-center justify-between">
+					<button
+						type="button"
+						onclick={() => (selectedDay = null)}
+						class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
+					>
+						← Back to calendar
+					</button>
+					<h2 class="text-foreground text-lg font-bold">
+						Day {selectedDay}
+						{#if days[selectedDay - 1]?.date}
+							<span class="text-muted-foreground text-sm font-normal">
+								· {days[selectedDay - 1].date!.toLocaleDateString(undefined, {
+									weekday: 'long',
+									month: 'short',
+									day: 'numeric'
+								})}
+							</span>
+						{/if}
+					</h2>
+				</div>
+
+				<!-- Add item form -->
+				<div class="bg-card border-border rounded-xl border p-4">
+					<div class="mb-3 flex items-center gap-2">
+						<Plus class="text-primary h-4 w-4" />
+						<span class="text-sm font-medium text-foreground">Add stop</span>
+					</div>
+					<!-- Search input -->
+					<div class="relative mb-3">
+						<Search class="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
+						<input
+							type="text"
+							bind:value={searchQuery}
+							oninput={handleSearch}
+							placeholder="Search for a place..."
+							class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
+						/>
+						{#if isSearching}
+							<Loader2
+								class="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 animate-spin"
+							/>
+						{/if}
+					</div>
+					{#if searchResults.length > 0}
+						<div class="bg-muted/50 mb-3 max-h-40 overflow-y-auto rounded-lg">
+							{#each searchResults as result (result.properties?.gid ?? result.properties?.id)}
+								<button
+									type="button"
+									onclick={() => selectSearchResult(result)}
+									class="hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+								>
+									<MapPin class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
+									<span class="truncate">{result.properties?.label ?? 'Unknown'}</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
+
+					<div class="flex flex-wrap gap-2">
+						<input
+							type="text"
+							bind:value={newItemTitle}
+							placeholder="Title"
+							class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+						/>
+						<select
+							bind:value={newItemType}
+							class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						>
+							{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
+								<option value={key}>{cfg.icon} {cfg.label}</option>
+							{/each}
+						</select>
+						<input
+							type="time"
+							bind:value={newItemTime}
+							class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						/>
+						<input
+							type="number"
+							bind:value={newItemCost}
+							placeholder="Cost"
+							step="0.01"
+							class="border-border w-20 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						/>
+						<input
+							type="text"
+							bind:value={newItemCurrency}
+							maxlength="3"
+							class="border-border w-14 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						/>
+						<button
+							type="button"
+							onclick={() => addItem(selectedDay!)}
+							class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-1.5 text-sm font-medium text-primary-foreground"
+						>
+							Add
+						</button>
+					</div>
+				</div>
+
+				<!-- Items for selected day -->
+				<div class="space-y-2">
+					{#each days[selectedDay - 1]?.items ?? [] as item (item.id)}
+						<div
+							class="bg-card border-border group rounded-xl border p-3"
+							draggable="true"
+							ondragstart={(e) => onDragStart(e, item)}
+						>
+							<div class="flex items-start gap-3">
+								<span class="text-lg">{TYPE_CONFIG[item.type]?.icon ?? '📌'}</span>
+								<div class="min-w-0 flex-1">
+									<input
+										type="text"
+										bind:value={item.title}
+										onchange={() => saveItem(item)}
+										class="text-foreground w-full bg-transparent text-sm font-medium focus:outline-none"
+									/>
+									<div
+										class="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2 text-xs"
+									>
+										{#if item.start_time}
+											<span class="flex items-center gap-1">
+												<Clock class="h-3 w-3" />{formatTime(item.start_time)}
+											</span>
+										{/if}
+										{#if item.address}
+											<span class="flex items-center gap-1 truncate">
+												<MapPin class="h-3 w-3" />{item.address}
+											</span>
+										{/if}
+										{#if item.cost_estimate}
+											<span class="font-medium"
+												>{item.currency} {item.cost_estimate.toFixed(2)}</span
+											>
+										{/if}
+									</div>
+									<!-- Quick actions -->
+									<div class="mt-2 flex items-center gap-2">
+										{#if item.booking_url}
+											<button
+												type="button"
+												onclick={() => toggleBooking(item)}
+												class="text-xs {item.booking_status === 'booked'
+													? 'text-green-600'
+													: 'text-muted-foreground'}"
+											>
+												{#if item.booking_status === 'booked'}
+													<Check class="inline h-3 w-3" /> Booked
+												{:else}
+													<div
+														class="inline-block h-3 w-3 rounded-full border border-current"
+													></div>
+													Pending
+												{/if}
+											</button>
+										{/if}
+										<select
+											bind:value={item.type}
+											onchange={() => saveItem(item)}
+											class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
+										>
+											{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
+												<option value={key}>{cfg.label}</option>
+											{/each}
+										</select>
+										<!-- Move to day -->
+										<select
+											value={item.day_number}
+											onchange={(e) =>
+												moveItem(item, parseInt((e.target as HTMLSelectElement).value))}
+											class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
+										>
+											{#each Array.from({ length: numDays }, (_, i) => i + 1) as d (d)}
+												<option value={d}>Day {d}</option>
+											{/each}
+										</select>
+									</div>
+
+									<!-- Expandable edit panel -->
+									<details class="mt-2">
+										<summary
+											class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
+										>
+											Edit details
+										</summary>
+										<div class="mt-2 grid grid-cols-2 gap-2">
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">Start time</span>
+												<input
+													type="time"
+													bind:value={item.start_time}
+													onchange={() => saveItem(item)}
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">Cost</span>
+												<input
+													type="number"
+													bind:value={item.cost_estimate}
+													onchange={() => saveItem(item)}
+													step="0.01"
+													placeholder="0.00"
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">Currency</span>
+												<input
+													type="text"
+													bind:value={item.currency}
+													onchange={() => saveItem(item)}
+													maxlength="3"
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">Booking URL</span>
+												<input
+													type="url"
+													bind:value={item.booking_url}
+													onchange={() => saveItem(item)}
+													placeholder="https://..."
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="col-span-2 flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">Address</span>
+												<input
+													type="text"
+													bind:value={item.address}
+													onchange={() => saveItem(item)}
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="col-span-2 flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">Notes</span>
+												<textarea
+													bind:value={item.notes}
+													onchange={() => saveItem(item)}
+													rows="2"
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												></textarea>
+											</label>
+										</div>
+									</details>
+								</div>
+								<button
+									type="button"
+									onclick={() => removeItem(item.id)}
+									class="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+								>
+									<Trash2 class="h-3.5 w-3.5" />
+								</button>
 							</div>
 						</div>
 					{/each}
 				</div>
 
-				<!-- Overview map: entire route across all days -->
-				<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
-					<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-						<MapPin class="text-primary h-4 w-4" />
-						<span class="text-sm font-semibold text-foreground">Entire route</span>
-						{#if allMapPoints.length > 0}
-							<span class="text-muted-foreground ml-auto text-xs"
-								>{allMapPoints.length} stops across {numDays} days</span
-							>
-						{:else}
-							<span class="text-muted-foreground ml-auto text-xs">Add locations to stops</span>
-						{/if}
+				<!-- Day map: planned stops connected by route -->
+				{#if dayMapPoints.length > 1}
+					<div class="border-border bg-card overflow-hidden rounded-xl border">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-sm font-semibold text-foreground">Route for Day {selectedDay}</span>
+							<span class="text-muted-foreground ml-auto text-xs">{dayMapPoints.length} stops</span>
+						</div>
+						<TripMap points={dayMapPoints} class="h-64" />
 					</div>
-					{#if allMapPoints.length > 0}
-						<TripMap points={allMapPoints} class="h-64" />
-					{:else}
-						<div class="text-muted-foreground flex h-40 items-center justify-center text-sm">
-							Search for places when adding stops to see the route on the map.
+				{:else if dayMapPoints.length === 1}
+					<div class="border-border bg-card overflow-hidden rounded-xl border">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-sm font-semibold text-foreground">Stop location</span>
 						</div>
-					{/if}
-				</div>
-			{:else}
-				<!-- Day detail view -->
-				<div class="space-y-4">
-					<div class="flex items-center justify-between">
-						<button
-							type="button"
-							onclick={() => (selectedDay = null)}
-							class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-						>
-							← Back to calendar
-						</button>
-						<h2 class="text-foreground text-lg font-bold">
-							Day {selectedDay}
-							{#if days[selectedDay - 1]?.date}
-								<span class="text-muted-foreground text-sm font-normal">
-									· {days[selectedDay - 1].date!.toLocaleDateString(undefined, {
-										weekday: 'long',
-										month: 'short',
-										day: 'numeric'
-									})}
-								</span>
-							{/if}
-						</h2>
+						<TripMap points={dayMapPoints} class="h-48" />
 					</div>
-
-					<!-- Add item form -->
-					<div class="bg-card border-border rounded-xl border p-4">
-						<div class="mb-3 flex items-center gap-2">
-							<Plus class="text-primary h-4 w-4" />
-							<span class="text-sm font-medium text-foreground">Add stop</span>
-						</div>
-						<!-- Search input -->
-						<div class="relative mb-3">
-							<Search class="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
-							<input
-								type="text"
-								bind:value={searchQuery}
-								oninput={handleSearch}
-								placeholder="Search for a place..."
-								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
-							/>
-							{#if isSearching}
-								<Loader2
-									class="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 animate-spin"
-								/>
-							{/if}
-						</div>
-						{#if searchResults.length > 0}
-							<div class="bg-muted/50 mb-3 max-h-40 overflow-y-auto rounded-lg">
-								{#each searchResults as result (result.properties?.gid ?? result.properties?.id)}
-									<button
-										type="button"
-										onclick={() => selectSearchResult(result)}
-										class="hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
-									>
-										<MapPin class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
-										<span class="truncate">{result.properties?.label ?? 'Unknown'}</span>
-									</button>
-								{/each}
-							</div>
-						{/if}
-
-						<div class="flex flex-wrap gap-2">
-							<input
-								type="text"
-								bind:value={newItemTitle}
-								placeholder="Title"
-								class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-							/>
-							<select
-								bind:value={newItemType}
-								class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							>
-								{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
-									<option value={key}>{cfg.icon} {cfg.label}</option>
-								{/each}
-							</select>
-							<input
-								type="time"
-								bind:value={newItemTime}
-								class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							/>
-							<input
-								type="number"
-								bind:value={newItemCost}
-								placeholder="Cost"
-								step="0.01"
-								class="border-border w-20 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							/>
-							<input
-								type="text"
-								bind:value={newItemCurrency}
-								maxlength="3"
-								class="border-border w-14 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							/>
-							<button
-								type="button"
-								onclick={() => addItem(selectedDay!)}
-								class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-1.5 text-sm font-medium text-primary-foreground"
-							>
-								Add
-							</button>
-						</div>
-					</div>
-
-					<!-- Items for selected day -->
-					<div class="space-y-2">
-						{#each days[selectedDay - 1]?.items ?? [] as item (item.id)}
-							<div
-								class="bg-card border-border group rounded-xl border p-3"
-								draggable="true"
-								ondragstart={(e) => onDragStart(e, item)}
-							>
-								<div class="flex items-start gap-3">
-									<span class="text-lg">{TYPE_CONFIG[item.type]?.icon ?? '📌'}</span>
-									<div class="min-w-0 flex-1">
-										<input
-											type="text"
-											bind:value={item.title}
-											onchange={() => saveItem(item)}
-											class="text-foreground w-full bg-transparent text-sm font-medium focus:outline-none"
-										/>
-										<div
-											class="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2 text-xs"
-										>
-											{#if item.start_time}
-												<span class="flex items-center gap-1">
-													<Clock class="h-3 w-3" />{formatTime(item.start_time)}
-												</span>
-											{/if}
-											{#if item.address}
-												<span class="flex items-center gap-1 truncate">
-													<MapPin class="h-3 w-3" />{item.address}
-												</span>
-											{/if}
-											{#if item.cost_estimate}
-												<span class="font-medium"
-													>{item.currency} {item.cost_estimate.toFixed(2)}</span
-												>
-											{/if}
-										</div>
-										<!-- Quick actions -->
-										<div class="mt-2 flex items-center gap-2">
-											{#if item.booking_url}
-												<button
-													type="button"
-													onclick={() => toggleBooking(item)}
-													class="text-xs {item.booking_status === 'booked'
-														? 'text-green-600'
-														: 'text-muted-foreground'}"
-												>
-													{#if item.booking_status === 'booked'}
-														<Check class="inline h-3 w-3" /> Booked
-													{:else}
-														<div
-															class="inline-block h-3 w-3 rounded-full border border-current"
-														></div>
-														Pending
-													{/if}
-												</button>
-											{/if}
-											<select
-												bind:value={item.type}
-												onchange={() => saveItem(item)}
-												class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
-											>
-												{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
-													<option value={key}>{cfg.label}</option>
-												{/each}
-											</select>
-											<!-- Move to day -->
-											<select
-												value={item.day_number}
-												onchange={(e) =>
-													moveItem(item, parseInt((e.target as HTMLSelectElement).value))}
-												class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
-											>
-												{#each Array.from({ length: numDays }, (_, i) => i + 1) as d (d)}
-													<option value={d}>Day {d}</option>
-												{/each}
-											</select>
-										</div>
-
-										<!-- Expandable edit panel -->
-										<details class="mt-2">
-											<summary
-												class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
-											>
-												Edit details
-											</summary>
-											<div class="mt-2 grid grid-cols-2 gap-2">
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">Start time</span>
-													<input
-														type="time"
-														bind:value={item.start_time}
-														onchange={() => saveItem(item)}
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">Cost</span>
-													<input
-														type="number"
-														bind:value={item.cost_estimate}
-														onchange={() => saveItem(item)}
-														step="0.01"
-														placeholder="0.00"
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">Currency</span>
-													<input
-														type="text"
-														bind:value={item.currency}
-														onchange={() => saveItem(item)}
-														maxlength="3"
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">Booking URL</span>
-													<input
-														type="url"
-														bind:value={item.booking_url}
-														onchange={() => saveItem(item)}
-														placeholder="https://..."
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="col-span-2 flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">Address</span>
-													<input
-														type="text"
-														bind:value={item.address}
-														onchange={() => saveItem(item)}
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="col-span-2 flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">Notes</span>
-													<textarea
-														bind:value={item.notes}
-														onchange={() => saveItem(item)}
-														rows="2"
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													></textarea>
-												</label>
-											</div>
-										</details>
-									</div>
-									<button
-										type="button"
-										onclick={() => removeItem(item.id)}
-										class="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
-									>
-										<Trash2 class="h-3.5 w-3.5" />
-									</button>
-								</div>
-							</div>
-						{/each}
-					</div>
-
-					<!-- Day map: planned stops connected by route -->
-					{#if dayMapPoints.length > 1}
-						<div class="border-border bg-card overflow-hidden rounded-xl border">
-							<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-								<MapPin class="text-primary h-4 w-4" />
-								<span class="text-sm font-semibold text-foreground"
-									>Route for Day {selectedDay}</span
-								>
-								<span class="text-muted-foreground ml-auto text-xs"
-									>{dayMapPoints.length} stops</span
-								>
-							</div>
-							<TripMap points={dayMapPoints} class="h-64" />
-						</div>
-					{:else if dayMapPoints.length === 1}
-						<div class="border-border bg-card overflow-hidden rounded-xl border">
-							<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-								<MapPin class="text-primary h-4 w-4" />
-								<span class="text-sm font-semibold text-foreground">Stop location</span>
-							</div>
-							<TripMap points={dayMapPoints} class="h-48" />
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
-
-		<!-- Budget sidebar -->
-		<div class="space-y-4">
-			<div class="bg-card border-border sticky top-20 rounded-2xl border p-4">
-				<h3 class="text-foreground mb-3 text-sm font-bold uppercase tracking-wide">Budget</h3>
-
-				{#if budgetByCurrency.length > 0}
-					<!-- Total by currency -->
-					<div class="mb-4">
-						<div class="text-muted-foreground mb-1.5 text-[10px] font-medium uppercase">Total</div>
-						<div class="space-y-1">
-							{#each budgetByCurrency as entry (entry.currency)}
-								<div class="flex items-center justify-between">
-									<span class="text-muted-foreground text-sm">{entry.currency}</span>
-									<span class="text-foreground font-mono text-base font-bold">
-										{entry.total.toFixed(2)}
-									</span>
-								</div>
-							{/each}
-						</div>
-					</div>
-
-					<!-- Breakdown by category -->
-					{#if budgetByCategory.length > 0}
-						<div class="border-border border-t pt-3">
-							<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
-								By category
-							</div>
-							<div class="space-y-2">
-								{#each budgetByCategory as cat (cat.category)}
-									<div>
-										<div class="flex items-center justify-between text-xs">
-											<span class="text-foreground flex items-center gap-1.5">
-												<span>{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
-												{TYPE_CONFIG[cat.category]?.label ?? cat.category}
-											</span>
-											<span class="text-muted-foreground font-mono">
-												{cat.total.toFixed(0)}
-											</span>
-										</div>
-										<!-- Progress bar relative to max category -->
-										<div class="bg-muted mt-1 h-1.5 overflow-hidden rounded-full">
-											<div
-												class="h-full rounded-full transition-all"
-												style="width: {Math.round(
-													(cat.total / Math.max(...budgetByCategory.map((c) => c.total))) * 100
-												)}%; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
-											></div>
-										</div>
-										<div class="text-muted-foreground mt-0.5 text-[10px]">
-											{cat.count}
-											{cat.count === 1 ? 'item' : 'items'}
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				{:else}
-					<p class="text-muted-foreground text-xs">No costs added yet.</p>
 				{/if}
 			</div>
-		</div>
+		{/if}
 	</div>
 
 	<!-- Collaborator modal -->
