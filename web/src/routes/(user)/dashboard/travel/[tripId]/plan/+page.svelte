@@ -60,6 +60,17 @@
 		)
 	);
 
+	// Overview map: ALL planned stops across all days, ordered by day then time
+	const allMapPoints = $derived(
+		items
+			.filter((i) => i.location)
+			.sort(
+				(a, b) =>
+					a.day_number - b.day_number || (a.start_time ?? '').localeCompare(b.start_time ?? '')
+			)
+			.map((i) => ({ lat: i.location!.lat, lng: i.location!.lng }))
+	);
+
 	// New item form
 	let newItemTitle = $state('');
 	let newItemType = $state('activity');
@@ -448,6 +459,8 @@
 										title={item.title}
 									>
 										{TYPE_CONFIG[item.type]?.icon}
+										{#if item.start_time}{formatTime(item.start_time)}
+										{/if}
 										{item.title}
 									</div>
 								{/each}
@@ -458,6 +471,20 @@
 						</div>
 					{/each}
 				</div>
+
+				<!-- Overview map: entire route across all days -->
+				{#if allMapPoints.length > 1}
+					<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-sm font-semibold text-foreground">Entire route</span>
+							<span class="text-muted-foreground ml-auto text-xs"
+								>{allMapPoints.length} stops across {numDays} days</span
+							>
+						</div>
+						<TripMap points={allMapPoints} class="h-64" />
+					</div>
+				{/if}
 			{:else}
 				<!-- Day detail view -->
 				<div class="space-y-4">
@@ -640,6 +667,75 @@
 												{/each}
 											</select>
 										</div>
+
+										<!-- Expandable edit panel -->
+										<details class="mt-2">
+											<summary
+												class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
+											>
+												Edit details
+											</summary>
+											<div class="mt-2 grid grid-cols-2 gap-2">
+												<label class="flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]">Start time</span>
+													<input
+														type="time"
+														bind:value={item.start_time}
+														onchange={() => saveItem(item)}
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													/>
+												</label>
+												<label class="flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]">Cost</span>
+													<input
+														type="number"
+														bind:value={item.cost_estimate}
+														onchange={() => saveItem(item)}
+														step="0.01"
+														placeholder="0.00"
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													/>
+												</label>
+												<label class="flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]">Currency</span>
+													<input
+														type="text"
+														bind:value={item.currency}
+														onchange={() => saveItem(item)}
+														maxlength="3"
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													/>
+												</label>
+												<label class="flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]">Booking URL</span>
+													<input
+														type="url"
+														bind:value={item.booking_url}
+														onchange={() => saveItem(item)}
+														placeholder="https://..."
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													/>
+												</label>
+												<label class="col-span-2 flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]">Address</span>
+													<input
+														type="text"
+														bind:value={item.address}
+														onchange={() => saveItem(item)}
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													/>
+												</label>
+												<label class="col-span-2 flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]">Notes</span>
+													<textarea
+														bind:value={item.notes}
+														onchange={() => saveItem(item)}
+														rows="2"
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													></textarea>
+												</label>
+											</div>
+										</details>
 									</div>
 									<button
 										type="button"
