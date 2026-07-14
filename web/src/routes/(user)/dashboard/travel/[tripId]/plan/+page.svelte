@@ -138,6 +138,61 @@
 			.sort((a, b) => b.total - a.total);
 	});
 
+	const budgetTotal = $derived(budgetByCurrency.reduce((s, e) => s + e.total, 0));
+
+	const dailyCosts = $derived(
+		days.map((d) => ({
+			day: d.number,
+			cost: d.items.reduce((s: number, i: PlanItem) => s + (i.cost_estimate ?? 0), 0),
+			currency: d.items[0]?.currency ?? 'EUR'
+		}))
+	);
+
+	const maxDailyCost = $derived(Math.max(1, ...dailyCosts.map((d) => d.cost)));
+
+	// Per-day category breakdown for stacked bars
+	const dailyCategoryBreakdown = $derived(
+		days.map((d) => {
+			const byCat = new Map<string, number>();
+			for (const item of d.items) {
+				if (item.cost_estimate) {
+					const cat = item.type || 'activity';
+					byCat.set(cat, (byCat.get(cat) ?? 0) + item.cost_estimate);
+				}
+			}
+			return {
+				day: d.number,
+				total: d.items.reduce((s: number, i: PlanItem) => s + (i.cost_estimate ?? 0), 0),
+				currency: d.items[0]?.currency ?? 'EUR',
+				categories: budgetByCategory
+					.map((c) => ({ category: c.category, amount: byCat.get(c.category) ?? 0 }))
+					.filter((c) => c.amount > 0)
+			};
+		})
+	);
+
+	// Donut chart segments
+	const donutSegments = $derived.by(() => {
+		if (budgetByCategory.length === 0) return [];
+		const total = budgetByCategory.reduce((s, c) => s + c.total, 0);
+		let offset = 0;
+		const radius = 42;
+		const circumference = 2 * Math.PI * radius;
+		return budgetByCategory.map((cat) => {
+			const fraction = cat.total / total;
+			const length = fraction * circumference;
+			const seg = {
+				...cat,
+				fraction,
+				dashArray: `${length} ${circumference - length}`,
+				dashOffset: -offset * circumference,
+				percent: Math.round(fraction * 100)
+			};
+			offset += fraction;
+			return seg;
+		});
+	});
+
 	onMount(async () => {
 		try {
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
@@ -443,25 +498,146 @@
 		</div>
 	</div>
 
-	<!-- Budget bar (top, full width) -->
+	<!-- Budget panel -->
 	{#if budgetByCurrency.length > 0}
-		<div
-			class="bg-card border-border mb-4 flex flex-wrap items-center gap-4 rounded-xl border px-4 py-2.5"
-		>
-			<span class="text-muted-foreground text-[10px] font-medium uppercase">Budget</span>
-			{#each budgetByCurrency as entry (entry.currency)}
-				<div class="flex items-center gap-1">
-					<span class="text-muted-foreground text-xs">{entry.currency}</span>
-					<span class="text-foreground font-mono text-sm font-bold">{entry.total.toFixed(0)}</span>
+		<div class="bg-card border-border mb-4 rounded-2xl border p-4">
+			<div class="grid gap-4 sm:grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto]">
+				<!-- Donut chart + total -->
+				<div class="flex items-center gap-3">
+					<svg width="100" height="100" viewBox="0 0 100 100" class="flex-shrink-0">
+						{#if donutSegments.length > 0}
+							{#each donutSegments as seg (seg.category)}
+								<circle
+									cx="50"
+									cy="50"
+									r="42"
+									fill="none"
+									stroke={TYPE_CONFIG[seg.category]?.color ?? '#6b7280'}
+									stroke-width="10"
+									stroke-dasharray={seg.dashArray}
+									stroke-dashoffset={seg.dashOffset}
+									transform="rotate(-90 50 50)"
+								/>
+							{/each}
+						{:else}
+							<circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" stroke-width="10" />
+						{/if}
+						<text
+							x="50"
+							y="48"
+							text-anchor="middle"
+							class="text-foreground fill-current"
+							font-size="14"
+							font-weight="bold">{budgetByCurrency[0]?.currency ?? ''}</text
+						>
+						<text
+							x="50"
+							y="62"
+							text-anchor="middle"
+							class="text-muted-foreground fill-current"
+							font-size="11">{budgetByCurrency[0]?.total.toFixed(0) ?? '0'}</text
+						>
+					</svg>
 				</div>
-			{/each}
-			<div class="border-border ml-2 flex items-center gap-3 border-l pl-3">
-				{#each budgetByCategory as cat (cat.category)}
-					<div class="flex items-center gap-1" title="{cat.count} items">
-						<span class="text-xs">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
-						<span class="text-muted-foreground text-xs">{cat.total.toFixed(0)}</span>
+
+				<!-- Category legend with bars -->
+				<div class="space-y-1.5">
+					<div class="text-muted-foreground mb-1 text-[10px] font-medium uppercase">
+						By category
 					</div>
-				{/each}
+					{#each budgetByCategory as cat (cat.category)}
+						{@const maxCat = Math.max(...budgetByCategory.map((c) => c.total))}
+						<div class="flex items-center gap-2 text-xs">
+							<span class="w-4 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
+							<span class="text-muted-foreground w-20 truncate">
+								{TYPE_CONFIG[cat.category]?.label ?? cat.category}
+							</span>
+							<div class="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+								<div
+									class="h-full rounded-full"
+									style="width: {(cat.total / maxCat) * 100}%; background: {TYPE_CONFIG[
+										cat.category
+									]?.color ?? '#6b7280'}"
+								></div>
+							</div>
+							<span class="text-muted-foreground w-12 text-right font-mono">
+								{cat.total.toFixed(0)}
+							</span>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Daily cost bars (stacked by category) -->
+				{#if dailyCosts.some((d) => d.cost > 0)}
+					<div class="border-border md:border-l md:pl-4">
+						<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
+							Cost per day · {dailyCosts[0]?.currency ?? 'EUR'}
+						</div>
+						<div class="flex gap-1">
+							<!-- Y-axis -->
+							<div class="flex flex-col justify-between text-right" style="height: 80px;">
+								<span class="text-muted-foreground text-[8px]">{maxDailyCost.toFixed(0)}</span>
+								<span class="text-muted-foreground text-[8px]">{(maxDailyCost / 2).toFixed(0)}</span
+								>
+								<span class="text-muted-foreground text-[8px]">0</span>
+							</div>
+							<!-- Bars -->
+							<div class="relative flex-1">
+								<!-- Grid lines -->
+								<div class="absolute inset-0 flex flex-col justify-between">
+									<div class="border-border border-t"></div>
+									<div class="border-border border-t"></div>
+									<div class="border-border border-t"></div>
+								</div>
+								<div class="relative flex items-end gap-1" style="height: 80px;">
+									{#each dailyCategoryBreakdown as d (d.day)}
+										<div
+											class="group relative flex h-full flex-1 cursor-default flex-col justify-end"
+										>
+											<!-- Stacked segments -->
+											{#each d.categories as cat (cat.category)}
+												<div
+													class="w-full transition-all"
+													style="height: {(cat.amount / maxDailyCost) *
+														80}px; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
+												></div>
+											{/each}
+											<!-- Empty bar for zero-cost days -->
+											{#if d.total === 0}
+												<div class="w-full" style="height: 2px; background: #e5e7eb"></div>
+											{/if}
+											<!-- Tooltip on hover -->
+											{#if d.total > 0}
+												<div
+													class="bg-popover border-border pointer-events-none absolute -top-2 left-1/2 z-10 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-2 text-xs shadow-lg group-hover:block"
+												>
+													<div class="text-foreground font-bold">
+														Day {d.day}: {d.total.toFixed(0)}
+														{d.currency}
+													</div>
+													{#each d.categories as cat (cat.category)}
+														<div class="text-muted-foreground flex items-center gap-1.5">
+															<span>{TYPE_CONFIG[cat.category]?.icon}</span>
+															{TYPE_CONFIG[cat.category]?.label}: {cat.amount.toFixed(0)}
+														</div>
+													{/each}
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+								<!-- Day numbers -->
+								<div class="flex gap-1">
+									{#each dailyCategoryBreakdown as d (d.day)}
+										<div class="text-muted-foreground flex-1 text-center text-[8px]">
+											{d.day}
+										</div>
+									{/each}
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}
