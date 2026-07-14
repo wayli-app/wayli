@@ -37,7 +37,9 @@ export type Collaborator = {
 export async function getPlanItems(tripId: string): Promise<PlanItem[]> {
 	const { data, error } = await fluxbase
 		.from('trip_plan_items')
-		.select('*')
+		.select(
+			'id,trip_id,user_id,day_number,sort_order,title,description,type,start_time,end_time,location,address,cost_estimate,currency,booking_url,booking_status,want_to_visit_id,notes,created_by,created_at,updated_at'
+		)
 		.eq('trip_id', tripId)
 		.order('day_number', { ascending: true })
 		.order('sort_order', { ascending: true })

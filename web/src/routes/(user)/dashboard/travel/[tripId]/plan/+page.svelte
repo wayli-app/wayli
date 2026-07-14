@@ -29,6 +29,7 @@
 		Star
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import TripMap from '$lib/components/TripMap.svelte';
 
 	type Trip = {
 		id: string;
@@ -52,6 +53,13 @@
 	let collaboratorUsername = $state('');
 	let isAddingCollaborator = $state(false);
 
+	// Map: show planned stops for the selected day as markers + connecting route
+	const dayMapPoints = $derived(
+		(selectedDay ? items.filter((i) => i.day_number === selectedDay && i.location) : []).map(
+			(i) => ({ lat: i.location!.lat, lng: i.location!.lng })
+		)
+	);
+
 	// New item form
 	let newItemTitle = $state('');
 	let newItemType = $state('activity');
@@ -62,6 +70,8 @@
 	let searchResults = $state<any[]>([]);
 	let isSearching = $state(false);
 	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+	let selectedCoords = $state<{ lat: number; lng: number } | null>(null);
+	let selectedAddress = $state<string | null>(null);
 
 	const TYPE_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
 		sightseeing: { icon: '📷', color: '#3b82f6', label: 'Sightseeing' },
@@ -151,6 +161,8 @@
 		newItemCurrency = trip?.budget_currency || 'EUR';
 		searchQuery = '';
 		searchResults = [];
+		selectedCoords = null;
+		selectedAddress = null;
 	}
 
 	// ── Pelias search ──
@@ -184,24 +196,14 @@
 		newItemTitle = feature.properties.label || feature.properties.name || 'Unnamed';
 		searchQuery = newItemTitle;
 		searchResults = [];
-		// Store coords for later use
-		(newItemTitle as any)._coords = { lat, lng };
+		selectedCoords = { lat, lng };
+		selectedAddress = feature.properties.label ?? null;
 	}
 
 	// ── Item management ──
 	async function addItem(dayNumber: number) {
 		const title = newItemTitle.trim() || 'New item';
 		const userId = await getCurrentUserId();
-
-		// Check if we have coords from search
-		let location: { lat: number; lng: number } | null = null;
-		const selectedResult = searchResults.length > 0 ? searchResults[0] : null;
-		if (selectedResult?.geometry?.coordinates) {
-			location = {
-				lat: selectedResult.geometry.coordinates[1],
-				lng: selectedResult.geometry.coordinates[0]
-			};
-		}
 
 		const newItem = await createPlanItem({
 			trip_id: tripId,
@@ -213,8 +215,8 @@
 			type: newItemType,
 			start_time: newItemTime || null,
 			end_time: null,
-			location,
-			address: selectedResult?.properties?.label ?? null,
+			location: selectedCoords,
+			address: selectedAddress,
 			cost_estimate: newItemCost ? parseFloat(newItemCost) : null,
 			currency: newItemCurrency,
 			booking_url: null,
@@ -613,7 +615,7 @@
 														<div
 															class="inline-block h-3 w-3 rounded-full border border-current"
 														></div>
-														 Pending
+														Pending
 													{/if}
 												</button>
 											{/if}
@@ -650,6 +652,30 @@
 							</div>
 						{/each}
 					</div>
+
+					<!-- Day map: planned stops connected by route -->
+					{#if dayMapPoints.length > 1}
+						<div class="border-border bg-card overflow-hidden rounded-xl border">
+							<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+								<MapPin class="text-primary h-4 w-4" />
+								<span class="text-sm font-semibold text-foreground"
+									>Route for Day {selectedDay}</span
+								>
+								<span class="text-muted-foreground ml-auto text-xs"
+									>{dayMapPoints.length} stops</span
+								>
+							</div>
+							<TripMap points={dayMapPoints} class="h-64" />
+						</div>
+					{:else if dayMapPoints.length === 1}
+						<div class="border-border bg-card overflow-hidden rounded-xl border">
+							<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+								<MapPin class="text-primary h-4 w-4" />
+								<span class="text-sm font-semibold text-foreground">Stop location</span>
+							</div>
+							<TripMap points={dayMapPoints} class="h-48" />
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
