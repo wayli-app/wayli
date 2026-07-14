@@ -206,27 +206,65 @@
 		pointLayers.forEach((layer) => map.removeLayer(layer));
 		pointLayers = new Map();
 
+		const draggable = selectionMode === 'none';
+
 		for (const p of allPoints) {
 			const color = p.selected
 				? '#ef4444'
 				: p.excluded
 					? '#9ca3af'
 					: COLOR_BY_MODE[p.activity_type || 'unknown'] || '#6b7280';
+			const radius = p.selected ? 6 : 4;
 
-			const marker = L.circleMarker([p.lat, p.lng], {
-				radius: p.selected ? 6 : 4,
-				fillColor: color,
-				color: p.selected ? '#dc2626' : '#ffffff',
-				weight: p.selected ? 2 : 1,
-				fillOpacity: p.excluded ? 0.2 : 0.8,
-				opacity: p.excluded ? 0.3 : 1
+			const icon = L.divIcon({
+				className: '',
+				html: `<div style="
+					width:${radius * 2}px;height:${radius * 2}px;
+					border-radius:50%;
+					background:${color};
+					border:${p.selected ? 2 : 1}px solid ${p.selected ? '#dc2626' : '#fff'};
+					opacity:${p.excluded ? 0.3 : 0.85};
+					cursor:${draggable ? 'grab' : 'pointer'};"></div>`,
+				iconSize: [radius * 2, radius * 2],
+				iconAnchor: [radius, radius]
 			});
+
+			const marker = L.marker([p.lat, p.lng], { icon, draggable, riseOnHover: true });
 
 			marker.on('click', () => {
 				if (selectionMode === 'box' || selectionMode === 'add') return;
 				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
 				if (found) {
 					editingPoint = { ...found };
+				}
+			});
+
+			marker.on('dragend', async () => {
+				const ll = marker.getLatLng();
+				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
+				if (!found) return;
+
+				found.lat = ll.lat;
+				found.lng = ll.lng;
+
+				try {
+					const { data: userData } = await fluxbase.auth.getUser();
+					const userId = userData?.user?.id;
+					if (!userId) return;
+
+					await fluxbase
+						.from('tracker_data')
+						.update({ location: { type: 'Point', coordinates: [ll.lng, ll.lat] } })
+						.eq('user_id', userId)
+						.eq('recorded_at', p.recorded_at);
+
+					toast.success('Point moved');
+					if (editingPoint?.recorded_at === p.recorded_at) {
+						editingPoint = { ...found };
+					}
+				} catch (err) {
+					console.error('Move failed:', err);
+					toast.error('Failed to move point');
 				}
 			});
 

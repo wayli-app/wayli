@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { fluxbase } from '$lib/fluxbase';
 	import { userStore, sessionStore } from '$lib/stores/auth';
+	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import {
 		listAllEntries,
 		createEntry,
@@ -150,6 +151,11 @@
 
 	const pendingCount = $derived(pendingTrips.length);
 
+	// Sync pending count to shared store for AppNav badge
+	$effect(() => {
+		pendingTripCount.set(pendingTrips.length);
+	});
+
 	// ── Map state: overview (markers only) vs trip-detail (track) ──
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
 	const mapMarkers = $derived(cityMarkers);
@@ -210,6 +216,7 @@
 				.eq('status', 'pending')
 				.order('start_date', { ascending: false });
 			pendingTrips = (data as unknown as Trip[]) ?? [];
+			pendingTripCount.set(pendingTrips.length);
 		} catch {
 			// empty
 		}
