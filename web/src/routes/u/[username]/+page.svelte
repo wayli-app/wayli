@@ -61,8 +61,8 @@
 
 	onMount(async () => {
 		try {
-			const { data } = await fluxbase.auth.getUser();
-			currentUserId = data?.user?.id ?? null;
+			const { data: session } = await fluxbase.auth.getSession();
+			currentUserId = session?.session?.user?.id ?? null;
 		} catch {
 			currentUserId = null;
 		}
