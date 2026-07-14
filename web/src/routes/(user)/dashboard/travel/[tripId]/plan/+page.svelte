@@ -234,6 +234,18 @@
 		const title = newItemTitle.trim() || 'New item';
 		const userId = await getCurrentUserId();
 
+		// Auto-select first search result if user hasn't clicked one
+		if (!selectedCoords && searchResults.length > 0) {
+			const feature = searchResults[0];
+			if (feature?.geometry?.coordinates) {
+				selectedCoords = {
+					lat: feature.geometry.coordinates[1],
+					lng: feature.geometry.coordinates[0]
+				};
+				selectedAddress = feature.properties?.label ?? null;
+			}
+		}
+
 		const newItem = await createPlanItem({
 			trip_id: tripId,
 			user_id: userId!,
