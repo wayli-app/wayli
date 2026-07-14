@@ -257,20 +257,33 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
 				if (existing && existing.length > 0) continue;
 			}
 
+			const entryPayload = {
+				trip_id: tripId,
+				user_id: userId,
+				title: step.name || '',
+				body: step.description || '',
+				entry_date: entryDate
+			};
+
 			const { error: entryError } = await fluxbaseService
 				.from('trip_entries')
-				.insert({
-					trip_id: tripId,
-					user_id: userId,
-					title: step.name || '',
-					body: step.description || '',
-					entry_date: entryDate,
-					created_at: unixToISO(step.start_time)
-				});
+				.insert(entryPayload);
 
 			if (entryError) {
-				console.error(`[polarsteps] Failed to create entry "${step.name}": ${entryError.message}`);
-				continue;
+				console.error(
+					`[polarsteps] Entry insert failed for "${step.name}":`,
+					JSON.stringify(entryError)
+				);
+
+				// Retry with fluxbase (user context) as fallback
+				const { error: entryError2 } = await fluxbase.from('trip_entries').insert(entryPayload);
+				if (entryError2) {
+					console.error(
+						`[polarsteps] Retry also failed:`,
+						JSON.stringify(entryError2)
+					);
+					continue;
+				}
 			}
 			entriesCreated++;
 
