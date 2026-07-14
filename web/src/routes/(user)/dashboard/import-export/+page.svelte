@@ -281,7 +281,7 @@
 							type="file"
 							id="fileInput"
 							bind:this={fileInputEl}
-							accept=".geojson,.json,.kml,.gpx,.rec"
+							accept=".geojson,.json,.kml,.gpx,.rec,.zip"
 							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-muted-foreground file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:border-border dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
 							onchange={handleFileSelect}
 						/>
