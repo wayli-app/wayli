@@ -18,6 +18,15 @@
 	let { children }: { children: Snippet } = $props();
 
 	onMount(async () => {
+		// Suppress "Invalid or expired token" errors from Fluxbase SDK
+		// These happen when a session expires while the user is on a public page
+		window.addEventListener('unhandledrejection', (e) => {
+			const msg = e.reason?.message || String(e.reason || '');
+			if (msg.includes('Invalid or expired token') || msg.includes('JWT')) {
+				e.preventDefault();
+			}
+		});
+
 		// Initialize theme
 		initializeTheme();
 		// Suppress deprecation warnings from third-party libraries
