@@ -358,6 +358,20 @@
 			if (error) throw error;
 
 			toast.success('Generating trip suggestions — check back in a minute.');
+
+			// Poll for new pending trips until they appear
+			const prevCount = pendingTrips.length;
+			let attempts = 0;
+			const poll = setInterval(async () => {
+				attempts++;
+				await loadPendingTrips();
+				if (pendingTrips.length > prevCount || attempts > 60) {
+					clearInterval(poll);
+					if (pendingTrips.length > prevCount) {
+						toast.success(`${pendingTrips.length - prevCount} new trip suggestion(s) ready!`);
+					}
+				}
+			}, 5000);
 		} catch (err) {
 			console.error('Generation failed:', err);
 			toast.error('Failed to start trip generation');
@@ -845,10 +859,13 @@
 					<div
 						class="border-amber-300/40 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border-2 border-dashed"
 					>
-						<button
-							type="button"
+						<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+						<div
+							role="button"
+							tabindex="0"
 							onclick={() => (suggestionsExpanded = !suggestionsExpanded)}
-							class="hover:bg-amber-100/30 dark:hover:bg-amber-950/20 flex w-full items-center justify-between p-4 transition-colors"
+							onkeydown={(e) => e.key === 'Enter' && (suggestionsExpanded = !suggestionsExpanded)}
+							class="hover:bg-amber-100/30 dark:hover:bg-amber-950/20 flex w-full cursor-pointer items-center justify-between p-4 transition-colors"
 						>
 							<div class="flex items-center gap-2">
 								<Sparkles class="h-4 w-4 text-amber-500" />
@@ -885,7 +902,7 @@
 									<ChevronRight class="text-muted-foreground h-5 w-5" />
 								{/if}
 							</div>
-						</button>
+						</div>
 						{#if suggestionsExpanded}
 							<div class="space-y-3 px-4 pb-4">
 								{#each pendingTrips as trip (trip.id)}
@@ -1105,13 +1122,19 @@
 									{:else}
 										<div class="space-y-3 p-4">
 											{#each entriesByTrip.get(trip.id) ?? [] as entry (entry.id)}
-												<article
+												<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+												<div
 													data-entry-id={entry.id}
 													data-trip-id={trip.id}
+													role="button"
+													tabindex="0"
 													onclick={() => {
 														activeEntryId = entry.id;
 														activeTripId = trip.id;
 													}}
+													onkeydown={(e) =>
+														e.key === 'Enter' &&
+														((activeEntryId = entry.id), (activeTripId = trip.id))}
 													class="border-border bg-background rounded-xl border p-4 transition-all {activeEntryId ===
 													entry.id
 														? 'ring-primary/20 ring-2'
@@ -1194,7 +1217,7 @@
 															<EntryComments tripId={trip.id} entryId={entry.id} />
 														</div>
 													</div>
-												</article>
+												</div>
 											{/each}
 										</div>
 									{/if}
@@ -1294,7 +1317,10 @@
 
 				<!-- New trip modal -->
 				{#if showTripModal}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
+						role="dialog"
+						tabindex="-1"
 						class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
 						onkeydown={(e) => e.key === 'Escape' && (showTripModal = false)}
 					>

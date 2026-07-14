@@ -1,24 +1,39 @@
 /**
  * Ensures required storage buckets exist.
- * Uses the Fluxbase admin API (POST /api/v1/storage/buckets/{name}).
- * Idempotent — safe to call on every load; silently ignores if already exists.
+ * Caches result so it only runs once per session.
+ * Also exported as lazyBucketEnsure for upload error recovery.
  */
 
 import { fluxbase } from '$lib/fluxbase';
 
 const REQUIRED_BUCKETS = ['trip-images', 'temp-files'];
+let ensured = false;
 
 export async function ensureStorageBuckets(): Promise<void> {
+	if (ensured) return;
+
 	for (const name of REQUIRED_BUCKETS) {
 		try {
+			// Check if bucket exists first
+			const { data } = await fluxbase.storage.listBuckets();
+			if (data?.some((b: any) => b.id === name || b.name === name)) continue;
+
 			const { error } = await fluxbase.admin.storage.createBucket(name);
-			if (error) {
-				// Already exists or no permission — both are fine
-				continue;
+			if (!error) {
+				console.log(`[buckets] Created bucket: ${name}`);
 			}
-			console.log(`[buckets] Created bucket: ${name}`);
 		} catch {
 			// Already exists, no permission, or admin API unavailable
 		}
 	}
+
+	ensured = true;
+}
+
+/**
+ * Call this when an upload fails — resets cache and retries bucket creation.
+ */
+export async function lazyBucketEnsure(): Promise<void> {
+	ensured = false;
+	await ensureStorageBuckets();
 }

@@ -6,6 +6,7 @@
 
 import { fluxbase } from '$lib/fluxbase';
 import type { TripMedia, CreateTripMediaInput } from '$lib/types/media.types';
+import { lazyBucketEnsure } from '$lib/services/bucket-ensure.service';
 
 /**
  * Upload a blob to the trip-images bucket and return the public URL.
@@ -18,10 +19,22 @@ export async function uploadMedia(
 	filename: string
 ): Promise<string> {
 	const path = `${userId}/${tripId}/${filename}`;
-	const { error } = await fluxbase.storage.from('trip-images').upload(path, blob, {
+
+	let { error } = await fluxbase.storage.from('trip-images').upload(path, blob, {
 		contentType: blob.type || 'image/jpeg',
 		upsert: false
 	});
+
+	// If bucket might not exist, ensure it and retry once
+	if (error && /bucket|not found|404/i.test(error.message)) {
+		await lazyBucketEnsure();
+		const retry = await fluxbase.storage.from('trip-images').upload(path, blob, {
+			contentType: blob.type || 'image/jpeg',
+			upsert: false
+		});
+		error = retry.error;
+	}
+
 	if (error) throw new Error(error.message);
 
 	const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
