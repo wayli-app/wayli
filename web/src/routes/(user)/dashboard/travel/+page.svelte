@@ -573,12 +573,14 @@
 		try {
 			const tripsService = await getTripsService();
 			if (editingTrip) {
+				const editId = editingTrip.id;
+				const editMeta = editingTrip.metadata;
 				const newMetadata = {
-					...(editingTrip.metadata ?? {}),
+					...(editMeta ?? {}),
 					image_attribution: tripImageAttribution
 				};
-				const updated = await tripsService.updateTrip({
-					id: editingTrip.id,
+				await tripsService.updateTrip({
+					id: editId,
 					title: tripTitle,
 					start_date: tripStartDate,
 					end_date: tripEndDate || tripStartDate,
@@ -586,7 +588,19 @@
 					image_url: tripImageUrl,
 					metadata: newMetadata
 				} as any);
-				trips = trips.map((t) => (t.id === updated.id ? (updated as unknown as Trip) : t));
+				trips = trips.map((t) =>
+					t.id === editId
+						? {
+								...t,
+								title: tripTitle,
+								start_date: tripStartDate,
+								end_date: tripEndDate || tripStartDate,
+								description: tripDescription,
+								image_url: tripImageUrl,
+								metadata: newMetadata
+							}
+						: t
+				);
 			} else {
 				const { data: userData } = await fluxbase.auth.getUser();
 				const userId = userData?.user?.id;
