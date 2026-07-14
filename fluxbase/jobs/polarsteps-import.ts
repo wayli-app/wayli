@@ -10,6 +10,7 @@
  * @fluxbase:allow-net true
  * @fluxbase:allow-read true
  * @fluxbase:allow-write true
+ * @fluxbase:allow-run true
  * @fluxbase:allow-env true
  */
 
