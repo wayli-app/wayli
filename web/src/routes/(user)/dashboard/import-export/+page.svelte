@@ -62,6 +62,13 @@
 			label: 'OwnTracks (.REC)',
 			icon: Route,
 			description: t('importExport.ownTracksDescription')
+		},
+		{
+			value: 'Polarsteps',
+			label: 'Polarsteps',
+			icon: Route,
+			description:
+				'Import trips, journal entries, GPS data and photos from a Polarsteps export (.zip)'
 		}
 	]);
 
@@ -79,6 +86,7 @@
 	async function detectImportFormat(file: File): Promise<string> {
 		const name = file.name.toLowerCase();
 		if (name.endsWith('.geojson') || name.endsWith('.json')) return 'GeoJSON';
+		if (name.endsWith('.zip')) return 'Polarsteps';
 		if (name.endsWith('.kml')) return 'KML';
 		if (name.endsWith('.gpx')) return 'GPX';
 		if (name.endsWith('.rec')) return 'OwnTracks';
