@@ -7,6 +7,7 @@
 		Link,
 		Settings,
 		User,
+		Database,
 		X,
 		Sun,
 		Moon,
@@ -60,6 +61,7 @@
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
+		{ href: '/dashboard/data-editor', label: 'Data Editor', icon: Database },
 		{ href: '/dashboard/travel', label: 'Travel', icon: Globe },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
