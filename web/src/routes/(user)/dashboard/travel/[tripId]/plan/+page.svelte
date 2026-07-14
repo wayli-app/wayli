@@ -172,6 +172,10 @@
 		return time.slice(0, 5);
 	}
 
+	function dayCost(dayItems: PlanItem[]): number {
+		return dayItems.reduce((sum, i) => sum + (i.cost_estimate ?? 0), 0);
+	}
+
 	// ── Day selection ──
 	function openDay(dayNumber: number) {
 		selectedDay = dayNumber;
@@ -455,13 +459,21 @@
 										<div class="text-muted-foreground text-[10px]">{formatDateShort(day.date)}</div>
 									{/if}
 								</div>
-								{#if day.items.length > 0}
-									<span
-										class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold"
-									>
-										{day.items.length}
-									</span>
-								{/if}
+								<div class="flex items-center gap-1.5">
+									{#if dayCost(day.items) > 0}
+										<span class="text-muted-foreground text-[10px] font-medium">
+											{day.items[0]?.currency ?? ''}
+											{dayCost(day.items).toFixed(0)}
+										</span>
+									{/if}
+									{#if day.items.length > 0}
+										<span
+											class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold"
+										>
+											{day.items.length}
+										</span>
+									{/if}
+								</div>
 							</div>
 							<div class="space-y-1">
 								{#each day.items.slice(0, 3) as item (item.id)}
@@ -487,18 +499,26 @@
 				</div>
 
 				<!-- Overview map: entire route across all days -->
-				{#if allMapPoints.length > 1}
-					<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
-						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-							<MapPin class="text-primary h-4 w-4" />
-							<span class="text-sm font-semibold text-foreground">Entire route</span>
+				<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
+					<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+						<MapPin class="text-primary h-4 w-4" />
+						<span class="text-sm font-semibold text-foreground">Entire route</span>
+						{#if allMapPoints.length > 0}
 							<span class="text-muted-foreground ml-auto text-xs"
 								>{allMapPoints.length} stops across {numDays} days</span
 							>
-						</div>
-						<TripMap points={allMapPoints} class="h-64" />
+						{:else}
+							<span class="text-muted-foreground ml-auto text-xs">Add locations to stops</span>
+						{/if}
 					</div>
-				{/if}
+					{#if allMapPoints.length > 0}
+						<TripMap points={allMapPoints} class="h-64" />
+					{:else}
+						<div class="text-muted-foreground flex h-40 items-center justify-center text-sm">
+							Search for places when adding stops to see the route on the map.
+						</div>
+					{/if}
+				</div>
 			{:else}
 				<!-- Day detail view -->
 				<div class="space-y-4">
