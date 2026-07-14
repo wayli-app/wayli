@@ -264,114 +264,78 @@
 				<p class="text-muted-foreground text-lg">No trips yet.</p>
 			</div>
 		{:else}
-			{@const tripsByYear = Object.entries(
-				trips.reduce((acc: Record<string, typeof trips>, trip) => {
-					const year = new Date(trip.start_date).getFullYear();
-					if (!acc[year]) acc[year] = [];
-					acc[year].push(trip);
-					return acc;
-				}, {})
-			).sort(([a], [b]) => Number(b) - Number(a))}
-			<div class="space-y-8">
-				{#each tripsByYear as [year, yearTrips], yearIdx (year)}
-					<div class="flex gap-6">
-						<!-- Year label (sticky left column) -->
-						<div class="hidden w-20 flex-shrink-0 sm:block">
-							<div class="sticky top-4">
-								<div class="text-foreground text-3xl font-extrabold tracking-tight">{year}</div>
-								<div class="text-muted-foreground text-xs">
-									{yearTrips.length}
-									{yearTrips.length === 1 ? 'trip' : 'trips'}
-								</div>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each trips as trip, i (trip.id)}
+					<a
+						href="/u/{username}/trips/{trip.id}"
+						class="group relative aspect-[16/10] overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up"
+						style="animation-delay: {i * 60}ms"
+					>
+						<!-- Background image -->
+						{#if trip.image_url}
+							<img
+								src={trip.image_url}
+								alt={trip.title}
+								class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+								loading="lazy"
+							/>
+						{:else}
+							<div class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"></div>
+						{/if}
+						<!-- Gradient overlay -->
+						<div
+							class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
+						></div>
+
+						<!-- Top date badge -->
+						<div class="absolute top-3 left-3 flex gap-2">
+							<div
+								class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+							>
+								{new Date(trip.start_date).toLocaleDateString(undefined, {
+									month: 'short',
+									day: 'numeric',
+									year: 'numeric'
+								})}
 							</div>
-						</div>
-
-						<!-- Trip cards for this year -->
-						<div class="grid min-w-0 flex-1 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{#each yearTrips as trip, i (trip.id)}
-								<a
-									href="/u/{username}/trips/{trip.id}"
-									class="group relative aspect-[16/10] overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up"
-									style="animation-delay: {yearIdx * 80 + i * 40}ms"
+							{#if isOwner && trip.visibility !== 'public'}
+								<div
+									class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
 								>
-									<!-- Background image -->
-									{#if trip.image_url}
-										<img
-											src={trip.image_url}
-											alt={trip.title}
-											class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-											loading="lazy"
-										/>
-									{:else}
-										<div
-											class="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800"
-										></div>
-									{/if}
-									<!-- Gradient overlay -->
-									<div
-										class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
-									></div>
-
-									<!-- Top badges -->
-									<div class="absolute top-3 left-3 flex gap-2">
-										<div
-											class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
-										>
-											{new Date(trip.start_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric',
-												year: 'numeric'
-											})}
-										</div>
-										{#if isOwner && trip.visibility !== 'public'}
-											<div
-												class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
-											>
-												{trip.visibility}
-											</div>
-										{/if}
-									</div>
-
-									<!-- Mobile year label -->
-									<div class="mb-2 sm:hidden">
-										<span class="text-foreground text-lg font-bold">{year}</span>
-										<span class="text-muted-foreground ml-2 text-xs"
-											>{yearTrips.length} {yearTrips.length === 1 ? 'trip' : 'trips'}</span
-										>
-									</div>
-
-									<!-- Bottom content -->
-									<div class="absolute right-0 bottom-0 left-0 p-4">
-										<h3 class="mb-0.5 text-base font-bold tracking-tight text-white drop-shadow-md">
-											{trip.title}
-										</h3>
-										<div class="flex items-center gap-2 text-xs text-white/50">
-											{new Date(trip.start_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric'
-											})}
-											– {new Date(trip.end_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric',
-												year: 'numeric'
-											})}
-										</div>
-										{#if trip.metadata?.primaryCity}
-											<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
-												<MapPin class="h-3 w-3" />
-												{trip.metadata.primaryCity}
-											</div>
-										{/if}
-										{#if trip.metadata?.image_attribution?.photographer}
-											<p class="mt-0.5 text-[9px] text-white/25">
-												Photo: {trip.metadata.image_attribution.photographer}/Pexels
-											</p>
-										{/if}
-									</div>
-								</a>
-							{/each}
+									{trip.visibility}
+								</div>
+							{/if}
 						</div>
-					</div>
+
+						<!-- Bottom content -->
+						<div class="absolute right-0 bottom-0 left-0 p-4">
+							<h3 class="mb-0.5 text-base font-bold tracking-tight text-white drop-shadow-md">
+								{trip.title}
+							</h3>
+							<div class="flex items-center gap-2 text-xs text-white/50">
+								{new Date(trip.start_date).toLocaleDateString(undefined, {
+									month: 'short',
+									day: 'numeric'
+								})}
+								– {new Date(trip.end_date).toLocaleDateString(undefined, {
+									month: 'short',
+									day: 'numeric',
+									year: 'numeric'
+								})}
+							</div>
+							{#if trip.metadata?.primaryCity}
+								<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
+									<MapPin class="h-3 w-3" />
+									{trip.metadata.primaryCity}
+								</div>
+							{/if}
+							{#if trip.metadata?.image_attribution?.photographer}
+								<p class="mt-0.5 text-[9px] text-white/25">
+									Photo: {trip.metadata.image_attribution.photographer}/Pexels
+								</p>
+							{/if}
+						</div>
+					</a>
 				{/each}
 			</div>
 		{/if}
