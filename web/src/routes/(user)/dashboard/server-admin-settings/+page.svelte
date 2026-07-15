@@ -1039,68 +1039,87 @@
 			result = await serviceAdapter.getAllSettings();
 		} catch (error: any) {
 			console.error('❌ Failed to load custom settings:', error);
-			// Continue with empty settings — don't block the rest of the page
-			result = { app: {} as any, custom: {} };
+			// Provide safe defaults so the rest of the page can render
+			result = {
+				app: {
+					authentication: {
+						enable_signup: true,
+						require_email_verification: false,
+						read_only: false
+					},
+					features: {
+						enable_realtime: true,
+						enable_storage: true,
+						enable_functions: true,
+						enable_jobs: true,
+						enable_rpc: true
+					},
+					security: {},
+					email: { provider: 'none' },
+					storage: {},
+					ai: {}
+				} as any,
+				custom: {}
+			};
+			toast.error(t('serverAdmin.failedToLoadSettings'), {
+				description: error?.message || 'Custom settings endpoint unavailable'
+			});
 		}
 
 		// App settings - result is already typed correctly
 		const { app, custom } = result;
 
-		console.log('🔧 [ADMIN] Loaded app settings:', {
-			authentication: app.authentication,
-			features: app.features,
-			security: app.security
-		});
-
 		// Authentication - use auth settings API as the source of truth
 		try {
 			const authSettings = await fluxbase.admin.oauth.authSettings.get();
-			console.log('🔧 [ADMIN] Loaded auth settings from API:', authSettings);
 			enableSignup = authSettings.enable_signup;
 			requireEmailVerification = authSettings.require_email_verification;
 			disablePasswordLogin = authSettings.disable_app_password_login ?? false;
-			// Check if any auth settings have overrides (read-only)
 			authReadOnly = !!(authSettings._overrides && Object.keys(authSettings._overrides).length > 0);
-		} catch (authError) {
-			console.warn(
-				'Could not load auth settings from API, falling back to app settings:',
-				authError
-			);
-			// Fallback to app settings
-			enableSignup = app.authentication.enable_signup;
-			requireEmailVerification = app.authentication.require_email_verification;
-			authReadOnly = app.authentication.read_only ?? false;
+		} catch {
+			// Fallback to app settings if auth API unavailable
+			enableSignup = app?.authentication?.enable_signup ?? true;
+			requireEmailVerification = app?.authentication?.require_email_verification ?? false;
+			authReadOnly = app?.authentication?.read_only ?? false;
 		}
 
+		emailProvider = app?.email?.provider ?? 'none';
+		smtpHost = app?.email?.smtp_host ?? '';
+		smtpPort = app?.email?.smtp_port ?? 587;
+		smtpUsername = app?.email?.smtp_username ?? '';
+		smtpUseTls = app?.email?.smtp_tls ?? true;
+		smtpFromAddress = app?.email?.from_address ?? '';
+		smtpFromName = app?.email?.from_name ?? 'Wayli';
+
 		// Email - now using flat EmailProviderSettings structure from SDK
-		emailProvider = app.email.provider;
-		smtpHost = app.email.smtp_host ?? '';
-		smtpPort = app.email.smtp_port ?? 587;
-		smtpUsername = app.email.smtp_username ?? '';
-		smtpUseTls = app.email.smtp_tls ?? true;
-		smtpFromAddress = app.email.from_address ?? '';
-		smtpFromName = app.email.from_name ?? 'Wayli';
+		emailProvider = app?.email?.provider;
+		smtpHost = app?.email?.smtp_host ?? '';
+		smtpPort = app?.email?.smtp_port ?? 587;
+		smtpUsername = app?.email?.smtp_username ?? '';
+		smtpUseTls = app?.email?.smtp_tls ?? true;
+		smtpFromAddress = app?.email?.from_address ?? '';
+		smtpFromName = app?.email?.from_name ?? 'Wayli';
 		// Note: SMTP password is not returned for security (smtp_password_set indicates if configured)
 
 		// Per-field read-only status from _overrides
-		emailProviderReadOnly = app.email._overrides?.provider?.is_overridden ?? false;
-		emailSmtpReadOnly = app.email._overrides?.smtp_host?.is_overridden ?? false;
+		emailProviderReadOnly = app?.email?._overrides?.provider?.is_overridden ?? false;
+		emailSmtpReadOnly = app?.email?._overrides?.smtp_host?.is_overridden ?? false;
 
 		// Features
-		enableRealtime = app.features.enable_realtime;
-		enableStorage = app.features.enable_storage;
-		enableFunctions = app.features.enable_functions;
+		enableRealtime = app?.features?.enable_realtime ?? true;
+		enableStorage = app?.features?.enable_storage ?? true;
+		enableFunctions = app?.features?.enable_functions ?? true;
 
 		// Security
-		enableRateLimiting = app.security.enable_global_rate_limit;
+		enableRateLimiting = app?.security?.enable_global_rate_limit ?? false;
 
 		// AI Settings - load from provider-based model
 		if (app.ai) {
-			aiEnabled = app.ai.enabled ?? false;
-			aiAllowUserOverride = app.ai.allow_user_provider_override ?? false;
+			aiEnabled = app?.ai?.enabled ?? false;
+			aiAllowUserOverride = app?.ai?.allow_user_provider_override ?? false;
 
 			// Load default provider into form if available
-			const defaultProvider = app.ai.default_provider;
+			const defaultProvider = app?.ai?.default_provider;
 			if (defaultProvider) {
 				providerName = 'wayli-default'; // Always use fixed provider name
 				providerDisplayName = defaultProvider.display_name ?? 'OpenAI (Production)';
