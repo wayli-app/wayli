@@ -202,7 +202,7 @@
 {#if lightbox}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+		class="fixed inset-0 z-50 flex items-start justify-center bg-black/90 pt-8"
 		onclick={() => (lightbox = null)}
 		role="presentation"
 	>
@@ -214,7 +214,7 @@
 		<img
 			src={lightbox.storage_path}
 			alt={lightbox.caption || 'Photo'}
-			class="max-h-[85vh] max-w-full rounded-lg object-contain"
+			class="max-h-[92vh] max-w-full rounded-lg object-contain animate-scale-in"
 			role="presentation"
 		/>
 	</div>

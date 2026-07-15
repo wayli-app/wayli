@@ -7,6 +7,9 @@
 	import { userStore } from '$lib/stores/auth';
 	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen } from 'lucide-svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
+	import { translate } from '$lib/i18n';
+
+	let t = $derived($translate);
 
 	type Profile = {
 		id: string;
@@ -61,16 +64,22 @@
 
 	onMount(async () => {
 		try {
-			const { data } = await fluxbase.auth.getUser();
-			currentUserId = data?.user?.id ?? null;
+			const { data: session } = await fluxbase.auth.getSession();
+			currentUserId = session?.session?.user?.id ?? null;
 		} catch {
 			currentUserId = null;
 		}
 
-		const requireAuth = await readSetting(() =>
-			fluxbase.settings.get('wayli.public_trips_require_auth')
-		);
-		if (requireAuth?.value === true || requireAuth?.value === 'true') {
+		let requireAuth = false;
+		try {
+			const setting = await readSetting(() =>
+				fluxbase.settings.get('wayli.public_trips_require_auth')
+			);
+			requireAuth = setting?.value === true || setting?.value === 'true';
+		} catch {
+			// Settings endpoint requires auth — default to open for anonymous
+		}
+		if (requireAuth && !currentUserId) {
 			if (!currentUserId) {
 				goto(`/auth/signin?redirectTo=/u/${username}`);
 				return;
@@ -142,8 +151,8 @@
 {:else if notFound}
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
-		<p class="text-muted-foreground text-lg">Traveler not found.</p>
-		<a href="/" class="text-primary hover:underline text-sm">← Home</a>
+		<p class="text-muted-foreground text-lg">{t('profile.travelerNotFound')}</p>
+		<a href="/" class="text-primary hover:underline text-sm">{t('profile.home')}</a>
 	</div>
 {:else if profile}
 	<!-- Floating top bar -->
@@ -154,7 +163,15 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<BookOpen class="h-4 w-4" />
-				Dashboard
+				{t('common.navigation.dashboard')}
+			</a>
+		{:else if currentUserId}
+			<a
+				href="/dashboard/travel"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<BookOpen class="h-4 w-4" />
+				{t('profile.myTravel')}
 			</a>
 		{:else}
 			<a
@@ -162,7 +179,7 @@
 				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
 			>
 				<LogIn class="h-4 w-4" />
-				Sign in
+				{t('auth.signIn')}
 			</a>
 		{/if}
 	</div>
@@ -220,28 +237,34 @@
 					>
 						<Route class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{stats.trips}</span>
-						<span class="text-white/60">{stats.trips === 1 ? 'trip' : 'trips'}</span>
+						<span class="text-white/60"
+							>{stats.trips === 1 ? t('common.trip') : t('common.trips')}</span
+						>
 					</div>
 					<div
 						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
 					>
 						<Globe class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{stats.countries}</span>
-						<span class="text-white/60">{stats.countries === 1 ? 'country' : 'countries'}</span>
+						<span class="text-white/60"
+							>{stats.countries === 1 ? t('common.country') : t('common.countries')}</span
+						>
 					</div>
 					<div
 						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
 					>
 						<MapPin class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{stats.cities}</span>
-						<span class="text-white/60">{stats.cities === 1 ? 'city' : 'cities'}</span>
+						<span class="text-white/60"
+							>{stats.cities === 1 ? t('common.city') : t('common.cities')}</span
+						>
 					</div>
 					<div
 						class="flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm backdrop-blur-md"
 					>
 						<Route class="h-4 w-4 text-white/60" />
 						<span class="font-bold text-white">{formatDistance(stats.distance)}</span>
-						<span class="text-white/60">traveled</span>
+						<span class="text-white/60">{t('profile.traveled')}</span>
 					</div>
 				</div>
 			{/if}
@@ -253,15 +276,15 @@
 		{#if trips.length === 0}
 			<div class="flex flex-col items-center justify-center py-20 text-center">
 				<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-				<p class="text-muted-foreground text-lg">No trips yet.</p>
+				<p class="text-muted-foreground text-lg">{t('profile.noTrips')}</p>
 			</div>
 		{:else}
-			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each trips as trip, i (trip.id)}
 					<a
 						href="/u/{username}/trips/{trip.id}"
-						class="group relative aspect-[4/3] overflow-hidden rounded-3xl shadow-lg transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl animate-fade-in-up"
-						style="animation-delay: {i * 80}ms"
+						class="group relative aspect-[16/10] overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up"
+						style="animation-delay: {i * 60}ms"
 					>
 						<!-- Background image -->
 						{#if trip.image_url}
@@ -279,14 +302,15 @@
 							class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-opacity duration-500 group-hover:from-black/90"
 						></div>
 
-						<!-- Top badges -->
+						<!-- Top date badge -->
 						<div class="absolute top-3 left-3 flex gap-2">
 							<div
 								class="rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
 							>
 								{new Date(trip.start_date).toLocaleDateString(undefined, {
 									month: 'short',
-									day: 'numeric'
+									day: 'numeric',
+									year: 'numeric'
 								})}
 							</div>
 							{#if isOwner && trip.visibility !== 'public'}
@@ -299,22 +323,33 @@
 						</div>
 
 						<!-- Bottom content -->
-						<div class="absolute right-0 bottom-0 left-0 p-5">
-							<h3 class="mb-1 text-xl font-bold tracking-tight text-white drop-shadow-md">
+						<div class="absolute right-0 bottom-0 left-0 p-4">
+							<h3 class="mb-0.5 text-base font-bold tracking-tight text-white drop-shadow-md">
 								{trip.title}
 							</h3>
-							{#if trip.description}
-								<p class="line-clamp-2 text-sm text-white/60">{trip.description}</p>
-							{/if}
+							<div class="flex items-center gap-2 text-xs text-white/50">
+								{new Date(trip.start_date).toLocaleDateString(undefined, {
+									month: 'short',
+									day: 'numeric'
+								})}
+								– {new Date(trip.end_date).toLocaleDateString(undefined, {
+									month: 'short',
+									day: 'numeric',
+									year: 'numeric'
+								})}
+							</div>
 							{#if trip.metadata?.primaryCity}
-								<div class="mt-2 flex items-center gap-1 text-xs text-white/50">
+								<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
 									<MapPin class="h-3 w-3" />
 									{trip.metadata.primaryCity}
-									{#if trip.metadata?.primaryCountryCode}
-										<span class="opacity-50">·</span>
-										{trip.metadata.primaryCountryCode}
-									{/if}
 								</div>
+							{/if}
+							{#if trip.metadata?.image_attribution?.photographer}
+								<p class="mt-0.5 text-[9px] text-white/25">
+									{t('common.photoCredit', {
+										photographer: trip.metadata.image_attribution.photographer
+									})}
+								</p>
 							{/if}
 						</div>
 					</a>

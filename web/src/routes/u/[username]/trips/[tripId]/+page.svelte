@@ -9,7 +9,38 @@
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
-	import { ArrowLeft, Calendar, Route, MapPin, Globe, Compass, LogIn } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		Calendar,
+		Route,
+		MapPin,
+		Globe,
+		Compass,
+		LogIn,
+		BookOpen
+	} from 'lucide-svelte';
+	import { translate } from '$lib/i18n';
+
+	let t = $derived($translate);
+
+	const TYPE_ICONS: Record<string, string> = {
+		sightseeing: '📷',
+		food: '🍴',
+		activity: '🎯',
+		transport: '🚇',
+		accommodation: '🏨',
+		rest: '☕',
+		shopping: '🛍️'
+	};
+	const TYPE_COLORS: Record<string, string> = {
+		sightseeing: '#3b82f6',
+		food: '#f59e0b',
+		activity: '#22c55e',
+		transport: '#8b5cf6',
+		accommodation: '#ec4899',
+		rest: '#6b7280',
+		shopping: '#14b8a6'
+	};
 
 	type Trip = {
 		id: string;
@@ -20,6 +51,7 @@
 		image_url: string | null;
 		metadata: Record<string, any> | null;
 		visibility: string;
+		plan_items_public?: boolean | null;
 	};
 
 	type Entry = {
@@ -41,6 +73,27 @@
 	let trip = $state<Trip | null>(null);
 	let entries = $state<Entry[]>([]);
 	let media = $state<Media[]>([]);
+	let planItems = $state<any[]>([]);
+
+	const planTotalCost = $derived(
+		planItems.reduce((s: number, i: any) => s + (i.cost_estimate ?? 0), 0)
+	);
+	const planCurrency = $derived(planItems[0]?.currency ?? 'EUR');
+	const planBudgetByCat = $derived(
+		planItems.reduce((acc: Record<string, number>, item: any) => {
+			const cat = item.type || 'activity';
+			acc[cat] = (acc[cat] ?? 0) + (item.cost_estimate ?? 0);
+			return acc;
+		}, {})
+	);
+	const planByDay = $derived(
+		planItems.reduce((acc: Record<number, any[]>, item: any) => {
+			const d = item.day_number ?? 1;
+			if (!acc[d]) acc[d] = [];
+			acc[d].push(item);
+			return acc;
+		}, {})
+	);
 	let allGpsPoints = $state<Array<{ lat: number; lng: number; date: string }>>([]);
 	let cityMarkers = $state<Array<{ lat: number; lng: number; label: string }>>([]);
 	let isLoading = $state(true);
@@ -48,6 +101,7 @@
 	let lightbox = $state<Media | null>(null);
 	let activeEntryId = $state<string | null>(null);
 	let scrollProgress = $state(0);
+	let currentUserId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
 	const tripId = $derived(page.params.tripId ?? '');
@@ -92,13 +146,19 @@
 	onMount(async () => {
 		window.addEventListener('scroll', onScroll, { passive: true });
 
-		const requireAuth = await readSetting(() =>
-			fluxbase.settings.get('wayli.public_trips_require_auth')
-		);
-		if (requireAuth?.value === true || requireAuth?.value === 'true') {
+		let requireAuth = false;
+		try {
+			const setting = await readSetting(() =>
+				fluxbase.settings.get('wayli.public_trips_require_auth')
+			);
+			requireAuth = setting?.value === true || setting?.value === 'true';
+		} catch {
+			// Settings endpoint requires auth — default to open
+		}
+		if (requireAuth) {
 			try {
-				const { data } = await fluxbase.auth.getUser();
-				if (!data?.user) {
+				const { data: session } = await fluxbase.auth.getSession();
+				if (!session?.session?.user) {
 					goto(`/auth/signin?redirectTo=/u/${username}/trips/${tripId}`);
 					return;
 				}
@@ -108,15 +168,15 @@
 			}
 		}
 
+		// Get current user ID (if logged in)
 		try {
-			let currentUserId: string | null = null;
-			try {
-				const { data: authData } = await fluxbase.auth.getUser();
-				currentUserId = authData?.user?.id ?? null;
-			} catch {
-				// Not logged in
-			}
+			const { data: session } = await fluxbase.auth.getSession();
+			currentUserId = session?.session?.user?.id ?? null;
+		} catch {
+			currentUserId = null;
+		}
 
+		try {
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
 			if (!tripData) {
 				notFound = true;
@@ -143,11 +203,20 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
+			// Load plan items if public
+			if (trip?.plan_items_public) {
+				const { data: planData } = await fluxbase
+					.from('trip_plan_items')
+					.select('title, type, start_time, cost_estimate, currency, day_number')
+					.eq('trip_id', tripId)
+					.order('day_number', { ascending: true })
+					.order('sort_order', { ascending: true });
+				planItems = (planData as any[]) ?? [];
+			}
+
 			try {
-				const { data: authData } = await fluxbase.auth.getUser();
-				const viewerId = authData?.user?.id;
-				if (viewerId && trip) {
-					allGpsPoints = await fetchTrackPoints(viewerId, trip.start_date, trip.end_date, 500);
+				if (currentUserId && trip) {
+					allGpsPoints = await fetchTrackPoints(currentUserId, trip.start_date, trip.end_date, 500);
 				}
 			} catch {
 				// Not logged in
@@ -187,8 +256,10 @@
 {:else if notFound || !trip}
 	<div class="flex min-h-screen flex-col items-center justify-center gap-3 bg-background p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
-		<p class="text-muted-foreground text-lg">Trip not found or not public.</p>
-		<a href="/u/{username}" class="text-primary hover:underline text-sm">← Back to profile</a>
+		<p class="text-muted-foreground text-lg">{t('publicTrip.tripNotFound')}</p>
+		<a href="/u/{username}" class="text-primary hover:underline text-sm"
+			>{t('publicTrip.backToProfile')}</a
+		>
 	</div>
 {:else}
 	<!-- Reading progress bar -->
@@ -199,15 +270,25 @@
 		></div>
 	</div>
 
-	<!-- Floating sign-in -->
+	<!-- Floating button -->
 	<div class="fixed top-4 right-4 z-50">
-		<a
-			href="/auth/signin"
-			class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
-		>
-			<LogIn class="h-4 w-4" />
-			Sign in
-		</a>
+		{#if currentUserId}
+			<a
+				href="/dashboard/travel"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<BookOpen class="h-4 w-4" />
+				{t('publicTrip.myTravel')}
+			</a>
+		{:else}
+			<a
+				href="/auth/signin"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<LogIn class="h-4 w-4" />
+				{t('auth.signIn')}
+			</a>
+		{/if}
 	</div>
 
 	<!-- Full-bleed trip hero -->
@@ -266,9 +347,12 @@
 			<div class="space-y-8">
 				{#if entries.length > 0}
 					{#each entries as entry, i (entry.id)}
-						<article
+						<div
 							data-entry-id={entry.id}
 							onclick={() => (activeEntryId = entry.id)}
+							onkeydown={(e) => e.key === 'Enter' && (activeEntryId = entry.id)}
+							role="button"
+							tabindex="0"
 							class="animate-fade-in-up scroll-mt-4 rounded-3xl bg-card border-border border p-6 transition-all duration-300 cursor-pointer {activeEntryId ===
 							entry.id
 								? 'ring-primary/30 ring-2 shadow-lg'
@@ -298,9 +382,11 @@
 									</div>
 									{#if entry.end_date && entry.end_date !== entry.entry_date}
 										<div class="text-xs text-muted-foreground/60">
-											until {new Date(entry.end_date).toLocaleDateString(undefined, {
-												month: 'short',
-												day: 'numeric'
+											{t('publicTrip.until', {
+												date: new Date(entry.end_date).toLocaleDateString(undefined, {
+													month: 'short',
+													day: 'numeric'
+												})
 											})}
 										</div>
 									{/if}
@@ -347,15 +433,93 @@
 									<EntryComments {tripId} entryId={entry.id} />
 								</div>
 							</div>
-						</article>
+
+							<!-- Pexels attribution -->
+							{#if trip.metadata?.image_attribution?.photographer}
+								<p class="absolute right-4 bottom-3 z-10 text-[10px] text-white/40">
+									{t('common.photoBy')}
+									<a
+										href={trip.metadata.image_attribution.photographer_url}
+										target="_blank"
+										rel="noopener"
+										class="hover:text-white/60 hover:underline"
+										>{trip.metadata.image_attribution.photographer}</a
+									>
+									{t('common.on')}
+									<a
+										href={trip.metadata.image_attribution.pexels_url}
+										target="_blank"
+										rel="noopener"
+										class="hover:text-white/60 hover:underline">Pexels</a
+									>
+								</p>
+							{/if}
+						</div>
 					{/each}
 				{:else}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
 						<MapPin class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-						<p class="text-muted-foreground text-lg">No journal entries for this trip.</p>
+						<p class="text-muted-foreground text-lg">{t('publicTrip.noEntries')}</p>
 					</div>
 				{/if}
 			</div>
+
+			<!-- Public plan items + budget -->
+			{#if planItems.length > 0}
+				<div class="bg-card border-border mt-8 rounded-2xl border p-6">
+					<h2 class="text-foreground mb-4 text-lg font-bold">{t('publicTrip.tripPlanCosts')}</h2>
+
+					<!-- Budget summary -->
+					{#if planTotalCost > 0}
+						<div class="mb-4 flex items-center gap-2">
+							<span class="text-muted-foreground text-sm">{t('common.total')}</span>
+							<span class="text-foreground text-xl font-bold"
+								>{planCurrency} {planTotalCost.toFixed(0)}</span
+							>
+						</div>
+						<div class="mb-4 flex flex-wrap gap-3">
+							{#each Object.entries(planBudgetByCat).sort(([, a], [, b]) => b - a) as [cat, amount]}
+								<div class="flex items-center gap-1.5 text-xs">
+									<span
+										class="h-2 w-2 rounded-full"
+										style="background: {TYPE_COLORS[cat] ?? '#6b7280'}"
+									></span>
+									<span class="text-muted-foreground">{cat}</span>
+									<span class="text-foreground font-medium">{amount.toFixed(0)}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<!-- Plan items by day -->
+					<div class="space-y-3">
+						{#each Object.entries(planByDay).sort(([a], [b]) => Number(a) - Number(b)) as [day, dayItems]}
+							<div>
+								<div class="text-muted-foreground mb-1 text-xs font-medium uppercase">
+									{t('plan.dayLabel', { day })}
+								</div>
+								<div class="flex flex-wrap gap-2">
+									{#each dayItems as item}
+										<span
+											class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium"
+											style="background: {TYPE_COLORS[item.type] ??
+												'#6b7280'}20; color: {TYPE_COLORS[item.type] ?? '#6b7280'}"
+										>
+											{TYPE_ICONS[item.type] ?? '📌'}
+											{item.title}
+											{#if item.cost_estimate}
+												<span class="opacity-70"
+													>· {item.currency} {item.cost_estimate.toFixed(0)}</span
+												>
+											{/if}
+										</span>
+									{/each}
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<!-- Sticky map sidebar -->
 			<div class="hidden lg:block">
@@ -369,14 +533,14 @@
 										? new Date(
 												entries.find((e) => e.id === activeEntryId)!.entry_date
 											).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-										: 'Route'}
+										: t('publicTrip.route')}
 								{:else}
-									Route
+									{t('publicTrip.route')}
 								{/if}
 							</span>
 							{#if highlightPoints.length > 0}
 								<span class="ml-auto text-xs text-muted-foreground">
-									{highlightPoints.length} points
+									{t('publicTrip.points', { count: highlightPoints.length })}
 								</span>
 							{/if}
 						</div>
@@ -391,7 +555,7 @@
 							<div
 								class="flex h-64 items-center justify-center px-6 text-center text-sm text-muted-foreground"
 							>
-								No GPS data available for this trip.
+								{t('publicTrip.noGpsData')}
 							</div>
 						{/if}
 					</div>
@@ -400,7 +564,7 @@
 					{#if entries.length > 1}
 						<div class="rounded-2xl border border-border bg-card p-4 shadow-sm">
 							<div class="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-								Entries
+								{t('publicTrip.entries')}
 							</div>
 							<div class="flex flex-wrap gap-2">
 								{#each entries as entry, i (entry.id)}
@@ -437,9 +601,9 @@
 		<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
 			<MapPin class="text-primary h-4 w-4" />
 			{#if activeEntryId}
-				Day {entries.findIndex((e) => e.id === activeEntryId) + 1}
+				{t('plan.dayLabel', { day: entries.findIndex((e) => e.id === activeEntryId) + 1 })}
 			{:else}
-				Route
+				{t('publicTrip.route')}
 			{/if}
 		</div>
 		<TripMap points={mapPoints} markers={cityMarkers} {highlightPoints} class="h-56" />

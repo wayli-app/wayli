@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { fluxbase } from '$lib/fluxbase';
 	import { userStore, sessionStore } from '$lib/stores/auth';
+	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import {
 		listAllEntries,
 		createEntry,
@@ -21,6 +22,7 @@
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
+	import PannableCover from '$lib/components/PannableCover.svelte';
 	import {
 		Plus,
 		ChevronDown,
@@ -46,6 +48,7 @@
 		Upload
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { translate } from '$lib/i18n';
 
 	type Trip = {
 		id: string;
@@ -109,7 +112,11 @@
 	let tripStartDate = $state('');
 	let tripEndDate = $state('');
 	let tripDescription = $state('');
+	let tripImageUrl = $state<string | null>(null);
+	let tripImageAttribution = $state<any>(null);
 	let isCreatingTrip = $state(false);
+	let isUploadingImage = $state(false);
+	let tripImageInput = $state<HTMLInputElement | null>(null);
 
 	// ── Service ──
 	let serviceAdapter: ServiceAdapter | null = null;
@@ -145,6 +152,11 @@
 	});
 
 	const pendingCount = $derived(pendingTrips.length);
+
+	// Sync pending count to shared store for AppNav badge
+	$effect(() => {
+		pendingTripCount.set(pendingTrips.length);
+	});
 
 	// ── Map state: overview (markers only) vs trip-detail (track) ──
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
@@ -206,6 +218,7 @@
 				.eq('status', 'pending')
 				.order('start_date', { ascending: false });
 			pendingTrips = (data as unknown as Trip[]) ?? [];
+			pendingTripCount.set(pendingTrips.length);
 		} catch {
 			// empty
 		}
@@ -312,6 +325,8 @@
 	}
 
 	let isGenerating = $state(false);
+	let t = $derived($translate);
+	let isRecalculating = $state(false);
 
 	// ── Suggestion modal state ──
 	let showGenerationModal = $state(false);
@@ -344,8 +359,8 @@
 			}
 
 			const jobData: Record<string, unknown> = {};
-			if (data.startDate) jobData.start_date = data.startDate;
-			if (data.endDate) jobData.end_date = data.endDate;
+			if (data.startDate) jobData.startDate = data.startDate;
+			if (data.endDate) jobData.endDate = data.endDate;
 			if (data.useCustomHomeAddress && data.customHomeAddressGeocode) {
 				jobData.home_address = data.customHomeAddressGeocode;
 			}
@@ -356,10 +371,24 @@
 			});
 			if (error) throw error;
 
-			toast.success('Generating trip suggestions — check back in a minute.');
+			toast.success(t('travel.generatingSuggestions'));
+
+			// Poll for new pending trips until they appear
+			const prevCount = pendingTrips.length;
+			let attempts = 0;
+			const poll = setInterval(async () => {
+				attempts++;
+				await loadPendingTrips();
+				if (pendingTrips.length > prevCount || attempts > 60) {
+					clearInterval(poll);
+					if (pendingTrips.length > prevCount) {
+						toast.success(`${pendingTrips.length - prevCount} new trip suggestion(s) ready!`);
+					}
+				}
+			}, 5000);
 		} catch (err) {
 			console.error('Generation failed:', err);
-			toast.error('Failed to start trip generation');
+			toast.error(t('travel.generationFailed'));
 		} finally {
 			isGenerating = false;
 		}
@@ -412,14 +441,14 @@
 			setTimeout(() => setupObserver(), 100);
 		} catch (err) {
 			console.error('Save failed:', err);
-			toast.error('Failed to save entry');
+			toast.error(t('travel.saveEntryFailed'));
 		} finally {
 			isSaving = false;
 		}
 	}
 
 	async function handleDeleteEntry(entry: JournalEntry) {
-		if (!confirm('Delete this entry?')) return;
+		if (!confirm(t('travel.confirmDeleteEntry'))) return;
 		try {
 			await deleteEntry(entry.id);
 			entries = entries.filter((e) => e.id !== entry.id);
@@ -446,16 +475,25 @@
 		approvingIds = new Set([...approvingIds, tripId]);
 		try {
 			if (serviceAdapter) {
-				await serviceAdapter.generateSuggestedTripImages([tripId]);
-				await serviceAdapter.approveSuggestedTrips([tripId]);
+				const imageResults = await serviceAdapter.generateSuggestedTripImages([tripId]);
+				const preGenerated: Record<string, { image_url: string; attribution?: unknown }> = {};
+				for (const r of imageResults.results) {
+					if (r.success && r.image_url) {
+						preGenerated[r.suggested_trip_id] = {
+							image_url: r.image_url,
+							attribution: r.attribution
+						};
+					}
+				}
+				await serviceAdapter.approveSuggestedTrips([tripId], preGenerated);
 			}
 			pendingTrips = pendingTrips.filter((t) => t.id !== tripId);
 			await loadTrips();
 			await loadGpsData();
-			toast.success('Trip approved');
+			toast.success(t('travel.tripApproved'));
 		} catch (err) {
 			console.error('Approve failed:', err);
-			toast.error('Failed to approve trip');
+			toast.error(t('travel.approveFailed'));
 		} finally {
 			const next = new Set(approvingIds);
 			next.delete(tripId);
@@ -480,13 +518,22 @@
 		approvingIds = new Set(ids);
 		try {
 			if (serviceAdapter) {
-				await serviceAdapter.generateSuggestedTripImages(ids);
-				await serviceAdapter.approveSuggestedTrips(ids);
+				const imageResults = await serviceAdapter.generateSuggestedTripImages(ids);
+				const preGenerated: Record<string, { image_url: string; attribution?: unknown }> = {};
+				for (const r of imageResults.results) {
+					if (r.success && r.image_url) {
+						preGenerated[r.suggested_trip_id] = {
+							image_url: r.image_url,
+							attribution: r.attribution
+						};
+					}
+				}
+				await serviceAdapter.approveSuggestedTrips(ids, preGenerated);
 			}
 			pendingTrips = [];
 			await loadTrips();
 			await loadGpsData();
-			toast.success(`${ids.length} trips approved`);
+			toast.success(t('travel.tripsApproved').replace('{count}', String(ids.length)));
 		} catch (err) {
 			console.error('Approve all failed:', err);
 		} finally {
@@ -514,6 +561,8 @@
 		tripStartDate = '';
 		tripEndDate = '';
 		tripDescription = '';
+		tripImageUrl = null;
+		tripImageAttribution = null;
 		showTripModal = true;
 	}
 
@@ -523,6 +572,8 @@
 		tripStartDate = (trip.start_date || '').slice(0, 10);
 		tripEndDate = (trip.end_date || '').slice(0, 10);
 		tripDescription = trip.description ?? '';
+		tripImageUrl = trip.image_url;
+		tripImageAttribution = trip.metadata?.image_attribution ?? null;
 		showTripModal = true;
 	}
 
@@ -532,43 +583,179 @@
 		try {
 			const tripsService = await getTripsService();
 			if (editingTrip) {
-				const updated = await tripsService.updateTrip({
-					id: editingTrip.id,
+				const editId = editingTrip.id;
+				const editMeta = editingTrip.metadata;
+				const newMetadata = {
+					...(editMeta ?? {}),
+					image_attribution: tripImageAttribution
+				};
+				await tripsService.updateTrip({
+					id: editId,
 					title: tripTitle,
 					start_date: tripStartDate,
 					end_date: tripEndDate || tripStartDate,
-					description: tripDescription
+					description: tripDescription,
+					image_url: tripImageUrl,
+					metadata: newMetadata
 				} as any);
-				trips = trips.map((t) => (t.id === updated.id ? (updated as unknown as Trip) : t));
+				trips = trips.map((t) =>
+					t.id === editId
+						? {
+								...t,
+								title: tripTitle,
+								start_date: tripStartDate,
+								end_date: tripEndDate || tripStartDate,
+								description: tripDescription,
+								image_url: tripImageUrl,
+								metadata: newMetadata
+							}
+						: t
+				);
 			} else {
-				await tripsService.createTrip({
+				const { data: userData } = await fluxbase.auth.getUser();
+				const userId = userData?.user?.id;
+				if (!userId) throw new Error('Not authenticated');
+
+				const { error: createError } = await fluxbase.from('trips').insert({
+					user_id: userId,
 					title: tripTitle,
 					start_date: tripStartDate,
 					end_date: tripEndDate || tripStartDate,
-					description: tripDescription
+					description: tripDescription || null,
+					image_url: tripImageUrl || null,
+					status: 'planned',
+					visibility: 'private'
 				});
+				if (createError) throw createError;
 				await loadTrips();
 			}
 			showTripModal = false;
-			toast.success(editingTrip ? 'Trip updated' : 'Trip created');
+			toast.success(editingTrip ? t('travel.tripUpdated') : t('travel.tripCreated'));
 		} catch (err) {
 			console.error('Save trip failed:', err);
-			toast.error('Failed to save trip');
+			toast.error(t('travel.saveTripFailed'));
 		} finally {
 			isCreatingTrip = false;
 		}
 	}
 
+	async function handleTripImageUpload(file: File) {
+		if (!$userStore?.id) return;
+		isUploadingImage = true;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			const compressed = await compressImage(file, { maxEdge: 1200, quality: 0.8 });
+			const filename = `cover-${Date.now()}.jpg`;
+			const url = await uploadMedia(userId, 'covers', compressed.full.blob, filename);
+			tripImageUrl = url;
+			tripImageAttribution = null;
+			toast.success(t('travel.imageUploaded'));
+		} catch (err) {
+			console.error('Upload failed:', err);
+			toast.error(t('travel.uploadFailed'));
+		} finally {
+			isUploadingImage = false;
+		}
+	}
+
+	async function fetchPexelsImage() {
+		try {
+			if (!serviceAdapter) {
+				toast.error(t('travel.serviceUnavailable'));
+				return;
+			}
+
+			// For new trips, save first so we have a trip_id
+			let tripIdForFetch = editingTrip?.id;
+			if (!tripIdForFetch) {
+				if (!tripTitle || !tripStartDate) {
+					toast.info(t('travel.enterTitleAndDate'));
+					return;
+				}
+				toast.info(t('travel.savingTripFirst'));
+				const { data: userData } = await fluxbase.auth.getUser();
+				const userId = userData?.user?.id;
+				if (!userId) return;
+
+				const { data: newTrip, error } = await fluxbase
+					.from('trips')
+					.insert({
+						user_id: userId,
+						title: tripTitle,
+						start_date: tripStartDate,
+						end_date: tripEndDate || tripStartDate,
+						description: tripDescription || null,
+						status: 'planned',
+						visibility: 'private'
+					})
+					.select('id')
+					.single();
+				if (error) throw error;
+				tripIdForFetch = (newTrip as any).id;
+				editingTrip = { ...(editingTrip ?? {}), id: tripIdForFetch } as Trip;
+			}
+
+			toast.info(t('travel.fetchingFromPexels'));
+			const result = await serviceAdapter.suggestTripImages(tripIdForFetch!);
+			const data =
+				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
+			if (data?.suggestedImageUrl) {
+				tripImageUrl = data.suggestedImageUrl;
+				tripImageAttribution = data.attribution ?? null;
+				toast.success(t('travel.imageFound'));
+			} else {
+				toast.error(t('travel.noImageFound'));
+			}
+		} catch (err) {
+			console.error('Pexels fetch failed:', err);
+			toast.error(t('travel.fetchImageFailed'));
+		}
+	}
+
 	// ── Trip management ──
+	async function fetchTripImage(trip: Trip) {
+		try {
+			if (!serviceAdapter) {
+				toast.error(t('travel.serviceUnavailable'));
+				return;
+			}
+			toast.info(t('travel.fetchingCoverImage'));
+			const result = await serviceAdapter.suggestTripImages(trip.id);
+			const data =
+				result && typeof result === 'object' && 'data' in result ? (result as any).data : result;
+			const imageUrl = data?.suggestedImageUrl;
+			if (!imageUrl) {
+				toast.error(t('travel.noImageFound'));
+				return;
+			}
+			const attribution = data?.attribution;
+			const newMetadata = { ...(trip.metadata ?? {}), image_attribution: attribution };
+			await fluxbase
+				.from('trips')
+				.update({ image_url: imageUrl, metadata: newMetadata })
+				.eq('id', trip.id);
+			trips = trips.map((t) =>
+				t.id === trip.id ? { ...t, image_url: imageUrl, metadata: newMetadata } : t
+			);
+			toast.success(t('travel.coverImageAdded'));
+		} catch (err) {
+			console.error('Fetch image failed:', err);
+			toast.error(t('travel.fetchCoverFailed'));
+		}
+	}
+
 	async function deleteTrip(tripId: string) {
-		if (!confirm('Delete this trip and all its entries?')) return;
+		if (!confirm(t('travel.confirmDeleteTrip'))) return;
 		try {
 			const tripsService = await getTripsService();
 			await tripsService.deleteTrip(tripId);
 			trips = trips.filter((t) => t.id !== tripId);
 			entries = entries.filter((e) => e.trip_id !== tripId);
 			if (activeTripId === tripId) activeTripId = null;
-			toast.success('Trip deleted');
+			toast.success(t('travel.tripDeleted'));
 		} catch (err) {
 			console.error('Delete trip failed:', err);
 		}
@@ -612,7 +799,53 @@
 			toast.success(`Distance updated: ${(total / 1000).toFixed(0)} km`);
 		} catch (err) {
 			console.error('Recalculate failed:', err);
-			toast.error('Failed to recalculate distance');
+			toast.error(t('travel.recalcDistanceFailed'));
+		}
+	}
+
+	async function recalculateAllDistances() {
+		isRecalculating = true;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) return;
+
+			for (const trip of trips) {
+				const sd = (trip.start_date || '').slice(0, 10);
+				const ed = (trip.end_date || '').slice(0, 10);
+				let total = 0;
+				let offset = 0;
+
+				while (true) {
+					const { data } = await fluxbase
+						.from<Record<string, any>>('tracker_data')
+						.select('distance')
+						.eq('user_id', userId)
+						.gte('recorded_at', `${sd}T00:00:00Z`)
+						.lte('recorded_at', `${ed}T23:59:59Z`)
+						.range(offset, offset + 999);
+
+					const batch = (data as any[]) ?? [];
+					if (batch.length === 0) break;
+					total += batch.reduce(
+						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+						0
+					);
+					if (batch.length < 1000) break;
+					offset += 1000;
+				}
+
+				const newMetadata = { ...(trip.metadata ?? {}), distanceTraveled: Math.round(total) };
+				await fluxbase.from('trips').update({ metadata: newMetadata }).eq('id', trip.id);
+			}
+
+			await loadTrips();
+			toast.success(`Recalculated distance for ${trips.length} trips`);
+		} catch (err) {
+			console.error('Recalculate all failed:', err);
+			toast.error(t('travel.recalcFailed'));
+		} finally {
+			isRecalculating = false;
 		}
 	}
 
@@ -640,7 +873,7 @@
 </script>
 
 <svelte:head>
-	<title>Travel · Wayli</title>
+	<title>{t('travel.pageTitle')}</title>
 </svelte:head>
 
 {#if isLoading}
@@ -654,7 +887,7 @@
 			<div class="flex items-center gap-3">
 				<Globe class="text-primary h-6 w-6" />
 				<div>
-					<h1 class="text-foreground text-xl font-bold">Travel</h1>
+					<h1 class="text-foreground text-xl font-bold">{t('travel.heading')}</h1>
 					<p class="text-muted-foreground text-sm">
 						{trips.length}
 						{trips.length === 1 ? 'trip' : 'trips'}
@@ -713,6 +946,22 @@
 						{/if}
 					</button>
 				{/if}
+				{#if trips.length > 0}
+					<button
+						type="button"
+						onclick={recalculateAllDistances}
+						disabled={isRecalculating}
+						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+						title="Recalculate distance for all trips"
+					>
+						{#if isRecalculating}
+							<Loader2 class="h-3.5 w-3.5 animate-spin" />
+						{:else}
+							<RefreshCw class="h-3.5 w-3.5" />
+						{/if}
+						Refresh All
+					</button>
+				{/if}
 				<button
 					type="button"
 					onclick={openTripModal}
@@ -733,10 +982,13 @@
 					<div
 						class="border-amber-300/40 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border-2 border-dashed"
 					>
-						<button
-							type="button"
+						<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+						<div
+							role="button"
+							tabindex="0"
 							onclick={() => (suggestionsExpanded = !suggestionsExpanded)}
-							class="hover:bg-amber-100/30 dark:hover:bg-amber-950/20 flex w-full items-center justify-between p-4 transition-colors"
+							onkeydown={(e) => e.key === 'Enter' && (suggestionsExpanded = !suggestionsExpanded)}
+							class="hover:bg-amber-100/30 dark:hover:bg-amber-950/20 flex w-full cursor-pointer items-center justify-between p-4 transition-colors"
 						>
 							<div class="flex items-center gap-2">
 								<Sparkles class="h-4 w-4 text-amber-500" />
@@ -773,7 +1025,7 @@
 									<ChevronRight class="text-muted-foreground h-5 w-5" />
 								{/if}
 							</div>
-						</button>
+						</div>
 						{#if suggestionsExpanded}
 							<div class="space-y-3 px-4 pb-4">
 								{#each pendingTrips as trip (trip.id)}
@@ -783,11 +1035,13 @@
 											<p class="text-muted-foreground text-xs">
 												{new Date(trip.start_date).toLocaleDateString(undefined, {
 													month: 'short',
-													day: 'numeric'
+													day: 'numeric',
+													year: 'numeric'
 												})}
 												– {new Date(trip.end_date).toLocaleDateString(undefined, {
 													month: 'short',
-													day: 'numeric'
+													day: 'numeric',
+													year: 'numeric'
 												})}
 												{#if trip.metadata?.distanceTraveled}
 													· {formatDistance(trip.metadata.distanceTraveled)}
@@ -826,7 +1080,7 @@
 				{#if trips.length === 0}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
 						<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-						<p class="text-muted-foreground text-lg">No trips yet.</p>
+						<p class="text-muted-foreground text-lg">{t('travel.noTrips')}</p>
 						<p class="text-muted-foreground mt-1 text-sm">
 							Import location data or create a trip manually.
 						</p>
@@ -872,11 +1126,13 @@
 											<Calendar class="h-3 w-3" />
 											{new Date(trip.start_date).toLocaleDateString(undefined, {
 												month: 'short',
-												day: 'numeric'
+												day: 'numeric',
+												year: 'numeric'
 											})}
 											– {new Date(trip.end_date).toLocaleDateString(undefined, {
 												month: 'short',
-												day: 'numeric'
+												day: 'numeric',
+												year: 'numeric'
 											})}
 										</span>
 										{#if trip.metadata?.distanceTraveled}
@@ -889,6 +1145,11 @@
 											<span class="flex items-center gap-1">
 												<MapPin class="h-3 w-3" />
 												{trip.metadata.primaryCity}
+											</span>
+										{/if}
+										{#if trip.metadata?.image_attribution?.photographer}
+											<span class="text-muted-foreground/60 text-[10px]">
+												Photo: {trip.metadata.image_attribution.photographer}/Pexels
 											</span>
 										{/if}
 									</div>
@@ -915,6 +1176,12 @@
 											<Plus class="h-3 w-3" />
 											Add Entry
 										</button>
+										<a
+											href="/dashboard/travel/{trip.id}/plan"
+											class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+										>
+											<Calendar class="h-3 w-3" /> Plan
+										</a>
 										<div class="flex-1"></div>
 										<button
 											type="button"
@@ -974,25 +1241,45 @@
 									{:else}
 										<div class="space-y-3 p-4">
 											{#each entriesByTrip.get(trip.id) ?? [] as entry (entry.id)}
-												<article
+												<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+												<div
 													data-entry-id={entry.id}
 													data-trip-id={trip.id}
+													role="button"
+													tabindex="0"
 													onclick={() => {
 														activeEntryId = entry.id;
 														activeTripId = trip.id;
 													}}
+													onkeydown={(e) =>
+														e.key === 'Enter' &&
+														((activeEntryId = entry.id), (activeTripId = trip.id))}
 													class="border-border bg-background rounded-xl border p-4 transition-all {activeEntryId ===
 													entry.id
 														? 'ring-primary/20 ring-2'
 														: ''}"
 												>
-													<!-- Entry cover photo -->
+													<!-- Entry cover photo (pannable) -->
 													{#if entry.cover_image_url}
-														<div class="mb-3 h-28 overflow-hidden rounded-lg">
-															<img
+														<div class="mb-3 overflow-hidden rounded-lg">
+															<PannableCover
 																src={entry.cover_image_url}
-																alt=""
-																class="h-full w-full object-cover"
+																editable={true}
+																onFocalChange={async (x, y) => {
+																	// Update entry metadata with focal point
+																	try {
+																		await fluxbase
+																			.from('trip_entries')
+																			.update({
+																				cover_focal_x: x,
+																				cover_focal_y: y
+																			})
+																			.eq('id', entry.id);
+																	} catch {
+																		// non-critical
+																	}
+																}}
+																class="h-28 w-full"
 															/>
 														</div>
 													{/if}
@@ -1063,7 +1350,7 @@
 															<EntryComments tripId={trip.id} entryId={entry.id} />
 														</div>
 													</div>
-												</article>
+												</div>
 											{/each}
 										</div>
 									{/if}
@@ -1124,7 +1411,9 @@
 
 							{#if editingEntry}
 								<div class="border-border rounded-lg border p-3">
-									<span class="text-muted-foreground mb-2 block text-xs font-medium">Photos</span>
+									<span class="text-muted-foreground mb-2 block text-xs font-medium"
+										>{t('travel.photos')}</span
+									>
 									<PhotoGallery
 										tripId={editingEntry.trip_id}
 										entryId={editingEntry.id}
@@ -1163,7 +1452,10 @@
 
 				<!-- New trip modal -->
 				{#if showTripModal}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
+						role="dialog"
+						tabindex="-1"
 						class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
 						onkeydown={(e) => e.key === 'Escape' && (showTripModal = false)}
 					>
@@ -1212,6 +1504,85 @@
 								rows="2"
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 							></textarea>
+
+							<!-- Cover image management -->
+							<div class="space-y-2">
+								<span class="text-muted-foreground text-xs font-medium"
+									>{t('travel.coverImage')}</span
+								>
+								<input
+									bind:this={tripImageInput}
+									type="file"
+									accept="image/*"
+									class="hidden"
+									onchange={(e) => {
+										const f = (e.target as HTMLInputElement).files?.[0];
+										if (f) handleTripImageUpload(f);
+									}}
+								/>
+								{#if tripImageUrl}
+									<div class="relative h-32 overflow-hidden rounded-lg">
+										<img src={tripImageUrl} alt="Cover" class="h-full w-full object-cover" />
+										<button
+											type="button"
+											onclick={() => {
+												tripImageUrl = null;
+												tripImageAttribution = null;
+											}}
+											class="bg-destructive absolute top-2 right-2 rounded-full p-1.5 text-white shadow-lg"
+											title="Remove image"><X class="h-4 w-4" /></button
+										>
+									</div>
+									{#if tripImageAttribution?.photographer}
+										<p class="text-muted-foreground text-[10px]">
+											Photo by
+											<a
+												href={tripImageAttribution.photographer_url}
+												target="_blank"
+												rel="noopener"
+												class="hover:underline">{tripImageAttribution.photographer}</a
+											>
+											on
+											<a
+												href={tripImageAttribution.pexels_url}
+												target="_blank"
+												rel="noopener"
+												class="hover:underline">Pexels</a
+											>
+										</p>
+									{/if}
+								{:else}
+									<div
+										class="border-border flex h-20 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground"
+									>
+										No cover image
+									</div>
+								{/if}
+								<div class="flex gap-2">
+									<button
+										type="button"
+										onclick={() => tripImageInput?.click()}
+										disabled={isUploadingImage}
+										class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+									>
+										{#if isUploadingImage}
+											<Loader2 class="h-3 w-3 animate-spin" /> Uploading...
+										{:else}
+											<Upload class="h-3 w-3" /> Upload
+										{/if}
+									</button>
+									{#if editingTrip}
+										<button
+											type="button"
+											onclick={fetchPexelsImage}
+											class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+										>
+											<Sparkles class="h-3 w-3" /> Fetch from Pexels
+										</button>
+									{/if}
+								</div>
+							</div>
+
 							<div class="flex justify-end gap-2">
 								<button
 									type="button"

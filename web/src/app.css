@@ -207,7 +207,7 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .animate-fade-in-up {
-	animation: fadeInUp 0.6s ease-out both;
+	animation: fadeInUp 0.6s ease-out backwards;
 }
 
 .animate-fade-in {

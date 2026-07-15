@@ -207,11 +207,26 @@ export class WantToVisitService {
 			throw new Error('Failed to update favorite status');
 		}
 
-		// Map database column names to frontend property names
 		return {
 			...data,
 			markerType: data.marker_type,
 			markerColor: data.marker_color
 		} as Place;
+	}
+
+	static async setRating(id: string, rating: number): Promise<void> {
+		const { error } = await fluxbase
+			.from<Record<string, any>>('want_to_visit_places')
+			.update({ rating })
+			.eq('id', id);
+		if (error) throw new Error('Failed to update rating');
+	}
+
+	static async updateImage(id: string, imageUrl: string, attribution: any): Promise<void> {
+		const { error } = await fluxbase
+			.from<Record<string, any>>('want_to_visit_places')
+			.update({ image_url: imageUrl, image_attribution: attribution })
+			.eq('id', id);
+		if (error) throw new Error('Failed to update image');
 	}
 }

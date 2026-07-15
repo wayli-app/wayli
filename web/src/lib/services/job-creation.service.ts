@@ -16,13 +16,14 @@ import {
 type JobType =
 	| 'data-import'
 	| 'data-export'
+	| 'polarsteps-import'
 	| 'trip-generation'
 	| 'trip-detection'
 	| 'reverse-geocoding'
 	| 'distance-calculation';
 
 // All formats now use the unified data-import job
-const SUPPORTED_IMPORT_FORMATS = ['GeoJSON', 'GPX', 'KML', 'OwnTracks'];
+const SUPPORTED_IMPORT_FORMATS = ['GeoJSON', 'GPX', 'KML', 'OwnTracks', 'Polarsteps'];
 
 type JobPriority = number; // 1-10, where 10 is highest priority
 
@@ -103,7 +104,7 @@ class JobCreationService {
 		if (!SUPPORTED_IMPORT_FORMATS.includes(options.format)) {
 			throw new Error(`Unsupported import format: ${options.format}`);
 		}
-		const jobType: JobType = 'data-import';
+		const jobType: JobType = options.format === 'Polarsteps' ? 'polarsteps-import' : 'data-import';
 
 		// Start tracking upload progress in the store
 		startUpload(uploadId, file.name, file.size);
