@@ -282,7 +282,7 @@
 					</p>
 					<div class="flex flex-col justify-center gap-4 sm:flex-row">
 						{#if $userStore && authResolved}
-							<!-- Logged in: Dashboard + Journal -->
+							<!-- Logged in: Dashboard + Travel -->
 							<a
 								href="/dashboard/statistics"
 								class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-8 py-4 font-semibold text-white shadow-lg transition-colors"

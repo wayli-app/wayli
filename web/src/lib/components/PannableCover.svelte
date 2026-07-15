@@ -18,6 +18,7 @@
 	}: Props = $props();
 
 	let container: HTMLElement | null = $state(null);
+	let imgEl: HTMLImageElement | null = $state(null);
 	let isDragging = $state(false);
 	let dragStart = { x: 0, y: 0, focalX: 0.5, focalY: 0.5 };
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -30,11 +31,21 @@
 	}
 
 	function onPointerMove(e: PointerEvent) {
-		if (!isDragging || !container) return;
+		if (!isDragging || !container || !imgEl) return;
 		const rect = container.getBoundingClientRect();
 		if (rect.width === 0 || rect.height === 0) return;
-		const dx = (e.clientX - dragStart.x) / rect.width;
-		const dy = (e.clientY - dragStart.y) / rect.height;
+
+		// Account for object-cover overflow: the image is wider/taller than
+		// the container, so dragging 1px moves less than 1/containerWidth of
+		// the focal range. Compute the actual rendered image size.
+		const img = imgEl;
+		const scale = Math.max(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+		const renderedW = img.naturalWidth * scale;
+		const renderedH = img.naturalHeight * scale;
+
+		// Normalize drag delta by the RENDERED image size, not container size
+		const dx = (e.clientX - dragStart.x) / renderedW;
+		const dy = (e.clientY - dragStart.y) / renderedH;
 		focalX = Math.max(0, Math.min(1, dragStart.focalX - dx));
 		focalY = Math.max(0, Math.min(1, dragStart.focalY - dy));
 	}
@@ -58,6 +69,7 @@
 	role="presentation"
 >
 	<img
+		bind:this={imgEl}
 		{src}
 		alt=""
 		class="h-full w-full object-cover {editable ? 'cursor-grab' : ''} {isDragging
