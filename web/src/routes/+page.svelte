@@ -217,7 +217,7 @@
 							{t('common.navigation.dashboard')}
 						</a>
 						<a
-							href="/dashboard/journal"
+							href="/dashboard/travel"
 							class="block cursor-pointer px-4 py-2 text-sm text-gray-700 transition-colors dark:text-muted-foreground hover:bg-muted"
 						>
 							Journal
@@ -291,7 +291,7 @@
 								<ArrowRight class="h-5 w-5" />
 							</a>
 							<a
-								href="/dashboard/journal"
+								href="/dashboard/travel"
 								class="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-border px-8 py-4 font-semibold text-foreground transition-colors hover:bg-muted"
 							>
 								<BookOpen class="h-5 w-5" />
