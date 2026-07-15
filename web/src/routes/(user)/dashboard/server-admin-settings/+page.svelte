@@ -1030,148 +1030,145 @@
 	}
 
 	async function loadAllSettings() {
+		const session = $sessionStore;
+		if (!session) return;
+
+		let result: AdminSettingsResponse;
 		try {
-			const session = $sessionStore;
-			if (!session) return;
-
 			const serviceAdapter = new ServiceAdapter({ session });
-			const result: AdminSettingsResponse = await serviceAdapter.getAllSettings();
-
-			// App settings - result is already typed correctly
-			const { app, custom } = result;
-
-			console.log('🔧 [ADMIN] Loaded app settings:', {
-				authentication: app.authentication,
-				features: app.features,
-				security: app.security
-			});
-
-			// Authentication - use auth settings API as the source of truth
-			try {
-				const authSettings = await fluxbase.admin.oauth.authSettings.get();
-				console.log('🔧 [ADMIN] Loaded auth settings from API:', authSettings);
-				enableSignup = authSettings.enable_signup;
-				requireEmailVerification = authSettings.require_email_verification;
-				disablePasswordLogin = authSettings.disable_app_password_login ?? false;
-				// Check if any auth settings have overrides (read-only)
-				authReadOnly = !!(
-					authSettings._overrides && Object.keys(authSettings._overrides).length > 0
-				);
-			} catch (authError) {
-				console.warn(
-					'Could not load auth settings from API, falling back to app settings:',
-					authError
-				);
-				// Fallback to app settings
-				enableSignup = app.authentication.enable_signup;
-				requireEmailVerification = app.authentication.require_email_verification;
-				authReadOnly = app.authentication.read_only ?? false;
-			}
-
-			// Email - now using flat EmailProviderSettings structure from SDK
-			emailProvider = app.email.provider;
-			smtpHost = app.email.smtp_host ?? '';
-			smtpPort = app.email.smtp_port ?? 587;
-			smtpUsername = app.email.smtp_username ?? '';
-			smtpUseTls = app.email.smtp_tls ?? true;
-			smtpFromAddress = app.email.from_address ?? '';
-			smtpFromName = app.email.from_name ?? 'Wayli';
-			// Note: SMTP password is not returned for security (smtp_password_set indicates if configured)
-
-			// Per-field read-only status from _overrides
-			emailProviderReadOnly = app.email._overrides?.provider?.is_overridden ?? false;
-			emailSmtpReadOnly = app.email._overrides?.smtp_host?.is_overridden ?? false;
-
-			// Features
-			enableRealtime = app.features.enable_realtime;
-			enableStorage = app.features.enable_storage;
-			enableFunctions = app.features.enable_functions;
-
-			// Security
-			enableRateLimiting = app.security.enable_global_rate_limit;
-
-			// AI Settings - load from provider-based model
-			if (app.ai) {
-				aiEnabled = app.ai.enabled ?? false;
-				aiAllowUserOverride = app.ai.allow_user_provider_override ?? false;
-
-				// Load default provider into form if available
-				const defaultProvider = app.ai.default_provider;
-				if (defaultProvider) {
-					providerName = 'wayli-default'; // Always use fixed provider name
-					providerDisplayName = defaultProvider.display_name ?? 'OpenAI (Production)';
-					providerType = defaultProvider.provider_type ?? 'openai';
-					providerModel = defaultProvider.config?.model ?? 'gpt-4.1-mini-2025-04-14';
-					providerApiEndpoint = defaultProvider.config?.api_endpoint ?? '';
-					providerMaxTokens = defaultProvider.config?.max_tokens ?? 4096;
-					providerTemperature = defaultProvider.config?.temperature ?? 0.7;
-					providerIsDefault = defaultProvider.is_default ?? true;
-					providerReadOnly = defaultProvider.read_only ?? false;
-					// Note: API key is not returned for security reasons
-				}
-			}
-
-			// Custom Wayli settings
-			serverName = custom['wayli.server_name']?.value || '';
-
-			// Note: Auth settings (enableSignup, requireEmailVerification, disablePasswordLogin)
-			// are loaded above from fluxbase.admin.oauth.authSettings.get()
-
-			// Load Pexels rate limit (0 = unlimited)
-			const loadedRateLimit = custom['wayli.pexels_rate_limit']?.value ?? 200;
-			if (loadedRateLimit === 0) {
-				pexelsRateLimitEnabled = false;
-				pexelsRateLimit = 200; // Default value for when re-enabled
-			} else {
-				pexelsRateLimitEnabled = true;
-				pexelsRateLimit = loadedRateLimit;
-			}
-
-			// Load Pelias endpoint
-			peliasEndpoint = custom['wayli.pelias_endpoint']?.value || 'https://pelias.wayli.app';
-
-			// Load Pexels API key secret metadata (value is not returned)
-			if (result.secrets?.pexels_api_key) {
-				pexelsApiKeyConfigured = true;
-				pexelsApiKeyUpdatedAt = result.secrets.pexels_api_key.updated_at;
-			} else {
-				pexelsApiKeyConfigured = false;
-				pexelsApiKeyUpdatedAt = null;
-			}
-
-			console.log('✅ Settings loaded successfully');
-
-			// Ensure required storage buckets exist (self-healing)
-			ensureStorageBuckets().catch(() => {});
-
-			// Load landing redirect setting
-			try {
-				const redirectUser = await fluxbase.settings
-					.get('wayli.landing_redirect_username')
-					.catch(() => null);
-				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
-					landingRedirectUsername = redirectUser.trim();
-				}
-			} catch {
-				// Setting not found — defaults are fine
-			}
-
-			// Load users with usernames (query user_profiles directly —
-			// public_profiles view may not exist on all instances)
-			try {
-				const { data: usersData } = await fluxbase
-					.from('user_profiles')
-					.select('id, username, full_name')
-					.not('username', 'is', null);
-				usersWithUsernames = (usersData as any[]) ?? [];
-			} catch {
-				// Can't load users — selector will be empty
-			}
+			result = await serviceAdapter.getAllSettings();
 		} catch (error: any) {
-			console.error('❌ Failed to load settings:', error);
-			toast.error(t('serverAdmin.failedToLoadSettings'), {
-				description: error?.message || 'Unknown error'
-			});
+			console.error('❌ Failed to load custom settings:', error);
+			// Continue with empty settings — don't block the rest of the page
+			result = { app: {} as any, custom: {} };
+		}
+
+		// App settings - result is already typed correctly
+		const { app, custom } = result;
+
+		console.log('🔧 [ADMIN] Loaded app settings:', {
+			authentication: app.authentication,
+			features: app.features,
+			security: app.security
+		});
+
+		// Authentication - use auth settings API as the source of truth
+		try {
+			const authSettings = await fluxbase.admin.oauth.authSettings.get();
+			console.log('🔧 [ADMIN] Loaded auth settings from API:', authSettings);
+			enableSignup = authSettings.enable_signup;
+			requireEmailVerification = authSettings.require_email_verification;
+			disablePasswordLogin = authSettings.disable_app_password_login ?? false;
+			// Check if any auth settings have overrides (read-only)
+			authReadOnly = !!(authSettings._overrides && Object.keys(authSettings._overrides).length > 0);
+		} catch (authError) {
+			console.warn(
+				'Could not load auth settings from API, falling back to app settings:',
+				authError
+			);
+			// Fallback to app settings
+			enableSignup = app.authentication.enable_signup;
+			requireEmailVerification = app.authentication.require_email_verification;
+			authReadOnly = app.authentication.read_only ?? false;
+		}
+
+		// Email - now using flat EmailProviderSettings structure from SDK
+		emailProvider = app.email.provider;
+		smtpHost = app.email.smtp_host ?? '';
+		smtpPort = app.email.smtp_port ?? 587;
+		smtpUsername = app.email.smtp_username ?? '';
+		smtpUseTls = app.email.smtp_tls ?? true;
+		smtpFromAddress = app.email.from_address ?? '';
+		smtpFromName = app.email.from_name ?? 'Wayli';
+		// Note: SMTP password is not returned for security (smtp_password_set indicates if configured)
+
+		// Per-field read-only status from _overrides
+		emailProviderReadOnly = app.email._overrides?.provider?.is_overridden ?? false;
+		emailSmtpReadOnly = app.email._overrides?.smtp_host?.is_overridden ?? false;
+
+		// Features
+		enableRealtime = app.features.enable_realtime;
+		enableStorage = app.features.enable_storage;
+		enableFunctions = app.features.enable_functions;
+
+		// Security
+		enableRateLimiting = app.security.enable_global_rate_limit;
+
+		// AI Settings - load from provider-based model
+		if (app.ai) {
+			aiEnabled = app.ai.enabled ?? false;
+			aiAllowUserOverride = app.ai.allow_user_provider_override ?? false;
+
+			// Load default provider into form if available
+			const defaultProvider = app.ai.default_provider;
+			if (defaultProvider) {
+				providerName = 'wayli-default'; // Always use fixed provider name
+				providerDisplayName = defaultProvider.display_name ?? 'OpenAI (Production)';
+				providerType = defaultProvider.provider_type ?? 'openai';
+				providerModel = defaultProvider.config?.model ?? 'gpt-4.1-mini-2025-04-14';
+				providerApiEndpoint = defaultProvider.config?.api_endpoint ?? '';
+				providerMaxTokens = defaultProvider.config?.max_tokens ?? 4096;
+				providerTemperature = defaultProvider.config?.temperature ?? 0.7;
+				providerIsDefault = defaultProvider.is_default ?? true;
+				providerReadOnly = defaultProvider.read_only ?? false;
+				// Note: API key is not returned for security reasons
+			}
+		}
+
+		// Custom Wayli settings
+		serverName = custom['wayli.server_name']?.value || '';
+
+		// Note: Auth settings (enableSignup, requireEmailVerification, disablePasswordLogin)
+		// are loaded above from fluxbase.admin.oauth.authSettings.get()
+
+		// Load Pexels rate limit (0 = unlimited)
+		const loadedRateLimit = custom['wayli.pexels_rate_limit']?.value ?? 200;
+		if (loadedRateLimit === 0) {
+			pexelsRateLimitEnabled = false;
+			pexelsRateLimit = 200; // Default value for when re-enabled
+		} else {
+			pexelsRateLimitEnabled = true;
+			pexelsRateLimit = loadedRateLimit;
+		}
+
+		// Load Pelias endpoint
+		peliasEndpoint = custom['wayli.pelias_endpoint']?.value || 'https://pelias.wayli.app';
+
+		// Load Pexels API key secret metadata (value is not returned)
+		if (result.secrets?.pexels_api_key) {
+			pexelsApiKeyConfigured = true;
+			pexelsApiKeyUpdatedAt = result.secrets.pexels_api_key.updated_at;
+		} else {
+			pexelsApiKeyConfigured = false;
+			pexelsApiKeyUpdatedAt = null;
+		}
+
+		console.log('✅ Settings loaded successfully');
+
+		// Ensure required storage buckets exist (self-healing)
+		ensureStorageBuckets().catch(() => {});
+
+		// Load landing redirect setting
+		try {
+			const redirectUser = await fluxbase.settings
+				.get('wayli.landing_redirect_username')
+				.catch(() => null);
+			if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
+				landingRedirectUsername = redirectUser.trim();
+			}
+		} catch {
+			// Setting not found — defaults are fine
+		}
+
+		// Load users independently (not blocked by settings errors)
+		try {
+			const { data: usersData } = await fluxbase
+				.from('user_profiles')
+				.select('id, username, full_name')
+				.not('username', 'is', null);
+			usersWithUsernames = (usersData as any[]) ?? [];
+		} catch {
+			// Can't load users — selector will be empty
 		}
 	}
 
