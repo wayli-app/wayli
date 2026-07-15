@@ -22,6 +22,7 @@
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+	import PannableCover from '$lib/components/PannableCover.svelte';
 	import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionManager } from '$lib/services/session';
@@ -1592,11 +1593,29 @@
 			<!-- Cover photo -->
 			<div class="mt-6">
 				<span class="mb-1.5 block text-sm font-medium text-foreground"> Cover photo </span>
-				<div class="relative h-32 overflow-hidden rounded-lg border border-border bg-muted">
+				<div class="overflow-hidden rounded-lg border border-border bg-muted">
 					{#if profileCoverUrl}
-						<img src={profileCoverUrl} alt="" class="h-full w-full object-cover" />
+						<PannableCover
+							src={profileCoverUrl}
+							focalX={(profile as any)?.cover_focal_x ?? 0.5}
+							focalY={(profile as any)?.cover_focal_y ?? 0.5}
+							editable={true}
+							onFocalChange={async (x, y) => {
+								try {
+									await fluxbase
+										.from('user_profiles')
+										.update({ cover_focal_x: x, cover_focal_y: y })
+										.eq('id', (profile as any).id);
+									(profile as any).cover_focal_x = x;
+									(profile as any).cover_focal_y = y;
+								} catch {
+									// non-critical
+								}
+							}}
+							class="h-32 w-full"
+						/>
 					{:else}
-						<div class="flex h-full items-center justify-center text-muted-foreground text-sm">
+						<div class="flex h-32 items-center justify-center text-muted-foreground text-sm">
 							No cover photo
 						</div>
 					{/if}

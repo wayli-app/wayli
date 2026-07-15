@@ -1,0 +1,1 @@
+-- No-op: revoking grants would break functionality
