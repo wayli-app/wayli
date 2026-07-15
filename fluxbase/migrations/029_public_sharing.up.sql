@@ -46,7 +46,10 @@ SELECT
     id,
     username,
     full_name,
-    avatar_url
+    avatar_url,
+    cover_photo_url,
+    cover_focal_x,
+    cover_focal_y
 FROM user_profiles
 WHERE username IS NOT NULL;
 
