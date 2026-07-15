@@ -22,6 +22,7 @@
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
+	import PannableCover from '$lib/components/PannableCover.svelte';
 	import {
 		Plus,
 		ChevronDown,
@@ -1258,13 +1259,27 @@
 														? 'ring-primary/20 ring-2'
 														: ''}"
 												>
-													<!-- Entry cover photo -->
+													<!-- Entry cover photo (pannable) -->
 													{#if entry.cover_image_url}
-														<div class="mb-3 h-28 overflow-hidden rounded-lg">
-															<img
+														<div class="mb-3 overflow-hidden rounded-lg">
+															<PannableCover
 																src={entry.cover_image_url}
-																alt=""
-																class="h-full w-full object-cover"
+																editable={true}
+																onFocalChange={async (x, y) => {
+																	// Update entry metadata with focal point
+																	try {
+																		await fluxbase
+																			.from('trip_entries')
+																			.update({
+																				cover_focal_x: x,
+																				cover_focal_y: y
+																			})
+																			.eq('id', entry.id);
+																	} catch {
+																		// non-critical
+																	}
+																}}
+																class="h-28 w-full"
 															/>
 														</div>
 													{/if}
