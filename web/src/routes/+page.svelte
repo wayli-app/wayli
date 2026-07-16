@@ -9,7 +9,6 @@
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import WorldMap from '$lib/components/WorldMap.svelte';
-	import { renderMarkdown } from '$lib/utils/markdown';
 
 	let t = $derived($translate);
 	let currentTheme = $state<'light' | 'dark'>('light');
@@ -35,7 +34,7 @@
 		}>
 	>([]);
 	let visitedCountries = $state<string[]>([]);
-	let pageMode = $state<'loading' | 'redirect' | 'signin' | 'community'>('loading');
+	let pageMode = $state<'loading' | 'signin' | 'community'>('loading');
 
 	onMount(() => {
 		initializeTheme();
@@ -47,12 +46,10 @@
 		}
 
 		(async () => {
-			// Resolve auth (non-blocking — just populate store)
 			try {
 				await fluxbase.auth.getSession();
 			} catch {}
 
-			// Read settings via the settings API (works for anonymous users)
 			let redirectUser: string | null = null;
 			let communityDisabled = false;
 
@@ -63,41 +60,31 @@
 					const v = (resp as any).value;
 					if (v && typeof v === 'string') redirectUser = v.trim();
 				}
-			} catch {
-				// Setting doesn't exist — fine
-			}
+			} catch {}
 
 			try {
 				const resp = await fluxbase.settings.get('wayli.community_enabled');
 				const val =
 					typeof resp === 'object' && resp && 'value' in resp ? (resp as any).value : resp;
 				communityDisabled = val === false || val === 'false';
-			} catch {
-				// Setting doesn't exist — default to community enabled
-			}
+			} catch {}
 
-			// Decide page mode
 			if (communityDisabled && redirectUser) {
-				// Single-user mode with redirect configured
-				pageMode = 'redirect';
 				await goto(`/u/${redirectUser}`, { replaceState: true });
 				return;
 			}
 
 			if (communityDisabled && !redirectUser) {
-				// No community, no redirect → minimal sign-in page
 				pageMode = 'signin';
 				return;
 			}
 
-			// Community hub (default when setting not set or explicitly enabled)
 			pageMode = 'community';
 			await loadCommunityContent();
 		})();
 	});
 
 	async function loadCommunityContent() {
-		// Fetch latest public entries + community data in parallel
 		try {
 			const { data: publicTrips } = await fluxbase
 				.from('trips')
@@ -108,82 +95,71 @@
 				.limit(10);
 
 			const tripsList = (publicTrips as any[]) ?? [];
+			if (tripsList.length === 0) return;
 
-			if (tripsList.length > 0) {
-				// Fetch entries + usernames in parallel
-				const [entriesResult, profilesResult] = await Promise.all([
-					fluxbase
-						.from('public_trip_entries')
-						.select('id, trip_id, title, body, entry_date')
-						.in(
-							'trip_id',
-							tripsList.map((t) => t.id)
-						)
-						.order('entry_date', { ascending: false })
-						.limit(6),
-					fluxbase
-						.from('public_profiles')
-						.select('id, username')
-						.in('id', [...new Set(tripsList.map((t) => t.user_id))])
-				]);
-
-				const entriesList = (entriesResult.data as any[]) ?? [];
-				const profileMap = new Map<string, string>();
-				for (const p of (profilesResult.data as any[]) ?? []) {
-					profileMap.set(p.id, p.username);
-				}
-
-				const tripMap = new Map<string, any>();
-				for (const t of tripsList) tripMap.set(t.id, t);
-
-				latestEntries = entriesList.map((e) => {
-					const trip = tripMap.get(e.trip_id);
-					return {
-						...e,
-						trip_title: trip?.title,
-						trip_image_url: trip?.image_url,
-						username: trip ? profileMap.get(trip.user_id) : undefined
-					};
-				});
-
-				// Aggregate visited countries
-				const codes = new Set<string>();
-				for (const trip of tripsList) {
-					const meta = trip.metadata;
-					if (meta?.visitedCountryCodes) {
-						for (const c of meta.visitedCountryCodes) codes.add(String(c).toUpperCase());
-					}
-					if (meta?.visitedCitiesDetailed) {
-						for (const c of meta.visitedCitiesDetailed) {
-							if (c.countryCode) codes.add(String(c.countryCode).toUpperCase());
-						}
-					}
-				}
-				visitedCountries = [...codes];
-
-				// Travelers directory
-				const userIds = [...new Set(tripsList.map((t) => t.user_id))];
-				const { data: tripCounts } = await fluxbase
-					.from('trips')
-					.select('user_id')
-					.eq('visibility', 'public')
-					.in('user_id', userIds);
-
-				const countMap = new Map<string, number>();
-				for (const t of (tripCounts as any[]) ?? []) {
-					countMap.set(t.user_id, (countMap.get(t.user_id) ?? 0) + 1);
-				}
-
-				const { data: profiles } = await fluxbase
+			const [entriesResult, profilesResult] = await Promise.all([
+				fluxbase
+					.from('public_trip_entries')
+					.select('id, trip_id, title, body, entry_date')
+					.in(
+						'trip_id',
+						tripsList.map((t) => t.id)
+					)
+					.order('entry_date', { ascending: false })
+					.limit(6),
+				fluxbase
 					.from('public_profiles')
-					.select('id, username, full_name, avatar_url')
-					.in('id', userIds);
+					.select('id, username')
+					.in('id', [...new Set(tripsList.map((t) => t.user_id))])
+			]);
 
-				travelers = ((profiles as any[]) ?? [])
-					.map((p) => ({ ...p, trip_count: countMap.get(p.id) ?? 0 }))
-					.filter((p) => p.trip_count > 0)
-					.sort((a, b) => b.trip_count - a.trip_count);
+			const entriesList = (entriesResult.data as any[]) ?? [];
+			const profileMap = new Map<string, string>();
+			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
+			const tripMap = new Map<string, any>();
+			for (const tr of tripsList) tripMap.set(tr.id, tr);
+
+			latestEntries = entriesList.map((e) => {
+				const trip = tripMap.get(e.trip_id);
+				return {
+					...e,
+					trip_title: trip?.title,
+					trip_image_url: trip?.image_url,
+					username: trip ? profileMap.get(trip.user_id) : undefined
+				};
+			});
+
+			// Aggregate countries
+			const codes = new Set<string>();
+			for (const trip of tripsList) {
+				const meta = trip.metadata;
+				if (meta?.visitedCountryCodes)
+					for (const c of meta.visitedCountryCodes) codes.add(String(c).toUpperCase());
+				if (meta?.visitedCitiesDetailed)
+					for (const c of meta.visitedCitiesDetailed)
+						if (c.countryCode) codes.add(String(c.countryCode).toUpperCase());
 			}
+			visitedCountries = [...codes];
+
+			// Travelers
+			const userIds = [...new Set(tripsList.map((t) => t.user_id))];
+			const { data: tripCounts } = await fluxbase
+				.from('trips')
+				.select('user_id')
+				.eq('visibility', 'public')
+				.in('user_id', userIds);
+			const countMap = new Map<string, number>();
+			for (const tr of (tripCounts as any[]) ?? [])
+				countMap.set(tr.user_id, (countMap.get(tr.user_id) ?? 0) + 1);
+
+			const { data: profiles } = await fluxbase
+				.from('public_profiles')
+				.select('id, username, full_name, avatar_url')
+				.in('id', userIds);
+			travelers = ((profiles as any[]) ?? [])
+				.map((p) => ({ ...p, trip_count: countMap.get(p.id) ?? 0 }))
+				.filter((p) => p.trip_count > 0)
+				.sort((a, b) => b.trip_count - a.trip_count);
 		} catch (err) {
 			console.error('Failed to load community content:', err);
 		}
@@ -204,32 +180,28 @@
 		<div class="border-primary h-10 w-10 animate-spin rounded-full border-2"></div>
 	</div>
 {:else if pageMode === 'signin'}
-	<!-- Minimal sign-in page (community disabled, no redirect) -->
-	<div class="bg-background flex min-h-screen flex-col items-center justify-center p-4">
-		<div class="w-full max-w-sm space-y-6 text-center">
-			<h1 class="text-foreground text-3xl font-bold">Wayli</h1>
-			<p class="text-muted-foreground text-sm">
-				Privacy-first location tracking and travel journal.
-			</p>
+	<div class="bg-background relative flex min-h-screen flex-col items-center justify-center p-4">
+		<img src="/logo.svg" alt="Wayli" class="mb-8 h-24 w-auto" />
+		<div class="w-full max-w-sm space-y-4 text-center">
+			<p class="text-muted-foreground text-sm">{t('landing.selfHostedTagline')}</p>
 			{#if $userStore?.email}
 				<a
 					href="/dashboard/travel"
-					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
+					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
 				>
 					<BookOpen class="h-4 w-4" />
-					Go to Dashboard
+					{t('common.navigation.dashboard')}
 				</a>
 			{:else}
 				<a
 					href="/auth/signin"
-					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
+					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
 				>
 					<User class="h-4 w-4" />
-					Sign in
+					{t('auth.signIn')}
 				</a>
 			{/if}
 		</div>
-
 		<div class="fixed right-4 top-4 flex gap-2">
 			<button
 				onclick={() => handleThemeChange('light')}
@@ -248,9 +220,9 @@
 				<Moon class="h-4 w-4" />
 			</button>
 		</div>
+		<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 	</div>
 {:else if pageMode === 'community'}
-	<!-- Community hub -->
 	<div class="bg-background min-h-screen">
 		<!-- Top bar -->
 		<div class="fixed right-4 top-4 z-40 flex items-center gap-3">
@@ -279,7 +251,7 @@
 					class="bg-card border-border text-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium shadow-sm"
 				>
 					<User class="h-4 w-4" />
-					Dashboard
+					{t('common.navigation.dashboard')}
 				</a>
 			{:else}
 				<a
@@ -287,7 +259,7 @@
 					class="bg-card border-border text-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium shadow-sm"
 				>
 					<User class="h-4 w-4" />
-					Sign in
+					{t('auth.signIn')}
 				</a>
 			{/if}
 		</div>
@@ -299,22 +271,22 @@
 			<div
 				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
 			></div>
-			<div class="relative mx-auto max-w-6xl px-4 py-16 text-center sm:py-24">
-				<h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">Wayli</h1>
-				<p class="mx-auto mt-4 max-w-xl text-lg text-white/60">
-					Discover travel stories from our community
+			<div class="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
+				<img src="/logo.svg" alt="Wayli" class="mx-auto mb-6 h-20 w-auto drop-shadow-2xl" />
+				<p class="mx-auto max-w-xl text-lg text-white/60">
+					{t('community.subtitle')}
 				</p>
 			</div>
 		</div>
 
 		<!-- Content -->
-		<div class="mx-auto max-w-6xl px-4 py-10">
+		<div class="mx-auto max-w-6xl px-4 py-12">
 			<!-- Latest Stories -->
 			{#if latestEntries.length > 0}
-				<div class="mb-12">
+				<div class="mb-16">
 					<div class="mb-6 flex items-center gap-2">
 						<BookOpen class="text-primary h-5 w-5" />
-						<h2 class="text-foreground text-xl font-bold">Latest Stories</h2>
+						<h2 class="text-foreground text-xl font-bold">{t('community.latestStories')}</h2>
 					</div>
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each latestEntries as entry (entry.id)}
@@ -353,7 +325,9 @@
 										</p>
 									{/if}
 									{#if entry.username}
-										<div class="text-muted-foreground/70 mt-2 text-xs">by @{entry.username}</div>
+										<div class="text-muted-foreground/70 mt-2 text-xs">
+											{t('community.by')} @{entry.username}
+										</div>
 									{/if}
 								</div>
 							</a>
@@ -364,15 +338,16 @@
 
 			<!-- Community World Map -->
 			{#if visitedCountries.length > 0}
-				<div class="mb-12">
+				<div class="mb-16">
 					<div class="mb-3 flex items-center gap-2">
 						<Globe class="text-primary h-5 w-5" />
-						<h2 class="text-foreground text-xl font-bold">Where We've Been</h2>
-						<span class="text-muted-foreground ml-auto text-sm"
-							>{visitedCountries.length} countries</span
-						>
+						<h2 class="text-foreground text-xl font-bold">{t('community.whereWeveBeen')}</h2>
+						<span class="text-muted-foreground ml-auto text-sm">
+							{visitedCountries.length}
+							{visitedCountries.length === 1 ? t('common.country') : t('common.countries')}
+						</span>
 					</div>
-					<div class="bg-card border-border rounded-2xl border p-4">
+					<div class="bg-card border-border relative z-0 rounded-2xl border p-4">
 						<WorldMap {visitedCountries} class="h-64" />
 					</div>
 				</div>
@@ -380,10 +355,8 @@
 
 			<!-- Travelers Directory -->
 			{#if travelers.length > 0}
-				<div class="mb-12">
-					<div class="mb-3 flex items-center gap-2">
-						<h2 class="text-foreground text-xl font-bold">Travelers</h2>
-					</div>
+				<div class="mb-16">
+					<h2 class="text-foreground mb-6 text-xl font-bold">{t('community.travelers')}</h2>
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 						{#each travelers as traveler (traveler.id)}
 							<a
@@ -407,7 +380,7 @@
 									<p class="text-foreground font-medium">@{traveler.username}</p>
 									<p class="text-muted-foreground text-xs">
 										{traveler.trip_count}
-										{traveler.trip_count === 1 ? 'trip' : 'trips'}
+										{traveler.trip_count === 1 ? t('common.trip') : t('common.trips')}
 									</p>
 								</div>
 							</a>
@@ -419,15 +392,15 @@
 			<!-- Empty state -->
 			{#if latestEntries.length === 0 && travelers.length === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
-					<Globe class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
-					<p class="text-muted-foreground">No public stories yet.</p>
+					<img src="/logo.svg" alt="Wayli" class="mb-6 h-16 w-auto opacity-30" />
+					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
 					{#if $userStore?.email}
 						<a href="/dashboard/travel" class="text-primary mt-4 text-sm hover:underline">
-							Publish your first trip →
+							{t('community.publishFirstTrip')}
 						</a>
 					{:else}
 						<a href="/auth/signin" class="text-primary mt-4 text-sm hover:underline">
-							Sign in to share your stories →
+							{t('community.signInToShare')}
 						</a>
 					{/if}
 				</div>

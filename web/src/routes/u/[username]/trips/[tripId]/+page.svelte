@@ -211,15 +211,23 @@
 				return;
 			}
 
-			const { data: entryData } = await fluxbase
-				.from('public_trip_entries')
+			// Owner sees all entries (including drafts); others see published only via hardened view
+			const isOwnerViewer = (trip as any).user_id === currentUserId;
+			const entryTable = isOwnerViewer ? 'trip_entries' : 'public_trip_entries';
+			const entryQuery = fluxbase
+				.from(entryTable)
 				.select('id, title, body, entry_date, end_date')
 				.eq('trip_id', tripId)
 				.order('entry_date', { ascending: true });
+			if (!isOwnerViewer) {
+				entryQuery.eq('status', 'published');
+			}
+			const { data: entryData } = await entryQuery;
 			entries = (entryData as unknown as Entry[]) ?? [];
 
+			const mediaTable = isOwnerViewer ? 'trip_media' : 'public_trip_media';
 			const { data: mediaData } = await fluxbase
-				.from('public_trip_media')
+				.from(mediaTable)
 				.select('id, storage_path, thumbnail_path, caption, entry_id')
 				.eq('trip_id', tripId)
 				.order('sort_order', { ascending: true });

@@ -1567,5 +1567,17 @@
     "points": "{count} points",
     "noGpsData": "No GPS data available for this trip.",
     "entries": "Entries"
+  },
+  "community": {
+    "subtitle": "Discover travel stories from our community",
+    "latestStories": "Latest Stories",
+    "whereWeveBeen": "Where We've Been",
+    "travelers": "Travelers",
+    "noStoriesYet": "No public stories yet.",
+    "publishFirstTrip": "Publish your first trip →",
+    "signInToShare": "Sign in to share your stories →",
+    "by": "by",
+    "readMore": "Read more →",
+    "explore": "Explore"
   }
 }
