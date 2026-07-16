@@ -17,7 +17,7 @@
 		tripId: string;
 		entryId?: string;
 		coverMediaId?: string | null;
-		onCoverChange?: (mediaId: string) => void;
+		onCoverChange?: (mediaId: string, photoUrl?: string) => void;
 	};
 
 	let { tripId, entryId, coverMediaId = null, onCoverChange }: Props = $props();
@@ -239,7 +239,7 @@
 					{#if onCoverChange && entryId && coverMediaId !== item.id}
 						<button
 							type="button"
-							onclick={() => onCoverChange(item.id)}
+							onclick={() => onCoverChange(item.id, item.thumbnail_path ?? item.storage_path)}
 							class="absolute bottom-1 left-1 rounded-full bg-black/50 p-1 text-amber-300 opacity-0 shadow-lg backdrop-blur-sm transition-opacity group-hover:opacity-100"
 							aria-label="Set as cover photo"
 							title="Set as cover"><Star class="h-3 w-3" /></button

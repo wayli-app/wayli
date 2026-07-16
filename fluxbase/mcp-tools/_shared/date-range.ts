@@ -17,29 +17,30 @@
  * @returns the SQL condition string, or `null` if the phrase is unrecognized
  *          (callers should then apply no date filter).
  */
-export function parseDateRange(dateRange: string): string | null {
+export function parseDateRange(dateRange: string, column = 'started_at'): string | null {
   const lower = dateRange.toLowerCase();
+  const col = column;
 
   if (lower.includes('this year')) {
-    return "started_at >= DATE_TRUNC('year', CURRENT_DATE)";
+    return `${col} >= DATE_TRUNC('year', CURRENT_DATE)`;
   }
   if (lower.includes('last year')) {
-    return "started_at >= DATE_TRUNC('year', CURRENT_DATE - INTERVAL '1 year') AND started_at < DATE_TRUNC('year', CURRENT_DATE)";
+    return `${col} >= DATE_TRUNC('year', CURRENT_DATE - INTERVAL '1 year') AND ${col} < DATE_TRUNC('year', CURRENT_DATE)`;
   }
   if (lower.includes('this month')) {
-    return "started_at >= DATE_TRUNC('month', CURRENT_DATE)";
+    return `${col} >= DATE_TRUNC('month', CURRENT_DATE)`;
   }
   if (lower.includes('last month')) {
-    return "started_at >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND started_at < DATE_TRUNC('month', CURRENT_DATE)";
+    return `${col} >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND ${col} < DATE_TRUNC('month', CURRENT_DATE)`;
   }
   if (lower.includes('last 30 days') || lower.includes('past 30 days')) {
-    return "started_at >= CURRENT_DATE - INTERVAL '30 days'";
+    return `${col} >= CURRENT_DATE - INTERVAL '30 days'`;
   }
   if (lower.includes('last 7 days') || lower.includes('past week')) {
-    return "started_at >= CURRENT_DATE - INTERVAL '7 days'";
+    return `${col} >= CURRENT_DATE - INTERVAL '7 days'`;
   }
   if (lower.includes('today')) {
-    return 'started_at >= CURRENT_DATE';
+    return `${col} >= CURRENT_DATE`;
   }
 
   return null;

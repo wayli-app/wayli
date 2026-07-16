@@ -92,6 +92,9 @@
 	let activeEntryId = $state<string | null>(null);
 	let expandedTrips = $state<Set<string>>(new Set());
 	let suggestionsExpanded = $state(false);
+	let currentPage = $state(1);
+	const TRIPS_PER_PAGE = 6;
+	let activeFilter = $state<'all' | 'withJournal' | 'withDrafts' | 'hasPhotos'>('all');
 	let publicJournalUrl = $state('');
 	let searchQuery = $state('');
 	let approvingIds = $state<Set<string>>(new Set());
@@ -132,6 +135,32 @@
 			map.set(e.trip_id, list);
 		}
 		return map;
+	});
+
+	const filteredTrips = $derived.by(() => {
+		switch (activeFilter) {
+			case 'withJournal':
+				return trips.filter((t) => (entriesByTrip.get(t.id)?.length ?? 0) > 0);
+			case 'withDrafts':
+				return trips.filter((t) =>
+					(entriesByTrip.get(t.id) ?? []).some((e) => e.status === 'draft')
+				);
+			case 'hasPhotos':
+				return trips.filter((t) => (t.image_url ?? '').length > 0);
+			default:
+				return trips;
+		}
+	});
+
+	const totalTripPages = $derived(Math.max(1, Math.ceil(filteredTrips.length / TRIPS_PER_PAGE)));
+	const visibleTrips = $derived(
+		filteredTrips.slice((currentPage - 1) * TRIPS_PER_PAGE, currentPage * TRIPS_PER_PAGE)
+	);
+
+	// Reset to page 1 when filter changes
+	$effect(() => {
+		void activeFilter;
+		currentPage = 1;
 	});
 
 	const activeTripGpsPoints = $derived(
@@ -464,13 +493,15 @@
 		}
 	}
 
-	async function handleSetCover(mediaId: string) {
+	async function handleSetCover(mediaId: string, photoUrl?: string) {
 		if (!editingEntry) return;
 		try {
 			await updateEntry(editingEntry!.id, { cover_media_id: mediaId });
 			editingEntry = { ...editingEntry!, cover_media_id: mediaId };
 			entries = entries.map((e) =>
-				e.id === editingEntry!.id ? { ...e, cover_media_id: mediaId } : e
+				e.id === editingEntry!.id
+					? { ...e, cover_media_id: mediaId, cover_image_url: photoUrl ?? e.cover_image_url }
+					: e
 			);
 		} catch (err) {
 			console.error('Failed to set cover:', err);
@@ -1083,8 +1114,26 @@
 					</div>
 				{/if}
 
+				<!-- Filter chips -->
+				{#if trips.length > 0}
+					<div class="mb-4 flex flex-wrap gap-2">
+						{#each [['all', 'All trips'], ['withJournal', 'With journal'], ['withDrafts', 'Drafts'], ['hasPhotos', 'With photos']] as [value, label] (value)}
+							<button
+								type="button"
+								onclick={() => (activeFilter = value as typeof activeFilter)}
+								class="rounded-full border px-3 py-1 text-xs font-medium transition-colors {activeFilter ===
+								value
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:text-foreground'}"
+							>
+								{label}
+							</button>
+						{/each}
+					</div>
+				{/if}
+
 				<!-- Trip sections -->
-				{#if trips.length === 0}
+				{#if filteredTrips.length === 0}
 					<div class="flex flex-col items-center justify-center py-20 text-center">
 						<Route class="text-muted-foreground mb-4 h-12 w-12 opacity-30" />
 						<p class="text-muted-foreground text-lg">{t('travel.noTrips')}</p>
@@ -1093,7 +1142,7 @@
 						</p>
 					</div>
 				{:else}
-					{#each trips as trip, i (trip.id)}
+					{#each visibleTrips as trip, i (trip.id)}
 						<div
 							data-trip-id={trip.id}
 							class="bg-card border-border scroll-mt-4 animate-fade-in-up overflow-hidden rounded-2xl border"
@@ -1112,7 +1161,13 @@
 											src={trip.image_url}
 											alt={trip.title}
 											class="h-full w-full object-cover"
-											loading="lazy"
+											loading="eager"
+											onerror={(e) => {
+												(e.target as HTMLImageElement).style.display = 'none';
+												(e.target as HTMLImageElement).nextElementSibling?.classList.remove(
+													'hidden'
+												);
+											}}
 										/>
 									{:else}
 										<div
@@ -1332,7 +1387,10 @@
 														<h3 class="text-foreground mb-1 flex items-center gap-2 font-semibold">
 															{entry.title}
 															{#if entry.status === 'draft'}
-																<span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">DRAFT</span>
+																<span
+																	class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600"
+																	>DRAFT</span
+																>
 															{/if}
 														</h3>
 													{/if}
@@ -1370,6 +1428,31 @@
 							{/if}
 						</div>
 					{/each}
+				{/if}
+
+				<!-- Pagination -->
+				{#if totalTripPages > 1}
+					<div class="mt-6 flex items-center justify-center gap-4">
+						<button
+							type="button"
+							onclick={() => (currentPage = Math.max(1, currentPage - 1))}
+							disabled={currentPage === 1}
+							class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40"
+						>
+							← Prev
+						</button>
+						<span class="text-muted-foreground text-sm">
+							Page {currentPage} of {totalTripPages}
+						</span>
+						<button
+							type="button"
+							onclick={() => (currentPage = Math.min(totalTripPages, currentPage + 1))}
+							disabled={currentPage === totalTripPages}
+							class="border-border text-foreground hover:bg-muted rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40"
+						>
+							Next →
+						</button>
+					</div>
 				{/if}
 
 				<!-- Entry editor modal -->
