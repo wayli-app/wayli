@@ -327,12 +327,15 @@
 					</button>
 				</div>
 			{/if}
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
 				{#each visibleTrips as trip, i (trip.id)}
+					{@const hasJournal = (trip.entry_count ?? 0) > 0}
 					<a
 						href="/u/{username}/trips/{trip.id}"
-						class="group relative aspect-[16/10] overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up"
-						style="animation-delay: {i * 60}ms"
+						class="group relative overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up {hasJournal
+							? 'col-span-2 row-span-2 aspect-[4/3]'
+							: 'aspect-square'}"
+						style="animation-delay: {i * 50}ms"
 					>
 						<!-- Background image -->
 						{#if trip.image_url}
@@ -379,22 +382,34 @@
 						</div>
 
 						<!-- Bottom content -->
-						<div class="absolute right-0 bottom-0 left-0 p-4">
-							<h3 class="mb-0.5 text-base font-bold tracking-tight text-white drop-shadow-md">
+						<div class="absolute right-0 bottom-0 left-0 p-3 sm:p-4">
+							<h3
+								class="text-sm font-bold tracking-tight text-white drop-shadow-md sm:text-base {hasJournal
+									? ''
+									: 'truncate'}"
+							>
 								{trip.title}
 							</h3>
-							<div class="flex items-center gap-2 text-xs text-white/50">
-								{new Date(trip.start_date).toLocaleDateString(undefined, {
-									month: 'short',
-									day: 'numeric'
-								})}
-								– {new Date(trip.end_date).toLocaleDateString(undefined, {
-									month: 'short',
-									day: 'numeric',
-									year: 'numeric'
-								})}
-							</div>
-							{#if trip.metadata?.primaryCity}
+							{#if hasJournal}
+								<div class="mt-0.5 flex items-center gap-2 text-xs text-white/50">
+									{new Date(trip.start_date).toLocaleDateString(undefined, {
+										month: 'short',
+										day: 'numeric'
+									})}
+									– {new Date(trip.end_date).toLocaleDateString(undefined, {
+										month: 'short',
+										day: 'numeric',
+										year: 'numeric'
+									})}
+								</div>
+								{#if (trip.entry_count ?? 0) > 0}
+									<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
+										<BookOpen class="h-3 w-3" />
+										{trip.entry_count} entries
+									</div>
+								{/if}
+							{/if}
+							{#if trip.metadata?.primaryCity && hasJournal}
 								<div class="mt-1 flex items-center gap-1 text-[10px] text-white/40">
 									<MapPin class="h-3 w-3" />
 									{trip.metadata.primaryCity}

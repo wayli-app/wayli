@@ -23,6 +23,7 @@
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
+	import WorldMap from '$lib/components/WorldMap.svelte';
 	import {
 		Plus,
 		ChevronDown,
@@ -93,7 +94,7 @@
 	let expandedTrips = $state<Set<string>>(new Set());
 	let suggestionsExpanded = $state(false);
 	let currentPage = $state(1);
-	const TRIPS_PER_PAGE = 6;
+	const TRIPS_PER_PAGE = 25;
 	let activeFilter = $state<'all' | 'withJournal' | 'withDrafts' | 'hasPhotos'>('all');
 	let publicJournalUrl = $state('');
 	let searchQuery = $state('');
@@ -192,6 +193,23 @@
 	// ── Map state: overview (markers only) vs trip-detail (track) ──
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
 	const mapMarkers = $derived(cityMarkers);
+
+	// Visited countries for world map
+	const visitedCountries = $derived.by(() => {
+		const codes = new Set<string>();
+		for (const trip of trips) {
+			const meta = trip.metadata;
+			if (meta?.visitedCountryCodes) {
+				for (const c of meta.visitedCountryCodes) codes.add(String(c).toUpperCase());
+			}
+			if (meta?.visitedCitiesDetailed) {
+				for (const c of meta.visitedCitiesDetailed) {
+					if (c.countryCode) codes.add(String(c.countryCode).toUpperCase());
+				}
+			}
+		}
+		return [...codes];
+	});
 
 	onMount(async () => {
 		try {
@@ -1010,6 +1028,20 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- World map of visited countries -->
+		{#if visitedCountries.length > 0}
+			<div class="bg-card border-border mb-4 rounded-2xl border p-4">
+				<div class="mb-3 flex items-center justify-between">
+					<h3 class="text-foreground text-sm font-bold uppercase tracking-wide">Where I've Been</h3>
+					<span class="text-muted-foreground text-xs">
+						{visitedCountries.length}
+						{visitedCountries.length === 1 ? 'country' : 'countries'}
+					</span>
+				</div>
+				<WorldMap {visitedCountries} class="h-64" />
+			</div>
+		{/if}
 
 		<!-- Split layout: timeline + sticky map -->
 		<div class="grid gap-6 lg:grid-cols-[1fr_400px]">
