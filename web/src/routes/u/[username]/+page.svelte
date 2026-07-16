@@ -40,6 +40,7 @@
 	let isOwner = $state(false);
 	let journalOnly = $state(false);
 	let sortBy = $state<'recent' | 'oldest' | 'title' | 'duration' | 'entries'>('recent');
+	let sortReverse = $state(false);
 	let currentUserId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
@@ -69,9 +70,6 @@
 	const visibleTrips = $derived.by(() => {
 		let result = journalOnly ? trips.filter((t) => (t.entry_count ?? 0) > 0) : [...trips];
 		switch (sortBy) {
-			case 'oldest':
-				result = result.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
-				break;
 			case 'title':
 				result = result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 				break;
@@ -88,6 +86,7 @@
 			default:
 				result = result.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''));
 		}
+		if (sortReverse) result = result.reverse();
 		return result;
 	});
 
@@ -334,19 +333,35 @@
 				<p class="text-muted-foreground text-lg">{t('profile.noTrips')}</p>
 			</div>
 		{:else}
-			<!-- Sort + filter bar -->
-			<div class="mb-6 flex flex-wrap items-center gap-3">
-				<select
-					bind:value={sortBy}
-					class="border-border rounded-lg border bg-transparent px-3 py-1.5 text-sm"
-				>
-					<option value="recent">Most recent</option>
-					<option value="oldest">Oldest first</option>
-					<option value="title">A–Z</option>
-					<option value="duration">Longest trip</option>
-					<option value="entries">Most entries</option>
-				</select>
+			<!-- Sort + filter buttons -->
+			<div class="mb-6 flex flex-wrap items-center gap-2">
+				{#each [['recent', 'Recent'], ['duration', 'Longest'], ['entries', 'Most entries'], ['title', 'A–Z']] as [value, label] (value)}
+					<button
+						type="button"
+						onclick={() => {
+							if (sortBy === value && !sortReverse) {
+								sortReverse = true;
+							} else if (sortBy === value && sortReverse) {
+								sortBy = 'recent';
+								sortReverse = false;
+							} else {
+								sortBy = value as typeof sortBy;
+								sortReverse = false;
+							}
+						}}
+						class="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {sortBy ===
+						value
+							? 'border-primary bg-primary/10 text-primary'
+							: 'border-border text-muted-foreground hover:text-foreground'}"
+					>
+						{label}
+						{#if sortBy === value}
+							<span class="text-[10px] opacity-60">{sortReverse ? '↓' : '↑'}</span>
+						{/if}
+					</button>
+				{/each}
 				{#if stats.tripsWithJournal > 0}
+					<div class="mx-1 h-4 w-px bg-border"></div>
 					<button
 						type="button"
 						onclick={() => (journalOnly = !journalOnly)}
