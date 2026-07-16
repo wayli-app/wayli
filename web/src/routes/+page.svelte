@@ -271,16 +271,15 @@
 			<div
 				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
 			></div>
-			<div class="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
-				<div class="bg-white/15 mb-6 inline-flex rounded-3xl p-8 backdrop-blur-md">
+			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-16">
+				<div class="bg-white/75 mb-2 inline-flex rounded-3xl p-8 backdrop-blur-md">
 					<img src="/logo.svg" alt="Wayli" class="h-24 w-auto drop-shadow-2xl" />
 				</div>
-				<p class="mx-auto max-w-xl text-lg text-white/60">{t('community.subtitle')}</p>
 			</div>
 		</div>
 
 		<!-- Content -->
-		<div class="mx-auto max-w-6xl px-4 py-12">
+		<div class="mx-auto max-w-6xl px-4 py-6">
 			<!-- Latest Stories -->
 			{#if latestEntries.length > 0}
 				<div class="mb-16">
