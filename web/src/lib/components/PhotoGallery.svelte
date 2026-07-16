@@ -11,7 +11,7 @@
 		reorderMedia
 	} from '$lib/services/trip-media.service';
 	import { compressImage } from '$lib/utils/image-compress';
-	import { ImagePlus, Trash2, X, Loader2, Star } from 'lucide-svelte';
+	import { ImagePlus, Trash2, X, Loader2, Star, ChevronLeft, ChevronRight } from 'lucide-svelte';
 
 	type Props = {
 		tripId: string;
@@ -164,11 +164,33 @@
 		draggedId = null;
 		dragOverId = null;
 	}
+
+	function navigateLightbox(direction: number) {
+		if (!lightbox || media.length === 0) return;
+		const currentIdx = media.findIndex((m) => m.id === lightbox!.id);
+		if (currentIdx === -1) return;
+		const nextIdx = (currentIdx + direction + media.length) % media.length;
+		lightbox = media[nextIdx];
+	}
+
+	let touchStartX = 0;
+	function handleTouchStart(e: TouchEvent) {
+		touchStartX = e.touches[0].clientX;
+	}
+	function handleTouchEnd(e: TouchEvent) {
+		const dx = e.changedTouches[0].clientX - touchStartX;
+		if (Math.abs(dx) > 50) {
+			navigateLightbox(dx > 0 ? -1 : 1);
+		}
+	}
 </script>
 
 <svelte:window
 	onkeydown={(e) => {
+		if (!lightbox) return;
 		if (e.key === 'Escape') lightbox = null;
+		else if (e.key === 'ArrowLeft') navigateLightbox(-1);
+		else if (e.key === 'ArrowRight') navigateLightbox(1);
 	}}
 />
 
@@ -271,13 +293,40 @@
 	<div
 		class="fixed inset-0 z-50 flex items-start justify-center bg-black/90 pt-8"
 		onclick={() => (lightbox = null)}
+		onkeydown={(e) => e.key === 'Escape' && (lightbox = null)}
+		ontouchstart={handleTouchStart}
+		ontouchend={handleTouchEnd}
 		role="presentation"
 	>
 		<button
 			type="button"
-			class="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+			class="absolute top-4 right-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
 			aria-label="Close"><X class="h-6 w-6" /></button
 		>
+		{#if media.length > 1}
+			<button
+				type="button"
+				class="absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+				onclick={(e) => {
+					e.stopPropagation();
+					navigateLightbox(-1);
+				}}
+				aria-label="Previous photo"
+			>
+				<ChevronLeft class="h-6 w-6" />
+			</button>
+			<button
+				type="button"
+				class="absolute top-1/2 right-4 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+				onclick={(e) => {
+					e.stopPropagation();
+					navigateLightbox(1);
+				}}
+				aria-label="Next photo"
+			>
+				<ChevronRight class="h-6 w-6" />
+			</button>
+		{/if}
 		<img
 			src={lightbox.storage_path}
 			alt={lightbox.caption || 'Photo'}

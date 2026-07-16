@@ -5,7 +5,19 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
 	import { userStore } from '$lib/stores/auth';
-	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen, EyeOff } from 'lucide-svelte';
+	import {
+		MapPin,
+		Calendar,
+		Route,
+		Globe,
+		Compass,
+		LogIn,
+		BookOpen,
+		EyeOff,
+		Sun,
+		Moon
+	} from 'lucide-svelte';
+	import { setTheme, state as appState } from '$lib/stores/app-state.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import { translate } from '$lib/i18n';
 
@@ -210,7 +222,19 @@
 	</div>
 {:else if profile}
 	<!-- Floating top bar -->
-	<div class="fixed top-0 right-0 z-50 p-4">
+	<div class="fixed top-0 right-0 z-50 flex items-center gap-2 p-4">
+		<button
+			type="button"
+			onclick={() => setTheme(appState.theme === 'dark' ? 'light' : 'dark')}
+			class="bg-background/80 text-foreground ring-border inline-flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			title="Toggle theme"
+		>
+			{#if appState.theme === 'dark'}
+				<Sun class="h-4 w-4" />
+			{:else}
+				<Moon class="h-4 w-4" />
+			{/if}
+		</button>
 		{#if isOwner}
 			<a
 				href="/dashboard/travel"

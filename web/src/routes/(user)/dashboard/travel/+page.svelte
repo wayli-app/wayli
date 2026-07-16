@@ -192,7 +192,7 @@
 
 	// ── Map state: overview (markers only) vs trip-detail (track) ──
 	const mapPoints = $derived(activeTripId ? activeTripGpsPoints : []);
-	const mapMarkers = $derived(cityMarkers);
+	const mapMarkers = $derived(activeTripId ? [] : cityMarkers);
 
 	// Visited countries for world map
 	const visitedCountries = $derived.by(() => {
