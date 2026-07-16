@@ -252,4 +252,4 @@
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </svelte:head>
 
-<div bind:this={mapContainer} class="rounded-lg {className}"></div>
+<div bind:this={mapContainer} class="relative z-0 rounded-lg {className}"></div>
