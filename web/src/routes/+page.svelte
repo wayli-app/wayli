@@ -219,14 +219,14 @@
 </svelte:head>
 
 <!-- Loading State -->
-{#if !messagesLoaded || checkingUserCount}
+{#if !messagesLoaded}
 	<div
 		class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-background dark:via-card dark:to-background"
 	>
 		<div class="text-center">
 			<div class="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary"></div>
 			<p class="text-muted-foreground">
-				{checkingUserCount ? 'Checking system status...' : 'Loading translations...'}
+				{messagesLoaded ? '' : 'Loading translations...'}
 			</p>
 		</div>
 	</div>
