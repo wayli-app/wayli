@@ -150,6 +150,10 @@
 	>([]);
 	let isSavingLandingRedirect = $state(false);
 
+	// Community features
+	let communityEnabled = $state(true);
+	let isSavingCommunity = $state(false);
+
 	// AI Settings - provider-based model
 	let aiEnabled = $state(false);
 	let aiAllowUserOverride = $state(false);
