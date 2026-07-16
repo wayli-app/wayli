@@ -243,7 +243,23 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
             distanceTraveled: Math.round((tripJson.total_km ?? 0) * 1000),
             importedFrom: 'polarsteps',
             polarstepsId: tripJson.id,
-            polarstepsUuid: tripJson.uuid
+            polarstepsUuid: tripJson.uuid,
+            visitedCountryCodes: [
+              ...new Set(
+                (tripJson.all_steps ?? []).map((s: any) => s.location?.country_code).filter(Boolean)
+              )
+            ],
+            visitedCitiesDetailed: (tripJson.all_steps ?? [])
+              .filter((s: any) => s.location?.lat && s.location?.lon)
+              .map((s: any) => ({
+                city: s.location?.name || '',
+                country: s.location?.country || '',
+                countryCode: s.location?.country_code || '',
+                lat: s.location?.lat,
+                lng: s.location?.lon
+              })),
+            primaryCity: (tripJson.all_steps ?? [])[1]?.location?.name || '',
+            primaryCountryCode: (tripJson.all_steps ?? [])[1]?.location?.country_code || ''
           }
         })
         .select('id')
