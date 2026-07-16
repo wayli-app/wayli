@@ -122,3 +122,13 @@ export async function updateMediaCaption(mediaId: string, caption: string): Prom
 	const { error } = await fluxbase.from('trip_media').update({ caption }).eq('id', mediaId);
 	if (error) throw new Error(error.message);
 }
+
+export async function reorderMedia(items: TripMedia[]): Promise<void> {
+	for (let i = 0; i < items.length; i++) {
+		const { error } = await fluxbase
+			.from('trip_media')
+			.update({ sort_order: i })
+			.eq('id', items[i].id);
+		if (error) throw new Error(error.message);
+	}
+}

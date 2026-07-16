@@ -7,7 +7,8 @@
 		listMedia,
 		createMedia,
 		deleteMedia,
-		uploadMedia
+		uploadMedia,
+		reorderMedia
 	} from '$lib/services/trip-media.service';
 	import { compressImage } from '$lib/utils/image-compress';
 	import { ImagePlus, Trash2, X, Loader2, Star } from 'lucide-svelte';
@@ -26,6 +27,8 @@
 	let isUploading = $state(false);
 	let lightbox = $state<TripMedia | null>(null);
 	let fileInput: HTMLInputElement;
+	let draggedId = $state<string | null>(null);
+	let dragOverId = $state<string | null>(null);
 
 	const tripIdSafe = $derived(page.params.tripId ?? tripId);
 
@@ -108,6 +111,59 @@
 			console.error('Delete failed:', err);
 		}
 	}
+
+	function handleDragStart(e: DragEvent, item: TripMedia) {
+		draggedId = item.id;
+		e.dataTransfer?.setData('text/plain', item.id);
+		e.dataTransfer!.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, item: TripMedia) {
+		e.preventDefault();
+		e.dataTransfer!.dropEffect = 'move';
+		if (draggedId && draggedId !== item.id) {
+			dragOverId = item.id;
+		}
+	}
+
+	function handleDragLeave() {
+		dragOverId = null;
+	}
+
+	async function handleDrop(e: DragEvent, target: TripMedia) {
+		e.preventDefault();
+		dragOverId = null;
+		if (!draggedId || draggedId === target.id) {
+			draggedId = null;
+			return;
+		}
+
+		const fromIdx = media.findIndex((m) => m.id === draggedId);
+		const toIdx = media.findIndex((m) => m.id === target.id);
+		if (fromIdx === -1 || toIdx === -1) {
+			draggedId = null;
+			return;
+		}
+
+		// Reorder array
+		const reordered = [...media];
+		const [moved] = reordered.splice(fromIdx, 1);
+		reordered.splice(toIdx, 0, moved);
+		media = reordered;
+		draggedId = null;
+
+		// Persist new sort_order
+		try {
+			await reorderMedia(reordered);
+		} catch {
+			// non-critical — UI is already updated
+		}
+	}
+
+	function handleDragEnd() {
+		draggedId = null;
+		dragOverId = null;
+	}
 </script>
 
 <svelte:window
@@ -144,7 +200,18 @@
 	{:else}
 		<div class="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
 			{#each media as item (item.id)}
-				<div class="group relative aspect-square overflow-hidden rounded-md">
+				<div
+					class="group relative aspect-square overflow-hidden rounded-md transition-opacity {draggedId ===
+					item.id
+						? 'opacity-30'
+						: ''} {dragOverId === item.id ? 'ring-2 ring-primary' : ''}"
+					draggable="true"
+					ondragstart={(e) => handleDragStart(e, item)}
+					ondragover={(e) => handleDragOver(e, item)}
+					ondragleave={handleDragLeave}
+					ondrop={(e) => handleDrop(e, item)}
+					ondragend={handleDragEnd}
+				>
 					{#if coverMediaId === item.id}
 						<div class="absolute top-1 left-1 z-10 rounded-full bg-amber-400 p-1 shadow-lg">
 							<Star class="h-3 w-3 text-white fill-white" />
