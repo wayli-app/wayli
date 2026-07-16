@@ -12,6 +12,7 @@
 	} from '$lib/services/friend.service';
 	import { translate } from '$lib/i18n';
 	import { Users, UserPlus, Search, Check, X, Loader2, UserCheck } from 'lucide-svelte';
+	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
 	import { toast } from 'svelte-sonner';
 
 	let t = $derived($translate);
@@ -40,6 +41,7 @@
 				getFriends($userStore.id),
 				getPendingRequests($userStore.id)
 			]);
+			pendingFriendRequestCount.set(pendingRequests.length);
 		} catch (err) {
 			console.error('Failed to load friends:', err);
 		} finally {
@@ -56,7 +58,7 @@
 		searchTimer = setTimeout(async () => {
 			isSearching = true;
 			try {
-				searchResults = await searchUsers(searchQuery.trim());
+				searchResults = await searchUsers(searchQuery.trim(), $userStore?.id);
 				// Filter out existing friends and self
 				const friendIds = new Set(
 					friends.map((f) => (f.user_id === $userStore?.id ? f.friend_id : f.user_id))

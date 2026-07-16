@@ -7,6 +7,7 @@
 		Link,
 		Settings,
 		User,
+		Newspaper,
 		Users,
 		Database,
 		X,
@@ -24,6 +25,7 @@
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
+	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
 
 	import type { UserProfile } from '$lib/types/user.types';
 
@@ -64,6 +66,7 @@
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
 		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
+		{ href: '/dashboard/feed', label: 'Feed', icon: Newspaper },
 		{ href: '/dashboard/friends', label: 'Friends', icon: Users },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
@@ -129,6 +132,18 @@
 					.select('*', { count: 'exact', head: true })
 					.eq('status', 'pending');
 				pendingTripCount.set(count ?? 0);
+			} catch {
+				// non-critical
+			}
+
+			// Fetch pending friend request count
+			try {
+				const { count: friendCount } = await fluxbase
+					.from('user_connections')
+					.select('*', { count: 'exact', head: true })
+					.eq('friend_id', $userStore.id)
+					.eq('status', 'pending');
+				pendingFriendRequestCount.set(friendCount ?? 0);
 			} catch {
 				// non-critical
 			}
@@ -223,6 +238,13 @@
 								{$pendingTripCount}
 							</span>
 						{/if}
+						{#if item.href === '/dashboard/friends' && $pendingFriendRequestCount > 0}
+							<span
+								class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+							>
+								{$pendingFriendRequestCount}
+							</span>
+						{/if}
 					</a>
 				{/each}
 			</div>
@@ -282,6 +304,13 @@
 										class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
 									>
 										{$pendingTripCount}
+									</span>
+								{/if}
+								{#if item.href === '/dashboard/friends' && $pendingFriendRequestCount > 0}
+									<span
+										class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+									>
+										{$pendingFriendRequestCount}
 									</span>
 								{/if}
 								{#if isAdmin && item.href === '/dashboard/account-settings'}

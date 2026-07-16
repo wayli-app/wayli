@@ -15,7 +15,8 @@ export type UserConnection = {
 };
 
 export async function searchUsers(
-	query: string
+	query: string,
+	currentUserId?: string
 ): Promise<
 	Array<{ id: string; username: string; full_name: string | null; avatar_url: string | null }>
 > {
@@ -23,12 +24,20 @@ export async function searchUsers(
 
 	const { data, error } = await fluxbase
 		.from('public_profiles')
-		.select('id, username, full_name, avatar_url')
+		.select('id, username, full_name, avatar_url, discoverable')
 		.ilike('username', `%${query.trim()}%`)
-		.limit(10);
+		.limit(20);
 
 	if (error || !data) return [];
-	return data as any[];
+
+	return (data as any[])
+		.filter((user) => {
+			if (user.id === currentUserId) return false;
+			const setting = user.discoverable ?? 'everyone';
+			if (setting === 'nobody') return false;
+			return true; // 'everyone' and 'friends_of_friends' included for now
+		})
+		.map(({ discoverable: _, ...rest }) => rest);
 }
 
 export async function sendFriendRequest(userId: string, friendId: string): Promise<void> {

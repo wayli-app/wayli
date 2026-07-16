@@ -299,8 +299,15 @@
 		></div>
 	</div>
 
-	<!-- Floating button -->
-	<div class="fixed top-4 right-4 z-50">
+	<!-- Floating buttons -->
+	<div class="fixed top-4 right-4 z-50 flex items-center gap-2">
+		<a
+			href="/"
+			class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+		>
+			<ArrowLeft class="h-3.5 w-3.5" />
+			Explore
+		</a>
 		{#if currentUserId}
 			<a
 				href="/dashboard/travel"
