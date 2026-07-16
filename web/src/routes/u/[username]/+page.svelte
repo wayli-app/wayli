@@ -327,15 +327,25 @@
 					</button>
 				</div>
 			{/if}
-			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+			<div
+				class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4"
+				style="grid-auto-flow: dense; grid-auto-rows: 120px;"
+			>
 				{#each visibleTrips as trip, i (trip.id)}
 					{@const hasJournal = (trip.entry_count ?? 0) > 0}
+					{@const tripDays = Math.max(
+						1,
+						Math.ceil(
+							(new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000
+						)
+					)}
+					{@const isLarge = hasJournal || tripDays >= 7}
 					<a
 						href="/u/{username}/trips/{trip.id}"
-						class="group relative overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up {hasJournal
-							? 'col-span-2 row-span-2 aspect-[4/3]'
-							: 'aspect-square'}"
-						style="animation-delay: {i * 50}ms"
+						class="group relative overflow-hidden rounded-xl shadow-md transition-all duration-500 hover:shadow-xl animate-fade-in-up {isLarge
+							? 'col-span-2 row-span-2'
+							: ''}"
+						style="animation-delay: {i * 40}ms"
 					>
 						<!-- Background image -->
 						{#if trip.image_url}
