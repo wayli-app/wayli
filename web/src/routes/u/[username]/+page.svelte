@@ -30,6 +30,7 @@
 		image_url: string | null;
 		visibility: string;
 		metadata: Record<string, any> | null;
+		entry_count?: number;
 	};
 
 	let profile = $state<Profile | null>(null);
@@ -37,6 +38,7 @@
 	let isLoading = $state(true);
 	let notFound = $state(false);
 	let isOwner = $state(false);
+	let journalOnly = $state(false);
 	let currentUserId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
@@ -58,9 +60,14 @@
 			trips: trips.length,
 			cities: cities.size,
 			countries: countries.size,
-			distance: totalDistance
+			distance: totalDistance,
+			tripsWithJournal: trips.filter((t) => (t.entry_count ?? 0) > 0).length
 		};
 	});
+
+	const visibleTrips = $derived(
+		journalOnly ? trips.filter((t) => (t.entry_count ?? 0) > 0) : trips
+	);
 
 	onMount(async () => {
 		try {
@@ -113,6 +120,28 @@
 
 			const { data: tripData } = await tripQuery;
 			trips = (tripData as unknown as PublicTrip[]) ?? [];
+
+			// Fetch journal entry counts per trip
+			if (trips.length > 0) {
+				try {
+					const { data: entryCounts } = await fluxbase
+						.from('trip_entries')
+						.select('trip_id')
+						.in(
+							'trip_id',
+							trips.map((t) => t.id)
+						);
+					if (entryCounts) {
+						const counts = new Map<string, number>();
+						for (const e of entryCounts as any[]) {
+							counts.set(e.trip_id, (counts.get(e.trip_id) ?? 0) + 1);
+						}
+						trips = trips.map((t) => ({ ...t, entry_count: counts.get(t.id) ?? 0 }));
+					}
+				} catch {
+					// non-critical
+				}
+			}
 		} catch {
 			notFound = true;
 		} finally {
@@ -121,8 +150,12 @@
 	});
 
 	function formatDistance(meters: number): string {
+		if (!meters || meters < 1) return '0 km';
 		if (meters < 1000) return `${Math.round(meters)} m`;
-		return `${(meters / 1000).toFixed(0)} km`;
+		const km = meters / 1000;
+		if (km < 100) return `${km.toFixed(0)} km`;
+		if (km < 10000) return `${km.toLocaleString(undefined, { maximumFractionDigits: 0 })} km`;
+		return `${(km / 1000).toFixed(0)}k km`;
 	}
 
 	async function saveCoverFocal(x: number, y: number) {
@@ -279,8 +312,23 @@
 				<p class="text-muted-foreground text-lg">{t('profile.noTrips')}</p>
 			</div>
 		{:else}
+			<!-- Journal filter -->
+			{#if stats.tripsWithJournal > 0}
+				<div class="mb-6 flex items-center gap-3">
+					<button
+						type="button"
+						onclick={() => (journalOnly = !journalOnly)}
+						class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {journalOnly
+							? 'border-primary bg-primary/10 text-primary'
+							: 'border-border text-muted-foreground hover:text-foreground'}"
+					>
+						<BookOpen class="h-3.5 w-3.5" />
+						{journalOnly ? 'All trips' : `Trips with journal (${stats.tripsWithJournal})`}
+					</button>
+				</div>
+			{/if}
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-				{#each trips as trip, i (trip.id)}
+				{#each visibleTrips as trip, i (trip.id)}
 					<a
 						href="/u/{username}/trips/{trip.id}"
 						class="group relative aspect-[16/10] overflow-hidden rounded-2xl shadow-lg transition-all duration-500 hover:-translate-y-1 hover:shadow-xl animate-fade-in-up"
@@ -318,6 +366,14 @@
 									class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
 								>
 									{trip.visibility}
+								</div>
+							{/if}
+							{#if (trip.entry_count ?? 0) > 0}
+								<div
+									class="flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md"
+								>
+									<BookOpen class="h-3 w-3" />
+									{trip.entry_count}
 								</div>
 							{/if}
 						</div>

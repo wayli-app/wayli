@@ -58,6 +58,18 @@ function safeReportProgress(job: JobUtils, percent: number, message: string): vo
   }
 }
 
+// Fix storage URLs: replace internal cluster address with public URL
+function publicStorageUrl(internalUrl: string): string {
+  const publicBase = Deno.env.get('FLUXBASE_PUBLIC_BASE_URL');
+  if (publicBase && internalUrl.includes('://')) {
+    // Replace the host portion with the public base URL
+    const url = new URL(internalUrl);
+    const publicUrl = new URL(publicBase);
+    return `${publicUrl.origin}${url.pathname}${url.search}`;
+  }
+  return internalUrl;
+}
+
 function unixToISO(ts: number): string {
   return new Date(ts * 1000).toISOString();
 }
@@ -270,15 +282,27 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
               const { error: uploadErr } = await fluxbase.storage
                 .from('trip-images')
                 .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
-              if (uploadErr) { photosSkipped++; continue; }
-              const { data: urlData } = fluxbase.storage.from('trip-images').getPublicUrl(storagePath);
+              if (uploadErr) {
+                photosSkipped++;
+                continue;
+              }
+              const { data: urlData } = fluxbase.storage
+                .from('trip-images')
+                .getPublicUrl(storagePath);
               await fluxbase.from('trip_media').insert({
-                trip_id: tripId, user_id: userId, entry_id: existingEntryId,
-                storage_path: urlData.publicUrl, thumbnail_path: urlData.publicUrl,
-                media_type: 'image', caption: '', sort_order: photosUploaded
+                trip_id: tripId,
+                user_id: userId,
+                entry_id: existingEntryId,
+                storage_path: publicStorageUrl(urlData.publicUrl),
+                thumbnail_path: publicStorageUrl(urlData.publicUrl),
+                media_type: 'image',
+                caption: '',
+                sort_order: photosUploaded
               });
               photosUploaded++;
-            } catch { photosSkipped++; }
+            } catch {
+              photosSkipped++;
+            }
           }
           continue;
         }
@@ -335,8 +359,8 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
             trip_id: tripId,
             user_id: userId,
             entry_id: entryId,
-            storage_path: urlData.publicUrl,
-            thumbnail_path: urlData.publicUrl,
+            storage_path: publicStorageUrl(urlData.publicUrl),
+            thumbnail_path: publicStorageUrl(urlData.publicUrl),
             media_type: 'image',
             caption: '',
             sort_order: photosUploaded
@@ -443,15 +467,15 @@ async function downloadAndUploadPhoto(
     const blob = await resp.blob();
     const path = `${userId}/${subFolder}/${filename}`;
 
-    const { error } = await fluxbaseService.storage.from('trip-images').upload(path, blob, {
+    const { error } = await fluxbase.storage.from('trip-images').upload(path, blob, {
       contentType: blob.type || 'image/jpeg',
       upsert: false
     });
 
     if (error) return null;
 
-    const { data } = fluxbaseService.storage.from('trip-images').getPublicUrl(path);
-    return data.publicUrl;
+    const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
+    return publicStorageUrl(data.publicUrl);
   } catch {
     return null;
   }
