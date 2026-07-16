@@ -135,7 +135,8 @@
 			},
 			{ rootMargin: '-30% 0px -50% 0px', threshold: 0 }
 		);
-		entryElements.forEach((el) => observer?.observe(el));
+		// Query DOM directly instead of relying on entryElements map
+		document.querySelectorAll('[data-entry-id]').forEach((el) => observer?.observe(el));
 	}
 
 	function onScroll() {

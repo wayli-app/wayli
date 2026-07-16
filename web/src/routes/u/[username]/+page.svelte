@@ -5,7 +5,7 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
 	import { userStore } from '$lib/stores/auth';
-	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen } from 'lucide-svelte';
+	import { MapPin, Calendar, Route, Globe, Compass, LogIn, BookOpen, EyeOff } from 'lucide-svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import { translate } from '$lib/i18n';
 
@@ -39,6 +39,7 @@
 	let notFound = $state(false);
 	let isOwner = $state(false);
 	let journalOnly = $state(false);
+	let sortBy = $state<'recent' | 'oldest' | 'title' | 'duration' | 'entries'>('recent');
 	let currentUserId = $state<string | null>(null);
 
 	const username = $derived(page.params.username ?? '');
@@ -65,9 +66,30 @@
 		};
 	});
 
-	const visibleTrips = $derived(
-		journalOnly ? trips.filter((t) => (t.entry_count ?? 0) > 0) : trips
-	);
+	const visibleTrips = $derived.by(() => {
+		let result = journalOnly ? trips.filter((t) => (t.entry_count ?? 0) > 0) : [...trips];
+		switch (sortBy) {
+			case 'oldest':
+				result = result.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+				break;
+			case 'title':
+				result = result.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+				break;
+			case 'duration':
+				result = result.sort((a, b) => {
+					const da = new Date(a.end_date).getTime() - new Date(a.start_date).getTime();
+					const db = new Date(b.end_date).getTime() - new Date(b.start_date).getTime();
+					return db - da;
+				});
+				break;
+			case 'entries':
+				result = result.sort((a, b) => (b.entry_count ?? 0) - (a.entry_count ?? 0));
+				break;
+			default:
+				result = result.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''));
+		}
+		return result;
+	});
 
 	onMount(async () => {
 		try {
@@ -312,9 +334,19 @@
 				<p class="text-muted-foreground text-lg">{t('profile.noTrips')}</p>
 			</div>
 		{:else}
-			<!-- Journal filter -->
-			{#if stats.tripsWithJournal > 0}
-				<div class="mb-6 flex items-center gap-3">
+			<!-- Sort + filter bar -->
+			<div class="mb-6 flex flex-wrap items-center gap-3">
+				<select
+					bind:value={sortBy}
+					class="border-border rounded-lg border bg-transparent px-3 py-1.5 text-sm"
+				>
+					<option value="recent">Most recent</option>
+					<option value="oldest">Oldest first</option>
+					<option value="title">A–Z</option>
+					<option value="duration">Longest trip</option>
+					<option value="entries">Most entries</option>
+				</select>
+				{#if stats.tripsWithJournal > 0}
 					<button
 						type="button"
 						onclick={() => (journalOnly = !journalOnly)}
@@ -325,8 +357,8 @@
 						<BookOpen class="h-3.5 w-3.5" />
 						{journalOnly ? 'All trips' : `Trips with journal (${stats.tripsWithJournal})`}
 					</button>
-				</div>
-			{/if}
+				{/if}
+			</div>
 			<div
 				class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4"
 				style="grid-auto-flow: dense; grid-auto-rows: 120px;"
@@ -376,8 +408,9 @@
 							</div>
 							{#if isOwner && trip.visibility !== 'public'}
 								<div
-									class="rounded-full bg-amber-500/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-md"
+									class="flex items-center gap-1 rounded-full bg-amber-500/80 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md"
 								>
+									<EyeOff class="h-3 w-3" />
 									{trip.visibility}
 								</div>
 							{/if}
