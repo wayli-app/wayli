@@ -19,6 +19,7 @@
 	} from 'lucide-svelte';
 	import { setTheme, state as appState } from '$lib/stores/app-state.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
+	import WorldMap from '$lib/components/WorldMap.svelte';
 	import { translate } from '$lib/i18n';
 
 	let t = $derived($translate);
@@ -77,6 +78,23 @@
 			distance: totalDistance,
 			tripsWithJournal: trips.filter((t) => (t.entry_count ?? 0) > 0).length
 		};
+	});
+
+	// World map: visited countries from all trips
+	const visitedCountries = $derived.by(() => {
+		const codes = new Set<string>();
+		for (const trip of trips) {
+			const meta = trip.metadata;
+			if (meta?.visitedCountryCodes) {
+				for (const c of meta.visitedCountryCodes) codes.add(String(c).toUpperCase());
+			}
+			if (meta?.visitedCitiesDetailed) {
+				for (const c of meta.visitedCitiesDetailed) {
+					if (c.countryCode) codes.add(String(c.countryCode).toUpperCase());
+				}
+			}
+		}
+		return [...codes];
 	});
 
 	const visibleTrips = $derived.by(() => {
@@ -158,7 +176,7 @@
 			if (trips.length > 0) {
 				try {
 					const { data: entryCounts } = await fluxbase
-						.from('trip_entries')
+						.from('public_trip_entries')
 						.select('trip_id')
 						.in(
 							'trip_id',
@@ -348,6 +366,22 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- World map -->
+	{#if visitedCountries.length > 0}
+		<div class="mx-auto max-w-6xl px-4 pt-8">
+			<div class="bg-card border-border rounded-2xl border p-4">
+				<div class="mb-3 flex items-center justify-between">
+					<h3 class="text-foreground text-sm font-bold uppercase tracking-wide">Where I've Been</h3>
+					<span class="text-muted-foreground text-xs">
+						{visitedCountries.length}
+						{visitedCountries.length === 1 ? 'country' : 'countries'}
+					</span>
+				</div>
+				<WorldMap {visitedCountries} class="h-56" />
+			</div>
+		</div>
+	{/if}
 
 	<!-- Trip cards -->
 	<div class="mx-auto max-w-6xl px-4 py-10">

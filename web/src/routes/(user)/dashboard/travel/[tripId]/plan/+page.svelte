@@ -722,9 +722,12 @@
 						<div class="flex-1 space-y-1">
 							{#each day.items.slice(0, 4) as item (item.id)}
 								<div
+									class="truncate cursor-grab rounded px-1.5 py-0.5 text-[10px] font-medium text-white transition-shadow hover:shadow-md active:cursor-grabbing"
 									draggable="true"
-									ondragstart={(e) => onDragStart(e, item)}
-									class="truncate rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+									ondragstart={(e) => {
+										e.stopPropagation();
+										onDragStart(e, item);
+									}}
 									style="background: {TYPE_CONFIG[item.type]?.color ?? '#6b7280'}"
 									title={item.title}
 								>

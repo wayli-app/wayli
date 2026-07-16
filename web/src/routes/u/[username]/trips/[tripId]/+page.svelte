@@ -212,15 +212,14 @@
 			}
 
 			const { data: entryData } = await fluxbase
-				.from('trip_entries')
+				.from('public_trip_entries')
 				.select('id, title, body, entry_date, end_date')
 				.eq('trip_id', tripId)
-				.eq('status', 'published')
 				.order('entry_date', { ascending: true });
 			entries = (entryData as unknown as Entry[]) ?? [];
 
 			const { data: mediaData } = await fluxbase
-				.from('trip_media')
+				.from('public_trip_media')
 				.select('id, storage_path, thumbnail_path, caption, entry_id')
 				.eq('trip_id', tripId)
 				.order('sort_order', { ascending: true });

@@ -107,17 +107,70 @@
 			}
 		}
 
-		// Check setup status first to see if initial setup is needed
+		// Check setup status + fetch journal entries in parallel
 		(async () => {
-			// Check if a landing redirect is configured (admin setting)
+			// Kick off journal entries fetch immediately (non-blocking)
+			const entriesPromise = (async () => {
+				try {
+					const { data: publicTrips } = await fluxbase
+						.from('trips')
+						.select('id, title, image_url, user_id')
+						.eq('visibility', 'public')
+						.in('status', ['active', 'completed'])
+						.order('start_date', { ascending: false })
+						.limit(10);
+
+					const tripsList = (publicTrips as any[]) ?? [];
+					if (tripsList.length === 0) return;
+
+					const tripIds = tripsList.map((t) => t.id);
+					const { data: entries } = await fluxbase
+						.from('public_trip_entries')
+						.select('id, trip_id, title, body, entry_date')
+						.in('trip_id', tripIds)
+						.order('entry_date', { ascending: false })
+						.limit(6);
+
+					const entriesList = (entries as any[]) ?? [];
+					if (entriesList.length === 0) return;
+
+					const userIds = [...new Set(tripsList.map((t) => t.user_id))];
+					const { data: profiles } = await fluxbase
+						.from('public_profiles')
+						.select('id, username')
+						.in('id', userIds);
+
+					const profileMap = new Map<string, string>();
+					for (const p of (profiles as any[]) ?? []) {
+						profileMap.set(p.id, p.username);
+					}
+
+					const tripMap = new Map<string, any>();
+					for (const t of tripsList) {
+						tripMap.set(t.id, t);
+					}
+
+					latestEntries = entriesList.map((e) => {
+						const trip = tripMap.get(e.trip_id);
+						return {
+							...e,
+							trip_title: trip?.title,
+							trip_image_url: trip?.image_url,
+							username: trip ? profileMap.get(trip.user_id) : undefined
+						};
+					});
+				} catch {
+					// non-critical — landing page works without entries
+				}
+			})();
+
+			// Meanwhile: check redirect + setup status in parallel
 			try {
 				const redirectUser = await readSetting(() =>
 					fluxbase.settings.get('wayli.landing_redirect_username')
 				);
 
-				// settings.get() already returns the unwrapped value (e.g. "bart")
 				if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
-					// Use replaceState so the back button doesn't return to the landing page
 					await goto(`/u/${redirectUser.trim()}`, { replaceState: true });
 					return;
 				}
@@ -127,64 +180,9 @@
 
 			redirectChecked = true;
 			await checkSetupStatus();
-		})();
 
-		// Fetch latest public journal entries for the landing page
-		(async () => {
-			try {
-				// First get public trips with entries
-				const { data: publicTrips } = await fluxbase
-					.from('trips')
-					.select('id, title, image_url, user_id')
-					.eq('visibility', 'public')
-					.in('status', ['active', 'completed'])
-					.order('start_date', { ascending: false })
-					.limit(10);
-
-				const tripsList = (publicTrips as any[]) ?? [];
-				if (tripsList.length === 0) return;
-
-				const tripIds = tripsList.map((t) => t.id);
-				const { data: entries } = await fluxbase
-					.from('trip_entries')
-					.select('id, trip_id, title, body, entry_date')
-					.in('trip_id', tripIds)
-					.eq('status', 'published')
-					.order('entry_date', { ascending: false })
-					.limit(6);
-
-				const entriesList = (entries as any[]) ?? [];
-				if (entriesList.length === 0) return;
-
-				// Fetch usernames for the trip owners
-				const userIds = [...new Set(tripsList.map((t) => t.user_id))];
-				const { data: profiles } = await fluxbase
-					.from('public_profiles')
-					.select('id, username')
-					.in('id', userIds);
-
-				const profileMap = new Map<string, string>();
-				for (const p of (profiles as any[]) ?? []) {
-					profileMap.set(p.id, p.username);
-				}
-
-				const tripMap = new Map<string, any>();
-				for (const t of tripsList) {
-					tripMap.set(t.id, t);
-				}
-
-				latestEntries = entriesList.map((e) => {
-					const trip = tripMap.get(e.trip_id);
-					return {
-						...e,
-						trip_title: trip?.title,
-						trip_image_url: trip?.image_url,
-						username: trip ? profileMap.get(trip.user_id) : undefined
-					};
-				});
-			} catch {
-				// non-critical — landing page works without entries
-			}
+			// Wait for journal entries to finish (they started earlier)
+			await entriesPromise;
 		})();
 
 		// Resolve auth state so the top-right chrome doesn't flash the login button for logged-in users
