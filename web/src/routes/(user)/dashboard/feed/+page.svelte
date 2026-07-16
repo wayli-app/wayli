@@ -161,7 +161,7 @@
 			</p>
 		</div>
 	{:else}
-		<div class="max-w-2xl space-y-4">
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each entries as entry (entry.id)}
 				<article class="bg-card border-border overflow-hidden rounded-2xl border">
 					{#if entry.trip_image_url}

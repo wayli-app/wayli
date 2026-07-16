@@ -8,7 +8,6 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import WorldMap from '$lib/components/WorldMap.svelte';
 
 	let t = $derived($translate);
 	let currentTheme = $state<'light' | 'dark'>('light');
@@ -33,7 +32,6 @@
 			trip_count: number;
 		}>
 	>([]);
-	let visitedCountries = $state<string[]>([]);
 	let pageMode = $state<'loading' | 'signin' | 'community'>('loading');
 
 	onMount(() => {
@@ -55,9 +53,10 @@
 
 			try {
 				const resp = await fluxbase.settings.get('wayli.landing_redirect_username');
-				if (resp && typeof resp === 'string') redirectUser = resp.trim();
-				else if (resp && typeof resp === 'object' && 'value' in (resp as any)) {
-					const v = (resp as any).value;
+				if (typeof resp === 'string' && resp.trim()) {
+					redirectUser = resp.trim();
+				} else if (resp && typeof resp === 'object') {
+					const v = (resp as any).value ?? (resp as any).data?.value;
 					if (v && typeof v === 'string') redirectUser = v.trim();
 				}
 			} catch {}
@@ -69,12 +68,11 @@
 				communityDisabled = val === false || val === 'false';
 			} catch {}
 
-			if (communityDisabled && redirectUser) {
-				await goto(`/u/${redirectUser}`, { replaceState: true });
-				return;
-			}
-
-			if (communityDisabled && !redirectUser) {
+			if (communityDisabled) {
+				if (redirectUser) {
+					await goto(`/u/${redirectUser}`, { replaceState: true });
+					return;
+				}
 				pageMode = 'signin';
 				return;
 			}
@@ -97,10 +95,10 @@
 			const tripsList = (publicTrips as any[]) ?? [];
 			if (tripsList.length === 0) return;
 
-			const [entriesResult, profilesResult] = await Promise.all([
+			const [entriesResult, profilesResult, mediaResult] = await Promise.all([
 				fluxbase
 					.from('public_trip_entries')
-					.select('id, trip_id, title, body, entry_date')
+					.select('id, trip_id, title, body, entry_date, cover_media_id')
 					.in(
 						'trip_id',
 						tripsList.map((t) => t.id)
@@ -110,7 +108,14 @@
 				fluxbase
 					.from('public_profiles')
 					.select('id, username')
-					.in('id', [...new Set(tripsList.map((t) => t.user_id))])
+					.in('id', [...new Set(tripsList.map((t) => t.user_id))]),
+				fluxbase
+					.from('public_trip_media')
+					.select('id, storage_path, thumbnail_path')
+					.in(
+						'trip_id',
+						tripsList.map((t) => t.id)
+					)
 			]);
 
 			const entriesList = (entriesResult.data as any[]) ?? [];
@@ -118,28 +123,21 @@
 			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
 			const tripMap = new Map<string, any>();
 			for (const tr of tripsList) tripMap.set(tr.id, tr);
+			const mediaMap = new Map<string, string>();
+			for (const m of (mediaResult.data as any[]) ?? []) {
+				mediaMap.set(m.id, m.thumbnail_path ?? m.storage_path);
+			}
 
 			latestEntries = entriesList.map((e) => {
 				const trip = tripMap.get(e.trip_id);
+				const entryCover = e.cover_media_id ? mediaMap.get(e.cover_media_id) : null;
 				return {
 					...e,
 					trip_title: trip?.title,
-					trip_image_url: trip?.image_url,
+					trip_image_url: entryCover ?? trip?.image_url,
 					username: trip ? profileMap.get(trip.user_id) : undefined
 				};
 			});
-
-			// Aggregate countries
-			const codes = new Set<string>();
-			for (const trip of tripsList) {
-				const meta = trip.metadata;
-				if (meta?.visitedCountryCodes)
-					for (const c of meta.visitedCountryCodes) codes.add(String(c).toUpperCase());
-				if (meta?.visitedCitiesDetailed)
-					for (const c of meta.visitedCitiesDetailed)
-						if (c.countryCode) codes.add(String(c.countryCode).toUpperCase());
-			}
-			visitedCountries = [...codes];
 
 			// Travelers
 			const userIds = [...new Set(tripsList.map((t) => t.user_id))];
@@ -181,7 +179,9 @@
 	</div>
 {:else if pageMode === 'signin'}
 	<div class="bg-background relative flex min-h-screen flex-col items-center justify-center p-4">
-		<img src="/logo.svg" alt="Wayli" class="mb-8 h-24 w-auto" />
+		<div class="bg-card border-border mb-8 rounded-3xl border p-8 shadow-lg">
+			<img src="/logo.svg" alt="Wayli" class="h-20 w-auto" />
+		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
 			<p class="text-muted-foreground text-sm">{t('landing.selfHostedTagline')}</p>
 			{#if $userStore?.email}
@@ -272,10 +272,10 @@
 				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
 			></div>
 			<div class="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
-				<img src="/logo.svg" alt="Wayli" class="mx-auto mb-6 h-20 w-auto drop-shadow-2xl" />
-				<p class="mx-auto max-w-xl text-lg text-white/60">
-					{t('community.subtitle')}
-				</p>
+				<div class="bg-card/10 mb-6 inline-flex rounded-3xl p-6 backdrop-blur-md">
+					<img src="/logo.svg" alt="Wayli" class="h-16 w-auto drop-shadow-2xl" />
+				</div>
+				<p class="mx-auto max-w-xl text-lg text-white/60">{t('community.subtitle')}</p>
 			</div>
 		</div>
 
@@ -332,23 +332,6 @@
 								</div>
 							</a>
 						{/each}
-					</div>
-				</div>
-			{/if}
-
-			<!-- Community World Map -->
-			{#if visitedCountries.length > 0}
-				<div class="mb-16">
-					<div class="mb-3 flex items-center gap-2">
-						<Globe class="text-primary h-5 w-5" />
-						<h2 class="text-foreground text-xl font-bold">{t('community.whereWeveBeen')}</h2>
-						<span class="text-muted-foreground ml-auto text-sm">
-							{visitedCountries.length}
-							{visitedCountries.length === 1 ? t('common.country') : t('common.countries')}
-						</span>
-					</div>
-					<div class="bg-card border-border relative z-0 rounded-2xl border p-4">
-						<WorldMap {visitedCountries} class="h-64" />
 					</div>
 				</div>
 			{/if}

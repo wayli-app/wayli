@@ -200,11 +200,18 @@
 	onMount(async () => {
 		L = (await import('leaflet')).default;
 
+		const isDark = document.documentElement.classList.contains('dark');
+
 		map = L.map(mapContainer, { scrollWheelZoom: false, zoomControl: true });
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; OpenStreetMap',
-			maxZoom: 5
-		}).addTo(map);
+		L.tileLayer(
+			isDark
+				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+			{
+				attribution: isDark ? '&copy; OpenStreetMap &copy; CARTO' : '&copy; OpenStreetMap',
+				maxZoom: 5
+			}
+		).addTo(map);
 
 		try {
 			const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');

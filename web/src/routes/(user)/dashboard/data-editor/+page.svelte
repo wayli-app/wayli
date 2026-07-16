@@ -123,10 +123,18 @@
 		if (!mapContainer || !L) return;
 
 		map = L.map(mapContainer, { scrollWheelZoom: true });
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; OpenStreetMap contributors',
-			maxZoom: 18
-		}).addTo(map);
+		const isDark = document.documentElement.classList.contains('dark');
+		L.tileLayer(
+			isDark
+				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+			{
+				attribution: isDark
+					? '&copy; OpenStreetMap &copy; CARTO'
+					: '&copy; OpenStreetMap contributors',
+				maxZoom: 18
+			}
+		).addTo(map);
 
 		drawPoints();
 		drawExclusionZones();

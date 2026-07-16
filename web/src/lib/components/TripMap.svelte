@@ -20,11 +20,20 @@
 	onMount(async () => {
 		L = (await import('leaflet')).default;
 
+		const isDark = document.documentElement.classList.contains('dark');
+
 		map = L.map(mapContainer, { scrollWheelZoom: false });
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; OpenStreetMap contributors',
-			maxZoom: 18
-		}).addTo(map);
+		L.tileLayer(
+			isDark
+				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+			{
+				attribution: isDark
+					? '&copy; OpenStreetMap &copy; CARTO'
+					: '&copy; OpenStreetMap contributors',
+				maxZoom: 18
+			}
+		).addTo(map);
 
 		mainLayer = L.layerGroup().addTo(map);
 		highlightLayer = L.layerGroup().addTo(map);
