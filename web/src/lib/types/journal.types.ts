@@ -10,6 +10,7 @@ export interface TripEntry {
 	body: string;
 	entry_date: string;
 	end_date?: string | null;
+	status?: string;
 	cover_media_id?: string | null;
 	highlight_start?: string | null;
 	highlight_end?: string | null;
@@ -23,6 +24,7 @@ export interface CreateTripEntryInput {
 	body: string;
 	entry_date: string;
 	end_date?: string | null;
+	status?: string;
 	cover_media_id?: string | null;
 	highlight_start?: string | null;
 	highlight_end?: string | null;
@@ -33,6 +35,7 @@ export interface UpdateTripEntryInput {
 	body?: string;
 	entry_date?: string;
 	end_date?: string | null;
+	status?: string;
 	cover_media_id?: string | null;
 	highlight_start?: string | null;
 	highlight_end?: string | null;

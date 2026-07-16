@@ -193,6 +193,7 @@
 				.from('trip_entries')
 				.select('id, title, body, entry_date, end_date')
 				.eq('trip_id', tripId)
+				.eq('status', 'published')
 				.order('entry_date', { ascending: true });
 			entries = (entryData as unknown as Entry[]) ?? [];
 

@@ -198,19 +198,26 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
     );
     let tripId: string;
     let isNewTrip = false;
+    let tripImageUrl: string | null = null;
 
     if (existingTrip) {
       tripId = existingTrip;
       tripsMerged++;
+      // Fetch existing trip's cover to avoid overwriting
+      const { data: existingTripData } = await fluxbase
+        .from('trips')
+        .select('image_url')
+        .eq('id', existingTrip)
+        .single();
+      tripImageUrl = (existingTripData as any)?.image_url ?? null;
       safeReportProgress(job, progress, `Merging into existing trip: ${tripJson.name}`);
     } else {
       isNewTrip = true;
-      let imageUrl: string | null = null;
 
       // Try to download cover photo from Polarsteps S3
       if (tripJson.cover_photo_path) {
         try {
-          imageUrl = await downloadAndUploadPhoto(
+          tripImageUrl = await downloadAndUploadPhoto(
             fluxbase,
             tripJson.cover_photo_path,
             userId,
@@ -231,7 +238,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
           end_date: endDate,
           status: 'completed',
           visibility: 'private',
-          image_url: imageUrl,
+          image_url: tripImageUrl,
           metadata: {
             distanceTraveled: Math.round((tripJson.total_km ?? 0) * 1000),
             importedFrom: 'polarsteps',
@@ -398,8 +405,8 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
     }
 
     // Trip cover fallback: if no cover from Polarsteps S3, use first uploaded photo
-    if (!imageUrl && firstPhotoUrl) {
-      imageUrl = firstPhotoUrl;
+    if (!tripImageUrl && firstPhotoUrl) {
+      tripImageUrl = firstPhotoUrl;
       try {
         await fluxbase.from('trips').update({ image_url: firstPhotoUrl }).eq('id', tripId);
       } catch {

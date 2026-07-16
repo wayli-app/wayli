@@ -70,6 +70,7 @@
 		body: string;
 		entry_date: string;
 		end_date?: string | null;
+		status?: string;
 		cover_media_id?: string | null;
 		created_at: string;
 		updated_at: string;
@@ -102,6 +103,7 @@
 	let editorTitle = $state('');
 	let editorBody = $state('');
 	let editorDate = $state('');
+	let editorStatus = $state<'published' | 'draft'>('published');
 	let editorEndDate = $state('');
 	let isSaving = $state(false);
 
@@ -402,6 +404,7 @@
 		editorBody = '';
 		editorDate = new Date().toISOString().slice(0, 10);
 		editorEndDate = '';
+		editorStatus = 'published';
 		showEditor = true;
 	}
 
@@ -412,10 +415,12 @@
 		editorBody = entry.body;
 		editorDate = entry.entry_date?.slice(0, 10) ?? '';
 		editorEndDate = entry.end_date?.slice(0, 10) ?? '';
+		editorStatus = (entry.status as 'published' | 'draft') ?? 'published';
 		showEditor = true;
 	}
 
-	async function saveEntry() {
+	async function saveEntry(status?: 'published' | 'draft') {
+		const saveAs = status ?? editorStatus;
 		if (!$userStore?.id || !editorTripId || !editorDate) return;
 		isSaving = true;
 		try {
@@ -424,7 +429,8 @@
 					title: editorTitle,
 					body: editorBody,
 					entry_date: editorDate,
-					end_date: editorEndDate || null
+					end_date: editorEndDate || null,
+					status: saveAs
 				});
 				entries = entries.map((e) => (e.id === updated.id ? { ...e, ...updated } : e));
 			} else {
@@ -433,8 +439,9 @@
 					title: editorTitle,
 					body: editorBody,
 					entry_date: editorDate,
-					end_date: editorEndDate || null
-				});
+					end_date: editorEndDate || null,
+					status: saveAs
+				} as any);
 				await loadEntries();
 			}
 			showEditor = false;
@@ -1322,7 +1329,12 @@
 													</div>
 
 													{#if entry.title}
-														<h3 class="text-foreground mb-1 font-semibold">{entry.title}</h3>
+														<h3 class="text-foreground mb-1 flex items-center gap-2 font-semibold">
+															{entry.title}
+															{#if entry.status === 'draft'}
+																<span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600">DRAFT</span>
+															{/if}
+														</h3>
 													{/if}
 													{#if entry.body}
 														<div
@@ -1433,7 +1445,20 @@
 								</button>
 								<button
 									type="button"
-									onclick={saveEntry}
+									onclick={() => saveEntry('draft')}
+									disabled={isSaving || !editorDate}
+									class="border-border text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+								>
+									{#if isSaving}
+										<Loader2 class="h-4 w-4 animate-spin" />
+									{:else}
+										<Save class="h-4 w-4" />
+									{/if}
+									Save Draft
+								</button>
+								<button
+									type="button"
+									onclick={() => saveEntry('published')}
 									disabled={isSaving || !editorDate}
 									class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
 								>
@@ -1442,7 +1467,7 @@
 										Saving...
 									{:else}
 										<Save class="h-4 w-4" />
-										Save Entry
+										Publish
 									{/if}
 								</button>
 							</div>

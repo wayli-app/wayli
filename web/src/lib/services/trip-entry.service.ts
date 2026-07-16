@@ -137,6 +137,8 @@ export async function createEntry(userId: string, input: CreateTripEntryInput): 
 			body: input.body,
 			entry_date: input.entry_date,
 			end_date: input.end_date ?? null,
+			status: input.status ?? 'published',
+			cover_media_id: input.cover_media_id ?? null,
 			highlight_start: input.highlight_start ?? null,
 			highlight_end: input.highlight_end ?? null
 		})
