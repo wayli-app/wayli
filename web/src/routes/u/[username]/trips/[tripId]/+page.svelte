@@ -17,7 +17,10 @@
 		Globe,
 		Compass,
 		LogIn,
-		BookOpen
+		BookOpen,
+		ChevronLeft,
+		ChevronRight,
+		X
 	} from 'lucide-svelte';
 	import { translate } from '$lib/i18n';
 
@@ -144,6 +147,24 @@
 		scrollProgress = max > 0 ? (window.scrollY / max) * 100 : 0;
 	}
 
+	const allLightboxMedia = $derived(media);
+	function navigateLightbox(direction: number) {
+		if (!lightbox || allLightboxMedia.length === 0) return;
+		const idx = allLightboxMedia.findIndex((m) => m.id === lightbox!.id);
+		if (idx === -1) return;
+		const next = (idx + direction + allLightboxMedia.length) % allLightboxMedia.length;
+		lightbox = allLightboxMedia[next];
+	}
+
+	let touchStartX = 0;
+	function handleTouchStart(e: TouchEvent) {
+		touchStartX = e.touches[0].clientX;
+	}
+	function handleTouchEnd(e: TouchEvent) {
+		const dx = e.changedTouches[0].clientX - touchStartX;
+		if (Math.abs(dx) > 50) navigateLightbox(dx > 0 ? -1 : 1);
+	}
+
 	onMount(async () => {
 		window.addEventListener('scroll', onScroll, { passive: true });
 
@@ -245,7 +266,14 @@
 	}
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (lightbox = null)} />
+<svelte:window
+	onkeydown={(e) => {
+		if (!lightbox) return;
+		if (e.key === 'Escape') lightbox = null;
+		else if (e.key === 'ArrowLeft') navigateLightbox(-1);
+		else if (e.key === 'ArrowRight') navigateLightbox(1);
+	}}
+/>
 
 <svelte:head>
 	<title>{trip ? `${trip.title} · Wayli` : 'Wayli'}</title>
@@ -612,18 +640,45 @@
 	</div>
 {/if}
 
-<!-- Lightbox with zoom animation -->
+<!-- Lightbox with navigation -->
 {#if lightbox}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fade-in"
+		class="fixed inset-0 z-50 flex items-start justify-center bg-black/90 pt-8"
 		onclick={() => (lightbox = null)}
+		ontouchstart={handleTouchStart}
+		ontouchend={handleTouchEnd}
 		role="presentation"
 	>
+		<button
+			type="button"
+			class="absolute top-4 right-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+			aria-label="Close"><X class="h-6 w-6" /></button
+		>
+		{#if media.length > 1}
+			<button
+				type="button"
+				class="absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+				onclick={(e) => {
+					e.stopPropagation();
+					navigateLightbox(-1);
+				}}
+				aria-label="Previous photo"><ChevronLeft class="h-6 w-6" /></button
+			>
+			<button
+				type="button"
+				class="absolute top-1/2 right-4 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20"
+				onclick={(e) => {
+					e.stopPropagation();
+					navigateLightbox(1);
+				}}
+				aria-label="Next photo"><ChevronRight class="h-6 w-6" /></button
+			>
+		{/if}
 		<img
 			src={lightbox.storage_path}
 			alt={lightbox.caption || 'Photo'}
-			class="max-h-[85vh] max-w-full rounded-2xl object-contain animate-scale-in"
+			class="max-h-[92vh] max-w-full rounded-lg object-contain animate-scale-in"
 			role="presentation"
 		/>
 	</div>
