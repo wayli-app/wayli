@@ -257,90 +257,86 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       `[polarsteps] Trip "${tripJson.name}" has ${steps.length} steps, isNewTrip=${isNewTrip}`
     );
 
+    // Fetch existing photo filenames for dedup (merge case)
+    const existingPhotoNames = new Set<string>();
+    if (!isNewTrip) {
+      try {
+        const { data: existingMedia } = await fluxbase
+          .from('trip_media')
+          .select('storage_path')
+          .eq('trip_id', tripId);
+        for (const m of (existingMedia as any[]) ?? []) {
+          const fn = (m.storage_path || '').split('/').pop();
+          if (fn) existingPhotoNames.add(fn);
+        }
+      } catch {
+        // non-critical
+      }
+    }
+
+    let firstPhotoUrl: string | null = null;
+
     for (const step of steps) {
       const entryDate = dateFromUnix(step.start_time);
 
-      // Skip if entry already exists (for merge case)
+      // Find or create entry
+      let entryId: string | null = null;
+
       if (!isNewTrip) {
         const { data: existing } = await fluxbase
           .from('trip_entries')
-          .select('id')
+          .select('id, cover_media_id')
           .eq('trip_id', tripId)
           .eq('entry_date', entryDate)
           .limit(1);
         if (existing && existing.length > 0) {
-          // Still upload photos for existing entries
-          const existingEntryId = (existing[0] as any).id;
-          const existingPhotos = findZipFiles(
-            new RegExp(`${tripDirPrefix}[^/]*${step.id}[^/]*/photos/.+\\.jpg`, 'i')
-          );
-          for (const photoFile of existingPhotos) {
-            try {
-              const photoName = photoFile.path.split('/').pop() || `photo-${Date.now()}.jpg`;
-              const storagePath = `${userId}/${tripId}/${photoName}`;
-              const blob = new Blob([photoFile.data], { type: 'image/jpeg' });
-              const { error: uploadErr } = await fluxbase.storage
-                .from('trip-images')
-                .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
-              if (uploadErr) {
-                photosSkipped++;
-                continue;
-              }
-              const { data: urlData } = fluxbase.storage
-                .from('trip-images')
-                .getPublicUrl(storagePath);
-              await fluxbase.from('trip_media').insert({
-                trip_id: tripId,
-                user_id: userId,
-                entry_id: existingEntryId,
-                storage_path: publicStorageUrl(urlData.publicUrl),
-                thumbnail_path: publicStorageUrl(urlData.publicUrl),
-                media_type: 'image',
-                caption: '',
-                sort_order: photosUploaded
-              });
-              photosUploaded++;
-            } catch {
-              photosSkipped++;
-            }
-          }
-          continue;
+          entryId = (existing[0] as any).id;
         }
       }
 
-      const entryPayload = {
-        trip_id: tripId,
-        user_id: userId,
-        title: step.name || '',
-        body: step.description || '',
-        entry_date: entryDate
-      };
+      if (!entryId) {
+        const entryPayload = {
+          trip_id: tripId,
+          user_id: userId,
+          title: step.name || '',
+          body: step.description || '',
+          entry_date: entryDate
+        };
 
-      // Use fluxbase (user context) — service role fails with PGRST000
-      const { data: entryData, error: entryError } = await fluxbase
-        .from('trip_entries')
-        .insert(entryPayload)
-        .select('id')
-        .single();
+        const { data: entryData, error: entryError } = await fluxbase
+          .from('trip_entries')
+          .insert(entryPayload)
+          .select('id')
+          .single();
 
-      if (entryError || !entryData) {
-        console.error(
-          `[polarsteps] Entry insert failed for "${step.name}":`,
-          JSON.stringify(entryError)
-        );
-        continue;
+        if (entryError || !entryData) {
+          console.error(
+            `[polarsteps] Entry insert failed for "${step.name}":`,
+            JSON.stringify(entryError)
+          );
+          continue;
+        }
+        entryId = (entryData as any).id;
+        entriesCreated++;
       }
-      const entryId = (entryData as any).id;
-      entriesCreated++;
 
-      // Find and upload photos for this step (by step ID in path)
+      // Upload photos for this step
       const photoFiles = findZipFiles(
         new RegExp(`${tripDirPrefix}[^/]*${step.id}[^/]*/photos/.+\\.jpg`, 'i')
       );
 
+      let firstPhotoMediaId: string | null = null;
+
       for (const photoFile of photoFiles) {
         try {
           const photoName = photoFile.path.split('/').pop() || `photo-${Date.now()}.jpg`;
+
+          // Skip if photo already exists (dedup for merge case)
+          if (existingPhotoNames.has(photoName)) {
+            photosSkipped++;
+            continue;
+          }
+
           const storagePath = `${userId}/${tripId}/${photoName}`;
           const blob = new Blob([photoFile.data], { type: 'image/jpeg' });
 
@@ -354,22 +350,60 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
           }
 
           const { data: urlData } = fluxbase.storage.from('trip-images').getPublicUrl(storagePath);
+          const publicUrl = publicStorageUrl(urlData.publicUrl);
 
-          await fluxbase.from('trip_media').insert({
-            trip_id: tripId,
-            user_id: userId,
-            entry_id: entryId,
-            storage_path: publicStorageUrl(urlData.publicUrl),
-            thumbnail_path: publicStorageUrl(urlData.publicUrl),
-            media_type: 'image',
-            caption: '',
-            sort_order: photosUploaded
-          });
+          const { data: mediaData, error: mediaErr } = await fluxbase
+            .from('trip_media')
+            .insert({
+              trip_id: tripId,
+              user_id: userId,
+              entry_id: entryId,
+              storage_path: publicUrl,
+              thumbnail_path: publicUrl,
+              media_type: 'image',
+              caption: '',
+              sort_order: photosUploaded
+            })
+            .select('id')
+            .single();
 
+          if (mediaErr || !mediaData) {
+            photosSkipped++;
+            continue;
+          }
+
+          existingPhotoNames.add(photoName);
           photosUploaded++;
+
+          const mediaId = (mediaData as any).id;
+          if (!firstPhotoMediaId) firstPhotoMediaId = mediaId;
+          if (!firstPhotoUrl) firstPhotoUrl = publicUrl;
         } catch {
           photosSkipped++;
         }
+      }
+
+      // Set entry cover from first photo if entry has no cover
+      if (firstPhotoMediaId) {
+        try {
+          await fluxbase
+            .from('trip_entries')
+            .update({ cover_media_id: firstPhotoMediaId })
+            .eq('id', entryId)
+            .is('cover_media_id', null);
+        } catch {
+          // non-critical
+        }
+      }
+    }
+
+    // Trip cover fallback: if no cover from Polarsteps S3, use first uploaded photo
+    if (!imageUrl && firstPhotoUrl) {
+      imageUrl = firstPhotoUrl;
+      try {
+        await fluxbase.from('trips').update({ image_url: firstPhotoUrl }).eq('id', tripId);
+      } catch {
+        // non-critical
       }
     }
 
