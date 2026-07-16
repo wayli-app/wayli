@@ -50,6 +50,13 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
+	import { getFriends, type UserConnection } from '$lib/services/friend.service';
+	import {
+		getTripShares,
+		shareTrip,
+		unshareTrip,
+		type TripShare
+	} from '$lib/services/trip-share.service';
 
 	type Trip = {
 		id: string;
@@ -120,6 +127,11 @@
 	let tripDescription = $state('');
 	let tripImageUrl = $state<string | null>(null);
 	let tripImageAttribution = $state<any>(null);
+	let tripCostsVisible = $state<'private' | 'friends' | 'public'>('private');
+	let tripGpsVisible = $state<'private' | 'friends' | 'public'>('private');
+	let tripCommentsAllowed = $state<'owner' | 'friends' | 'public'>('friends');
+	let tripShares = $state<TripShare[]>([]);
+	let tripFriends = $state<UserConnection[]>([]);
 	let isCreatingTrip = $state(false);
 	let isUploadingImage = $state(false);
 	let tripImageInput = $state<HTMLInputElement | null>(null);
@@ -619,7 +631,27 @@
 		tripDescription = '';
 		tripImageUrl = null;
 		tripImageAttribution = null;
+		tripCostsVisible = 'private';
+		tripGpsVisible = 'private';
+		tripCommentsAllowed = 'friends';
+		tripShares = [];
 		showTripModal = true;
+	}
+
+	async function loadTripSharingData(trip: Trip) {
+		try {
+			const [shares, friends] = await Promise.all([
+				getTripShares(trip.id),
+				$userStore?.id ? getFriends($userStore.id) : Promise.resolve([])
+			]);
+			tripShares = shares;
+			tripFriends = friends;
+			tripCostsVisible = (trip as any).costs_visible_to ?? 'private';
+			tripGpsVisible = (trip as any).gps_visible_to ?? 'private';
+			tripCommentsAllowed = (trip as any).comments_allowed ?? 'friends';
+		} catch {
+			// non-critical
+		}
 	}
 
 	function openEditTripModal(trip: Trip) {
@@ -631,6 +663,7 @@
 		tripImageUrl = trip.image_url;
 		tripImageAttribution = trip.metadata?.image_attribution ?? null;
 		showTripModal = true;
+		loadTripSharingData(trip);
 	}
 
 	async function saveTrip() {
@@ -652,7 +685,10 @@
 					end_date: tripEndDate || tripStartDate,
 					description: tripDescription,
 					image_url: tripImageUrl,
-					metadata: newMetadata
+					metadata: newMetadata,
+					costs_visible_to: tripCostsVisible,
+					gps_visible_to: tripGpsVisible,
+					comments_allowed: tripCommentsAllowed
 				} as any);
 				trips = trips.map((t) =>
 					t.id === editId
@@ -663,7 +699,10 @@
 								end_date: tripEndDate || tripStartDate,
 								description: tripDescription,
 								image_url: tripImageUrl,
-								metadata: newMetadata
+								metadata: newMetadata,
+								costs_visible_to: tripCostsVisible,
+								gps_visible_to: tripGpsVisible,
+								comments_allowed: tripCommentsAllowed
 							}
 						: t
 				);
@@ -1722,6 +1761,115 @@
 									{/if}
 								</div>
 							</div>
+
+							<!-- Sharing & permissions (edit mode only) -->
+							{#if editingTrip}
+								<div class="border-border space-y-3 border-t pt-4">
+									<span class="text-foreground text-xs font-bold uppercase tracking-wide">
+										Sharing & Permissions
+									</span>
+
+									<!-- Shared friends -->
+									{#if tripFriends.length > 0}
+										<div class="space-y-1.5">
+											<span class="text-muted-foreground text-[10px]">Friends with access</span>
+											{#each tripShares as share (share.id)}
+												<div class="bg-muted/50 flex items-center gap-2 rounded-lg p-2">
+													{#if share.avatar_url}
+														<img
+															src={share.avatar_url}
+															alt=""
+															class="h-6 w-6 rounded-full object-cover"
+														/>
+													{:else}
+														<div
+															class="bg-primary/10 text-primary flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold"
+														>
+															{share.username?.[0]?.toUpperCase() ?? '?'}
+														</div>
+													{/if}
+													<span class="text-foreground flex-1 text-xs">@{share.username}</span>
+													<button
+														type="button"
+														onclick={async () => {
+															await unshareTrip(editingTrip!.id, share.shared_with_user_id);
+															tripShares = tripShares.filter((s) => s.id !== share.id);
+														}}
+														class="text-muted-foreground hover:text-destructive"
+														><X class="h-3 w-3" /></button
+													>
+												</div>
+											{/each}
+
+											<!-- Add friend dropdown -->
+											<select
+												class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												onchange={async (e) => {
+													const userId = (e.target as HTMLSelectElement).value;
+													if (!userId || !editingTrip) return;
+													await shareTrip(editingTrip.id, userId);
+													tripShares = await getTripShares(editingTrip.id);
+													(e.target as HTMLSelectElement).value = '';
+												}}
+											>
+												<option value="">+ Add friend...</option>
+												{#each tripFriends.filter((f) => !tripShares.some((s) => s.shared_with_user_id === (f.user_id === $userStore?.id ? f.friend_id : f.user_id))) as friend}
+													<option
+														value={friend.user_id === $userStore?.id
+															? friend.friend_id
+															: friend.user_id}
+													>
+														@{friend.username}
+													</option>
+												{/each}
+											</select>
+										</div>
+									{:else}
+										<p class="text-muted-foreground text-[10px]">
+											No friends yet. <a href="/dashboard/friends" class="text-primary underline"
+												>Add friends</a
+											> to share trips.
+										</p>
+									{/if}
+
+									<!-- Permission toggles -->
+									<div class="grid grid-cols-3 gap-2">
+										<label class="flex flex-col gap-1">
+											<span class="text-muted-foreground text-[10px]">Costs</span>
+											<select
+												bind:value={tripCostsVisible}
+												class="border-border rounded border bg-transparent px-1.5 py-1 text-xs"
+											>
+												<option value="private">Private</option>
+												<option value="friends">Friends</option>
+												<option value="public">Public</option>
+											</select>
+										</label>
+										<label class="flex flex-col gap-1">
+											<span class="text-muted-foreground text-[10px]">GPS</span>
+											<select
+												bind:value={tripGpsVisible}
+												class="border-border rounded border bg-transparent px-1.5 py-1 text-xs"
+											>
+												<option value="private">Private</option>
+												<option value="friends">Friends</option>
+												<option value="public">Public</option>
+											</select>
+										</label>
+										<label class="flex flex-col gap-1">
+											<span class="text-muted-foreground text-[10px]">Comments</span>
+											<select
+												bind:value={tripCommentsAllowed}
+												class="border-border rounded border bg-transparent px-1.5 py-1 text-xs"
+											>
+												<option value="owner">Owner only</option>
+												<option value="friends">Friends</option>
+												<option value="public">Public</option>
+											</select>
+										</label>
+									</div>
+								</div>
+							{/if}
 
 							<div class="flex justify-end gap-2">
 								<button
