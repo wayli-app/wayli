@@ -179,8 +179,8 @@
 	</div>
 {:else if pageMode === 'signin'}
 	<div class="bg-background relative flex min-h-screen flex-col items-center justify-center p-4">
-		<div class="bg-card border-border mb-8 rounded-3xl border p-8 shadow-lg">
-			<img src="/logo.svg" alt="Wayli" class="h-20 w-auto" />
+		<div class="bg-white/75 dark:bg-white/10 mb-8 rounded-3xl p-10 shadow-xl">
+			<img src="/logo.svg" alt="Wayli" class="h-56 w-auto" />
 		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
 			<p class="text-muted-foreground text-sm">{t('landing.selfHostedTagline')}</p>
@@ -272,8 +272,8 @@
 				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
 			></div>
 			<div class="relative mx-auto max-w-6xl px-4 py-20 text-center sm:py-28">
-				<div class="bg-card/10 mb-6 inline-flex rounded-3xl p-6 backdrop-blur-md">
-					<img src="/logo.svg" alt="Wayli" class="h-16 w-auto drop-shadow-2xl" />
+				<div class="bg-white/15 mb-6 inline-flex rounded-3xl p-8 backdrop-blur-md">
+					<img src="/logo.svg" alt="Wayli" class="h-24 w-auto drop-shadow-2xl" />
 				</div>
 				<p class="mx-auto max-w-xl text-lg text-white/60">{t('community.subtitle')}</p>
 			</div>
