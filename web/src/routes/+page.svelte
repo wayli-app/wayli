@@ -10,7 +10,8 @@
 		LogOut,
 		Shield,
 		Users,
-		BookOpen
+		BookOpen,
+		Calendar
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
@@ -36,6 +37,18 @@
 	// Track if initial auth state has resolved (prevents login-button flash for logged-in users)
 	let authResolved = $state(false);
 	let redirectChecked = $state(false);
+	let latestEntries = $state<
+		Array<{
+			id: string;
+			trip_id: string;
+			title: string;
+			body: string;
+			entry_date: string;
+			trip_title?: string;
+			trip_image_url?: string | null;
+			username?: string;
+		}>
+	>([]);
 
 	// Local theme state for SSR compatibility
 	let currentTheme = $state<'light' | 'dark'>('light');
@@ -114,6 +127,64 @@
 
 			redirectChecked = true;
 			await checkSetupStatus();
+		})();
+
+		// Fetch latest public journal entries for the landing page
+		(async () => {
+			try {
+				// First get public trips with entries
+				const { data: publicTrips } = await fluxbase
+					.from('trips')
+					.select('id, title, image_url, user_id')
+					.eq('visibility', 'public')
+					.in('status', ['active', 'completed'])
+					.order('start_date', { ascending: false })
+					.limit(10);
+
+				const tripsList = (publicTrips as any[]) ?? [];
+				if (tripsList.length === 0) return;
+
+				const tripIds = tripsList.map((t) => t.id);
+				const { data: entries } = await fluxbase
+					.from('trip_entries')
+					.select('id, trip_id, title, body, entry_date')
+					.in('trip_id', tripIds)
+					.eq('status', 'published')
+					.order('entry_date', { ascending: false })
+					.limit(6);
+
+				const entriesList = (entries as any[]) ?? [];
+				if (entriesList.length === 0) return;
+
+				// Fetch usernames for the trip owners
+				const userIds = [...new Set(tripsList.map((t) => t.user_id))];
+				const { data: profiles } = await fluxbase
+					.from('public_profiles')
+					.select('id, username')
+					.in('id', userIds);
+
+				const profileMap = new Map<string, string>();
+				for (const p of (profiles as any[]) ?? []) {
+					profileMap.set(p.id, p.username);
+				}
+
+				const tripMap = new Map<string, any>();
+				for (const t of tripsList) {
+					tripMap.set(t.id, t);
+				}
+
+				latestEntries = entriesList.map((e) => {
+					const trip = tripMap.get(e.trip_id);
+					return {
+						...e,
+						trip_title: trip?.title,
+						trip_image_url: trip?.image_url,
+						username: trip ? profileMap.get(trip.user_id) : undefined
+					};
+				});
+			} catch {
+				// non-critical — landing page works without entries
+			}
 		})();
 
 		// Resolve auth state so the top-right chrome doesn't flash the login button for logged-in users
@@ -315,6 +386,60 @@
 						{/if}
 					</div>
 				</div>
+
+				<!-- Latest Journal Entries -->
+				{#if latestEntries.length > 0}
+					<div class="mx-auto mb-16 max-w-6xl px-4">
+						<div class="mb-6 flex items-center gap-2">
+							<BookOpen class="text-primary h-5 w-5" />
+							<h2 class="text-foreground text-xl font-bold">Latest Journal Entries</h2>
+						</div>
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{#each latestEntries as entry (entry.id)}
+								<a
+									href={entry.username ? `/u/${entry.username}/trips/${entry.trip_id}` : '#'}
+									class="group bg-card border-border overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-lg"
+								>
+									{#if entry.trip_image_url}
+										<div class="h-32 overflow-hidden">
+											<img
+												src={entry.trip_image_url}
+												alt={entry.trip_title || ''}
+												class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+											/>
+										</div>
+									{/if}
+									<div class="p-4">
+										<div class="text-muted-foreground mb-1 flex items-center gap-1.5 text-xs">
+											<Calendar class="h-3 w-3" />
+											{new Date(entry.entry_date).toLocaleDateString(undefined, {
+												month: 'long',
+												day: 'numeric',
+												year: 'numeric'
+											})}
+										</div>
+										<h3 class="text-foreground mb-1 font-bold">
+											{entry.title || entry.trip_title || 'Untitled'}
+										</h3>
+										{#if entry.body}
+											<p class="text-muted-foreground line-clamp-3 text-sm">
+												{entry.body
+													.replace(/[#*`>\-]/g, '')
+													.trim()
+													.slice(0, 150)}
+											</p>
+										{/if}
+										{#if entry.trip_title && entry.title}
+											<div class="text-muted-foreground/70 mt-2 text-xs">
+												{entry.trip_title}
+											</div>
+										{/if}
+									</div>
+								</a>
+							{/each}
+						</div>
+					</div>
+				{/if}
 
 				<!-- Features Grid -->
 				<div class="mb-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">

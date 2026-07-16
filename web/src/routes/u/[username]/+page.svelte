@@ -408,10 +408,10 @@
 							</div>
 							{#if isOwner && trip.visibility !== 'public'}
 								<div
-									class="flex items-center gap-1 rounded-full bg-amber-500/80 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-md"
+									class="flex items-center justify-center rounded-full bg-amber-500/80 p-1.5 text-white backdrop-blur-md"
+									title={trip.visibility}
 								>
 									<EyeOff class="h-3 w-3" />
-									{trip.visibility}
 								</div>
 							{/if}
 							{#if (trip.entry_count ?? 0) > 0}
