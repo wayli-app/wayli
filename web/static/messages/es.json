@@ -1567,5 +1567,17 @@
 		"tripsApproved": "{count} viajes aprobados",
 		"upload": "Subir",
 		"uploadFailed": "No se pudo cargar la imagen"
+	},
+	"community": {
+		"by": "por",
+		"explore": "Explorar",
+		"latestStories": "Últimas historias",
+		"noStoriesYet": "Aún no hay historias públicas.",
+		"publishFirstTrip": "Publica tu primer viaje →",
+		"readMore": "Leer más →",
+		"signInToShare": "Inicia sesión para compartir tus historias →",
+		"subtitle": "Descubra historias de viajes de nuestra comunidad",
+		"travelers": "Viajeros",
+		"whereWeveBeen": "donde hemos estado"
 	}
 }

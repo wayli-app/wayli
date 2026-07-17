@@ -1571,5 +1571,17 @@
 		"tripsApproved": "已批准 {count} 趟行程",
 		"upload": "上传",
 		"uploadFailed": "图片上传失败"
+	},
+	"community": {
+		"by": "经过",
+		"explore": "探索",
+		"latestStories": "最新故事",
+		"noStoriesYet": "还没有公开的故事。",
+		"publishFirstTrip": "发布您的第一次旅行 →",
+		"readMore": "阅读更多→",
+		"signInToShare": "登录并分享您的故事 →",
+		"subtitle": "发现我们社区的旅行故事",
+		"travelers": "旅行者",
+		"whereWeveBeen": "我们去过的地方"
 	}
 }

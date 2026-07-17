@@ -1567,5 +1567,17 @@
 		"tripsApproved": "{count} Reisen genehmigt",
 		"upload": "Hochladen",
 		"uploadFailed": "Bild konnte nicht hochgeladen werden"
+	},
+	"community": {
+		"by": "von",
+		"explore": "Erkunden",
+		"latestStories": "Neueste Geschichten",
+		"noStoriesYet": "Noch keine öffentlichen Geschichten.",
+		"publishFirstTrip": "Veröffentlichen Sie Ihre erste Reise →",
+		"readMore": "Weiterlesen →",
+		"signInToShare": "Melden Sie sich an, um Ihre Geschichten zu teilen →",
+		"subtitle": "Entdecken Sie Reisegeschichten aus unserer Community",
+		"travelers": "Reisende",
+		"whereWeveBeen": "Wo wir waren"
 	}
 }

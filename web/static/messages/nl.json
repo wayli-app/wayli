@@ -1567,5 +1567,17 @@
 		"tripsApproved": "{count} reizen goedgekeurd",
 		"upload": "Uploaden",
 		"uploadFailed": "Kan afbeelding niet uploaden"
+	},
+	"community": {
+		"by": "door",
+		"explore": "Ontdekken",
+		"latestStories": "Nieuwste verhalen",
+		"noStoriesYet": "Nog geen openbare verhalen.",
+		"publishFirstTrip": "Publiceer je eerste reis →",
+		"readMore": "Lees meer →",
+		"signInToShare": "Meld u aan om uw verhalen te delen →",
+		"subtitle": "Ontdek reisverhalen uit onze gemeenschap",
+		"travelers": "Reizigers",
+		"whereWeveBeen": "Waar we zijn geweest"
 	}
 }

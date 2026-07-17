@@ -1571,5 +1571,17 @@
 		"tripsApproved": "{count} 件の旅行が承認されました",
 		"upload": "アップロード",
 		"uploadFailed": "画像のアップロードに失敗しました"
+	},
+	"community": {
+		"by": "による",
+		"explore": "探検する",
+		"latestStories": "最新のストーリー",
+		"noStoriesYet": "まだ公開ストーリーはありません。",
+		"publishFirstTrip": "初めての旅行を公開する →",
+		"readMore": "続きを読む→",
+		"signInToShare": "サインインしてストーリーを共有 →",
+		"subtitle": "コミュニティから旅行のストーリーを見つけてください",
+		"travelers": "旅行者",
+		"whereWeveBeen": "私たちが行った場所"
 	}
 }
