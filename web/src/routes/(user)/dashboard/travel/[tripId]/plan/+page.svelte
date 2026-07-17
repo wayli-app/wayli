@@ -128,6 +128,8 @@
 	// New item form
 	let newItemTitle = $state('');
 	let newItemUrl = $state('');
+	let newItemPreview = $state<LinkPreview | null>(null);
+	let isFetchingPreview = $state(false);
 	let newItemType = $state('activity');
 	let newItemTime = $state('');
 	let newItemCost = $state('');
@@ -295,6 +297,7 @@
 	function resetNewItemForm() {
 		newItemTitle = '';
 		newItemUrl = '';
+		newItemPreview = null;
 		newItemType = 'activity';
 		newItemTime = '';
 		newItemCost = '';
@@ -305,10 +308,41 @@
 		selectedAddress = null;
 	}
 
-	// ── Pelias search ──
+	// ── Smart search (URL or Pelias) ──
 	async function handleSearch() {
 		if (searchTimer) clearTimeout(searchTimer);
-		if (!searchQuery.trim() || searchQuery.length < 3) {
+		if (!searchQuery.trim()) {
+			searchResults = [];
+			newItemPreview = null;
+			return;
+		}
+
+		// URL detected → fetch link preview instead of Pelias
+		if (searchQuery.trim().startsWith('http')) {
+			searchResults = [];
+			newItemPreview = null;
+			searchTimer = setTimeout(async () => {
+				isFetchingPreview = true;
+				try {
+					const preview = await fetchLinkPreview(searchQuery.trim());
+					newItemPreview = preview;
+					if (preview?.title && !newItemTitle.trim()) {
+						newItemTitle = preview.title;
+					}
+					newItemUrl = searchQuery.trim();
+				} catch {
+					newItemPreview = null;
+				} finally {
+					isFetchingPreview = false;
+				}
+			}, 400);
+			return;
+		}
+
+		// Regular Pelias place search
+		newItemPreview = null;
+		newItemUrl = '';
+		if (searchQuery.length < 3) {
 			searchResults = [];
 			return;
 		}
@@ -929,22 +963,24 @@
 							<Plus class="text-primary h-4 w-4" />
 							<span class="text-sm font-medium text-foreground">{t('plan.addStop')}</span>
 						</div>
-						<!-- Search input -->
+						<!-- Smart search (URL or place) -->
 						<div class="relative mb-3">
 							<Search class="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
 							<input
 								type="text"
 								bind:value={searchQuery}
 								oninput={handleSearch}
-								placeholder={t('plan.searchPlacePlaceholder')}
+								placeholder="Search for a place or paste a booking URL..."
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
 							/>
-							{#if isSearching}
+							{#if isSearching || isFetchingPreview}
 								<Loader2
 									class="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 animate-spin"
 								/>
 							{/if}
 						</div>
+
+						<!-- Pelias search results -->
 						{#if searchResults.length > 0}
 							<div class="bg-muted/50 mb-3 max-h-40 overflow-y-auto rounded-lg">
 								{#each searchResults as result (result.properties?.gid ?? result.properties?.id)}
@@ -960,17 +996,53 @@
 							</div>
 						{/if}
 
+						<!-- Link preview result -->
+						{#if newItemPreview}
+							<div class="bg-muted/50 mb-3 rounded-lg p-3">
+								<div class="flex items-center gap-3">
+									{#if newItemPreview.image}
+										<img
+											src={newItemPreview.image}
+											alt=""
+											class="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
+											loading="lazy"
+										/>
+									{/if}
+									<div class="min-w-0 flex-1">
+										<div class="text-foreground truncate text-sm font-medium">
+											{newItemPreview.title || newItemPreview.site_name || 'Link'}
+										</div>
+										{#if newItemPreview.description}
+											<div class="text-muted-foreground truncate text-xs">
+												{newItemPreview.description}
+											</div>
+										{/if}
+										{#if newItemPreview.rating}
+											<div class="text-amber-500 flex items-center gap-0.5 text-xs">
+												<Star class="h-3 w-3 fill-current" />
+												{newItemPreview.rating}
+											</div>
+										{/if}
+									</div>
+									<button
+										type="button"
+										onclick={() => {
+											newItemPreview = null;
+											newItemUrl = '';
+											searchQuery = '';
+										}}
+										class="text-muted-foreground hover:text-destructive"
+										><X class="h-4 w-4" /></button
+									>
+								</div>
+							</div>
+						{/if}
+
 						<div class="flex flex-wrap gap-2">
 							<input
 								type="text"
 								bind:value={newItemTitle}
 								placeholder={t('plan.titlePlaceholder')}
-								class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-							/>
-							<input
-								type="url"
-								bind:value={newItemUrl}
-								placeholder="https://booking.com/..."
 								class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
 							/>
 							<select
