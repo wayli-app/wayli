@@ -688,7 +688,31 @@
 				endDate={trip.end_date}
 				primaryCity={trip.metadata?.primaryCity ?? ''}
 				{numDays}
-				onAcceptItem={(item) => addItem(item.day)}
+				onAcceptItem={async (item) => {
+					const userId = await getCurrentUserId();
+					const created = await createPlanItem({
+						trip_id: tripId,
+						user_id: userId!,
+						day_number: item.day,
+						sort_order: items.filter((i) => i.day_number === item.day).length,
+						title: item.title,
+						description: null,
+						type: item.type || 'activity',
+						start_time: item.time || null,
+						end_time: null,
+						location: null,
+						address: null,
+						cost_estimate: item.cost ?? null,
+						currency: item.currency || trip?.budget_currency || 'EUR',
+						booking_url: null,
+						booking_status: 'not_booked',
+						want_to_visit_id: null,
+						notes: null,
+						created_by: userId
+					});
+					items = [...items, created];
+					toast.success('Added "' + item.title + '" to Day ' + item.day);
+				}}
 			/>
 		</div>
 	{:else}

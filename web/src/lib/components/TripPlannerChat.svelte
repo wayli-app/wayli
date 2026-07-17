@@ -64,10 +64,13 @@
 			if (itemMatch && currentDay > 0) {
 				const icon = itemMatch[1];
 				const timeOfDay = itemMatch[2];
-				const title = itemMatch[3]?.trim();
+				let title = itemMatch[3]?.trim() || '';
 				const details = itemMatch[4] || '';
 
 				if (!title || title.length < 2) continue;
+
+				// Strip trailing parenthetical classifiers like "(fun, relaxed)"
+				title = title.replace(/\s*\([^)]*\)\s*$/g, '').trim();
 
 				// Determine type from icon
 				const typeMap: Record<string, string> = {
@@ -80,9 +83,37 @@
 					'🛍️': 'shopping'
 				};
 
+				// Also detect type from details text
+				const typeKeywords: Record<string, string[]> = {
+					sightseeing: [
+						'sightseeing',
+						'museum',
+						'monument',
+						'landmark',
+						'temple',
+						'cathedral',
+						'palace'
+					],
+					food: ['food', 'restaurant', 'lunch', 'dinner', 'breakfast', 'café', 'cafe', 'bar'],
+					activity: ['activity', 'tour', 'park', 'garden', 'beach'],
+					transport: ['transport', 'train', 'bus', 'metro', 'taxi', 'flight'],
+					accommodation: ['accommodation', 'hotel', 'hostel', 'airbnb', 'stay'],
+					rest: ['rest', 'coffee', 'break'],
+					shopping: ['shopping', 'market', 'shop']
+				};
+				const detailsLower = details.toLowerCase();
+				let detectedType = typeMap[icon || ''] || '';
+				if (!detectedType) {
+					for (const [type, keywords] of Object.entries(typeKeywords)) {
+						if (keywords.some((kw) => detailsLower.includes(kw))) {
+							detectedType = type;
+							break;
+						}
+					}
+				}
+
 				// Extract cost from details: "€17", "$25", "¥1000"
 				const costMatch = details.match(/[€$¥£](\d+(?:\.\d+)?)/);
-				// Extract currency
 				const currencyMatch = details.match(/[€$¥£]/);
 
 				// Extract time from timeOfDay
@@ -98,7 +129,7 @@
 				suggestions.push({
 					day: currentDay,
 					title,
-					type: typeMap[icon || ''] || 'activity',
+					type: detectedType || 'activity',
 					cost: costMatch ? parseFloat(costMatch[1]) : undefined,
 					currency: currencyMatch ? currencyMatch[0] : undefined,
 					time: timeOfDay ? timeMap[timeOfDay] : undefined
