@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { Send, Sparkles, Loader2, X, Plus } from 'lucide-svelte';
+	import { Send, Loader2 } from 'lucide-svelte';
+	import { ChatService } from '$lib/services/chat.service';
 
 	type Props = {
 		tripId: string;
@@ -32,9 +33,8 @@
 	let messages = $state<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 	let input = $state('');
 	let isSending = $state(false);
-	let conversationId: string | null = null;
-	let ws: WebSocket | null = null;
 	let scrollContainer: HTMLElement | null = $state(null);
+	let chatService: ChatService | null = null;
 
 	const SYSTEM_CONTEXT = `Planning trip: ${tripTitle} (${startDate} to ${endDate}), ${numDays} days${primaryCity ? `, destination: ${primaryCity}` : ''}. Trip ID: ${tripId}`;
 
@@ -45,10 +45,12 @@
 				content: `Hi! I'm your trip planning assistant. I can help you plan your ${numDays}-day trip to ${primaryCity || tripTitle}. Ask me to suggest an itinerary, find activities, or balance your days!`
 			}
 		];
+
+		chatService = new ChatService();
 	});
 
 	onDestroy(() => {
-		ws?.close();
+		chatService?.disconnect();
 	});
 
 	function scrollToBottom() {
@@ -60,7 +62,7 @@
 	}
 
 	async function send() {
-		if (!input.trim() || isSending) return;
+		if (!input.trim() || isSending || !chatService) return;
 
 		const userMsg = input.trim();
 		messages = [...messages, { role: 'user', content: userMsg }];
@@ -69,104 +71,57 @@
 		scrollToBottom();
 
 		try {
-			const wsUrl =
-				(import.meta.env.VITE_FLUXBASE_URL || 'http://localhost:8080').replace('http', 'ws') +
-				'/ai/ws';
-
-			if (!ws || ws.readyState !== WebSocket.OPEN) {
-				ws = new WebSocket(wsUrl);
-				await new Promise((resolve, reject) => {
-					ws!.onopen = resolve;
-					ws!.onerror = reject;
-					setTimeout(() => reject(new Error('timeout')), 5000);
-				});
-			}
-
-			// Start conversation if needed
-			if (!conversationId) {
-				const startMsg = {
-					type: 'start_chat',
-					chatbot: 'trip-planner',
-					namespace: 'wayli',
-					message: SYSTEM_CONTEXT
-				};
-				ws.send(JSON.stringify(startMsg));
-
-				const startResponse = await new Promise<any>((resolve, reject) => {
-					const handler = (event: MessageEvent) => {
-						ws!.removeEventListener('message', handler);
-						const data = JSON.parse(event.data);
-						resolve(data);
-					};
-					ws!.addEventListener('message', handler);
-					setTimeout(() => reject(new Error('timeout')), 10000);
-				});
-
-				if (startResponse.conversation_id) {
-					conversationId = startResponse.conversation_id;
-				} else if (startResponse.content) {
-					conversationId = startResponse.conversation_id || 'temp';
-				}
-			}
-
-			// Send user message
-			const sendMsg = {
-				type: 'send_message',
-				conversation_id: conversationId,
-				message: userMsg
-			};
-
-			let assistantContent = '';
-			const responsePromise = new Promise<void>((resolve) => {
-				const handler = (event: MessageEvent) => {
-					const data = JSON.parse(event.data);
-
-					if (data.type === 'content') {
-						assistantContent += data.content || '';
+			// Connect if not already connected
+			if (!chatService.isConnected()) {
+				await chatService.connect({
+					onContent: (_delta, full) => {
 						// Update the last assistant message in real-time
 						const lastIdx = messages.length - 1;
-						if (messages[lastIdx]?.role === 'assistant' && messages[lastIdx].content === '...') {
-							messages[lastIdx].content = assistantContent;
+						if (messages[lastIdx]?.role === 'assistant') {
+							messages[lastIdx].content = full;
 							messages = [...messages];
 							scrollToBottom();
 						}
-					} else if (data.type === 'done') {
-						ws!.removeEventListener('message', handler);
-						if (assistantContent && messages[messages.length - 1]?.content === '...') {
-							messages[messages.length - 1].content = assistantContent;
+					},
+					onDone: () => {
+						isSending = false;
+					},
+					onError: (error) => {
+						console.error('Chat error:', error);
+						const lastIdx = messages.length - 1;
+						if (messages[lastIdx]?.role === 'assistant') {
+							messages[lastIdx].content = 'Sorry, I had trouble processing that. Please try again.';
 							messages = [...messages];
 						}
-						resolve();
-					} else if (data.type === 'error') {
-						ws!.removeEventListener('message', handler);
-						if (messages[messages.length - 1]?.content === '...') {
-							messages[messages.length - 1].content =
-								'Sorry, I had trouble processing that. Please try again.';
-							messages = [...messages];
-						}
-						resolve();
+						isSending = false;
 					}
-				};
-				ws!.addEventListener('message', handler);
-			});
+				});
 
-			ws.send(JSON.stringify(sendMsg));
+				// Start conversation with trip-planner chatbot
+				// Send system context as part of the first message
+				await chatService.startChat('trip-planner', 'wayli');
+			}
+
+			// Add placeholder for assistant response
 			messages = [...messages, { role: 'assistant', content: '...' }];
-			await responsePromise;
-			scrollToBottom();
+
+			// Send the message (include context on first message)
+			const isFirstMessage = messages.filter((m) => m.role === 'user').length === 1;
+			const msgToSend = isFirstMessage ? `${SYSTEM_CONTEXT}\n\n${userMsg}` : userMsg;
+
+			await chatService.sendMessage(msgToSend);
 		} catch (err) {
-			console.error('Chat error:', err);
+			console.error('Send failed:', err);
 			messages = [
-				...messages,
+				...messages.filter((m) => m.content !== '...'),
 				{
 					role: 'assistant',
-					content:
-						'Sorry, I could not connect to the AI service. Make sure AI is configured in your server settings.'
+					content: `Sorry, I could not connect to the AI service. Make sure AI is configured in your server settings. Error: ${err instanceof Error ? err.message : 'Unknown'}`
 				}
 			];
-		} finally {
 			isSending = false;
 		}
+		scrollToBottom();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
