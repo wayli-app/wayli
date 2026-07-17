@@ -1945,12 +1945,14 @@
 							{/if}
 						</div>
 						{#if mapPoints.length > 0 || mapMarkers.length > 0}
-							<TripMap
-								points={mapPoints}
-								markers={mapMarkers}
-								{highlightPoints}
-								class="h-[420px]"
-							/>
+							{#key activeTripId}
+								<TripMap
+									points={mapPoints}
+									markers={mapMarkers}
+									{highlightPoints}
+									class="h-[420px]"
+								/>
+							{/key}
 						{:else}
 							<div
 								class="text-muted-foreground flex h-64 items-center justify-center px-6 text-center text-sm"
