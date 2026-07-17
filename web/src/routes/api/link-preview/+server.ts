@@ -92,10 +92,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			const microResult = await tryMicrolink(url);
 			if (microResult) return microResult;
 
-			return new Response(JSON.stringify({ error: `Fetch failed: ${resp.status}` }), {
-				status: 502,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return new Response(
+				JSON.stringify({ error: `Fetch failed: ${resp.status}`, method: 'direct-failed' }),
+				{ status: 502, headers: { 'Content-Type': 'application/json' } }
+			);
 		}
 
 		const html = await resp.text();
@@ -112,7 +112,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (isChallengePage) {
 			// Try microlink (runs headless browser, can bypass challenges)
 			const microResult = await tryMicrolink(url);
-			if (microResult) return microResult;
+			if (microResult) {
+				// Add method tag to the microlink response
+				const microJson = await microResult.json();
+				return new Response(JSON.stringify({ ...microJson, method: 'microlink' }), {
+					headers: { 'Content-Type': 'application/json' }
+				});
+			}
 
 			// Final fallback: hostname only
 			const hostname = new URL(url).hostname.replace('www.', '');
@@ -123,7 +129,8 @@ export const POST: RequestHandler = async ({ request }) => {
 					image: null,
 					site_name: hostname,
 					url,
-					rating: null
+					rating: null,
+					method: 'hostname-fallback'
 				}),
 				{ headers: { 'Content-Type': 'application/json' } }
 			);
@@ -143,7 +150,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			image: extractMeta(head, 'og:image') || extractMeta(head, 'twitter:image'),
 			site_name: extractMeta(head, 'og:site_name'),
 			url,
-			rating: extractRating(html)
+			rating: extractRating(html),
+			method: 'direct'
 		};
 
 		return new Response(JSON.stringify(preview), {
