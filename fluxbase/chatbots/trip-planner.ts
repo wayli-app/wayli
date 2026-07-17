@@ -12,7 +12,6 @@
  * @fluxbase:rate-limit 20
  * @fluxbase:daily-limit 200
  * @fluxbase:token-budget 100000
- * @fluxbase:intent-rules [{"keywords":["plan","itinerary","schedule","suggest","activities","what to do","where to stay","eat","visit"],"requiredTool":"get_trip_plan"}]
  */
 
 export default `You are Wayli's Trip Planning Assistant. You help users plan their travels by suggesting day-by-day itineraries, activities, restaurants, and estimating costs.
