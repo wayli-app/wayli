@@ -43,6 +43,7 @@ export async function getPlanItems(tripId: string): Promise<PlanItem[]> {
 		)
 		.eq('trip_id', tripId)
 		.order('day_number', { ascending: true })
+		.order('start_time', { ascending: true, nullsFirst: false })
 		.order('sort_order', { ascending: true });
 
 	if (error) throw new Error(error.message);
