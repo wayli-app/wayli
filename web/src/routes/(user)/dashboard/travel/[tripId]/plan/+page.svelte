@@ -14,7 +14,7 @@
 		type Collaborator
 	} from '$lib/services/trip-plan.service';
 	import {
-		ArrowLeft,
+		ChevronRight,
 		Plus,
 		Trash2,
 		Clock,
@@ -29,7 +29,8 @@
 		Search,
 		Star,
 		ExternalLink,
-		Sparkles
+		Sparkles,
+		Pencil
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import TripMap from '$lib/components/TripMap.svelte';
@@ -49,7 +50,7 @@
 		metadata: Record<string, any> | null;
 		budget_total: number | null;
 		budget_currency: string | null;
-		plan_items_public: boolean | null;
+		plan_visible_to: 'private' | 'friends' | 'public';
 	};
 
 	const tripId = $derived(page.params.tripId ?? '');
@@ -541,15 +542,21 @@
 		collaborators = collaborators.filter((c) => c.id !== id);
 	}
 
-	async function togglePlanPublic() {
-		if (!trip) return;
-		const next = !trip.plan_items_public;
-		trip.plan_items_public = next;
+	async function setPlanVisibility(next: 'private' | 'friends' | 'public') {
+		if (!trip || trip.plan_visible_to === next) return;
+		const prev = trip.plan_visible_to;
+		trip.plan_visible_to = next;
 		try {
-			await fluxbase.from('trips').update({ plan_items_public: next }).eq('id', tripId);
-			toast.success(next ? t('plan.planPublic') : t('plan.planPrivate'));
+			await fluxbase.from('trips').update({ plan_visible_to: next }).eq('id', tripId);
+			toast.success(
+				next === 'public'
+					? t('plan.planPublic')
+					: next === 'friends'
+						? t('plan.planFriends')
+						: t('plan.planPrivate')
+			);
 		} catch {
-			trip.plan_items_public = !next;
+			trip.plan_visible_to = prev;
 			toast.error(t('plan.updateFailed'));
 		}
 	}
@@ -566,26 +573,28 @@
 {:else if trip}
 	<!-- Header -->
 	<div class="mb-6 space-y-4">
-		<div class="flex items-center justify-between">
-			<a
-				href="/dashboard/travel?trip={tripId}"
-				class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
-			>
-				<ArrowLeft class="h-4 w-4" />
-				{t('plan.backToTravel')}
-			</a>
-			<a
-				href="/dashboard/travel"
-				class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"
-			>
-				<Calendar class="h-3.5 w-3.5" />
-				{t('plan.journal')}
-			</a>
-		</div>
+		<!-- Breadcrumb -->
+		<nav class="text-muted-foreground mb-4 flex items-center gap-1 text-sm" aria-label="Breadcrumb">
+			<a href="/dashboard/travel" class="hover:text-foreground">{t('common.navigation.travel')}</a>
+			<ChevronRight class="h-3.5 w-3.5 opacity-50" />
+			<a href="/dashboard/travel?trip={tripId}" class="hover:text-foreground">{trip.title}</a>
+			<ChevronRight class="h-3.5 w-3.5 opacity-50" />
+			<span class="text-foreground font-medium">{t('travel.plan')}</span>
+		</nav>
 
-		<div class="flex items-start justify-between">
+		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div>
-				<h1 class="text-foreground text-2xl font-bold">{trip.title}</h1>
+				<div class="flex items-center gap-2">
+					<h1 class="text-foreground text-2xl font-bold">{trip.title}</h1>
+					<a
+						href="/dashboard/travel?trip={tripId}&edit=1"
+						class="text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+						title={t('travel.editTrip')}
+					>
+						<Pencil class="h-3.5 w-3.5" />
+						{t('common.actions.edit')}
+					</a>
+				</div>
 				<p class="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
 					<Calendar class="h-4 w-4" />
 					{new Date(trip.start_date).toLocaleDateString(undefined, {
@@ -634,22 +643,21 @@
 				>
 					<UserPlus class="h-4 w-4" />
 				</button>
-				<button
-					type="button"
-					onclick={togglePlanPublic}
-					class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {trip.plan_items_public
-						? 'border-green-500/40 bg-green-500/10 text-green-600'
-						: 'border-border text-muted-foreground hover:text-foreground'}"
-					title={trip.plan_items_public
-						? 'Plan and costs are visible on your public page'
-						: 'Click to make plan and costs visible on your public page'}
-				>
-					{#if trip.plan_items_public}
-						<Check class="h-3 w-3" /> {t('plan.publicPlan')}
-					{:else}
-						<Eye class="h-3 w-3" /> {t('plan.privatePlan')}
-					{/if}
-				</button>
+				<div class="flex items-center gap-1" title={t('plan.planVisibilityTitle')}>
+					{#each [['private', '🔒'], ['friends', '👥'], ['public', '🌍']] as [val, icon]}
+						<button
+							type="button"
+							onclick={() => setPlanVisibility(val as 'private' | 'friends' | 'public')}
+							class="rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors {trip.plan_visible_to ===
+							val
+								? 'border-primary bg-primary/10 text-primary'
+								: 'border-border text-muted-foreground hover:text-foreground'}"
+						>
+							{icon}
+							{val}
+						</button>
+					{/each}
+				</div>
 			</div>
 		</div>
 	</div>
@@ -1418,7 +1426,7 @@
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3">
 		<p class="text-muted-foreground text-lg">{t('plan.tripNotFound')}</p>
 		<a href="/dashboard/travel" class="text-primary text-sm hover:underline"
-			>{t('plan.backToTravel')}</a
+			>{t('common.navigation.travel')}</a
 		>
 	</div>
 {/if}

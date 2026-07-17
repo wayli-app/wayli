@@ -246,6 +246,14 @@
 					.querySelector(`[data-trip-id="${urlTripId}"]`)
 					?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 			}, 200);
+
+			// Auto-open edit modal if requested
+			if (page.url.searchParams.get('edit') === '1') {
+				const trip = trips.find((t) => t.id === urlTripId);
+				if (trip) openEditTripModal(trip);
+				// Clean URL
+				history.replaceState({}, '', '/dashboard/travel?trip=' + urlTripId);
+			}
 		}
 
 		isLoading = false;

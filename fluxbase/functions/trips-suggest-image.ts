@@ -410,7 +410,8 @@ async function handler(
 					const suggestion = await generateImageSuggestionFromAnalysis(
 						analysis,
 						apiKey,
-						tripMetadata
+						tripMetadata,
+						trip.title
 					);
 					logInfo(`Image generation took ${Date.now() - imageGenStart}ms`, 'TRIPS-SUGGEST-IMAGE');
 
@@ -476,8 +477,13 @@ async function handler(
 					);
 				}
 
-				// Generate image suggestion based on analysis and existing trip metadata (if available)
-				const suggestion = await generateImageSuggestionFromAnalysis(analysis, apiKey, tripMetadata);
+			// Generate image suggestion based on analysis and existing trip metadata (if available)
+			const suggestion = await generateImageSuggestionFromAnalysis(
+				analysis,
+				apiKey,
+				tripMetadata,
+				undefined
+			);
 
 				logSuccess('Image suggestion generated', 'TRIPS-SUGGEST-IMAGE', {
 					userId,
@@ -724,7 +730,8 @@ async function generateImageSuggestionFromAnalysis(
 		}>;
 		isMultiCountryTrip?: boolean;
 		isMultiCityTrip?: boolean;
-	}
+	},
+	tripTitle?: string
 ): Promise<{
 	imageUrl: string;
 	searchQuery: string;
@@ -803,6 +810,10 @@ async function generateImageSuggestionFromAnalysis(
 				`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`,
 				'TRIPS-SUGGEST-IMAGE'
 			);
+		} else if (tripTitle && tripTitle.trim()) {
+			// New trip with no tracker data yet — use the title as the search term
+			searchTerm = tripTitle.trim();
+			logInfo(`Fallback: Using trip title as search term: ${searchTerm}`, 'TRIPS-SUGGEST-IMAGE');
 		}
 	}
 

@@ -1549,7 +1549,9 @@
       "accommodation": "Stay",
       "rest": "Rest",
       "shopping": "Shopping"
-    }
+    },
+    "planFriends": "Plan is now friends-only",
+    "planVisibilityTitle": "Who can see the plan"
   },
   "profile": {
     "travelerNotFound": "Traveler not found.",

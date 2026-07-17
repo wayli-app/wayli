@@ -54,7 +54,7 @@
 		image_url: string | null;
 		metadata: Record<string, any> | null;
 		visibility: string;
-		plan_items_public?: boolean | null;
+		plan_visible_to?: 'private' | 'friends' | 'public' | null;
 	};
 
 	type Entry = {
@@ -233,8 +233,8 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
-			// Load plan items if public
-			if (trip?.plan_items_public) {
+			// Load plan items if shared with viewer (RLS enforces actual visibility)
+			if (trip?.plan_visible_to && trip.plan_visible_to !== 'private') {
 				const { data: planData } = await fluxbase
 					.from('trip_plan_items')
 					.select('title, type, start_time, cost_estimate, currency, day_number')
