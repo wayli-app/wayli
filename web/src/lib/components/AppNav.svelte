@@ -205,7 +205,10 @@
 	>
 		<!-- Sidebar Header - Fixed at top -->
 		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
-			<a href="/dashboard/statistics" class="flex cursor-pointer items-center">
+			<a
+				href="/dashboard/statistics"
+				class="flex cursor-pointer items-center border-b border-border p-4"
+			>
 				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
 				<span class="text-foreground text-xl font-bold">Wayli</span>
 			</a>
@@ -224,7 +227,9 @@
 					<a
 						href={item.href}
 						class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
-							.url.pathname === item.href
+							.url.pathname === item.href ||
+						(item.href === '/dashboard/travel' &&
+							$page.url.pathname.startsWith('/dashboard/travel'))
 							? 'bg-primary text-primary-foreground'
 							: 'text-muted-foreground hover:bg-muted'}"
 						onclick={handleCloseSidebar}
@@ -291,7 +296,9 @@
 						<a
 							href={item.href}
 							class="relative flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
-								.url.pathname === item.href
+								.url.pathname === item.href ||
+							(item.href === '/dashboard/travel' &&
+								$page.url.pathname.startsWith('/dashboard/travel'))
 								? 'bg-primary text-primary-foreground'
 								: 'text-muted-foreground hover:bg-muted'}"
 							onclick={handleCloseSidebar}

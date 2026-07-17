@@ -22,7 +22,7 @@
 
 		const isDark = document.documentElement.classList.contains('dark');
 
-		map = L.map(mapContainer, { scrollWheelZoom: false });
+		map = L.map(mapContainer, { scrollWheelZoom: true });
 		L.tileLayer(
 			isDark
 				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'

@@ -89,7 +89,10 @@
       "darkMode": "Dark mode",
       "travel": "Travel",
       "dataEditor": "Data Editor",
-      "journal": "Journal"
+      "journal": "Journal",
+      "explore": "Explore",
+      "feed": "Feed",
+      "friends": "Friends"
     },
     "validation": {
       "fillAllFields": "Please fill in all fields",
@@ -1579,5 +1582,43 @@
     "by": "by",
     "readMore": "Read more →",
     "explore": "Explore"
+  },
+  "plannerChat": {
+    "title": "AI Assistant",
+    "greetingEmpty": "Hi! I'm your trip planning assistant for your {numDays}-day trip to {destination}. Ask me to suggest an itinerary, find activities, or balance your days!",
+    "greetingExisting": "Hi! I'm your trip planning assistant. I can see you already have {count} item(s) planned. Ask me to suggest more activities, optimize your schedule, or fill in empty days!",
+    "placeholder": "Ask for itinerary suggestions...",
+    "addToDay": "Add to Day {day}",
+    "copy": "Copy",
+    "copied": "Copied",
+    "error": "Sorry, something went wrong. Please try again.",
+    "connectionError": "Could not connect to the AI service. Make sure AI is configured in your server settings.",
+    "loadingPreview": "Loading preview...",
+    "addTrip": "Add to trip"
+  },
+  "friends": {
+    "title": "Friends",
+    "subtitle": "Manage your connections and share trips",
+    "searchPlaceholder": "Search by username...",
+    "add": "Add",
+    "pendingRequests": "Pending requests ({count})",
+    "accept": "Accept",
+    "reject": "Reject",
+    "yourFriends": "Your friends ({count})",
+    "noFriends": "No friends yet. Search for users above to send a friend request.",
+    "requestSent": "Friend request sent to @{username}",
+    "friendAdded": "Friend added",
+    "requestFailed": "Failed to send request",
+    "acceptFailed": "Failed to accept request",
+    "rejectFailed": "Failed to reject request",
+    "addFriendsLink": "Add friends",
+    "noFriendsShare": "No friends yet. {link} to share trips."
+  },
+  "feed": {
+    "title": "Feed",
+    "subtitle": "Latest stories from friends and community",
+    "noStories": "No stories yet.",
+    "noStoriesHint": "Add friends or check back later for new entries.",
+    "readMore": "Read more"
   }
 }
