@@ -317,25 +317,23 @@
 			return;
 		}
 
-		// URL detected → fetch link preview instead of Pelias
+		// URL detected → fetch link preview immediately (no debounce on paste)
 		if (searchQuery.trim().startsWith('http')) {
 			searchResults = [];
 			newItemPreview = null;
-			searchTimer = setTimeout(async () => {
-				isFetchingPreview = true;
-				try {
-					const preview = await fetchLinkPreview(searchQuery.trim());
-					newItemPreview = preview;
-					if (preview?.title && !newItemTitle.trim()) {
-						newItemTitle = preview.title;
-					}
-					newItemUrl = searchQuery.trim();
-				} catch {
-					newItemPreview = null;
-				} finally {
-					isFetchingPreview = false;
+			isFetchingPreview = true;
+			try {
+				const preview = await fetchLinkPreview(searchQuery.trim());
+				newItemPreview = preview;
+				if (preview?.title && !newItemTitle.trim()) {
+					newItemTitle = preview.title;
 				}
-			}, 400);
+				newItemUrl = searchQuery.trim();
+			} catch {
+				newItemPreview = null;
+			} finally {
+				isFetchingPreview = false;
+			}
 			return;
 		}
 
@@ -970,6 +968,13 @@
 								type="text"
 								bind:value={searchQuery}
 								oninput={handleSearch}
+								onpaste={(e) => {
+									const pasted = e.clipboardData?.getData('text')?.trim();
+									if (pasted?.startsWith('http')) {
+										// Let the input update, then fetch immediately
+										setTimeout(() => handleSearch(), 0);
+									}
+								}}
 								placeholder="Search for a place or paste a booking URL..."
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
 							/>
