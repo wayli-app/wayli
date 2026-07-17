@@ -27,10 +27,12 @@
 		Users,
 		MapPin,
 		Search,
-		Star
-	} from 'lucide-svelte';
+	Star,
+	ExternalLink
+} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import TripMap from '$lib/components/TripMap.svelte';
+	import { fetchLinkPreview, type LinkPreview } from '$lib/services/link-preview.service';
 	import { translate } from '$lib/i18n';
 
 	let t = $derived($translate);
@@ -57,6 +59,53 @@
 	let showCollaboratorModal = $state(false);
 	let collaboratorUsername = $state('');
 	let isAddingCollaborator = $state(false);
+	let linkPreviews = $state<Map<string, LinkPreview | null>>(new Map());
+	let loadingPreview = $state<string | null>(null);
+	let previewTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+	async function handleBookingUrlChange(item: any) {
+		const url = item.booking_url?.trim();
+		if (!url || !url.startsWith('http')) {
+			linkPreviews.delete(url);
+			linkPreviews = new Map(linkPreviews);
+			return;
+		}
+
+		// Debounce
+		const existing = previewTimers.get(url);
+		if (existing) clearTimeout(existing);
+
+		previewTimers.set(
+			url,
+			setTimeout(async () => {
+				loadingPreview = url;
+				try {
+					const preview = await fetchLinkPreview(url);
+					linkPreviews.set(url, preview);
+					linkPreviews = new Map(linkPreviews);
+
+					// Auto-fill title if empty
+					if (preview?.title && !item.title) {
+						item.title = preview.title;
+						await saveItem(item);
+					}
+
+					// Store metadata
+					if (preview) {
+						const meta = item.metadata ?? {};
+						meta.linkPreview = preview;
+						item.metadata = meta;
+						await fluxbase
+							.from('trip_plan_items')
+							.update({ metadata: meta })
+							.eq('id', item.id);
+					}
+				} finally {
+					loadingPreview = null;
+				}
+			}, 500)
+		);
+	}
 
 	// Map: show planned stops for the selected day as markers + connecting route
 	const dayMapPoints = $derived(
@@ -1002,10 +1051,50 @@
 												<input
 													type="url"
 													bind:value={item.booking_url}
+													oninput={() => handleBookingUrlChange(item)}
 													onchange={() => saveItem(item)}
 													placeholder="https://..."
 													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
 												/>
+												{#if loadingPreview === item.booking_url}
+													<div class="text-muted-foreground flex items-center gap-1 py-1 text-[10px]">
+														<Loader2 class="h-3 w-3 animate-spin" /> Loading preview...
+													</div>
+												{:else if item.booking_url && linkPreviews.get(item.booking_url)}
+													{@const pv = linkPreviews.get(item.booking_url)!}
+													<a
+														href={item.booking_url}
+														target="_blank"
+														rel="noopener"
+														class="bg-muted/50 hover:bg-muted mt-1 flex items-center gap-2 rounded-lg p-2 transition-colors"
+													>
+														{#if pv.image}
+															<img
+																src={pv.image}
+																alt=""
+																class="h-10 w-10 flex-shrink-0 rounded object-cover"
+																loading="lazy"
+															/>
+														{/if}
+														<div class="min-w-0 flex-1">
+															<div class="text-foreground truncate text-[10px] font-medium">
+																{pv.title || pv.site_name || 'Link'}
+															</div>
+															{#if pv.description}
+																<div class="text-muted-foreground truncate text-[9px]">
+																	{pv.description}
+																</div>
+															{/if}
+															{#if pv.rating}
+																<div class="text-amber-500 flex items-center gap-0.5 text-[9px]">
+																	<Star class="h-2.5 w-2.5 fill-current" />
+																	{pv.rating}
+																</div>
+															{/if}
+														</div>
+														<ExternalLink class="text-muted-foreground h-3 w-3 flex-shrink-0" />
+													</a>
+												{/if}
 											</label>
 											<label class="col-span-2 flex flex-col gap-0.5">
 												<span class="text-muted-foreground text-[10px]">{t('plan.address')}</span>
