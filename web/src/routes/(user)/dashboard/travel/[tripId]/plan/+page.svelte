@@ -59,7 +59,7 @@
 	let isLoading = $state(true);
 	let selectedDay = $state<number | null>(null);
 	let showCollaboratorModal = $state(false);
-	let viewMode = $state<'plan' | 'chat'>('plan');
+	let showChatDrawer = $state(false);
 	let collaboratorUsername = $state('');
 	let isAddingCollaborator = $state(false);
 	let linkPreviews = $state<Map<string, LinkPreview | null>>(new Map());
@@ -654,33 +654,672 @@
 		</div>
 	</div>
 
-	<!-- Plan/Chat toggle -->
-	<div class="mb-4 flex gap-2">
-		<button
-			type="button"
-			onclick={() => (viewMode = 'plan')}
-			class="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors {viewMode ===
-			'plan'
-				? 'border-primary bg-primary/10 text-primary'
-				: 'border-border text-muted-foreground hover:text-foreground'}"
-		>
-			<MapPin class="h-4 w-4" /> Plan
-		</button>
-		<button
-			type="button"
-			onclick={() => (viewMode = 'chat')}
-			class="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors {viewMode ===
-			'chat'
-				? 'border-primary bg-primary/10 text-primary'
-				: 'border-border text-muted-foreground hover:text-foreground'}"
-		>
-			<Sparkles class="h-4 w-4" /> AI Assistant
-		</button>
+	<!-- Budget panel -->
+	{#if budgetByCurrency.length > 0}
+		<div class="bg-card border-border mb-4 rounded-2xl border p-4">
+			<div class="grid gap-4 sm:grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto]">
+				<!-- Donut chart + total -->
+				<div class="flex items-center gap-3">
+					<svg width="100" height="100" viewBox="0 0 100 100" class="flex-shrink-0">
+						{#if donutSegments.length > 0}
+							{#each donutSegments as seg (seg.category)}
+								<circle
+									cx="50"
+									cy="50"
+									r="42"
+									fill="none"
+									stroke={TYPE_CONFIG[seg.category]?.color ?? '#6b7280'}
+									stroke-width="10"
+									stroke-dasharray={seg.dashArray}
+									stroke-dashoffset={seg.dashOffset}
+									transform="rotate(-90 50 50)"
+								/>
+							{/each}
+						{:else}
+							<circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" stroke-width="10" />
+						{/if}
+						<text
+							x="50"
+							y="48"
+							text-anchor="middle"
+							class="text-foreground fill-current"
+							font-size="14"
+							font-weight="bold">{budgetByCurrency[0]?.currency ?? ''}</text
+						>
+						<text
+							x="50"
+							y="62"
+							text-anchor="middle"
+							class="text-muted-foreground fill-current"
+							font-size="11">{budgetByCurrency[0]?.total.toFixed(0) ?? '0'}</text
+						>
+					</svg>
+				</div>
+
+				<!-- Category legend with bars -->
+				<div class="space-y-1.5">
+					<div class="text-muted-foreground mb-1 text-[10px] font-medium uppercase">
+						{t('plan.byCategory')}
+					</div>
+					{#each budgetByCategory as cat (cat.category)}
+						{@const maxCat = Math.max(...budgetByCategory.map((c) => c.total))}
+						<div class="flex items-center gap-2 text-xs">
+							<span class="w-4 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
+							<span class="text-muted-foreground w-20 truncate">
+								{t('plan.type.' + cat.category)}
+							</span>
+							<div class="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+								<div
+									class="h-full rounded-full"
+									style="width: {(cat.total / maxCat) * 100}%; background: {TYPE_CONFIG[
+										cat.category
+									]?.color ?? '#6b7280'}"
+								></div>
+							</div>
+							<span class="text-muted-foreground w-12 text-right font-mono">
+								{cat.total.toFixed(0)}
+							</span>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Daily cost bars (stacked by category) -->
+				{#if dailyCosts.some((d) => d.cost > 0)}
+					<div class="border-border md:border-l md:pl-4">
+						<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
+							{t('plan.costPerDay', { currency: dailyCosts[0]?.currency ?? 'EUR' })}
+						</div>
+						<div class="flex gap-1">
+							<!-- Y-axis -->
+							<div class="flex flex-col justify-between text-right" style="height: 80px;">
+								<span class="text-muted-foreground text-[8px]">{maxDailyCost.toFixed(0)}</span>
+								<span class="text-muted-foreground text-[8px]">{(maxDailyCost / 2).toFixed(0)}</span
+								>
+								<span class="text-muted-foreground text-[8px]">0</span>
+							</div>
+							<!-- Bars -->
+							<div class="relative flex-1">
+								<!-- Grid lines -->
+								<div class="absolute inset-0 flex flex-col justify-between">
+									<div class="border-border border-t"></div>
+									<div class="border-border border-t"></div>
+									<div class="border-border border-t"></div>
+								</div>
+								<div class="relative flex items-end gap-1" style="height: 80px;">
+									{#each dailyCategoryBreakdown as d (d.day)}
+										<div
+											class="group relative flex h-full flex-1 cursor-default flex-col justify-end"
+										>
+											<!-- Stacked segments -->
+											{#each d.categories as cat (cat.category)}
+												<div
+													class="w-full transition-all"
+													style="height: {(cat.amount / maxDailyCost) *
+														80}px; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
+												></div>
+											{/each}
+											<!-- Empty bar for zero-cost days -->
+											{#if d.total === 0}
+												<div class="w-full" style="height: 2px; background: #e5e7eb"></div>
+											{/if}
+											<!-- Tooltip on hover -->
+											{#if d.total > 0}
+												<div
+													class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-3 text-xs shadow-xl group-hover:block"
+												>
+													<div class="text-foreground font-bold">
+														{t('plan.dayCost', {
+															day: d.day,
+															cost: `${d.total.toFixed(0)} ${d.currency}`
+														})}
+													</div>
+													{#each d.categories as cat (cat.category)}
+														<div class="text-muted-foreground flex items-center gap-1.5">
+															<span>{TYPE_CONFIG[cat.category]?.icon}</span>
+															{t('plan.type.' + cat.category)}: {cat.amount.toFixed(0)}
+														</div>
+													{/each}
+												</div>
+											{/if}
+										</div>
+									{/each}
+								</div>
+								<!-- Day numbers -->
+								<div class="flex gap-1">
+									{#each dailyCategoryBreakdown as d (d.day)}
+										<div class="text-muted-foreground flex-1 text-center text-[8px]">
+											{d.day}
+										</div>
+									{/each}
+								</div>
+							</div>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Calendar + day detail (full width) -->
+	<div>
+		{#if selectedDay === null}
+			<!-- Calendar overview -->
+			<div
+				class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7"
+			>
+				{#each days as day (day.number)}
+					<div
+						role="button"
+						tabindex="0"
+						onclick={() => openDay(day.number)}
+						onkeydown={(e) => e.key === 'Enter' && openDay(day.number)}
+						ondragover={onDragOver}
+						ondrop={(e) => onDrop(e, day.number)}
+						class="bg-card border-border flex min-h-44 cursor-pointer flex-col rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md {day
+							.items.length > 0
+							? 'border-primary/30'
+							: ''}"
+					>
+						<!-- Header -->
+						<div class="mb-2 flex items-center justify-between">
+							<div>
+								<div class="text-foreground text-sm font-bold">
+									{t('plan.dayLabel', { day: day.number })}
+								</div>
+								{#if day.date}
+									<div class="text-muted-foreground text-[10px]">{formatDateShort(day.date)}</div>
+								{/if}
+							</div>
+							{#if day.items.length > 0}
+								<span
+									class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold"
+								>
+									{day.items.length}
+								</span>
+							{/if}
+						</div>
+						<!-- Items (flex-1 fills space) -->
+						<div class="flex-1 space-y-1">
+							{#each day.items.slice(0, 4) as item (item.id)}
+								<div
+									class="truncate cursor-grab rounded px-1.5 py-0.5 text-[10px] font-medium text-white transition-shadow hover:shadow-md active:cursor-grabbing"
+									draggable="true"
+									ondragstart={(e) => {
+										e.stopPropagation();
+										onDragStart(e, item);
+									}}
+									style="background: {TYPE_CONFIG[item.type]?.color ?? '#6b7280'}"
+									title={item.title}
+								>
+									{TYPE_CONFIG[item.type]?.icon}
+									{#if item.start_time}{formatTime(item.start_time)}
+									{/if}
+									{item.title}
+								</div>
+							{/each}
+							{#if day.items.length > 4}
+								<div class="text-muted-foreground text-[10px]">
+									{t('plan.moreCount', { count: day.items.length - 4 })}
+								</div>
+							{/if}
+						</div>
+						<!-- Cost at bottom-right -->
+						{#if dayCost(day.items) > 0}
+							<div class="text-muted-foreground mt-1 text-right text-[10px] font-medium">
+								{day.items[0]?.currency ?? ''}
+								{dayCost(day.items).toFixed(0)}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+
+			<!-- Overview map: entire route across all days -->
+			<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
+				<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+					<MapPin class="text-primary h-4 w-4" />
+					<span class="text-sm font-semibold text-foreground">{t('plan.entireRoute')}</span>
+					{#if allMapPoints.length > 0}
+						<span class="text-muted-foreground ml-auto text-xs"
+							>{t('plan.stopsAcrossDays', { stops: allMapPoints.length, days: numDays })}</span
+						>
+					{:else}
+						<span class="text-muted-foreground ml-auto text-xs">{t('plan.addLocationsHint')}</span>
+					{/if}
+				</div>
+				{#if allMapPoints.length > 0}
+					<TripMap points={allMapPoints} class="h-64" />
+				{:else}
+					<div class="text-muted-foreground flex h-40 items-center justify-center text-sm">
+						{t('plan.searchPlacesHint')}
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<!-- Day detail view -->
+			<div class="space-y-4">
+				<div class="flex items-center justify-between">
+					<button
+						type="button"
+						onclick={() => (selectedDay = null)}
+						class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
+					>
+						{t('plan.backToCalendar')}
+					</button>
+					<h2 class="text-foreground text-lg font-bold">
+						{t('plan.dayLabel', { day: selectedDay })}
+						{#if days[selectedDay - 1]?.date}
+							<span class="text-muted-foreground text-sm font-normal">
+								· {days[selectedDay - 1].date!.toLocaleDateString(undefined, {
+									weekday: 'long',
+									month: 'short',
+									day: 'numeric'
+								})}
+							</span>
+						{/if}
+					</h2>
+				</div>
+
+				<!-- Add item form -->
+				<div class="bg-card border-border rounded-xl border p-4">
+					<div class="mb-3 flex items-center gap-2">
+						<Plus class="text-primary h-4 w-4" />
+						<span class="text-sm font-medium text-foreground">{t('plan.addStop')}</span>
+					</div>
+					<!-- Smart search (URL or place) -->
+					<div class="relative mb-3">
+						<Search class="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
+						<input
+							type="text"
+							bind:value={searchQuery}
+							oninput={handleSearch}
+							onpaste={(e) => {
+								// Let input update, then search — oninput will also fire
+								// but handleSearch has a guard to prevent double execution
+							}}
+							placeholder="Search for a place or paste a booking URL..."
+							class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
+						/>
+						{#if isSearching || isFetchingPreview}
+							<Loader2
+								class="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 animate-spin"
+							/>
+						{/if}
+					</div>
+
+					<!-- Pelias search results -->
+					{#if searchResults.length > 0}
+						<div class="bg-muted/50 mb-3 max-h-40 overflow-y-auto rounded-lg">
+							{#each searchResults as result (result.properties?.gid ?? result.properties?.id)}
+								<button
+									type="button"
+									onclick={() => selectSearchResult(result)}
+									class="hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
+								>
+									<MapPin class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
+									<span class="truncate">{result.properties?.label ?? t('common.unknown')}</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
+
+					<!-- Link preview result -->
+					{#if newItemPreview}
+						<div class="bg-muted/50 mb-3 rounded-lg p-3">
+							<div class="flex items-center gap-3">
+								{#if newItemPreview.image}
+									<img
+										src={newItemPreview.image}
+										alt=""
+										class="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
+										loading="lazy"
+									/>
+								{:else}
+									<div
+										class="bg-primary/10 text-primary flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
+									>
+										{new URL(newItemPreview.url).hostname
+											.replace('www.', '')
+											.slice(0, 2)
+											.toUpperCase()}
+									</div>
+								{/if}
+								<div class="min-w-0 flex-1">
+									<div class="text-foreground truncate text-sm font-medium">
+										{newItemPreview.title ||
+											newItemPreview.site_name ||
+											new URL(newItemPreview.url).hostname.replace('www.', '')}
+									</div>
+									{#if newItemPreview.description}
+										<div class="text-muted-foreground truncate text-xs">
+											{newItemPreview.description}
+										</div>
+									{/if}
+									{#if newItemPreview.rating}
+										<div class="text-amber-500 flex items-center gap-0.5 text-xs">
+											<Star class="h-3 w-3 fill-current" />
+											{newItemPreview.rating}
+										</div>
+									{/if}
+								</div>
+								<button
+									type="button"
+									onclick={() => {
+										newItemPreview = null;
+										newItemUrl = '';
+										searchQuery = '';
+									}}
+									class="text-muted-foreground hover:text-destructive"><X class="h-4 w-4" /></button
+								>
+							</div>
+						</div>
+					{/if}
+
+					<div class="flex flex-wrap gap-2">
+						<input
+							type="text"
+							bind:value={newItemTitle}
+							placeholder={t('plan.titlePlaceholder')}
+							class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
+						/>
+						<select
+							bind:value={newItemType}
+							class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						>
+							{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
+								<option value={key}>{cfg.icon} {t('plan.type.' + key)}</option>
+							{/each}
+						</select>
+						<input
+							type="time"
+							bind:value={newItemTime}
+							class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						/>
+						<input
+							type="number"
+							bind:value={newItemCost}
+							placeholder={t('plan.costPlaceholder')}
+							step="0.01"
+							class="border-border w-20 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						/>
+						<input
+							type="text"
+							bind:value={newItemCurrency}
+							maxlength="3"
+							class="border-border w-14 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
+						/>
+						<button
+							type="button"
+							onclick={() => addItem(selectedDay!)}
+							class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-1.5 text-sm font-medium text-primary-foreground"
+						>
+							{t('plan.add')}
+						</button>
+					</div>
+				</div>
+
+				<!-- Items for selected day -->
+				<div class="space-y-2">
+					{#each days[selectedDay - 1]?.items ?? [] as item (item.id)}
+						<div
+							class="bg-card border-border group rounded-xl border p-3"
+							draggable="true"
+							ondragstart={(e) => onDragStart(e, item)}
+						>
+							<div class="flex items-start gap-3">
+								<span class="text-lg">{TYPE_CONFIG[item.type]?.icon ?? '📌'}</span>
+								<div class="min-w-0 flex-1">
+									<input
+										type="text"
+										bind:value={item.title}
+										onchange={() => saveItem(item)}
+										class="text-foreground w-full bg-transparent text-sm font-medium focus:outline-none"
+									/>
+									<div
+										class="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2 text-xs"
+									>
+										{#if item.start_time}
+											<span class="flex items-center gap-1">
+												<Clock class="h-3 w-3" />{formatTime(item.start_time)}
+											</span>
+										{/if}
+										{#if item.address}
+											<span class="flex items-center gap-1 truncate">
+												<MapPin class="h-3 w-3" />{item.address}
+											</span>
+										{/if}
+										{#if item.cost_estimate}
+											<span class="font-medium"
+												>{item.currency} {item.cost_estimate.toFixed(2)}</span
+											>
+										{/if}
+									</div>
+									<!-- Quick actions -->
+									<div class="mt-2 flex items-center gap-2">
+										{#if item.booking_url}
+											<button
+												type="button"
+												onclick={() => toggleBooking(item)}
+												class="text-xs {item.booking_status === 'booked'
+													? 'text-green-600'
+													: 'text-muted-foreground'}"
+											>
+												{#if item.booking_status === 'booked'}
+													<Check class="inline h-3 w-3" /> {t('plan.booked')}
+												{:else}
+													<div
+														class="inline-block h-3 w-3 rounded-full border border-current"
+													></div>
+													{t('plan.pending')}
+												{/if}
+											</button>
+										{/if}
+										<select
+											bind:value={item.type}
+											onchange={() => saveItem(item)}
+											class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
+										>
+											{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
+												<option value={key}>{t('plan.type.' + key)}</option>
+											{/each}
+										</select>
+										<!-- Move to day -->
+										<select
+											value={item.day_number}
+											onchange={(e) =>
+												moveItem(item, parseInt((e.target as HTMLSelectElement).value))}
+											class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
+										>
+											{#each Array.from({ length: numDays }, (_, i) => i + 1) as d (d)}
+												<option value={d}>{t('plan.dayLabel', { day: d })}</option>
+											{/each}
+										</select>
+									</div>
+
+									<!-- Expandable edit panel -->
+									<details class="mt-2">
+										<summary
+											class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
+										>
+											{t('plan.editDetails')}
+										</summary>
+										<div class="mt-2 grid grid-cols-2 gap-2">
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.startTime')}</span>
+												<input
+													type="time"
+													bind:value={item.start_time}
+													onchange={() => saveItem(item)}
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.cost')}</span>
+												<input
+													type="number"
+													bind:value={item.cost_estimate}
+													onchange={() => saveItem(item)}
+													step="0.01"
+													placeholder="0.00"
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.currency')}</span>
+												<input
+													type="text"
+													bind:value={item.currency}
+													onchange={() => saveItem(item)}
+													maxlength="3"
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.bookingUrl')}</span
+												>
+												<input
+													type="url"
+													bind:value={item.booking_url}
+													oninput={() => handleBookingUrlChange(item)}
+													onchange={() => saveItem(item)}
+													placeholder="https://..."
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+												{#if loadingPreview === item.booking_url}
+													<div
+														class="text-muted-foreground flex items-center gap-1 py-1 text-[10px]"
+													>
+														<Loader2 class="h-3 w-3 animate-spin" /> Loading preview...
+													</div>
+												{:else if item.booking_url && linkPreviews.get(item.booking_url)}
+													{@const pv = linkPreviews.get(item.booking_url)!}
+													<a
+														href={item.booking_url}
+														target="_blank"
+														rel="noopener"
+														class="bg-muted/50 hover:bg-muted mt-1 flex items-center gap-2 rounded-lg p-2 transition-colors"
+													>
+														{#if pv.image}
+															<img
+																src={pv.image}
+																alt=""
+																class="h-10 w-10 flex-shrink-0 rounded object-cover"
+																loading="lazy"
+															/>
+														{/if}
+														<div class="min-w-0 flex-1">
+															<div class="text-foreground truncate text-[10px] font-medium">
+																{pv.title || pv.site_name || 'Link'}
+															</div>
+															{#if pv.description}
+																<div class="text-muted-foreground truncate text-[9px]">
+																	{pv.description}
+																</div>
+															{/if}
+															{#if pv.rating}
+																<div class="text-amber-500 flex items-center gap-0.5 text-[9px]">
+																	<Star class="h-2.5 w-2.5 fill-current" />
+																	{pv.rating}
+																</div>
+															{/if}
+														</div>
+														<ExternalLink class="text-muted-foreground h-3 w-3 flex-shrink-0" />
+													</a>
+												{/if}
+											</label>
+											<label class="col-span-2 flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.address')}</span>
+												<input
+													type="text"
+													bind:value={item.address}
+													onchange={() => saveItem(item)}
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="col-span-2 flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.notes')}</span>
+												<textarea
+													bind:value={item.notes}
+													onchange={() => saveItem(item)}
+													rows="2"
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												></textarea>
+											</label>
+										</div>
+									</details>
+								</div>
+								<button
+									type="button"
+									onclick={() => removeItem(item.id)}
+									class="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+								>
+									<Trash2 class="h-3.5 w-3.5" />
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Day map: planned stops connected by route -->
+				{#if dayMapPoints.length > 1}
+					<div class="border-border bg-card overflow-hidden rounded-xl border">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-sm font-semibold text-foreground"
+								>{t('plan.routeForDay', { day: selectedDay })}</span
+							>
+							<span class="text-muted-foreground ml-auto text-xs"
+								>{t('plan.stops', { count: dayMapPoints.length })}</span
+							>
+						</div>
+						<TripMap points={dayMapPoints} class="h-64" />
+					</div>
+				{:else if dayMapPoints.length === 1}
+					<div class="border-border bg-card overflow-hidden rounded-xl border">
+						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
+							<MapPin class="text-primary h-4 w-4" />
+							<span class="text-sm font-semibold text-foreground">{t('plan.stopLocation')}</span>
+						</div>
+						<TripMap points={dayMapPoints} class="h-48" />
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</div>
 
-	{#if viewMode === 'chat'}
-		<!-- AI Chat -->
-		<div class="bg-card border-border h-[600px] overflow-hidden rounded-2xl border">
+	<!-- AI Chat Drawer -->
+	{#if showChatDrawer}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div
+			class="fixed inset-0 z-40 bg-black/30 lg:hidden"
+			onclick={() => (showChatDrawer = false)}
+			role="presentation"
+		></div>
+	{/if}
+
+	<!-- Drawer -->
+	<div
+		class="bg-card border-border fixed right-0 top-0 bottom-0 z-50 flex w-full max-w-md flex-col border-l shadow-2xl transition-transform duration-300 lg:max-w-lg {showChatDrawer
+			? 'translate-x-0'
+			: 'translate-x-full'}"
+	>
+		<!-- Drawer header -->
+		<div class="border-border flex items-center justify-between border-b p-4">
+			<div class="flex items-center gap-2">
+				<Sparkles class="text-primary h-5 w-5" />
+				<span class="text-foreground font-semibold">AI Assistant</span>
+			</div>
+			<button
+				type="button"
+				onclick={() => (showChatDrawer = false)}
+				class="text-muted-foreground hover:text-foreground rounded-lg p-1"
+			>
+				<X class="h-5 w-5" />
+			</button>
+		</div>
+
+		<!-- Chat content -->
+		<div class="flex-1 overflow-hidden">
 			<TripPlannerChat
 				{tripId}
 				tripTitle={trip.title}
@@ -715,649 +1354,19 @@
 				}}
 			/>
 		</div>
-	{:else}
-		<!-- Budget panel -->
-		{#if budgetByCurrency.length > 0}
-			<div class="bg-card border-border mb-4 rounded-2xl border p-4">
-				<div class="grid gap-4 sm:grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto]">
-					<!-- Donut chart + total -->
-					<div class="flex items-center gap-3">
-						<svg width="100" height="100" viewBox="0 0 100 100" class="flex-shrink-0">
-							{#if donutSegments.length > 0}
-								{#each donutSegments as seg (seg.category)}
-									<circle
-										cx="50"
-										cy="50"
-										r="42"
-										fill="none"
-										stroke={TYPE_CONFIG[seg.category]?.color ?? '#6b7280'}
-										stroke-width="10"
-										stroke-dasharray={seg.dashArray}
-										stroke-dashoffset={seg.dashOffset}
-										transform="rotate(-90 50 50)"
-									/>
-								{/each}
-							{:else}
-								<circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" stroke-width="10" />
-							{/if}
-							<text
-								x="50"
-								y="48"
-								text-anchor="middle"
-								class="text-foreground fill-current"
-								font-size="14"
-								font-weight="bold">{budgetByCurrency[0]?.currency ?? ''}</text
-							>
-							<text
-								x="50"
-								y="62"
-								text-anchor="middle"
-								class="text-muted-foreground fill-current"
-								font-size="11">{budgetByCurrency[0]?.total.toFixed(0) ?? '0'}</text
-							>
-						</svg>
-					</div>
+	</div>
 
-					<!-- Category legend with bars -->
-					<div class="space-y-1.5">
-						<div class="text-muted-foreground mb-1 text-[10px] font-medium uppercase">
-							{t('plan.byCategory')}
-						</div>
-						{#each budgetByCategory as cat (cat.category)}
-							{@const maxCat = Math.max(...budgetByCategory.map((c) => c.total))}
-							<div class="flex items-center gap-2 text-xs">
-								<span class="w-4 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
-								<span class="text-muted-foreground w-20 truncate">
-									{t('plan.type.' + cat.category)}
-								</span>
-								<div class="bg-muted h-2 flex-1 overflow-hidden rounded-full">
-									<div
-										class="h-full rounded-full"
-										style="width: {(cat.total / maxCat) * 100}%; background: {TYPE_CONFIG[
-											cat.category
-										]?.color ?? '#6b7280'}"
-									></div>
-								</div>
-								<span class="text-muted-foreground w-12 text-right font-mono">
-									{cat.total.toFixed(0)}
-								</span>
-							</div>
-						{/each}
-					</div>
-
-					<!-- Daily cost bars (stacked by category) -->
-					{#if dailyCosts.some((d) => d.cost > 0)}
-						<div class="border-border md:border-l md:pl-4">
-							<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
-								{t('plan.costPerDay', { currency: dailyCosts[0]?.currency ?? 'EUR' })}
-							</div>
-							<div class="flex gap-1">
-								<!-- Y-axis -->
-								<div class="flex flex-col justify-between text-right" style="height: 80px;">
-									<span class="text-muted-foreground text-[8px]">{maxDailyCost.toFixed(0)}</span>
-									<span class="text-muted-foreground text-[8px]"
-										>{(maxDailyCost / 2).toFixed(0)}</span
-									>
-									<span class="text-muted-foreground text-[8px]">0</span>
-								</div>
-								<!-- Bars -->
-								<div class="relative flex-1">
-									<!-- Grid lines -->
-									<div class="absolute inset-0 flex flex-col justify-between">
-										<div class="border-border border-t"></div>
-										<div class="border-border border-t"></div>
-										<div class="border-border border-t"></div>
-									</div>
-									<div class="relative flex items-end gap-1" style="height: 80px;">
-										{#each dailyCategoryBreakdown as d (d.day)}
-											<div
-												class="group relative flex h-full flex-1 cursor-default flex-col justify-end"
-											>
-												<!-- Stacked segments -->
-												{#each d.categories as cat (cat.category)}
-													<div
-														class="w-full transition-all"
-														style="height: {(cat.amount / maxDailyCost) *
-															80}px; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
-													></div>
-												{/each}
-												<!-- Empty bar for zero-cost days -->
-												{#if d.total === 0}
-													<div class="w-full" style="height: 2px; background: #e5e7eb"></div>
-												{/if}
-												<!-- Tooltip on hover -->
-												{#if d.total > 0}
-													<div
-														class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-3 text-xs shadow-xl group-hover:block"
-													>
-														<div class="text-foreground font-bold">
-															{t('plan.dayCost', {
-																day: d.day,
-																cost: `${d.total.toFixed(0)} ${d.currency}`
-															})}
-														</div>
-														{#each d.categories as cat (cat.category)}
-															<div class="text-muted-foreground flex items-center gap-1.5">
-																<span>{TYPE_CONFIG[cat.category]?.icon}</span>
-																{t('plan.type.' + cat.category)}: {cat.amount.toFixed(0)}
-															</div>
-														{/each}
-													</div>
-												{/if}
-											</div>
-										{/each}
-									</div>
-									<!-- Day numbers -->
-									<div class="flex gap-1">
-										{#each dailyCategoryBreakdown as d (d.day)}
-											<div class="text-muted-foreground flex-1 text-center text-[8px]">
-												{d.day}
-											</div>
-										{/each}
-									</div>
-								</div>
-							</div>
-						</div>
-					{/if}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Calendar + day detail (full width) -->
-		<div>
-			{#if selectedDay === null}
-				<!-- Calendar overview -->
-				<div
-					class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7"
-				>
-					{#each days as day (day.number)}
-						<div
-							role="button"
-							tabindex="0"
-							onclick={() => openDay(day.number)}
-							onkeydown={(e) => e.key === 'Enter' && openDay(day.number)}
-							ondragover={onDragOver}
-							ondrop={(e) => onDrop(e, day.number)}
-							class="bg-card border-border flex min-h-44 cursor-pointer flex-col rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md {day
-								.items.length > 0
-								? 'border-primary/30'
-								: ''}"
-						>
-							<!-- Header -->
-							<div class="mb-2 flex items-center justify-between">
-								<div>
-									<div class="text-foreground text-sm font-bold">
-										{t('plan.dayLabel', { day: day.number })}
-									</div>
-									{#if day.date}
-										<div class="text-muted-foreground text-[10px]">{formatDateShort(day.date)}</div>
-									{/if}
-								</div>
-								{#if day.items.length > 0}
-									<span
-										class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-bold"
-									>
-										{day.items.length}
-									</span>
-								{/if}
-							</div>
-							<!-- Items (flex-1 fills space) -->
-							<div class="flex-1 space-y-1">
-								{#each day.items.slice(0, 4) as item (item.id)}
-									<div
-										class="truncate cursor-grab rounded px-1.5 py-0.5 text-[10px] font-medium text-white transition-shadow hover:shadow-md active:cursor-grabbing"
-										draggable="true"
-										ondragstart={(e) => {
-											e.stopPropagation();
-											onDragStart(e, item);
-										}}
-										style="background: {TYPE_CONFIG[item.type]?.color ?? '#6b7280'}"
-										title={item.title}
-									>
-										{TYPE_CONFIG[item.type]?.icon}
-										{#if item.start_time}{formatTime(item.start_time)}
-										{/if}
-										{item.title}
-									</div>
-								{/each}
-								{#if day.items.length > 4}
-									<div class="text-muted-foreground text-[10px]">
-										{t('plan.moreCount', { count: day.items.length - 4 })}
-									</div>
-								{/if}
-							</div>
-							<!-- Cost at bottom-right -->
-							{#if dayCost(day.items) > 0}
-								<div class="text-muted-foreground mt-1 text-right text-[10px] font-medium">
-									{day.items[0]?.currency ?? ''}
-									{dayCost(day.items).toFixed(0)}
-								</div>
-							{/if}
-						</div>
-					{/each}
-				</div>
-
-				<!-- Overview map: entire route across all days -->
-				<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
-					<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-						<MapPin class="text-primary h-4 w-4" />
-						<span class="text-sm font-semibold text-foreground">{t('plan.entireRoute')}</span>
-						{#if allMapPoints.length > 0}
-							<span class="text-muted-foreground ml-auto text-xs"
-								>{t('plan.stopsAcrossDays', { stops: allMapPoints.length, days: numDays })}</span
-							>
-						{:else}
-							<span class="text-muted-foreground ml-auto text-xs">{t('plan.addLocationsHint')}</span
-							>
-						{/if}
-					</div>
-					{#if allMapPoints.length > 0}
-						<TripMap points={allMapPoints} class="h-64" />
-					{:else}
-						<div class="text-muted-foreground flex h-40 items-center justify-center text-sm">
-							{t('plan.searchPlacesHint')}
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<!-- Day detail view -->
-				<div class="space-y-4">
-					<div class="flex items-center justify-between">
-						<button
-							type="button"
-							onclick={() => (selectedDay = null)}
-							class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
-						>
-							{t('plan.backToCalendar')}
-						</button>
-						<h2 class="text-foreground text-lg font-bold">
-							{t('plan.dayLabel', { day: selectedDay })}
-							{#if days[selectedDay - 1]?.date}
-								<span class="text-muted-foreground text-sm font-normal">
-									· {days[selectedDay - 1].date!.toLocaleDateString(undefined, {
-										weekday: 'long',
-										month: 'short',
-										day: 'numeric'
-									})}
-								</span>
-							{/if}
-						</h2>
-					</div>
-
-					<!-- Add item form -->
-					<div class="bg-card border-border rounded-xl border p-4">
-						<div class="mb-3 flex items-center gap-2">
-							<Plus class="text-primary h-4 w-4" />
-							<span class="text-sm font-medium text-foreground">{t('plan.addStop')}</span>
-						</div>
-						<!-- Smart search (URL or place) -->
-						<div class="relative mb-3">
-							<Search class="text-muted-foreground absolute top-2.5 left-3 h-4 w-4" />
-							<input
-								type="text"
-								bind:value={searchQuery}
-								oninput={handleSearch}
-								onpaste={(e) => {
-									// Let input update, then search — oninput will also fire
-									// but handleSearch has a guard to prevent double execution
-								}}
-								placeholder="Search for a place or paste a booking URL..."
-								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
-							/>
-							{#if isSearching || isFetchingPreview}
-								<Loader2
-									class="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 animate-spin"
-								/>
-							{/if}
-						</div>
-
-						<!-- Pelias search results -->
-						{#if searchResults.length > 0}
-							<div class="bg-muted/50 mb-3 max-h-40 overflow-y-auto rounded-lg">
-								{#each searchResults as result (result.properties?.gid ?? result.properties?.id)}
-									<button
-										type="button"
-										onclick={() => selectSearchResult(result)}
-										class="hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors"
-									>
-										<MapPin class="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
-										<span class="truncate">{result.properties?.label ?? t('common.unknown')}</span>
-									</button>
-								{/each}
-							</div>
-						{/if}
-
-						<!-- Link preview result -->
-						{#if newItemPreview}
-							<div class="bg-muted/50 mb-3 rounded-lg p-3">
-								<div class="flex items-center gap-3">
-									{#if newItemPreview.image}
-										<img
-											src={newItemPreview.image}
-											alt=""
-											class="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
-											loading="lazy"
-										/>
-									{:else}
-										<div
-											class="bg-primary/10 text-primary flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
-										>
-											{new URL(newItemPreview.url).hostname
-												.replace('www.', '')
-												.slice(0, 2)
-												.toUpperCase()}
-										</div>
-									{/if}
-									<div class="min-w-0 flex-1">
-										<div class="text-foreground truncate text-sm font-medium">
-											{newItemPreview.title ||
-												newItemPreview.site_name ||
-												new URL(newItemPreview.url).hostname.replace('www.', '')}
-										</div>
-										{#if newItemPreview.description}
-											<div class="text-muted-foreground truncate text-xs">
-												{newItemPreview.description}
-											</div>
-										{/if}
-										{#if newItemPreview.rating}
-											<div class="text-amber-500 flex items-center gap-0.5 text-xs">
-												<Star class="h-3 w-3 fill-current" />
-												{newItemPreview.rating}
-											</div>
-										{/if}
-									</div>
-									<button
-										type="button"
-										onclick={() => {
-											newItemPreview = null;
-											newItemUrl = '';
-											searchQuery = '';
-										}}
-										class="text-muted-foreground hover:text-destructive"
-										><X class="h-4 w-4" /></button
-									>
-								</div>
-							</div>
-						{/if}
-
-						<div class="flex flex-wrap gap-2">
-							<input
-								type="text"
-								bind:value={newItemTitle}
-								placeholder={t('plan.titlePlaceholder')}
-								class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-1.5 text-sm focus:ring-2 focus:outline-none"
-							/>
-							<select
-								bind:value={newItemType}
-								class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							>
-								{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
-									<option value={key}>{cfg.icon} {t('plan.type.' + key)}</option>
-								{/each}
-							</select>
-							<input
-								type="time"
-								bind:value={newItemTime}
-								class="border-border rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							/>
-							<input
-								type="number"
-								bind:value={newItemCost}
-								placeholder={t('plan.costPlaceholder')}
-								step="0.01"
-								class="border-border w-20 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							/>
-							<input
-								type="text"
-								bind:value={newItemCurrency}
-								maxlength="3"
-								class="border-border w-14 rounded-lg border bg-transparent px-2 py-1.5 text-sm"
-							/>
-							<button
-								type="button"
-								onclick={() => addItem(selectedDay!)}
-								class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-1.5 text-sm font-medium text-primary-foreground"
-							>
-								{t('plan.add')}
-							</button>
-						</div>
-					</div>
-
-					<!-- Items for selected day -->
-					<div class="space-y-2">
-						{#each days[selectedDay - 1]?.items ?? [] as item (item.id)}
-							<div
-								class="bg-card border-border group rounded-xl border p-3"
-								draggable="true"
-								ondragstart={(e) => onDragStart(e, item)}
-							>
-								<div class="flex items-start gap-3">
-									<span class="text-lg">{TYPE_CONFIG[item.type]?.icon ?? '📌'}</span>
-									<div class="min-w-0 flex-1">
-										<input
-											type="text"
-											bind:value={item.title}
-											onchange={() => saveItem(item)}
-											class="text-foreground w-full bg-transparent text-sm font-medium focus:outline-none"
-										/>
-										<div
-											class="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2 text-xs"
-										>
-											{#if item.start_time}
-												<span class="flex items-center gap-1">
-													<Clock class="h-3 w-3" />{formatTime(item.start_time)}
-												</span>
-											{/if}
-											{#if item.address}
-												<span class="flex items-center gap-1 truncate">
-													<MapPin class="h-3 w-3" />{item.address}
-												</span>
-											{/if}
-											{#if item.cost_estimate}
-												<span class="font-medium"
-													>{item.currency} {item.cost_estimate.toFixed(2)}</span
-												>
-											{/if}
-										</div>
-										<!-- Quick actions -->
-										<div class="mt-2 flex items-center gap-2">
-											{#if item.booking_url}
-												<button
-													type="button"
-													onclick={() => toggleBooking(item)}
-													class="text-xs {item.booking_status === 'booked'
-														? 'text-green-600'
-														: 'text-muted-foreground'}"
-												>
-													{#if item.booking_status === 'booked'}
-														<Check class="inline h-3 w-3" /> {t('plan.booked')}
-													{:else}
-														<div
-															class="inline-block h-3 w-3 rounded-full border border-current"
-														></div>
-														{t('plan.pending')}
-													{/if}
-												</button>
-											{/if}
-											<select
-												bind:value={item.type}
-												onchange={() => saveItem(item)}
-												class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
-											>
-												{#each Object.entries(TYPE_CONFIG) as [key, cfg] (key)}
-													<option value={key}>{t('plan.type.' + key)}</option>
-												{/each}
-											</select>
-											<!-- Move to day -->
-											<select
-												value={item.day_number}
-												onchange={(e) =>
-													moveItem(item, parseInt((e.target as HTMLSelectElement).value))}
-												class="border-border rounded border bg-transparent px-1 py-0.5 text-[10px]"
-											>
-												{#each Array.from({ length: numDays }, (_, i) => i + 1) as d (d)}
-													<option value={d}>{t('plan.dayLabel', { day: d })}</option>
-												{/each}
-											</select>
-										</div>
-
-										<!-- Expandable edit panel -->
-										<details class="mt-2">
-											<summary
-												class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
-											>
-												{t('plan.editDetails')}
-											</summary>
-											<div class="mt-2 grid grid-cols-2 gap-2">
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]"
-														>{t('plan.startTime')}</span
-													>
-													<input
-														type="time"
-														bind:value={item.start_time}
-														onchange={() => saveItem(item)}
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">{t('plan.cost')}</span>
-													<input
-														type="number"
-														bind:value={item.cost_estimate}
-														onchange={() => saveItem(item)}
-														step="0.01"
-														placeholder="0.00"
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">{t('plan.currency')}</span
-													>
-													<input
-														type="text"
-														bind:value={item.currency}
-														onchange={() => saveItem(item)}
-														maxlength="3"
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]"
-														>{t('plan.bookingUrl')}</span
-													>
-													<input
-														type="url"
-														bind:value={item.booking_url}
-														oninput={() => handleBookingUrlChange(item)}
-														onchange={() => saveItem(item)}
-														placeholder="https://..."
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-													{#if loadingPreview === item.booking_url}
-														<div
-															class="text-muted-foreground flex items-center gap-1 py-1 text-[10px]"
-														>
-															<Loader2 class="h-3 w-3 animate-spin" /> Loading preview...
-														</div>
-													{:else if item.booking_url && linkPreviews.get(item.booking_url)}
-														{@const pv = linkPreviews.get(item.booking_url)!}
-														<a
-															href={item.booking_url}
-															target="_blank"
-															rel="noopener"
-															class="bg-muted/50 hover:bg-muted mt-1 flex items-center gap-2 rounded-lg p-2 transition-colors"
-														>
-															{#if pv.image}
-																<img
-																	src={pv.image}
-																	alt=""
-																	class="h-10 w-10 flex-shrink-0 rounded object-cover"
-																	loading="lazy"
-																/>
-															{/if}
-															<div class="min-w-0 flex-1">
-																<div class="text-foreground truncate text-[10px] font-medium">
-																	{pv.title || pv.site_name || 'Link'}
-																</div>
-																{#if pv.description}
-																	<div class="text-muted-foreground truncate text-[9px]">
-																		{pv.description}
-																	</div>
-																{/if}
-																{#if pv.rating}
-																	<div class="text-amber-500 flex items-center gap-0.5 text-[9px]">
-																		<Star class="h-2.5 w-2.5 fill-current" />
-																		{pv.rating}
-																	</div>
-																{/if}
-															</div>
-															<ExternalLink class="text-muted-foreground h-3 w-3 flex-shrink-0" />
-														</a>
-													{/if}
-												</label>
-												<label class="col-span-2 flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">{t('plan.address')}</span>
-													<input
-														type="text"
-														bind:value={item.address}
-														onchange={() => saveItem(item)}
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													/>
-												</label>
-												<label class="col-span-2 flex flex-col gap-0.5">
-													<span class="text-muted-foreground text-[10px]">{t('plan.notes')}</span>
-													<textarea
-														bind:value={item.notes}
-														onchange={() => saveItem(item)}
-														rows="2"
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
-													></textarea>
-												</label>
-											</div>
-										</details>
-									</div>
-									<button
-										type="button"
-										onclick={() => removeItem(item.id)}
-										class="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
-									>
-										<Trash2 class="h-3.5 w-3.5" />
-									</button>
-								</div>
-							</div>
-						{/each}
-					</div>
-
-					<!-- Day map: planned stops connected by route -->
-					{#if dayMapPoints.length > 1}
-						<div class="border-border bg-card overflow-hidden rounded-xl border">
-							<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-								<MapPin class="text-primary h-4 w-4" />
-								<span class="text-sm font-semibold text-foreground"
-									>{t('plan.routeForDay', { day: selectedDay })}</span
-								>
-								<span class="text-muted-foreground ml-auto text-xs"
-									>{t('plan.stops', { count: dayMapPoints.length })}</span
-								>
-							</div>
-							<TripMap points={dayMapPoints} class="h-64" />
-						</div>
-					{:else if dayMapPoints.length === 1}
-						<div class="border-border bg-card overflow-hidden rounded-xl border">
-							<div class="border-border flex items-center gap-2 border-b px-4 py-2">
-								<MapPin class="text-primary h-4 w-4" />
-								<span class="text-sm font-semibold text-foreground">{t('plan.stopLocation')}</span>
-							</div>
-							<TripMap points={dayMapPoints} class="h-48" />
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
+	<!-- Floating AI button (visible when drawer is closed) -->
+	{#if !showChatDrawer}
+		<button
+			type="button"
+			onclick={() => (showChatDrawer = true)}
+			class="bg-primary hover:bg-primary/90 fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-primary-foreground shadow-2xl transition-all hover:scale-105"
+		>
+			<Sparkles class="h-5 w-5" />
+			<span class="hidden sm:inline">AI Assistant</span>
+		</button>
 	{/if}
-
-	<!-- Collaborator modal -->
 	{#if showCollaboratorModal}
 		<div
 			class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"
