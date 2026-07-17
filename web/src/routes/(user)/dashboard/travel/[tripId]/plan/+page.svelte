@@ -309,6 +309,7 @@
 	}
 
 	// ── Smart search (URL or Pelias) ──
+	let searchInProgress = false;
 	async function handleSearch() {
 		if (searchTimer) clearTimeout(searchTimer);
 		if (!searchQuery.trim()) {
@@ -317,10 +318,13 @@
 			return;
 		}
 
-		// URL detected → fetch link preview immediately (no debounce on paste)
+		if (searchInProgress) return;
+
+		// URL detected → fetch link preview immediately
 		if (searchQuery.trim().startsWith('http')) {
 			searchResults = [];
 			newItemPreview = null;
+			searchInProgress = true;
 			isFetchingPreview = true;
 			try {
 				const preview = await fetchLinkPreview(searchQuery.trim());
@@ -333,6 +337,7 @@
 				newItemPreview = null;
 			} finally {
 				isFetchingPreview = false;
+				searchInProgress = false;
 			}
 			return;
 		}
@@ -969,11 +974,8 @@
 								bind:value={searchQuery}
 								oninput={handleSearch}
 								onpaste={(e) => {
-									const pasted = e.clipboardData?.getData('text')?.trim();
-									if (pasted?.startsWith('http')) {
-										// Let the input update, then fetch immediately
-										setTimeout(() => handleSearch(), 0);
-									}
+									// Let input update, then search — oninput will also fire
+									// but handleSearch has a guard to prevent double execution
 								}}
 								placeholder="Search for a place or paste a booking URL..."
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent py-2 pr-4 pl-10 text-sm focus:ring-2 focus:outline-none"
@@ -1012,10 +1014,21 @@
 											class="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
 											loading="lazy"
 										/>
+									{:else}
+										<div
+											class="bg-primary/10 text-primary flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
+										>
+											{new URL(newItemPreview.url).hostname
+												.replace('www.', '')
+												.slice(0, 2)
+												.toUpperCase()}
+										</div>
 									{/if}
 									<div class="min-w-0 flex-1">
 										<div class="text-foreground truncate text-sm font-medium">
-											{newItemPreview.title || newItemPreview.site_name || 'Link'}
+											{newItemPreview.title ||
+												newItemPreview.site_name ||
+												new URL(newItemPreview.url).hostname.replace('www.', '')}
 										</div>
 										{#if newItemPreview.description}
 											<div class="text-muted-foreground truncate text-xs">
