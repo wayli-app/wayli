@@ -7,12 +7,14 @@
 
 -- Trips: owner or public
 DROP POLICY IF EXISTS trips_select ON trips;
+DROP POLICY IF EXISTS trips_select ON trips;
 CREATE POLICY trips_select ON trips FOR SELECT USING (
     user_id = auth.uid()
     OR visibility = 'public'
 );
 
 -- Trip entries: owner or published on visible trips
+DROP POLICY IF EXISTS trip_entries_shared_read ON trip_entries;
 DROP POLICY IF EXISTS trip_entries_shared_read ON trip_entries;
 CREATE POLICY trip_entries_shared_read ON trip_entries FOR SELECT USING (
     user_id = auth.uid()
@@ -25,6 +27,7 @@ CREATE POLICY trip_entries_shared_read ON trip_entries FOR SELECT USING (
 
 -- Trip media: owner or on visible trips
 DROP POLICY IF EXISTS trip_media_shared_read ON trip_media;
+DROP POLICY IF EXISTS trip_media_shared_read ON trip_media;
 CREATE POLICY trip_media_shared_read ON trip_media FOR SELECT USING (
     user_id = auth.uid()
     OR EXISTS(
@@ -35,6 +38,7 @@ CREATE POLICY trip_media_shared_read ON trip_media FOR SELECT USING (
 );
 
 -- Trip shares: use is_trip_owner() SECURITY DEFINER function
+DROP POLICY IF EXISTS trip_shares_select ON trip_shares;
 DROP POLICY IF EXISTS trip_shares_select ON trip_shares;
 CREATE POLICY trip_shares_select ON trip_shares FOR SELECT USING (
     shared_with_user_id = auth.uid()

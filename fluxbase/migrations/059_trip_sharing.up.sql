@@ -157,44 +157,44 @@ WHERE can_see_trip(tpi.trip_id);
 -- ═══ Part 8: RLS Policies ═══
 
 -- user_connections: bidirectional access
-CREATE POLICY user_connections_select ON user_connections
+DROP POLICY IF EXISTS user_connections_select ON user_connections
     FOR SELECT USING (user_id = auth.uid() OR friend_id = auth.uid());
-CREATE POLICY user_connections_insert ON user_connections
+DROP POLICY IF EXISTS user_connections_insert ON user_connections
     FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY user_connections_update ON user_connections
+DROP POLICY IF EXISTS user_connections_update ON user_connections
     FOR UPDATE USING (friend_id = auth.uid());
-CREATE POLICY user_connections_delete ON user_connections
+DROP POLICY IF EXISTS user_connections_delete ON user_connections
     FOR DELETE USING (user_id = auth.uid() OR friend_id = auth.uid());
 
 -- trip_shares: owner manages, friend can see they're shared
-CREATE POLICY trip_shares_select ON trip_shares
+DROP POLICY IF EXISTS trip_shares_select ON trip_shares
     FOR SELECT USING (
         shared_with_user_id = auth.uid()
         OR EXISTS(SELECT 1 FROM trips WHERE id = trip_shares.trip_id AND user_id = auth.uid())
     );
-CREATE POLICY trip_shares_insert ON trip_shares
+DROP POLICY IF EXISTS trip_shares_insert ON trip_shares
     FOR INSERT WITH CHECK (
         EXISTS(SELECT 1 FROM trips WHERE id = trip_shares.trip_id AND user_id = auth.uid())
     );
-CREATE POLICY trip_shares_delete ON trip_shares
+DROP POLICY IF EXISTS trip_shares_delete ON trip_shares
     FOR DELETE USING (
         EXISTS(SELECT 1 FROM trips WHERE id = trip_shares.trip_id AND user_id = auth.uid())
     );
 
 -- trip_gps_tracks: owner + can_see_gps
-CREATE POLICY trip_gps_tracks_select ON trip_gps_tracks
+DROP POLICY IF EXISTS trip_gps_tracks_select ON trip_gps_tracks
     FOR SELECT USING (
         user_id = auth.uid() OR can_see_gps(trip_id)
     );
-CREATE POLICY trip_gps_tracks_insert ON trip_gps_tracks
+DROP POLICY IF EXISTS trip_gps_tracks_insert ON trip_gps_tracks
     FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY trip_gps_tracks_delete ON trip_gps_tracks
+DROP POLICY IF EXISTS trip_gps_tracks_delete ON trip_gps_tracks
     FOR DELETE USING (user_id = auth.uid());
 
 -- ═══ Part 9: Update existing trip_entries RLS ═══
 -- Replace the public_read policy with shared_read using can_see_trip()
 DROP POLICY IF EXISTS trip_entries_public_read ON trip_entries;
-CREATE POLICY trip_entries_shared_read ON trip_entries
+DROP POLICY IF EXISTS trip_entries_shared_read ON trip_entries
     FOR SELECT USING (
         user_id = auth.uid()
         OR (status = 'published' AND can_see_trip(trip_id))
@@ -202,7 +202,7 @@ CREATE POLICY trip_entries_shared_read ON trip_entries
 
 -- ═══ Part 10: Update trip_media RLS ═══
 DROP POLICY IF EXISTS trip_media_public_read ON trip_media;
-CREATE POLICY trip_media_shared_read ON trip_media
+DROP POLICY IF EXISTS trip_media_shared_read ON trip_media
     FOR SELECT USING (
         user_id = auth.uid()
         OR can_see_trip(trip_id)
@@ -210,7 +210,7 @@ CREATE POLICY trip_media_shared_read ON trip_media
 
 -- ═══ Part 11: Update trip_comments RLS ═══
 DROP POLICY IF EXISTS trip_comments_read_public ON trip_comments;
-CREATE POLICY trip_comments_shared_read ON trip_comments
+DROP POLICY IF EXISTS trip_comments_shared_read ON trip_comments
     FOR SELECT USING (
         EXISTS(SELECT 1 FROM trip_entries te
                WHERE te.id = trip_comments.entry_id
@@ -218,7 +218,7 @@ CREATE POLICY trip_comments_shared_read ON trip_comments
     );
 -- Update insert: must pass can_comment check
 DROP POLICY IF EXISTS trip_comments_insert ON trip_comments;
-CREATE POLICY trip_comments_insert ON trip_comments
+DROP POLICY IF EXISTS trip_comments_insert ON trip_comments
     FOR INSERT WITH CHECK (
         user_id = auth.uid()
         AND EXISTS(SELECT 1 FROM trip_entries te
@@ -228,14 +228,14 @@ CREATE POLICY trip_comments_insert ON trip_comments
 
 -- ═══ Part 12: Update trip_likes RLS ═══
 DROP POLICY IF EXISTS trip_likes_read_public ON trip_likes;
-CREATE POLICY trip_likes_shared_read ON trip_likes
+DROP POLICY IF EXISTS trip_likes_shared_read ON trip_likes
     FOR SELECT USING (
         EXISTS(SELECT 1 FROM trip_entries te
                WHERE te.id = trip_likes.entry_id
                AND can_see_trip(te.trip_id))
     );
 DROP POLICY IF EXISTS trip_likes_insert ON trip_likes;
-CREATE POLICY trip_likes_insert ON trip_likes
+DROP POLICY IF EXISTS trip_likes_insert ON trip_likes
     FOR INSERT WITH CHECK (
         user_id = auth.uid()
         AND EXISTS(SELECT 1 FROM trip_entries te
@@ -245,7 +245,7 @@ CREATE POLICY trip_likes_insert ON trip_likes
 
 -- ═══ Part 13: Update trip_plan_items RLS ═══
 DROP POLICY IF EXISTS trip_plan_items_select ON trip_plan_items;
-CREATE POLICY trip_plan_items_select ON trip_plan_items
+DROP POLICY IF EXISTS trip_plan_items_select ON trip_plan_items
     FOR SELECT USING (
         user_id = auth.uid()
         OR (can_see_trip(trip_id)
@@ -257,7 +257,7 @@ CREATE POLICY trip_plan_items_select ON trip_plan_items
 -- ═══ Part 14: Update trips RLS ═══
 DROP POLICY IF EXISTS trips_public_read ON trips;
 DROP POLICY IF EXISTS "Users can view their own trips" ON trips;
-CREATE POLICY trips_select ON trips
+DROP POLICY IF EXISTS trips_select ON trips
     FOR SELECT USING (
         user_id = auth.uid()
         OR visibility = 'public'
