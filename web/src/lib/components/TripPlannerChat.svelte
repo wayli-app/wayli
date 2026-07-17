@@ -3,6 +3,7 @@
 	import { Send, Loader2, Plus } from 'lucide-svelte';
 	import { ChatService } from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import type { PlanItem } from '$lib/services/trip-plan.service';
 
 	type Props = {
 		tripId: string;
@@ -11,6 +12,7 @@
 		endDate: string;
 		primaryCity?: string;
 		numDays: number;
+		planItems?: PlanItem[];
 		onAcceptItem?: (item: {
 			title: string;
 			type: string;
@@ -28,10 +30,10 @@
 		endDate,
 		primaryCity = '',
 		numDays,
+		planItems = [],
 		onAcceptItem
 	}: Props = $props();
 
-	// Parse AI response for suggested plan items
 	type ParsedSuggestion = {
 		day: number;
 		title: string;
@@ -43,21 +45,16 @@
 
 	function parseSuggestions(content: string): ParsedSuggestion[] {
 		const suggestions: ParsedSuggestion[] = [];
-		// Match patterns like: "**Day 1:**" or "Day 1:" followed by bullet items
-		const dayRegex = /\*?\*?Day\s+(\d+)\*?\*?\s*:?/gi;
 		const lines = content.split('\n');
 		let currentDay = 0;
 
 		for (const line of lines) {
 			const dayMatch = line.match(/Day\s+(\d+)/i);
-			if (dayMatch) {
+			if (dayMatch && !line.match(/^[-•*]/)) {
 				currentDay = parseInt(dayMatch[1]);
 				continue;
 			}
 
-			// Match bullet items with emoji icons
-			// e.g. "- 📷 Morning: Eiffel Tower (sightseeing, ~€17, 2h)"
-			// e.g. "- 🍴 Le Bistro (food, ~€25, 1h)"
 			const itemMatch = line.match(
 				/^[-•*]\s*(?:([📷🍴🎯🚇🏨☕🛍️])\s*)?(?:(Morning|Afternoon|Evening|Lunch|Dinner|Night)\s*[:–-]\s*)?(.+?)(?:\s*\(([^)]+)\))?\s*$/
 			);
@@ -68,11 +65,8 @@
 				const details = itemMatch[4] || '';
 
 				if (!title || title.length < 2) continue;
-
-				// Strip trailing parenthetical classifiers like "(fun, relaxed)"
 				title = title.replace(/\s*\([^)]*\)\s*$/g, '').trim();
 
-				// Determine type from icon
 				const typeMap: Record<string, string> = {
 					'📷': 'sightseeing',
 					'🍴': 'food',
@@ -83,7 +77,6 @@
 					'🛍️': 'shopping'
 				};
 
-				// Also detect type from details text
 				const typeKeywords: Record<string, string[]> = {
 					sightseeing: [
 						'sightseeing',
@@ -112,11 +105,9 @@
 					}
 				}
 
-				// Extract cost from details: "€17", "$25", "¥1000"
 				const costMatch = details.match(/[€$¥£](\d+(?:\.\d+)?)/);
 				const currencyMatch = details.match(/[€$¥£]/);
 
-				// Extract time from timeOfDay
 				const timeMap: Record<string, string> = {
 					Morning: '09:00',
 					Lunch: '12:00',
@@ -139,19 +130,99 @@
 		return suggestions;
 	}
 
+	// Split content into segments: text blocks and inline suggestions
+	type Segment = { type: 'text'; html: string } | { type: 'suggestion'; sug: ParsedSuggestion };
+
+	function renderWithInlineSuggestions(content: string): Segment[] {
+		const suggestions = parseSuggestions(content);
+		if (suggestions.length === 0) {
+			return [{ type: 'text', html: renderMarkdown(content) }];
+		}
+
+		// Split content by lines, find suggestion lines, group into segments
+		const lines = content.split('\n');
+		const segments: Segment[] = [];
+		let textBuffer: string[] = [];
+		let currentDay = 0;
+		const usedSuggestions = [...suggestions];
+		let sugIdx = 0;
+
+		for (const line of lines) {
+			const dayMatch = line.match(/Day\s+(\d+)/i);
+			if (dayMatch && !line.match(/^[-•*]/)) {
+				currentDay = parseInt(dayMatch[1]);
+				textBuffer.push(line);
+				continue;
+			}
+
+			// Check if this line is a suggestion
+			const isSuggestionLine =
+				line.match(
+					/^[-•*]\s*(?:[📷🍴🎯🚇🏨☕🛍️])?\s*(?:(?:Morning|Afternoon|Evening|Lunch|Dinner|Night)\s*[:–-]\s*)?.+/i
+				) &&
+				currentDay > 0 &&
+				sugIdx < usedSuggestions.length &&
+				usedSuggestions[sugIdx].day === currentDay;
+
+			if (isSuggestionLine) {
+				// Flush text buffer
+				if (textBuffer.length > 0) {
+					segments.push({ type: 'text', html: renderMarkdown(textBuffer.join('\n')) });
+					textBuffer = [];
+				}
+				// Add suggestion
+				segments.push({ type: 'suggestion', sug: usedSuggestions[sugIdx] });
+				sugIdx++;
+			} else {
+				textBuffer.push(line);
+			}
+		}
+
+		// Flush remaining text
+		if (textBuffer.length > 0) {
+			segments.push({ type: 'text', html: renderMarkdown(textBuffer.join('\n')) });
+		}
+
+		return segments;
+	}
+
 	let messages = $state<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 	let input = $state('');
 	let isSending = $state(false);
 	let scrollContainer: HTMLElement | null = $state(null);
 	let chatService: ChatService | null = null;
 
-	const SYSTEM_CONTEXT = `Planning trip: ${tripTitle} (${startDate} to ${endDate}), ${numDays} days${primaryCity ? `, destination: ${primaryCity}` : ''}. Trip ID: ${tripId}`;
+	// Build plan summary for context
+	const planSummary = $derived.by(() => {
+		if (planItems.length === 0) return 'No items planned yet.';
+		const byDay = new Map<number, PlanItem[]>();
+		for (const item of planItems) {
+			const d = item.day_number || 1;
+			if (!byDay.has(d)) byDay.set(d, []);
+			byDay.get(d)!.push(item);
+		}
+		const lines: string[] = [];
+		for (const [day, items] of [...byDay.entries()].sort((a, b) => a[0] - b[0])) {
+			lines.push(`Day ${day}:`);
+			for (const item of items) {
+				const time = item.start_time ? ` ${item.start_time}` : '';
+				const cost = item.cost_estimate ? ` (${item.currency || ''}${item.cost_estimate})` : '';
+				lines.push(`  -${time} ${item.title} [${item.type}]${cost}`);
+			}
+		}
+		return lines.join('\n');
+	});
+
+	const SYSTEM_CONTEXT = `Planning trip: ${tripTitle} (${startDate} to ${endDate}), ${numDays} days${primaryCity ? `, destination: ${primaryCity}` : ''}. Trip ID: ${tripId}
+
+CURRENT PLAN:
+${planSummary}`;
 
 	onMount(() => {
 		messages = [
 			{
 				role: 'assistant',
-				content: `Hi! I'm your trip planning assistant. I can help you plan your ${numDays}-day trip to ${primaryCity || tripTitle}. Ask me to suggest an itinerary, find activities, or balance your days!`
+				content: `Hi! I'm your trip planning assistant. I can help you plan your ${numDays}-day trip to ${primaryCity || tripTitle}.${planItems.length > 0 ? ` I can see you already have ${planItems.length} item(s) planned. Ask me to suggest more activities, optimize your schedule, or fill in empty days!` : ' Ask me to suggest an itinerary, find activities, or balance your days!'}`
 			}
 		];
 
@@ -180,11 +251,9 @@
 		scrollToBottom();
 
 		try {
-			// Connect if not already connected
 			if (!chatService.isConnected()) {
 				await chatService.connect({
 					onContent: (_delta, full) => {
-						// Update the last assistant message in real-time
 						const lastIdx = messages.length - 1;
 						if (messages[lastIdx]?.role === 'assistant') {
 							messages[lastIdx].content = full;
@@ -206,15 +275,11 @@
 					}
 				});
 
-				// Start conversation with trip-planner chatbot
-				// Send system context as part of the first message
 				await chatService.startChat('trip-planner', 'wayli');
 			}
 
-			// Add placeholder for assistant response
 			messages = [...messages, { role: 'assistant', content: '...' }];
 
-			// Send the message (include context on first message)
 			const isFirstMessage = messages.filter((m) => m.role === 'user').length === 1;
 			const msgToSend = isFirstMessage ? `${SYSTEM_CONTEXT}\n\n${userMsg}` : userMsg;
 
@@ -254,33 +319,33 @@
 					</div>
 				</div>
 			{:else}
-				{@const suggestions = parseSuggestions(msg.content)}
 				<div class="flex justify-start">
-					<div class="max-w-[85%] space-y-2">
-						<div
-							class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
-						>
-							{#if msg.content === '...'}
+					<div class="max-w-[90%] space-y-1">
+						{#if msg.content === '...'}
+							<div class="bg-muted text-foreground rounded-2xl rounded-bl-sm px-4 py-2">
 								<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
-							{:else}
-								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-								{@html renderMarkdown(msg.content)}
-							{/if}
-						</div>
-						{#if suggestions.length > 0 && msg.content !== '...'}
-							<div class="flex flex-wrap gap-1.5">
-								{#each suggestions as sug, sugIdx (sugIdx)}
-									<button
-										type="button"
-										onclick={() => onAcceptItem?.(sug)}
-										class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors"
-										title={`Add "${sug.title}" to Day ${sug.day}`}
-									>
-										<Plus class="h-3 w-3" />
-										Day {sug.day}: {sug.title.slice(0, 25)}{sug.title.length > 25 ? '…' : ''}
-									</button>
-								{/each}
 							</div>
+						{:else}
+							{@const segments = renderWithInlineSuggestions(msg.content)}
+							{#each segments as seg, segIdx (segIdx)}
+								{#if seg.type === 'text'}
+									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+									{@html seg.html}
+								{:else}
+									<div class="my-1 pl-4">
+										<button
+											type="button"
+											onclick={() => onAcceptItem?.(seg.sug)}
+											class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium transition-colors"
+											title={`Add "${seg.sug.title}" to Day ${seg.sug.day}`}
+										>
+											<Plus class="h-3 w-3" />
+											{seg.sug.title.slice(0, 30)}{seg.sug.title.length > 30 ? '…' : ''}
+											<span class="text-muted-foreground ml-1">→ Day {seg.sug.day}</span>
+										</button>
+									</div>
+								{/if}
+							{/each}
 						{/if}
 					</div>
 				</div>

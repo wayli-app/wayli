@@ -1327,6 +1327,7 @@
 				endDate={trip.end_date}
 				primaryCity={trip.metadata?.primaryCity ?? ''}
 				{numDays}
+				planItems={items}
 				onAcceptItem={async (item) => {
 					const userId = await getCurrentUserId();
 					const created = await createPlanItem({
