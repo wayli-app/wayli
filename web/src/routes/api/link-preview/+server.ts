@@ -1,21 +1,4 @@
-/**
- * Link Preview Edge Function
- * Fetches Open Graph / Twitter Card metadata from a URL.
- * Returns: { title, description, image, site_name, url, rating? }
- *
- * @fluxbase:require-role authenticated
- * @fluxbase:allow-net true
- * @fluxbase:timeout 10
- */
-
-interface LinkPreview {
-	title: string | null;
-	description: string | null;
-	image: string | null;
-	site_name: string | null;
-	url: string;
-	rating: string | null;
-}
+import type { RequestHandler } from './$types';
 
 function extractMeta(html: string, property: string): string | null {
 	let match = html.match(
@@ -43,14 +26,16 @@ function extractRating(html: string): string | null {
 	return extractMeta(html, 'rating:value') || extractMeta(html, 'rating');
 }
 
-export default async function handler(req: Request): Promise<Response> {
+export const POST: RequestHandler = async ({ request }) => {
 	let url: string;
 	try {
-		const body = await req.json();
+		const body = await request.json();
 		url = body.url;
 	} catch {
-		const u = new URL(req.url);
-		url = u.searchParams.get('url') || '';
+		return new Response(JSON.stringify({ error: 'Invalid request' }), {
+			status: 400,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	}
 
 	if (!url || !url.startsWith('http')) {
@@ -82,8 +67,13 @@ export default async function handler(req: Request): Promise<Response> {
 		const headEnd = html.indexOf('</head>');
 		const head = headEnd > 0 ? html.substring(0, headEnd) : html.substring(0, 10000);
 
-		const preview: LinkPreview = {
-			title: extractMeta(head, 'og:title') || extractMeta(head, 'twitter:title'),
+		const title =
+			extractMeta(head, 'og:title') ||
+			extractMeta(head, 'twitter:title') ||
+			(head.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? null);
+
+		const preview = {
+			title,
 			description:
 				extractMeta(head, 'og:description') ||
 				extractMeta(head, 'twitter:description') ||
@@ -94,11 +84,6 @@ export default async function handler(req: Request): Promise<Response> {
 			rating: extractRating(html)
 		};
 
-		if (!preview.title) {
-			const titleMatch = head.match(/<title[^>]*>([^<]+)<\/title>/i);
-			if (titleMatch) preview.title = titleMatch[1].trim();
-		}
-
 		return new Response(JSON.stringify(preview), {
 			headers: { 'Content-Type': 'application/json' }
 		});
@@ -108,4 +93,4 @@ export default async function handler(req: Request): Promise<Response> {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	}
-}
+};

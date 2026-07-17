@@ -21,14 +21,11 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreview | null>
 	}
 
 	try {
-		const resp = await fetch(
-			`${import.meta.env.VITE_FLUXBASE_URL || 'http://localhost:8080'}/api/v1/functions/link-preview`,
-			{
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url })
-			}
-		);
+		const resp = await fetch('/api/link-preview', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ url })
+		});
 
 		if (!resp.ok) {
 			cache.set(url, { data: null, ts: Date.now() });
