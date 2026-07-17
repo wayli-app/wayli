@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { Send, Loader2, Plus } from 'lucide-svelte';
+	import { Send, Loader2, Plus, Copy, Check } from 'lucide-svelte';
 	import { ChatService } from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import type { PlanItem } from '$lib/services/trip-plan.service';
@@ -41,6 +41,7 @@
 		cost?: number;
 		currency?: string;
 		time?: string;
+		lineIndex: number;
 	};
 
 	function parseSuggestions(content: string): ParsedSuggestion[] {
@@ -48,7 +49,8 @@
 		const lines = content.split('\n');
 		let currentDay = 0;
 
-		for (const line of lines) {
+		for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+			const line = lines[lineIdx];
 			const dayMatch = line.match(/Day\s+(\d+)/i);
 			if (dayMatch && !line.match(/^[-•*]/)) {
 				currentDay = parseInt(dayMatch[1]);
@@ -123,67 +125,46 @@
 					type: detectedType || 'activity',
 					cost: costMatch ? parseFloat(costMatch[1]) : undefined,
 					currency: currencyMatch ? currencyMatch[0] : undefined,
-					time: timeOfDay ? timeMap[timeOfDay] : undefined
+					time: timeOfDay ? timeMap[timeOfDay] : undefined,
+					lineIndex: lineIdx
 				});
 			}
 		}
 		return suggestions;
 	}
 
-	// Split content into segments: text blocks and inline suggestions
-	type Segment = { type: 'text'; html: string } | { type: 'suggestion'; sug: ParsedSuggestion };
+	// Render full markdown + inline Add buttons after each suggestion line
+	type RenderChunk = { html: string; suggestion?: ParsedSuggestion };
 
-	function renderWithInlineSuggestions(content: string): Segment[] {
+	function renderContent(content: string): RenderChunk[] {
 		const suggestions = parseSuggestions(content);
 		if (suggestions.length === 0) {
-			return [{ type: 'text', html: renderMarkdown(content) }];
+			return [{ html: renderMarkdown(content) }];
 		}
 
-		// Split content by lines, find suggestion lines, group into segments
 		const lines = content.split('\n');
-		const segments: Segment[] = [];
-		let textBuffer: string[] = [];
-		let currentDay = 0;
-		const usedSuggestions = [...suggestions];
-		let sugIdx = 0;
+		const suggestionLines = new Set(suggestions.map((s) => s.lineIndex));
+		const chunks: RenderChunk[] = [];
+		let buffer: string[] = [];
+		const sugByLine = new Map(suggestions.map((s) => [s.lineIndex, s]));
 
-		for (const line of lines) {
-			const dayMatch = line.match(/Day\s+(\d+)/i);
-			if (dayMatch && !line.match(/^[-•*]/)) {
-				currentDay = parseInt(dayMatch[1]);
-				textBuffer.push(line);
-				continue;
-			}
-
-			// Check if this line is a suggestion
-			const isSuggestionLine =
-				line.match(
-					/^[-•*]\s*(?:[📷🍴🎯🚇🏨☕🛍️])?\s*(?:(?:Morning|Afternoon|Evening|Lunch|Dinner|Night)\s*[:–-]\s*)?.+/i
-				) &&
-				currentDay > 0 &&
-				sugIdx < usedSuggestions.length &&
-				usedSuggestions[sugIdx].day === currentDay;
-
-			if (isSuggestionLine) {
-				// Flush text buffer
-				if (textBuffer.length > 0) {
-					segments.push({ type: 'text', html: renderMarkdown(textBuffer.join('\n')) });
-					textBuffer = [];
-				}
-				// Add suggestion
-				segments.push({ type: 'suggestion', sug: usedSuggestions[sugIdx] });
-				sugIdx++;
+		for (let i = 0; i < lines.length; i++) {
+			if (suggestionLines.has(i)) {
+				// Flush text before this suggestion line
+				buffer.push(lines[i]); // Include the suggestion line in the markdown
+				chunks.push({ html: renderMarkdown(buffer.join('\n')) });
+				buffer = [];
+				// Add the button chunk
+				chunks.push({ html: '', suggestion: sugByLine.get(i) });
 			} else {
-				textBuffer.push(line);
+				buffer.push(lines[i]);
 			}
 		}
-
-		// Flush remaining text
-		if (textBuffer.length > 0) {
-			segments.push({ type: 'text', html: renderMarkdown(textBuffer.join('\n')) });
+		if (buffer.length > 0) {
+			chunks.push({ html: renderMarkdown(buffer.join('\n')) });
 		}
 
-		return segments;
+		return chunks;
 	}
 
 	let messages = $state<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
@@ -191,10 +172,10 @@
 	let isSending = $state(false);
 	let scrollContainer: HTMLElement | null = $state(null);
 	let chatService: ChatService | null = null;
+	let copiedIdx = $state<number | null>(null);
 
-	// Build plan summary for context
 	const planSummary = $derived.by(() => {
-		if (planItems.length === 0) return 'No items planned yet.';
+		if (planItems.length === 0) return '';
 		const byDay = new Map<number, PlanItem[]>();
 		for (const item of planItems) {
 			const d = item.day_number || 1;
@@ -213,19 +194,20 @@
 		return lines.join('\n');
 	});
 
-	const SYSTEM_CONTEXT = `Planning trip: ${tripTitle} (${startDate} to ${endDate}), ${numDays} days${primaryCity ? `, destination: ${primaryCity}` : ''}. Trip ID: ${tripId}
+	const SYSTEM_CONTEXT = `Trip: ${tripTitle} (${startDate} to ${endDate}), ${numDays} days${primaryCity ? `, destination: ${primaryCity}` : ''}. Trip ID: ${tripId}.${planSummary ? `\n\nExisting plan:\n${planSummary}` : '\n\nNo items planned yet.'}
 
-CURRENT PLAN:
-${planSummary}`;
+Do not echo back the existing plan or any labels. Only show new suggestions.`;
 
 	onMount(() => {
 		messages = [
 			{
 				role: 'assistant',
-				content: `Hi! I'm your trip planning assistant. I can help you plan your ${numDays}-day trip to ${primaryCity || tripTitle}.${planItems.length > 0 ? ` I can see you already have ${planItems.length} item(s) planned. Ask me to suggest more activities, optimize your schedule, or fill in empty days!` : ' Ask me to suggest an itinerary, find activities, or balance your days!'}`
+				content:
+					planItems.length > 0
+						? `Hoi! Ik ben je reisplanner. Ik zie dat je al ${planItems.length} activiteit(en) gepland hebt. Vraag me om suggesties voor de open plekken, of om je schema te optimaliseren!`
+						: `Hoi! Ik ben je reisplanner voor je ${numDays}-daagse trip naar ${primaryCity || tripTitle}. Vraag me om een reisroute, activiteiten of restaurants!`
 			}
 		];
-
 		chatService = new ChatService();
 	});
 
@@ -235,10 +217,16 @@ ${planSummary}`;
 
 	function scrollToBottom() {
 		setTimeout(() => {
-			if (scrollContainer) {
-				scrollContainer.scrollTop = scrollContainer.scrollHeight;
-			}
+			if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
 		}, 50);
+	}
+
+	function copyMessage(idx: number) {
+		const msg = messages[idx];
+		if (!msg) return;
+		navigator.clipboard.writeText(msg.content);
+		copiedIdx = idx;
+		setTimeout(() => (copiedIdx = null), 2000);
 	}
 
 	async function send() {
@@ -268,21 +256,18 @@ ${planSummary}`;
 						console.error('Chat error:', error);
 						const lastIdx = messages.length - 1;
 						if (messages[lastIdx]?.role === 'assistant') {
-							messages[lastIdx].content = 'Sorry, I had trouble processing that. Please try again.';
+							messages[lastIdx].content = 'Sorry, er ging iets mis. Probeer het opnieuw.';
 							messages = [...messages];
 						}
 						isSending = false;
 					}
 				});
-
 				await chatService.startChat('trip-planner', 'wayli');
 			}
 
 			messages = [...messages, { role: 'assistant', content: '...' }];
-
 			const isFirstMessage = messages.filter((m) => m.role === 'user').length === 1;
 			const msgToSend = isFirstMessage ? `${SYSTEM_CONTEXT}\n\n${userMsg}` : userMsg;
-
 			await chatService.sendMessage(msgToSend);
 		} catch (err) {
 			console.error('Send failed:', err);
@@ -290,7 +275,7 @@ ${planSummary}`;
 				...messages.filter((m) => m.content !== '...'),
 				{
 					role: 'assistant',
-					content: `Sorry, I could not connect to the AI service. Make sure AI is configured in your server settings. Error: ${err instanceof Error ? err.message : 'Unknown'}`
+					content: `Kan geen verbinding maken met de AI-service. Controleer of AI geconfigureerd is.`
 				}
 			];
 			isSending = false;
@@ -320,32 +305,49 @@ ${planSummary}`;
 				</div>
 			{:else}
 				<div class="flex justify-start">
-					<div class="max-w-[90%] space-y-1">
+					<div class="max-w-[90%]">
 						{#if msg.content === '...'}
 							<div class="bg-muted text-foreground rounded-2xl rounded-bl-sm px-4 py-2">
 								<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
 							</div>
 						{:else}
-							{@const segments = renderWithInlineSuggestions(msg.content)}
-							{#each segments as seg, segIdx (segIdx)}
-								{#if seg.type === 'text'}
-									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-									{@html seg.html}
-								{:else}
-									<div class="my-1 pl-4">
-										<button
-											type="button"
-											onclick={() => onAcceptItem?.(seg.sug)}
-											class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium transition-colors"
-											title={`Add "${seg.sug.title}" to Day ${seg.sug.day}`}
-										>
-											<Plus class="h-3 w-3" />
-											{seg.sug.title.slice(0, 30)}{seg.sug.title.length > 30 ? '…' : ''}
-											<span class="text-muted-foreground ml-1">→ Day {seg.sug.day}</span>
-										</button>
-									</div>
-								{/if}
-							{/each}
+							{@const chunks = renderContent(msg.content)}
+							<div
+								class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
+							>
+								{#each chunks as chunk, chunkIdx (chunkIdx)}
+									{#if chunk.html}
+										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+										{@html chunk.html}
+									{/if}
+									{#if chunk.suggestion}
+										<div class="my-1">
+											<button
+												type="button"
+												onclick={() => onAcceptItem?.(chunk.suggestion!)}
+												class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors"
+											>
+												<Plus class="h-3 w-3" />
+												Toevoegen aan dag {chunk.suggestion.day}
+											</button>
+										</div>
+									{/if}
+								{/each}
+							</div>
+							<!-- Copy + suggestion count -->
+							<div class="mt-1 flex items-center gap-2">
+								<button
+									type="button"
+									onclick={() => copyMessage(i)}
+									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[10px] transition-colors"
+								>
+									{#if copiedIdx === i}
+										<Check class="h-3 w-3" /> Gekopieerd
+									{:else}
+										<Copy class="h-3 w-3" /> Kopiëren
+									{/if}
+								</button>
+							</div>
 						{/if}
 					</div>
 				</div>
@@ -359,7 +361,7 @@ ${planSummary}`;
 			type="text"
 			bind:value={input}
 			onkeydown={handleKeydown}
-			placeholder="Ask for itinerary suggestions..."
+			placeholder="Vraag om suggesties..."
 			class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 			disabled={isSending}
 		/>
