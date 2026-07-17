@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { Send, Loader2 } from 'lucide-svelte';
+	import { Send, Loader2, Plus } from 'lucide-svelte';
 	import { ChatService } from '$lib/services/chat.service';
+	import { renderMarkdown } from '$lib/utils/markdown';
 
 	type Props = {
 		tripId: string;
@@ -29,6 +30,83 @@
 		numDays,
 		onAcceptItem
 	}: Props = $props();
+
+	// Parse AI response for suggested plan items
+	type ParsedSuggestion = {
+		day: number;
+		title: string;
+		type: string;
+		cost?: number;
+		currency?: string;
+		time?: string;
+	};
+
+	function parseSuggestions(content: string): ParsedSuggestion[] {
+		const suggestions: ParsedSuggestion[] = [];
+		// Match patterns like: "**Day 1:**" or "Day 1:" followed by bullet items
+		const dayRegex = /\*?\*?Day\s+(\d+)\*?\*?\s*:?/gi;
+		const lines = content.split('\n');
+		let currentDay = 0;
+
+		for (const line of lines) {
+			const dayMatch = line.match(/Day\s+(\d+)/i);
+			if (dayMatch) {
+				currentDay = parseInt(dayMatch[1]);
+				continue;
+			}
+
+			// Match bullet items with emoji icons
+			// e.g. "- 📷 Morning: Eiffel Tower (sightseeing, ~€17, 2h)"
+			// e.g. "- 🍴 Le Bistro (food, ~€25, 1h)"
+			const itemMatch = line.match(
+				/^[-•*]\s*(?:([📷🍴🎯🚇🏨☕🛍️])\s*)?(?:(Morning|Afternoon|Evening|Lunch|Dinner|Night)\s*[:–-]\s*)?(.+?)(?:\s*\(([^)]+)\))?\s*$/
+			);
+			if (itemMatch && currentDay > 0) {
+				const icon = itemMatch[1];
+				const timeOfDay = itemMatch[2];
+				const title = itemMatch[3]?.trim();
+				const details = itemMatch[4] || '';
+
+				if (!title || title.length < 2) continue;
+
+				// Determine type from icon
+				const typeMap: Record<string, string> = {
+					'📷': 'sightseeing',
+					'🍴': 'food',
+					'🎯': 'activity',
+					'🚇': 'transport',
+					'🏨': 'accommodation',
+					'☕': 'rest',
+					'🛍️': 'shopping'
+				};
+
+				// Extract cost from details: "€17", "$25", "¥1000"
+				const costMatch = details.match(/[€$¥£](\d+(?:\.\d+)?)/);
+				// Extract currency
+				const currencyMatch = details.match(/[€$¥£]/);
+
+				// Extract time from timeOfDay
+				const timeMap: Record<string, string> = {
+					Morning: '09:00',
+					Lunch: '12:00',
+					Afternoon: '14:00',
+					Dinner: '19:00',
+					Evening: '20:00',
+					Night: '22:00'
+				};
+
+				suggestions.push({
+					day: currentDay,
+					title,
+					type: typeMap[icon || ''] || 'activity',
+					cost: costMatch ? parseFloat(costMatch[1]) : undefined,
+					currency: currencyMatch ? currencyMatch[0] : undefined,
+					time: timeOfDay ? timeMap[timeOfDay] : undefined
+				});
+			}
+		}
+		return suggestions;
+	}
 
 	let messages = $state<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
 	let input = $state('');
@@ -145,14 +223,33 @@
 					</div>
 				</div>
 			{:else}
+				{@const suggestions = parseSuggestions(msg.content)}
 				<div class="flex justify-start">
-					<div
-						class="bg-muted text-foreground max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
-					>
-						{#if msg.content === '...'}
-							<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
-						{:else}
-							{msg.content}
+					<div class="max-w-[85%] space-y-2">
+						<div
+							class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
+						>
+							{#if msg.content === '...'}
+								<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+							{:else}
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(msg.content)}
+							{/if}
+						</div>
+						{#if suggestions.length > 0 && msg.content !== '...'}
+							<div class="flex flex-wrap gap-1.5">
+								{#each suggestions as sug, sugIdx (sugIdx)}
+									<button
+										type="button"
+										onclick={() => onAcceptItem?.(sug)}
+										class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors"
+										title={`Add "${sug.title}" to Day ${sug.day}`}
+									>
+										<Plus class="h-3 w-3" />
+										Day {sug.day}: {sug.title.slice(0, 25)}{sug.title.length > 25 ? '…' : ''}
+									</button>
+								{/each}
+							</div>
 						{/if}
 					</div>
 				</div>
