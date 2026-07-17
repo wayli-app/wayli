@@ -26,6 +26,32 @@ function extractRating(html: string): string | null {
 	return extractMeta(html, 'rating:value') || extractMeta(html, 'rating');
 }
 
+async function tryMicrolink(url: string): Promise<Response | null> {
+	try {
+		const microResp = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`, {
+			signal: AbortSignal.timeout(10000)
+		});
+		if (!microResp.ok) return null;
+		const microData = await microResp.json();
+		if (microData.status !== 'success' || !microData.data) return null;
+
+		const d = microData.data;
+		return new Response(
+			JSON.stringify({
+				title: d.title || null,
+				description: d.description || null,
+				image: d.image?.url || d.logo?.url || null,
+				site_name: d.publisher || new URL(url).hostname.replace('www.', ''),
+				url,
+				rating: null
+			}),
+			{ headers: { 'Content-Type': 'application/json' } }
+		);
+	} catch {
+		return null;
+	}
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	let url: string;
 	try {
@@ -62,6 +88,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		clearTimeout(timeout);
 
 		if (!resp.ok) {
+			// Try microlink fallback
+			const microResult = await tryMicrolink(url);
+			if (microResult) return microResult;
+
 			return new Response(JSON.stringify({ error: `Fetch failed: ${resp.status}` }), {
 				status: 502,
 				headers: { 'Content-Type': 'application/json' }
@@ -72,26 +102,28 @@ export const POST: RequestHandler = async ({ request }) => {
 		const headEnd = html.indexOf('</head>');
 		const head = headEnd > 0 ? html.substring(0, headEnd) : html.substring(0, 10000);
 
-		// Detect bot challenge pages
+		// Detect bot challenge pages (booking.com, Cloudflare-protected sites)
 		const isChallengePage =
 			html.includes('challenge-container') ||
 			html.includes('challenge.js') ||
 			html.includes('cf-challenge') ||
-			(html.includes('<title>') &&
-				html.includes('<title></title>') &&
-				!extractMeta(head, 'og:title'));
+			(html.includes('<title></title>') && !extractMeta(head, 'og:title'));
 
 		if (isChallengePage) {
+			// Try microlink (runs headless browser, can bypass challenges)
+			const microResult = await tryMicrolink(url);
+			if (microResult) return microResult;
+
+			// Final fallback: hostname only
 			const hostname = new URL(url).hostname.replace('www.', '');
 			return new Response(
 				JSON.stringify({
 					title: hostname,
-					description: 'This site blocks link previews. The URL will be stored as-is.',
+					description: null,
 					image: null,
 					site_name: hostname,
 					url,
-					rating: null,
-					blocked: true
+					rating: null
 				}),
 				{ headers: { 'Content-Type': 'application/json' } }
 			);
@@ -118,6 +150,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch {
+		// Last resort: try microlink
+		const microResult = await tryMicrolink(url);
+		if (microResult) return microResult;
+
 		return new Response(JSON.stringify({ error: 'Failed to fetch' }), {
 			status: 502,
 			headers: { 'Content-Type': 'application/json' }
