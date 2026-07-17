@@ -2525,8 +2525,12 @@
 					</div>
 				</div>
 
-				<!-- Landing Page -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<!-- Landing Page (hidden when community hub is enabled) -->
+				<div
+					class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card {communityEnabled
+						? 'hidden'
+						: ''}"
+				>
 					<div class="mb-4 flex items-center gap-3">
 						<BookOpen class="h-6 w-6 text-primary" />
 						<div>

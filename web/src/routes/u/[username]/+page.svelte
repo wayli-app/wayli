@@ -242,13 +242,15 @@
 {:else if profile}
 	<!-- Floating top bar -->
 	<div class="fixed top-0 right-0 z-50 flex items-center gap-2 p-4">
-		<a
-			href="/"
-			class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
-		>
-			<ArrowLeft class="h-3.5 w-3.5" />
-			Explore
-		</a>
+		{#if currentUserId}
+			<a
+				href="/dashboard/feed"
+				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			>
+				<ArrowLeft class="h-3.5 w-3.5" />
+				Explore
+			</a>
+		{/if}
 		<button
 			type="button"
 			onclick={() => setTheme(appState.theme === 'dark' ? 'light' : 'dark')}

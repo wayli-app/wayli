@@ -374,6 +374,7 @@
 			activeTripId = tripId;
 		}
 		expandedTrips = next;
+		setTimeout(() => setupObserver(), 50);
 	}
 
 	function expandAllTrips() {
@@ -1832,41 +1833,69 @@
 										</p>
 									{/if}
 
-									<!-- Permission toggles -->
-									<div class="grid grid-cols-3 gap-2">
-										<label class="flex flex-col gap-1">
-											<span class="text-muted-foreground text-[10px]">Costs</span>
-											<select
-												bind:value={tripCostsVisible}
-												class="border-border rounded border bg-transparent px-1.5 py-1 text-xs"
+									<!-- Permission pill buttons -->
+									<div class="space-y-2">
+										<div>
+											<span class="text-muted-foreground mb-1 block text-[10px] font-medium"
+												>Costs</span
 											>
-												<option value="private">Private</option>
-												<option value="friends">Friends</option>
-												<option value="public">Public</option>
-											</select>
-										</label>
-										<label class="flex flex-col gap-1">
-											<span class="text-muted-foreground text-[10px]">GPS</span>
-											<select
-												bind:value={tripGpsVisible}
-												class="border-border rounded border bg-transparent px-1.5 py-1 text-xs"
+											<div class="flex gap-1.5">
+												{#each [['private', '🔒'], ['friends', '👥'], ['public', '🌍']] as [val, icon]}
+													<button
+														type="button"
+														onclick={() => (tripCostsVisible = val as typeof tripCostsVisible)}
+														class="rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors {tripCostsVisible ===
+														val
+															? 'border-primary bg-primary/10 text-primary'
+															: 'border-border text-muted-foreground hover:text-foreground'}"
+													>
+														{icon}
+														{val}
+													</button>
+												{/each}
+											</div>
+										</div>
+										<div>
+											<span class="text-muted-foreground mb-1 block text-[10px] font-medium"
+												>GPS</span
 											>
-												<option value="private">Private</option>
-												<option value="friends">Friends</option>
-												<option value="public">Public</option>
-											</select>
-										</label>
-										<label class="flex flex-col gap-1">
-											<span class="text-muted-foreground text-[10px]">Comments</span>
-											<select
-												bind:value={tripCommentsAllowed}
-												class="border-border rounded border bg-transparent px-1.5 py-1 text-xs"
+											<div class="flex gap-1.5">
+												{#each [['private', '🔒'], ['friends', '👥'], ['public', '🌍']] as [val, icon]}
+													<button
+														type="button"
+														onclick={() => (tripGpsVisible = val as typeof tripGpsVisible)}
+														class="rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors {tripGpsVisible ===
+														val
+															? 'border-primary bg-primary/10 text-primary'
+															: 'border-border text-muted-foreground hover:text-foreground'}"
+													>
+														{icon}
+														{val}
+													</button>
+												{/each}
+											</div>
+										</div>
+										<div>
+											<span class="text-muted-foreground mb-1 block text-[10px] font-medium"
+												>Comments</span
 											>
-												<option value="owner">Owner only</option>
-												<option value="friends">Friends</option>
-												<option value="public">Public</option>
-											</select>
-										</label>
+											<div class="flex gap-1.5">
+												{#each [['owner', '🔒'], ['friends', '👥'], ['public', '🌍']] as [val, icon]}
+													<button
+														type="button"
+														onclick={() =>
+															(tripCommentsAllowed = val as typeof tripCommentsAllowed)}
+														class="rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors {tripCommentsAllowed ===
+														val
+															? 'border-primary bg-primary/10 text-primary'
+															: 'border-border text-muted-foreground hover:text-foreground'}"
+													>
+														{icon}
+														{val === 'owner' ? 'Owner' : val}
+													</button>
+												{/each}
+											</div>
+										</div>
 									</div>
 								</div>
 							{/if}

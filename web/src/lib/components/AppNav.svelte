@@ -324,7 +324,7 @@
 
 			<!-- Sign Out Button -->
 			<a
-				href="/"
+				href="/dashboard/feed"
 				class="text-muted-foreground hover:bg-muted hover:text-foreground flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
 			>
 				<Globe class="mr-3 h-5 w-5" />
