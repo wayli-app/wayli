@@ -72,6 +72,31 @@ export const POST: RequestHandler = async ({ request }) => {
 		const headEnd = html.indexOf('</head>');
 		const head = headEnd > 0 ? html.substring(0, headEnd) : html.substring(0, 10000);
 
+		// Detect bot challenge pages
+		const isChallengePage =
+			html.includes('challenge-container') ||
+			html.includes('challenge.js') ||
+			html.includes('cf-challenge') ||
+			(html.includes('<title>') &&
+				html.includes('<title></title>') &&
+				!extractMeta(head, 'og:title'));
+
+		if (isChallengePage) {
+			const hostname = new URL(url).hostname.replace('www.', '');
+			return new Response(
+				JSON.stringify({
+					title: hostname,
+					description: 'This site blocks link previews. The URL will be stored as-is.',
+					image: null,
+					site_name: hostname,
+					url,
+					rating: null,
+					blocked: true
+				}),
+				{ headers: { 'Content-Type': 'application/json' } }
+			);
+		}
+
 		const title =
 			extractMeta(head, 'og:title') ||
 			extractMeta(head, 'twitter:title') ||
