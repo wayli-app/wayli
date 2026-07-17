@@ -28,10 +28,12 @@
 		MapPin,
 		Search,
 	Star,
-	ExternalLink
+	ExternalLink,
+	Sparkles
 } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import TripMap from '$lib/components/TripMap.svelte';
+	import TripPlannerChat from '$lib/components/TripPlannerChat.svelte';
 	import { fetchLinkPreview, type LinkPreview } from '$lib/services/link-preview.service';
 	import { translate } from '$lib/i18n';
 
@@ -57,6 +59,7 @@
 	let isLoading = $state(true);
 	let selectedDay = $state<number | null>(null);
 	let showCollaboratorModal = $state(false);
+	let viewMode = $state<'plan' | 'chat'>('plan');
 	let collaboratorUsername = $state('');
 	let isAddingCollaborator = $state(false);
 	let linkPreviews = $state<Map<string, LinkPreview | null>>(new Map());
@@ -583,7 +586,43 @@
 		</div>
 	</div>
 
-	<!-- Budget panel -->
+	<!-- Plan/Chat toggle -->
+	<div class="mb-4 flex gap-2">
+		<button
+			type="button"
+			onclick={() => (viewMode = 'plan')}
+			class="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors {viewMode === 'plan'
+				? 'border-primary bg-primary/10 text-primary'
+				: 'border-border text-muted-foreground hover:text-foreground'}"
+		>
+			<MapPin class="h-4 w-4" /> Plan
+		</button>
+		<button
+			type="button"
+			onclick={() => (viewMode = 'chat')}
+			class="inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors {viewMode === 'chat'
+				? 'border-primary bg-primary/10 text-primary'
+				: 'border-border text-muted-foreground hover:text-foreground'}"
+		>
+			<Sparkles class="h-4 w-4" /> AI Assistant
+		</button>
+	</div>
+
+	{#if viewMode === 'chat'}
+		<!-- AI Chat -->
+		<div class="bg-card border-border h-[600px] overflow-hidden rounded-2xl border">
+			<TripPlannerChat
+				{tripId}
+				tripTitle={trip.title}
+				startDate={trip.start_date}
+				endDate={trip.end_date}
+				primaryCity={trip.metadata?.primaryCity ?? ''}
+				numDays={numDays}
+				onAcceptItem={(item) => addItem(item.day)}
+			/>
+		</div>
+	{:else}
+		<!-- Budget panel -->
 	{#if budgetByCurrency.length > 0}
 		<div class="bg-card border-border mb-4 rounded-2xl border p-4">
 			<div class="grid gap-4 sm:grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto]">
@@ -1155,6 +1194,7 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 
 	<!-- Collaborator modal -->
 	{#if showCollaboratorModal}
