@@ -22,6 +22,7 @@ export type PlanItem = {
 	created_by: string | null;
 	created_at: string;
 	updated_at: string;
+	metadata?: Record<string, any> | null;
 };
 
 export type Collaborator = {

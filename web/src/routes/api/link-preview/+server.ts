@@ -1,30 +1,12 @@
 import type { RequestHandler } from './$types';
+import metascraper from 'metascraper';
+import msTitle from 'metascraper-title';
+import msDescription from 'metascraper-description';
+import msImage from 'metascraper-image';
+import msLogo from 'metascraper-logo';
+import msPublisher from 'metascraper-publisher';
 
-function extractMeta(html: string, property: string): string | null {
-	let match = html.match(
-		new RegExp(`<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']`, 'i')
-	);
-	if (match) return match[1].trim();
-	match = html.match(
-		new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`, 'i')
-	);
-	if (match) return match[1].trim();
-	return null;
-}
-
-function extractRating(html: string): string | null {
-	const jsonLdMatch = html.match(
-		/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i
-	);
-	if (jsonLdMatch) {
-		try {
-			const data = JSON.parse(jsonLdMatch[1].trim());
-			const rating = data.aggregateRating?.ratingValue || data.rating?.ratingValue;
-			if (rating) return String(rating);
-		} catch {}
-	}
-	return extractMeta(html, 'rating:value') || extractMeta(html, 'rating');
-}
+const ms = metascraper([msTitle(), msDescription(), msImage(), msLogo(), msPublisher()]);
 
 async function tryMicrolink(url: string): Promise<Response | null> {
 	try {
@@ -43,7 +25,8 @@ async function tryMicrolink(url: string): Promise<Response | null> {
 				image: d.image?.url || d.logo?.url || null,
 				site_name: d.publisher || new URL(url).hostname.replace('www.', ''),
 				url,
-				rating: null
+				rating: null,
+				method: 'microlink'
 			}),
 			{ headers: { 'Content-Type': 'application/json' } }
 		);
@@ -88,7 +71,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		clearTimeout(timeout);
 
 		if (!resp.ok) {
-			// Try microlink fallback
 			const microResult = await tryMicrolink(url);
 			if (microResult) return microResult;
 
@@ -99,28 +81,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const html = await resp.text();
-		const headEnd = html.indexOf('</head>');
-		const head = headEnd > 0 ? html.substring(0, headEnd) : html.substring(0, 10000);
 
-		// Detect bot challenge pages (booking.com, Cloudflare-protected sites)
+		// Detect bot challenge pages
 		const isChallengePage =
 			html.includes('challenge-container') ||
 			html.includes('challenge.js') ||
 			html.includes('cf-challenge') ||
-			(html.includes('<title></title>') && !extractMeta(head, 'og:title'));
+			(html.includes('<title></title>') && html.length < 5000);
 
 		if (isChallengePage) {
-			// Try microlink (runs headless browser, can bypass challenges)
 			const microResult = await tryMicrolink(url);
-			if (microResult) {
-				// Add method tag to the microlink response
-				const microJson = await microResult.json();
-				return new Response(JSON.stringify({ ...microJson, method: 'microlink' }), {
-					headers: { 'Content-Type': 'application/json' }
-				});
-			}
+			if (microResult) return microResult;
 
-			// Final fallback: hostname only
 			const hostname = new URL(url).hostname.replace('www.', '');
 			return new Response(
 				JSON.stringify({
@@ -136,33 +108,27 @@ export const POST: RequestHandler = async ({ request }) => {
 			);
 		}
 
-		const title =
-			extractMeta(head, 'og:title') ||
-			extractMeta(head, 'twitter:title') ||
-			(head.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() ?? null);
+		// Use metascraper for extraction (95.5% accuracy)
+		const metadata = await ms({ url, html });
 
 		const preview = {
-			title,
-			description:
-				extractMeta(head, 'og:description') ||
-				extractMeta(head, 'twitter:description') ||
-				extractMeta(head, 'description'),
-			image: extractMeta(head, 'og:image') || extractMeta(head, 'twitter:image'),
-			site_name: extractMeta(head, 'og:site_name'),
+			title: metadata.title || null,
+			description: metadata.description || null,
+			image: metadata.image || null,
+			site_name: metadata.publisher || null,
 			url,
-			rating: extractRating(html),
-			method: 'direct'
+			rating: null,
+			method: 'metascraper'
 		};
 
 		return new Response(JSON.stringify(preview), {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch {
-		// Last resort: try microlink
 		const microResult = await tryMicrolink(url);
 		if (microResult) return microResult;
 
-		return new Response(JSON.stringify({ error: 'Failed to fetch' }), {
+		return new Response(JSON.stringify({ error: 'Failed to fetch', method: 'error' }), {
 			status: 502,
 			headers: { 'Content-Type': 'application/json' }
 		});
