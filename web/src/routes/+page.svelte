@@ -374,7 +374,6 @@
 			<!-- Empty state -->
 			{#if latestEntries.length === 0 && travelers.length === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
-					<img src="/logo.svg" alt="Wayli" class="mb-6 h-16 w-auto opacity-30" />
 					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
 					{#if $userStore?.email}
 						<a href="/dashboard/travel" class="text-primary mt-4 text-sm hover:underline">
