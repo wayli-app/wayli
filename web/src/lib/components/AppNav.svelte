@@ -66,8 +66,8 @@
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
 		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
-		{ href: '/dashboard/feed', label: 'Feed', icon: Newspaper },
-		{ href: '/dashboard/friends', label: 'Friends', icon: Users },
+		{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
+		{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
 		// Only show Ask AI if AI features are enabled
 		...(aiEnabled
 			? [{ href: '/dashboard/ask', label: t('common.navigation.ask') || 'Ask AI', icon: Sparkles }]

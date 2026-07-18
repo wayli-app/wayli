@@ -985,7 +985,16 @@
     "aiSettingsDescription": "Configure your personal AI provider to use your own API key",
     "usePersonalProvider": "Use Personal AI Provider",
     "usePersonalProviderDescription": "Use your own API key instead of the server's default configuration",
-    "failedToSaveSettings": "Failed to save settings"
+    "failedToSaveSettings": "Failed to save settings",
+    "samplingTitle": "Automatic data sampling",
+    "samplingDescription": "A nightly job removes location points that are too close together (in distance or time) to the previously kept point. Opt-in only — your data is never touched unless you enable this.",
+    "samplingEnable": "Enable nightly sampling",
+    "samplingMinDistance": "Minimum distance between points (meters)",
+    "samplingMinTime": "Minimum time between points (seconds)",
+    "samplingHybridHint": "Hybrid mode: a point is kept only if it satisfies BOTH thresholds. The first point in any sequence is always kept.",
+    "samplingLastRun": "Last run: {date} · deleted {deleted} points",
+    "samplingSaved": "Sampling config saved",
+    "samplingSaveFailed": "Failed to save sampling config"
   },
   "serverAdmin": {
     "title": "Server admin settings",
@@ -1551,7 +1560,10 @@
       "shopping": "Shopping"
     },
     "planFriends": "Plan is now friends-only",
-    "planVisibilityTitle": "Who can see the plan"
+    "planVisibilityTitle": "Who can see the plan",
+    "endTime": "End time",
+    "fromAddress": "From",
+    "toAddress": "To"
   },
   "profile": {
     "travelerNotFound": "Traveler not found.",

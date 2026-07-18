@@ -22,7 +22,7 @@ declare const Deno: {
 	stat(path: string): Promise<{ size: number }>;
 };
 
-import JSZip from 'npm:jszip';
+import JSZip from 'jszip';
 import {
 	isGeoJSONGeocode,
 	getDisplayNameFromGeoJSON,

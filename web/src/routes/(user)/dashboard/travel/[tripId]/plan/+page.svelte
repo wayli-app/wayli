@@ -465,7 +465,8 @@
 				currency: item.currency,
 				booking_url: item.booking_url,
 				booking_status: item.booking_status,
-				notes: item.notes
+				notes: item.notes,
+				metadata: item.metadata ?? null
 			});
 		} catch (err) {
 			console.error('Save failed:', err);
@@ -1088,10 +1089,16 @@
 									>
 										{#if item.start_time}
 											<span class="flex items-center gap-1">
-												<Clock class="h-3 w-3" />{formatTime(item.start_time)}
+												<Clock class="h-3 w-3" />{formatTime(item.start_time)}{#if item.end_time}
+													– {formatTime(item.end_time)}{/if}
 											</span>
 										{/if}
-										{#if item.address}
+										{#if item.type === 'transport' && item.metadata?.end_address}
+											<span class="flex items-center gap-1 truncate">
+												<MapPin class="h-3 w-3" />{item.address || '?'} → {item.metadata
+													.end_address}
+											</span>
+										{:else if item.address}
 											<span class="flex items-center gap-1 truncate">
 												<MapPin class="h-3 w-3" />{item.address}
 											</span>
@@ -1157,6 +1164,15 @@
 												<input
 													type="time"
 													bind:value={item.start_time}
+													onchange={() => saveItem(item)}
+													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+												/>
+											</label>
+											<label class="flex flex-col gap-0.5">
+												<span class="text-muted-foreground text-[10px]">{t('plan.endTime')}</span>
+												<input
+													type="time"
+													bind:value={item.end_time}
 													onchange={() => saveItem(item)}
 													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
 												/>
@@ -1236,7 +1252,11 @@
 												{/if}
 											</label>
 											<label class="col-span-2 flex flex-col gap-0.5">
-												<span class="text-muted-foreground text-[10px]">{t('plan.address')}</span>
+												<span class="text-muted-foreground text-[10px]"
+													>{item.type === 'transport'
+														? t('plan.fromAddress')
+														: t('plan.address')}</span
+												>
 												<input
 													type="text"
 													bind:value={item.address}
@@ -1244,6 +1264,25 @@
 													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
 												/>
 											</label>
+											{#if item.type === 'transport'}
+												<label class="col-span-2 flex flex-col gap-0.5">
+													<span class="text-muted-foreground text-[10px]"
+														>{t('plan.toAddress')}</span
+													>
+													<input
+														type="text"
+														value={item.metadata?.end_address ?? ''}
+														onchange={(e) => {
+															item.metadata = {
+																...(item.metadata ?? {}),
+																end_address: (e.target as HTMLInputElement).value || null
+															};
+															saveItem(item);
+														}}
+														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													/>
+												</label>
+											{/if}
 											<label class="col-span-2 flex flex-col gap-0.5">
 												<span class="text-muted-foreground text-[10px]">{t('plan.notes')}</span>
 												<textarea

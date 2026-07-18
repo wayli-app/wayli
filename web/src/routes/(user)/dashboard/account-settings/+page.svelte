@@ -10,6 +10,7 @@
 		Plus,
 		Pencil,
 		Image,
+		Database,
 		Loader2,
 		Check,
 		X
@@ -192,6 +193,14 @@
 	let serverPexelsApiKeyAvailable = $state(false);
 	let pexelsRateLimitEnabled = $state(false);
 	let pexelsRateLimit = $state(200);
+
+	// Data sampling config (opt-in nightly job)
+	let samplingEnabled = $state(false);
+	let samplingMinDistance = $state(25);
+	let samplingMinTime = $state(60);
+	let samplingLastRun = $state<string | null>(null);
+	let samplingLastDeleted = $state<number | null>(null);
+	let samplingSaving = $state(false);
 	let error = $state<string | null>(null);
 	let homeAddressInput = $state('');
 	let homeAddressInputElement: HTMLInputElement | undefined = $state(undefined);
@@ -404,6 +413,24 @@
 				console.error('Failed to load user rate limit:', err);
 				pexelsRateLimitEnabled = false;
 				pexelsRateLimit = 200;
+			}
+
+			// Load data sampling config (opt-in)
+			try {
+				const { data, error: samplingError } = await fluxbase
+					.from('user_data_sampling')
+					.select('enabled, min_distance_m, min_time_s, last_run_at, last_deleted')
+					.maybeSingle();
+				const row = data as any;
+				if (!samplingError && row) {
+					samplingEnabled = row.enabled ?? false;
+					samplingMinDistance = row.min_distance_m ?? 25;
+					samplingMinTime = row.min_time_s ?? 60;
+					samplingLastRun = row.last_run_at ?? null;
+					samplingLastDeleted = row.last_deleted ?? null;
+				}
+			} catch (err) {
+				console.error('Failed to load sampling config:', err);
 			}
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error loading user data:', error);
@@ -820,6 +847,31 @@
 			toast.error('Failed to update preferences. Please try again.');
 		} finally {
 			isUpdatingPreferences = false;
+		}
+	}
+
+	async function saveSamplingConfig() {
+		samplingSaving = true;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) throw new Error('Not authenticated');
+
+			// ponytail: upsert by user_id (PK) — one row per user
+			const { error: upsertError } = await fluxbase.from('user_data_sampling').upsert({
+				user_id: userId,
+				enabled: samplingEnabled,
+				min_distance_m: Math.max(0, Math.min(5000, Number(samplingMinDistance) || 25)),
+				min_time_s: Math.max(0, Math.min(3600, Number(samplingMinTime) || 60)),
+				updated_at: new Date().toISOString()
+			});
+			if (upsertError) throw upsertError;
+			toast.success(t('accountSettings.samplingSaved'));
+		} catch (err: any) {
+			console.error('Failed to save sampling config:', err);
+			toast.error(t('accountSettings.samplingSaveFailed') + ': ' + (err?.message ?? err));
+		} finally {
+			samplingSaving = false;
 		}
 	}
 
@@ -1991,6 +2043,73 @@
 						>.
 					</p>
 				</div>
+			</div>
+
+			<!-- Data Sampling Section -->
+			<div class="mb-8">
+				<div class="mb-4 flex items-center gap-2">
+					<Database class="h-5 w-5 text-muted-foreground" />
+					<h3 class="text-lg font-semibold text-foreground">
+						{t('accountSettings.samplingTitle')}
+					</h3>
+				</div>
+				<p class="mb-4 text-sm text-muted-foreground">
+					{t('accountSettings.samplingDescription')}
+				</p>
+
+				<label class="mb-4 flex items-center gap-2 text-sm">
+					<input type="checkbox" bind:checked={samplingEnabled} class="h-4 w-4" />
+					<span class="font-medium text-foreground">{t('accountSettings.samplingEnable')}</span>
+				</label>
+
+				{#if samplingEnabled}
+					<div class="mb-4 grid gap-4 sm:grid-cols-2">
+						<label class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-muted-foreground">
+								{t('accountSettings.samplingMinDistance')}
+							</span>
+							<input
+								type="number"
+								min="0"
+								max="5000"
+								bind:value={samplingMinDistance}
+								class="rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm dark:border-border"
+							/>
+						</label>
+						<label class="flex flex-col gap-1">
+							<span class="text-xs font-medium text-muted-foreground">
+								{t('accountSettings.samplingMinTime')}
+							</span>
+							<input
+								type="number"
+								min="0"
+								max="3600"
+								bind:value={samplingMinTime}
+								class="rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm dark:border-border"
+							/>
+						</label>
+					</div>
+					<p class="mb-4 text-xs text-muted-foreground">
+						{t('accountSettings.samplingHybridHint')}
+					</p>
+
+					{#if samplingLastRun}
+						<p class="mb-4 text-xs text-muted-foreground">
+							{t('accountSettings.samplingLastRun', {
+								date: new Date(samplingLastRun).toLocaleString(),
+								deleted: samplingLastDeleted ?? 0
+							})}
+						</p>
+					{/if}
+				{/if}
+
+				<button
+					onclick={saveSamplingConfig}
+					disabled={samplingSaving}
+					class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+				>
+					{t('common.actions.save')}
+				</button>
 			</div>
 
 			<!-- Excluded Zones Section -->
