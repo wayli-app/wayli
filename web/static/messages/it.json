@@ -89,7 +89,10 @@
 			"darkMode": "Modalità oscura",
 			"dataEditor": "Redattore dei dati",
 			"journal": "Diario",
-			"travel": "Viaggio"
+			"travel": "Viaggio",
+			"explore": "Esplorare",
+			"feed": "Foraggio",
+			"friends": "Amici"
 		},
 		"validation": {
 			"fillAllFields": "Si prega di compilare tutti i campi",
@@ -982,7 +985,16 @@
 		"aiSettingsDescription": "Configura il tuo provider AI personale per utilizzare la tua chiave API",
 		"usePersonalProvider": "Utilizza il provider di intelligenza artificiale personale",
 		"usePersonalProviderDescription": "Utilizza la tua chiave API invece della configurazione predefinita del server",
-		"failedToSaveSettings": "Impossibile salvare le impostazioni"
+		"failedToSaveSettings": "Impossibile salvare le impostazioni",
+		"samplingDescription": "Un lavoro notturno rimuove i punti di posizione che sono troppo vicini tra loro (in termini di distanza o tempo) al punto precedentemente mantenuto. Solo attivazione: i tuoi dati non verranno mai toccati a meno che tu non abiliti questa opzione.",
+		"samplingEnable": "Abilita il campionamento notturno",
+		"samplingHybridHint": "Modalità ibrida: un punto viene mantenuto solo se soddisfa ENTRAMBI le soglie. Il primo punto di qualsiasi sequenza viene sempre mantenuto.",
+		"samplingLastRun": "Ultima corsa: {data} · punti {eliminati} cancellati",
+		"samplingMinDistance": "Distanza minima tra i punti (metri)",
+		"samplingMinTime": "Tempo minimo tra i punti (secondi)",
+		"samplingSaveFailed": "Impossibile salvare la configurazione di campionamento",
+		"samplingSaved": "Configurazione di campionamento salvata",
+		"samplingTitle": "Campionamento automatico dei dati"
 	},
 	"serverAdmin": {
 		"title": "Impostazioni di amministrazione del server",
@@ -1483,7 +1495,12 @@
 			"transport": "Trasporto"
 		},
 		"updateFailed": "Impossibile aggiornare",
-		"userNotFound": "Utente non trovato"
+		"userNotFound": "Utente non trovato",
+		"endTime": "Ora di fine",
+		"fromAddress": "Da",
+		"planFriends": "Il piano ora è riservato solo agli amici",
+		"planVisibilityTitle": "Chi può vedere il piano",
+		"toAddress": "A"
 	},
 	"profile": {
 		"home": "← Casa",
@@ -1579,5 +1596,43 @@
 		"subtitle": "Scopri le storie di viaggio della nostra community",
 		"travelers": "Viaggiatori",
 		"whereWeveBeen": "Dove siamo stati"
+	},
+	"feed": {
+		"noStories": "Nessuna storia ancora.",
+		"noStoriesHint": "Aggiungi amici o controlla più tardi per nuovi inserimenti.",
+		"readMore": "Per saperne di più",
+		"subtitle": "Ultime storie da amici e comunità",
+		"title": "Foraggio"
+	},
+	"friends": {
+		"accept": "Accettare",
+		"acceptFailed": "Impossibile accettare la richiesta",
+		"add": "Aggiungere",
+		"addFriendsLink": "Aggiungi amici",
+		"friendAdded": "Amico ha aggiunto",
+		"noFriends": "Nessun amico ancora. Cerca gli utenti qui sopra per inviare una richiesta di amicizia.",
+		"noFriendsShare": "Nessun amico ancora. {link} per condividere viaggi.",
+		"pendingRequests": "Richieste in sospeso ({count})",
+		"reject": "Rifiutare",
+		"rejectFailed": "Impossibile rifiutare la richiesta",
+		"requestFailed": "Impossibile inviare la richiesta",
+		"requestSent": "Richiesta di amicizia inviata a @{nomeutente}",
+		"searchPlaceholder": "Cerca per nome utente...",
+		"subtitle": "Gestisci le tue connessioni e condividi viaggi",
+		"title": "Amici",
+		"yourFriends": "I tuoi amici ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "Aggiungi al giorno {giorno}",
+		"addTrip": "Aggiungi al viaggio",
+		"connectionError": "Impossibile connettersi al servizio AI. Assicurati che l'intelligenza artificiale sia configurata nelle impostazioni del tuo server.",
+		"copied": "Copiato",
+		"copy": "Copia",
+		"error": "Siamo spiacenti, qualcosa è andato storto. Per favore riprova.",
+		"greetingEmpty": "CIAO! Sono il tuo assistente alla pianificazione del viaggio per il tuo viaggio di {numDays} giorni a {destination}. Chiedimi di suggerire un itinerario, trovare attività o bilanciare le tue giornate!",
+		"greetingExisting": "CIAO! Sono il tuo assistente alla pianificazione del viaggio. Vedo che hai già pianificato {count} articolo/i. Chiedimi di suggerire più attività, ottimizzare il tuo programma o riempire i giorni vuoti!",
+		"loadingPreview": "Caricamento anteprima...",
+		"placeholder": "Chiedi suggerimenti per l'itinerario...",
+		"title": "Assistente AI"
 	}
 }

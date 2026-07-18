@@ -89,7 +89,10 @@
 			"askAI": "Pregúntale a la IA",
 			"dataEditor": "Editor de datos",
 			"journal": "Diario",
-			"travel": "Viajar"
+			"travel": "Viajar",
+			"explore": "Explorar",
+			"feed": "Alimentar",
+			"friends": "Amigos"
 		},
 		"validation": {
 			"fillAllFields": "Por favor completa todos los campos",
@@ -982,7 +985,16 @@
 		"aiSettings": "Configuración de IA",
 		"aiSettingsDescription": "Configure su proveedor de IA personal para usar su propia clave API",
 		"usePersonalProvider": "Utilice un proveedor personal de IA",
-		"usePersonalProviderDescription": "Utilice su propia clave API en lugar de la configuración predeterminada del servidor"
+		"usePersonalProviderDescription": "Utilice su propia clave API en lugar de la configuración predeterminada del servidor",
+		"samplingDescription": "Un trabajo nocturno elimina puntos de ubicación que están demasiado cerca (en distancia o tiempo) del punto guardado anteriormente. Solo regístrese: sus datos nunca se modifican a menos que lo habilite.",
+		"samplingEnable": "Habilitar muestreo nocturno",
+		"samplingHybridHint": "Modo híbrido: un punto se mantiene solo si satisface AMBOS umbrales. Siempre se mantiene el primer punto de cualquier secuencia.",
+		"samplingLastRun": "Última ejecución: {fecha} · puntos eliminados {eliminados}",
+		"samplingMinDistance": "Distancia mínima entre puntos (metros)",
+		"samplingMinTime": "Tiempo mínimo entre puntos (segundos)",
+		"samplingSaveFailed": "No se pudo guardar la configuración de muestreo",
+		"samplingSaved": "Configuración de muestreo guardada",
+		"samplingTitle": "Muestreo automático de datos"
 	},
 	"serverAdmin": {
 		"title": "Configuración del administrador del servidor",
@@ -1483,7 +1495,12 @@
 			"transport": "Transporte"
 		},
 		"updateFailed": "No se pudo actualizar",
-		"userNotFound": "Usuario no encontrado"
+		"userNotFound": "Usuario no encontrado",
+		"endTime": "Hora de finalización",
+		"fromAddress": "De",
+		"planFriends": "El plan ahora es solo para amigos",
+		"planVisibilityTitle": "¿Quién puede ver el plan?",
+		"toAddress": "A"
 	},
 	"profile": {
 		"home": "← Inicio",
@@ -1579,5 +1596,43 @@
 		"subtitle": "Descubra historias de viajes de nuestra comunidad",
 		"travelers": "Viajeros",
 		"whereWeveBeen": "donde hemos estado"
+	},
+	"feed": {
+		"noStories": "Aún no hay historias.",
+		"noStoriesHint": "Agregue amigos o vuelva a consultar más tarde para ver nuevas entradas.",
+		"readMore": "Leer más",
+		"subtitle": "Últimas historias de amigos y comunidad.",
+		"title": "Alimentar"
+	},
+	"friends": {
+		"accept": "Aceptar",
+		"acceptFailed": "No se pudo aceptar la solicitud",
+		"add": "Agregar",
+		"addFriendsLink": "Agregar amigos",
+		"friendAdded": "Amigo añadido",
+		"noFriends": "Aún no hay amigos. Busque usuarios arriba para enviar una solicitud de amistad.",
+		"noFriendsShare": "Aún no hay amigos. {link} para compartir viajes.",
+		"pendingRequests": "Solicitudes pendientes ({count})",
+		"reject": "Rechazar",
+		"rejectFailed": "No se pudo rechazar la solicitud",
+		"requestFailed": "No se pudo enviar la solicitud",
+		"requestSent": "Solicitud de amistad enviada a @{username}",
+		"searchPlaceholder": "Buscar por nombre de usuario...",
+		"subtitle": "Gestiona tus conexiones y comparte viajes",
+		"title": "Amigos",
+		"yourFriends": "Tus amigos ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "Agregar al día {día}",
+		"addTrip": "Añadir al viaje",
+		"connectionError": "No se pudo conectar al servicio de IA. Asegúrese de que AI esté configurado en la configuración de su servidor.",
+		"copied": "Copiado",
+		"copy": "Copiar",
+		"error": "Lo siento, algo salió mal. Por favor inténtalo de nuevo.",
+		"greetingEmpty": "¡Hola! Soy tu asistente de planificación de viaje para tu viaje de {numDays} días a {destination}. ¡Pídeme que te sugiera un itinerario, busque actividades o equilibre tus días!",
+		"greetingExisting": "¡Hola! Soy tu asistente de planificación de viajes. Veo que ya tienes {count} artículos planificados. ¡Pídeme que te sugiera más actividades, optimice tu agenda o complete los días vacíos!",
+		"loadingPreview": "Cargando vista previa...",
+		"placeholder": "Pregunte por sugerencias de itinerario...",
+		"title": "Asistente de IA"
 	}
 }

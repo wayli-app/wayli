@@ -89,7 +89,10 @@
 			"darkMode": "ダークモード",
 			"dataEditor": "データ編集者",
 			"journal": "ジャーナル",
-			"travel": "旅行"
+			"travel": "旅行",
+			"explore": "探検する",
+			"feed": "餌",
+			"friends": "友達"
 		},
 		"validation": {
 			"fillAllFields": "すべてのフィールドに入力してください",
@@ -986,7 +989,16 @@
 		"aiSettingsDescription": "独自の API キーを使用するようにパーソナル AI プロバイダーを構成する",
 		"usePersonalProvider": "パーソナル AI プロバイダーを使用する",
 		"usePersonalProviderDescription": "サーバーのデフォルト設定の代わりに独自の API キーを使用します",
-		"failedToSaveSettings": "設定の保存に失敗しました"
+		"failedToSaveSettings": "設定の保存に失敗しました",
+		"samplingDescription": "夜間ジョブは、以前に保持したポイントに (距離または時間的に) 近すぎる位置ポイントを削除します。オプトインのみ — これを有効にしない限り、データが操作されることはありません。",
+		"samplingEnable": "夜間のサンプリングを有効にする",
+		"samplingHybridHint": "ハイブリッド モード: ポイントは両方のしきい値を満たす場合にのみ保持されます。どのシーケンスでも最初の点は常に保持されます。",
+		"samplingLastRun": "最終実行: {date} · 削除された {deleted} ポイント",
+		"samplingMinDistance": "点間の最小距離 (メートル)",
+		"samplingMinTime": "ポイント間の最小時間 (秒)",
+		"samplingSaveFailed": "サンプリング構成の保存に失敗しました",
+		"samplingSaved": "サンプリング構成が保存されました",
+		"samplingTitle": "自動データサンプリング"
 	},
 	"serverAdmin": {
 		"title": "サーバー管理設定",
@@ -1487,7 +1499,12 @@
 			"transport": "輸送"
 		},
 		"updateFailed": "更新に失敗しました",
-		"userNotFound": "ユーザーが見つかりません"
+		"userNotFound": "ユーザーが見つかりません",
+		"endTime": "終了時刻",
+		"fromAddress": "から",
+		"planFriends": "プランはお友達限定になりました",
+		"planVisibilityTitle": "誰が計画を見ることができますか",
+		"toAddress": "に"
 	},
 	"profile": {
 		"home": "← ホーム",
@@ -1583,5 +1600,43 @@
 		"subtitle": "コミュニティから旅行のストーリーを見つけてください",
 		"travelers": "旅行者",
 		"whereWeveBeen": "私たちが行った場所"
+	},
+	"feed": {
+		"noStories": "まだストーリーはありません。",
+		"noStoriesHint": "友達を追加するか、後でもう一度チェックして新しいエントリを確認してください。",
+		"readMore": "続きを読む",
+		"subtitle": "友人やコミュニティからの最新ストーリー",
+		"title": "餌"
+	},
+	"friends": {
+		"accept": "受け入れる",
+		"acceptFailed": "リクエストの受け入れに失敗しました",
+		"add": "追加",
+		"addFriendsLink": "友達を追加",
+		"friendAdded": "友達が追加されました",
+		"noFriends": "まだ友達がいません。友達リクエストを送信するには、上記のユーザーを検索してください。",
+		"noFriendsShare": "まだ友達がいません。 {link} で旅行を共有します。",
+		"pendingRequests": "保留中のリクエスト ({count})",
+		"reject": "拒否する",
+		"rejectFailed": "リクエストの拒否に失敗しました",
+		"requestFailed": "リクエストの送信に失敗しました",
+		"requestSent": "友達リクエストが @{username} に送信されました",
+		"searchPlaceholder": "ユーザー名で検索...",
+		"subtitle": "接続を管理し、旅行を共有する",
+		"title": "友達",
+		"yourFriends": "あなたの友達 ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "日に追加 {day}",
+		"addTrip": "旅行に追加",
+		"connectionError": "AIサービスに接続できませんでした。サーバー設定で AI が構成されていることを確認してください。",
+		"copied": "コピーされました",
+		"copy": "コピー",
+		"error": "申し訳ありませんが、問題が発生しました。もう一度試してください。",
+		"greetingEmpty": "こんにちは！私は、あなたの {destination} への {numDays} 日間の旅行の旅行計画アシスタントです。旅程の提案、アクティビティの検索、一日のバランスの調整など、私に相談してください。",
+		"greetingExisting": "こんにちは！私はあなたの旅行計画アシスタントです。すでに {count} 個のアイテムを計画していることがわかります。さらにアクティビティを提案したり、スケジュールを最適化したり、空いている日を埋めたりしてください。",
+		"loadingPreview": "プレビューを読み込んでいます...",
+		"placeholder": "旅程の提案を求める...",
+		"title": "AIアシスタント"
 	}
 }

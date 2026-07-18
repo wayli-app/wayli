@@ -89,7 +89,10 @@
 			"darkMode": "Dunkler Modus",
 			"dataEditor": "Dateneditor",
 			"journal": "Zeitschrift",
-			"travel": "Reisen"
+			"travel": "Reisen",
+			"explore": "Erkunden",
+			"feed": "Füttern",
+			"friends": "Freunde"
 		},
 		"validation": {
 			"fillAllFields": "Bitte füllen Sie alle Felder aus",
@@ -982,7 +985,16 @@
 		"aiSettingsDescription": "Konfigurieren Sie Ihren persönlichen KI-Anbieter so, dass er Ihren eigenen API-Schlüssel verwendet",
 		"usePersonalProvider": "Verwenden Sie einen persönlichen KI-Anbieter",
 		"usePersonalProviderDescription": "Verwenden Sie Ihren eigenen API-Schlüssel anstelle der Standardkonfiguration des Servers",
-		"failedToSaveSettings": "Einstellungen konnten nicht gespeichert werden"
+		"failedToSaveSettings": "Einstellungen konnten nicht gespeichert werden",
+		"samplingDescription": "Bei einem nächtlichen Job werden Standortpunkte entfernt, die zu nahe beieinander liegen (in Entfernung oder Zeit) zum zuvor gespeicherten Punkt. Nur Opt-in – Ihre Daten werden niemals berührt, es sei denn, Sie aktivieren dies.",
+		"samplingEnable": "Aktivieren Sie die nächtliche Probenahme",
+		"samplingHybridHint": "Hybridmodus: Ein Punkt wird nur dann behalten, wenn er BEIDE Schwellenwerte erfüllt. Der erste Punkt in jeder Sequenz wird immer beibehalten.",
+		"samplingLastRun": "Letzter Durchlauf: {Datum} · gelöschte {deleted} Punkte",
+		"samplingMinDistance": "Mindestabstand zwischen Punkten (Meter)",
+		"samplingMinTime": "Mindestzeit zwischen Punkten (Sekunden)",
+		"samplingSaveFailed": "Die Sampling-Konfiguration konnte nicht gespeichert werden",
+		"samplingSaved": "Sampling-Konfiguration gespeichert",
+		"samplingTitle": "Automatische Datenerfassung"
 	},
 	"serverAdmin": {
 		"title": "Serveradministratoreinstellungen",
@@ -1483,7 +1495,12 @@
 			"transport": "Transport"
 		},
 		"updateFailed": "Aktualisierung fehlgeschlagen",
-		"userNotFound": "Benutzer nicht gefunden"
+		"userNotFound": "Benutzer nicht gefunden",
+		"endTime": "Endzeit",
+		"fromAddress": "Aus",
+		"planFriends": "Der Plan ist jetzt nur für Freunde verfügbar",
+		"planVisibilityTitle": "Wer kann den Plan sehen?",
+		"toAddress": "Zu"
 	},
 	"profile": {
 		"home": "← Startseite",
@@ -1579,5 +1596,43 @@
 		"subtitle": "Entdecken Sie Reisegeschichten aus unserer Community",
 		"travelers": "Reisende",
 		"whereWeveBeen": "Wo wir waren"
+	},
+	"feed": {
+		"noStories": "Noch keine Geschichten.",
+		"noStoriesHint": "Fügen Sie Freunde hinzu oder schauen Sie später noch einmal vorbei, um neue Einträge zu erhalten.",
+		"readMore": "Mehr lesen",
+		"subtitle": "Neueste Geschichten von Freunden und der Community",
+		"title": "Füttern"
+	},
+	"friends": {
+		"accept": "Akzeptieren",
+		"acceptFailed": "Anfrage konnte nicht angenommen werden",
+		"add": "Hinzufügen",
+		"addFriendsLink": "Freunde hinzufügen",
+		"friendAdded": "Freund hinzugefügt",
+		"noFriends": "Noch keine Freunde. Suchen Sie oben nach Benutzern, um eine Freundschaftsanfrage zu senden.",
+		"noFriendsShare": "Noch keine Freunde. {link}, um Reisen zu teilen.",
+		"pendingRequests": "Ausstehende Anfragen ({count})",
+		"reject": "Ablehnen",
+		"rejectFailed": "Anfrage konnte nicht abgelehnt werden",
+		"requestFailed": "Anfrage konnte nicht gesendet werden",
+		"requestSent": "Freundschaftsanfrage an @{username} gesendet",
+		"searchPlaceholder": "Nach Benutzernamen suchen...",
+		"subtitle": "Verwalten Sie Ihre Verbindungen und teilen Sie Reisen",
+		"title": "Freunde",
+		"yourFriends": "Deine Freunde ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "Zum Tag {day} hinzufügen",
+		"addTrip": "Zur Reise hinzufügen",
+		"connectionError": "Es konnte keine Verbindung zum AI-Dienst hergestellt werden. Stellen Sie sicher, dass AI in Ihren Servereinstellungen konfiguriert ist.",
+		"copied": "Kopiert",
+		"copy": "Kopie",
+		"error": "Entschuldigung, etwas ist schief gelaufen. Bitte versuchen Sie es erneut.",
+		"greetingEmpty": "Hallo! Ich bin Ihr Reiseplanungsassistent für Ihre {numDays}-tägige Reise nach {destination}. Bitten Sie mich, eine Reiseroute vorzuschlagen, Aktivitäten zu finden oder Ihre Tage auszubalancieren!",
+		"greetingExisting": "Hallo! Ich bin Ihr Reiseplanungsassistent. Wie ich sehe, haben Sie bereits {count} Artikel geplant. Bitten Sie mich, weitere Aktivitäten vorzuschlagen, Ihren Zeitplan zu optimieren oder leere Tage aufzufüllen!",
+		"loadingPreview": "Vorschau wird geladen...",
+		"placeholder": "Fragen Sie nach Reiseroutenvorschlägen...",
+		"title": "KI-Assistent"
 	}
 }

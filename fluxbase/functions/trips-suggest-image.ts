@@ -399,19 +399,20 @@ async function handler(
 							`Tracker data analysis took ${Date.now() - trackerAnalysisStart}ms`,
 							'TRIPS-SUGGEST-IMAGE'
 						);
-
-						if (!analysis.primaryCountry) {
-							return errorResponse('No travel data found for the specified date range', 404);
-						}
 					}
 
+					// Pull addresses from planned activities (future trips have no tracker data yet)
+					const planItemAddresses = await getPlanItemAddresses(tripId, fluxbase);
+
 					// Generate image suggestion based on analysis and metadata
+					// Falls back to: metadata → tracker analysis → plan item addresses → trip title
 					const imageGenStart = Date.now();
 					const suggestion = await generateImageSuggestionFromAnalysis(
 						analysis,
 						apiKey,
 						tripMetadata,
-						trip.title
+						trip.title,
+						planItemAddresses
 					);
 					logInfo(`Image generation took ${Date.now() - imageGenStart}ms`, 'TRIPS-SUGGEST-IMAGE');
 
@@ -461,27 +462,26 @@ async function handler(
 					});
 				}
 
-				// Analyze user's travel data for the date range
-				const analysis = await analyzeTripLocations(userId, startDate, endDate, fluxbase);
+			// Analyze user's travel data for the date range
+			const analysis = await analyzeTripLocations(userId, startDate, endDate, fluxbase);
 
-				if (!analysis.primaryCountry) {
-					return errorResponse('No travel data found for the specified date range', 404);
-				}
+			// Get the best available Pexels API key
+			const apiKey = getPexelsApiKey();
+			if (!apiKey) {
+				return errorResponse(
+					'No Pexels API key available. Please configure your API key in preferences.',
+					400
+				);
+			}
 
-				// Get the best available Pexels API key
-				const apiKey = getPexelsApiKey();
-				if (!apiKey) {
-					return errorResponse(
-						'No Pexels API key available. Please configure your API key in preferences.',
-						400
-					);
-				}
-
+			// ponytail: no tracker data is fine — generateImageSuggestionFromAnalysis
+			// falls back to plan item addresses, then to the date range context.
 			// Generate image suggestion based on analysis and existing trip metadata (if available)
 			const suggestion = await generateImageSuggestionFromAnalysis(
 				analysis,
 				apiKey,
 				tripMetadata,
+				undefined,
 				undefined
 			);
 
@@ -509,6 +509,33 @@ async function handler(
 	} catch (error) {
 		logError(error, 'TRIPS-SUGGEST-IMAGE');
 		return errorResponse('Internal server error', 500);
+	}
+}
+
+// Fetch non-empty addresses from trip_plan_items.
+// Used for future trips that have no tracker_data yet but have planned activities.
+async function getPlanItemAddresses(
+	tripId: string,
+	fluxbase: FluxbaseClient
+): Promise<string[]> {
+	try {
+		const { data, error } = await fluxbase
+			.from('trip_plan_items')
+			.select('address, metadata')
+			.eq('trip_id', tripId)
+			.not('address', 'is', null);
+		if (error || !data) return [];
+		const out: string[] = [];
+		for (const row of data as any[]) {
+			if (row.address) out.push(String(row.address));
+			// ponytail: transport items store end address in metadata.end_address
+			const endAddr = row.metadata?.end_address;
+			if (endAddr) out.push(String(endAddr));
+		}
+		// Dedupe and cap at 5
+		return Array.from(new Set(out)).slice(0, 5);
+	} catch {
+		return [];
 	}
 }
 
@@ -731,7 +758,8 @@ async function generateImageSuggestionFromAnalysis(
 		isMultiCountryTrip?: boolean;
 		isMultiCityTrip?: boolean;
 	},
-	tripTitle?: string
+	tripTitle?: string,
+	planItemAddresses?: string[]
 ): Promise<{
 	imageUrl: string;
 	searchQuery: string;
@@ -808,6 +836,14 @@ async function generateImageSuggestionFromAnalysis(
 			searchTerm = `${cleanCountryNameForSearch(analysis.primaryCountry)} landscape`;
 			logInfo(
 				`Fallback: Using primary country from analysis: ${analysis.primaryCountry}`,
+				'TRIPS-SUGGEST-IMAGE'
+			);
+		} else if (planItemAddresses && planItemAddresses.length > 0) {
+			// Future trip with no tracker data yet — use first planned address.
+			// Addresses like "Eiffel Tower, Paris" work well as Pexels queries.
+			searchTerm = planItemAddresses[0];
+			logInfo(
+				`Fallback: Using first plan item address: ${searchTerm}`,
 				'TRIPS-SUGGEST-IMAGE'
 			);
 		} else if (tripTitle && tripTitle.trim()) {

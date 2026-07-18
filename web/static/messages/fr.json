@@ -89,7 +89,10 @@
 			"darkMode": "Mode sombre",
 			"dataEditor": "Éditeur de données",
 			"journal": "Journal",
-			"travel": "Voyage"
+			"travel": "Voyage",
+			"explore": "Explorer",
+			"feed": "Alimentation",
+			"friends": "Amis"
 		},
 		"validation": {
 			"fillAllFields": "Veuillez remplir tous les champs",
@@ -985,7 +988,16 @@
 		"aiSettingsDescription": "Configurez votre fournisseur d'IA personnel pour utiliser votre propre clé API",
 		"usePersonalProvider": "Utiliser un fournisseur d'IA personnel",
 		"usePersonalProviderDescription": "Utilisez votre propre clé API au lieu de la configuration par défaut du serveur",
-		"failedToSaveSettings": "Échec de l'enregistrement des paramètres"
+		"failedToSaveSettings": "Échec de l'enregistrement des paramètres",
+		"samplingDescription": "Un travail nocturne supprime les points de localisation trop proches (en distance ou en temps) du point précédemment conservé. Opt-in uniquement : vos données ne sont jamais touchées, sauf si vous l'activez.",
+		"samplingEnable": "Activer l'échantillonnage nocturne",
+		"samplingHybridHint": "Mode hybride : un point n’est conservé que s’il satisfait aux DEUX seuils. Le premier point de toute séquence est toujours conservé.",
+		"samplingLastRun": "Dernière course : {date} · points supprimés {supprimés}",
+		"samplingMinDistance": "Distance minimale entre les points (mètres)",
+		"samplingMinTime": "Temps minimum entre les points (secondes)",
+		"samplingSaveFailed": "Échec de l'enregistrement de la configuration d'échantillonnage",
+		"samplingSaved": "Configuration d'échantillonnage enregistrée",
+		"samplingTitle": "Échantillonnage automatique des données"
 	},
 	"serverAdmin": {
 		"title": "Paramètres d'administration du serveur",
@@ -1486,7 +1498,12 @@
 			"transport": "Transport"
 		},
 		"updateFailed": "Échec de la mise à jour",
-		"userNotFound": "Utilisateur introuvable"
+		"userNotFound": "Utilisateur introuvable",
+		"endTime": "Heure de fin",
+		"fromAddress": "Depuis",
+		"planFriends": "Le forfait est désormais réservé aux amis",
+		"planVisibilityTitle": "Qui peut voir le plan",
+		"toAddress": "À"
 	},
 	"profile": {
 		"home": "← Accueil",
@@ -1582,5 +1599,43 @@
 		"subtitle": "Découvrez les récits de voyage de notre communauté",
 		"travelers": "Voyageurs",
 		"whereWeveBeen": "Où nous sommes allés"
+	},
+	"feed": {
+		"noStories": "Pas encore d'histoires.",
+		"noStoriesHint": "Ajoutez des amis ou revenez plus tard pour de nouvelles entrées.",
+		"readMore": "En savoir plus",
+		"subtitle": "Dernières histoires d'amis et de la communauté",
+		"title": "Alimentation"
+	},
+	"friends": {
+		"accept": "Accepter",
+		"acceptFailed": "Échec de l'acceptation de la demande",
+		"add": "Ajouter",
+		"addFriendsLink": "Ajouter des amis",
+		"friendAdded": "Ami ajouté",
+		"noFriends": "Pas encore d'amis. Recherchez les utilisateurs ci-dessus pour envoyer une demande d’ami.",
+		"noFriendsShare": "Pas encore d'amis. {link} pour partager des voyages.",
+		"pendingRequests": "Demandes en attente ({count})",
+		"reject": "Rejeter",
+		"rejectFailed": "Échec du rejet de la demande",
+		"requestFailed": "Échec de l'envoi de la demande",
+		"requestSent": "Demande d'ami envoyée à @{username}",
+		"searchPlaceholder": "Rechercher par nom d'utilisateur...",
+		"subtitle": "Gérez vos connexions et partagez des trajets",
+		"title": "Amis",
+		"yourFriends": "Vos amis ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "Ajouter au jour {jour}",
+		"addTrip": "Ajouter au voyage",
+		"connectionError": "Impossible de se connecter au service AI. Assurez-vous que l'IA est configurée dans les paramètres de votre serveur.",
+		"copied": "Copié",
+		"copy": "Copie",
+		"error": "Désolé, quelque chose s'est mal passé. Veuillez réessayer.",
+		"greetingEmpty": "Salut! Je suis votre assistant de planification de voyage pour votre excursion d'une journée de {numDays} à {destination}. Demandez-moi de vous proposer un itinéraire, de trouver des activités ou d'équilibrer vos journées !",
+		"greetingExisting": "Salut! Je suis votre assistant de planification de voyage. Je vois que vous avez déjà prévu {count} article(s). Demandez-moi de vous suggérer plus d'activités, d'optimiser votre emploi du temps ou de remplir des journées vides !",
+		"loadingPreview": "Chargement de l'aperçu...",
+		"placeholder": "Demandez des suggestions d'itinéraires...",
+		"title": "AI Assistant"
 	}
 }

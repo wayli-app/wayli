@@ -89,7 +89,10 @@
 			"askAI": "Vraag het AI",
 			"dataEditor": "Gegevenseditor",
 			"journal": "Tijdschrift",
-			"travel": "Reis"
+			"travel": "Reis",
+			"explore": "Ontdekken",
+			"feed": "Voer",
+			"friends": "Vrienden"
 		},
 		"validation": {
 			"fillAllFields": "Vul alle velden in",
@@ -982,7 +985,16 @@
 		"aiSettings": "AI-instellingen",
 		"aiSettingsDescription": "Configureer uw persoonlijke AI-provider om uw eigen API-sleutel te gebruiken",
 		"usePersonalProvider": "Gebruik een persoonlijke AI-provider",
-		"usePersonalProviderDescription": "Gebruik uw eigen API-sleutel in plaats van de standaardconfiguratie van de server"
+		"usePersonalProviderDescription": "Gebruik uw eigen API-sleutel in plaats van de standaardconfiguratie van de server",
+		"samplingDescription": "Bij een nachtelijke taak worden locatiepunten verwijderd die te dicht bij elkaar liggen (in afstand of tijd) ten opzichte van het eerder bewaarde punt. Alleen aanmelden: uw gegevens worden nooit aangeraakt, tenzij u dit inschakelt.",
+		"samplingEnable": "Schakel nachtelijke bemonstering in",
+		"samplingHybridHint": "Hybride modus: een punt wordt alleen behouden als het aan BEIDE drempelwaarden voldoet. Het eerste punt in elke reeks wordt altijd behouden.",
+		"samplingLastRun": "Laatste run: {date} · {verwijderde} punten verwijderd",
+		"samplingMinDistance": "Minimale afstand tussen punten (meter)",
+		"samplingMinTime": "Minimale tijd tussen punten (seconden)",
+		"samplingSaveFailed": "Kan de bemonsteringsconfiguratie niet opslaan",
+		"samplingSaved": "Bemonsteringsconfiguratie opgeslagen",
+		"samplingTitle": "Automatische gegevensbemonstering"
 	},
 	"serverAdmin": {
 		"title": "Server beheerder instellingen",
@@ -1483,7 +1495,12 @@
 			"transport": "Vervoer"
 		},
 		"updateFailed": "Kan niet updaten",
-		"userNotFound": "Gebruiker niet gevonden"
+		"userNotFound": "Gebruiker niet gevonden",
+		"endTime": "Eindtijd",
+		"fromAddress": "Van",
+		"planFriends": "Plan is nu alleen voor vrienden",
+		"planVisibilityTitle": "Wie kan het plan zien",
+		"toAddress": "Naar"
 	},
 	"profile": {
 		"home": "← Thuis",
@@ -1579,5 +1596,43 @@
 		"subtitle": "Ontdek reisverhalen uit onze gemeenschap",
 		"travelers": "Reizigers",
 		"whereWeveBeen": "Waar we zijn geweest"
+	},
+	"feed": {
+		"noStories": "Nog geen verhalen.",
+		"noStoriesHint": "Voeg vrienden toe of kom later terug voor nieuwe berichten.",
+		"readMore": "Lees meer",
+		"subtitle": "Laatste verhalen van vrienden en gemeenschap",
+		"title": "Voer"
+	},
+	"friends": {
+		"accept": "Accepteren",
+		"acceptFailed": "Kan verzoek niet accepteren",
+		"add": "Toevoegen",
+		"addFriendsLink": "Voeg vrienden toe",
+		"friendAdded": "Vriend toegevoegd",
+		"noFriends": "Nog geen vrienden. Zoek hierboven naar gebruikers om een ​​vriendschapsverzoek te sturen.",
+		"noFriendsShare": "Nog geen vrienden. {link} om reizen te delen.",
+		"pendingRequests": "Openstaande verzoeken ({count})",
+		"reject": "Afwijzen",
+		"rejectFailed": "Kan verzoek niet afwijzen",
+		"requestFailed": "Kan verzoek niet verzenden",
+		"requestSent": "Vriendschapsverzoek verzonden naar @{username}",
+		"searchPlaceholder": "Zoeken op gebruikersnaam...",
+		"subtitle": "Beheer uw verbindingen en deel reizen",
+		"title": "Vrienden",
+		"yourFriends": "Je vrienden ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "Toevoegen aan dag {dag}",
+		"addTrip": "Toevoegen aan reis",
+		"connectionError": "Kan geen verbinding maken met de AI-service. Zorg ervoor dat AI is geconfigureerd in uw serverinstellingen.",
+		"copied": "Gekopieerd",
+		"copy": "Kopiëren",
+		"error": "Sorry, er is iets misgegaan. Probeer het opnieuw.",
+		"greetingEmpty": "Hoi! Ik ben uw reisplanningsassistent voor uw reis van {numDays} dagen naar {destination}. Vraag mij om een ​​reisplan voor te stellen, activiteiten te vinden of uw dagen in evenwicht te brengen!",
+		"greetingExisting": "Hoi! Ik ben je reisplanningsassistent. Ik zie dat je al {count} item(s) gepland hebt. Vraag mij om meer activiteiten voor te stellen, uw planning te optimaliseren of lege dagen in te vullen!",
+		"loadingPreview": "Voorbeeld laden...",
+		"placeholder": "Vraag om reissuggesties...",
+		"title": "AI-assistent"
 	}
 }
