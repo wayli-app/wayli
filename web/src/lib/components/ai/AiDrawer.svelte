@@ -11,7 +11,6 @@
 		Trash2,
 		Sparkles,
 		ChevronRight,
-		ChevronDown,
 		Brain,
 		Wrench
 	} from 'lucide-svelte';
@@ -46,6 +45,10 @@
 	let connectionError = $state<string | null>(null);
 	let inputEl: HTMLInputElement | null = $state(null);
 	let scrollContainer: HTMLElement | null = $state(null);
+	// Track which messages have their reasoning panel expanded (keyed by message index).
+	// ponytail: Svelte's scoped CSS doesn't see classes inside {#each} loops across
+	// <details>, so we toggle a single chevron via state instead of CSS pseudo-selectors.
+	let openThoughts = $state<Record<number, boolean>>({});
 	let copiedIdx = $state<number | null>(null);
 
 	let conversations = $state<Conversation[]>([]);
@@ -538,15 +541,29 @@
 							<div class="max-w-[90%]">
 								{#if hasThoughts}
 									<!-- Auto-collapsed reasoning (supervisor mode). ponytail: <details>
-								     is the smallest collapse UI; default closed so the chat stays readable. -->
-									<details class="border-border mb-1 rounded-md border text-[11px]" open={false}>
+								     is the smallest collapse UI; default closed so the chat stays readable.
+								     Single chevron rotates via state because Svelte scoped CSS can't see
+								     classes inside {#each} across <details>. -->
+									<details
+										class="border-border mb-1 rounded-md border text-[11px]"
+										open={false}
+										ontoggle={(e) => {
+											openThoughts = {
+												...openThoughts,
+												[i]: (e.currentTarget as HTMLDetailsElement).open
+											};
+										}}
+									>
 										<summary
 											class="text-muted-foreground hover:bg-muted flex cursor-pointer list-none items-center gap-1 px-2 py-1 text-[10px]"
 										>
 											<Brain class="h-3 w-3" />
 											{t('ai.reasoning', { count: msg.thoughts!.length })}
-											<ChevronRight class="ml-auto h-3 w-3 details-closed-only" />
-											<ChevronDown class="ml-auto h-3 w-3 details-open-only" />
+											<ChevronRight
+												class="ml-auto h-3 w-3 transition-transform {openThoughts[i]
+													? 'rotate-90'
+													: ''}"
+											/>
 										</summary>
 										<div class="border-border space-y-1 border-t px-2 py-1.5">
 											{#each msg.thoughts as thought, thoughtIdx (thoughtIdx)}
@@ -666,14 +683,3 @@
 		</div>
 	</aside>
 {/if}
-
-<style>
-	/* Toggle chevron visibility based on <details> open state.
-	   ponytail: a CSS-only collapse indicator — no JS state needed. */
-	details:not([open]) .details-open-only {
-		display: none;
-	}
-	details[open] .details-closed-only {
-		display: none;
-	}
-</style>
