@@ -1659,6 +1659,7 @@
       "planItinerary": "Suggest a 3-day itinerary for {city}",
       "planRestaurants": "Suggest restaurants for this trip",
       "planFree": "What free time activities could I add?"
-    }
+    },
+    "reasoning": "Reasoning · {count} step(s)"
   }
 }

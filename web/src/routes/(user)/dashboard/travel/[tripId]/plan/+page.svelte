@@ -29,7 +29,6 @@
 		Search,
 		Star,
 		ExternalLink,
-		Sparkles,
 		Pencil
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
@@ -905,6 +904,9 @@
 								<div
 									class="truncate cursor-grab rounded px-1.5 py-0.5 text-[10px] font-medium text-white transition-shadow hover:shadow-md active:cursor-grabbing"
 									draggable="true"
+									role="button"
+									tabindex="0"
+									aria-label="Plan item: {item.title}. Drag to move between days."
 									ondragstart={(e) => {
 										e.stopPropagation();
 										onDragStart(e, item);
@@ -1125,6 +1127,9 @@
 						<div
 							class="bg-card border-border group rounded-xl border p-3"
 							draggable="true"
+							role="button"
+							tabindex="0"
+							aria-label="Plan item: {item.title}. Drag to move to another day."
 							ondragstart={(e) => onDragStart(e, item)}
 						>
 							<div class="flex items-start gap-3">
@@ -1385,16 +1390,8 @@
 			</div>
 		{/if}
 	</div>
-
-	<!-- Floating AI button (opens the global AI drawer in plan mode) -->
-	<button
-		type="button"
-		onclick={() => aiDrawer.open()}
-		class="bg-primary hover:bg-primary/90 fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-primary-foreground shadow-2xl transition-all hover:scale-105"
-	>
-		<Sparkles class="h-5 w-5" />
-		<span class="hidden sm:inline">AI Assistant</span>
-	</button>
+	<!-- The global floating AI button (in dashboard layout) opens the drawer in plan mode
+	     via the $effect that sets page context on this route. -->
 	{#if showCollaboratorModal}
 		<div
 			class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"

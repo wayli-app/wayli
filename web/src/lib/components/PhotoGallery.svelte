@@ -228,6 +228,9 @@
 						? 'opacity-30'
 						: ''} {dragOverId === item.id ? 'ring-2 ring-primary' : ''}"
 					draggable="true"
+					role="button"
+					tabindex="0"
+					aria-label="Photo. Drag to reorder."
 					ondragstart={(e) => handleDragStart(e, item)}
 					ondragover={(e) => handleDragOver(e, item)}
 					ondragleave={handleDragLeave}

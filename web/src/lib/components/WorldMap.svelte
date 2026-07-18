@@ -193,8 +193,8 @@
 		ZW: '716'
 	};
 
-	const visitedNumeric = new Set(
-		visitedCountries.map((c) => ISO2_TO_NUMERIC[c.toUpperCase()]).filter(Boolean)
+	const visitedNumeric = $derived(
+		new Set(visitedCountries.map((c) => ISO2_TO_NUMERIC[c.toUpperCase()]).filter(Boolean))
 	);
 
 	onMount(async () => {

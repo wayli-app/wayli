@@ -9,9 +9,13 @@
 		X,
 		MessageSquare,
 		Trash2,
-		Sparkles
+		Sparkles,
+		ChevronRight,
+		ChevronDown,
+		Brain,
+		Wrench
 	} from 'lucide-svelte';
-	import { ChatService, type ChatMessage } from '$lib/services/chat.service';
+	import { ChatService, type ChatMessage, type AgentThought } from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { translate } from '$lib/i18n';
 	import { aiDrawer, type AiPageContext, type PlanSuggestion } from '$lib/stores/ai-drawer';
@@ -24,11 +28,23 @@
 
 	type Conversation = { id: string; title?: string | null; updated_at?: string };
 
-	let messages = $state<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+	type ChatTurn = {
+		role: 'user' | 'assistant';
+		content: string;
+		// Agent reasoning events received while this assistant turn was streaming.
+		// Populated only for assistant turns; empty for user turns.
+		thoughts?: AgentThought[];
+	};
+
+	let messages = $state<ChatTurn[]>([]);
+	// Thoughts accumulated for the in-flight assistant turn; flushed into the
+	// message's `thoughts` array on each event.
+	let pendingThoughts = $state<AgentThought[]>([]);
 	let input = $state('');
 	let isSending = $state(false);
 	let isConnecting = $state(false);
 	let connectionError = $state<string | null>(null);
+	let inputEl: HTMLInputElement | null = $state(null);
 	let scrollContainer: HTMLElement | null = $state(null);
 	let copiedIdx = $state<number | null>(null);
 
@@ -69,6 +85,23 @@
 		await loadConversations();
 	});
 
+	// Focus the input when the drawer opens, and refocus after each send
+	$effect(() => {
+		if (isOpen) {
+			// small delay so the transition can mount the input first
+			setTimeout(() => inputEl?.focus(), 50);
+		}
+	});
+
+	$effect(() => {
+		// ponytail: touch messages.length so this re-runs after every send;
+		// refocus the input once the assistant reply starts streaming.
+		void messages.length;
+		if (isOpen && !isConnecting) {
+			requestAnimationFrame(() => inputEl?.focus());
+		}
+	});
+
 	onDestroy(() => {
 		chatService?.disconnect();
 	});
@@ -97,11 +130,36 @@
 					const lastIdx = messages.length - 1;
 					if (messages[lastIdx]?.role === 'assistant') {
 						messages[lastIdx].content = full;
+						// Flush any pending thoughts into this turn when content starts arriving.
+						if (pendingThoughts.length > 0) {
+							messages[lastIdx].thoughts = [
+								...(messages[lastIdx].thoughts ?? []),
+								...pendingThoughts
+							];
+							pendingThoughts = [];
+						}
 						messages = [...messages];
 						scrollToBottom();
 					}
 				},
+				onAgentThought: (thought) => {
+					// Accumulate while the assistant turn streams. Flushed on first content
+					// update above; if no content arrives (rare), flush on done.
+					pendingThoughts = [...pendingThoughts, thought];
+				},
 				onDone: () => {
+					// Final flush in case onContent never ran (e.g., error path).
+					if (pendingThoughts.length > 0) {
+						const lastIdx = messages.length - 1;
+						if (messages[lastIdx]?.role === 'assistant') {
+							messages[lastIdx].thoughts = [
+								...(messages[lastIdx].thoughts ?? []),
+								...pendingThoughts
+							];
+							messages = [...messages];
+						}
+						pendingThoughts = [];
+					}
 					isSending = false;
 				},
 				onError: (error: any) => {
@@ -131,6 +189,7 @@
 			const newId = await chatService.startChat(CHATBOT, NAMESPACE);
 			activeConversationId = newId;
 			messages = [];
+			pendingThoughts = [];
 			showGreeting();
 		} catch (err: any) {
 			connectionError = err?.message ?? String(err);
@@ -256,6 +315,7 @@
 		const userMsg = input.trim();
 		input = '';
 		isSending = true;
+		pendingThoughts = [];
 
 		// Lazily start a new conversation if none is active
 		if (!activeConversationId) {
@@ -473,8 +533,66 @@
 					{:else}
 						{@const suggestions = canAcceptSuggestions ? extractSuggestions(msg.content) : []}
 						{@const displayContent = stripJsonBlocks(msg.content)}
+						{@const hasThoughts = (msg.thoughts?.length ?? 0) > 0}
 						<div class="flex justify-start">
 							<div class="max-w-[90%]">
+								{#if hasThoughts}
+									<!-- Auto-collapsed reasoning (supervisor mode). ponytail: <details>
+								     is the smallest collapse UI; default closed so the chat stays readable. -->
+									<details class="border-border mb-1 rounded-md border text-[11px]" open={false}>
+										<summary
+											class="text-muted-foreground hover:bg-muted flex cursor-pointer list-none items-center gap-1 px-2 py-1 text-[10px]"
+										>
+											<Brain class="h-3 w-3" />
+											{t('ai.reasoning', { count: msg.thoughts!.length })}
+											<ChevronRight class="ml-auto h-3 w-3 details-closed-only" />
+											<ChevronDown class="ml-auto h-3 w-3 details-open-only" />
+										</summary>
+										<div class="border-border space-y-1 border-t px-2 py-1.5">
+											{#each msg.thoughts as thought, thoughtIdx (thoughtIdx)}
+												<div class="text-muted-foreground flex items-start gap-1.5">
+													{#if thought.kind === 'tool_call'}
+														<Wrench class="mt-0.5 h-3 w-3 flex-shrink-0" />
+														<div class="min-w-0 flex-1">
+															<span class="text-foreground font-medium">{thought.tool_name}</span>
+															{#if thought.tool_args != null}
+																<code
+																	class="block break-all whitespace-pre-wrap text-[10px] opacity-70"
+																	>{JSON.stringify(thought.tool_args)}</code
+																>
+															{/if}
+														</div>
+													{:else if thought.kind === 'plan' && thought.plan}
+														<Sparkles class="text-primary mt-0.5 h-3 w-3 flex-shrink-0" />
+														<div class="min-w-0 flex-1">
+															<span class="text-foreground">Route:</span>
+															<span class="opacity-80"
+																>{thought.plan.route?.join(' → ') || '—'}</span
+															>
+															{#if thought.plan.sub_questions?.length}
+																<ul class="mt-0.5 list-disc pl-4 text-[10px] opacity-70">
+																	{#each thought.plan.sub_questions as q}
+																		<li>{q}</li>
+																	{/each}
+																</ul>
+															{/if}
+														</div>
+													{:else if thought.kind === 'reasoning'}
+														<Brain class="mt-0.5 h-3 w-3 flex-shrink-0" />
+														<div class="min-w-0 flex-1 whitespace-pre-wrap break-words opacity-80">
+															{thought.delta}
+														</div>
+													{:else if thought.kind === 'tool_result'}
+														<Check class="mt-0.5 h-3 w-3 flex-shrink-0" />
+														<div class="min-w-0 flex-1 whitespace-pre-wrap break-words opacity-70">
+															{thought.delta}
+														</div>
+													{/if}
+												</div>
+											{/each}
+										</div>
+									</details>
+								{/if}
 								<div
 									class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
 								>
@@ -527,6 +645,7 @@
 			<input
 				type="text"
 				bind:value={input}
+				bind:this={inputEl}
 				onkeydown={handleKeydown}
 				placeholder={t('ai.placeholder')}
 				class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
@@ -547,3 +666,14 @@
 		</div>
 	</aside>
 {/if}
+
+<style>
+	/* Toggle chevron visibility based on <details> open state.
+	   ponytail: a CSS-only collapse indicator — no JS state needed. */
+	details:not([open]) .details-open-only {
+		display: none;
+	}
+	details[open] .details-closed-only {
+		display: none;
+	}
+</style>

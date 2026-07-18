@@ -119,10 +119,28 @@ export interface TurnExtras {
 	matchedIntentRules?: MatchedIntentRule[];
 }
 
+/** One discrete piece of agent reasoning (mirrors SDK AIAgentThought). */
+export interface AgentThought {
+	agent: string; // supervisor|sql|kb|action|chat|synthesizer|verifier
+	kind: 'plan' | 'reasoning' | 'tool_call' | 'tool_result';
+	delta?: string;
+	tool_name?: string;
+	tool_args?: unknown;
+	plan?: {
+		user_language?: string;
+		route?: string[];
+		sub_questions?: string[];
+		requires_synthesis?: boolean;
+		is_investigative?: boolean;
+		min_tool_calls?: number;
+	};
+}
+
 export interface ChatCallbacks {
 	onContent?: (delta: string, fullContent: string) => void;
 	onProgress?: (step: string, message: string) => void;
 	onQueryResult?: (result: QueryResultData) => void;
+	onAgentThought?: (thought: AgentThought) => void;
 	onDone?: (usage: UsageStats | undefined, extras?: TurnExtras) => void;
 	onError?: (error: string, code?: string) => void;
 }
@@ -180,6 +198,16 @@ class ChatService {
 					summary,
 					rowCount,
 					data
+				});
+			},
+			onAgentThought: (thought, conversationId) => {
+				this.currentCallbacks?.onAgentThought?.({
+					agent: thought.agent,
+					kind: thought.kind,
+					delta: thought.delta,
+					tool_name: thought.tool_name,
+					tool_args: thought.tool_args,
+					plan: thought.plan
 				});
 			},
 			onDone: (usage, conversationId, extras) => {

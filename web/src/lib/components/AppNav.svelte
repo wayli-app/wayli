@@ -15,8 +15,7 @@
 		Moon,
 		Crown,
 		LogOut,
-		Menu,
-		Sparkles
+		Menu
 	} from 'lucide-svelte';
 
 	import { translate } from '$lib/i18n';
@@ -26,7 +25,6 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
-	import { aiDrawer } from '$lib/stores/ai-drawer';
 
 	import type { UserProfile } from '$lib/types/user.types';
 
@@ -40,13 +38,11 @@
 
 	let {
 		isAdmin = false,
-		aiEnabled = true,
 		children,
 		onSignout,
 		realtimeConnectionStatus = 'disconnected'
 	} = $props<{
 		isAdmin?: boolean;
-		aiEnabled?: boolean;
 		children?: unknown;
 		onSignout?: () => void;
 		realtimeConnectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -202,10 +198,7 @@
 	>
 		<!-- Sidebar Header - Fixed at top -->
 		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
-			<a
-				href="/dashboard/statistics"
-				class="flex cursor-pointer items-center border-b border-border p-4"
-			>
+			<a href="/dashboard/statistics" class="flex cursor-pointer items-center border-border p-4">
 				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
 				<span class="text-foreground text-xl font-bold">Wayli</span>
 			</a>
@@ -220,19 +213,6 @@
 		<!-- Scrollable Navigation - Takes remaining space -->
 		<nav class="min-h-0 flex-1 overflow-y-auto">
 			<div class="space-y-1 p-4">
-				{#if aiEnabled}
-					<button
-						type="button"
-						onclick={() => {
-							aiDrawer.open();
-							handleCloseSidebar();
-						}}
-						class="bg-primary/10 hover:bg-primary/20 text-primary mb-3 flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
-					>
-						<Sparkles class="mr-3 h-5 w-5" />
-						{t('common.navigation.ask') || 'AI'}
-					</button>
-				{/if}
 				{#each navMain as item (item.href)}
 					<a
 						href={item.href}

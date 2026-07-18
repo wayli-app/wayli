@@ -5,7 +5,9 @@
 
 	import AppNav from '$lib/components/AppNav.svelte';
 	import AiDrawer from '$lib/components/ai/AiDrawer.svelte';
+	import { aiDrawer } from '$lib/stores/ai-drawer';
 	import OnboardingChecklistBanner from '$lib/components/OnboardingChecklistBanner.svelte';
+	import { Sparkles } from 'lucide-svelte';
 	import { t, changeLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionManager } from '$lib/services/session';
@@ -203,7 +205,7 @@
 	// Cleanup is handled by Fluxbase SDK
 </script>
 
-<AppNav {isAdmin} {aiEnabled} onSignout={handleSignout} {realtimeConnectionStatus}>
+<AppNav {isAdmin} onSignout={handleSignout} {realtimeConnectionStatus}>
 	<!-- Onboarding Checklist Banner (above main content) -->
 	{#if $userStore?.id && !isCheckingAdmin}
 		<OnboardingChecklistBanner userId={$userStore.id} {isAdmin} {aiEnabled} />
@@ -229,6 +231,19 @@
 			{/key}
 		{/if}
 	</div>
+
+	<!-- Global floating AI button (bottom-right) — opens the AI drawer -->
+	{#if aiEnabled && !isCheckingAdmin}
+		<button
+			type="button"
+			onclick={() => aiDrawer.toggle()}
+			class="bg-primary hover:bg-primary/90 fixed right-6 bottom-6 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full text-primary-foreground shadow-2xl transition-all hover:scale-105"
+			aria-label={t('common.navigation.ask') || 'AI'}
+			title={t('common.navigation.ask') || 'AI'}
+		>
+			<Sparkles class="h-6 w-6" />
+		</button>
+	{/if}
 
 	<!-- Global AI drawer (mounted once; controlled by aiDrawer store) -->
 	<AiDrawer />
