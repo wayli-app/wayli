@@ -89,7 +89,10 @@
 			"darkMode": "深色模式",
 			"dataEditor": "数据编辑器",
 			"journal": "杂志",
-			"travel": "旅行"
+			"travel": "旅行",
+			"explore": "探索",
+			"feed": "喂养",
+			"friends": "朋友们"
 		},
 		"validation": {
 			"fillAllFields": "请填写所有字段",
@@ -986,7 +989,16 @@
 		"aiSettingsDescription": "配置您的个人 AI 提供商以使用您自己的 API 密钥",
 		"usePersonalProvider": "使用个人人工智能提供商",
 		"usePersonalProviderDescription": "使用您自己的 API 密钥而不是服务器的默认配置",
-		"failedToSaveSettings": "保存设置失败"
+		"failedToSaveSettings": "保存设置失败",
+		"samplingDescription": "每晚作业会删除与先前保留的点距离太近（距离或时间）的位置点。仅选择加入 - 除非您启用此功能，否则您的数据永远不会被触及。",
+		"samplingEnable": "启用夜间采样",
+		"samplingHybridHint": "混合模式：仅当满足两个阈值时才保留点。始终保留任何序列中的第一个点。",
+		"samplingLastRun": "上次运行：{日期} · 已删除 {deleted} 点",
+		"samplingMinDistance": "点之间的最小距离（米）",
+		"samplingMinTime": "点之间的最短时间（秒）",
+		"samplingSaveFailed": "无法保存采样配置",
+		"samplingSaved": "采样配置已保存",
+		"samplingTitle": "自动数据采样"
 	},
 	"serverAdmin": {
 		"title": "服务器管理设置",
@@ -1487,7 +1499,12 @@
 			"transport": "运输"
 		},
 		"updateFailed": "更新失败",
-		"userNotFound": "未找到用户"
+		"userNotFound": "未找到用户",
+		"endTime": "结束时间",
+		"fromAddress": "从",
+		"planFriends": "计划现在仅限好友",
+		"planVisibilityTitle": "谁可以看到该计划",
+		"toAddress": "到"
 	},
 	"profile": {
 		"home": "← Home",
@@ -1583,5 +1600,43 @@
 		"subtitle": "发现我们社区的旅行故事",
 		"travelers": "旅行者",
 		"whereWeveBeen": "我们去过的地方"
+	},
+	"feed": {
+		"noStories": "还没有故事。",
+		"noStoriesHint": "添加朋友或稍后回来查看新条目。",
+		"readMore": "阅读更多",
+		"subtitle": "来自朋友和社区的最新故事",
+		"title": "喂养"
+	},
+	"friends": {
+		"accept": "接受",
+		"acceptFailed": "无法接受请求",
+		"add": "添加",
+		"addFriendsLink": "添加好友",
+		"friendAdded": "好友已添加",
+		"noFriends": "还没有朋友。搜索上面的用户发送好友请求。",
+		"noFriendsShare": "还没有朋友。 {link} 分享行程。",
+		"pendingRequests": "待处理请求 ({count})",
+		"reject": "拒绝",
+		"rejectFailed": "无法拒绝请求",
+		"requestFailed": "发送请求失败",
+		"requestSent": "好友请求已发送至@{username}",
+		"searchPlaceholder": "按用户名搜索...",
+		"subtitle": "管理您的联系并分享行程",
+		"title": "朋友们",
+		"yourFriends": "您的朋友 ({count})"
+	},
+	"plannerChat": {
+		"addToDay": "添加到第 {day} 天",
+		"addTrip": "添加到行程",
+		"connectionError": "无法连接到 AI 服务。确保在您的服务器设置中配置了 AI。",
+		"copied": "已复制",
+		"copy": "复制",
+		"error": "抱歉，出了点问题。请再试一次。",
+		"greetingEmpty": "你好！我是您前往 {destination} 的 {numDays} 天行程的行程规划助理。让我建议行程、寻找活动或平衡您的日子！",
+		"greetingExisting": "你好！我是你的旅行计划助理。我发现您已经计划了 {count} 件商品。让我建议更多的活动，优化您的日程安排，或者填补空虚的日子！",
+		"loadingPreview": "正在加载预览...",
+		"placeholder": "求行程建议...",
+		"title": "人工智能助手"
 	}
 }

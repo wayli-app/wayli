@@ -4,6 +4,7 @@
 	import { toast } from 'svelte-sonner';
 
 	import AppNav from '$lib/components/AppNav.svelte';
+	import AiDrawer from '$lib/components/ai/AiDrawer.svelte';
 	import OnboardingChecklistBanner from '$lib/components/OnboardingChecklistBanner.svelte';
 	import { t, changeLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
@@ -228,4 +229,7 @@
 			{/key}
 		{/if}
 	</div>
+
+	<!-- Global AI drawer (mounted once; controlled by aiDrawer store) -->
+	<AiDrawer />
 </AppNav>

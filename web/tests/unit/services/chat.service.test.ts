@@ -242,7 +242,7 @@ describe('getDailyUsageForName(name)', () => {
 			data: { requests: { used: 7, limit: 500 }, tokens: { used: 0, limit: 0 } },
 			error: null
 		});
-		await expect(service.getDailyUsageForName('location-assistant')).resolves.toEqual({
+		await expect(service.getDailyUsageForName('wayli-assistant')).resolves.toEqual({
 			requests: { used: 7, limit: 500 },
 			tokens: { used: 0, limit: 0 },
 			resetsAt: undefined

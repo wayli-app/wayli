@@ -89,7 +89,10 @@
 			"darkMode": "다크 모드",
 			"dataEditor": "데이터 편집기",
 			"journal": "신문",
-			"travel": "여행하다"
+			"travel": "여행하다",
+			"explore": "탐구하다",
+			"feed": "밥을 먹이다",
+			"friends": "친구"
 		},
 		"validation": {
 			"fillAllFields": "모든 필드를 작성해 주세요.",
@@ -986,7 +989,16 @@
 		"aiSettingsDescription": "자체 API 키를 사용하도록 개인 AI 공급자를 구성하세요.",
 		"usePersonalProvider": "개인 AI 공급자 사용",
 		"usePersonalProviderDescription": "서버의 기본 구성 대신 자체 API 키를 사용하세요.",
-		"failedToSaveSettings": "설정을 저장하지 못했습니다."
+		"failedToSaveSettings": "설정을 저장하지 못했습니다.",
+		"samplingDescription": "야간 작업은 이전에 보관된 지점과 너무 가까운(거리 또는 시간 측면에서) 위치 지점을 제거합니다. 옵트인 전용 — 이 기능을 활성화하지 않는 한 귀하의 데이터는 절대 건드리지 않습니다.",
+		"samplingEnable": "야간 샘플링 활성화",
+		"samplingHybridHint": "하이브리드 모드: 두 임계값을 모두 충족하는 경우에만 포인트가 유지됩니다. 모든 시퀀스의 첫 번째 지점은 항상 유지됩니다.",
+		"samplingLastRun": "마지막 실행: {date} · 삭제된 {deleted} 포인트",
+		"samplingMinDistance": "지점 간 최소 거리(미터)",
+		"samplingMinTime": "포인트 간 최소 시간(초)",
+		"samplingSaveFailed": "샘플링 구성을 저장하지 못했습니다.",
+		"samplingSaved": "샘플링 구성이 저장되었습니다.",
+		"samplingTitle": "자동 데이터 샘플링"
 	},
 	"serverAdmin": {
 		"title": "서버 관리자 설정",
@@ -1487,7 +1499,12 @@
 			"transport": "수송"
 		},
 		"updateFailed": "업데이트하지 못했습니다.",
-		"userNotFound": "사용자를 찾을 수 없습니다"
+		"userNotFound": "사용자를 찾을 수 없습니다",
+		"endTime": "종료 시간",
+		"fromAddress": "에서",
+		"planFriends": "이제 친구만 이용할 수 있는 요금제입니다",
+		"planVisibilityTitle": "계획을 볼 수 있는 사람",
+		"toAddress": "에게"
 	},
 	"profile": {
 		"home": "← 홈",
@@ -1583,5 +1600,43 @@
 		"subtitle": "커뮤니티에서 여행 이야기를 찾아보세요",
 		"travelers": "여행자",
 		"whereWeveBeen": "우리가 있었던 곳"
+	},
+	"feed": {
+		"noStories": "아직 스토리가 없습니다.",
+		"noStoriesHint": "친구를 추가하거나 나중에 새 항목을 다시 확인하세요.",
+		"readMore": "더 읽어보세요",
+		"subtitle": "친구와 커뮤니티의 최신 스토리",
+		"title": "밥을 먹이다"
+	},
+	"friends": {
+		"accept": "수용하다",
+		"acceptFailed": "요청을 수락하지 못했습니다.",
+		"add": "추가하다",
+		"addFriendsLink": "친구 추가",
+		"friendAdded": "친구가 추가되었습니다",
+		"noFriends": "아직 친구가 없습니다. 친구요청을 보내려면 위에서 사용자를 검색하세요.",
+		"noFriendsShare": "아직 친구가 없습니다. 여행을 공유하려면 {link}하세요.",
+		"pendingRequests": "대기 중인 요청({count}개)",
+		"reject": "거부하다",
+		"rejectFailed": "요청을 거부하지 못했습니다.",
+		"requestFailed": "요청을 보내지 못했습니다.",
+		"requestSent": "@{username}님에게 친구 요청이 전송되었습니다.",
+		"searchPlaceholder": "사용자 이름으로 검색...",
+		"subtitle": "연결을 관리하고 여행을 공유하세요",
+		"title": "친구",
+		"yourFriends": "당신의 친구({count})"
+	},
+	"plannerChat": {
+		"addToDay": "{일}일에 추가",
+		"addTrip": "여행에 추가",
+		"connectionError": "AI 서비스에 연결할 수 없습니다. 서버 설정에서 AI가 구성되어 있는지 확인하세요.",
+		"copied": "복사됨",
+		"copy": "복사",
+		"error": "죄송합니다. 문제가 발생했습니다. 다시 시도해 주세요.",
+		"greetingEmpty": "안녕! 저는 {destination}까지의 {numDays}일 여행을 위한 여행 계획 도우미입니다. 여행 일정을 제안하거나, 활동을 찾거나, 하루의 균형을 맞추도록 요청하세요!",
+		"greetingExisting": "안녕! 나는 당신의 여행 계획 도우미입니다. 이미 {count}개의 항목을 계획하신 것으로 확인됩니다. 더 많은 활동을 제안하거나, 일정을 최적화하거나, 빈 날을 채우도록 요청하세요!",
+		"loadingPreview": "미리보기 로드 중...",
+		"placeholder": "여행 일정 제안을 요청하세요...",
+		"title": "AI 어시스턴트"
 	}
 }

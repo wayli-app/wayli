@@ -286,7 +286,7 @@ class ChatService {
 	 * Start a new chat session with a chatbot
 	 */
 	async startChat(
-		chatbot: string = 'location-assistant',
+		chatbot: string = 'wayli-assistant',
 		namespace: string = 'wayli',
 		existingConversationId?: string
 	): Promise<string> {
@@ -300,8 +300,16 @@ class ChatService {
 
 	/**
 	 * Send a message in the current conversation
+	 *
+	 * @param pageContext Optional page-context string (e.g. 'plan', 'default').
+	 *   The supervisor uses it to look up a PageProfile and bias specialist
+	 *   routing. Ignored for non-supervisor chatbots.
 	 */
-	async sendMessage(content: string, callbacks?: ChatCallbacks): Promise<void> {
+	async sendMessage(
+		content: string,
+		callbacks?: ChatCallbacks,
+		pageContext?: string
+	): Promise<void> {
 		if (!this.chat || !this.isConnected()) {
 			throw new Error('Not connected. Call connect() first.');
 		}
@@ -318,8 +326,8 @@ class ChatService {
 		// Reset accumulated content for new message
 		this.accumulatedContent = '';
 
-		// Send the message
-		this.chat.sendMessage(this.conversationId, content);
+		// Send the message (with optional pageContext for supervisor-mode chatbots)
+		this.chat.sendMessage(this.conversationId, content, pageContext ? { pageContext } : undefined);
 	}
 
 	/**

@@ -34,9 +34,9 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import TripMap from '$lib/components/TripMap.svelte';
-	import TripPlannerChat from '$lib/components/TripPlannerChat.svelte';
 	import { fetchLinkPreview, type LinkPreview } from '$lib/services/link-preview.service';
 	import { translate } from '$lib/i18n';
+	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
 
 	let t = $derived($translate);
 
@@ -60,7 +60,6 @@
 	let isLoading = $state(true);
 	let selectedDay = $state<number | null>(null);
 	let showCollaboratorModal = $state(false);
-	let showChatDrawer = $state(false);
 	let collaboratorUsername = $state('');
 	let isAddingCollaborator = $state(false);
 	let linkPreviews = $state<Map<string, LinkPreview | null>>(new Map());
@@ -269,6 +268,59 @@
 		} finally {
 			isLoading = false;
 		}
+	});
+
+	// ponytail: register a page-context effect + accept-suggestion handler with
+	// the global AI drawer. Runs whenever trip/items change. Drawer arriving on
+	// this route is in 'plan' mode; leaving the page clears back to 'default'
+	// via the onDestroy cleanup below.
+	$effect(() => {
+		if (!trip) return;
+		aiDrawer.setContext({
+			page: 'plan',
+			trip_id: tripId,
+			trip_title: trip.title,
+			trip_dates: { start: trip.start_date, end: trip.end_date },
+			num_days: numDays,
+			primary_city: trip.metadata?.primaryCity ?? null,
+			current_plan_items: items
+		});
+	});
+
+	const handleAcceptSuggestion = async (item: PlanSuggestion) => {
+		if (!trip) return;
+		const userId = await getCurrentUserId();
+		const created = await createPlanItem({
+			trip_id: tripId,
+			user_id: userId!,
+			day_number: item.day,
+			sort_order: items.filter((i) => i.day_number === item.day).length,
+			title: item.title,
+			description: null,
+			type: item.type || 'activity',
+			start_time: item.time || null,
+			end_time: null,
+			location: null,
+			address: null,
+			cost_estimate: item.cost ?? null,
+			currency: item.currency || trip.budget_currency || 'EUR',
+			booking_url: null,
+			booking_status: 'not_booked',
+			want_to_visit_id: null,
+			notes: null,
+			created_by: userId
+		});
+		items = [...items, created];
+		toast.success('Added "' + item.title + '" to Day ' + item.day);
+	};
+
+	onMount(() => {
+		aiDrawer.setAcceptSuggestionHandler(handleAcceptSuggestion);
+		return () => {
+			// Reset to default mode + clear handler when leaving the plan page
+			aiDrawer.setAcceptSuggestionHandler(null);
+			aiDrawer.setContext({ page: 'default' });
+		};
 	});
 
 	async function getCurrentUserId(): Promise<string | null> {
@@ -1334,87 +1386,15 @@
 		{/if}
 	</div>
 
-	<!-- AI Chat Drawer -->
-	{#if showChatDrawer}
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div
-			class="fixed inset-0 z-40 bg-black/30 lg:hidden"
-			onclick={() => (showChatDrawer = false)}
-			role="presentation"
-		></div>
-	{/if}
-
-	<!-- Drawer -->
-	<div
-		class="bg-card border-border fixed right-0 top-0 bottom-0 z-50 flex w-full max-w-md flex-col border-l shadow-2xl transition-transform duration-300 lg:max-w-lg {showChatDrawer
-			? 'translate-x-0'
-			: 'translate-x-full'}"
+	<!-- Floating AI button (opens the global AI drawer in plan mode) -->
+	<button
+		type="button"
+		onclick={() => aiDrawer.open()}
+		class="bg-primary hover:bg-primary/90 fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-primary-foreground shadow-2xl transition-all hover:scale-105"
 	>
-		<!-- Drawer header -->
-		<div class="border-border flex items-center justify-between border-b p-4">
-			<div class="flex items-center gap-2">
-				<Sparkles class="text-primary h-5 w-5" />
-				<span class="text-foreground font-semibold">AI Assistant</span>
-			</div>
-			<button
-				type="button"
-				onclick={() => (showChatDrawer = false)}
-				class="text-muted-foreground hover:text-foreground rounded-lg p-1"
-			>
-				<X class="h-5 w-5" />
-			</button>
-		</div>
-
-		<!-- Chat content -->
-		<div class="flex-1 overflow-hidden">
-			<TripPlannerChat
-				{tripId}
-				tripTitle={trip.title}
-				startDate={trip.start_date}
-				endDate={trip.end_date}
-				primaryCity={trip.metadata?.primaryCity ?? ''}
-				{numDays}
-				planItems={items}
-				onAcceptItem={async (item) => {
-					const userId = await getCurrentUserId();
-					const created = await createPlanItem({
-						trip_id: tripId,
-						user_id: userId!,
-						day_number: item.day,
-						sort_order: items.filter((i) => i.day_number === item.day).length,
-						title: item.title,
-						description: null,
-						type: item.type || 'activity',
-						start_time: item.time || null,
-						end_time: null,
-						location: null,
-						address: null,
-						cost_estimate: item.cost ?? null,
-						currency: item.currency || trip?.budget_currency || 'EUR',
-						booking_url: null,
-						booking_status: 'not_booked',
-						want_to_visit_id: null,
-						notes: null,
-						created_by: userId
-					});
-					items = [...items, created];
-					toast.success('Added "' + item.title + '" to Day ' + item.day);
-				}}
-			/>
-		</div>
-	</div>
-
-	<!-- Floating AI button (visible when drawer is closed) -->
-	{#if !showChatDrawer}
-		<button
-			type="button"
-			onclick={() => (showChatDrawer = true)}
-			class="bg-primary hover:bg-primary/90 fixed right-6 bottom-6 z-30 inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-primary-foreground shadow-2xl transition-all hover:scale-105"
-		>
-			<Sparkles class="h-5 w-5" />
-			<span class="hidden sm:inline">AI Assistant</span>
-		</button>
-	{/if}
+		<Sparkles class="h-5 w-5" />
+		<span class="hidden sm:inline">AI Assistant</span>
+	</button>
 	{#if showCollaboratorModal}
 		<div
 			class="bg-background/80 fixed inset-0 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm"

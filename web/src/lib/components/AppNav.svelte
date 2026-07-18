@@ -26,6 +26,7 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
+	import { aiDrawer } from '$lib/stores/ai-drawer';
 
 	import type { UserProfile } from '$lib/types/user.types';
 
@@ -68,10 +69,6 @@
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
 		{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
 		{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
-		// Only show Ask AI if AI features are enabled
-		...(aiEnabled
-			? [{ href: '/dashboard/ask', label: t('common.navigation.ask') || 'Ask AI', icon: Sparkles }]
-			: []),
 		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
 		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
 		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
@@ -223,6 +220,19 @@
 		<!-- Scrollable Navigation - Takes remaining space -->
 		<nav class="min-h-0 flex-1 overflow-y-auto">
 			<div class="space-y-1 p-4">
+				{#if aiEnabled}
+					<button
+						type="button"
+						onclick={() => {
+							aiDrawer.open();
+							handleCloseSidebar();
+						}}
+						class="bg-primary/10 hover:bg-primary/20 text-primary mb-3 flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
+					>
+						<Sparkles class="mr-3 h-5 w-5" />
+						{t('common.navigation.ask') || 'AI'}
+					</button>
+				{/if}
 				{#each navMain as item (item.href)}
 					<a
 						href={item.href}

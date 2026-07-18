@@ -1634,5 +1634,31 @@
     "noStories": "No stories yet.",
     "noStoriesHint": "Add friends or check back later for new entries.",
     "readMore": "Read more"
+  },
+  "ai": {
+    "title": "AI Assistant",
+    "planning": "Planning",
+    "dataAnalysis": "Data analysis",
+    "placeholder": "Ask anything about your travels…",
+    "error": "Something went wrong. Try again.",
+    "connectionError": "Could not connect to the assistant.",
+    "configError": "Configuration error",
+    "greeting": "Hi! I am your Wayli AI assistant. Ask me about your trips, places you visited, journal entries — or open a trip plan page to plan a trip.",
+    "emptyState": "Ask a question or pick a suggestion below.",
+    "conversations": "Conversations",
+    "newConversation": "New conversation",
+    "noConversations": "No previous conversations yet.",
+    "untitled": "Untitled conversation",
+    "copied": "Copied",
+    "copy": "Copy",
+    "suggestions": {
+      "countries": "Which countries have I visited?",
+      "recentTrips": "What were my last four trips?",
+      "cities": "Which cities did I most recently visit?",
+      "tripCount": "How many trips did I take last year?",
+      "planItinerary": "Suggest a 3-day itinerary for {city}",
+      "planRestaurants": "Suggest restaurants for this trip",
+      "planFree": "What free time activities could I add?"
+    }
   }
 }
