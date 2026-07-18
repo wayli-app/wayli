@@ -48,25 +48,9 @@ export default defineConfig(({ mode }) => {
 			// Enable source maps for debugging
 			sourcemap: env.NODE_ENV === 'development',
 
-			// Optimize chunk splitting
-			rollupOptions: {
-				output: {
-					// Optimize chunk naming
-					chunkFileNames: 'js/[name]-[hash].js',
-					entryFileNames: 'js/[name]-[hash].js',
-					assetFileNames: (assetInfo) => {
-						const info = assetInfo.name?.split('.') || [];
-						const ext = info[info.length - 1];
-						if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
-							return `images/[name]-[hash][extname]`;
-						}
-						if (/css/i.test(ext)) {
-							return `css/[name]-[hash][extname]`;
-						}
-						return `assets/[name]-[hash][extname]`;
-					}
-				}
-			},
+			// ponytail: SvelteKit owns rollupOptions.output.{entry,chunk,asset}FileNames
+			// for its own chunking strategy (per-route splitting, hashed assets).
+			// Overriding them produces a startup warning and gets ignored anyway.
 
 			// Optimize build performance
 			target: 'esnext',
