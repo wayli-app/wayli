@@ -620,21 +620,21 @@
 										{@html renderMarkdown(displayContent)}
 									{/if}
 								</div>
-								{#if suggestions.length > 0 && msg.content !== '...'}
-									<div class="mt-1.5 flex flex-wrap gap-1.5">
-										{#each suggestions as sug, sugIdx (sugIdx)}
-											<button
-												type="button"
-												class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors"
-												onclick={() => onAcceptSuggestion(sug)}
-											>
-												<Plus class="h-3 w-3" />
-												{sug.title.slice(0, 25)}{sug.title.length > 25 ? '…' : ''}
-												<span class="text-muted-foreground">→ {t('common.day')} {sug.day}</span>
-											</button>
-										{/each}
-									</div>
-								{/if}
+							{#if suggestions.length > 0 && msg.content !== '...'}
+								<div class="mt-1.5 flex flex-col gap-1.5">
+									{#each suggestions as sug, sugIdx (sugIdx)}
+										<button
+											type="button"
+											class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors"
+											onclick={() => onAcceptSuggestion(sug)}
+										>
+											<Plus class="h-3 w-3 flex-shrink-0" />
+											<span class="min-w-0 flex-1 truncate">{sug.title}</span>
+											<span class="text-muted-foreground flex-shrink-0">→ {t('common.day')} {sug.day}</span>
+										</button>
+									{/each}
+								</div>
+							{/if}
 								{#if msg.content !== '...'}
 									<div class="mt-1 flex items-center gap-2">
 										<button
