@@ -69,7 +69,6 @@ export default defineConfig(({ mode }) => {
 				'date-fns',
 				'leaflet',
 				'@turf/turf',
-				'otplib',
 				'qrcode',
 				'zod'
 			]
