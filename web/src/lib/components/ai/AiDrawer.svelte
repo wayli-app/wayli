@@ -37,9 +37,6 @@
 	};
 
 	let messages = $state<ChatTurn[]>([]);
-	// Thoughts accumulated for the in-flight assistant turn; flushed into the
-	// message's `thoughts` array on each event.
-	let pendingThoughts = $state<AgentThought[]>([]);
 	let input = $state('');
 	let isSending = $state(false);
 	let isConnecting = $state(false);
@@ -136,36 +133,24 @@
 					const lastIdx = messages.length - 1;
 					if (messages[lastIdx]?.role === 'assistant') {
 						messages[lastIdx].content = full;
-						// Flush any pending thoughts into this turn when content starts arriving.
-						if (pendingThoughts.length > 0) {
-							messages[lastIdx].thoughts = [
-								...(messages[lastIdx].thoughts ?? []),
-								...pendingThoughts
-							];
-							pendingThoughts = [];
-						}
 						messages = [...messages];
 						scrollToBottom();
 					}
 				},
 				onAgentThought: (thought) => {
-					// Accumulate while the assistant turn streams. Flushed on first content
-					// update above; if no content arrives (rare), flush on done.
-					pendingThoughts = [...pendingThoughts, thought];
+					// ponytail: append directly to the in-flight assistant message so
+					// the reasoning panel updates live (collapsed by default — user
+					// expands to watch the thought process as it streams in).
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].thoughts = [...(messages[lastIdx].thoughts ?? []), thought];
+						messages = [...messages];
+						// Auto-scroll only if the user has expanded the panel for this
+						// message; otherwise let it accumulate silently.
+						if (openThoughts[lastIdx]) scrollToBottom();
+					}
 				},
 				onDone: () => {
-					// Final flush in case onContent never ran (e.g., error path).
-					if (pendingThoughts.length > 0) {
-						const lastIdx = messages.length - 1;
-						if (messages[lastIdx]?.role === 'assistant') {
-							messages[lastIdx].thoughts = [
-								...(messages[lastIdx].thoughts ?? []),
-								...pendingThoughts
-							];
-							messages = [...messages];
-						}
-						pendingThoughts = [];
-					}
 					isSending = false;
 				},
 				onError: (error: any) => {
@@ -195,7 +180,6 @@
 			const newId = await chatService.startChat(CHATBOT, NAMESPACE);
 			activeConversationId = newId;
 			messages = [];
-			pendingThoughts = [];
 			showGreeting();
 		} catch (err: any) {
 			connectionError = err?.message ?? String(err);
@@ -321,7 +305,6 @@
 		const userMsg = input.trim();
 		input = '';
 		isSending = true;
-		pendingThoughts = [];
 
 		// Lazily start a new conversation if none is active
 		if (!activeConversationId) {
