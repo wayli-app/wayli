@@ -1563,7 +1563,10 @@
     "planVisibilityTitle": "Who can see the plan",
     "endTime": "End time",
     "fromAddress": "From",
-    "toAddress": "To"
+    "toAddress": "To",
+    "itemNotFound": "Item not found — try refreshing the plan",
+    "itemDeleted": "Deleted \"{title}\"",
+    "itemUpdated": "Updated \"{title}\""
   },
   "profile": {
     "travelerNotFound": "Traveler not found.",
@@ -1660,6 +1663,8 @@
       "planRestaurants": "Suggest restaurants for this trip",
       "planFree": "What free time activities could I add?"
     },
-    "reasoning": "Reasoning · {count} step(s)"
+    "reasoning": "Reasoning · {count} step(s)",
+    "update": "Update",
+    "deleteItem": "Delete item"
   }
 }

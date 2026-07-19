@@ -18,18 +18,38 @@ export type AiPageContext = {
 	trip_title?: string;
 	trip_dates?: { start: string; end: string };
 	num_days?: number;
-	primary_city?: string;
+	primary_city?: string | null;
+	home_city?: string | null;
 	current_plan_items?: unknown;
 	[key: string]: unknown;
 };
 
 export type PlanSuggestion = {
+	// Common
+	action?: 'create' | 'update' | 'delete';
+	reason?: string;
+	// Create fields
 	day: number;
 	title: string;
 	type: string;
 	cost?: number | null;
 	currency?: string | null;
 	time?: string | null;
+	end_time?: string | null;
+	address?: string | null;
+	end_address?: string | null;
+	// Update/Delete fields
+	item_id?: string;
+	changes?: Partial<{
+		title: string;
+		type: string;
+		time: string | null;
+		end_time: string | null;
+		cost: number | null;
+		currency: string | null;
+		address: string | null;
+		end_address: string | null;
+	}>;
 };
 
 type AiDrawerState = {

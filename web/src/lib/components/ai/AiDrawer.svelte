@@ -12,7 +12,8 @@
 		Sparkles,
 		ChevronRight,
 		Brain,
-		Wrench
+		Wrench,
+		Pencil
 	} from 'lucide-svelte';
 	import { ChatService, type ChatMessage, type AgentThought } from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
@@ -347,7 +348,8 @@
 				`start=${pageContext.trip_dates?.start ?? ''}`,
 				`end=${pageContext.trip_dates?.end ?? ''}`,
 				`num_days=${pageContext.num_days ?? ''}`,
-				`primary_city=${pageContext.primary_city ?? ''}`
+				`primary_city=${pageContext.primary_city ?? ''}`,
+				`home_city=${pageContext.home_city ?? ''}`
 			].join('; ');
 			msgToSend = `${ctxBlock}\n\n${userMsg}`;
 		}
@@ -622,21 +624,41 @@
 										{@html renderMarkdown(displayContent)}
 									{/if}
 								</div>
-							{#if suggestions.length > 0 && msg.content !== '...'}
-								<div class="mt-1.5 flex flex-col gap-1.5">
-									{#each suggestions as sug, sugIdx (sugIdx)}
-										<button
-											type="button"
-											class="bg-primary/10 hover:bg-primary/20 text-primary inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors"
-											onclick={() => onAcceptSuggestion(sug)}
-										>
-											<Plus class="h-3 w-3 flex-shrink-0" />
-											<span class="min-w-0 flex-1 truncate">{sug.title}</span>
-											<span class="text-muted-foreground flex-shrink-0">→ {t('common.day')} {sug.day}</span>
-										</button>
-									{/each}
-								</div>
-							{/if}
+								{#if suggestions.length > 0 && msg.content !== '...'}
+									<div class="mt-1.5 flex flex-col gap-1.5">
+										{#each suggestions as sug, sugIdx (sugIdx)}
+											{@const action = sug.action ?? 'create'}
+											{@const chipClass =
+												action === 'delete'
+													? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400'
+													: action === 'update'
+														? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+														: 'bg-primary/10 hover:bg-primary/20 text-primary'}
+											{@const Icon =
+												action === 'delete' ? Trash2 : action === 'update' ? Pencil : Plus}
+											{@const label =
+												action === 'delete'
+													? sug.reason || t('ai.deleteItem')
+													: action === 'update'
+														? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
+														: sug.title}
+											<button
+												type="button"
+												title={sug.reason ?? ''}
+												class="{chipClass} inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors"
+												onclick={() => onAcceptSuggestion(sug)}
+											>
+												<Icon class="h-3 w-3 flex-shrink-0" />
+												<span class="min-w-0 flex-1 truncate">{label}</span>
+												{#if action === 'create'}
+													<span class="text-muted-foreground flex-shrink-0"
+														>→ {t('common.day')} {sug.day}</span
+													>
+												{/if}
+											</button>
+										{/each}
+									</div>
+								{/if}
 								{#if msg.content !== '...'}
 									<div class="mt-1 flex items-center gap-2">
 										<button

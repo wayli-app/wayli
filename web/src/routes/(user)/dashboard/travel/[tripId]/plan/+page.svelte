@@ -33,6 +33,7 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import TripMap from '$lib/components/TripMap.svelte';
+	import PlaceAutocomplete from '$lib/components/PlaceAutocomplete.svelte';
 	import { fetchLinkPreview, type LinkPreview } from '$lib/services/link-preview.service';
 	import { translate } from '$lib/i18n';
 	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
@@ -64,6 +65,7 @@
 	let linkPreviews = $state<Map<string, LinkPreview | null>>(new Map());
 	let loadingPreview = $state<string | null>(null);
 	let previewTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	let homeCity = $state<string | null>(null);
 
 	async function handleBookingUrlChange(item: any) {
 		const url = item.booking_url?.trim();
@@ -254,6 +256,18 @@
 			const { data: tripData } = await fluxbase.from('trips').select('*').eq('id', tripId).single();
 			trip = tripData as unknown as Trip;
 
+			// Fetch user's home city in parallel for AI context (departure cutoff detection)
+			const { data: profile } = await fluxbase
+				.from('user_profiles')
+				.select('home_address')
+				.maybeSingle();
+			const homeAddr = (profile as any)?.home_address;
+			if (typeof homeAddr === 'string' && homeAddr.trim()) {
+				homeCity = homeAddr.trim();
+			} else if (homeAddr && typeof homeAddr === 'object') {
+				homeCity = (homeAddr as any).city ?? (homeAddr as any).locality ?? null;
+			}
+
 			if (trip) {
 				const [planItems, collabs] = await Promise.all([
 					getPlanItems(tripId),
@@ -282,6 +296,7 @@
 			trip_dates: { start: trip.start_date, end: trip.end_date },
 			num_days: numDays,
 			primary_city: trip.metadata?.primaryCity ?? null,
+			home_city: homeCity,
 			current_plan_items: items
 		});
 	});
@@ -289,6 +304,87 @@
 	const handleAcceptSuggestion = async (item: PlanSuggestion) => {
 		if (!trip) return;
 		const userId = await getCurrentUserId();
+		const action = item.action ?? 'create';
+
+		// === DELETE ===
+		if (action === 'delete' && item.item_id) {
+			const existing = items.find((i) => i.id === item.item_id);
+			if (!existing) {
+				toast.error(t('plan.itemNotFound'));
+				return;
+			}
+			await deletePlanItem(item.item_id);
+			items = items.filter((i) => i.id !== item.item_id);
+			toast.success(t('plan.itemDeleted', { title: existing.title }));
+			return;
+		}
+
+		// === UPDATE ===
+		if (action === 'update' && item.item_id) {
+			const existing = items.find((i) => i.id === item.item_id);
+			if (!existing) {
+				toast.error(t('plan.itemNotFound'));
+				return;
+			}
+			const changes = item.changes ?? {};
+			const updated: PlanItem = {
+				...existing,
+				title: changes.title ?? existing.title,
+				type: changes.type ?? existing.type,
+				start_time: changes.time !== undefined ? changes.time : existing.start_time,
+				end_time: changes.end_time !== undefined ? changes.end_time : existing.end_time,
+				cost_estimate: changes.cost !== undefined ? changes.cost : existing.cost_estimate,
+				currency: changes.currency ?? existing.currency,
+				address: changes.address !== undefined ? changes.address : existing.address,
+				metadata:
+					changes.end_address !== undefined
+						? { ...(existing.metadata ?? {}), end_address: changes.end_address }
+						: existing.metadata
+			};
+			await updatePlanItem(existing.id, {
+				title: updated.title,
+				type: updated.type,
+				start_time: updated.start_time,
+				end_time: updated.end_time,
+				cost_estimate: updated.cost_estimate,
+				currency: updated.currency,
+				address: updated.address,
+				location: updated.location,
+				metadata: updated.metadata
+			});
+			items = items.map((i) => (i.id === existing.id ? updated : i));
+			toast.success(t('plan.itemUpdated', { title: updated.title }));
+			return;
+		}
+
+		// === CREATE === (existing path)
+		// If we received an address but no coordinates, background-geocode via Pelias
+		// so the new item shows on the map. Best-effort: if it fails, the item still
+		// saves without a location; user can fix via the autocomplete on the edit panel.
+		let locationLat: number | null = null;
+		let locationLng: number | null = null;
+		const addressForGeocode = item.address ?? item.end_address ?? null;
+		if (addressForGeocode) {
+			try {
+				const { getPeliasEndpoint } = await import('$lib/services/external/pelias.service');
+				const endpoint = await getPeliasEndpoint();
+				const res = await fetch(
+					`${endpoint}/v1/search?text=${encodeURIComponent(addressForGeocode)}&size=1`,
+					{ headers: { Accept: 'application/json' } }
+				);
+				const data = await res.json();
+				const feat = data.features?.[0];
+				if (feat?.geometry?.coordinates) {
+					[locationLng, locationLat] = feat.geometry.coordinates;
+				}
+			} catch (err) {
+				console.warn('Background geocode failed for suggestion:', err);
+			}
+		}
+
+		const metadata =
+			item.type === 'transport' && item.end_address ? { end_address: item.end_address } : null;
+
 		const created = await createPlanItem({
 			trip_id: tripId,
 			user_id: userId!,
@@ -298,15 +394,17 @@
 			description: null,
 			type: item.type || 'activity',
 			start_time: item.time || null,
-			end_time: null,
-			location: null,
-			address: null,
+			end_time: item.end_time ?? null,
+			location:
+				locationLat != null && locationLng != null ? { lat: locationLat, lng: locationLng } : null,
+			address: item.address ?? null,
 			cost_estimate: item.cost ?? null,
 			currency: item.currency || trip.budget_currency || 'EUR',
 			booking_url: null,
 			booking_status: 'not_booked',
 			want_to_visit_id: null,
 			notes: null,
+			metadata,
 			created_by: userId
 		});
 		items = [...items, created];
@@ -1314,11 +1412,16 @@
 														? t('plan.fromAddress')
 														: t('plan.address')}</span
 												>
-												<input
-													type="text"
+												<PlaceAutocomplete
 													bind:value={item.address}
-													onchange={() => saveItem(item)}
-													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													onSelect={({ lat, lng }) => {
+														item.location = { lat, lng };
+														saveItem(item);
+													}}
+													onInput={() => {
+														// Clear stale location if user edits the address text
+														if (item.location) item.location = null;
+													}}
 												/>
 											</label>
 											{#if item.type === 'transport'}
@@ -1326,17 +1429,15 @@
 													<span class="text-muted-foreground text-[10px]"
 														>{t('plan.toAddress')}</span
 													>
-													<input
-														type="text"
+													<PlaceAutocomplete
 														value={item.metadata?.end_address ?? ''}
-														onchange={(e) => {
+														onSelect={({ label }) => {
 															item.metadata = {
 																...(item.metadata ?? {}),
-																end_address: (e.target as HTMLInputElement).value || null
+																end_address: label
 															};
 															saveItem(item);
 														}}
-														class="border-border rounded border bg-transparent px-2 py-1 text-xs"
 													/>
 												</label>
 											{/if}
