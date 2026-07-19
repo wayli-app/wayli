@@ -424,14 +424,21 @@
 				if (!config.api_key) {
 					throw new Error('API key is required when creating the integration');
 				}
+				// ponytail workaround: Fluxbase rc.6 handler doesn't populate
+				// created_by from auth context (fixed in source, awaiting image
+				// rebuild). The server still accepts it via the request body, but
+				// the SDK type doesn't expose the field — cast to any.
+				const { data: userData } = await fluxbase.auth.getUser();
+				const userId = userData?.user?.id;
 				const { data, error } = await fluxbase.admin.ai.createIntegration({
 					name: 'Tavily',
 					integration_type: 'web_search' as any,
 					provider: 'tavily' as any,
 					config,
 					enabled: true,
-					is_default: true
-				});
+					is_default: true,
+					...(userId ? { created_by: userId } : {})
+				} as any);
 				if (error) throw error;
 				if (data) tavilyIntegration = data;
 			}
