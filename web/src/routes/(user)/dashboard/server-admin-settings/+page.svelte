@@ -18,7 +18,8 @@
 		Database,
 		RefreshCw,
 		ArrowRight,
-		RotateCcw
+		RotateCcw,
+		Globe
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -59,6 +60,16 @@
 	let pexelsRateLimitEnabled = $state(true); // Toggle for enabling rate limit
 	let pexelsRateLimit = $state(200); // Default: 200 requests/hour
 	let peliasEndpoint = $state('https://pelias.wayli.app');
+
+	// Tavily web-search integration (Fluxbase ai.tool_integrations)
+	let tavilyIntegration = $state<any | null>(null);
+	let tavilyApiKey = $state('');
+	let tavilyBaseURL = $state('https://api.tavily.com');
+	let tavilyDepth = $state<'basic' | 'advanced'>('basic');
+	let tavilySaving = $state(false);
+	let tavilyTesting = $state(false);
+	let tavilyTestResult = $state<{ ok: boolean; message: string } | null>(null);
+	let tavilyClearing = $state(false);
 	let showAddUserModal = $state(false);
 	let isModalOpen = $state(false);
 	let selectedUser = $state<UserProfile | null>(null);
@@ -383,6 +394,102 @@
 			toast.error(t('serverAdmin.failedToUpdateSettings'), {
 				description: error?.message
 			});
+		}
+	}
+
+	// ponytail: Tavily config stored in Fluxbase's ai.tool_integrations table
+	// (not app.settings secret) because the supervisor's web agent reads the
+	// key from there — app.settings secrets aren't visible to the supervisor.
+	async function saveTavily() {
+		tavilySaving = true;
+		tavilyTestResult = null;
+		try {
+			const config: Record<string, string> = {
+				base_url: tavilyBaseURL.trim() || 'https://api.tavily.com',
+				default_depth: tavilyDepth
+			};
+			// Only send api_key when the user typed a new one. Sending the
+			// masked placeholder back would overwrite the encrypted value.
+			if (tavilyApiKey.trim()) {
+				config.api_key = tavilyApiKey.trim();
+			}
+
+			if (tavilyIntegration?.id) {
+				const { data, error } = await fluxbase.admin.ai.updateIntegration(tavilyIntegration.id, {
+					config
+				});
+				if (error) throw error;
+				if (data) tavilyIntegration = data;
+			} else {
+				if (!config.api_key) {
+					throw new Error('API key is required when creating the integration');
+				}
+				const { data, error } = await fluxbase.admin.ai.createIntegration({
+					name: 'Tavily',
+					integration_type: 'web_search' as any,
+					provider: 'tavily' as any,
+					config,
+					enabled: true,
+					is_default: true
+				});
+				if (error) throw error;
+				if (data) tavilyIntegration = data;
+			}
+			tavilyApiKey = '';
+			toast.success(t('serverAdmin.tavilySaved'));
+		} catch (error: any) {
+			console.error('Failed to save Tavily config:', error);
+			toast.error(t('serverAdmin.tavilySaveFailed'), { description: error?.message });
+		} finally {
+			tavilySaving = false;
+		}
+	}
+
+	async function testTavily() {
+		if (!tavilyIntegration?.id) {
+			tavilyTestResult = {
+				ok: false,
+				message: 'Save the integration first before testing.'
+			};
+			return;
+		}
+		tavilyTesting = true;
+		tavilyTestResult = null;
+		try {
+			const { data, error } = await fluxbase.admin.ai.testIntegration(tavilyIntegration.id);
+			if (error) throw error;
+			const ok = data?.status === 'ok';
+			tavilyTestResult = {
+				ok,
+				message: ok ? t('serverAdmin.tavilyTestOk') : data?.error || t('serverAdmin.tavilyTestFail')
+			};
+			toast[ok ? 'success' : 'error'](tavilyTestResult.message);
+		} catch (error: any) {
+			tavilyTestResult = { ok: false, message: error?.message || String(error) };
+			toast.error(t('serverAdmin.tavilyTestFail'), { description: tavilyTestResult.message });
+		} finally {
+			tavilyTesting = false;
+		}
+	}
+
+	async function clearTavilyKey() {
+		if (!tavilyIntegration?.id) return;
+		tavilyClearing = true;
+		try {
+			// ponytail: overwrite api_key with empty string; server preserves
+			// the rest of the config. Marks the integration as not usable until
+			// a new key is provided.
+			const { data, error } = await fluxbase.admin.ai.updateIntegration(tavilyIntegration.id, {
+				config: { ...(tavilyIntegration.config ?? {}), api_key: '' }
+			});
+			if (error) throw error;
+			if (data) tavilyIntegration = data;
+			tavilyApiKey = '';
+			toast.success(t('serverAdmin.tavilyKeyCleared'));
+		} catch (error: any) {
+			toast.error(t('serverAdmin.tavilyClearFailed'), { description: error?.message });
+		} finally {
+			tavilyClearing = false;
 		}
 	}
 
@@ -1164,6 +1271,23 @@
 		} else {
 			pexelsApiKeyConfigured = false;
 			pexelsApiKeyUpdatedAt = null;
+		}
+
+		// Load Tavily integration (Fluxbase ai.tool_integrations)
+		try {
+			const { data: integrations, error: ie } = await fluxbase.admin.ai.listIntegrations({
+				integration_type: 'web_search' as any
+			});
+			if (!ie && integrations) {
+				const existing = integrations.find((i: any) => i.provider === 'tavily') ?? null;
+				tavilyIntegration = existing;
+				if (existing) {
+					tavilyBaseURL = existing.config?.base_url || 'https://api.tavily.com';
+					tavilyDepth = (existing.config?.default_depth as 'basic' | 'advanced') || 'basic';
+				}
+			}
+		} catch (err) {
+			console.warn('Failed to load Tavily integration:', err);
 		}
 
 		console.log('✅ Settings loaded successfully');
@@ -2847,7 +2971,136 @@
 					</div>
 				</div>
 
-				<!-- Database Maintenance -->
+				<!-- Web Search (Tavily) -->
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+					<div class="mb-4 flex items-center gap-3">
+						<Globe class="h-6 w-6 text-sky-500" />
+						<div class="flex-1">
+							<h2 class="text-xl font-semibold text-foreground">
+								{t('serverAdmin.tavilyTitle')}
+							</h2>
+							<p class="mt-1 text-sm text-muted-foreground">
+								{t('serverAdmin.tavilyDescription')}
+								<a
+									href="https://tavily.com"
+									target="_blank"
+									rel="noopener"
+									class="text-primary ml-1 text-xs underline"
+								>
+									{t('serverAdmin.tavilyGetKey')}
+								</a>
+							</p>
+						</div>
+						{#if tavilyIntegration?.id}
+							<span
+								class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
+							>
+								{t('serverAdmin.tavilyConfigured')}
+							</span>
+						{/if}
+					</div>
+
+					<div class="space-y-4">
+						<!-- API Key -->
+						<div>
+							<label class="mb-1 block text-sm font-medium text-foreground" for="tavily-api-key">
+								{t('serverAdmin.tavilyKey')}
+							</label>
+							<input
+								id="tavily-api-key"
+								type="password"
+								bind:value={tavilyApiKey}
+								placeholder={t('serverAdmin.tavilyKeyPlaceholder')}
+								class="border-border bg-background text-foreground focus:ring-primary w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+								autocomplete="off"
+							/>
+							{#if tavilyIntegration?.config?.api_key}
+								<p class="mt-1 text-xs text-muted-foreground">
+									{t('serverAdmin.tavilyKeyMasked')}
+									{#if tavilyIntegration.updated_at}
+										· {new Date(tavilyIntegration.updated_at).toLocaleDateString()}
+									{/if}
+								</p>
+								<button
+									type="button"
+									onclick={clearTavilyKey}
+									disabled={tavilyClearing}
+									class="text-destructive hover:text-destructive mt-1 text-xs underline disabled:opacity-50"
+								>
+									{tavilyClearing
+										? t('serverAdmin.tavilyClearing')
+										: t('serverAdmin.tavilyClearKey')}
+								</button>
+							{/if}
+						</div>
+
+						<!-- Base URL -->
+						<div>
+							<label class="mb-1 block text-sm font-medium text-foreground" for="tavily-base-url">
+								{t('serverAdmin.tavilyBaseURL')}
+							</label>
+							<input
+								id="tavily-base-url"
+								type="url"
+								bind:value={tavilyBaseURL}
+								placeholder="https://api.tavily.com"
+								class="border-border bg-background text-foreground focus:ring-primary w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							/>
+						</div>
+
+						<!-- Default Depth -->
+						<div>
+							<label class="mb-1 block text-sm font-medium text-foreground" for="tavily-depth">
+								{t('serverAdmin.tavilyDepth')}
+							</label>
+							<select
+								id="tavily-depth"
+								bind:value={tavilyDepth}
+								class="border-border bg-background text-foreground focus:ring-primary w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							>
+								<option value="basic">{t('serverAdmin.tavilyDepthBasic')}</option>
+								<option value="advanced">{t('serverAdmin.tavilyDepthAdvanced')}</option>
+							</select>
+							<p class="mt-1 text-xs text-muted-foreground">
+								{t('serverAdmin.tavilyDepthHint')}
+							</p>
+						</div>
+
+						<!-- Test result -->
+						{#if tavilyTestResult}
+							<div
+								class="rounded-md border p-2 text-xs {tavilyTestResult.ok
+									? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400'
+									: 'border-red-300 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400'}"
+							>
+								{tavilyTestResult.message}
+							</div>
+						{/if}
+
+						<!-- Action buttons -->
+						<div class="flex items-center justify-end gap-2 pt-2">
+							{#if tavilyIntegration?.id}
+								<button
+									type="button"
+									onclick={testTavily}
+									disabled={tavilyTesting || tavilySaving}
+									class="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+								>
+									{tavilyTesting ? t('serverAdmin.tavilyTesting') : t('serverAdmin.tavilyTest')}
+								</button>
+							{/if}
+							<button
+								type="button"
+								onclick={saveTavily}
+								disabled={tavilySaving || tavilyTesting}
+								class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+							>
+								{tavilySaving ? t('serverAdmin.tavilySaving') : t('serverAdmin.saveSettings')}
+							</button>
+						</div>
+					</div>
+				</div>
+
 				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
 					<div class="mb-6 flex items-center gap-3">
 						<Database class="h-6 w-6 text-emerald-500" />
