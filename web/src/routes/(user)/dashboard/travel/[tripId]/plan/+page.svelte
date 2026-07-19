@@ -1266,7 +1266,7 @@
 													placeholder="https://..."
 													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
 												/>
-												{#if loadingPreview === item.booking_url}
+												{#if item.booking_url && loadingPreview === item.booking_url}
 													<div
 														class="text-muted-foreground flex items-center gap-1 py-1 text-[10px]"
 													>

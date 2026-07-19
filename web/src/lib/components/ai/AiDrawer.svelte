@@ -56,7 +56,10 @@
 	let activeConversationId = $state<string | null>(null);
 
 	let chatService: ChatService | null = null;
-	let currentCtx: AiPageContext = { page: 'default' };
+	// ponytail: pageContext is already reactive ($derived from $aiDrawer).
+	// No need for a separate currentCtx snapshot — use pageContext directly in
+	// reactive UI ($derived, templates) and read its current value in async
+	// callbacks (send, showGreeting) via the closure variable.
 
 	// Reactive: subscribe to drawer store
 	let drawerState = $derived($aiDrawer);
@@ -76,11 +79,10 @@
 	);
 
 	$effect(() => {
-		// Track context changes
-		const newCtx = pageContext;
-		if (newCtx !== currentCtx) {
-			currentCtx = newCtx;
-		}
+		// ponytail: touch pageContext so this $effect tracks it for any future
+		// side effects (logging, analytics). Currently a no-op but keeps the
+		// dependency graph explicit.
+		void pageContext;
 	});
 
 	onMount(async () => {
@@ -239,10 +241,10 @@
 
 	function showGreeting() {
 		if (messages.length > 0) return;
-		const inPlanMode = currentCtx.page === 'plan';
-		const tripTitle = currentCtx.trip_title;
-		const numDays = currentCtx.num_days;
-		const primaryCity = currentCtx.primary_city;
+		const inPlanMode = pageContext.page === 'plan';
+		const tripTitle = pageContext.trip_title;
+		const numDays = pageContext.num_days;
+		const primaryCity = pageContext.primary_city;
 		const destination = primaryCity || tripTitle;
 
 		if (inPlanMode && destination) {
@@ -335,17 +337,17 @@
 		// supervisor uses to look up a PageProfile. Trip context data has to
 		// travel in the message body because pageContext is not an object.
 		const isFirstUserMessage = messages.filter((m) => m.role === 'user').length === 0;
-		const inPlanMode = currentCtx.page === 'plan';
+		const inPlanMode = pageContext.page === 'plan';
 		let msgToSend = userMsg;
 		if (isFirstUserMessage && inPlanMode) {
 			const ctxBlock = [
 				`[TRIP CONTEXT]`,
-				`trip_id=${currentCtx.trip_id ?? ''}`,
-				`trip_title=${currentCtx.trip_title ?? ''}`,
-				`start=${currentCtx.trip_dates?.start ?? ''}`,
-				`end=${currentCtx.trip_dates?.end ?? ''}`,
-				`num_days=${currentCtx.num_days ?? ''}`,
-				`primary_city=${currentCtx.primary_city ?? ''}`
+				`trip_id=${pageContext.trip_id ?? ''}`,
+				`trip_title=${pageContext.trip_title ?? ''}`,
+				`start=${pageContext.trip_dates?.start ?? ''}`,
+				`end=${pageContext.trip_dates?.end ?? ''}`,
+				`num_days=${pageContext.num_days ?? ''}`,
+				`primary_city=${pageContext.primary_city ?? ''}`
 			].join('; ');
 			msgToSend = `${ctxBlock}\n\n${userMsg}`;
 		}
@@ -358,7 +360,7 @@
 			await chatService!.sendMessage(
 				msgToSend,
 				undefined,
-				currentCtx.page // 'default' | 'plan'
+				pageContext.page // 'default' | 'plan'
 			);
 			// Refresh conversation list after first successful turn
 			if (conversations.length === 0 || conversations[0]?.id !== activeConversationId) {
@@ -391,7 +393,7 @@
 
 	const planSuggestions = $derived([
 		t('ai.suggestions.planItinerary', {
-			city: currentCtx.primary_city || currentCtx.trip_title || 'this trip'
+			city: pageContext.primary_city || pageContext.trip_title || 'this trip'
 		}),
 		t('ai.suggestions.planRestaurants'),
 		t('ai.suggestions.planFree')
