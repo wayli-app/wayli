@@ -367,21 +367,144 @@
 	type ParsedSuggestion = PlanSuggestion;
 
 	function extractSuggestions(content: string): ParsedSuggestion[] {
+		// 1. Try fenced ```json code block first (richer data: cost, address, time)
 		const jsonMatch = content.match(/```json\s*\n?(\[[\s\S]*?\])\s*\n?```/);
 		if (jsonMatch) {
 			try {
 				const parsed = JSON.parse(jsonMatch[1]);
-				if (Array.isArray(parsed)) return parsed;
+				if (Array.isArray(parsed) && parsed.length > 0) return parsed;
 			} catch {}
 		}
+		// 2. Try raw JSON array (no fence)
 		const rawJsonMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
 		if (rawJsonMatch) {
 			try {
 				const parsed = JSON.parse(rawJsonMatch[0]);
-				if (Array.isArray(parsed)) return parsed;
+				if (Array.isArray(parsed) && parsed.length > 0) return parsed;
 			} catch {}
 		}
-		return [];
+		// 3. Fallback: parse markdown bullet points (model-agnostic)
+		return extractFromBullets(content);
+	}
+
+	// ponytail: bullet-point parser — extracts suggestions from the markdown
+	// the model naturally produces even when it ignores JSON formatting rules.
+	// Handles: ### Day N headings, - **Title** — desc, - Title: desc, N. **Title**
+	function extractFromBullets(content: string): ParsedSuggestion[] {
+		// Only parse in plan mode — don't produce chips for data-analysis responses
+		if (pageContext.page !== 'plan') return [];
+
+		const suggestions: ParsedSuggestion[] = [];
+		let currentDay = 1;
+		const seen = new Set<string>();
+
+		for (const line of content.split('\n')) {
+			// Track day from ### Day N: headings
+			const dayMatch = line.match(/^#{1,4}\s+.*?\bDay\s+(\d+)\b/i);
+			if (dayMatch) {
+				currentDay = parseInt(dayMatch[1], 10);
+				continue;
+			}
+
+			// Match bullet points: - text, * text, or N. text
+			const bullet = line.match(/^\s*[-*]\s+(.+)|^\s*\d+\.\s+(.+)/);
+			if (!bullet) continue;
+
+			const rawText = (bullet[1] || bullet[2] || '').trim();
+			if (!rawText || rawText.length < 4) continue;
+
+			// Skip obvious non-activity lines
+			if (/^(quick question|if you|do you|what's|what is|tell me|note:|tip:)/i.test(rawText))
+				continue;
+
+			// Extract title from **bold** or before separator
+			let title = '';
+			let desc = '';
+			let timeHint = '';
+
+			// Pattern: **Title** — description  OR  **Title** - description
+			const boldMatch = rawText.match(/^\*\*(.+?)\*\*\s*[—–-]?\s*(.*)/);
+			if (boldMatch) {
+				title = boldMatch[1].trim();
+				desc = boldMatch[2] || '';
+			} else {
+				// Pattern: TimeWord: Activity  (e.g., "Morning: Brandenburg Gate")
+				const timePrefix = rawText.match(
+					/^(morning|afternoon|evening|lunch|dinner|midday|noon|early|late|night|sunrise|sunset)\s*[:—–-]\s*(.+)/i
+				);
+				if (timePrefix) {
+					timeHint = timePrefix[1].toLowerCase();
+					// The activity after the colon — take first item if comma-separated
+					const activities = timePrefix[2].split(/[,;]/)[0].trim();
+					// Check if the activity itself is bold
+					const innerBold = activities.match(/^\*\*(.+?)\*\*/);
+					title = innerBold ? innerBold[1].trim() : activities;
+					desc = timePrefix[2];
+				} else {
+					// Pattern: Title — description  OR  Title: description
+					const sep = rawText.match(/^(.+?)\s*[—–-]\s+(.+)/);
+					if (sep) {
+						title = sep[1].replace(/\*\*/g, '').trim();
+						desc = sep[2];
+					} else {
+						title = rawText.replace(/\*\*/g, '').trim();
+					}
+				}
+			}
+
+			// Clean up title
+			title = title.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+			if (!title || title.length < 3) continue;
+
+			// Dedupe by title (case-insensitive)
+			const titleKey = title.toLowerCase().slice(0, 40);
+			if (seen.has(titleKey)) continue;
+			seen.add(titleKey);
+
+			suggestions.push({
+				day: currentDay,
+				title,
+				type: inferType(title, desc),
+				time: timeHint ? inferTime(timeHint) : null,
+				cost: null,
+				currency: null,
+				address: null
+			});
+		}
+
+		// Cap at 15 to avoid flooding the chat with chips
+		return suggestions.slice(0, 15);
+	}
+
+	function inferType(title: string, desc: string): string {
+		const t = (title + ' ' + desc).toLowerCase();
+		if (
+			/museum|gallery|cathedral|church|memorial|monument|castle|palace|reichstag|brandenburg|wall|history|heritage|exhibition/.test(
+				t
+			)
+		)
+			return 'sightseeing';
+		if (
+			/restaurant|café|cafe|food|lunch|dinner|brunch|eat|curry|döner|doner|market|beer|bar|biergarten|brewery|cocktail|wine/.test(
+				t
+			)
+		)
+			return 'food';
+		if (/train|bus|flight|boat|cruise|bike|cycle|transport|airport|ferry|tram/.test(t))
+			return 'transport';
+		if (/hotel|hostel|accommodation|stay|check.?in/.test(t)) return 'accommodation';
+		if (/park|garden|walk|stroll|picnic|relax|tiergarten|tempelhofer/.test(t)) return 'rest';
+		if (/shop|shopping|mall|store|boutique/.test(t)) return 'shopping';
+		return 'activity';
+	}
+
+	function inferTime(prefix: string): string | null {
+		const p = prefix.toLowerCase();
+		if (/morning|early/.test(p)) return '09:00';
+		if (/lunch|midday|noon/.test(p)) return '12:00';
+		if (/afternoon/.test(p)) return '14:00';
+		if (/evening|dinner|sunset|night/.test(p)) return '18:00';
+		return null;
 	}
 
 	function stripJsonBlocks(content: string): string {
