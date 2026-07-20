@@ -61,7 +61,7 @@ services:
 
   # Fluxbase API
   fluxbase:
-    image: ghcr.io/nimbleflux/fluxbase:2026.7.3-rc.11
+    image: ghcr.io/nimbleflux/fluxbase:2026.7.3-rc.12
     container_name: fluxbase
     ports:
       - '8080:8080'
@@ -85,6 +85,12 @@ services:
       # Enable features
       FLUXBASE_ADMIN_ENABLED: ${FLUXBASE_ADMIN_ENABLED-false}
       FLUXBASE_CORS_ALLOWED_ORIGINS: ${SITE_URL}
+
+      # Tavily web search (env-config path — bypasses DB integration storage
+      # to avoid tenant-context propagation issues in supervisor mode).
+      # The DB-stored integration in the admin UI is still available for
+      # per-tenant overrides; this env var is the instance-level default.
+      FLUXBASE_AI_TAVILY_API_KEY: ${FLUXBASE_AI_TAVILY_API_KEY:-}
 
     volumes:
       - storage_data:/app/storage
