@@ -452,8 +452,12 @@
 				}
 			}
 
-			// Clean up title
-			title = title.replace(/^\*\*/, '').replace(/\*\*$/, '').trim();
+			// Clean up title: strip bold markers, trailing colons/semicolons, whitespace
+			title = title
+				.replace(/^\*\*/, '')
+				.replace(/\*\*$/, '')
+				.replace(/[:：]\s*$/, '')
+				.trim();
 			if (!title || title.length < 3) continue;
 
 			// Dedupe by title (case-insensitive)
