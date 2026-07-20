@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
 	import type { Map as LeafletMap } from 'leaflet';
 
 	type Props = {
@@ -16,24 +17,20 @@
 	let L: any = null;
 	let mainLayer: any = null;
 	let highlightLayer: any = null;
+	let cleanupThemeWatcher: (() => void) | null = null;
 
 	onMount(async () => {
 		L = (await import('leaflet')).default;
 
-		const isDark = document.documentElement.classList.contains('dark');
-
-		map = L.map(mapContainer, { scrollWheelZoom: true });
-		L.tileLayer(
-			isDark
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-			{
-				attribution: isDark
-					? '&copy; OpenStreetMap &copy; CARTO'
-					: '&copy; OpenStreetMap contributors',
+		const mapInstance = L.map(mapContainer, { scrollWheelZoom: true });
+		map = mapInstance;
+		// ponytail: theme-aware tile layer — rebuilds on dark/light toggle
+		cleanupThemeWatcher = watchMapTheme(mapInstance, (theme) =>
+			L.tileLayer(TILE_URLS[theme].url, {
+				attribution: TILE_URLS[theme].attribution,
 				maxZoom: 18
-			}
-		).addTo(map);
+			})
+		);
 
 		mainLayer = L.layerGroup().addTo(map);
 		highlightLayer = L.layerGroup().addTo(map);
@@ -151,6 +148,7 @@
 	});
 
 	onDestroy(() => {
+		cleanupThemeWatcher?.();
 		map?.remove();
 	});
 </script>

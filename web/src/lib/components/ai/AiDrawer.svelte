@@ -13,7 +13,8 @@
 		ChevronRight,
 		Brain,
 		Wrench,
-		Pencil
+		Pencil,
+		Share2
 	} from 'lucide-svelte';
 	import { ChatService, type ChatMessage, type AgentThought } from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
@@ -266,6 +267,86 @@
 		setTimeout(() => (copiedIdx = null), 2000);
 	}
 
+	let shareOpen = $state(false);
+	let shareText = $state('');
+	let shareCopied = $state(false);
+
+	function buildShareTranscript(): string {
+		const lines: string[] = [
+			'# AI Assistant conversation transcript',
+			``,
+			`- Chatbot: ${CHATBOT}`,
+			`- Namespace: ${NAMESPACE}`,
+			`- Page context: ${JSON.stringify(pageContext, null, 2)}`,
+			`- Generated: ${new Date().toISOString()}`,
+			``,
+			`---`,
+			``
+		];
+		for (let i = 0; i < messages.length; i++) {
+			const m = messages[i];
+			lines.push(`## ${m.role === 'user' ? 'User' : 'Assistant'} (${i})`);
+			lines.push(``);
+			lines.push(m.content);
+			lines.push(``);
+			if (m.thoughts && m.thoughts.length > 0) {
+				lines.push(`<details><summary>Reasoning events (${m.thoughts.length})</summary>`);
+				lines.push(``);
+				for (const th of m.thoughts) {
+					lines.push(`- **agent=${th.agent} kind=${th.kind}**`);
+					if (th.tool_name) lines.push(`  - tool: ${th.tool_name}`);
+					if (th.tool_args != null) lines.push(`  - args: ${JSON.stringify(th.tool_args)}`);
+					if (th.delta) lines.push(`  - delta: ${th.delta}`);
+					if (th.plan) {
+						lines.push(`  - plan:`);
+						lines.push(`    - route: ${th.plan.route?.join(' → ') ?? '-'}`);
+						if (th.plan.sub_questions?.length) {
+							lines.push(`    - sub_questions:`);
+							for (const q of th.plan.sub_questions) lines.push(`      - ${q}`);
+						}
+						lines.push(
+							`    - requires_synthesis=${th.plan.requires_synthesis} is_investigative=${th.plan.is_investigative} min_tool_calls=${th.plan.min_tool_calls}`
+						);
+					}
+				}
+				lines.push(``);
+				lines.push(`</details>`);
+				lines.push(``);
+			}
+		}
+		if (connectionError) {
+			lines.push(`## Connection error`);
+			lines.push(``);
+			lines.push('```');
+			lines.push(connectionError);
+			lines.push('```');
+		}
+		return lines.join('\n');
+	}
+
+	function openSharePanel() {
+		shareText = buildShareTranscript();
+		shareOpen = true;
+	}
+
+	function copyShareText() {
+		navigator.clipboard.writeText(shareText);
+		shareCopied = true;
+		setTimeout(() => (shareCopied = false), 2000);
+	}
+
+	function downloadShareText() {
+		const blob = new Blob([shareText], { type: 'text/markdown' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `ai-conversation-${new Date().toISOString().split('T')[0]}.md`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+	}
+
 	// Suggestion parsing for plan mode (ported from TripPlannerChat)
 	type ParsedSuggestion = PlanSuggestion;
 
@@ -421,6 +502,14 @@
 					onclick={() => (showConversationList = !showConversationList)}
 				>
 					<MessageSquare class="h-4 w-4" />
+				</button>
+				<button
+					type="button"
+					class="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5"
+					title={t('ai.share')}
+					onclick={openSharePanel}
+				>
+					<Share2 class="h-4 w-4" />
 				</button>
 				<button
 					type="button"
@@ -689,4 +778,65 @@
 			</button>
 		</div>
 	</aside>
+{/if}
+
+{#if shareOpen}
+	<!-- Backdrop -->
+	<button
+		type="button"
+		class="fixed inset-0 z-[60] bg-black/50"
+		aria-label="Close share panel"
+		onclick={() => (shareOpen = false)}
+		transition:fade={{ duration: 150 }}
+	></button>
+
+	<!-- Share modal -->
+	<div
+		class="bg-card border-border fixed inset-y-0 right-0 z-[70] flex w-full max-w-2xl flex-col border-l shadow-2xl"
+		transition:slide={{ duration: 250 }}
+	>
+		<header class="border-border flex items-center justify-between border-b p-3">
+			<div class="flex items-center gap-2">
+				<Share2 class="text-primary h-4 w-4" />
+				<h2 class="text-foreground text-sm font-semibold">{t('ai.shareTitle')}</h2>
+			</div>
+			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs"
+					onclick={downloadShareText}
+				>
+					{t('ai.download') || 'Download'}
+				</button>
+				<button
+					type="button"
+					class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs"
+					onclick={copyShareText}
+				>
+					{#if shareCopied}
+						<Check class="h-3 w-3" /> {t('ai.copied')}
+					{:else}
+						<Copy class="h-3 w-3" /> {t('ai.copyAll')}
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5"
+					onclick={() => (shareOpen = false)}
+				>
+					<X class="h-4 w-4" />
+				</button>
+			</div>
+		</header>
+		<div class="flex-1 overflow-auto p-3">
+			<textarea
+				readonly
+				value={shareText}
+				class="border-border bg-background text-foreground h-full w-full resize-none rounded-md border p-3 font-mono text-xs"
+				onclick={(e) => (e.target as HTMLTextAreaElement).select()}></textarea>
+		</div>
+		<div class="border-border text-muted-foreground border-t p-2 text-center text-[10px]">
+			{t('ai.shareHint')}
+		</div>
+	</div>
 {/if}

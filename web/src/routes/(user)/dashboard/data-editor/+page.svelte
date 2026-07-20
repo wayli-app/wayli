@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
 	import { fluxbase } from '$lib/fluxbase';
 	import {
 		getPoints,
@@ -30,6 +31,7 @@
 	let mapContainer: HTMLDivElement;
 	let map: any = null;
 	let L: any = null;
+	let cleanupThemeWatcher: (() => void) | null = null;
 
 	let allPoints = $state<SelectedPoint[]>([]);
 	let totalCount = $state(0);
@@ -73,6 +75,7 @@
 	});
 
 	onDestroy(() => {
+		cleanupThemeWatcher?.();
 		map?.remove();
 	});
 
@@ -123,18 +126,12 @@
 		if (!mapContainer || !L) return;
 
 		map = L.map(mapContainer, { scrollWheelZoom: true });
-		const isDark = document.documentElement.classList.contains('dark');
-		L.tileLayer(
-			isDark
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-			{
-				attribution: isDark
-					? '&copy; OpenStreetMap &copy; CARTO'
-					: '&copy; OpenStreetMap contributors',
+		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
+			L.tileLayer(TILE_URLS[theme].url, {
+				attribution: TILE_URLS[theme].attribution,
 				maxZoom: 18
-			}
-		).addTo(map);
+			})
+		);
 
 		drawPoints();
 		drawExclusionZones();

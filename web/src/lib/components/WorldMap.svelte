@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
 	import { feature } from 'topojson-client';
 	import type { Topology } from 'topojson-specification';
 
@@ -14,6 +15,7 @@
 	let mapContainer: HTMLDivElement;
 	let map: any = null;
 	let L: any = null;
+	let cleanupThemeWatcher: (() => void) | null = null;
 
 	// world-atlas uses ISO 3166-1 numeric codes as feature IDs
 	// Map ISO2 alpha codes → numeric codes
@@ -200,18 +202,13 @@
 	onMount(async () => {
 		L = (await import('leaflet')).default;
 
-		const isDark = document.documentElement.classList.contains('dark');
-
 		map = L.map(mapContainer, { scrollWheelZoom: true, zoomControl: false });
-		L.tileLayer(
-			isDark
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-			{
-				attribution: isDark ? '&copy; OpenStreetMap &copy; CARTO' : '&copy; OpenStreetMap',
+		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
+			L.tileLayer(TILE_URLS[theme].url, {
+				attribution: TILE_URLS[theme].attribution,
 				maxZoom: 5
-			}
-		).addTo(map);
+			})
+		);
 
 		try {
 			const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
@@ -251,6 +248,7 @@
 	});
 
 	onDestroy(() => {
+		cleanupThemeWatcher?.();
 		map?.remove();
 	});
 </script>

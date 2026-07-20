@@ -1687,6 +1687,11 @@
     },
     "reasoning": "Reasoning · {count} step(s)",
     "update": "Update",
-    "deleteItem": "Delete item"
+    "deleteItem": "Delete item",
+    "share": "Share / debug transcript",
+    "shareTitle": "Conversation transcript",
+    "copyAll": "Copy all",
+    "download": "Download .md",
+    "shareHint": "Paste this transcript into a GitHub issue, chat, or AI debugging tool to share what went wrong."
   }
 }
