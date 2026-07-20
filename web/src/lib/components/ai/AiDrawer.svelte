@@ -51,6 +51,21 @@
 	let openThoughts = $state<Record<number, boolean>>({});
 	let copiedIdx = $state<number | null>(null);
 
+	// Expandable suggestion chips: track which chips are expanded and their edited values
+	type SuggestionEdit = {
+		day: number;
+		time: string | null;
+		noTime: boolean;
+		cost: number | null;
+		currency: string | null;
+		type: string;
+		address: string | null;
+	};
+	let expandedChips = $state<Set<string>>(new Set());
+	let chipEdits = $state<Record<string, SuggestionEdit>>({});
+	let chipAdded = $state<Set<string>>(new Set());
+	let chipGeocoding = $state<Set<string>>(new Set());
+
 	let conversations = $state<Conversation[]>([]);
 	let showConversationList = $state(false);
 	let activeConversationId = $state<string | null>(null);
@@ -377,6 +392,77 @@
 		const handler = aiDrawer.getAcceptSuggestionHandler();
 		if (!handler) return;
 		await handler(sug);
+	}
+
+	// === Expandable suggestion chips ===
+
+	function chipKey(msgIdx: number, sugIdx: number): string {
+		return `${msgIdx}-${sugIdx}`;
+	}
+
+	function toggleChip(key: string, sug: ParsedSuggestion) {
+		if (expandedChips.has(key)) {
+			expandedChips.delete(key);
+			expandedChips = new Set(expandedChips);
+		} else {
+			expandedChips = new Set([...expandedChips, key]);
+			// Initialize edit state from the AI suggestion
+			if (!chipEdits[key]) {
+				chipEdits[key] = {
+					day: sug.day ?? 1,
+					time: sug.time ?? null,
+					noTime: !sug.time,
+					cost: sug.cost ?? null,
+					currency: sug.currency ?? null,
+					type: sug.type ?? 'activity',
+					address: sug.address ?? null
+				};
+			}
+			// Background geocode if address exists but no coordinates
+			if (sug.address && !chipGeocoding.has(key)) {
+				chipGeocoding = new Set([...chipGeocoding, key]);
+				geocodeAddress(sug.address).then(() => {
+					chipGeocoding.delete(key);
+					chipGeocoding = new Set(chipGeocoding);
+				});
+			}
+		}
+	}
+
+	async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+		try {
+			const { getPeliasEndpoint } = await import('$lib/services/external/pelias.service');
+			const endpoint = await getPeliasEndpoint();
+			const res = await fetch(`${endpoint}/v1/search?text=${encodeURIComponent(address)}&size=1`, {
+				headers: { Accept: 'application/json' }
+			});
+			const data = await res.json();
+			const feat = data.features?.[0];
+			if (feat?.geometry?.coordinates) {
+				return { lat: feat.geometry.coordinates[1], lng: feat.geometry.coordinates[0] };
+			}
+		} catch {
+			// best-effort
+		}
+		return null;
+	}
+
+	async function confirmAddChip(key: string, sug: ParsedSuggestion) {
+		const edit = chipEdits[key];
+		if (!edit) return;
+		const modified: ParsedSuggestion = {
+			...sug,
+			day: edit.day,
+			time: edit.noTime ? null : edit.time,
+			cost: edit.cost,
+			currency: edit.currency,
+			type: edit.type,
+			address: edit.address
+		};
+		await onAcceptSuggestion(modified);
+		chipAdded = new Set([...chipAdded, key]);
+		expandedChips.delete(key);
+		expandedChips = new Set(expandedChips);
 	}
 
 	async function send() {
@@ -711,34 +797,175 @@
 									<div class="mt-1.5 flex flex-col gap-1.5">
 										{#each suggestions as sug, sugIdx (sugIdx)}
 											{@const action = sug.action ?? 'create'}
+											{@const key = chipKey(i, sugIdx)}
+											{@const isExpanded = expandedChips.has(key)}
+											{@const isAdded = chipAdded.has(key)}
 											{@const chipClass =
 												action === 'delete'
 													? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400'
 													: action === 'update'
 														? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400'
-														: 'bg-primary/10 hover:bg-primary/20 text-primary'}
+														: isAdded
+															? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+															: 'bg-primary/10 hover:bg-primary/20 text-primary'}
 											{@const Icon =
-												action === 'delete' ? Trash2 : action === 'update' ? Pencil : Plus}
+												action === 'delete'
+													? Trash2
+													: action === 'update'
+														? Pencil
+														: isAdded
+															? Check
+															: Plus}
 											{@const label =
 												action === 'delete'
 													? sug.reason || t('ai.deleteItem')
 													: action === 'update'
 														? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
 														: sug.title}
-											<button
-												type="button"
-												title={sug.reason ?? ''}
-												class="{chipClass} inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors"
-												onclick={() => onAcceptSuggestion(sug)}
-											>
-												<Icon class="h-3 w-3 flex-shrink-0" />
-												<span class="min-w-0 flex-1 truncate">{label}</span>
-												{#if action === 'create'}
-													<span class="text-muted-foreground flex-shrink-0"
-														>→ {t('common.day')} {sug.day}</span
-													>
+
+											{#if action === 'create' && !isAdded}
+												<!-- Expandable create chip: click to expand, adjust day/time, then add -->
+												<button
+													type="button"
+													title={sug.reason ?? ''}
+													class="{chipClass} inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors"
+													onclick={() => toggleChip(key, sug)}
+												>
+													<Icon class="h-3 w-3 flex-shrink-0" />
+													<span class="min-w-0 flex-1 truncate">{label}</span>
+													{#if sug.address}
+														<span class="text-muted-foreground flex-shrink-0 truncate text-[10px]"
+															>📍 {sug.address.slice(0, 20)}{sug.address.length > 20
+																? '…'
+																: ''}</span
+														>
+													{/if}
+												</button>
+												{#if isExpanded}
+													{@const edit = chipEdits[key]}
+													<div class="bg-muted/50 border-border ml-4 rounded-lg border p-2.5">
+														<div class="mb-2 flex items-center gap-2 text-[10px]">
+															<span class="text-foreground truncate font-medium">{sug.title}</span>
+															{#if chipGeocoding.has(key)}
+																<Loader2 class="text-muted-foreground h-2.5 w-2.5 animate-spin" />
+															{/if}
+														</div>
+														{#if edit}
+															<div class="space-y-2">
+																<div class="flex items-center gap-2">
+																	<label
+																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																	>
+																		{t('common.day')}:
+																		<select
+																			bind:value={edit.day}
+																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px]"
+																		>
+																			{#each Array.from({ length: (pageContext.num_days as number) || 3 }, (_, idx) => idx + 1) as dayNum}
+																				<option value={dayNum}>{t('common.day')} {dayNum}</option>
+																			{/each}
+																		</select>
+																	</label>
+																	<label
+																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																	>
+																		{t('ai.time')}:
+																		<input
+																			type="time"
+																			bind:value={edit.time}
+																			disabled={edit.noTime}
+																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px] disabled:opacity-40"
+																		/>
+																	</label>
+																	<label
+																		class="text-muted-foreground flex items-center gap-0.5 text-[10px]"
+																	>
+																		<input
+																			type="checkbox"
+																			bind:checked={edit.noTime}
+																			class="h-2.5 w-2.5"
+																		/>
+																		{t('ai.noTime')}
+																	</label>
+																</div>
+																<div class="flex items-center gap-2">
+																	<label
+																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																	>
+																		{t('ai.type')}:
+																		<select
+																			bind:value={edit.type}
+																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px]"
+																		>
+																			{#each ['sightseeing', 'food', 'activity', 'transport', 'accommodation', 'rest', 'shopping'] as typ}
+																				<option value={typ}>{typ}</option>
+																			{/each}
+																		</select>
+																	</label>
+																	<label
+																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																	>
+																		{t('ai.cost')}:
+																		<input
+																			type="number"
+																			bind:value={edit.cost}
+																			step="0.01"
+																			placeholder="0"
+																			class="border-border bg-card w-16 rounded border px-1.5 py-0.5 text-[10px]"
+																		/>
+																		<input
+																			type="text"
+																			bind:value={edit.currency}
+																			placeholder="€"
+																			class="border-border bg-card w-8 rounded border px-1 py-0.5 text-[10px]"
+																		/>
+																	</label>
+																</div>
+																<div>
+																	<input
+																		type="text"
+																		bind:value={edit.address}
+																		placeholder={t('ai.addressPlaceholder') || 'Address'}
+																		class="border-border bg-card w-full rounded border px-1.5 py-0.5 text-[10px]"
+																	/>
+																</div>
+																<div class="flex items-center justify-end gap-1.5 pt-1">
+																	<button
+																		type="button"
+																		onclick={() => toggleChip(key, sug)}
+																		class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-[10px]"
+																	>
+																		{t('common.actions.cancel')}
+																	</button>
+																	<button
+																		type="button"
+																		onclick={() => confirmAddChip(key, sug)}
+																		class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1 rounded px-2.5 py-1 text-[10px] font-medium"
+																	>
+																		<Plus class="h-2.5 w-2.5" />
+																		{t('ai.addToDay', { day: edit.day })}
+																	</button>
+																</div>
+															</div>
+														{/if}
+													</div>
 												{/if}
-											</button>
+											{:else}
+												<!-- Delete/Update/Added chips: one-click action (no expand) -->
+												<button
+													type="button"
+													title={sug.reason ?? ''}
+													class="{chipClass} inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors"
+													onclick={() => !isAdded && onAcceptSuggestion(sug)}
+													disabled={isAdded}
+												>
+													<Icon class="h-3 w-3 flex-shrink-0" />
+													<span class="min-w-0 flex-1 truncate">{label}</span>
+													{#if action === 'create' && isAdded}
+														<span class="text-emerald-600 flex-shrink-0 text-[10px]">✓</span>
+													{/if}
+												</button>
+											{/if}
 										{/each}
 									</div>
 								{/if}

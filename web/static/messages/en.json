@@ -1692,6 +1692,12 @@
     "shareTitle": "Conversation transcript",
     "copyAll": "Copy all",
     "download": "Download .md",
-    "shareHint": "Paste this transcript into a GitHub issue, chat, or AI debugging tool to share what went wrong."
+    "shareHint": "Paste this transcript into a GitHub issue, chat, or AI debugging tool to share what went wrong.",
+    "time": "Time",
+    "noTime": "No specific time",
+    "type": "Type",
+    "cost": "Cost",
+    "addressPlaceholder": "Address (venue name or street)",
+    "addToDay": "Add to Day {day}"
   }
 }
