@@ -18,7 +18,8 @@
 	} from 'lucide-svelte';
 	import { ChatService, type ChatMessage, type AgentThought } from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import { translate } from '$lib/i18n';
+	import { translate, currentLocale } from '$lib/i18n';
+	import { get } from 'svelte/store';
 	import { aiDrawer, type AiPageContext, type PlanSuggestion } from '$lib/stores/ai-drawer';
 	import { fade, slide } from 'svelte/transition';
 
@@ -404,6 +405,9 @@
 		const isFirstUserMessage = messages.filter((m) => m.role === 'user').length === 0;
 		const inPlanMode = pageContext.page === 'plan';
 		let msgToSend = userMsg;
+		// Always send user_language so the supervisor picks the right response
+		// language regardless of trip destination / conversation history.
+		const userLang = (get(currentLocale) as string) || 'en';
 		if (isFirstUserMessage && inPlanMode) {
 			const ctxBlock = [
 				`[TRIP CONTEXT]`,
@@ -413,9 +417,16 @@
 				`end=${pageContext.trip_dates?.end ?? ''}`,
 				`num_days=${pageContext.num_days ?? ''}`,
 				`primary_city=${pageContext.primary_city ?? ''}`,
-				`home_city=${pageContext.home_city ?? ''}`
+				`home_city=${pageContext.home_city ?? ''}`,
+				`user_language=${userLang}`
 			].join('; ');
 			msgToSend = `${ctxBlock}\n\n${userMsg}`;
+		} else {
+			// Non-plan mode: still prefix the first message with a minimal lang hint
+			// so the supervisor doesn't infer language from conversation history.
+			if (isFirstUserMessage) {
+				msgToSend = `[LANG] user_language=${userLang}\n\n${userMsg}`;
+			}
 		}
 
 		messages = [...messages, { role: 'user', content: userMsg }];

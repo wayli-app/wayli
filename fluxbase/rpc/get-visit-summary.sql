@@ -15,14 +15,14 @@ WITH summary AS (
         MIN(started_at) AS first_visit,
         MAX(started_at) AS last_visit
     FROM my_place_visits
-    WHERE ($poi_name IS NULL OR poi_name ILIKE '%' || $poi_name || '%')
-      AND ($category IS NULL OR poi_category = $category)
+    WHERE ($poi_name::text IS NULL OR poi_name ILIKE '%' || $poi_name::text || '%')
+      AND ($category::text IS NULL OR poi_category = $category::text)
 ),
 top_cities AS (
     SELECT city, country_code, COUNT(*) AS visits
     FROM my_place_visits
-    WHERE ($poi_name IS NULL OR poi_name ILIKE '%' || $poi_name || '%')
-      AND ($category IS NULL OR poi_category = $category)
+    WHERE ($poi_name::text IS NULL OR poi_name ILIKE '%' || $poi_name::text || '%')
+      AND ($category::text IS NULL OR poi_category = $category::text)
       AND city IS NOT NULL
     GROUP BY city, country_code
     ORDER BY visits DESC
@@ -31,8 +31,8 @@ top_cities AS (
 top_pois AS (
     SELECT poi_name, poi_amenity, COUNT(*) AS visits, SUM(duration_minutes) AS total_minutes
     FROM my_place_visits
-    WHERE ($poi_name IS NULL OR poi_name ILIKE '%' || $poi_name || '%')
-      AND ($category IS NULL OR poi_category = $category)
+    WHERE ($poi_name::text IS NULL OR poi_name ILIKE '%' || $poi_name::text || '%')
+      AND ($category::text IS NULL OR poi_category = $category::text)
       AND poi_name IS NOT NULL
     GROUP BY poi_name, poi_amenity
     ORDER BY visits DESC

@@ -8,6 +8,8 @@
 -- ponytail: my_trips is RLS-scoped to the caller, so the implicit JOIN through
 -- trip_id is safe — users only see plan items for trips they can read.
 -- end_address for transport items lives in metadata jsonb, not a top-level column.
+-- Type casts (::uuid, ::text) on every $xxx IS NULL/IS NOT NULL — without them,
+-- Postgres can't infer parameter types from NULL comparisons alone (SQLSTATE 42P08).
 SELECT
     tpi.id AS item_id,
     tpi.day_number,
@@ -28,7 +30,7 @@ SELECT
 FROM trip_plan_items tpi
 WHERE tpi.trip_id IN (
     SELECT id FROM my_trips
-    WHERE ($trip_id IS NOT NULL AND id = $trip_id)
-       OR ($trip_id IS NULL AND $trip_title IS NOT NULL AND title ILIKE '%' || $trip_title || '%')
+    WHERE ($trip_id::uuid IS NOT NULL AND id = $trip_id::uuid)
+       OR ($trip_id::uuid IS NULL AND $trip_title::text IS NOT NULL AND title ILIKE '%' || $trip_title::text || '%')
 )
 ORDER BY tpi.day_number ASC, tpi.sort_order ASC, tpi.start_time ASC NULLS LAST;
