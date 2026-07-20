@@ -14,6 +14,7 @@
  * @fluxbase:reasoning-mode supervisor
  * @fluxbase:response-language auto
  * @fluxbase:web-search enabled
+ * @fluxbase:supervisor-web-triggers "this weekend","next weekend","this month","next month","currently","right now","what's happening","events in","opening hours","is X open","in 2026","in 2027","latest","recently","newest","still"
  * @fluxbase:allowed-tables my_trips,my_trip_entries,my_place_visits,my_poi_summary,trip_plan_items,country_name_aliases
  * @fluxbase:allowed-operations SELECT
  * @fluxbase:allowed-schemas public
