@@ -399,8 +399,8 @@
 		const seen = new Set<string>();
 
 		for (const line of content.split('\n')) {
-			// Track day from ### Day N: headings
-			const dayMatch = line.match(/^#{1,4}\s+.*?\bDay\s+(\d+)\b/i);
+			// Track day from ### Day N: headings OR **Day N:** bold headers
+			const dayMatch = line.match(/^(?:#{1,4}\s+|\*\*)\s*.*?\bDay\s+(\d+)\b/i);
 			if (dayMatch) {
 				currentDay = parseInt(dayMatch[1], 10);
 				continue;
