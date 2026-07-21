@@ -18,8 +18,6 @@
  * @fluxbase:allowed-tables my_trips,my_trip_entries,my_place_visits,my_poi_summary,trip_plan_items,country_name_aliases
  * @fluxbase:allowed-operations SELECT
  * @fluxbase:allowed-schemas public
- * @fluxbase:max-tokens 4096
- * @fluxbase:temperature 0.3
  * @fluxbase:persist-conversations true
  * @fluxbase:conversation-ttl 30 days
  * @fluxbase:max-turns 50
