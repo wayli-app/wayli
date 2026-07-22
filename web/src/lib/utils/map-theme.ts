@@ -58,14 +58,28 @@ export function watchMapTheme(
 	const apply = () => {
 		const theme: TileTheme = isDarkMode() ? 'dark' : 'light';
 		const next = buildTile(theme);
+		// Only swap if the URL actually changed — prevents unnecessary
+		// tile reloads when the MutationObserver fires for unrelated
+		// class changes (e.g., Svelte adding/removing transition classes).
+		if (currentLayer && (currentLayer as any)._url === (next as any)._url) {
+			return;
+		}
 		if (currentLayer) {
 			map.removeLayer(currentLayer);
 		}
 		currentLayer = next;
-		// ponytail: keep the tile layer at the bottom of the stack so markers,
-		// popups, and vector layers render above it.
 		currentLayer.addTo(map);
 		currentLayer.bringToBack();
+		// Invalidate size after swap so Leaflet recalculates the visible
+		// tile range. Without this, tiles sometimes don't render on maps
+		// inside {#key} blocks or collapsed sections.
+		setTimeout(() => {
+			try {
+				map.invalidateSize();
+			} catch {
+				// map may have been removed
+			}
+		}, 100);
 	};
 
 	apply();
