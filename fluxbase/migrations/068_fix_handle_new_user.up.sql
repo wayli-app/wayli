@@ -33,8 +33,11 @@ BEGIN
     VALUES (new.id)
     ON CONFLICT (id) DO NOTHING;
 
-    -- Sync the role to auth.users for JWT claims
-    UPDATE auth.users SET role = user_role WHERE id = new.id;
+    -- Sync the role to auth.users for JWT claims.
+    -- Use 'instance_admin' (Fluxbase's term) in auth.users so the user gets
+    -- admin-level API access (storage buckets, settings, migrations).
+    -- user_profiles keeps 'admin' (Wayli's term) for the app-level admin check.
+    UPDATE auth.users SET role = 'instance_admin' WHERE id = new.id;
 
     RETURN new;
 

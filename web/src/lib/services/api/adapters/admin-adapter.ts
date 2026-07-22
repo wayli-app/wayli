@@ -246,13 +246,31 @@ export class AdminAdapter extends BaseAdapter {
 			throw new Error('Custom setting keys must start with "wayli."');
 		}
 
-		await fluxbase.admin.settings.app.setSetting(key, value, {
+		const options = {
 			description: description || `Wayli setting: ${key}`,
 			is_public: false,
 			is_secret: key.includes('api_key') || key.includes('secret'),
 			value_type:
 				typeof value === 'object' ? 'json' : (typeof value as 'string' | 'number' | 'boolean')
-		});
+		};
+
+		try {
+			await fluxbase.admin.settings.app.setSetting(key, value, options);
+		} catch (err: any) {
+			// ponytail workaround: Fluxbase's setSetting (PUT) does INSERT, not
+			// UPSERT. When the setting already exists (seeded by migration 008),
+			// it returns DUPLICATE_KEY. Delete and retry to work around it.
+			if (err?.code === 'DUPLICATE_KEY' || err?.message?.includes('already exists')) {
+				try {
+					await fluxbase.admin.settings.app.deleteSetting(key);
+				} catch {
+					// ignore delete failure — might not exist after all
+				}
+				await fluxbase.admin.settings.app.setSetting(key, value, options);
+			} else {
+				throw err;
+			}
+		}
 
 		return { updated: key };
 	}

@@ -1,0 +1,1 @@
+-- No-op revert: the old function was broken anyway.
