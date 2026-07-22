@@ -84,21 +84,40 @@
 
 	async function loadCommunityContent() {
 		try {
-			const { data: publicTrips } = await fluxbase
+			const { data: session } = await fluxbase.auth.getSession();
+			const userId = (session as any)?.user?.id;
+			const isAuthed = !!userId;
+
+			// Query trips: for logged-in users, query without visibility filter
+			// (RLS returns public + owned + shared). For anonymous, filter public only.
+			let tripsQuery = fluxbase
 				.from('trips')
 				.select('id, title, image_url, user_id, metadata')
-				.eq('visibility', 'public')
 				.in('status', ['active', 'completed'])
 				.order('start_date', { ascending: false })
 				.limit(10);
 
-			const tripsList = (publicTrips as any[]) ?? [];
+			if (!isAuthed) {
+				tripsQuery = tripsQuery.eq('visibility', 'public');
+			}
+
+			const { data: tripsData } = await tripsQuery;
+			const tripsList = (tripsData as any[]) ?? [];
 			if (tripsList.length === 0) return;
+
+			// Query entries: use base table for authed users (RLS-aware),
+			// public view for anonymous.
+			const entriesTable = isAuthed ? 'trip_entries' : 'public_trip_entries';
+			const mediaTable = isAuthed ? 'trip_media' : 'public_trip_media';
 
 			const [entriesResult, profilesResult, mediaResult] = await Promise.all([
 				fluxbase
-					.from('public_trip_entries')
-					.select('id, trip_id, title, body, entry_date, cover_media_id')
+					.from(entriesTable)
+					.select(
+						isAuthed
+							? 'id, trip_id, title, body, entry_date, cover_media_id, status'
+							: 'id, trip_id, title, body, entry_date, cover_media_id'
+					)
 					.in(
 						'trip_id',
 						tripsList.map((t) => t.id)
@@ -110,7 +129,7 @@
 					.select('id, username')
 					.in('id', [...new Set(tripsList.map((t) => t.user_id))]),
 				fluxbase
-					.from('public_trip_media')
+					.from(mediaTable)
 					.select('id, storage_path, thumbnail_path')
 					.in(
 						'trip_id',
@@ -118,7 +137,9 @@
 					)
 			]);
 
-			const entriesList = (entriesResult.data as any[]) ?? [];
+			const entriesList = ((entriesResult.data as any[]) ?? []).filter(
+				(e) => !isAuthed || e.status === 'published'
+			);
 			const profileMap = new Map<string, string>();
 			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
 			const tripMap = new Map<string, any>();

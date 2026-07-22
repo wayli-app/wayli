@@ -206,16 +206,18 @@
 			}
 			trip = tripData as unknown as Trip;
 
-			if (trip.visibility !== 'public' && (trip as any).user_id !== currentUserId) {
-				notFound = true;
-				return;
-			}
+			// RLS handles authorization — if the query returned a trip, the user
+			// is allowed to see it (owner, public, or shared via trip_shares).
+			// No client-side visibility check needed.
 
-			// Owner sees all entries (including drafts); others see published only via hardened view
+			// Owner sees all entries (including drafts); non-owners see published only.
+			// Use base trip_entries table for all viewers — RLS on trip_entries now
+			// honors trip_shares (migration 073), so share recipients can see entries
+			// from private/shared trips. The public_trip_entries view still hard-filters
+			// visibility='public' and would miss shared-but-private trips.
 			const isOwnerViewer = (trip as any).user_id === currentUserId;
-			const entryTable = isOwnerViewer ? 'trip_entries' : 'public_trip_entries';
 			const entryQuery = fluxbase
-				.from(entryTable)
+				.from('trip_entries')
 				.select('id, title, body, entry_date, end_date')
 				.eq('trip_id', tripId)
 				.order('entry_date', { ascending: true });
