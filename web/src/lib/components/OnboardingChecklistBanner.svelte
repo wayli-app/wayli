@@ -61,7 +61,7 @@
 			: []),
 		{
 			id: 'trips',
-			route: '/dashboard/trips',
+			route: '/dashboard/travel',
 			titleKey: 'onboarding.generateTrips',
 			descriptionKey: 'onboarding.generateTripsDesc',
 			icon: Map,

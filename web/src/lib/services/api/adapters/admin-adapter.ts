@@ -246,39 +246,13 @@ export class AdminAdapter extends BaseAdapter {
 			throw new Error('Custom setting keys must start with "wayli."');
 		}
 
-		const options = {
+		await fluxbase.admin.settings.app.setSetting(key, value, {
 			description: description || `Wayli setting: ${key}`,
 			is_public: false,
 			is_secret: key.includes('api_key') || key.includes('secret'),
 			value_type:
 				typeof value === 'object' ? 'json' : (typeof value as 'string' | 'number' | 'boolean')
-		};
-
-		// ponytail workaround: Fluxbase's setSetting (PUT) does INSERT, not
-		// UPSERT. When the setting already exists (seeded by migration 008),
-		// it returns DUPLICATE_KEY. The SDK puts the API code in err.details.code,
-		// not err.code. Match both paths.
-		const isDuplicateKey = (err: any) =>
-			err?.details?.code === 'DUPLICATE_KEY' ||
-			err?.code === 'DUPLICATE_KEY' ||
-			(typeof err?.message === 'string' && err.message.includes('already exists'));
-
-		try {
-			await fluxbase.admin.settings.app.setSetting(key, value, options);
-		} catch (err: any) {
-			if (!isDuplicateKey(err)) throw err;
-			// Delete + retry. Both wrapped so a failure surfaces a clear error
-			// instead of silently retrying into the same DUPLICATE_KEY.
-			try {
-				await fluxbase.admin.settings.app.deleteSetting(key);
-			} catch (delErr: any) {
-				throw new Error(
-					`Setting "${key}" already exists but could not be deleted: ${delErr?.message ?? delErr}. ` +
-						'This usually means insufficient permissions — try signing out and back in.'
-				);
-			}
-			await fluxbase.admin.settings.app.setSetting(key, value, options);
-		}
+		});
 
 		return { updated: key };
 	}

@@ -418,7 +418,7 @@
 
 						<!-- Generate Trips -->
 						<a
-							href="/dashboard/trips"
+							href="/dashboard/travel"
 							onclick={() => {
 								handleFinish();
 							}}

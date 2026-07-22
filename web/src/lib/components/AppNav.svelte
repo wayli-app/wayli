@@ -363,7 +363,7 @@
 				>
 					<Menu class="h-6 w-6" />
 				</button>
-				<a href="/dashboard/trips" class="flex cursor-pointer items-center">
+				<a href="/dashboard/travel" class="flex cursor-pointer items-center">
 					<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-6 w-6" />
 					<span class="text-foreground text-lg font-bold">Wayli</span>
 				</a>
