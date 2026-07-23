@@ -17,6 +17,7 @@
 	import { compressImage } from '$lib/utils/image-compress';
 	import { uploadMedia } from '$lib/services/trip-media.service';
 	import TripMap from '$lib/components/TripMap.svelte';
+	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
 	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
@@ -1305,64 +1306,64 @@
 								{/if}
 							</button>
 
+							<!-- Trip actions bar (always visible) -->
+							<div class="border-border bg-muted/30 flex items-center gap-2 border-t px-4 py-2">
+								<button
+									type="button"
+									onclick={() => openNewEditor(trip.id)}
+									class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+								>
+									<Plus class="h-3 w-3" />
+									Add Entry
+								</button>
+								<a
+									href="/dashboard/travel/{trip.id}/plan"
+									class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+								>
+									<Calendar class="h-3 w-3" /> Plan
+								</a>
+								<div class="flex-1"></div>
+								<button
+									type="button"
+									onclick={() => recalculateDistance(trip)}
+									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+									title="Recalculate distance"
+								>
+									<RefreshCw class="h-3 w-3" /> Stats
+								</button>
+								<button
+									type="button"
+									onclick={() => openEditTripModal(trip)}
+									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+									title="Edit trip"
+								>
+									<Pencil class="h-3 w-3" /> Edit
+								</button>
+								<button
+									type="button"
+									onclick={() => toggleVisibility(trip.id, trip.visibility)}
+									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+									title="Toggle visibility"
+								>
+									{#if trip.visibility === 'public'}
+										<Eye class="h-3 w-3" /> Public
+									{:else}
+										<EyeOff class="h-3 w-3" /> Private
+									{/if}
+								</button>
+								<button
+									type="button"
+									onclick={() => deleteTrip(trip.id)}
+									class="text-muted-foreground hover:text-destructive rounded-lg p-1 transition-colors"
+									title="Delete trip"
+								>
+									<Trash2 class="h-3.5 w-3.5" />
+								</button>
+							</div>
+
 							<!-- Expanded entries -->
 							{#if expandedTrips.has(trip.id)}
 								<div class="border-border border-t">
-									<!-- Trip actions bar -->
-									<div class="border-border bg-muted/30 flex items-center gap-2 border-b px-4 py-2">
-										<button
-											type="button"
-											onclick={() => openNewEditor(trip.id)}
-											class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
-										>
-											<Plus class="h-3 w-3" />
-											Add Entry
-										</button>
-										<a
-											href="/dashboard/travel/{trip.id}/plan"
-											class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
-										>
-											<Calendar class="h-3 w-3" /> Plan
-										</a>
-										<div class="flex-1"></div>
-										<button
-											type="button"
-											onclick={() => recalculateDistance(trip)}
-											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-											title="Recalculate distance"
-										>
-											<RefreshCw class="h-3 w-3" /> Stats
-										</button>
-										<button
-											type="button"
-											onclick={() => openEditTripModal(trip)}
-											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-											title="Edit trip"
-										>
-											<Pencil class="h-3 w-3" /> Edit
-										</button>
-										<button
-											type="button"
-											onclick={() => toggleVisibility(trip.id, trip.visibility)}
-											class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-											title="Toggle visibility"
-										>
-											{#if trip.visibility === 'public'}
-												<Eye class="h-3 w-3" /> Public
-											{:else}
-												<EyeOff class="h-3 w-3" /> Private
-											{/if}
-										</button>
-										<button
-											type="button"
-											onclick={() => deleteTrip(trip.id)}
-											class="text-muted-foreground hover:text-destructive rounded-lg p-1 transition-colors"
-											title="Delete trip"
-										>
-											<Trash2 class="h-3.5 w-3.5" />
-										</button>
-									</div>
-
 									<!-- Mobile map inside expanded section -->
 									{#if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
 										<div class="border-border border-b lg:hidden">
@@ -1668,23 +1669,9 @@
 								placeholder="Trip title"
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 							/>
-							<div class="flex gap-3">
-								<label class="flex flex-1 flex-col gap-1">
-									<span class="text-muted-foreground text-xs">Start date</span>
-									<input
-										type="date"
-										bind:value={tripStartDate}
-										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-									/>
-								</label>
-								<label class="flex flex-1 flex-col gap-1">
-									<span class="text-muted-foreground text-xs">End date</span>
-									<input
-										type="date"
-										bind:value={tripEndDate}
-										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-									/>
-								</label>
+							<div>
+								<span class="text-muted-foreground mb-1 block text-xs">Date range</span>
+								<DateRangePicker bind:startDate={tripStartDate} bind:endDate={tripEndDate} />
 							</div>
 							<textarea
 								bind:value={tripDescription}
@@ -1759,15 +1746,13 @@
 											<Upload class="h-3 w-3" /> Upload
 										{/if}
 									</button>
-									{#if editingTrip}
-										<button
-											type="button"
-											onclick={fetchPexelsImage}
-											class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
-										>
-											<Sparkles class="h-3 w-3" /> Fetch from Pexels
-										</button>
-									{/if}
+									<button
+										type="button"
+										onclick={fetchPexelsImage}
+										class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+									>
+										<Sparkles class="h-3 w-3" /> Fetch from Pexels
+									</button>
 								</div>
 							</div>
 

@@ -24,7 +24,7 @@
 	let isFocused = $state(false);
 	let inputEl = $state<HTMLInputElement | null>(null);
 
-	const sizeClass = size === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm';
+	const sizeClass = $derived(size === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm');
 
 	async function onInput(e: Event) {
 		const v = (e.target as HTMLInputElement).value;

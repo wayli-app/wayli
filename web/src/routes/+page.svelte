@@ -287,13 +287,13 @@
 
 		<!-- Hero -->
 		<div
-			class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700"
+			class="relative overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-700"
 		>
 			<div
 				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
 			></div>
 			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-16">
-				<div class="bg-white/75 mb-2 inline-flex rounded-3xl p-8 backdrop-blur-md">
+				<div class="bg-white/75 dark:bg-white/10 mb-2 inline-flex rounded-3xl p-8 backdrop-blur-md">
 					<img src="/logo.svg" alt="Wayli" class="h-24 w-auto drop-shadow-2xl" />
 				</div>
 			</div>

@@ -34,6 +34,7 @@
 	import { formatLocalDate } from '$lib/utils/utils';
 
 	import type { Map as LeafletMap } from 'leaflet';
+	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { SvelteDate } from 'svelte/reactivity';
@@ -92,6 +93,7 @@
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
 	let currentTileLayer = $state<any>(null);
+	let cleanupThemeWatcher: (() => void) | null = null;
 	let isInitializing = $state(true);
 	// Use a regular array instead of $state to avoid triggering effects
 	let mapMarkers: any[] = [];
@@ -192,21 +194,13 @@
 			mapInvalidateTimeout = null;
 		}
 
-		// Disconnect theme observer
-		if (themeObserver) {
-			themeObserver.disconnect();
-			themeObserver = null;
-		}
+		// Disconnect theme watcher
+		cleanupThemeWatcher?.();
+		cleanupThemeWatcher = null;
 
 		// Clear map markers and their event listeners
 		if (map && L) {
 			clearMapMarkers();
-
-			// Remove tile layer
-			if (currentTileLayer) {
-				map.removeLayer(currentTileLayer);
-				currentTileLayer = null;
-			}
 
 			// Destroy map instance
 			map.remove();
@@ -974,56 +968,24 @@
 			await new Promise((resolve) => setTimeout(resolve, 100));
 
 			map = L.map(mapContainer, {
-				center: [20, 0], // Default center of the world
-				zoom: 2, // Default zoom level to show the world
+				center: [20, 0],
+				zoom: 2,
 				zoomControl: true,
 				attributionControl: false
 			});
 
-			// Invalidate map size to ensure proper rendering
 			mapInvalidateTimeout = setTimeout(() => {
 				if (map) {
 					map.invalidateSize();
 				}
 			}, 200);
 
-			function getTileLayerUrl() {
-				const isDark = document.documentElement.classList.contains('dark');
-				return isDark
-					? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-					: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-			}
-
-			function getAttribution() {
-				const isDark = document.documentElement.classList.contains('dark');
-				return isDark
-					? '&copy; <a href="https://carto.com/attributions">CARTO</a>'
-					: '© OpenStreetMap contributors';
-			}
-
-			currentTileLayer = L.tileLayer(getTileLayerUrl(), {
-				attribution: getAttribution()
-			}).addTo(map) as any;
-
-			// Theme switching observer
-			const updateMapTheme = () => {
-				if (!map || !L) return;
-				const isDark = document.documentElement.classList.contains('dark');
-				const newUrl = getTileLayerUrl();
-				const newAttribution = getAttribution();
-				if (currentTileLayer && (currentTileLayer as any)._url !== newUrl) {
-					map.removeLayer(currentTileLayer);
-					currentTileLayer = L.tileLayer(newUrl, { attribution: newAttribution }).addTo(map) as any;
-				}
-			};
-			themeObserver = new MutationObserver(updateMapTheme);
-			themeObserver.observe(document.documentElement, {
-				attributes: true,
-				attributeFilter: ['class']
-			});
-
-			// Initial theme sync
-			updateMapTheme();
+			// Theme-aware tile layer via shared utility — consistent with all other maps
+			cleanupThemeWatcher = watchMapTheme(map, (theme) =>
+				L.tileLayer(TILE_URLS[theme].url, {
+					attribution: TILE_URLS[theme].attribution
+				})
+			);
 
 			// Load exclusion zones after map is ready
 			await loadExclusionZones();

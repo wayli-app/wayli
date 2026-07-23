@@ -727,7 +727,8 @@
 		<nav class="text-muted-foreground mb-4 flex items-center gap-1 text-sm" aria-label="Breadcrumb">
 			<a href="/dashboard/travel" class="hover:text-foreground">{t('common.navigation.travel')}</a>
 			<ChevronRight class="h-3.5 w-3.5 opacity-50" />
-			<a href="/dashboard/travel?trip={tripId}" class="hover:text-foreground">{trip.title}</a>
+			<a href="/dashboard/travel?trip={tripId}" class="text-primary hover:underline">{trip.title}</a
+			>
 			<ChevronRight class="h-3.5 w-3.5 opacity-50" />
 			<span class="text-foreground font-medium">{t('travel.plan')}</span>
 		</nav>

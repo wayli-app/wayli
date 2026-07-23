@@ -39,7 +39,7 @@
 			if (sharedTripIds.length > 0) {
 				const { data } = await fluxbase
 					.from('trip_entries')
-					.select('id, trip_id, title, body, entry_date')
+					.select('id, trip_id, title, body, entry_date, cover_media_id')
 					.in('trip_id', sharedTripIds)
 					.eq('status', 'published')
 					.order('entry_date', { ascending: false })
@@ -66,9 +66,10 @@
 
 				if (publicTripIds.length > 0) {
 					const { data } = await fluxbase
-						.from('public_trip_entries')
-						.select('id, trip_id, title, body, entry_date')
+						.from('trip_entries')
+						.select('id, trip_id, title, body, entry_date, cover_media_id')
 						.in('trip_id', publicTripIds)
+						.eq('status', 'published')
 						.order('entry_date', { ascending: false })
 						.limit(10);
 					publicEntries = (data as any[]) ?? [];
@@ -115,13 +116,27 @@
 				for (const p of (profiles as any[]) ?? []) profileMap.set(p.id, p.username);
 			}
 
+			// Fetch cover media for entries that have cover_media_id set
+			const mediaMap = new Map<string, string>();
+			const mediaIds = [...new Set(allEntries.map((e) => e.cover_media_id).filter(Boolean))];
+			if (mediaIds.length > 0) {
+				const { data: media } = await fluxbase
+					.from('trip_media')
+					.select('id, thumbnail_path, storage_path')
+					.in('id', mediaIds);
+				for (const m of (media as any[]) ?? []) {
+					mediaMap.set(m.id, m.thumbnail_path ?? m.storage_path);
+				}
+			}
+
 			entries = allEntries
 				.map((e) => {
 					const trip = tripMap.get(e.trip_id);
+					const entryCover = e.cover_media_id ? mediaMap.get(e.cover_media_id) : null;
 					return {
 						...e,
 						trip_title: trip?.title,
-						trip_image_url: trip?.image_url,
+						trip_image_url: entryCover ?? trip?.image_url,
 						username: trip ? profileMap.get(trip.user_id) : undefined
 					};
 				})
