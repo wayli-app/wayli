@@ -1027,7 +1027,7 @@
 						Generating...
 					{:else}
 						<Sparkles class="h-3.5 w-3.5" />
-						Suggest Trips
+						Auto-detect Trips
 					{/if}
 				</button>
 				{#if trips.length > 0}
