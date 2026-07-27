@@ -45,29 +45,38 @@
 		}
 
 		(async () => {
+			// Restore session first — capture the result for all subsequent logic.
+			// The landing page is a public route; the SDK might not have initialized
+			// the auth listener yet, so we must call getSession() explicitly.
+			let sessionUserId: string | null = null;
 			try {
-				await fluxbase.auth.getSession();
+				const { data: sessionData } = await fluxbase.auth.getSession();
+				sessionUserId = (sessionData as any)?.user?.id ?? null;
 			} catch {}
+			isLoggedIn = !!sessionUserId;
 
 			let redirectUser: string | null = null;
 			let communityDisabled = false;
 
-			try {
-				const resp = await fluxbase.settings.get('wayli.landing_redirect_username');
-				if (typeof resp === 'string' && resp.trim()) {
-					redirectUser = resp.trim();
-				} else if (resp && typeof resp === 'object') {
-					const v = (resp as any).value ?? (resp as any).data?.value;
-					if (v && typeof v === 'string') redirectUser = v.trim();
-				}
-			} catch {}
+			// Only try to read settings if authenticated (settings are not public)
+			if (sessionUserId) {
+				try {
+					const resp = await fluxbase.settings.get('wayli.landing_redirect_username');
+					if (typeof resp === 'string' && resp.trim()) {
+						redirectUser = resp.trim();
+					} else if (resp && typeof resp === 'object') {
+						const v = (resp as any).value ?? (resp as any).data?.value;
+						if (v && typeof v === 'string') redirectUser = v.trim();
+					}
+				} catch {}
 
-			try {
-				const resp = await fluxbase.settings.get('wayli.community_enabled');
-				const val =
-					typeof resp === 'object' && resp && 'value' in resp ? (resp as any).value : resp;
-				communityDisabled = val === false || val === 'false';
-			} catch {}
+				try {
+					const resp = await fluxbase.settings.get('wayli.community_enabled');
+					const val =
+						typeof resp === 'object' && resp && 'value' in resp ? (resp as any).value : resp;
+					communityDisabled = val === false || val === 'false';
+				} catch {}
+			}
 
 			if (communityDisabled) {
 				if (redirectUser) {
@@ -79,23 +88,19 @@
 			}
 
 			pageMode = 'community';
-			await loadCommunityContent();
+			await loadCommunityContent(!!sessionUserId);
 		})();
 	});
 
-	async function loadCommunityContent() {
+	async function loadCommunityContent(isAuthed: boolean) {
 		try {
-			const { data: sessionData } = await fluxbase.auth.getSession();
-			const userId = (sessionData as any)?.user?.id;
-			isLoggedIn = !!userId;
-			const isAuthed = !!userId;
-
 			// Query trips: for logged-in users, query without visibility filter
 			// (RLS returns public + owned + shared). For anonymous, filter public only.
+			// Include 'planned' status for authed users so their own draft trips appear.
 			let tripsQuery = fluxbase
 				.from('trips')
 				.select('id, title, image_url, user_id, metadata')
-				.in('status', ['active', 'completed'])
+				.in('status', isAuthed ? ['active', 'completed', 'planned'] : ['active', 'completed'])
 				.order('start_date', { ascending: false })
 				.limit(10);
 

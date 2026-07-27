@@ -166,9 +166,11 @@
 				.in('status', ['active', 'planned', 'completed'])
 				.order('start_date', { ascending: false });
 
-			if (!isOwner) {
+			if (!isOwner && !currentUserId) {
+				// Anonymous viewer: only public trips
 				tripQuery = tripQuery.eq('visibility', 'public');
 			}
+			// Logged-in non-owner: no filter — RLS returns public + shared trips
 
 			const { data: tripData } = await tripQuery;
 			trips = (tripData as unknown as PublicTrip[]) ?? [];

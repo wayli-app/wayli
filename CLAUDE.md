@@ -107,3 +107,9 @@ bun install           # Restore dependencies from bun.lock
 - **RLS**: Row-level security handles authorization - no server-side auth checks needed
 - **Edge functions minimal**: Only 3 functions remain - prefer client SDK with RLS
 - **Jobs**: Deno-based background processing for heavy tasks (geocoding, import, trip detection)
+
+## Migration Conventions
+
+- **Views must be DROP'd before CREATE**: `CREATE OR REPLACE VIEW` fails with SQLSTATE 42P16 when the new column list differs from the existing view. Always use `DROP VIEW IF EXISTS` followed by `CREATE VIEW` in migration up files. This is a PostgreSQL limitation, not a Fluxbase issue.
+- **Order matters**: Views that depend on tables or other views must be created after their dependencies. Dropping in the correct order matters too.
+- **`share_token` column**: was removed in migration 076. Do not reference it.
