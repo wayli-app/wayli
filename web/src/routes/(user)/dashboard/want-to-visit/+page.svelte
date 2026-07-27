@@ -3,6 +3,7 @@
 	import { Skeleton } from '$lib/components/ui';
 
 	import type { Map as LeafletMap } from 'leaflet';
+	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
 
 	import { debounce } from '$lib/utils';
 	import {
@@ -60,7 +61,7 @@
 	let map: LeafletMap;
 	let L: typeof import('leaflet');
 	let mapContainer: HTMLDivElement;
-	let currentTileLayer = $state<any>(null);
+	let cleanupThemeWatcher: (() => void) | null = null;
 	let searchQuery = $state(''); // Search query for filtering places on the page
 	let modalSearchQuery = $state(''); // Search query inside the add/edit modal
 	let markerClusterGroup = $state<any>(null); // Add cluster group variable
@@ -461,7 +462,7 @@
 			minZoom: 1,
 			maxZoom: 18,
 			zoomControl: true,
-			attributionControl: false,
+			attributionControl: true,
 			doubleClickZoom: true,
 			tapTolerance: 15,
 			touchZoom: true,
@@ -508,23 +509,10 @@
 		// Add cluster group to map
 		map.addLayer(markerClusterGroup);
 
-		function getTileLayerUrl() {
-			const isDark = document.documentElement.classList.contains('dark');
-			return isDark
-				? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-				: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-		}
-
-		function getAttribution() {
-			const isDark = document.documentElement.classList.contains('dark');
-			return isDark
-				? '&copy; <a href="https://carto.com/attributions">CARTO</a>'
-				: '© OpenStreetMap contributors';
-		}
-
-		currentTileLayer = L.tileLayer(getTileLayerUrl(), {
-			attribution: getAttribution()
-		}).addTo(map);
+		// Theme-aware tile layer via shared utility — consistent with all other maps
+		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
+			L.tileLayer(TILE_URLS[theme].url, { attribution: TILE_URLS[theme].attribution })
+		);
 
 		// Load places from database
 		loadPlaces();
@@ -550,22 +538,16 @@
 			// Perform reverse geocoding
 			await performReverseGeocoding(lat, lng);
 
-			// Show the add form
-			showAddForm = true;
+		// Show the add form
+		showAddForm = true;
 		});
 
-		// Listen for theme changes
-		const observer = new MutationObserver(() => {
-			const newUrl = getTileLayerUrl();
-			const newAttribution = getAttribution();
-			if (currentTileLayer && currentTileLayer._url !== newUrl) {
-				map.removeLayer(currentTileLayer);
-				currentTileLayer = L.tileLayer(newUrl, { attribution: newAttribution }).addTo(map);
-			}
-			// Also update all marker icons to match the new theme
+		// Theme changes are handled by watchMapTheme (above).
+		// Also update marker icons when theme changes.
+		const markerObserver = new MutationObserver(() => {
 			updateMarkers();
 		});
-		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+		markerObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 	});
 
 	async function performReverseGeocoding(lat: number, lng: number) {
@@ -653,7 +635,7 @@
 			<div class="p-2">
 				<h3 class="font-semibold text-sm">${place.title}</h3>
 				<p class="text-xs text-muted-foreground mt-1">${place.address}</p>
-				${place.description ? `<p class="text-xs text-gray-700 mt-2 italic">"${place.description}"</p>` : ''}
+				${place.description ? `<p class="text-xs text-muted-foreground mt-2 italic">"${place.description}"</p>` : ''}
 			</div>
 		`;
 	}
@@ -905,8 +887,8 @@
 			align-items: center;
 			justify-content: center;
 			border-radius: 50%;
-			background: white;
-			border: 2px solid #e5e7eb;
+			background: var(--card, white);
+			border: 2px solid var(--border, #e5e7eb);
 			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 		}
 
@@ -924,7 +906,7 @@
 		}
 
 		.color-option.selected {
-			border-color: #000;
+			border-color: var(--foreground, #000);
 			transform: scale(1.2);
 		}
 
