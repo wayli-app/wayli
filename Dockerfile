@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Fluxbase CLI for resource synchronization
 # Set FLUXBASE_CLI_VERSION to 'local' to use a pre-built CLI from ./bin/fluxbase
 # Otherwise, installs from GitHub release (e.g., 'latest' or 'v0.0.1-rc.112')
-ARG FLUXBASE_CLI_VERSION=v2026.7.3-rc.21
+ARG FLUXBASE_CLI_VERSION=v2026.7.3-rc.22
 RUN curl -fsSL https://raw.githubusercontent.com/nimbleflux/fluxbase/main/install-cli.sh | bash -s -- ${FLUXBASE_CLI_VERSION}
 
 WORKDIR /app
