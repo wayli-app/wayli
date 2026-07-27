@@ -14,8 +14,8 @@ FROM denoland/deno:bin-2.6.4 AS deno-bin
 #############################################
 FROM oven/bun:1-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install build dependencies (linux-headers needed for re2 native module)
+RUN apk add --no-cache python3 make g++ linux-headers
 
 WORKDIR /app/web
 
