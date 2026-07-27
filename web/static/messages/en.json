@@ -1616,7 +1616,7 @@
     "entries": "Entries"
   },
   "community": {
-    "subtitle": "Discover travel stories from our community",
+    "subtitle": "Discover travel stories from our community of explorers",
     "latestStories": "Latest Stories",
     "whereWeveBeen": "Where We've Been",
     "travelers": "Travelers",
@@ -1625,7 +1625,8 @@
     "signInToShare": "Sign in to share your stories →",
     "by": "by",
     "readMore": "Read more →",
-    "explore": "Explore"
+    "explore": "Explore",
+    "exploreStories": "Explore stories"
   },
   "plannerChat": {
     "title": "AI Assistant",

@@ -292,15 +292,38 @@
 			<div
 				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
 			></div>
-			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-16">
-				<div class="bg-white/75 dark:bg-white/10 mb-2 inline-flex rounded-3xl p-8 backdrop-blur-md">
-					<img src="/logo.svg" alt="Wayli" class="h-24 w-auto drop-shadow-2xl" />
+			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-20">
+				<div class="bg-white/75 dark:bg-white/10 mb-6 inline-flex rounded-3xl p-6 backdrop-blur-md">
+					<img src="/logo.svg" alt="Wayli" class="h-20 w-auto drop-shadow-2xl" />
+				</div>
+				<h1 class="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
+					{t('landing.selfHostedTagline')}
+				</h1>
+				<p class="text-muted-foreground mx-auto mt-4 max-w-2xl text-base sm:text-lg">
+					{t('community.subtitle')}
+				</p>
+				<div class="mt-8 flex items-center justify-center gap-3">
+					<a
+						href="#stories"
+						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors"
+					>
+						<BookOpen class="h-4 w-4" />
+						{t('community.exploreStories')}
+					</a>
+					{#if !session?.user}
+						<a
+							href="/auth/signin"
+							class="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors"
+						>
+							{t('landing.signIn')}
+						</a>
+					{/if}
 				</div>
 			</div>
 		</div>
 
 		<!-- Content -->
-		<div class="mx-auto max-w-6xl px-4 py-6">
+		<div id="stories" class="mx-auto max-w-6xl px-4 py-6">
 			<!-- Latest Stories -->
 			{#if latestEntries.length > 0}
 				<div class="mb-16">
