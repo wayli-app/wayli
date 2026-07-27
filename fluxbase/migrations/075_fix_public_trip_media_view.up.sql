@@ -1,6 +1,9 @@
 -- Fix public_trip_media view to honor trip_shares (migration 073 did this
 -- for RLS policies on trip_media but the view wasn't updated).
-CREATE OR REPLACE VIEW public_trip_media AS
+-- Must DROP first because CREATE OR REPLACE VIEW fails if the column list
+-- differs from the existing view (SQLSTATE 42P16: cannot drop columns from view).
+DROP VIEW IF EXISTS public_trip_media;
+CREATE VIEW public_trip_media AS
 SELECT
     m.id,
     m.trip_id,
