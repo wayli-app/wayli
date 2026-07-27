@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """
-Translate new i18n keys from en.json to all other locale files.
-Skips keys that already exist in the target file.
-Can be safely re-run if interrupted.
+Translate new and changed i18n keys from en.json to all other locale files.
+
+Three modes:
+  Default: translate new keys + keys whose English value changed since last run.
+  --full-resync: re-translate EVERYTHING (overwrite all existing translations).
+  --langs nl de fr: limit to specific languages.
+
+Uses a snapshot file (en.snapshot.json) to detect value changes between runs.
+After a successful run, the snapshot is updated to match the current en.json.
 
 Usage:
   cd web/static/messages
-  python3 translate_new_keys.py
-
-To translate specific languages only:
-  python3 translate_new_keys.py --langs nl de fr
+  python3 translate_new_keys.py              # translate new + changed keys
+  python3 translate_new_keys.py --full-resync  # re-translate everything
+  python3 translate_new_keys.py --langs nl de  # specific languages only
 """
 
 import json
@@ -26,16 +31,18 @@ TARGET_LANGS = {
 }
 
 DIR = os.path.dirname(os.path.abspath(__file__))
+SNAPSHOT_FILE = os.path.join(DIR, 'en.snapshot.json')
 
 
-def load_json(filename):
-    with open(os.path.join(DIR, filename), 'r', encoding='utf-8') as f:
+def load_json(filepath):
+    with open(filepath, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
-def save_json(data, filename):
-    with open(os.path.join(DIR, filename), 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent='\t')
+def save_json(data, filepath):
+    indent = '\t' if filepath.endswith('.json') and '/messages/' in filepath else 2
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=indent)
         f.write('\n')
 
 
@@ -73,10 +80,39 @@ def set_nested(data, path, value):
     cur[keys[-1]] = value
 
 
-async def translate_keys(langs_to_translate):
-    # Load English source
-    en = load_json('en.json')
+def find_changed_keys(en, snapshot):
+    """Find keys whose English value changed since the last snapshot."""
+    if not snapshot:
+        return set()
     en_keys = extract_keys(en)
+    snapshot_keys = extract_keys(snapshot)
+    changed = set()
+    for key in en_keys & snapshot_keys:
+        en_val = get_nested(en, key)
+        snap_val = get_nested(snapshot, key)
+        if isinstance(en_val, str) and isinstance(snap_val, str) and en_val != snap_val:
+            changed.add(key)
+    return changed
+
+
+async def translate_keys(langs_to_translate, full_resync=False):
+    # Load English source
+    en = load_json(os.path.join(DIR, 'en.json'))
+    en_keys = extract_keys(en)
+
+    # Load snapshot to detect value changes
+    snapshot = load_json(SNAPSHOT_FILE) if os.path.exists(SNAPSHOT_FILE) else {}
+    changed_keys = find_changed_keys(en, snapshot)
+
+    if changed_keys and not full_resync:
+        print(f"  Detected {len(changed_keys)} changed English values since last run:")
+        for key in sorted(changed_keys)[:10]:
+            old_val = get_nested(snapshot, key)
+            new_val = get_nested(en, key)
+            print(f"    {key}: {old_val!r} → {new_val!r}")
+        if len(changed_keys) > 10:
+            print(f"    ... and {len(changed_keys) - 10} more")
+        print()
 
     translator = Translator()
 
@@ -88,24 +124,33 @@ async def translate_keys(langs_to_translate):
             print(f"  Skipping {filename} — file not found")
             continue
 
-        target = load_json(filename)
+        target = load_json(filepath)
         target_keys = extract_keys(target)
 
-        # Find keys that exist in EN but not in target
-        missing_keys = sorted(en_keys - target_keys)
+        # Determine which keys to translate
+        if full_resync:
+            # Re-translate everything
+            keys_to_translate = sorted(k for k in en_keys
+                                       if isinstance(get_nested(en, k), str))
+        else:
+            # New keys (missing from target) + changed keys (English value drifted)
+            missing_keys = en_keys - target_keys
+            keys_to_translate = sorted((missing_keys | changed_keys)
+                                       - (target_keys - changed_keys))
 
-        if not missing_keys:
-            print(f"  {filename}: up to date, skipping")
-            continue
-
-        # Extract (key, value) pairs to translate
+        # Filter to string values only
         to_translate = []
-        for kp in missing_keys:
+        for kp in keys_to_translate:
             val = get_nested(en, kp)
             if val and isinstance(val, str):
                 to_translate.append((kp, val))
 
-        print(f"  {filename}: {len(to_translate)} new keys to translate")
+        if not to_translate:
+            print(f"  {filename}: up to date, skipping")
+            continue
+
+        reason = 'all keys' if full_resync else f'{len(missing_keys if not full_resync else set())} new + {len(changed_keys)} changed'
+        print(f"  {filename}: {len(to_translate)} keys to translate ({reason})")
 
         done = 0
         errors = 0
@@ -117,8 +162,7 @@ async def translate_keys(langs_to_translate):
 
                 if done % 25 == 0:
                     print(f"    {done}/{len(to_translate)}")
-                    # Save progress periodically so re-runs skip completed keys
-                    save_json(target, filename)
+                    save_json(target, filepath)
 
                 await asyncio.sleep(0.03)
 
@@ -128,28 +172,37 @@ async def translate_keys(langs_to_translate):
                 errors += 1
                 print(f"    Error: {kp}: {e}")
 
-        save_json(target, filename)
+        save_json(target, filepath)
         print(f"    ✓ {filename}: {done} translated, {errors} errors")
 
-        # Brief pause between languages
         await asyncio.sleep(1)
+
+    # Update snapshot to match current en.json
+    save_json(en, SNAPSHOT_FILE)
+    print(f"\n  Snapshot updated → {os.path.basename(SNAPSHOT_FILE)}")
 
 
 def main():
+    full_resync = '--full-resync' in sys.argv
+
     # Parse args for specific languages
     if '--langs' in sys.argv:
         idx = sys.argv.index('--langs')
         requested = sys.argv[idx + 1:]
         langs = {k: v for k, v in TARGET_LANGS.items() if k in requested}
     else:
+        # Remove flags from args before processing
         langs = TARGET_LANGS
 
     print("=" * 60)
-    print(f"Translating new keys to: {', '.join(langs.keys())}")
+    if full_resync:
+        print("FULL RESYNC: re-translating ALL keys to all languages")
+    else:
+        print(f"Translating new + changed keys to: {', '.join(langs.keys())}")
     print("=" * 60 + "\n")
 
     try:
-        asyncio.run(translate_keys(langs))
+        asyncio.run(translate_keys(langs, full_resync))
         print("\n" + "=" * 60)
         print("✓ Translation complete!")
         print("=" * 60)
