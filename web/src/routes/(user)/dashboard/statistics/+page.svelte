@@ -14,6 +14,7 @@
 		BarChart,
 		Import,
 		AlertTriangle,
+		ChevronRight,
 		X
 	} from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
@@ -95,6 +96,7 @@
 	let currentTileLayer = $state<any>(null);
 	let cleanupThemeWatcher: (() => void) | null = null;
 	let isInitializing = $state(true);
+	let tripFilterTitle = $state<string | null>(null);
 	// Use a regular array instead of $state to avoid triggering effects
 	let mapMarkers: any[] = [];
 	let selectedPoint: any = $state(null);
@@ -903,9 +905,20 @@
 		initializeService();
 		await initializeMap();
 
-		// Check for URL params first (e.g., from trip statistics link)
+		// Check for URL params first (e.g., from trip "Location Data" button)
 		const startParam = $page.url.searchParams.get('start');
 		const endParam = $page.url.searchParams.get('end');
+		const tripId = $page.url.searchParams.get('trip');
+
+		// Fetch trip title for breadcrumb if trip param is present
+		if (tripId) {
+			try {
+				const { data } = await fluxbase.from('trips').select('title').eq('id', tripId).single();
+				tripFilterTitle = (data as any)?.title ?? null;
+			} catch {
+				/* ignore */
+			}
+		}
 
 		if (startParam && endParam) {
 			// Use dates from URL params
@@ -1125,6 +1138,19 @@
 </div>
 
 <div class="space-y-6">
+	<!-- Trip breadcrumb (when navigated from a trip) -->
+	{#if tripFilterTitle}
+		<nav class="text-muted-foreground flex items-center gap-1 text-sm" aria-label="Breadcrumb">
+			<a href="/dashboard/travel" class="hover:text-foreground">{t('common.navigation.travel')}</a>
+			<ChevronRight class="h-3.5 w-3.5 opacity-50" />
+			<a
+				href="/dashboard/travel?trip={$page.url.searchParams.get('trip')}"
+				class="hover:text-foreground">{tripFilterTitle}</a
+			>
+			<ChevronRight class="h-3.5 w-3.5 opacity-50" />
+			<span class="text-foreground font-medium">{t('common.navigation.statistics')}</span>
+		</nav>
+	{/if}
 	<!-- Map -->
 	<div class="relative isolate z-0 h-96 w-full rounded-lg md:h-[600px] bg-muted">
 		<div

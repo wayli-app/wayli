@@ -1,6 +1,5 @@
 <script lang="ts">
 	import {
-		BarChart,
 		Globe,
 		Import,
 		Star,
@@ -10,6 +9,7 @@
 		Newspaper,
 		Users,
 		Database,
+		MapPin,
 		X,
 		Sun,
 		Moon,
@@ -67,7 +67,7 @@
 		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
 		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
 		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
-		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart }
+		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: MapPin }
 	]);
 
 	// Dynamic user navigation based on admin status - reactive to language changes

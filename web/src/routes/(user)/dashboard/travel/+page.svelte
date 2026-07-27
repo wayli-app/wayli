@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { fluxbase } from '$lib/fluxbase';
 	import { userStore, sessionStore } from '$lib/stores/auth';
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
@@ -1304,11 +1305,16 @@
 								<div class="flex-1"></div>
 								<button
 									type="button"
-									onclick={() => recalculateDistance(trip)}
+									onclick={async () => {
+										await recalculateDistance(trip);
+										const sd = (trip.start_date || '').slice(0, 10);
+										const ed = (trip.end_date || '').slice(0, 10);
+										goto(`/dashboard/statistics?trip=${trip.id}&start=${sd}&end=${ed}`);
+									}}
 									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-									title="Recalculate distance"
+									title="View location data for this trip"
 								>
-									<RefreshCw class="h-3 w-3" /> Stats
+									<MapPin class="h-3 w-3" /> Location Data
 								</button>
 								<button
 									type="button"
