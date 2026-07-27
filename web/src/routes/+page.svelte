@@ -33,6 +33,7 @@
 		}>
 	>([]);
 	let pageMode = $state<'loading' | 'signin' | 'community'>('loading');
+	let isLoggedIn = $state(false);
 
 	onMount(() => {
 		initializeTheme();
@@ -84,8 +85,9 @@
 
 	async function loadCommunityContent() {
 		try {
-			const { data: session } = await fluxbase.auth.getSession();
-			const userId = (session as any)?.user?.id;
+			const { data: sessionData } = await fluxbase.auth.getSession();
+			const userId = (sessionData as any)?.user?.id;
+			isLoggedIn = !!userId;
 			const isAuthed = !!userId;
 
 			// Query trips: for logged-in users, query without visibility filter
@@ -310,7 +312,7 @@
 						<BookOpen class="h-4 w-4" />
 						{t('community.exploreStories')}
 					</a>
-					{#if !session?.user}
+					{#if !isLoggedIn}
 						<a
 							href="/auth/signin"
 							class="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors"
