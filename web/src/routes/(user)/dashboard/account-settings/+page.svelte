@@ -2219,35 +2219,7 @@
 		</div>
 	{/if}
 
-	<!-- Danger Zone -->
-	<div
-		class="mt-8 rounded-xl border border-destructive/30 bg-destructive/5 p-6 dark:border-destructive/30 dark:bg-destructive/5"
-	>
-		<div class="mb-4">
-			<div class="flex items-center gap-2">
-				<Trash2 class="h-5 w-5 text-destructive" />
-				<h2 class="text-xl font-semibold text-foreground">Danger Zone</h2>
-			</div>
-			<p class="mt-1 text-sm text-muted-foreground">Irreversible actions. Proceed with caution.</p>
-		</div>
-		<button
-			type="button"
-			onclick={() => {
-				if (
-					confirm(
-						'This will permanently delete your account and all associated data (trips, journal entries, photos, place visits). This cannot be undone. Are you sure?'
-					)
-				) {
-					toast.error(
-						'Account deletion is not yet implemented. Please contact your server administrator.'
-					);
-				}
-			}}
-			class="border-destructive/40 text-destructive hover:bg-destructive/10 rounded-lg border px-4 py-2 text-sm font-medium transition-colors"
-		>
-			Delete my account
-		</button>
-	</div>
+	<!-- Danger Zone hidden: account deletion not yet implemented -->
 </div>
 
 <!-- Add Trip Exclusion Modal -->

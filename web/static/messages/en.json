@@ -996,7 +996,8 @@
     "samplingHybridHint": "Hybrid mode: a point is kept only if it satisfies BOTH thresholds. The first point in any sequence is always kept.",
     "samplingLastRun": "Last run: {date} · deleted {deleted} points",
     "samplingSaved": "Sampling config saved",
-    "samplingSaveFailed": "Failed to save sampling config"
+    "samplingSaveFailed": "Failed to save sampling config",
+    "maxTripExclusionsReached": "Maximum of 10 excluded zones reached. Remove one to add another."
   },
   "serverAdmin": {
     "title": "Server admin settings",
@@ -1528,7 +1529,8 @@
     "recalcDistanceFailed": "Failed to recalculate distance",
     "recalculatedAll": "Recalculated distance for {count} trips",
     "recalcFailed": "Failed to recalculate",
-    "trip": "Trip"
+    "trip": "Trip",
+    "saveBeforePexels": "Save the trip first, then fetch a cover image."
   },
   "plan": {
     "pageTitle": "{title} · Plan · Wayli",

@@ -773,36 +773,15 @@
 				return;
 			}
 
-			// For new trips, save first so we have a trip_id
+			// Pexels fetch requires a saved trip (needs trip_id for the suggestion API).
+			// For new trips, tell the user to save first instead of silently inserting.
 			let tripIdForFetch = editingTrip?.id;
 			if (!tripIdForFetch) {
-				if (!tripTitle || !tripStartDate) {
-					toast.info(t('travel.enterTitleAndDate'));
-					return;
-				}
-				toast.info(t('travel.savingTripFirst'));
-				const { data: userData } = await fluxbase.auth.getUser();
-				const userId = userData?.user?.id;
-				if (!userId) return;
-
-				const { data: newTrip, error } = await fluxbase
-					.from('trips')
-					.insert({
-						user_id: userId,
-						title: tripTitle,
-						start_date: tripStartDate,
-						end_date: tripEndDate || tripStartDate,
-						description: tripDescription || null,
-						status: 'planned',
-						visibility: 'private'
-					})
-					.select('id')
-					.single();
-				if (error) throw error;
-				tripIdForFetch = (newTrip as any).id;
-				editingTrip = { ...(editingTrip ?? {}), id: tripIdForFetch } as Trip;
+				toast.info(
+					t('travel.saveBeforePexels') || 'Save the trip first, then fetch a cover image.'
+				);
+				return;
 			}
-
 			toast.info(t('travel.fetchingFromPexels'));
 			const result = await serviceAdapter.suggestTripImages(tripIdForFetch!);
 			const data =
@@ -955,7 +934,7 @@
 	}
 
 	async function toggleVisibility(tripId: string, current: string) {
-		const next = current === 'public' ? 'private' : 'public';
+		const next = current === 'private' ? 'friends' : current === 'friends' ? 'public' : 'private';
 		try {
 			await fluxbase.from('trips').update({ visibility: next }).eq('id', tripId);
 			trips = trips.map((t) => (t.id === tripId ? { ...t, visibility: next } : t));
@@ -1343,10 +1322,12 @@
 									type="button"
 									onclick={() => toggleVisibility(trip.id, trip.visibility)}
 									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-									title="Toggle visibility"
+									title="Click to cycle: private → friends → public"
 								>
 									{#if trip.visibility === 'public'}
 										<Eye class="h-3 w-3" /> Public
+									{:else if trip.visibility === 'friends'}
+										<Users class="h-3 w-3" /> Friends
 									{:else}
 										<EyeOff class="h-3 w-3" /> Private
 									{/if}

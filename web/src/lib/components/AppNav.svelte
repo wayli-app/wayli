@@ -60,16 +60,14 @@
 
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
-		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart },
-		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
 		{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
 		{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
-		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
-		// { href: '/dashboard/point-editor', label: 'GPS Point Editor', icon: Edit },
-		// { href: '/dashboard/points-of-interest', label: 'Visited POIs', icon: Landmark },
 		{ href: '/dashboard/want-to-visit', label: t('common.navigation.wantToVisit'), icon: Star },
-		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link }
+		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
+		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
+		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
+		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: BarChart }
 	]);
 
 	// Dynamic user navigation based on admin status - reactive to language changes
@@ -198,7 +196,7 @@
 	>
 		<!-- Sidebar Header - Fixed at top -->
 		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
-			<a href="/dashboard/statistics" class="flex cursor-pointer items-center border-border p-4">
+			<a href="/dashboard/travel" class="flex cursor-pointer items-center border-border p-4">
 				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
 				<span class="text-foreground text-xl font-bold">Wayli</span>
 			</a>
@@ -320,13 +318,6 @@
 			</div>
 
 			<!-- Sign Out Button -->
-			<a
-				href="/dashboard/feed"
-				class="text-muted-foreground hover:bg-muted hover:text-foreground flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
-			>
-				<Globe class="mr-3 h-5 w-5" />
-				Explore
-			</a>
 			<button
 				onclick={() => {
 					handleSignOut();

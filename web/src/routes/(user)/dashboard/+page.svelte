@@ -10,7 +10,7 @@
 
 	onMount(() => {
 		// Automatically redirect to trips page when visiting /dashboard
-		goto('/dashboard/statistics', { replaceState: true });
+		goto('/dashboard/travel', { replaceState: true });
 	});
 </script>
 

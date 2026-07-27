@@ -2711,41 +2711,41 @@
 							{isSavingLandingRedirect ? 'Saving...' : 'Save'}
 						</button>
 					</div>
+				</div>
 
-					<!-- Community Settings -->
-					<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
-						<div class="mb-4 flex items-center gap-3">
+				<!-- Community Hub (always visible — controls whether landing page shows community or redirect) -->
+				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+					<div class="mb-4 flex items-center gap-3">
+						<div>
+							<h2 class="text-xl font-semibold text-foreground">Community Hub</h2>
+							<p class="mt-1 text-sm text-muted-foreground">
+								Configure the landing page for this instance.
+							</p>
+						</div>
+					</div>
+					<div class="space-y-4">
+						<label class="flex items-center gap-3">
+							<input
+								type="checkbox"
+								bind:checked={communityEnabled}
+								class="h-4 w-4 rounded border-border"
+							/>
 							<div>
-								<h2 class="text-xl font-semibold text-foreground">Community Hub</h2>
-								<p class="mt-1 text-sm text-muted-foreground">
-									Configure the landing page for this instance.
+								<span class="text-sm font-medium text-foreground">Enable community hub</span>
+								<p class="text-xs text-muted-foreground">
+									When enabled, the landing page shows public stories from all users. When disabled,
+									it redirects to the configured user's blog (or shows a sign-in page).
 								</p>
 							</div>
-						</div>
-						<div class="space-y-4">
-							<label class="flex items-center gap-3">
-								<input
-									type="checkbox"
-									bind:checked={communityEnabled}
-									class="h-4 w-4 rounded border-border"
-								/>
-								<div>
-									<span class="text-sm font-medium text-foreground">Enable community hub</span>
-									<p class="text-xs text-muted-foreground">
-										When enabled, the landing page shows public stories from all users. When
-										disabled, it redirects to the configured user's blog (or shows a sign-in page).
-									</p>
-								</div>
-							</label>
-							<button
-								type="button"
-								onclick={saveCommunitySettings}
-								disabled={isSavingCommunity}
-								class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
-							>
-								{isSavingCommunity ? 'Saving...' : 'Save'}
-							</button>
-						</div>
+						</label>
+						<button
+							type="button"
+							onclick={saveCommunitySettings}
+							disabled={isSavingCommunity}
+							class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+						>
+							{isSavingCommunity ? 'Saving...' : 'Save'}
+						</button>
 					</div>
 				</div>
 

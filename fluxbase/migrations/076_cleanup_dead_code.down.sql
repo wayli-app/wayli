@@ -1,0 +1,1 @@
+-- No-op: the deleted column/setting were never used.

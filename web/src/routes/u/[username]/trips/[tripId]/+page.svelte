@@ -247,11 +247,21 @@
 			}
 
 			try {
-				if (currentUserId && trip) {
-					allGpsPoints = await fetchTrackPoints(currentUserId, trip.start_date, trip.end_date, 500);
+				// Fetch GPS track using the TRIP OWNER's ID, not the viewer's.
+				// RLS on tracker_data restricts access; the get_public_trip_track
+				// RPC (migration 036) respects gps_visible_to via SECURITY DEFINER.
+				if (trip?.user_id && trip.start_date) {
+					const { data: trackData, error: trackErr } = await fluxbase.rpc('get_public_trip_track', {
+						p_trip_id: tripId,
+						p_start_date: trip.start_date,
+						p_end_date: trip.end_date || trip.start_date
+					});
+					if (!trackErr && trackData && Array.isArray(trackData)) {
+						allGpsPoints = trackData as any[];
+					}
 				}
 			} catch {
-				// Not logged in
+				// GPS track not available
 			}
 
 			if (trip?.metadata?.visitedCitiesDetailed) {
