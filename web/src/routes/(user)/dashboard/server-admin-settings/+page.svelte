@@ -169,7 +169,7 @@
 	let aiEnabled = $state(false);
 	let aiAllowUserOverride = $state(false);
 	let providerName = $state('wayli-default');
-	let providerDisplayName = $state('OpenAI (Production)');
+	let providerDisplayName = $state('OpenAI');
 	let providerType = $state('openai');
 	let providerModel = $state('gpt-4.1-mini-2025-04-14');
 	let providerApiKey = $state('');
@@ -1240,7 +1240,7 @@
 			const defaultProvider = app?.ai?.default_provider;
 			if (defaultProvider) {
 				providerName = 'wayli-default'; // Always use fixed provider name
-				providerDisplayName = defaultProvider.display_name ?? 'OpenAI (Production)';
+				providerDisplayName = defaultProvider.display_name ?? 'OpenAI';
 				providerType = defaultProvider.provider_type ?? 'openai';
 				providerModel = defaultProvider.config?.model ?? 'gpt-4.1-mini-2025-04-14';
 				providerApiEndpoint = defaultProvider.config?.api_endpoint ?? '';
