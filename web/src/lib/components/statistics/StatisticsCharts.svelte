@@ -8,7 +8,6 @@
 		activityCalendar,
 		timeOfDayDistribution,
 		speedDistribution,
-		recordsAndStreaks,
 		type ProcessedPoint
 	} from '$lib/services/statistics/aggregate';
 
@@ -31,17 +30,18 @@
 	let calendar = $derived(activityCalendar(historyFor, 371));
 	let hours = $derived(timeOfDayDistribution(points));
 	let speedBuckets = $derived(speedDistribution(points));
-	let records = $derived(recordsAndStreaks(historyFor));
 
 	// ── Shared custom tooltip ────────────────────────────────────────────────
 	// Native SVG <title> tooltips are slow (1-2s dwell) and invisible on touch.
-	// A single positioned <div> driven by this state appears instantly for both
-	// the time-of-day wedges and the speed bars.
-	let tooltip = $state<{ label: string; sub: string; x: number; y: number } | null>(null);
+	// A positioned <div> driven by this state appears instantly. `chart`
+	// identifies which chart owns the tooltip so only that chart's <div> renders
+	// (avoids the same tooltip text bleeding into the neighbouring chart).
+	let tooltip = $state<{ chart: string; label: string; sub: string; x: number; y: number } | null>(null);
 
-	function showTooltip(label: string, sub: string, e: MouseEvent) {
+	function showTooltip(chart: string, label: string, sub: string, e: MouseEvent) {
 		const rect = (e.currentTarget.closest('section') as HTMLElement)?.getBoundingClientRect();
 		tooltip = {
+			chart,
 			label,
 			sub,
 			x: e.clientX - (rect?.left ?? 0),
@@ -93,6 +93,24 @@
 		const row = 6 - (offsetFromEnd % 7);
 		return { x: col * CELL_PITCH, y: row * CELL_PITCH };
 	}
+
+	const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+	/** Month labels for the horizontal axis: one per month boundary, positioned
+	 *  at its first column. Returns [{label, x}] entries. */
+	let monthLabels = $derived.by(() => {
+		const out: { label: string; x: number }[] = [];
+		let lastMonth = -1;
+		displayCal.forEach((day, i) => {
+			const m = new Date(day.date + 'T00:00:00').getMonth();
+			if (m !== lastMonth) {
+				const pos = cellPosition(i);
+				out.push({ label: MONTHS[m], x: pos.x });
+				lastMonth = m;
+			}
+		});
+		return out;
+	});
 
 	// ── Time-of-day radial ──────────────────────────────────────────────────
 	// Sized to leave room for cardinal hour labels (0/6/12/18) outside the ring.
@@ -206,24 +224,33 @@
 </script>
 
 {#if points.length > 0}
-	<!-- Activity calendar -->
-	<section class="mb-8 w-full rounded-lg border p-4 bg-card border-border">
+	<!-- Activity calendar (distance per day, trailing ~53 weeks ending today) -->
+	<section class="relative mb-8 w-full rounded-lg border p-4 bg-card border-border">
 		<h3 class="mb-3 text-lg font-semibold text-foreground">📅 Activity</h3>
 		<div class="overflow-x-auto">
-			<svg width={CAL_W} height={CAL_H + 16} role="img" aria-label="Activity calendar">
-				{#each displayCal as day, i (day.date)}
-					{@const pos = cellPosition(i)}
-					<rect
-						x={pos.x}
-						y={pos.y}
-						width={CELL}
-						height={CELL}
-						rx="2"
-						fill={calColor(day.distance)}
-					>
-						<title>{day.date}: {fmtDistance(day.distance)}, {day.points} pts</title>
-					</rect>
+			<svg width={CAL_W} height={CAL_H + 28} role="img" aria-label="Activity calendar (distance per day)">
+				<!-- Month axis -->
+				{#each monthLabels as ml (ml.label + String(ml.x))}
+					<text x={ml.x} y={9} font-size="9" fill="currentColor" class="text-muted-foreground">{ml.label}</text>
 				{/each}
+				<!-- Day cells (translate down to leave room for the month axis) -->
+				<g transform="translate(0, 14)">
+					{#each displayCal as day, i (day.date)}
+						{@const pos = cellPosition(i)}
+						<rect
+							x={pos.x}
+							y={pos.y}
+							width={CELL}
+							height={CELL}
+							rx="2"
+							fill={calColor(day.distance)}
+							onmouseenter={(e) => showTooltip('activity', day.date, `${fmtDistance(day.distance)} · ${day.points} pts`, e)}
+							onmousemove={moveTooltip}
+							onmouseleave={hideTooltip}
+							role="presentation"
+						></rect>
+					{/each}
+				</g>
 			</svg>
 		</div>
 		<div class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
@@ -235,7 +262,17 @@
 				></span>
 			{/each}
 			<span>More</span>
+			<span class="ml-2">distance per day</span>
 		</div>
+		{#if tooltip && tooltip.chart === 'activity'}
+			<div
+				class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
+				style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
+			>
+				{tooltip.label}
+				<span class="opacity-70">· {tooltip.sub}</span>
+			</div>
+		{/if}
 	</section>
 
 	<div class="mb-8 flex w-full flex-col gap-4 md:flex-row">
@@ -248,7 +285,7 @@
 						<path
 							d={hourArc(h.hour)}
 							fill={h.points > 0 ? 'rgba(37,99,235,0.6)' : 'rgba(120,120,120,0.08)'}
-							onmouseenter={(e) => showTooltip(`${h.hour}:00–${h.hour + 1}:00`, `${h.points} points`, e)}
+							onmouseenter={(e) => showTooltip('timeofday', `${h.hour}:00–${h.hour + 1}:00`, `${h.points} points`, e)}
 							onmousemove={moveTooltip}
 							onmouseleave={hideTooltip}
 							role="presentation"
@@ -269,7 +306,7 @@
 				</svg>
 			</div>
 			<p class="mt-2 text-center text-xs text-muted-foreground">When you move most</p>
-			{#if tooltip}
+			{#if tooltip && tooltip.chart === 'timeofday'}
 				<div
 					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
 					style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
@@ -293,7 +330,7 @@
 						height={Math.max(h, b.count > 0 ? 1 : 0)}
 						rx="2"
 						fill={b.count > 0 ? modeColor(b.dominantMode ?? 'unknown') : 'rgba(120,120,120,0.15)'}
-						onmouseenter={(e) => showTooltip(`${b.label} km/h`, `${b.count} points`, e)}
+						onmouseenter={(e) => showTooltip('speed', `${b.label} km/h`, `${b.count} points`, e)}
 						onmousemove={moveTooltip}
 						onmouseleave={hideTooltip}
 						role="presentation"
@@ -304,7 +341,7 @@
 				{/each}
 			</svg>
 			<p class="mt-1 text-center text-xs text-muted-foreground">km/h, coloured by dominant mode</p>
-			{#if tooltip}
+			{#if tooltip && tooltip.chart === 'speed'}
 				<div
 					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
 					style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
@@ -348,35 +385,4 @@
 			</div>
 		</section>
 	</div>
-
-	<!-- Records & streaks -->
-	<section class="mb-8 w-full rounded-lg border p-4 bg-card border-border">
-		<h3 class="mb-3 text-lg font-semibold text-foreground">🏆 Records & streaks</h3>
-		<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-			<div>
-				<div class="text-2xl font-bold text-foreground">{records.longestStreak}</div>
-				<div class="text-xs text-muted-foreground">day longest streak</div>
-			</div>
-			<div>
-				<div class="text-2xl font-bold text-foreground">{records.currentStreak}</div>
-				<div class="text-xs text-muted-foreground">day current streak</div>
-			</div>
-			<div>
-				<div class="text-2xl font-bold text-foreground">{records.totalDaysTracked}</div>
-				<div class="text-xs text-muted-foreground">days tracked</div>
-			</div>
-			<div>
-				<div class="text-2xl font-bold text-foreground">
-					{records.longestDayDistance ? fmtDistance(records.longestDayDistance.distance) : '—'}
-				</div>
-				<div class="text-xs text-muted-foreground">biggest day</div>
-			</div>
-			<div>
-				<div class="text-2xl font-bold text-foreground">
-					{records.busiestDay ? records.busiestDay.points : '—'}
-				</div>
-				<div class="text-xs text-muted-foreground">pts busiest day</div>
-			</div>
-		</div>
-	</section>
 {/if}
