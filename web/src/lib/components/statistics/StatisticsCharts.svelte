@@ -105,12 +105,29 @@
 	}
 
 	// Map a calendar date to its column/row in the grid.
+	// Row is based on the actual weekday: Monday = row 0 (top), Sunday = row 6
+	// (bottom). Column is based on which ISO week the day falls in, aligned so
+	// the grid ends at the current week.
 	function cellPosition(index: number): { x: number; y: number } {
-		// displayCal is ordered oldest→newest. Align so the grid ends at last day.
-		const total = displayCal.length;
-		const offsetFromEnd = total - 1 - index;
-		const col = WEEKS - 1 - Math.floor(offsetFromEnd / 7);
-		const row = 6 - (offsetFromEnd % 7);
+		const day = displayCal[index];
+		if (!day) return { x: 0, y: 0 };
+		const date = new Date(day.date + 'T00:00:00');
+		// JS getDay(): 0=Sun, 1=Mon, ... 6=Sat. Convert to Mon=0..Sun=6.
+		const jsDay = date.getDay();
+		const row = jsDay === 0 ? 6 : jsDay - 1;
+
+		// Column: how many weeks back from the last day in displayCal.
+		const lastDay = displayCal[displayCal.length - 1];
+		const lastDate = new Date(lastDay.date + 'T00:00:00');
+		const diffDays = Math.round((lastDate.getTime() - date.getTime()) / (24 * 60 * 60 * 1000));
+		// Align to week boundaries: both dates snap to their Monday, then diff / 7.
+		const lastMonday = new Date(lastDate);
+		lastMonday.setDate(lastDate.getDate() - (lastDate.getDay() === 0 ? 6 : lastDate.getDay() - 1));
+		const thisMonday = new Date(date);
+		thisMonday.setDate(date.getDate() - (jsDay === 0 ? 6 : jsDay - 1));
+		const weekDiff = Math.round((lastMonday.getTime() - thisMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+		const col = Math.max(0, Math.min(WEEKS - 1, WEEKS - 1 - weekDiff));
+
 		return { x: col * CELL_PITCH, y: row * CELL_PITCH };
 	}
 
