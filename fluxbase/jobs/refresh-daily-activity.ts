@@ -7,7 +7,7 @@
  * The activity_calendar RPC reads this cache table instead of aggregating live.
  *
  * @fluxbase:require-role authenticated
- * @fluxbase:timeout 120
+ * @fluxbase:timeout 600
  * @fluxbase:allow-net true
  * @fluxbase:allow-env true
  */
@@ -63,29 +63,36 @@ export async function handler(
 			console.log(`📊 Full rebuild: cache empty for user ${userId}, processing all history`);
 		}
 
-		// Aggregate tracker_data into per-day sums.
-		let query = db
-			.from('tracker_data')
-			.select('recorded_at, distance, time_spent')
-			.eq('user_id', userId)
-			.order('recorded_at', { ascending: true });
-		if (since) query = query.gte('recorded_at', since);
+		// Aggregate tracker_data into per-day sums. Build a FRESH query object
+		// for each batch — the fluxbase SDK query builder doesn't reliably support
+		// calling .range() multiple times on the same builder instance.
+		const baseSelect = 'recorded_at, distance, time_spent';
 
 		// Fetch in batches and group by day.
 		const byDay = new Map<string, { distance: number; time_spent: number; points: number }>();
 		let offset = 0;
 		const BATCH = 5000;
+		let totalFetched = 0;
 
 		while (true) {
 			if (await job.isCancelled()) {
 				return { success: false, error: 'Cancelled' };
 			}
-			const { data: batch, error } = await query.range(offset, offset + BATCH - 1);
+			let query = db
+				.from('tracker_data')
+				.select(baseSelect)
+				.eq('user_id', userId)
+				.order('recorded_at', { ascending: true })
+				.range(offset, offset + BATCH - 1);
+			if (since) query = query.gte('recorded_at', since);
+
+			const { data: batch, error } = await query;
 			if (error) {
 				console.error('❌ Fetch error:', error);
 				return { success: false, error: `Fetch failed: ${(error as any).message}` };
 			}
 			if (!batch || batch.length === 0) break;
+			totalFetched += batch.length;
 
 			for (const row of batch as any[]) {
 				const day = new Date(row.recorded_at).toISOString().slice(0, 10);

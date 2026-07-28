@@ -97,19 +97,24 @@ async function refreshUser(db: FluxbaseClient, userId: string, now: Date): Promi
 		? null
 		: new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-	let query = db
-		.from('tracker_data')
-		.select('recorded_at, distance, time_spent')
-		.eq('user_id', userId)
-		.order('recorded_at', { ascending: true });
-	if (since) query = query.gte('recorded_at', since);
+	// Build a FRESH query per batch — reusing the builder across .range() calls
+	// doesn't work reliably in the fluxbase SDK.
+	const baseSelect = 'recorded_at, distance, time_spent';
 
 	const byDay = new Map<string, { distance: number; time_spent: number; points: number }>();
 	let offset = 0;
 	const BATCH = 5000;
 
 	while (true) {
-		const { data: batch, error } = await query.range(offset, offset + BATCH - 1);
+		let query = db
+			.from('tracker_data')
+			.select(baseSelect)
+			.eq('user_id', userId)
+			.order('recorded_at', { ascending: true })
+			.range(offset, offset + BATCH - 1);
+		if (since) query = query.gte('recorded_at', since);
+
+		const { data: batch, error } = await query;
 		if (error) throw new Error(`Fetch: ${(error as any).message}`);
 		if (!batch || batch.length === 0) break;
 
