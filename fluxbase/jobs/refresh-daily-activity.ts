@@ -18,8 +18,8 @@ const LOOKBACK_DAYS = 1;
 
 export async function handler(
 	_req: Request,
-	_fluxbase: FluxbaseClient,
-	fluxbaseService: FluxbaseClient,
+	fluxbase: FluxbaseClient,
+	_fluxbaseService: FluxbaseClient,
 	job: JobUtils
 ) {
 	const context = job.getJobContext();
@@ -31,7 +31,10 @@ export async function handler(
 	console.log(`📊 Refreshing daily activity for user ${userId}`);
 	job.reportProgress(5, 'Aggregating daily activity...');
 
-	const db = fluxbaseService;
+	// Use the user-scoped client (RLS-respecting) — the authenticated RLS
+	// policy (auth.uid() = user_id) covers both reads and writes for the
+	// user's own rows. No service_role/tenant_service policy needed.
+	const db = fluxbase;
 
 	try {
 		// Read watermark.
