@@ -260,6 +260,8 @@
 		"joinOtherTravelers": "Doe mee met andere reizigers die Wayli vertrouwen om hun reizen te volgen.",
 		"yourPersonalTracker": "Jouw Persoonlijke Reistracker",
 		"selfHostedTagline": "Zelf-gehoste locatietracking en reisbeheer. Jouw data, jouw server, jouw privacy.",
+		"heroHeadline": "Jouw reizen. Jouw data. Jouw server.",
+		"heroSubtext": "Zelf-gehoste locatietracking en reisbeheer, met privacy als uitgangspunt.",
 		"privacyFirst": "Privacy Eerst",
 		"privacyFirstDescription": "Jouw data blijft op jouw server. Geen tracking of datadeling door derden.",
 		"automaticTripDetection": "Automatische Reisdetectie",

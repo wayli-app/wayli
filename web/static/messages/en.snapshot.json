@@ -260,6 +260,8 @@
 		"joinOtherTravelers": "Join other travelers who trust Wayli to track their journeys.",
 		"yourPersonalTracker": "Your Personal Travel Tracker",
 		"selfHostedTagline": "Self-hosted location tracking and trip management. Your data, your server, your privacy.",
+		"heroHeadline": "Your travels. Your data. Your server.",
+		"heroSubtext": "Self-hosted location tracking and trip management, with privacy by design.",
 		"privacyFirst": "Privacy First",
 		"privacyFirstDescription": "Your data stays on your server. No third-party tracking or data sharing.",
 		"automaticTripDetection": "Automatic Trip Detection",

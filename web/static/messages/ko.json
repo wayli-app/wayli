@@ -260,6 +260,8 @@
 		"joinOtherTravelers": "Wayli를 신뢰하여 여행을 추적하는 다른 여행자와 함께 하세요.",
 		"yourPersonalTracker": "귀하의 개인 여행 추적기",
 		"selfHostedTagline": "자체 호스팅 위치 추적 및 여행 관리. 귀하의 데이터, 귀하의 서버, 귀하의 개인 정보 보호.",
+		"heroHeadline": "당신의 여행. 당신의 데이터. 당신의 서버.",
+		"heroSubtext": "자체 호스팅 위치 추적 및 여행 관리. 설계부터 보호되는 개인정보 보호.",
 		"privacyFirst": "개인 정보 보호 우선",
 		"privacyFirstDescription": "귀하의 데이터는 귀하의 서버에 유지됩니다. 제3자 추적이나 데이터 공유가 없습니다.",
 		"automaticTripDetection": "자동 트립 감지",

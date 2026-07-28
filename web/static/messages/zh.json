@@ -260,6 +260,8 @@
 		"joinOtherTravelers": "与其他信任 Wayli 的旅行者一起追踪他们的旅程。",
 		"yourPersonalTracker": "您的个人旅行追踪器",
 		"selfHostedTagline": "自托管位置跟踪和行程管理。您的数据、您的服务器、您的隐私。",
+		"heroHeadline": "你的旅行。你的数据。你的服务器。",
+		"heroSubtext": "自托管位置跟踪和行程管理，隐私保护贯穿设计。",
 		"privacyFirst": "隐私第一",
 		"privacyFirstDescription": "您的数据保留在您的服务器上。没有第三方跟踪或数据共享。",
 		"automaticTripDetection": "自动跳闸检测",

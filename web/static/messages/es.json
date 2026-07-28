@@ -260,6 +260,8 @@
 		"joinOtherTravelers": "Únete a otros viajeros que confían en Wayli para rastrear sus viajes.",
 		"yourPersonalTracker": "Tu Rastreador Personal de Viajes",
 		"selfHostedTagline": "Seguimiento de ubicación auto-hospedado y gestión de viajes. Tus datos, tu servidor, tu privacidad.",
+		"heroHeadline": "Tus viajes. Tus datos. Tu servidor.",
+		"heroSubtext": "Seguimiento de ubicación auto-hospedado y gestión de viajes, con privacidad por diseño.",
 		"privacyFirst": "Privacidad Primero",
 		"privacyFirstDescription": "Tus datos permanecen en tu servidor. Sin seguimiento ni compartición de datos por terceros.",
 		"automaticTripDetection": "Detección Automática de Viajes",

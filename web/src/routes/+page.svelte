@@ -4,7 +4,6 @@
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate, messages } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
-	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
@@ -212,7 +211,7 @@
 		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
 			<p class="text-muted-foreground text-sm">{t('landing.selfHostedTagline')}</p>
-			{#if $userStore?.email}
+			{#if isLoggedIn}
 				<a
 					href="/dashboard/travel"
 					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
@@ -230,7 +229,9 @@
 				</a>
 			{/if}
 		</div>
-		<div class="fixed right-4 top-4 flex gap-2">
+		<div
+			class="bg-background/80 border-border fixed right-4 top-4 z-40 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
+		>
 			<button
 				onclick={() => handleThemeChange('light')}
 				class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'light'
@@ -247,13 +248,15 @@
 			>
 				<Moon class="h-4 w-4" />
 			</button>
+			<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 		</div>
-		<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 	</div>
 {:else if pageMode === 'community'}
 	<div class="bg-background min-h-screen">
 		<!-- Top bar -->
-		<div class="fixed right-4 top-4 z-40 flex items-center gap-3">
+		<div
+			class="bg-background/80 border-border fixed right-4 top-4 z-40 flex items-center gap-3 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
+		>
 			<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 			<div class="flex gap-2">
 				<button
@@ -273,10 +276,10 @@
 					<Moon class="h-4 w-4" />
 				</button>
 			</div>
-			{#if $userStore?.email}
+			{#if isLoggedIn}
 				<a
 					href="/dashboard/travel"
-					class="bg-card border-border text-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium shadow-sm"
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 				>
 					<User class="h-4 w-4" />
 					{t('common.navigation.dashboard')}
@@ -284,7 +287,7 @@
 			{:else}
 				<a
 					href="/auth/signin"
-					class="bg-card border-border text-foreground inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium shadow-sm"
+					class="text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
 				>
 					<User class="h-4 w-4" />
 					{t('auth.signIn')}
@@ -303,11 +306,13 @@
 				<div class="bg-white/75 dark:bg-white/10 mb-6 inline-flex rounded-3xl p-6 backdrop-blur-md">
 					<img src="/logo.svg" alt="Wayli" class="h-20 w-auto drop-shadow-2xl" />
 				</div>
-				<h1 class="text-foreground text-3xl font-bold tracking-tight sm:text-4xl">
-					{t('landing.selfHostedTagline')}
+				<h1
+					class="bg-gradient-to-r from-primary via-primary to-primary/60 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
+				>
+					{t('landing.heroHeadline')}
 				</h1>
 				<p class="text-muted-foreground mx-auto mt-4 max-w-2xl text-base sm:text-lg">
-					{t('community.subtitle')}
+					{t('landing.heroSubtext')}
 				</p>
 				<div class="mt-8 flex items-center justify-center gap-3">
 					<a
@@ -426,7 +431,7 @@
 			{#if latestEntries.length === 0 && travelers.length === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
 					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
-					{#if $userStore?.email}
+					{#if isLoggedIn}
 						<a href="/dashboard/travel" class="text-primary mt-4 text-sm hover:underline">
 							{t('community.publishFirstTrip')}
 						</a>
