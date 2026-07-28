@@ -7,6 +7,7 @@ import {
 	createEnhancedModeContext,
 	type EnhancedModeContext
 } from '$lib/utils/enhanced-transport-mode';
+import { detectTransportModes, type ModeObservation } from '$lib/services/transport-mode';
 import { haversine } from '$lib/utils/multi-point-speed';
 import {
 	isAtTrainStation,
@@ -414,6 +415,8 @@ export class ClientStatisticsService {
 				distance,
 				accuracy,
 				tz_diff,
+				transport_mode,
+				detection_reason,
 				geocode->properties->>city,
 				geocode->properties->>address->>city,
 				geocode->properties->>address->>village
@@ -454,104 +457,93 @@ export class ClientStatisticsService {
 	private processBatch(batch: TrackerDataPoint[]): void {
 		console.log(`🔄 Processing batch of ${batch.length} points`);
 
-		// Process points and add transport mode information
-		const processedBatch = batch.map((point, index) => {
-			const prevPoint = batch[index - 1];
+		// 1. Pre-compute velocity (km/h) for every point. Used for both the map
+		//    and as the speed input to transport-mode detection. Falls back to a
+		//    haversine-derived velocity when the DB speed field is absent.
+		const velocities = batch.map((point, index) => {
+			if (point.speed !== undefined && point.speed !== null) return point.speed;
 			const nextPoint = batch[index + 1];
+			const currentCoords = this.extractCoordinates(point);
+			const nextCoords = nextPoint ? this.extractCoordinates(nextPoint) : null;
+			if (currentCoords && nextCoords) {
+				const distance = haversine(currentCoords[1], currentCoords[0], nextCoords[1], nextCoords[0]);
+				const timeSpent = this.calculateTimeSpent(point, nextPoint!);
+				if (timeSpent > 0) return (distance / timeSpent) * 3.6;
+			}
+			return 0;
+		});
+
+		// 2. Split points into "stored" (job already decoded them) vs "live"
+		//    (need detection now). Stored modes are trusted as-is; live points
+		//    are decoded with the HMM detector (global Viterbi smoothing → no
+		//    flicker), which is the same algorithm the background job uses.
+		const liveIndices: number[] = [];
+		const liveObservations: ModeObservation[] = [];
+		batch.forEach((point, index) => {
+			if (point.transport_mode) return; // stored — keep it
+			const coords = this.extractCoordinates(point);
+			if (!coords) return;
+			liveIndices.push(index);
+			liveObservations.push({
+				timestamp: new Date(point.recorded_at).getTime(),
+				lat: coords[1],
+				lng: coords[0],
+				speed: velocities[index],
+				heading: null, // tracker_data.heading isn't selected by the page query
+				accuracy: point.accuracy ?? null,
+				geocode: this.createGeocodeFeature(point)
+			});
+		});
+
+		// Run the HMM over all live points in the batch at once. They're in
+		// chronological order (the query orders by recorded_at asc), so
+		// gap-segmentation inside detectTransportModes handles segment boundaries.
+		const liveDecisions = detectTransportModes(liveObservations);
+
+		// 3. Build the processed batch: stored modes pass through; live points
+		//    get their HMM decision; points we couldn't geocode fall back to the
+		//    legacy per-point detector for safety.
+		const processedBatch = batch.map((point, index) => {
 			let transportMode = 'unknown';
-			let velocity = 0;
 			let detectionReason = 'unknown';
 
-			// Determine transport mode using database speed field
-			if (point.speed !== undefined && point.speed !== null) {
-				// Use database speed field for transport mode detection
-				const currentCoords = this.extractCoordinates(point);
-				const previousCoords = prevPoint ? this.extractCoordinates(prevPoint) : null;
-
-				if (currentCoords) {
-					// Create proper GeoJSON Feature for transport mode detection
-					const currentGeocode = this.createGeocodeFeature(point);
-
-					// Database stores speed in km/h, convert to m/s for detectEnhancedMode
-					const speedMps = point.speed / 3.6;
-
-					// Use actual previous coordinates if available, otherwise use current
-					const prevLat = previousCoords ? previousCoords[1] : currentCoords[1];
-					const prevLng = previousCoords ? previousCoords[0] : currentCoords[0];
-
-					// Calculate actual time difference
-					const timeDiff = prevPoint
-						? this.calculateTimeSpent(prevPoint, point) / 1000 // convert ms to seconds
-						: 1;
-
-					// Use database speed for transport mode detection
-					const { mode, reason } = detectEnhancedMode(
-						prevLat,
-						prevLng, // previous lat, lng
-						currentCoords[1],
-						currentCoords[0], // current lat, lng
-						timeDiff, // actual time difference in seconds
-						currentGeocode,
-						this.transportContext,
-						speedMps, // pass speed in m/s (detectEnhancedMode will convert to km/h)
-						new Date(point.recorded_at).getTime(),
-						point.accuracy
-					);
-
-					transportMode = mode;
-					detectionReason = reason;
-
-					// Database speed is already in km/h
-					velocity = point.speed;
-				}
-			} else if (nextPoint) {
-				// Fallback to calculated velocity if no database speed available
-				const currentCoords = this.extractCoordinates(point);
-				const nextCoords = this.extractCoordinates(nextPoint);
-
-				if (currentCoords && nextCoords) {
-					const distance = haversine(
-						currentCoords[1],
-						currentCoords[0], // lat, lng
-						nextCoords[1],
-						nextCoords[0]
-					);
-					const timeSpent = this.calculateTimeSpent(point, nextPoint);
-
-					if (timeSpent > 0) {
-						// Calculate velocity in km/h
-						velocity = (distance / timeSpent) * 3.6;
-						console.log(
-							`🚗 Fallback velocity calculation: distance=${distance.toFixed(2)}m, time=${timeSpent}ms, velocity=${velocity.toFixed(2)}km/h`
-						);
-
-						// Create proper GeoJSON Feature for transport mode detection
-						const currentGeocode = this.createGeocodeFeature(point);
-
+			if (point.transport_mode) {
+				// Persisted by the background job — single source of truth.
+				transportMode = point.transport_mode;
+				detectionReason = point.detection_reason ?? 'persisted_mode';
+			} else {
+				const livePos = liveIndices.indexOf(index);
+				if (livePos >= 0 && livePos < liveDecisions.length) {
+					const d = liveDecisions[livePos];
+					transportMode = d.mode;
+					detectionReason = d.reason;
+				} else if (velocities[index] !== undefined) {
+					// Last-resort fallback (no coords / decode failed): single-point
+					// legacy detection so the point isn't left as 'unknown'.
+					const coords = this.extractCoordinates(point);
+					if (coords) {
 						const { mode, reason } = detectEnhancedMode(
-							currentCoords[1],
-							currentCoords[0], // prev lat, lng
-							nextCoords[1],
-							nextCoords[0], // curr lat, lng
-							timeSpent / 1000, // convert to seconds
-							currentGeocode,
+							coords[1],
+							coords[0],
+							coords[1],
+							coords[0],
+							1,
+							this.createGeocodeFeature(point),
 							this.transportContext,
-							undefined,
+							velocities[index] / 3.6,
 							new Date(point.recorded_at).getTime(),
 							point.accuracy
 						);
-
 						transportMode = mode;
 						detectionReason = reason;
 					}
 				}
 			}
 
-			// Add transport mode, velocity, and detection reason to the point
 			return {
 				...point,
 				transport_mode: transportMode,
-				velocity: velocity,
+				velocity: velocities[index],
 				detection_reason: detectionReason
 			};
 		});
