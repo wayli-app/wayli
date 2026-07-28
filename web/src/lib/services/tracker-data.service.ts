@@ -1,5 +1,20 @@
 import { fluxbase } from '$lib/fluxbase';
 
+/**
+ * Normalize a date input (Date object OR yyyy-MM-dd string) to a yyyy-MM-dd
+ * string. The DateRangePicker binds Date objects on mobile/native and strings
+ * on desktop; the service functions below consume strings, so coerce at the
+ * boundary rather than at every call site.
+ */
+function toDateStr(d: string | Date | null | undefined): string {
+	if (!d) return '';
+	if (typeof d === 'string') return d.slice(0, 10);
+	const yyyy = d.getFullYear();
+	const mm = String(d.getMonth() + 1).padStart(2, '0');
+	const dd = String(d.getDate()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}`;
+}
+
 export type DataPoint = {
 	recorded_at: string;
 	lat: number;
@@ -22,12 +37,12 @@ export type ExclusionZone = {
  */
 export async function getPoints(
 	userId: string,
-	startDate: string,
-	endDate: string,
+	startDate: string | Date,
+	endDate: string | Date,
 	onProgress?: (loaded: number, total: number) => void
 ): Promise<DataPoint[]> {
-	const sd = startDate.slice(0, 10);
-	const ed = endDate.slice(0, 10);
+	const sd = toDateStr(startDate);
+	const ed = toDateStr(endDate);
 
 	const allPoints: any[] = [];
 	let offset = 0;
@@ -86,11 +101,11 @@ export async function getPoints(
  */
 export async function getPointCount(
 	userId: string,
-	startDate: string,
-	endDate: string
+	startDate: string | Date,
+	endDate: string | Date
 ): Promise<number> {
-	const sd = startDate.slice(0, 10);
-	const ed = endDate.slice(0, 10);
+	const sd = toDateStr(startDate);
+	const ed = toDateStr(endDate);
 
 	const { count, error } = await fluxbase
 		.from('tracker_data')

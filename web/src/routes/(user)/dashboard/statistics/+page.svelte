@@ -832,19 +832,34 @@
 
 		// leaflet.heat extends L with L.heatLayer. It's loaded via a dynamic
 		// import to keep it out of the initial bundle; the side-effect import
-		// attaches L.heatLayer to the leaflet namespace.
-		import('leaflet.heat').then(() => {
-			if (!map || !L) return;
-			const heatFn = (L as any).heatLayer;
-			if (!heatFn) return;
-			heatLayer = heatFn(heatPoints, {
-				radius: 25,
-				blur: 18,
-				maxZoom: 14,
-				minOpacity: 0.35,
-				gradient: { 0.2: '#3b82f6', 0.4: '#22c55e', 0.6: '#eab308', 0.8: '#f97316', 1.0: '#ef4444' }
-			}).addTo(map);
-		});
+		// attaches L.heatLayer to the leaflet namespace. Guarded to client-only:
+		// the plugin references `window` at module-eval time, which would reject
+		// during SSR and crash the page render.
+		if (!browser) return;
+		import('leaflet.heat')
+			.then(() => {
+				if (!map || !L) return;
+				const heatFn = (L as any).heatLayer;
+				if (!heatFn) return;
+				heatLayer = heatFn(heatPoints, {
+					radius: 25,
+					blur: 18,
+					maxZoom: 14,
+					minOpacity: 0.35,
+					gradient: {
+						0.2: '#3b82f6',
+						0.4: '#22c55e',
+						0.6: '#eab308',
+						0.8: '#f97316',
+						1.0: '#ef4444'
+					}
+				}).addTo(map);
+			})
+			.catch((err) => {
+				// Swallow: the heat layer is optional; never let its load failure
+				// (e.g. plugin missing in a build) blank the statistics page.
+				console.warn('leaflet.heat failed to load; heatmap disabled', err);
+			});
 	}
 
 	function toggleHeatmap() {
