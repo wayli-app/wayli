@@ -859,6 +859,34 @@
 										>
 											<Brain class="h-3 w-3" />
 											{t('ai.reasoning', { count: msg.thoughts!.length })}
+											{@const route = msg.thoughts?.find((th) => th.plan?.route?.length)?.plan?.route}
+											{#if route && route.length > 0}
+												<span
+													class="bg-muted text-foreground ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium"
+													title="Agents the supervisor routed to this turn"
+												>
+													{#each route as agent, ri (agent)}
+														{#if ri > 0}<span class="opacity-40">→</span>{/if}
+														<span>{agent}</span>
+													{/each}
+												</span>
+												{@const usedWeb = route.includes('web')}
+												{@const webToolCalled = msg.thoughts?.some((th) => th.kind === 'tool_call' && th.tool_name === 'web_search')}
+												<span
+													class="ml-0.5 inline-flex items-center gap-0.5 text-[9px] {usedWeb
+														? webToolCalled
+															? 'text-green-600 dark:text-green-400'
+															: 'text-amber-600 dark:text-amber-400'
+														: ''}"
+													title={usedWeb
+														? webToolCalled
+															? 'Web agent ran and searched'
+															: 'Web agent was routed but did not search (check audit log / Tavily key)'
+														: ''}
+												>
+													{#if usedWeb}{webToolCalled ? '🔍' : '⚠️'}{/if}
+												</span>
+											{/if}
 											<ChevronRight
 												class="ml-auto h-3 w-3 transition-transform {openThoughts[i]
 													? 'rotate-90'
