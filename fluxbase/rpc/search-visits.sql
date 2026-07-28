@@ -1,4 +1,3 @@
--- @fluxbase:name search_visits
 -- @fluxbase:description Search place visits with smart filtering. Converts country names to ISO codes, fuzzy matches cities/amenities, parses natural-language date ranges. Returns visits ordered by recency.
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "country?": "text", "city?": "text", "category?": "text", "amenity?": "text", "cuisine?": "text", "date_range?": "text", "limit?": "integer" }

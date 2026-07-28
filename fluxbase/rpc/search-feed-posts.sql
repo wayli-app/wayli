@@ -1,4 +1,3 @@
--- @fluxbase:name search_feed_posts
 -- @fluxbase:description Search published feed posts (from public trips and trips shared with you, plus your own) by author, trip, free text, or date range. Use for questions about the feed / community stories / what others have posted. Returns author, trip title, post title, date, and body.
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "author?": "text", "trip_title?": "text", "search_text?": "text", "date_range?": "text", "limit?": "integer" }

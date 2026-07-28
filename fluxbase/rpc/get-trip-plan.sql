@@ -1,4 +1,3 @@
--- @fluxbase:name get_trip_plan
 -- @fluxbase:description Returns current plan items for a specific trip, grouped by day. Use when the user asks about their itinerary or wants to modify existing items. Looks up trip by trip_id (preferred) or trip_title. Returns item_id which must be passed back for update/delete actions.
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "trip_id?": "uuid", "trip_title?": "text" }

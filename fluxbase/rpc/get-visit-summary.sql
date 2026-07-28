@@ -1,4 +1,3 @@
--- @fluxbase:name get_visit_summary
 -- @fluxbase:description Get summary statistics for a specific POI name or category. Returns visit count, total/average duration, first/last visit timestamps, top cities, and top POIs.
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "poi_name?": "text", "category?": "text" }

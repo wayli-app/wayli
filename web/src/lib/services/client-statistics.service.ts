@@ -251,7 +251,7 @@ export class ClientStatisticsService {
 		try {
 			const days = weeks * 7;
 			const { data, error } = await (this.fluxbase.rpc as any).invoke(
-				'activity_calendar',
+				'activity-calendar',
 				{ user_id: userId, days },
 				{ namespace: 'wayli' }
 			);

@@ -1,4 +1,3 @@
--- @fluxbase:name aggregate_visits
 -- @fluxbase:description Aggregate statistics about place visits: total time, visit counts, or average duration. Group by POI name, category, city, or country. Supports country/city/category/date filters.
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "metric": "text", "group_by": "text", "country?": "text", "city?": "text", "category?": "text", "date_range?": "text", "limit?": "integer" }

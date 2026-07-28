@@ -1,4 +1,3 @@
--- @fluxbase:name search_journal_entries
 -- @fluxbase:description Search the user's trip journal entries (blog posts) by trip title, free text, or date range. Returns entry titles, dates, and full body. Use for questions about past experiences or written memories.
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "trip_title?": "text", "search_text?": "text", "date_range?": "text", "limit?": "integer" }

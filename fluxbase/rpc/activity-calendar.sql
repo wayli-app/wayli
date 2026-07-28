@@ -1,4 +1,3 @@
--- @fluxbase:name activity_calendar
 -- @fluxbase:description Aggregate tracker_data into per-day distance/time/point-count for the activity calendar. Returns one row per day (only days with data), ordered oldest→newest. Reads from the cached tracker_daily_activity table (refreshed by the refresh-daily-activity job). If the cache is empty, returns an empty set (the frontend shows a placeholder with a refresh button).
 -- @fluxbase:require-role authenticated
 -- @fluxbase:input { "days?": "integer" }
