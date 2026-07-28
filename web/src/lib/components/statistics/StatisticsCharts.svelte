@@ -209,7 +209,7 @@
 					>
 						<title>{b.label} km/h: {b.count} pts</title>
 					</rect>
-					<text x={i * barW + barW / 2} y={133} text-anchor="middle" font-size="7" fill="currentColor" class="text-muted-foreground">
+					<text x={i * speedBarW + speedBarW / 2} y={133} text-anchor="middle" font-size="7" fill="currentColor" class="text-muted-foreground">
 						{b.label}
 					</text>
 				{/each}
