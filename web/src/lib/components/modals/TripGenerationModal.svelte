@@ -208,8 +208,8 @@
 	<div class="space-y-6">
 		<!-- Date Range Selection -->
 		<div>
-			<label class="mb-2 block text-sm font-medium text-muted-foreground"
-				>{t('tripGenerationModal.startDate')} / {t('tripGenerationModal.endDate')}</label
+			<span class="mb-2 block text-sm font-medium text-muted-foreground"
+				>{t('tripGenerationModal.startDate')} / {t('tripGenerationModal.endDate')}</span
 			>
 			<DateRangePicker bind:startDate bind:endDate pickLabel={t('tripGenerationModal.title')} />
 		</div>

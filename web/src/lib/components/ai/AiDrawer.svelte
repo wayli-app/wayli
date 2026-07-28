@@ -859,8 +859,10 @@
 										>
 											<Brain class="h-3 w-3" />
 											{t('ai.reasoning', { count: msg.thoughts!.length })}
-											{@const route = msg.thoughts?.find((th) => th.plan?.route?.length)?.plan?.route}
-											{#if route && route.length > 0}
+											{#if msg.thoughts?.find((th) => th.plan?.route?.length)?.plan?.route}
+												{@const route = msg.thoughts!.find((th) => th.plan?.route?.length)!.plan!.route!}
+												{@const usedWeb = route.includes('web')}
+												{@const webToolCalled = msg.thoughts?.some((th) => th.kind === 'tool_call' && th.tool_name === 'web_search')}
 												<span
 													class="bg-muted text-foreground ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium"
 													title="Agents the supervisor routed to this turn"
@@ -870,8 +872,6 @@
 														<span>{agent}</span>
 													{/each}
 												</span>
-												{@const usedWeb = route.includes('web')}
-												{@const webToolCalled = msg.thoughts?.some((th) => th.kind === 'tool_call' && th.tool_name === 'web_search')}
 												<span
 													class="ml-0.5 inline-flex items-center gap-0.5 text-[9px] {usedWeb
 														? webToolCalled
