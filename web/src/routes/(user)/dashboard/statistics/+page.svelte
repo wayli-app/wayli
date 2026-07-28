@@ -21,6 +21,8 @@
 	import { toast } from 'svelte-sonner';
 
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
+	import StatisticsCharts from '$lib/components/statistics/StatisticsCharts.svelte';
+	import { percentDelta } from '$lib/services/statistics/aggregate';
 	import { getCountryNameReactive, translate } from '$lib/i18n';
 	import { state as appState } from '$lib/stores/app-state.svelte';
 	import { fluxbase } from '$lib/fluxbase';
@@ -100,6 +102,10 @@
 	// Use a regular array instead of $state to avoid triggering effects
 	let mapMarkers: any[] = [];
 	let selectedPoint: any = $state(null);
+	// Heat layer: shows where the user actually spends time (slow/stationary
+	// points), built from the same rawDataPoints the circle-marker map uses.
+	let heatLayer: any = null;
+	let showHeatmap = $state(false);
 
 	// Loading and progress state
 	let isLoading = $state(false);
@@ -320,6 +326,8 @@
 			const rawDataPoints = (statisticsService as any).rawDataPoints;
 			if (rawDataPoints && rawDataPoints.length > 0) {
 				drawDataPointsOnMap(rawDataPoints);
+				// Refresh the heat layer too (only renders if the toggle is on).
+				updateHeatmap(rawDataPoints);
 			}
 		} catch (error) {
 			console.error('❌ Error loading statistics:', error);
@@ -395,13 +403,34 @@
 
 		const greenDistance = getGreenDistance();
 
+		// Half-period trend deltas: split the loaded points chronologically into
+		// first half vs second half, then compute the % change. This gives an
+		// immediate "trending up/down" signal without a second DB query. Returns
+		// null when there's not enough data in the first half.
+		const rawPts: any[] = (statisticsService as any)?.rawDataPoints ?? [];
+		const sortedPts = [...rawPts].sort(
+			(a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+		);
+		const mid = Math.floor(sortedPts.length / 2);
+		const firstHalf = sortedPts.slice(0, mid);
+		const secondHalf = sortedPts.slice(mid);
+		const halfDist = (pts: any[]) =>
+			pts.reduce((a, p) => a + (typeof p.distance === 'number' ? p.distance : 0), 0);
+		const halfTime = (pts: any[]) =>
+			pts.reduce((a, p) => a + (typeof p.time_spent === 'number' ? p.time_spent : 0), 0);
+		const distDelta = firstHalf.length > 0 ? percentDelta(halfDist(firstHalf), halfDist(secondHalf)) : null;
+		const timeDelta = firstHalf.length > 0 ? percentDelta(halfTime(firstHalf), halfTime(secondHalf)) : null;
+		const ptsDelta =
+			firstHalf.length > 0 ? percentDelta(firstHalf.length, secondHalf.length) : null;
+
 		return [
 			{
 				id: 'total-distance',
 				title: t('statistics.movingDistance'),
 				value: statisticsData.totalDistance ?? '0 km',
 				icon: Navigation,
-				color: 'blue'
+				color: 'blue',
+				delta: distDelta
 			},
 			{
 				id: 'green-distance',
@@ -425,14 +454,16 @@
 				title: t('statistics.geopointsTracked'),
 				value: statisticsData.geopoints?.toLocaleString() ?? '0',
 				icon: MapPin,
-				color: 'blue'
+				color: 'blue',
+				delta: ptsDelta
 			},
 			{
 				id: 'time-moving',
 				title: t('statistics.timeMoving'),
 				value: statisticsData.timeSpentMoving ?? '0h',
 				icon: Clock,
-				color: 'blue'
+				color: 'blue',
+				delta: timeDelta
 			},
 			{
 				id: 'unique-places',
@@ -752,7 +783,79 @@
 		}
 		mapMarkers.length = 0;
 		mapMarkers = [];
+		if (heatLayer) {
+			map.removeLayer(heatLayer);
+			heatLayer = null;
+		}
 		// Note: Exclusion zones are kept when clearing markers, as they're independent
+	}
+
+	// ── Heat layer ────────────────────────────────────────────────────────────
+	// A density heatmap of where the user actually spends time. Built from the
+	// same rawDataPoints array as the circle-marker map (zero extra DB traffic):
+	// we keep slow/stationary points and weight each by dwell time (time_spent /
+	// distance), so a long stay at a café glows brighter than a brief passing.
+	// Inherits the page's client-side sampling automatically.
+	function buildHeatPoints(dataPoints: any[]): Array<[number, number, number]> {
+		const points: Array<[number, number, number]> = [];
+		for (const p of dataPoints) {
+			const lat = typeof p.lat === 'number' ? p.lat : parseFloat(p.lat);
+			const lng = typeof p.lon === 'number' ? p.lon : parseFloat(p.lon);
+			if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+			// Keep points that represent "being somewhere": stationary mode, or
+			// low speed. A point moving at 60 km/h isn't a dwell.
+			const mode = p.transport_mode || 'unknown';
+			const speed = p.velocity ?? p.speed ?? 0;
+			if (mode !== 'stationary' && speed > 8) continue;
+
+			// Intensity ∝ time spent here (clamped). Default to a small constant
+			// when time_spent is unavailable so isolated slow fixes still show.
+			const dwell = Number(p.time_spent ?? 60);
+			const intensity = Math.max(0.1, Math.min(1, dwell / 1800)); // 30min → max
+			points.push([lat, lng, intensity]);
+		}
+		return points;
+	}
+
+	function updateHeatmap(dataPoints: any[]) {
+		if (!map || !L) return;
+		// Remove any existing heat layer first.
+		if (heatLayer) {
+			map.removeLayer(heatLayer);
+			heatLayer = null;
+		}
+		if (!showHeatmap) return;
+
+		const heatPoints = buildHeatPoints(dataPoints);
+		if (heatPoints.length === 0) return;
+
+		// leaflet.heat extends L with L.heatLayer. It's loaded via a dynamic
+		// import to keep it out of the initial bundle; the side-effect import
+		// attaches L.heatLayer to the leaflet namespace.
+		import('leaflet.heat').then(() => {
+			if (!map || !L) return;
+			const heatFn = (L as any).heatLayer;
+			if (!heatFn) return;
+			heatLayer = heatFn(heatPoints, {
+				radius: 25,
+				blur: 18,
+				maxZoom: 14,
+				minOpacity: 0.35,
+				gradient: { 0.2: '#3b82f6', 0.4: '#22c55e', 0.6: '#eab308', 0.8: '#f97316', 1.0: '#ef4444' }
+			}).addTo(map);
+		});
+	}
+
+	function toggleHeatmap() {
+		showHeatmap = !showHeatmap;
+		const rawDataPoints = (statisticsService as any).rawDataPoints;
+		if (rawDataPoints && rawDataPoints.length > 0) {
+			updateHeatmap(rawDataPoints);
+		} else if (!showHeatmap && heatLayer && map) {
+			map.removeLayer(heatLayer);
+			heatLayer = null;
+		}
 	}
 
 	// Draw data points on map
@@ -1159,6 +1262,19 @@
 			style="pointer-events: auto; touch-action: manipulation;"
 		></div>
 
+		<!-- Heatmap toggle -->
+		<button
+			type="button"
+			onclick={toggleHeatmap}
+			class="absolute right-4 top-4 z-[1001] inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors {showHeatmap
+				? 'border-primary bg-primary text-primary-foreground'
+				: 'border-border bg-card text-foreground hover:bg-muted'}"
+			title={t('statistics.heatmapToggle') || 'Show where you spend time'}
+		>
+			🔥
+			{t('statistics.heatmap') || 'Heatmap'}
+		</button>
+
 		<!-- Map Legend -->
 		<div
 			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg p-3 shadow-lg bg-card"
@@ -1337,6 +1453,15 @@
 					<div class="mt-1 text-2xl font-bold text-foreground">
 						{stat.value}
 					</div>
+					{#if stat.delta != null}
+						<div
+							class="mt-0.5 text-xs font-medium {stat.delta >= 0
+								? 'text-green-600 dark:text-green-400'
+								: 'text-red-600 dark:text-red-400'}"
+						>
+							{stat.delta >= 0 ? '▲' : '▼'} {Math.abs(stat.delta).toFixed(0)}% vs first half
+						</div>
+					{/if}
 				</div>
 			{/each}
 		</div>
@@ -1500,10 +1625,18 @@
 					</tbody>
 				</table>
 			</div>
-		</div>
-	{/if}
+			</div>
+		{/if}
 
-	<!-- Error Display -->
+		<!-- Extra visualizations: activity calendar, time-of-day, speed, mode donut, records -->
+		{#if statisticsData && !statisticsLoading && !statisticsError}
+			{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
+			{#if rawDataPoints.length > 0}
+				<StatisticsCharts points={rawDataPoints} {transportModeColors} />
+			{/if}
+		{/if}
+
+		<!-- Error Display -->
 	{#if statisticsError}
 		<div
 			class="mb-8 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
