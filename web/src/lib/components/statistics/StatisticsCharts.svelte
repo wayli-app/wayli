@@ -10,7 +10,7 @@
 		speedDistribution,
 		type ProcessedPoint
 	} from '$lib/services/statistics/aggregate';
-	import { Loader2, CalendarDays, Clock, Gauge, PieChart } from 'lucide-svelte';
+	import { Loader2, CalendarDays, Clock, Gauge, PieChart, RefreshCw } from 'lucide-svelte';
 	import { translate } from '$lib/i18n';
 
 	let t = $derived($translate);
@@ -21,10 +21,14 @@
 		historyPoints?: ProcessedPoint[];
 		/** Whether the calendar RPC data is still loading. */
 		calendarLoading?: boolean;
+		/** Whether a manual refresh job is running. */
+		calendarRefreshing?: boolean;
+		/** Trigger the refresh-daily-activity job + re-fetch. */
+		onRefreshCalendar?: () => void;
 		transportModeColors: Record<string, string>;
 	};
 
-	let { points, historyPoints = [], calendarLoading = false, transportModeColors }: Props = $props();
+	let { points, historyPoints = [], calendarLoading = false, calendarRefreshing = false, onRefreshCalendar, transportModeColors }: Props = $props();
 
 	// The activity calendar + records/streaks use the trailing-window history
 	// (always ~53 weeks ending today, like GitHub's graph) so they're meaningful
@@ -261,13 +265,40 @@
 	<!-- Activity calendar (distance per day, trailing ~53 weeks ending today) -->
 	<section class="relative mb-8 w-full rounded-lg border p-4 bg-card border-border">
 		<div class="mb-3 flex items-center gap-2">
-			<CalendarDays class="text-primary h-5 w-5" />
+			<CalendarDays class="text-blue-500 h-5 w-5" />
 			<h3 class="text-lg font-semibold text-foreground">{t('statistics.activity') || 'Activity'}</h3>
+			{#if onRefreshCalendar}
+				<button
+					type="button"
+					onclick={onRefreshCalendar}
+					disabled={calendarRefreshing}
+					class="text-muted-foreground hover:text-foreground hover:bg-muted ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50"
+					title="Refresh activity data"
+				>
+					<RefreshCw class="h-3.5 w-3.5 {calendarRefreshing ? 'animate-spin' : ''}" />
+					{calendarRefreshing ? 'Refreshing…' : 'Refresh'}
+				</button>
+			{/if}
 		</div>
 		{#if calendarLoading && historyFor.length === 0}
 			<div class="text-muted-foreground flex h-32 items-center justify-center gap-2 text-sm">
 				<Loader2 class="h-4 w-4 animate-spin" />
 				{t('statistics.loadingActivity') || 'Loading activity…'}
+			</div>
+		{:else if historyFor.length === 0}
+			<div class="text-muted-foreground flex h-32 flex-col items-center justify-center gap-3 text-sm">
+				<p>No activity data yet. Run the refresh to build the calendar.</p>
+				{#if onRefreshCalendar}
+					<button
+						type="button"
+						onclick={onRefreshCalendar}
+						disabled={calendarRefreshing}
+						class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+					>
+						<RefreshCw class="h-3.5 w-3.5 {calendarRefreshing ? 'animate-spin' : ''}" />
+						{calendarRefreshing ? 'Building…' : 'Build activity data'}
+					</button>
+				{/if}
 			</div>
 		{:else}
 		<div class="overflow-x-auto">
@@ -323,7 +354,7 @@
 		<!-- Time-of-day radial -->
 		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
 		<div class="mb-3 flex items-center gap-2">
-			<Clock class="text-primary h-5 w-5" />
+			<Clock class="text-blue-500 h-5 w-5" />
 			<h3 class="text-lg font-semibold text-foreground">{t('statistics.timeOfDay') || 'Time of day'}</h3>
 		</div>
 			<div class="flex justify-center">
@@ -367,7 +398,7 @@
 		<!-- Speed histogram -->
 		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
 		<div class="mb-3 flex items-center gap-2">
-			<Gauge class="text-primary h-5 w-5" />
+			<Gauge class="text-blue-500 h-5 w-5" />
 			<h3 class="text-lg font-semibold text-foreground">{t('statistics.speed') || 'Speed'}</h3>
 		</div>
 			<svg width="100%" height="140" viewBox="0 0 320 140" role="img" aria-label="Speed distribution">
@@ -405,7 +436,7 @@
 		<!-- Mode donut -->
 		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
 		<div class="mb-3 flex items-center gap-2">
-			<PieChart class="text-primary h-5 w-5" />
+			<PieChart class="text-blue-500 h-5 w-5" />
 			<h3 class="text-lg font-semibold text-foreground">{t('statistics.modeShare') || 'Mode share'}</h3>
 		</div>
 			<div class="flex items-center gap-4">

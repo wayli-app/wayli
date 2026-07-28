@@ -1080,6 +1080,61 @@
 		})();
 	});
 
+	// Manual calendar refresh: submits the refresh-daily-activity job, waits for
+	// it to finish, then re-fetches the cached data. Shown when the cache is
+	// empty/stale (scheduled job hasn't run yet) or on user demand.
+	let calendarRefreshing = $state(false);
+
+	async function refreshCalendar() {
+		if (calendarRefreshing) return;
+		calendarRefreshing = true;
+		try {
+			const { data: jobData, error: submitErr } = await fluxbase.jobs.submit(
+				'refresh-daily-activity',
+				{},
+				{ namespace: 'wayli' }
+			);
+			// Optimistically show the job in the sidebar immediately.
+			if (jobData) {
+				const jobId = (jobData as any).job_id || (jobData as any).id;
+				if (jobId) {
+					try {
+						const { addJobToStore } = await import('$lib/stores/job-store');
+						addJobToStore({
+							id: jobId,
+							job_name: 'refresh-daily-activity',
+							namespace: 'wayli',
+							status: 'pending',
+							created_at: new Date().toISOString(),
+							created_by: ''
+						});
+					} catch {
+						/* store not initialised — non-fatal */
+					}
+				}
+			}
+			if (submitErr) throw submitErr;
+			// Clear the client cache and re-fetch from the (now-populated) RPC.
+			try {
+				const { data: s } = await fluxbase.auth.getSession();
+				const uid = (s as any)?.session?.user?.id;
+				if (uid && statisticsService) {
+					(statisticsService as any).calendarPoints = [];
+					sessionStorage.removeItem(`wayli:calendar:${uid}:53`);
+					await statisticsService.loadCalendarHistory(uid);
+					historyPoints = statisticsService.getCalendarPoints();
+				}
+			} catch {
+				/* ignore re-fetch errors */
+			}
+		} catch (err) {
+			console.error('❌ Calendar refresh failed:', err);
+			toast.error('Failed to refresh activity data');
+		} finally {
+			calendarRefreshing = false;
+		}
+	}
+
 	// Track last processed dates to prevent duplicate processing
 	let lastProcessedStart: Date | string | null = null;
 	let lastProcessedEnd: Date | string | null = null;
@@ -1601,7 +1656,7 @@
 		{#if statisticsData && !statisticsLoading && !statisticsError}
 			{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
 			{#if rawDataPoints.length > 0}
-				<StatisticsCharts points={rawDataPoints} historyPoints={historyPoints} {calendarLoading} {transportModeColors} />
+				<StatisticsCharts points={rawDataPoints} historyPoints={historyPoints} {calendarLoading} {calendarRefreshing} onRefreshCalendar={refreshCalendar} {transportModeColors} />
 			{/if}
 		{/if}
 

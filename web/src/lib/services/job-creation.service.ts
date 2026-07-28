@@ -5,6 +5,7 @@
  */
 
 import { fluxbase } from '$lib/fluxbase';
+import { addJobToStore } from '$lib/stores/job-store';
 import {
 	startUpload,
 	updateUploadProgress,
@@ -77,12 +78,30 @@ class JobCreationService {
 		// Extract job_id from data (SDK returns { job_id, status, ... } or { id, status, ... })
 		const jobId = (data as any).job_id || (data as any).id;
 
-		return {
+		// Optimistically add to the job store so the sidebar shows it immediately,
+		// without waiting for the realtime INSERT event (which may lag or fail).
+		// The realtime handler will update this entry as the job progresses.
+		const result = {
 			id: jobId,
 			type: options.type,
 			status: (data as any).status || 'queued',
 			created_at: (data as any).created_at || new Date().toISOString()
 		};
+		try {
+			addJobToStore({
+				id: jobId,
+				job_name: options.type,
+				namespace: 'wayli',
+				status: (data as any).status || 'pending',
+				created_at: result.created_at,
+				created_by: (data as any).created_by || '',
+				payload: options.data
+			});
+		} catch {
+			/* store may not be initialised yet — non-fatal */
+		}
+
+		return result;
 	}
 
 	/**

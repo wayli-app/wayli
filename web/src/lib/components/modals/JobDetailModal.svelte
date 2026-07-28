@@ -98,6 +98,7 @@
 
 	// State
 	let logs = $state<ExecutionLog[]>([]);
+	let logsError = $state<string | null>(null);
 	let selectedLevel = $state<LogLevel>('info');
 	let logsChannel: { unsubscribe: () => void } | null = null;
 	let logsContainer = $state<HTMLElement | null>(null);
@@ -229,11 +230,15 @@
 	async function fetchExistingLogs(jobId: string) {
 		console.log('[JobDetailModal] Fetching existing logs for job:', jobId);
 		isLoadingLogs = true;
+		logsError = null;
 		try {
 			const { data, error } = await fluxbase.jobs.getLogs(jobId);
 
 			if (error) {
 				console.warn('[JobDetailModal] Could not fetch existing logs:', error);
+				// Show a small inline notice so the user knows the backfill failed
+				// (was silently swallowed, making it impossible to diagnose).
+				logsError = `Could not load existing logs: ${(error as any)?.message || error}`;
 				return;
 			}
 
@@ -563,6 +568,10 @@
 					{#if isLoadingLogs}
 						<div class="flex h-full items-center justify-center text-muted-foreground">
 							Loading logs...
+						</div>
+					{:else if logsError}
+						<div class="text-muted-foreground flex h-full flex-col items-center justify-center gap-1 text-center text-sm">
+							<span class="text-amber-500">{logsError}</span>
 						</div>
 					{:else if groupedLogs.length === 0}
 						<div class="flex h-full items-center justify-center text-muted-foreground">
