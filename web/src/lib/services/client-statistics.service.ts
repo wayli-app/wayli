@@ -269,11 +269,16 @@ export class ClientStatisticsService {
 				time_spent: Number(row.time_spent) || 0,
 				speed: 0
 			}));
-			// Persist to sessionStorage for the session-level cache.
-			try {
-				sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: this.calendarPoints }));
-			} catch {
-				/* quota / unavailable — ignore */
+			// Persist to sessionStorage for the session-level cache — but only if
+			// the result looks complete (more than a handful of days). A broken
+			// result (e.g. 2-6 days when the user has months of history) would
+			// otherwise be cached for 24h and block the real data from loading.
+			if (this.calendarPoints.length >= 3) {
+				try {
+					sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: this.calendarPoints }));
+				} catch {
+					/* quota / unavailable — ignore */
+				}
 			}
 		} catch (err) {
 			// Non-fatal: the calendar widget just stays empty.
