@@ -10,15 +10,18 @@
 		speedDistribution,
 		type ProcessedPoint
 	} from '$lib/services/statistics/aggregate';
+	import { Loader2 } from 'lucide-svelte';
 
 	type Props = {
 		points: ProcessedPoint[];
 		/** Trailing ~53 weeks (date-picker-independent) for calendar + streaks. */
 		historyPoints?: ProcessedPoint[];
+		/** Whether the calendar RPC data is still loading. */
+		calendarLoading?: boolean;
 		transportModeColors: Record<string, string>;
 	};
 
-	let { points, historyPoints = [], transportModeColors }: Props = $props();
+	let { points, historyPoints = [], calendarLoading = false, transportModeColors }: Props = $props();
 
 	// The activity calendar + records/streaks use the trailing-window history
 	// (always ~53 weeks ending today, like GitHub's graph) so they're meaningful
@@ -74,14 +77,24 @@
 	// Trim calendar to the last 53 weeks for display.
 	let displayCal = $derived(calendar.slice(-WEEKS * 7));
 
-	let maxDistance = $derived(Math.max(1, ...displayCal.map((d) => d.distance)));
+	// Color scaling: use the 90th percentile (not max) so a single outlier day
+	// (e.g. a 10,000 km flight) doesn't flatten the rest of the year into the
+	// lightest shade. Anything at/above p90 is full saturation; below scales.
+	let p90Distance = $derived.by(() => {
+		const dists = displayCal.map((d) => d.distance).filter((d) => d > 0).sort((a, b) => a - b);
+		if (dists.length === 0) return 1;
+		const idx = Math.floor(dists.length * 0.9);
+		return Math.max(1, dists[Math.min(idx, dists.length - 1)]);
+	});
 
 	function calColor(distance: number): string {
-		if (distance <= 0) return 'rgba(120,120,120,0.10)';
-		const t = Math.min(1, distance / maxDistance);
-		// green ramp: light → dark
-		const alpha = 0.25 + t * 0.75;
-		return `rgba(22,163,74,${alpha.toFixed(2)})`;
+		if (distance <= 0) return 'rgba(148,163,184,0.12)'; // soft slate
+		const t = Math.min(1, distance / p90Distance);
+		// Pastel teal ramp: light → medium
+		const r = Math.round(167 + (20 - 167) * t);  // 167 → 20
+		const g = Math.round(211 + (184 - 211) * t);  // 211 → 184
+		const b = Math.round(198 + (166 - 198) * t);  // 198 → 166
+		return `rgb(${r},${g},${b})`;
 	}
 
 	// Map a calendar date to its column/row in the grid.
@@ -206,6 +219,24 @@
 		return transportModeColors[mode] ?? transportModeColors.unknown ?? '#6b7280';
 	}
 
+	/** Soften a hex color toward pastel by blending with white (≈35% lighter).
+	 *  Used for chart fills so the visualisations match the app's softer theme. */
+	function softColor(hex: string, blend = 0.35): string {
+		const h = hex.replace('#', '');
+		if (h.length !== 6) return hex;
+		const r = parseInt(h.slice(0, 2), 16);
+		const g = parseInt(h.slice(2, 4), 16);
+		const b = parseInt(h.slice(4, 6), 16);
+		const sr = Math.round(r + (255 - r) * blend);
+		const sg = Math.round(g + (255 - g) * blend);
+		const sb = Math.round(b + (255 - b) * blend);
+		return `rgb(${sr},${sg},${sb})`;
+	}
+
+	function softModeColor(mode: string): string {
+		return softColor(modeColor(mode));
+	}
+
 	function fmtDistance(m: number): string {
 		if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
 		return `${Math.round(m)} m`;
@@ -227,6 +258,12 @@
 	<!-- Activity calendar (distance per day, trailing ~53 weeks ending today) -->
 	<section class="relative mb-8 w-full rounded-lg border p-4 bg-card border-border">
 		<h3 class="mb-3 text-lg font-semibold text-foreground">📅 Activity</h3>
+		{#if calendarLoading && historyFor.length === 0}
+			<div class="text-muted-foreground flex h-32 items-center justify-center gap-2 text-sm">
+				<Loader2 class="h-4 w-4 animate-spin" />
+				Loading activity…
+			</div>
+		{:else}
 		<div class="overflow-x-auto">
 			<svg width={CAL_W} height={CAL_H + 28} role="img" aria-label="Activity calendar (distance per day)">
 				<!-- Month axis -->
@@ -244,7 +281,7 @@
 							height={CELL}
 							rx="2"
 							fill={calColor(day.distance)}
-							onmouseenter={(e) => showTooltip('activity', day.date, `${fmtDistance(day.distance)} · ${day.points} pts`, e)}
+							onmouseenter={(e) => showTooltip('activity', day.date, fmtDistance(day.distance), e)}
 							onmousemove={moveTooltip}
 							onmouseleave={hideTooltip}
 							role="presentation"
@@ -255,10 +292,10 @@
 		</div>
 		<div class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
 			<span>Less</span>
-			{#each [0.1, 0.4, 0.7, 1] as t}
+			{#each [0.15, 0.4, 0.7, 1] as t}
 				<span
 					class="inline-block h-2.5 w-2.5 rounded-sm"
-					style="background:rgba(22,163,74,{t})"
+					style="background:{calColor(p90Distance * t)}"
 				></span>
 			{/each}
 			<span>More</span>
@@ -273,6 +310,7 @@
 				<span class="opacity-70">· {tooltip.sub}</span>
 			</div>
 		{/if}
+		{/if}
 	</section>
 
 	<div class="mb-8 flex w-full flex-col gap-4 md:flex-row">
@@ -284,7 +322,7 @@
 					{#each hours as h (h.hour)}
 						<path
 							d={hourArc(h.hour)}
-							fill={h.distance > 0 ? 'rgba(37,99,235,0.6)' : 'rgba(120,120,120,0.08)'}
+							fill={h.distance > 0 ? 'rgba(129,140,248,0.5)' : 'rgba(148,163,184,0.08)'}
 							onmouseenter={(e) => showTooltip('timeofday', `${h.hour}:00–${h.hour + 1}:00`, fmtDistance(h.distance), e)}
 							onmousemove={moveTooltip}
 							onmouseleave={hideTooltip}
@@ -329,7 +367,7 @@
 						width={speedBarW - 4}
 						height={Math.max(h, b.count > 0 ? 1 : 0)}
 						rx="2"
-						fill={b.count > 0 ? modeColor(b.dominantMode ?? 'unknown') : 'rgba(120,120,120,0.15)'}
+						fill={b.count > 0 ? softModeColor(b.dominantMode ?? 'unknown') : 'rgba(148,163,184,0.12)'}
 						onmouseenter={(e) => showTooltip('speed', `${b.label} km/h`, `${b.count} points`, e)}
 						onmousemove={moveTooltip}
 						onmouseleave={hideTooltip}
@@ -363,14 +401,14 @@
 						{#each segments as seg (seg.mode)}
 							<path
 								d={donutPath(seg.start, seg.end)}
-								fill={modeColor(seg.mode)}
+								fill={softModeColor(seg.mode)}
 								onmouseenter={(e) => showTooltip('donut', seg.mode, `${fmtDistance(seg.distance)} · ${(seg.frac * 100).toFixed(0)}%`, e)}
 								onmousemove={moveTooltip}
 								onmouseleave={hideTooltip}
 								role="presentation"
 							></path>
 						{/each}
-						<circle cx="60" cy="60" r="26" fill="var(--color-card, #fff)" />
+						<circle cx="60" cy="60" r="26" fill="rgb(248,250,252)" />
 					{/if}
 				</svg>
 				<div class="flex-1 space-y-1.5">

@@ -102,6 +102,7 @@
 	// Trailing ~53 weeks of points (date-picker-independent) for the activity
 	// calendar + records/streaks widgets. Populated once on mount.
 	let historyPoints = $state<any[]>([]);
+	let calendarLoading = $state(true);
 	// Use a regular array instead of $state to avoid triggering effects
 	let mapMarkers: any[] = [];
 	let selectedPoint: any = $state(null);
@@ -1072,6 +1073,8 @@
 				}
 			} catch {
 				/* non-fatal */
+			} finally {
+				calendarLoading = false;
 			}
 		})();
 	});
@@ -1597,7 +1600,7 @@
 		{#if statisticsData && !statisticsLoading && !statisticsError}
 			{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
 			{#if rawDataPoints.length > 0}
-				<StatisticsCharts points={rawDataPoints} historyPoints={historyPoints} {transportModeColors} />
+				<StatisticsCharts points={rawDataPoints} historyPoints={historyPoints} {calendarLoading} {transportModeColors} />
 			{/if}
 		{/if}
 

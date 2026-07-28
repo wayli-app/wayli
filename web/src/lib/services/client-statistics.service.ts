@@ -232,6 +232,24 @@ export class ClientStatisticsService {
 		// date-range change — the calendar window is independent of the picker).
 		if (this.calendarPoints.length > 0) return;
 
+		// Session-level cache: a full-year calendar doesn't change within a
+		// browsing session, so cache the RPC result in sessionStorage to avoid
+		// re-fetching on page revisits. Keyed by user + window size; expires
+		// after 10 minutes (data is slightly stale but the calendar is advisory).
+		const cacheKey = `wayli:calendar:${userId}:${weeks}`;
+		try {
+			const cached = sessionStorage.getItem(cacheKey);
+			if (cached) {
+				const entry = JSON.parse(cached);
+				if (entry.ts && Date.now() - entry.ts < 10 * 60 * 1000) {
+					this.calendarPoints = entry.data;
+					return;
+				}
+			}
+		} catch {
+			/* sessionStorage may be unavailable (SSR / privacy mode) — ignore */
+		}
+
 		try {
 			const days = weeks * 7;
 			const { data, error } = await this.fluxbase.rpc('activity_calendar', {
@@ -253,6 +271,12 @@ export class ClientStatisticsService {
 				time_spent: Number(row.time_spent) || 0,
 				speed: 0
 			}));
+			// Persist to sessionStorage for the session-level cache.
+			try {
+				sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: this.calendarPoints }));
+			} catch {
+				/* quota / unavailable — ignore */
+			}
 		} catch (err) {
 			// Non-fatal: the calendar widget just stays empty.
 			console.error('❌ loadCalendarHistory failed:', err);
