@@ -1,17 +1,22 @@
 import { fluxbase } from '$lib/fluxbase';
 
 /**
- * Normalize a date input (Date object OR yyyy-MM-dd string) to a yyyy-MM-dd
- * string. The DateRangePicker binds Date objects on mobile/native and strings
- * on desktop; the service functions below consume strings, so coerce at the
- * boundary rather than at every call site.
+ * Normalize any date-like value to a yyyy-MM-dd string. The DateRangePicker and
+ * @svelte-plugins/datepicker emit a variety of shapes (string, Date, SvelteDate,
+ * or the picker's own date wrapper); route them all through `new Date()`, which
+ * accepts Date/string/number/object-with-time-value. Returns '' for empty/invalid
+ * input so callers produce an unbounded query rather than crashing.
  */
-function toDateStr(d: string | Date | null | undefined): string {
-	if (!d) return '';
+function toDateStr(d: unknown): string {
+	if (d === null || d === undefined || d === '') return '';
+	// Plain yyyy-MM-dd string (the most common case) — return as-is, truncated.
 	if (typeof d === 'string') return d.slice(0, 10);
-	const yyyy = d.getFullYear();
-	const mm = String(d.getMonth() + 1).padStart(2, '0');
-	const dd = String(d.getDate()).padStart(2, '0');
+	// Date / SvelteDate / picker wrapper / number epoch → via new Date().
+	const date = new Date(d as any);
+	if (isNaN(date.getTime())) return '';
+	const yyyy = date.getFullYear();
+	const mm = String(date.getMonth() + 1).padStart(2, '0');
+	const dd = String(date.getDate()).padStart(2, '0');
 	return `${yyyy}-${mm}-${dd}`;
 }
 
