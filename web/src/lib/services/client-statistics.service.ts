@@ -250,10 +250,11 @@ export class ClientStatisticsService {
 
 		try {
 			const days = weeks * 7;
-			const { data, error } = await this.fluxbase.rpc('activity_calendar', {
-				user_id: userId,
-				days
-			});
+			const { data, error } = await (this.fluxbase.rpc as any).invoke(
+				'activity_calendar',
+				{ user_id: userId, days },
+				{ namespace: 'wayli' }
+			);
 			if (error) {
 				console.error('❌ loadCalendarHistory RPC error:', error);
 				return;
