@@ -2,6 +2,7 @@
 	import { Route } from 'lucide-svelte';
 
 	import Modal from '$lib/components/ui/modal/index.svelte';
+	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 	import { translate } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionStore } from '$lib/stores/auth';
@@ -207,27 +208,10 @@
 	<div class="space-y-6">
 		<!-- Date Range Selection -->
 		<div>
-			<label for="start-date" class="mb-2 block text-sm font-medium text-muted-foreground"
-				>{t('tripGenerationModal.startDate')}</label
+			<label class="mb-2 block text-sm font-medium text-muted-foreground"
+				>{t('tripGenerationModal.startDate')} / {t('tripGenerationModal.endDate')}</label
 			>
-			<input
-				id="start-date"
-				type="date"
-				bind:value={startDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
-			/>
-		</div>
-
-		<div>
-			<label for="end-date" class="mb-2 block text-sm font-medium text-muted-foreground"
-				>{t('tripGenerationModal.endDate')}</label
-			>
-			<input
-				id="end-date"
-				type="date"
-				bind:value={endDate}
-				class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
-			/>
+			<DateRangePicker bind:startDate bind:endDate pickLabel={t('tripGenerationModal.title')} />
 		</div>
 
 		<!-- Date Range Help Text -->

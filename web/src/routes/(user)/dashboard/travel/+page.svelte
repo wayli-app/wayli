@@ -387,15 +387,6 @@
 		setTimeout(() => setupObserver(), 50);
 	}
 
-	function expandAllTrips() {
-		expandedTrips = new Set(trips.map((t) => t.id));
-	}
-
-	function collapseAllTrips() {
-		expandedTrips = new Set();
-		activeTripId = null;
-	}
-
 	let isGenerating = $state(false);
 	let t = $derived($translate);
 	let isRecalculating = $state(false);
@@ -1010,27 +1001,6 @@
 						Auto-detect Trips
 					{/if}
 				</button>
-				{#if trips.length > 0}
-					<button
-						type="button"
-						onclick={() => {
-							if (expandedTrips.size === trips.length) {
-								collapseAllTrips();
-							} else {
-								expandAllTrips();
-							}
-						}}
-						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
-					>
-						{#if expandedTrips.size === trips.length}
-							<ChevronDown class="h-3.5 w-3.5" />
-							Collapse All
-						{:else}
-							<ChevronRight class="h-3.5 w-3.5" />
-							Expand All
-						{/if}
-					</button>
-				{/if}
 				{#if trips.length > 0}
 					<button
 						type="button"

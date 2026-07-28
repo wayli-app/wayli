@@ -24,10 +24,13 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
+	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 
 	type SelectedPoint = DataPoint & { selected: boolean; excluded: boolean };
 
 	let isLoading = $state(true);
+	let loadingProgress = $state(0);
+	let loadingStage = $state('');
 	let mapContainer: HTMLDivElement;
 	let map: any = null;
 	let L: any = null;
@@ -81,21 +84,34 @@
 
 	async function loadData() {
 		isLoading = true;
+		loadingProgress = 0;
+		loadingStage = t('dataEditor.loadingPoints').replace('{count}', '…');
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
-			const [points, count, zones, home] = await Promise.all([
-				getPoints(userId, startDate, endDate),
+			// Count first so the loader can show a real total + we can stream
+			// points in batches with progress, mirroring the Location Data page.
+			loadingStage = t('dataEditor.loadingPoints').replace('{count}', '…');
+			const [count, zones, home] = await Promise.all([
 				getPointCount(userId, startDate, endDate),
 				getExclusionZones(),
 				getHomeAddress()
 			]);
-
 			totalCount = count;
 			exclusionZones = zones;
 			homeAddress = home;
+			loadingProgress = 10;
+
+			// Stream points in batches, reporting progress as we go.
+			const points = await getPoints(userId, startDate, endDate, (loaded, total) => {
+				loadingProgress = total > 0 ? 10 + Math.round((loaded / total) * 85) : 10 + 40;
+				loadingStage = t('dataEditor.loadingPoints').replace('{count}', String(loaded));
+			});
+
+			loadingProgress = 98;
+			loadingStage = t('dataEditor.loadingPoints').replace('{count}', String(points.length));
 
 			// Mark excluded points (inside exclusion zone)
 			allPoints = points.map((p) => ({
@@ -110,6 +126,7 @@
 			toast.error(t('dataEditor.loadFailed'));
 		} finally {
 			isLoading = false;
+			loadingProgress = 100;
 		}
 	}
 
@@ -671,18 +688,12 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			<input
-				type="date"
-				bind:value={startDate}
-				onchange={refreshData}
-				class="border-border rounded-lg border bg-transparent px-2 py-1 text-sm"
-			/>
-			<span class="text-muted-foreground text-sm">→</span>
-			<input
-				type="date"
-				bind:value={endDate}
-				onchange={refreshData}
-				class="border-border rounded-lg border bg-transparent px-2 py-1 text-sm"
+			<DateRangePicker
+				bind:startDate
+				bind:endDate
+				onChange={refreshData}
+				showClear={false}
+				pickLabel={t('dataEditor.heading')}
 			/>
 		</div>
 
@@ -771,11 +782,17 @@
 		<div class="relative flex-1">
 			{#if isLoading}
 				<div class="absolute inset-0 flex items-center justify-center bg-muted/50">
-					<div class="text-muted-foreground flex flex-col items-center gap-2">
+					<div class="text-muted-foreground flex flex-col items-center gap-3">
 						<Loader2 class="h-8 w-8 animate-spin" />
-						<span class="text-sm"
-							>{t('dataEditor.loadingPoints').replace('{count}', String(totalCount))}</span
-						>
+						<span class="text-sm">{loadingStage}</span>
+						{#if loadingProgress > 0}
+							<div class="bg-muted h-1.5 w-40 overflow-hidden rounded-full">
+								<div
+									class="bg-primary h-full rounded-full transition-all duration-300"
+									style="width: {loadingProgress}%"
+								></div>
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/if}

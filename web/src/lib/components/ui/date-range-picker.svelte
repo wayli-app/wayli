@@ -207,6 +207,13 @@
 		padding: 4px;
 		border-radius: 4px;
 		transition: background-color 0.2s ease-in-out;
+		/* Vertically centre the X icon regardless of the host wrapper's layout
+		   (fixes misalignment in pages like Import/Export where the picker sits
+		   in a non-flex container). */
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		line-height: 0;
 	}
 
 	.clear-button:hover {

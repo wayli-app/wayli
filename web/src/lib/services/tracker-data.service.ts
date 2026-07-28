@@ -23,7 +23,8 @@ export type ExclusionZone = {
 export async function getPoints(
 	userId: string,
 	startDate: string,
-	endDate: string
+	endDate: string,
+	onProgress?: (loaded: number, total: number) => void
 ): Promise<DataPoint[]> {
 	const sd = startDate.slice(0, 10);
 	const ed = endDate.slice(0, 10);
@@ -45,6 +46,15 @@ export async function getPoints(
 
 		const batch = (data as any[]) ?? [];
 		allPoints.push(...batch);
+		// Report progress. The total isn't known until the final (short) batch,
+		// so we pass allPoints.length and the batch fill-ratio; callers that
+		// have an exact count (e.g. Data Editor) supply it via the total arg
+		// pattern by closing over getPointCount.
+		if (onProgress) {
+			// Heuristic total: if the batch is full, assume at least this many
+			// more remain proportionally; caller can override via its own count.
+			onProgress(allPoints.length, batch.length < 1000 ? allPoints.length : allPoints.length + 1000);
+		}
 		if (batch.length < 1000) break;
 		offset += 1000;
 	}
