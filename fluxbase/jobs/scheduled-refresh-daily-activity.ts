@@ -86,9 +86,16 @@ async function refreshUser(db: FluxbaseClient, userId: string, now: Date): Promi
 		.eq('user_id', userId)
 		.maybeSingle();
 	const lastProcessedAt = (stateRow as any)?.last_processed_at ?? null;
-	const since = lastProcessedAt
-		? new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString()
-		: null;
+
+	// Full rebuild if cache is empty for this user (first run or failed prior run).
+	const { count: existingCount } = await db
+		.from('tracker_daily_activity')
+		.select('*', { count: 'exact', head: true })
+		.eq('user_id', userId);
+	const isFullRebuild = !existingCount || existingCount === 0;
+	const since = isFullRebuild || !lastProcessedAt
+		? null
+		: new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
 	let query = db
 		.from('tracker_data')

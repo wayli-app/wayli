@@ -45,10 +45,23 @@ export async function handler(
 			.maybeSingle();
 		const lastProcessedAt = (stateRow as any)?.last_processed_at ?? null;
 
-		// Since = watermark - lookback. On first run (no watermark), process all.
-		const since = lastProcessedAt
-			? new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString()
-			: null;
+		// Check if the cache table has ANY rows for this user. If not, this is
+		// a genuine first run (or a previous run set the watermark without
+		// populating data) — process ALL history regardless of the watermark.
+		const { count: existingCount } = await db
+			.from('tracker_daily_activity')
+			.select('*', { count: 'exact', head: true })
+			.eq('user_id', userId);
+		const isFullRebuild = !existingCount || existingCount === 0;
+
+		// Since = watermark - lookback (incremental). Null = process everything.
+		const since = isFullRebuild || !lastProcessedAt
+			? null
+			: new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+		if (isFullRebuild) {
+			console.log(`📊 Full rebuild: cache empty for user ${userId}, processing all history`);
+		}
 
 		// Aggregate tracker_data into per-day sums.
 		let query = db
