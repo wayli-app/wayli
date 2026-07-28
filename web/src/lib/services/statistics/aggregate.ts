@@ -54,19 +54,32 @@ export interface CalendarDay {
  * moving time come from each point's `distance`/`time_spent` (already
  * pre-filtered for continuous movement upstream).
  */
-export function activityCalendar(points: ProcessedPoint[], days = 365): CalendarDay[] {
+export function activityCalendar(
+	points: ProcessedPoint[],
+	days = 365,
+	opts: { anchorToday?: boolean } = {}
+): CalendarDay[] {
 	if (points.length === 0) return [];
+	const anchorToday = opts.anchorToday ?? true;
 
-	// Find the date range: last point's day back `days` (or to first point).
 	const sorted = [...points].sort((a, b) => toDate(a.recorded_at).getTime() - toDate(b.recorded_at).getTime());
-	const last = toDate(sorted[sorted.length - 1].recorded_at);
-	const first = toDate(sorted[0].recorded_at);
-	const spanStart = new Date(Math.min(first.getTime(), last.getTime() - (days - 1) * MS_PER_DAY));
+
+	// Anchor the window. When anchorToday is true (the default for the calendar
+	// widget), the grid ALWAYS spans [today − days+1, today] so it fills the
+	// full grid regardless of which days have data — like GitHub's graph.
+	// When false, the window is anchored to the data (earliest→latest point),
+	// matching the historical behaviour.
+	const today = new Date();
+	today.setHours(0, 0, 0, 0);
+	const last = anchorToday ? today : toDate(sorted[sorted.length - 1].recorded_at);
+	const end = new Date(last);
+	end.setHours(0, 0, 0, 0);
+	const start = new Date(end.getTime() - (days - 1) * MS_PER_DAY);
 
 	const byDay = new Map<string, CalendarDay>();
-	const cursor = new Date(spanStart);
+	const cursor = new Date(start);
 	cursor.setHours(0, 0, 0, 0);
-	const endDay = dayKey(last);
+	const endDay = dayKey(end);
 
 	// Seed zero buckets across the whole span.
 	while (dayKey(cursor) <= endDay) {

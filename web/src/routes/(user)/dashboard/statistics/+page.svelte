@@ -99,6 +99,9 @@
 	let cleanupThemeWatcher: (() => void) | null = null;
 	let isInitializing = $state(true);
 	let tripFilterTitle = $state<string | null>(null);
+	// Trailing ~53 weeks of points (date-picker-independent) for the activity
+	// calendar + records/streaks widgets. Populated once on mount.
+	let historyPoints = $state<any[]>([]);
 	// Use a regular array instead of $state to avoid triggering effects
 	let mapMarkers: any[] = [];
 	let selectedPoint: any = $state(null);
@@ -1054,6 +1057,23 @@
 
 		// Don't call handleDateRangeChange() here - the $effect will handle it
 		isInitializing = false;
+
+		// Fire-and-forget: load the trailing ~53 weeks for the activity calendar
+		// and records/streaks widgets (independent of the date picker). Non-fatal;
+		// those widgets just stay empty if it fails. Triggers a re-render via the
+		// historyPoints-derived state below once populated.
+		(async () => {
+			try {
+				const { data: s } = await fluxbase.auth.getSession();
+				const uid = (s as any)?.session?.user?.id;
+				if (uid && statisticsService) {
+					await statisticsService.loadCalendarHistory(uid);
+					historyPoints = statisticsService.getCalendarPoints();
+				}
+			} catch {
+				/* non-fatal */
+			}
+		})();
 	});
 
 	// Track last processed dates to prevent duplicate processing
@@ -1482,11 +1502,13 @@
 		</div>
 	{/if}
 
-	<!-- Country Time Distribution and Modes of Transport: Side by Side -->
+	<!-- Country Time Distribution (the redundant Modes of Transport table was
+	     removed; the Mode-share donut in StatisticsCharts now covers that, with
+	     per-mode time + points in its legend). -->
 	{#if statisticsData && !statisticsLoading && !statisticsError}
-		<div class="mb-8 flex flex-col gap-6 md:flex-row">
+		<div class="mb-8 flex flex-col gap-6">
 			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
-				<div class="w-full md:w-1/2">
+				<div class="w-full">
 					<div class="w-full rounded-lg border p-4 bg-card border-border">
 						<div class="mb-3 flex items-center gap-2">
 							<Globe2 class="text-primary dark:text-primary h-5 w-5" />
@@ -1518,78 +1540,6 @@
 						</div>
 						<div class="mt-4 text-xs text-muted-foreground">
 							{t('statistics.ofSelectedPeriod')}
-						</div>
-					</div>
-				</div>
-			{/if}
-
-			{#if statisticsData.transport && statisticsData.transport.length > 0}
-				<div class="w-full md:w-1/2">
-					<div class="w-full rounded-lg border p-4 bg-card border-border">
-						<div class="mb-3 flex items-center gap-2">
-							<Route class="text-primary dark:text-primary h-5 w-5" />
-							<span class="text-lg font-semibold text-gray-800 dark:text-foreground">
-								{t('statistics.transportModes')}
-							</span>
-						</div>
-						<div class="-mx-4 overflow-x-auto px-4">
-							<table class="min-w-full divide-y divide-border">
-								<thead>
-									<tr>
-										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
-										>
-											{t('statistics.mode')}
-										</th>
-										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
-										>
-											{t('statistics.distanceKm')}
-										</th>
-										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
-										>
-											{t('statistics.time')}
-										</th>
-										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
-										>
-											{t('statistics.percentOfTotal')}
-										</th>
-										<th
-											class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
-										>
-											{t('statistics.points')}
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each statisticsData.transport
-										.slice()
-										.filter((mode) => mode.mode !== 'stationary')
-										.sort((a, b) => b.distance - a.distance) as mode, index (`transport-${index}-${mode.mode || 'unknown'}`)}
-										<tr>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-foreground">
-												{translateTransportMode(mode.mode)}
-											</td>
-											<td
-												class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-muted-foreground"
-											>
-												{formatDistance(mode.distance)}
-											</td>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
-												{formatSegmentDuration(mode.time || 0)}
-											</td>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
-												{mode.percentage}%
-											</td>
-											<td class="px-4 py-2 text-sm whitespace-nowrap text-muted-foreground">
-												{mode.points || 0}
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
 						</div>
 					</div>
 				</div>
@@ -1647,7 +1597,7 @@
 		{#if statisticsData && !statisticsLoading && !statisticsError}
 			{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
 			{#if rawDataPoints.length > 0}
-				<StatisticsCharts points={rawDataPoints} {transportModeColors} />
+				<StatisticsCharts points={rawDataPoints} historyPoints={historyPoints} {transportModeColors} />
 			{/if}
 		{/if}
 

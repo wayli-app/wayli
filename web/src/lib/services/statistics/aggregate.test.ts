@@ -41,8 +41,9 @@ describe('activityCalendar', () => {
 			pt('2026-03-01', 18, { distance: 500, time_spent: 120 }),
 			pt('2026-03-03', 9, { distance: 2000, time_spent: 600 })
 		];
-		const cal = activityCalendar(points, 10);
-		// Should include the seeded zero days (Mar 2) within the span.
+		// anchorToday:false keeps the historical data-anchored window so the
+		// fixed-date assertions below remain stable.
+		const cal = activityCalendar(points, 10, { anchorToday: false });
 		const byDate = new Map(cal.map((d) => [d.date, d]));
 		expect(byDate.get('2026-03-01')?.distance).toBe(1500);
 		expect(byDate.get('2026-03-01')?.points).toBe(2);
@@ -51,12 +52,38 @@ describe('activityCalendar', () => {
 		expect(byDate.get('2026-03-03')?.distance).toBe(2000);
 	});
 
-	test('respects the days span', () => {
+	test('respects the days span (data-anchored)', () => {
 		const points = [pt('2026-03-10', 9)];
-		const cal = activityCalendar(points, 5);
+		const cal = activityCalendar(points, 5, { anchorToday: false });
 		expect(cal.length).toBe(5);
 		expect(cal[0].date).toBe('2026-03-06');
 		expect(cal[4].date).toBe('2026-03-10');
+	});
+
+	test('anchorToday always spans [today-days+1, today] regardless of data', () => {
+		// A point from yesterday: the window ends at today and spans the
+		// requested days, with empty cells for the days without data.
+		const yesterday = new Date();
+		yesterday.setHours(0, 0, 0, 0);
+		yesterday.setDate(yesterday.getDate() - 1);
+		const ymd = (d: Date) => {
+			const y = d.getFullYear();
+			const m = String(d.getMonth() + 1).padStart(2, '0');
+			const dd = String(d.getDate()).padStart(2, '0');
+			return `${y}-${m}-${dd}`;
+		};
+		const points: ProcessedPoint[] = [
+			{ recorded_at: `${ymd(yesterday)}T09:00:00`, lat: 52, lon: 4, distance: 100, time_spent: 60 }
+		];
+		const cal = activityCalendar(points, 10, { anchorToday: true });
+		expect(cal.length).toBe(10);
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		// Last cell is today.
+		expect(cal[cal.length - 1].date).toBe(ymd(today));
+		// Yesterday's cell has the data; today's is empty.
+		expect(cal.find((d) => d.date === ymd(yesterday))?.points).toBe(1);
+		expect(cal[cal.length - 1].points).toBe(0);
 	});
 });
 

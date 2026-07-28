@@ -119,6 +119,7 @@ export class ClientStatisticsService {
 	private totalCount: number = 0;
 	private batchSize: number = 1000;
 	private rawDataPoints: TrackerDataPoint[] = [];
+	private calendarPoints: TrackerDataPoint[] = [];
 	private isUsingSampledData: boolean = false;
 
 	// Sampling configuration
@@ -213,6 +214,54 @@ export class ClientStatisticsService {
 		}
 
 		return count || 0;
+	}
+
+	/**
+	 * Load the trailing ~53 weeks of tracker points (minimal columns) for the
+	 * activity calendar and records/streaks widgets. Unlike loadAndProcessData,
+	 * this is NOT bounded by the date picker — the calendar should always show
+	 * the last year ending today (like GitHub's contribution graph). Only
+	 * recorded_at / distance / time_spent are fetched (no geocode, no speed, no
+	 * transport-mode detection), so the payload is small even for a full year.
+	 * Results are cached in this.calendarPoints; safe to call once per page load.
+	 */
+	async loadCalendarHistory(userId: string, weeks = 53): Promise<void> {
+		// Already loaded for this instance? Skip (avoids re-fetching on every
+		// date-range change — the calendar window is independent of the picker).
+		if (this.calendarPoints.length > 0) return;
+
+		try {
+			const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
+			const all: TrackerDataPoint[] = [];
+			let offset = 0;
+			// Batch through the trailing window (cap at 20k points for safety).
+			while (offset < 20000) {
+				const { data, error } = await this.fluxbase
+					.from<Record<string, any>>('tracker_data')
+					.select('recorded_at, distance, time_spent')
+					.eq('user_id', userId)
+					.gte('recorded_at', since)
+					.order('recorded_at', { ascending: true })
+					.range(offset, offset + 999);
+				if (error) {
+					console.error('❌ loadCalendarHistory error:', error);
+					return;
+				}
+				const batch = (data as any[]) ?? [];
+				all.push(...(batch as TrackerDataPoint[]));
+				if (batch.length < 1000) break;
+				offset += 1000;
+			}
+			this.calendarPoints = all;
+		} catch (err) {
+			// Non-fatal: the calendar/records widgets just stay empty.
+			console.error('❌ loadCalendarHistory failed:', err);
+		}
+	}
+
+	/** Expose the trailing-window points for the calendar/streaks widgets. */
+	getCalendarPoints(): TrackerDataPoint[] {
+		return this.calendarPoints;
 	}
 
 	/**
