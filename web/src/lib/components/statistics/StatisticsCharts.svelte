@@ -10,7 +10,10 @@
 		speedDistribution,
 		type ProcessedPoint
 	} from '$lib/services/statistics/aggregate';
-	import { Loader2 } from 'lucide-svelte';
+	import { Loader2, CalendarDays, Clock, Gauge, PieChart } from 'lucide-svelte';
+	import { translate } from '$lib/i18n';
+
+	let t = $derived($translate);
 
 	type Props = {
 		points: ProcessedPoint[];
@@ -257,11 +260,14 @@
 {#if points.length > 0}
 	<!-- Activity calendar (distance per day, trailing ~53 weeks ending today) -->
 	<section class="relative mb-8 w-full rounded-lg border p-4 bg-card border-border">
-		<h3 class="mb-3 text-lg font-semibold text-foreground">📅 Activity</h3>
+		<div class="mb-3 flex items-center gap-2">
+			<CalendarDays class="text-primary h-5 w-5" />
+			<h3 class="text-lg font-semibold text-foreground">{t('statistics.activity') || 'Activity'}</h3>
+		</div>
 		{#if calendarLoading && historyFor.length === 0}
 			<div class="text-muted-foreground flex h-32 items-center justify-center gap-2 text-sm">
 				<Loader2 class="h-4 w-4 animate-spin" />
-				Loading activity…
+				{t('statistics.loadingActivity') || 'Loading activity…'}
 			</div>
 		{:else}
 		<div class="overflow-x-auto">
@@ -291,15 +297,15 @@
 			</svg>
 		</div>
 		<div class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-			<span>Less</span>
+			<span>{t('statistics.less') || 'Less'}</span>
 			{#each [0.15, 0.4, 0.7, 1] as t}
 				<span
 					class="inline-block h-2.5 w-2.5 rounded-sm"
 					style="background:{calColor(p90Distance * t)}"
 				></span>
 			{/each}
-			<span>More</span>
-			<span class="ml-2">distance per day</span>
+			<span>{t('statistics.more') || 'More'}</span>
+			<span class="ml-2">{t('statistics.distancePerDay') || 'distance per day'}</span>
 		</div>
 		{#if tooltip && tooltip.chart === 'activity'}
 			<div
@@ -316,7 +322,10 @@
 	<div class="mb-8 flex w-full flex-col gap-4 md:flex-row">
 		<!-- Time-of-day radial -->
 		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
-			<h3 class="mb-3 text-lg font-semibold text-foreground">🕓 Time of day</h3>
+		<div class="mb-3 flex items-center gap-2">
+			<Clock class="text-primary h-5 w-5" />
+			<h3 class="text-lg font-semibold text-foreground">{t('statistics.timeOfDay') || 'Time of day'}</h3>
+		</div>
 			<div class="flex justify-center">
 				<svg width="190" height="190" viewBox="0 0 190 190" role="img" aria-label="Time of day distribution">
 					{#each hours as h (h.hour)}
@@ -343,7 +352,7 @@
 					{/each}
 				</svg>
 			</div>
-			<p class="mt-2 text-center text-xs text-muted-foreground">When you move most</p>
+			<p class="mt-2 text-center text-xs text-muted-foreground">{t('statistics.whenYouMoveMost') || 'When you move most'}</p>
 			{#if tooltip && tooltip.chart === 'timeofday'}
 				<div
 					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
@@ -357,7 +366,10 @@
 
 		<!-- Speed histogram -->
 		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
-			<h3 class="mb-3 text-lg font-semibold text-foreground">⚡ Speed</h3>
+		<div class="mb-3 flex items-center gap-2">
+			<Gauge class="text-primary h-5 w-5" />
+			<h3 class="text-lg font-semibold text-foreground">{t('statistics.speed') || 'Speed'}</h3>
+		</div>
 			<svg width="100%" height="140" viewBox="0 0 320 140" role="img" aria-label="Speed distribution">
 				{#each speedBuckets as b, i (b.label)}
 					{@const h = (b.count / maxSpeedCount) * 110}
@@ -378,7 +390,7 @@
 					</text>
 				{/each}
 			</svg>
-			<p class="mt-1 text-center text-xs text-muted-foreground">km/h, coloured by dominant mode</p>
+			<p class="mt-1 text-center text-xs text-muted-foreground">{t('statistics.speedAxisLabel') || 'km/h, coloured by dominant mode'}</p>
 			{#if tooltip && tooltip.chart === 'speed'}
 				<div
 					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
@@ -392,7 +404,10 @@
 
 		<!-- Mode donut -->
 		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
-			<h3 class="mb-3 text-lg font-semibold text-foreground">🚗 Mode share</h3>
+		<div class="mb-3 flex items-center gap-2">
+			<PieChart class="text-primary h-5 w-5" />
+			<h3 class="text-lg font-semibold text-foreground">{t('statistics.modeShare') || 'Mode share'}</h3>
+		</div>
 			<div class="flex items-center gap-4">
 				<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Transport mode share by distance">
 					{#if segments.length === 0}

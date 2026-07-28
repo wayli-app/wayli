@@ -510,7 +510,19 @@
 		"walking": "Lopen",
 		"unknown": "Onbekend",
 		"modeColors": "Vervoerswijze",
-		"exclusionZones": "Uitsluitingszones"
+		"exclusionZones": "Uitsluitingszones",
+		"heatmap": "Heatmap",
+		"heatmapToggle": "Toon waar je tijd doorbrengt",
+		"activity": "Activiteit",
+		"timeOfDay": "Tijdstip van de dag",
+		"speed": "Snelheid",
+		"modeShare": "Vervoerwijzen",
+		"loadingActivity": "Activiteit laden…",
+		"less": "Minder",
+		"more": "Meer",
+		"distancePerDay": "afstand per dag",
+		"whenYouMoveMost": "Wanneer je het meest beweegt",
+		"speedAxisLabel": "km/u, gekleurd naar dominante wijze"
 	},
 	"connections": {
 		"title": "Verbindingen",

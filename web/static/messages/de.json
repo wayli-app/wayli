@@ -510,7 +510,19 @@
 		"walking": "Gehen",
 		"unknown": "Unbekannt",
 		"modeColors": "Modusfarben",
-		"exclusionZones": "Ausschlusszonen"
+		"exclusionZones": "Ausschlusszonen",
+		"heatmap": "Heatmap",
+		"heatmapToggle": "Zeigen, wo du Zeit verbringst",
+		"activity": "Aktivität",
+		"timeOfDay": "Tageszeit",
+		"speed": "Geschwindigkeit",
+		"modeShare": "Verkehrsarten",
+		"loadingActivity": "Aktivität wird geladen…",
+		"less": "Weniger",
+		"more": "Mehr",
+		"distancePerDay": "Strecke pro Tag",
+		"whenYouMoveMost": "Wann du dich am meisten bewegst",
+		"speedAxisLabel": "km/h, eingefärbt nach Hauptmodus"
 	},
 	"connections": {
 		"title": "Verbindungen",

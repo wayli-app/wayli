@@ -232,16 +232,14 @@ export class ClientStatisticsService {
 		// date-range change — the calendar window is independent of the picker).
 		if (this.calendarPoints.length > 0) return;
 
-		// Session-level cache: a full-year calendar doesn't change within a
-		// browsing session, so cache the RPC result in sessionStorage to avoid
-		// re-fetching on page revisits. Keyed by user + window size; expires
-		// after 10 minutes (data is slightly stale but the calendar is advisory).
+		// Session-level cache: past days only change on import, so a 24-hour
+		// cache is safe and makes most page loads instant after the first.
 		const cacheKey = `wayli:calendar:${userId}:${weeks}`;
 		try {
 			const cached = sessionStorage.getItem(cacheKey);
 			if (cached) {
 				const entry = JSON.parse(cached);
-				if (entry.ts && Date.now() - entry.ts < 10 * 60 * 1000) {
+				if (entry.ts && Date.now() - entry.ts < 24 * 60 * 60 * 1000) {
 					this.calendarPoints = entry.data;
 					return;
 				}

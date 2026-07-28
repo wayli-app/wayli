@@ -510,7 +510,19 @@
 		"walking": "ウォーキング",
 		"unknown": "未知",
 		"modeColors": "モードカラー",
-		"exclusionZones": "除外ゾーン"
+		"exclusionZones": "除外ゾーン",
+		"heatmap": "ヒートマップ",
+		"heatmapToggle": "過ごした場所を表示",
+		"activity": "アクティビティ",
+		"timeOfDay": "時間帯",
+		"speed": "速度",
+		"modeShare": "交通手段",
+		"loadingActivity": "アクティビティを読み込み中…",
+		"less": "少ない",
+		"more": "多い",
+		"distancePerDay": "1日あたりの距離",
+		"whenYouMoveMost": "最も移動する時間帯",
+		"speedAxisLabel": "km/h、主要モードで色分け"
 	},
 	"connections": {
 		"title": "接続",

@@ -15,7 +15,8 @@
 		Import,
 		AlertTriangle,
 		ChevronRight,
-		X
+		X,
+		Flame
 	} from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -1309,7 +1310,7 @@
 				: 'border-border bg-card text-foreground hover:bg-muted'}"
 			title={t('statistics.heatmapToggle') || 'Show where you spend time'}
 		>
-			🔥
+			<Flame class="h-4 w-4" />
 			{t('statistics.heatmap') || 'Heatmap'}
 		</button>
 

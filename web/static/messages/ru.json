@@ -510,7 +510,19 @@
 		"walking": "Прогулка",
 		"unknown": "Неизвестный",
 		"modeColors": "Цвета режима",
-		"exclusionZones": "Зоны исключения"
+		"exclusionZones": "Зоны исключения",
+		"heatmap": "Тепловая карта",
+		"heatmapToggle": "Показать, где вы проводите время",
+		"activity": "Активность",
+		"timeOfDay": "Время суток",
+		"speed": "Скорость",
+		"modeShare": "Режимы передвижения",
+		"loadingActivity": "Загрузка активности…",
+		"less": "Меньше",
+		"more": "Больше",
+		"distancePerDay": "расстояние в день",
+		"whenYouMoveMost": "Когда вы двигаетесь больше всего",
+		"speedAxisLabel": "км/ч, цвет по доминирующему режиму"
 	},
 	"connections": {
 		"title": "Соединения",

@@ -510,7 +510,19 @@
 		"walking": "步行",
 		"unknown": "未知",
 		"modeColors": "模式颜色",
-		"exclusionZones": "排除区域"
+		"exclusionZones": "排除区域",
+		"heatmap": "热力图",
+		"heatmapToggle": "显示你停留的地方",
+		"activity": "活动",
+		"timeOfDay": "时段",
+		"speed": "速度",
+		"modeShare": "交通方式",
+		"loadingActivity": "加载活动中…",
+		"less": "少",
+		"more": "多",
+		"distancePerDay": "每日距离",
+		"whenYouMoveMost": "你移动最多的时间",
+		"speedAxisLabel": "km/h，按主要方式着色"
 	},
 	"connections": {
 		"title": "连接",

@@ -510,7 +510,19 @@
 		"walking": "걷는",
 		"unknown": "알려지지 않은",
 		"modeColors": "모드 색상",
-		"exclusionZones": "제외 구역"
+		"exclusionZones": "제외 구역",
+		"heatmap": "히트맵",
+		"heatmapToggle": "시간을 보낸 곳 표시",
+		"activity": "활동",
+		"timeOfDay": "시간대",
+		"speed": "속도",
+		"modeShare": "이동 수단",
+		"loadingActivity": "활동 로딩 중…",
+		"less": "적음",
+		"more": "많음",
+		"distancePerDay": "하루 거리",
+		"whenYouMoveMost": "가장 많이 이동하는 시간",
+		"speedAxisLabel": "km/h, 주요 모드별 색상"
 	},
 	"connections": {
 		"title": "사이",
