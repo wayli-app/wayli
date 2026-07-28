@@ -259,9 +259,24 @@ export class ClientStatisticsService {
 				console.error('❌ loadCalendarHistory RPC error:', error);
 				return;
 			}
-			// rpc.invoke returns { data: { result: [...], status, ... } }.
-			// The result array holds per-day aggregates: { day, distance, ... }.
-			const rows = ((data as any)?.result ?? (data as any) ?? []) as any[];
+			// rpc.invoke returns { data: { result: <rows>, status, ... } }.
+			// The result may be an array, a JSON string, or the data itself may
+			// be the array (depending on the fluxbase version). Unwrap robustly.
+			let rows: any[] = [];
+			const raw = data as any;
+			if (Array.isArray(raw)) {
+				rows = raw;
+			} else if (raw?.result) {
+				rows = typeof raw.result === 'string' ? JSON.parse(raw.result) : raw.result;
+			} else if (Array.isArray(raw?.data)) {
+				rows = raw.data;
+			} else if (raw?.data?.result) {
+				rows = typeof raw.data.result === 'string' ? JSON.parse(raw.data.result) : raw.data.result;
+			}
+			if (!Array.isArray(rows)) {
+				console.error('❌ loadCalendarHistory: unexpected RPC response shape:', raw);
+				return;
+			}
 			this.calendarPoints = rows.map((row) => ({
 				recorded_at: `${row.day}T12:00:00`,
 				lat: 0,
