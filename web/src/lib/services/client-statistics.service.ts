@@ -259,10 +259,10 @@ export class ClientStatisticsService {
 				console.error('❌ loadCalendarHistory RPC error:', error);
 				return;
 			}
-			// The RPC returns per-day aggregates: { day, distance, time_spent, points }.
-			// Store as ProcessedPoint-shaped entries so the calendar can bucket them
-			// (each is already a single day's sum, so bucketing is a no-op per day).
-			this.calendarPoints = ((data as any[]) ?? []).map((row) => ({
+			// rpc.invoke returns { data: { result: [...], status, ... } }.
+			// The result array holds per-day aggregates: { day, distance, ... }.
+			const rows = ((data as any)?.result ?? (data as any) ?? []) as any[];
+			this.calendarPoints = rows.map((row) => ({
 				recorded_at: `${row.day}T12:00:00`,
 				lat: 0,
 				lng: 0,
