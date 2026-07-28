@@ -118,14 +118,14 @@
 	const RAD_INNER = 26;
 	const RAD_CX = 95;
 	const RAD_CY = 95;
-	let maxHourPoints = $derived(Math.max(1, ...hours.map((h) => h.points)));
+	let maxHourDistance = $derived(Math.max(1, ...hours.map((h) => h.distance)));
 
 	function hourArc(hour: number): string {
 		// Each hour is 15° of the circle. 0h at top (−90°).
 		const startAngle = (hour / 24) * 360 - 90;
 		const endAngle = ((hour + 1) / 24) * 360 - 90;
-		const count = hours[hour]?.points ?? 0;
-		const t = count / maxHourPoints;
+		const dist = hours[hour]?.distance ?? 0;
+		const t = dist / maxHourDistance;
 		const r = RAD_INNER + (RAD_R - RAD_INNER) * t;
 		const sa = (startAngle * Math.PI) / 180;
 		const ea = (endAngle * Math.PI) / 180;
@@ -284,8 +284,8 @@
 					{#each hours as h (h.hour)}
 						<path
 							d={hourArc(h.hour)}
-							fill={h.points > 0 ? 'rgba(37,99,235,0.6)' : 'rgba(120,120,120,0.08)'}
-							onmouseenter={(e) => showTooltip('timeofday', `${h.hour}:00–${h.hour + 1}:00`, `${h.points} points`, e)}
+							fill={h.distance > 0 ? 'rgba(37,99,235,0.6)' : 'rgba(120,120,120,0.08)'}
+							onmouseenter={(e) => showTooltip('timeofday', `${h.hour}:00–${h.hour + 1}:00`, fmtDistance(h.distance), e)}
 							onmousemove={moveTooltip}
 							onmouseleave={hideTooltip}
 							role="presentation"
@@ -353,7 +353,7 @@
 		</section>
 
 		<!-- Mode donut -->
-		<section class="flex-1 rounded-lg border p-4 bg-card border-border">
+		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
 			<h3 class="mb-3 text-lg font-semibold text-foreground">🚗 Mode share</h3>
 			<div class="flex items-center gap-4">
 				<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Transport mode share by distance">
@@ -361,9 +361,14 @@
 						<circle cx="60" cy="60" r="50" fill="rgba(120,120,120,0.1)" />
 					{:else}
 						{#each segments as seg (seg.mode)}
-							<path d={donutPath(seg.start, seg.end)} fill={modeColor(seg.mode)}>
-								<title>{seg.mode}: {fmtDistance(seg.distance)} ({(seg.frac * 100).toFixed(0)}%)</title>
-							</path>
+							<path
+								d={donutPath(seg.start, seg.end)}
+								fill={modeColor(seg.mode)}
+								onmouseenter={(e) => showTooltip('donut', seg.mode, `${fmtDistance(seg.distance)} · ${(seg.frac * 100).toFixed(0)}%`, e)}
+								onmousemove={moveTooltip}
+								onmouseleave={hideTooltip}
+								role="presentation"
+							></path>
 						{/each}
 						<circle cx="60" cy="60" r="26" fill="var(--color-card, #fff)" />
 					{/if}
@@ -383,6 +388,15 @@
 					{/each}
 				</div>
 			</div>
+			{#if tooltip && tooltip.chart === 'donut'}
+				<div
+					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium capitalize shadow-lg"
+					style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
+				>
+					{tooltip.label}
+					<span class="opacity-70">· {tooltip.sub}</span>
+				</div>
+			{/if}
 		</section>
 	</div>
 {/if}

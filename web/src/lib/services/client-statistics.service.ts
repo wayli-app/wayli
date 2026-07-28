@@ -217,12 +217,14 @@ export class ClientStatisticsService {
 	}
 
 	/**
-	 * Load the trailing ~53 weeks of tracker points (minimal columns) for the
-	 * activity calendar and records/streaks widgets. Unlike loadAndProcessData,
-	 * this is NOT bounded by the date picker — the calendar should always show
-	 * the last year ending today (like GitHub's contribution graph). Only
-	 * recorded_at / distance / time_spent are fetched (no geocode, no speed, no
-	 * transport-mode detection), so the payload is small even for a full year.
+	 * Load the trailing ~53 weeks of per-day distance/time/point-count aggregates
+	 * for the activity calendar. Unlike loadAndProcessData, this is NOT bounded
+	 * by the date picker — the calendar always shows the last year ending today
+	 * (like GitHub's contribution graph).
+	 *
+	 * Uses the activity_calendar RPC so Postgres does the aggregation: returns
+	 * ~one row per day (only days with data), instead of every raw point (~75k
+	 * rows for a full year). This keeps the payload tiny and the calendar fast.
 	 * Results are cached in this.calendarPoints; safe to call once per page load.
 	 */
 	async loadCalendarHistory(userId: string, weeks = 53): Promise<void> {
@@ -231,33 +233,32 @@ export class ClientStatisticsService {
 		if (this.calendarPoints.length > 0) return;
 
 		try {
-			const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
-			const all: TrackerDataPoint[] = [];
-			let offset = 0;
-			// Batch through the trailing window (cap at 20k points for safety).
-			while (offset < 20000) {
-				const { data, error } = await this.fluxbase
-					.from<Record<string, any>>('tracker_data')
-					.select('recorded_at, distance, time_spent')
-					.eq('user_id', userId)
-					.gte('recorded_at', since)
-					.order('recorded_at', { ascending: true })
-					.range(offset, offset + 999);
-				if (error) {
-					console.error('❌ loadCalendarHistory error:', error);
-					return;
-				}
-				const batch = (data as any[]) ?? [];
-				all.push(...(batch as TrackerDataPoint[]));
-				if (batch.length < 1000) break;
-				offset += 1000;
+			const days = weeks * 7;
+			const { data, error } = await this.fluxbase.rpc('activity_calendar', {
+				user_id: userId,
+				days
+			});
+			if (error) {
+				console.error('❌ loadCalendarHistory RPC error:', error);
+				return;
 			}
-			this.calendarPoints = all;
+			// The RPC returns per-day aggregates: { day, distance, time_spent, points }.
+			// Store as ProcessedPoint-shaped entries so the calendar can bucket them
+			// (each is already a single day's sum, so bucketing is a no-op per day).
+			this.calendarPoints = ((data as any[]) ?? []).map((row) => ({
+				recorded_at: `${row.day}T12:00:00`,
+				lat: 0,
+				lng: 0,
+				distance: Number(row.distance) || 0,
+				time_spent: Number(row.time_spent) || 0,
+				speed: 0
+			}));
 		} catch (err) {
-			// Non-fatal: the calendar/records widgets just stay empty.
+			// Non-fatal: the calendar widget just stays empty.
 			console.error('❌ loadCalendarHistory failed:', err);
 		}
 	}
+
 
 	/** Expose the trailing-window points for the calendar/streaks widgets. */
 	getCalendarPoints(): TrackerDataPoint[] {
