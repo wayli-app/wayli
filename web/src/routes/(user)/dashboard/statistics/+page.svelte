@@ -1114,6 +1114,29 @@
 				}
 			}
 			if (submitErr) throw submitErr;
+
+			// Poll for job completion before re-fetching the calendar data.
+			// The job populates the cache table; we can only read the result
+			// once it's done.
+			const jobId = (jobData as any)?.job_id || (jobData as any)?.id;
+			if (jobId) {
+				let completed = false;
+				for (let i = 0; i < 120; i++) {
+					// 120 × 2s = 4 min max wait
+					await new Promise((r) => setTimeout(r, 2000));
+					const { data: jobStatus } = await fluxbase.jobs.get(jobId);
+					const status = (jobStatus as any)?.status;
+					if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+						completed = status === 'completed';
+						break;
+					}
+				}
+				if (!completed) {
+					toast.error('Activity refresh job did not complete in time');
+					return;
+				}
+			}
+
 			// Clear the client cache and re-fetch from the (now-populated) RPC.
 			try {
 				const { data: s } = await fluxbase.auth.getSession();
