@@ -2,19 +2,18 @@
  * Refresh daily activity aggregation (per-user, on-demand).
  *
  * Aggregates tracker_data into per-day distance/time/points, upserting into
- * tracker_daily_activity. Incremental: only processes days newer than the
- * user's watermark (with a 1-day lookback to absorb late/edited points).
- * The activity_calendar RPC reads this cache table instead of aggregating live.
+ * tracker_daily_activity. Uses a single server-side SQL query (via the
+ * refresh-daily-activity-sql RPC) instead of fetching raw points in batches —
+ * the batch approach was unreliable due to SDK pagination issues and API row
+ * limits. One query, all data, no pagination.
  *
  * @fluxbase:require-role authenticated
- * @fluxbase:timeout 600
+ * @fluxbase:timeout 300
  * @fluxbase:allow-net true
  * @fluxbase:allow-env true
  */
 
 import type { FluxbaseClient, JobUtils } from './types';
-
-const LOOKBACK_DAYS = 1;
 
 export async function handler(
 	_req: Request,
@@ -29,119 +28,33 @@ export async function handler(
 	}
 
 	console.log(`📊 Refreshing daily activity for user ${userId}`);
-	job.reportProgress(5, 'Aggregating daily activity...');
+	job.reportProgress(10, 'Aggregating daily activity...');
 
-	// Use the user-scoped client (RLS-respecting) — the authenticated RLS
-	// policy (auth.uid() = user_id) covers both reads and writes for the
-	// user's own rows. No service_role/tenant_service policy needed.
+	// Use the user-scoped client — the RPC runs with auth.uid() = the user,
+	// so RLS scoping is automatic.
 	const db = fluxbase;
 
 	try {
-		// Read watermark.
-		const { data: stateRow } = await db
-			.from('tracker_daily_activity_state')
-			.select('last_processed_at')
-			.eq('user_id', userId)
-			.maybeSingle();
-		const lastProcessedAt = (stateRow as any)?.last_processed_at ?? null;
+		// Call the server-side aggregation RPC. It does a single INSERT...SELECT
+		// GROUP BY that processes ALL of the user's tracker_data in Postgres,
+		// avoiding the need to fetch and paginate raw points in the job.
+		const { data, error } = await (db.rpc as any).invoke(
+			'refresh-daily-activity-sql',
+			{ user_id: userId },
+			{ namespace: 'wayli' }
+		);
 
-		// Check if the cache table has ANY rows for this user. If not, this is
-		// a genuine first run (or a previous run set the watermark without
-		// populating data) — process ALL history regardless of the watermark.
-		const { count: existingCount } = await db
-			.from('tracker_daily_activity')
-			.select('*', { count: 'exact', head: true })
-			.eq('user_id', userId);
-		const isFullRebuild = !existingCount || existingCount === 0;
-
-		// Since = watermark - lookback (incremental). Null = process everything.
-		const since = isFullRebuild || !lastProcessedAt
-			? null
-			: new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
-		if (isFullRebuild) {
-			console.log(`📊 Full rebuild: cache empty for user ${userId}, processing all history`);
+		if (error) {
+			console.error('❌ refresh-daily-activity RPC error:', error);
+			return { success: false, error: `RPC failed: ${(error as any).message}` };
 		}
 
-		// Aggregate tracker_data into per-day sums. Build a FRESH query object
-		// for each batch — the fluxbase SDK query builder doesn't reliably support
-		// calling .range() multiple times on the same builder instance.
-		const baseSelect = 'recorded_at, distance, time_spent';
+		const result = (data as any)?.result ?? data;
+		const daysUpserted = (result as any)?.days_upserted ?? 0;
 
-		// Fetch in batches and group by day.
-		const byDay = new Map<string, { distance: number; time_spent: number; points: number }>();
-		let offset = 0;
-		const BATCH = 5000;
-		let totalFetched = 0;
-
-		while (true) {
-			if (await job.isCancelled()) {
-				return { success: false, error: 'Cancelled' };
-			}
-			let query = db
-				.from('tracker_data')
-				.select(baseSelect)
-				.eq('user_id', userId)
-				.order('recorded_at', { ascending: true })
-				.range(offset, offset + BATCH - 1);
-			if (since) query = query.gte('recorded_at', since);
-
-			const { data: batch, error } = await query;
-			if (error) {
-				console.error('❌ Fetch error:', error);
-				return { success: false, error: `Fetch failed: ${(error as any).message}` };
-			}
-			if (!batch || batch.length === 0) break;
-			totalFetched += batch.length;
-
-			for (const row of batch as any[]) {
-				const day = new Date(row.recorded_at).toISOString().slice(0, 10);
-				const cur = byDay.get(day) ?? { distance: 0, time_spent: 0, points: 0 };
-				cur.distance += Number(row.distance) || 0;
-				cur.time_spent += Number(row.time_spent) || 0;
-				cur.points += 1;
-				byDay.set(day, cur);
-			}
-
-			offset += BATCH;
-			if (batch.length < BATCH) break;
-		}
-
-		// Upsert per-day aggregates.
-		const upserts = Array.from(byDay.entries()).map(([day, v]) => ({
-			user_id: userId,
-			day,
-			distance: Math.round(v.distance * 100) / 100,
-			time_spent: Math.round(v.time_spent * 100) / 100,
-			points: v.points,
-			updated_at: new Date().toISOString()
-		}));
-
-		let upserted = 0;
-		if (upserts.length > 0) {
-			const UPSERT_BATCH = 500;
-			for (let i = 0; i < upserts.length; i += UPSERT_BATCH) {
-				const slice = upserts.slice(i, i + UPSERT_BATCH);
-				const { error: upErr } = await db
-					.from('tracker_daily_activity')
-					.upsert(slice, { onConflict: 'user_id,day' });
-				if (!upErr) upserted += slice.length;
-				else console.error('⚠️ Upsert error:', upErr);
-			}
-		}
-
-		// Advance the watermark.
-		const nowIso = new Date().toISOString();
-		await db
-			.from('tracker_daily_activity_state')
-			.upsert(
-				{ user_id: userId, last_processed_at: nowIso, updated_at: nowIso },
-				{ onConflict: 'user_id' }
-			);
-
-		job.reportProgress(100, `Done: ${upserted} days`);
-		console.log(`✅ Daily activity refreshed: ${upserted} days for user ${userId}`);
-		return { success: true, result: { days_upserted: upserted, user_id: userId } };
+		job.reportProgress(100, `Done: ${daysUpserted} days`);
+		console.log(`✅ Daily activity refreshed: ${daysUpserted} days for user ${userId}`);
+		return { success: true, result: { days_upserted: daysUpserted, user_id: userId } };
 	} catch (error: unknown) {
 		console.error(`❌ refresh-daily-activity failed:`, error);
 		return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
