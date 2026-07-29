@@ -44,9 +44,22 @@ export async function decodeAndPersist(
 		? new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_MS)
 		: new Date(now.getTime() - MAX_FIRST_RUN_HOURS * 60 * 60 * 1000);
 
-	// Stream tracker_data in batches.
-	const allRows: TrackerPointRow[] = [];
+	// Stream tracker_data in batches and decode+persist INCREMENTALLY.
+	//
+	// Why per-batch instead of accumulating all rows? On a first run the window
+	// is MAX_FIRST_RUN_HOURS (3 years) — for a user with hundreds of thousands
+	// of points, accumulating every row in memory then decoding the whole thing
+	// at once exhausts the V8 heap (this is exactly what crashed the job before:
+	// "Fatal JavaScript out of memory" at ~256 MB with 315k points). Instead we
+	// decode each batch as it arrives, thread the previous batch's tail as
+	// Viterbi context (DetectionContext) so journeys spanning a batch boundary
+	// stay coherent, and persist immediately. Peak memory is ~2x BATCH_SIZE.
+	let updated = 0;
 	let lastRecordedAt: string | null = null;
+	let prevObs: ModeObservation[] = []; // cross-batch continuity tail
+	const TAIL = 6;
+	let sawAny = false;
+
 	while (true) {
 		let query = db
 			.from('tracker_data')
@@ -59,32 +72,53 @@ export async function decodeAndPersist(
 		const { data: batch, error } = await query;
 		if (error) throw new Error(`Fetch failed: ${(error as any).message}`);
 		if (!batch || batch.length === 0) break;
-		allRows.push(...(batch as TrackerPointRow[]));
+		sawAny = true;
 		lastRecordedAt = batch[batch.length - 1].recorded_at;
+
+		// Convert this batch to observations.
+		const observations: ModeObservation[] = (batch as TrackerPointRow[]).map((row) => {
+			const { lat, lng } = parseLocation(row.location);
+			return {
+				timestamp: new Date(row.recorded_at).getTime(),
+				lat,
+				lng,
+				speed: row.speed ?? 0,
+				heading: row.heading,
+				accuracy: row.accuracy,
+				geocode: row.geocode ?? null
+			};
+		});
+
+		// Decode with the previous batch's tail as context, then keep this
+		// batch's tail for the next iteration.
+		const decisions = _detector(observations, { prevObs });
+		prevObs = observations.slice(-TAIL);
+
+		updated += await persistDecisions(db, userId, decisions);
+
 		if (batch.length < BATCH_SIZE) break;
 	}
 
-	if (allRows.length === 0) {
+	if (!sawAny) {
 		await advanceWatermark(db, userId, now);
 		return 0;
 	}
 
-	// Convert + decode.
-	const observations: ModeObservation[] = allRows.map((row) => {
-		const { lat, lng } = parseLocation(row.location);
-		return {
-			timestamp: new Date(row.recorded_at).getTime(),
-			lat,
-			lng,
-			speed: row.speed ?? 0,
-			heading: row.heading,
-			accuracy: row.accuracy,
-			geocode: row.geocode ?? null
-		};
-	});
-	const decisions = _detector(observations);
+	await advanceWatermark(db, userId, now);
+	return updated;
+}
 
-	// Batch-UPDATE, grouped by (mode, reason) to minimise round-trips.
+/**
+ * Persist a slice of decoded decisions to tracker_data, grouped by (mode,
+ * reason) to minimise round-trips. Extracted so decodeAndPersist can call it
+ * per batch (bounded memory) instead of once over the whole history.
+ */
+async function persistDecisions(
+	db: FluxbaseClient,
+	userId: string,
+	decisions: { mode: string; reason: string; timestamp: number; confidence: number }[]
+): Promise<number> {
+	if (decisions.length === 0) return 0;
 	let updated = 0;
 	for (let i = 0; i < decisions.length; i += UPDATE_BATCH) {
 		const slice = decisions.slice(i, i + UPDATE_BATCH);
@@ -108,13 +142,15 @@ export async function decodeAndPersist(
 					transport_mode_confidence: Number(meanConf.toFixed(3))
 				})
 				.eq('user_id', userId)
-				.in('recorded_at', tsIso);
+				.in('recorded_at', tsIso)
+				// Never overwrite a point the user manually corrected — the
+				// override flag is the only thing protecting their edits from
+				// being silently erased by a re-decode. (Migration 082.)
+				.neq('transport_mode_manual', true);
 			if (!updErr) updated += items.length;
 			else console.error(`⚠️ Update error for mode ${mode}:`, updErr);
 		}
 	}
-
-	await advanceWatermark(db, userId, now);
 	return updated;
 }
 

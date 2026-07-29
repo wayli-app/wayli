@@ -9,6 +9,17 @@ export const SPEED_BRACKETS = [
 	{ min: 200, max: Infinity, mode: 'airplane' }
 ];
 
+/**
+ * Hard ceiling on observed speed (km/h) used by feature extraction to clamp
+ * garbage GPS-derived values. The fastest mode we model is airplane (band
+ * ceiling ~1000), but anything above this in a tracker feed is a glitch (the DB
+ * has recorded values up to ~481000 from the distance trigger dividing by a
+ * near-zero time delta). Clamping here keeps a single bad point from poisoning
+ * a CV window or dominating an emission. Sits at the airplane band ceiling in
+ * MODE_PHYSICAL_LIMITS so legitimate flight isn't clipped.
+ */
+export const MAX_PLAUSIBLE_SPEED_KMH = 1000;
+
 // Physical limits for each transport mode (absolute maximum speeds possible)
 export const MODE_PHYSICAL_LIMITS = {
 	stationary: { min: 0, max: 2 },

@@ -42,12 +42,46 @@ export interface ModeFeatures {
 	onHighway: boolean;
 	atVenue: boolean; // any POI venue (boosts stationary)
 	accuracyWeight: number; // 0..1, down-weights noisy fixes in emission calc
+	/**
+	 * Per-point rail-anchor weight in [0,1], injected by the detector after
+	 * feature extraction. Higher for points temporally close to a station point
+	 * WITHIN THE SAME GAP-BOUNDED SEGMENT (so a station visit anchors train
+	 * classification locally, near the station, rather than across an entire
+	 * long driving segment that merely passed one station). 0 when the point is
+	 * far from any station point or no segment context was supplied.
+	 */
+	stationProximity: number;
+}
+
+/**
+ * Segment-level signals computed once per Viterbi segment (not per point) and
+ * threaded into the emission model. Currently just the measurement-density
+ * signal; station anchoring is per-point (via ModeFeatures.stationProximity).
+ */
+export interface SegmentContext {
+	/** Mean inter-point interval for the segment (the measurement-density signal). */
+	meanIntervalSec: number;
 }
 
 export interface SegmentDetection {
 	mode: TransportMode;
 	reason: string;
 	confidence: number; // 0..1
+}
+
+/**
+ * Optional context threaded between successive `detectTransportModes` calls so a
+ * journey spanning a page/batch boundary is decoded as one Viterbi segment
+ * instead of two independent halves that can disagree at the seam.
+ *
+ * `prevObs` should be the last N observations of the previous batch (most-recent
+ * last). They are prepended for feature extraction + Viterbi context and then
+ * trimmed from the returned decisions, so the output stays 1:1 with the current
+ * batch's observations. A >SEGMENT_GAP_MS gap between the tail and the current
+ * batch splits them naturally (the tail's recomputed decisions are discarded).
+ */
+export interface DetectionContext {
+	prevObs?: ModeObservation[];
 }
 
 /** Result of decoding one gap-bounded segment. */

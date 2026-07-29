@@ -5,11 +5,73 @@
 // per point. This is the single entry point shared by the browser (Location
 // Data page) and the Deno background job (persistence).
 
-import { SEGMENT_GAP_MS } from './segmentation';
+import { segmentByGaps } from './segmentation';
 import { extractFeatures } from './features';
 import { viterbi, confidenceForPoint, emissionScores } from './model';
+import { isAtTrainStation } from '../../utils/transport-mode';
 import { TRANSPORT_MODES, type TransportMode } from './states';
-import type { ModeFeatures, ModeObservation, PointModeDecision } from './types';
+import type {
+	ModeFeatures,
+	ModeObservation,
+	PointModeDecision,
+	DetectionContext,
+	SegmentContext
+} from './types';
+
+/** Number of trailing observations retained from the previous batch for cross-batch continuity. */
+const CONTINUITY_TAIL = 6;
+
+/**
+ * Compute whole-segment signals that per-point features can't capture.
+ *
+ * Station anchoring is per-point (not whole-segment): each point gets a
+ * `stationProximity` weight in [0,1] that is highest near (in time) a station
+ * point WITHIN THE SAME GAP-BOUNDED SEGMENT and decays with temporal distance.
+ * This anchors train classification LOCALLY around a station visit — a long
+ * drive that merely passes one station is not boosted as train end-to-end.
+ * `STATION_CONTAGION_MS` is the half-decay window.
+ */
+const STATION_CONTAGION_MS = 3 * 60 * 1000; // 3 min half-decay
+
+function computeSegmentContext(segment: ModeObservation[]): {
+	segCtx: SegmentContext;
+	proximity: number[];
+} {
+	const n = segment.length;
+	// Temporal distance from each point to the nearest station point in the segment.
+	const stationTs: number[] = [];
+	for (let i = 0; i < n; i++) {
+		if (isAtTrainStation(segment[i].geocode)) stationTs.push(segment[i].timestamp);
+	}
+
+	const proximity = new Array(n).fill(0);
+	if (stationTs.length > 0) {
+		for (let i = 0; i < n; i++) {
+			let minDt = Infinity;
+			for (const ts of stationTs) {
+				const dt = Math.abs(segment[i].timestamp - ts);
+				if (dt < minDt) minDt = dt;
+			}
+			// Exponential decay: 1.0 at a station, ~0.5 at STATION_CONTAGION_MS,
+			// ~0.13 at 2x. Clamps to 0 beyond ~6x (effectively out of contagion).
+			proximity[i] = Math.exp(-minDt / STATION_CONTAGION_MS);
+		}
+	}
+
+	let intervalSum = 0;
+	let intervalCount = 0;
+	for (let i = 1; i < n; i++) {
+		const dt = (segment[i].timestamp - segment[i - 1].timestamp) / 1000;
+		if (dt > 0) {
+			intervalSum += dt;
+			intervalCount++;
+		}
+	}
+	return {
+		segCtx: { meanIntervalSec: intervalCount > 0 ? intervalSum / intervalCount : 0 },
+		proximity
+	};
+}
 
 function reasonFor(mode: TransportMode, speed: number): string {
 	// Human-readable reason string stored in detection_reason. Kept aligned with
@@ -41,23 +103,48 @@ function reasonFor(mode: TransportMode, speed: number): string {
  * which is exactly the boundary where prior context (a tunnel, a flight) should
  * no longer influence the current mode.
  *
+ * `context` lets the caller carry over the tail of the previous batch so a
+ * journey that spans a page/batch boundary is decoded as one Viterbi segment
+ * rather than two independent halves. The returned decisions are always 1:1
+ * with `observations` (the context tail is prepended for context only and then
+ * trimmed from the output). A >SEGMENT_GAP_MS gap between the tail and the
+ * current batch splits them naturally. `prevObs` in the returned context is the
+ * trailing observations of the combined sequence, ready to thread to the next
+ * call.
+ *
  * Returns one PointModeDecision per input observation, index-aligned.
  */
-export function detectTransportModes(observations: ModeObservation[]): PointModeDecision[] {
+export function detectTransportModes(
+	observations: ModeObservation[],
+	context: DetectionContext = {}
+): PointModeDecision[] {
 	if (observations.length === 0) return [];
+
+	// Prepend the previous batch's tail so the first points of this batch get a
+	// real Viterbi context instead of being treated as segment starts.
+	const tail = context.prevObs ?? [];
+	const combined = tail.length > 0 ? [...tail, ...observations] : observations;
+	const tailLen = combined.length - observations.length;
 
 	const decisions: PointModeDecision[] = [];
 	let segStart = 0;
 
 	const flushSegment = (endExclusive: number) => {
-		const segment = observations.slice(segStart, endExclusive);
+		const segment = combined.slice(segStart, endExclusive);
 		if (segment.length === 0) return;
 
 		const features: ModeFeatures[] = extractFeatures(segment);
 
+		// Whole-segment context: per-point station proximity + measurement
+		// density. Station proximity is injected into the per-point features so
+		// the emission model can anchor train classification LOCALLY (near a
+		// station) rather than across an entire long segment.
+		const { segCtx, proximity } = computeSegmentContext(segment);
+		for (let i = 0; i < features.length; i++) features[i].stationProximity = proximity[i];
+
 		// Single-point segment: no temporal context, score on emission alone.
 		if (segment.length === 1) {
-			const scores = emissionScores(features[0]);
+			const scores = emissionScores(features[0], segCtx);
 			let bestIdx = 0;
 			let best = -Infinity;
 			for (let m = 0; m < scores.length; m++) {
@@ -77,7 +164,7 @@ export function detectTransportModes(observations: ModeObservation[]): PointMode
 		}
 
 		// Multi-point: HMM + Viterbi over the segment.
-		const { path } = viterbi(features);
+		const { path } = viterbi(features, segCtx);
 		for (let i = 0; i < segment.length; i++) {
 			const mode = TRANSPORT_MODES[path[i]];
 			decisions.push({
@@ -89,18 +176,14 @@ export function detectTransportModes(observations: ModeObservation[]): PointMode
 		}
 	};
 
-	for (let i = 1; i <= observations.length; i++) {
-		const isLast = i === observations.length;
-		if (isLast) {
-			flushSegment(i);
-			break;
-		}
-		const gap = observations[i].timestamp - observations[i - 1].timestamp;
-		if (gap > SEGMENT_GAP_MS) {
-			flushSegment(i);
-			segStart = i;
-		}
+	// Gap-segment using the shared helper (single source of truth for what a
+	// "segment" is — the map editor reuses the same boundaries).
+	for (const seg of segmentByGaps(combined)) {
+		segStart = seg[0];
+		flushSegment(seg[seg.length - 1] + 1);
 	}
 
-	return decisions;
+	// Discard the decisions produced for the context tail — the caller only
+	// wants one decision per observation in THIS batch.
+	return decisions.slice(tailLen);
 }

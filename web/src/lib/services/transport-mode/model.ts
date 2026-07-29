@@ -23,7 +23,7 @@ import {
 	SPEED_CV_THRESHOLDS
 } from '../../utils/transport-mode.config';
 import { NUM_MODES, TRANSPORT_MODES, MODE_INDEX, type TransportMode } from './states';
-import type { ModeFeatures } from './types';
+import type { ModeFeatures, SegmentContext } from './types';
 
 // Working in log-space avoids underflow on long segments.
 const LOG_ZERO = -Infinity;
@@ -115,7 +115,7 @@ function buildTransitionMatrix(): number[][] {
  * The result is an unnormalised score per mode; Viterbi normalises implicitly
  * because it compares scores, not absolutes.
  */
-export function emissionScores(f: ModeFeatures): number[] {
+export function emissionScores(f: ModeFeatures, segCtx?: SegmentContext): number[] {
 	const scores = new Array(NUM_MODES).fill(1);
 
 	// Base-rate prior: how common each mode is at typical tracker speeds.
@@ -124,14 +124,25 @@ export function emissionScores(f: ModeFeatures): number[] {
 	// despite its low prior). Without this, the train/car overlap band is a
 	// coin flip — but cars are an order of magnitude more common than trains,
 	// so car is the correct default there.
+	//
+	// The train prior sits at 0.5 (between the original 0.45 and a higher value):
+	// cars remain somewhat more common than trains, but within the 60-110 km/h
+	// overlap a large steady cluster is genuinely ambiguous. Rather than tilt
+	// the prior either way, we let station contagion (below) make the call, and
+	// give car a symmetric moderate-CV nudge in the overlap so it isn't
+	// systematically under-weighted relative to train.
 	const PRIOR: Record<string, number> = {
 		stationary: 1.0,
 		walking: 1.0,
 		cycling: 0.9,
 		car: 1.0,
-		train: 0.45, // rare relative to car
+		train: 0.5,
 		airplane: 0.05 // very rare; only wins with overwhelming evidence
 	};
+
+	// Segment-level signals (optional — default to "no whole-segment context").
+	// Per-point station proximity is on the feature itself (f.stationProximity).
+	const meanIntervalSec = segCtx?.meanIntervalSec ?? 0;
 
 	for (let m = 0; m < NUM_MODES; m++) {
 		const mode = TRANSPORT_MODES[m];
@@ -161,37 +172,62 @@ export function emissionScores(f: ModeFeatures): number[] {
 			s = Math.max(0.0008, 0.1 * Math.max(0, 1 - (f.speed - limits.max) / 15));
 		}
 
-		// Train-vs-car disambiguation in the 60–110 km/h overlap. Speed alone
-		// cannot decide there. We use CV (steady = train-like) and turn rate
-		// (straight = train-like) as MILD tiebreakers — multipliers are kept
-		// gentle so steady highway driving isn't misread as a train. Station
-		// context (handled below) is the strong train signal.
+		// Train-vs-car disambiguation in the 55–115 km/h overlap. Speed alone
+		// cannot decide there. CV and turn rate are tiebreakers; the strong
+		// "very steady = train" signal is gated on per-point rail context
+		// (f.stationProximity, time-decayed from a station visit) because pure
+		// speed-steadiness alone is NOT a reliable train signal — cruise-control
+		// highway driving is equally steady. Without nearby rail context the
+		// overlap stays a balanced car/train call leaning car (the default).
 		if (mode === 'train' || mode === 'car') {
 			if (f.speed >= 55 && f.speed <= 115) {
+				// Blend: proximity 1.0 (at a station) -> full 2.6x train boost;
+				// proximity 0 (far from any station) -> only the 1.3x mild nudge.
+				const railBoost = 1.3 + (2.6 - 1.3) * f.stationProximity; // 1.3 .. 2.6
 				if (mode === 'train') {
-					// Only a *very* steady speed (CV < 0.08) is a meaningful
-					// train signal — strong enough to overcome car's higher
-					// base-rate prior. 0.08–0.15 is indistinguishable from
-					// highway driving, so we don't boost there. Station geocode
-					// context (below) is the reliable train discriminator.
-					if (f.speedCV < 0.08) s *= 2.6;
+					if (f.speedCV < 0.08) s *= railBoost;
+					else if (f.speedCV < 0.12) s *= 1.1; // borderline -> slight nudge
 					else if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 0.6;
 				} else {
-					if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 1.2;
+					// Symmetric car nudges so the overlap isn't train-biased:
+					// moderate variation (0.12-0.25) is typical city/highway car
+					// driving and nudges car; high variation (>0.25) strongly car.
+					if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 1.3;
+					else if (f.speedCV > 0.12) s *= 1.15;
 				}
-				// Turn rate: trains rarely exceed ~3 deg/s sustained.
-				if (mode === 'train' && f.headingTurnRate > 5) s *= 0.5;
+				// Turn rate: trains rarely exceed ~3 deg/s sustained. Re-tuned
+				// threshold from 5 -> 4 deg/s using heading-bearing data.
+				if (mode === 'train' && f.headingTurnRate > 4) s *= 0.5;
 			}
 		}
 
 		// Geocode context multipliers (strong, reliable signals).
+		// f.stationProximity (0..1, time-decayed from a station visit) anchors
+		// train locally: the nearer a point is to a station visit, the more it
+		// leans train. This is the key rail signal, but it decays so a long drive
+		// that merely passed one station isn't boosted end-to-end.
 		if (mode === 'train' && f.atTrainStation) s *= 4.0;
+		if (mode === 'train' && f.stationProximity > 0) s *= 1 + 1.6 * f.stationProximity; // up to ~2.6x
 		if (mode === 'airplane' && f.atAirport) s *= 4.0;
 		if (mode === 'car' && f.onHighway && f.speed > 50) s *= 1.8;
 		if (mode === 'stationary' && f.atVenue && f.speed < 3) s *= 2.5;
 		// Being at a station strongly de-emphasises car/cycling there.
 		if (f.atTrainStation && (mode === 'car' || mode === 'cycling')) s *= 0.3;
+		// Near a station (rail context) gently de-emphasises car, scaled by
+		// proximity so it only affects the local journey leg, not a far-away one.
+		if (f.stationProximity > 0 && mode === 'car' && f.speed > 30) s *= 1 - 0.4 * f.stationProximity;
 		if (f.atAirport && mode !== 'airplane' && mode !== 'stationary') s *= 0.3;
+
+		// Measurement-density feature (segment-level). Empirically, car trips
+		// with navigation on produce dense fixes (<~5s) while train trips with
+		// the phone idle produce sparse ones (>~30s). This is a weak signal
+		// (config-dependent), so the multiplier is gentle and only fires in the
+		// overlap band where speed/CV/station can't fully decide. Derived from
+		// the already-computed time_spent — no new data.
+		if (meanIntervalSec > 0 && f.speed >= 30 && f.speed <= 200) {
+			if (mode === 'train' && meanIntervalSec >= 30) s *= 1.25;
+			if (mode === 'car' && meanIntervalSec < 8) s *= 1.15;
+		}
 
 		// Accuracy weighting: noisy fixes contribute less to all modes equally,
 		// so the transition matrix (temporal coherence) carries more weight.
@@ -236,7 +272,7 @@ export interface ViterbiResult {
  * segment). The caller is responsible for gap-segmentation: each call decodes
  * exactly one gap-bounded segment.
  */
-export function viterbi(features: ModeFeatures[]): ViterbiResult {
+export function viterbi(features: ModeFeatures[], segCtx?: SegmentContext): ViterbiResult {
 	const n = features.length;
 	if (n === 0) return { path: [], logProbs: [] };
 
@@ -249,14 +285,14 @@ export function viterbi(features: ModeFeatures[]): ViterbiResult {
 	const back: number[][] = Array.from({ length: n }, () => new Array(NUM_MODES).fill(0));
 
 	// t = 0
-	const e0 = emissionScores(features[0]);
+	const e0 = emissionScores(features[0], segCtx);
 	for (let s = 0; s < NUM_MODES; s++) {
 		dp[0][s] = start[s] + safeLog(e0[s]);
 	}
 
 	// t = 1..n-1
 	for (let t = 1; t < n; t++) {
-		const et = emissionScores(features[t]);
+		const et = emissionScores(features[t], segCtx);
 		for (let s = 0; s < NUM_MODES; s++) {
 			let best = LOG_ZERO;
 			let bestPrev = 0;

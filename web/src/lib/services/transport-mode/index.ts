@@ -5,7 +5,7 @@
 // is a single source of truth for transport-mode detection.
 
 export { detectTransportModes } from './detector';
-export { SEGMENT_GAP_MS, LOOKBACK_MS } from './segmentation';
+export { SEGMENT_GAP_MS, LOOKBACK_MS, segmentByGaps } from './segmentation';
 export { normalizeMode, TRANSPORT_MODES, GREEN_MODES, STATIONARY_MODES } from './states';
 export type { TransportMode } from './states';
-export type { ModeObservation, PointModeDecision, ModeFeatures, SegmentResult } from './types';
+export type { ModeObservation, PointModeDecision, ModeFeatures, SegmentResult, DetectionContext } from './types';

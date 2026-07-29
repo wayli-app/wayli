@@ -28,6 +28,7 @@
 	import { state as appState } from '$lib/stores/app-state.svelte';
 	import { fluxbase } from '$lib/fluxbase';
 	import { ClientStatisticsService } from '$lib/services/client-statistics.service';
+	import { segmentByGaps } from '$lib/services/transport-mode';
 	import { HomeAddressAdapter } from '$lib/services/api/adapters/home-address-adapter';
 	import { TripExclusionsApiService } from '$lib/services/api/trip-exclusions-api.service';
 	import {
@@ -107,6 +108,14 @@
 	// Use a regular array instead of $state to avoid triggering effects
 	let mapMarkers: any[] = [];
 	let selectedPoint: any = $state(null);
+	// Segment editor: click a point → its whole 5-min-gap segment is selected and
+	// can be relabelled. `segmentGroups` is index groups into the sorted points;
+	// `selectedSegmentIdxs` is the set of selected segment indices (shift-click
+	// adds/removes, so multiple segments can be relabelled at once).
+	let segmentGroups: number[][] = [];
+	let selectedSegmentIdxs = $state<Set<number>>(new Set());
+	let segmentHighlight: any[] = [];
+	let isUpdatingMode = $state(false);
 	// Heat layer: shows where the user actually spends time (slow/stationary
 	// points), built from the same rawDataPoints the circle-marker map uses.
 	let heatLayer: any = null;
@@ -330,6 +339,7 @@
 			// Draw data points on map
 			const rawDataPoints = (statisticsService as any).rawDataPoints;
 			if (rawDataPoints && rawDataPoints.length > 0) {
+				recomputeSegments(rawDataPoints);
 				drawDataPointsOnMap(rawDataPoints);
 				// Refresh the heat layer too (only renders if the toggle is on).
 				updateHeatmap(rawDataPoints);
@@ -927,9 +937,11 @@
 			}
 		}
 
-		// Group points by transport mode for markers
+		// Group points by transport mode for markers. Tag each point with its
+		// index into sortedPoints so a click can resolve which segment it's in.
 		const pointsByMode: Record<string, any[]> = {};
-		sortedPoints.forEach((point) => {
+		sortedPoints.forEach((point, idx) => {
+			point._sortedIdx = idx;
 			const mode = point.transport_mode || 'unknown';
 			if (!pointsByMode[mode]) {
 				pointsByMode[mode] = [];
@@ -957,9 +969,14 @@
 							fillOpacity: 0.6
 						});
 
-						// Add click handler
-						marker.on('click', () => {
+						// Add click handler: select the whole segment this point
+						// belongs to (for relabelling). Shift-click toggles the
+						// segment into/out of the selection so several can be
+						// relabelled at once.
+						marker.on('click', (e: any) => {
 							selectedPoint = point;
+							const additive = !!e.originalEvent?.shiftKey;
+							selectSegmentForPoint(point._sortedIdx, additive);
 						});
 
 						// Add to map
@@ -975,11 +992,158 @@
 			const group = (L as any).featureGroup(mapMarkers);
 			map.fitBounds(group.getBounds().pad(0.1));
 		}
+
+		// Re-apply segment highlight if one is selected (after a redraw).
+		if (selectedSegmentIdxs.size > 0) drawSegmentHighlight();
 	}
 
-	// Close point details popup
-	function closePointDetails() {
-		selectedPoint = null;
+	// ─── Segment editor ──────────────────────────────────────────────────────
+
+	/**
+	 * Recompute gap-bounded segments from the loaded points (sorted ascending by
+	 * recorded_at). Uses the same SEGMENT_GAP_MS the HMM detector uses, so the
+	 * editable groups match what was decoded as a unit. Call after data loads.
+	 */
+	function recomputeSegments(rawDataPoints: any[]) {
+		const sorted = [...rawDataPoints].sort(
+			(a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+		);
+		segmentGroups = segmentByGaps(
+			sorted.map((p) => ({ timestamp: new Date(p.recorded_at).getTime() }))
+		);
+		// Keep a parallel ref so click→segment can resolve the actual points.
+		(segmentGroups as any)._sorted = sorted;
+		selectedSegmentIdxs = new Set();
+		clearSegmentHighlight();
+	}
+
+	/**
+	 * Select the segment a sorted point index falls in.
+	 * - Plain click: replace the selection with this segment (clicking the
+	 *   already-selected segment clears it).
+	 * - Shift-click: toggle this segment in/out of the selection, so several
+	 *   segments can be relabelled at once.
+	 */
+	function selectSegmentForPoint(sortedIdx: number, additive: boolean) {
+		const segIdx = segmentGroups.findIndex((seg) => seg.includes(sortedIdx));
+		if (segIdx < 0) return;
+		const next = new Set(additive ? selectedSegmentIdxs : []);
+		if (next.has(segIdx)) next.delete(segIdx);
+		else next.add(segIdx);
+		selectedSegmentIdxs = next;
+		drawSegmentHighlight();
+	}
+
+	function clearSegmentHighlight() {
+		for (const layer of segmentHighlight) {
+			if (map && layer) map.removeLayer(layer);
+		}
+		segmentHighlight = [];
+	}
+
+	/** Draw a bright outline over every selected segment's markers. */
+	function drawSegmentHighlight() {
+		clearSegmentHighlight();
+		if (!map || !L || selectedSegmentIdxs.size === 0) return;
+		const sorted: any[] = (segmentGroups as any)._sorted ?? [];
+		for (const segIdx of selectedSegmentIdxs) {
+			const seg = segmentGroups[segIdx];
+			if (!seg) continue;
+			for (const idx of seg) {
+				const p = sorted[idx];
+				if (!p || !p.lat || !p.lon) continue;
+				const lat = parseFloat(p.lat);
+				const lon = parseFloat(p.lon);
+				if (isNaN(lat) || isNaN(lon)) continue;
+				const ring = L.circleMarker([lat, lon], {
+					radius: 7,
+					fillColor: '#ffffff',
+					color: '#000000',
+					weight: 2,
+					opacity: 0.95,
+					fillOpacity: 0.15
+				}).addTo(map);
+				segmentHighlight.push(ring);
+			}
+		}
+	}
+
+	/** All points across every selected segment (empty if none). */
+	const selectedSegmentPoints = $derived.by(() => {
+		if (selectedSegmentIdxs.size === 0) return [];
+		const sorted: any[] = (segmentGroups as any)._sorted ?? [];
+		const out: any[] = [];
+		for (const segIdx of selectedSegmentIdxs) {
+			const seg = segmentGroups[segIdx];
+			if (!seg) continue;
+			for (const idx of seg) {
+				if (sorted[idx]) out.push(sorted[idx]);
+			}
+		}
+		return out;
+	});
+
+	/**
+	 * Relabel the selected segment's transport mode in the DB and update the
+	 * in-memory points + map. `mode` is one of the canonical modes; passing
+	 * null clears the override (resets to auto) by clearing the manual flag.
+	 */
+	async function applyModeToSegment(mode: string | null) {
+		const points = selectedSegmentPoints;
+		if (points.length === 0 || isUpdatingMode) return;
+		isUpdatingMode = true;
+		try {
+			const { data: userData } = await fluxbase.auth.getUser();
+			const userId = userData?.user?.id;
+			if (!userId) throw new Error('Not authenticated');
+
+			const ts = points.map((p) => p.recorded_at);
+			const payload =
+				mode === null
+					? { transport_mode_manual: false }
+					: {
+							transport_mode: mode,
+							detection_reason: 'user_override',
+							transport_mode_confidence: 1,
+							transport_mode_manual: true
+						};
+
+			// Batch the UPDATE in 500s (URL-length safety, mirrors deletePoints).
+			const batchSize = 500;
+			for (let i = 0; i < ts.length; i += batchSize) {
+				const batch = ts.slice(i, i + batchSize);
+				const { error } = await fluxbase
+					.from('tracker_data')
+					.update(payload)
+					.eq('user_id', userId)
+					.in('recorded_at', batch);
+				if (error) throw new Error(error.message);
+			}
+
+			// Optimistic in-memory update so the map re-colors immediately.
+			const rawDataPoints = (statisticsService as any).rawDataPoints as any[];
+			if (mode !== null) {
+				const tsSet = new Set(ts);
+				for (const p of rawDataPoints) {
+					if (tsSet.has(p.recorded_at)) {
+						p.transport_mode = mode;
+						p.detection_reason = 'user_override';
+					}
+				}
+			}
+			drawDataPointsOnMap(rawDataPoints);
+
+			toast.success(
+				mode === null
+					? t('statistics.resetToAutoDone')
+					: t('statistics.modeUpdated', { mode: translateTransportMode(mode) })
+			);
+		} catch (err: any) {
+			console.error('Failed to update transport mode:', err);
+			toast.error(t('statistics.modeUpdateFailed'), { description: err?.message });
+		} finally {
+			isUpdatingMode = false;
+		}
 	}
 
 	// Format segment duration
@@ -1432,6 +1596,57 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Segment editor: appears when a segment is selected by clicking a point. -->
+		{#if selectedSegmentIdxs.size > 0}
+			<div
+				class="absolute left-1/2 top-4 z-[1002] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg border border-border bg-card p-3 shadow-lg"
+			>
+				<div class="mb-2 flex items-center justify-between">
+					<h4 class="text-sm font-semibold text-foreground">
+						{selectedSegmentIdxs.size}
+						{selectedSegmentIdxs.size === 1 ? t('statistics.segmentSingular') : t('statistics.segmentPlural')}
+						· {selectedSegmentPoints.length} {t('statistics.pointsLabel')}
+					</h4>
+					<button
+						type="button"
+						onclick={() => {
+							selectedSegmentIdxs = new Set();
+							clearSegmentHighlight();
+						}}
+						class="text-muted-foreground hover:text-foreground"
+						title={t('common.actions.close') || 'Close'}
+					>
+						<X class="h-4 w-4" />
+					</button>
+				</div>
+				<p class="mb-2 text-xs text-muted-foreground">
+					{t('statistics.editModeHelp')}
+				</p>
+				<div class="flex flex-wrap gap-1.5">
+					{#each ['walking', 'cycling', 'car', 'train', 'airplane', 'stationary'] as mode (mode)}
+						<button
+							type="button"
+							disabled={isUpdatingMode}
+							onclick={() => applyModeToSegment(mode)}
+							class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-white shadow-sm disabled:opacity-50"
+							style="background-color: {getTransportModeColor(mode)}"
+						>
+							{translateTransportMode(mode)}
+						</button>
+					{/each}
+					<button
+						type="button"
+						disabled={isUpdatingMode}
+						onclick={() => applyModeToSegment(null)}
+						class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted disabled:opacity-50"
+						title={t('statistics.resetToAuto') || 'Reset to auto'}
+					>
+						{t('statistics.resetToAuto') || 'Auto'}
+					</button>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Point Details Popup -->
 		{#if selectedPoint}

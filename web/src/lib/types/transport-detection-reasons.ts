@@ -36,7 +36,11 @@ export enum TransportDetectionReason {
 	MODE_CONTINUITY = 'MODE_CONTINUITY',
 	GRADUAL_TRANSITION = 'GRADUAL_TRANSITION',
 	GEOGRAPHIC_CONTEXT_VALIDATION = 'GEOGRAPHIC_CONTEXT_VALIDATION',
-	PHYSICALLY_IMPOSSIBLE = 'PHYSICALLY_IMPOSSIBLE'
+	PHYSICALLY_IMPOSSIBLE = 'PHYSICALLY_IMPOSSIBLE',
+
+	// User-set override (segment editor on the Location Data map). The live HMM
+	// detector also writes this string for points the user manually relabelled.
+	USER_OVERRIDE = 'user_override'
 }
 
 // Frontend translation map for user-friendly display
@@ -83,7 +87,8 @@ export const TRANSPORT_DETECTION_REASON_LABELS: Record<TransportDetectionReason,
 	[TransportDetectionReason.GEOGRAPHIC_CONTEXT_VALIDATION]:
 		'Mode validated against geographic context',
 	[TransportDetectionReason.PHYSICALLY_IMPOSSIBLE]:
-		'Mode changed due to physically impossible combination'
+		'Mode changed due to physically impossible combination',
+	[TransportDetectionReason.USER_OVERRIDE]: 'Set manually'
 };
 
 // Helper function to get user-friendly label
