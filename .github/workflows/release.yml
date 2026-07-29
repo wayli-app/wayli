@@ -2,28 +2,31 @@ name: Release
 
 # This workflow handles all release types: stable releases and release candidates (RC)
 #
-# Triggers:
-#   1. Manual workflow_dispatch - Create a new release by specifying release type
+# Trigger: Manual workflow_dispatch only.
 #
 # How to create a release:
 #   1. Go to Actions → Release → Run workflow
 #   2. Select branch (usually 'main')
-#   3. Choose version_type: auto (default), patch, minor, major, or continue
-#   4. Choose release_type: stable or rc
-#   5. Click "Run workflow"
+#   3. Choose release_type: rc or stable
+#   4. Click "Run workflow"
 #
-# Version calculation:
-#   - auto: Auto-detects from conventional commits (BREAKING/feat!/feat/fix)
-#   - patch/minor/major: Manual override for specific bump type
-#   - continue: Only for current RC versions - continues RC or promotes to stable
+# You only ever pick ONE thing: release_type. The next version number is
+# auto-deduced from the latest git tag, so there is no need to reason about
+# bump types or "continue" vs "auto". The state machine below covers every case:
 #
-# Version Examples:
-#   - auto + stable → Auto-detects bump type, creates stable release
-#   - auto + rc → Auto-detects bump type, creates RC
-#   - minor + stable → 1.0.10 → 1.1.0 (stable)
-#   - patch + rc → 1.0.10 → 1.0.11-rc.1 (RC)
-#   - continue + rc → 1.0.11-rc.1 → 1.0.11-rc.2 (increment RC)
-#   - continue + stable → 1.0.11-rc.1 → 1.0.11 (promote to stable)
+#   | Current tag      | release_type | Result          | What happens              |
+#   | ---------------- | ------------ | --------------- | ------------------------- |
+#   | 2.2.0-rc.36 (RC) | rc           | 2.2.0-rc.37     | Continue the RC series    |
+#   | 2.2.0-rc.36 (RC) | stable       | 2.2.0           | Promote RC to stable      |
+#   | 2.2.1 (stable)   | rc           | 2.2.2-rc.1      | New line, append -rc.1    |
+#   | 2.2.1 (stable)   | stable       | 2.2.2           | New line, no suffix       |
+#
+# When starting a new version line (stable → release), the bump level is
+# auto-detected from conventional commits since the last tag:
+#   - BREAKING CHANGE: or feat!  → major
+#   - feat:                        → minor
+#   - anything else                → patch
+# Use the optional `bump` input to override auto-detection (rarely needed).
 #
 # Component Toggles:
 #   - Publish Docker image: Build and push the Wayli Docker image to GHCR
@@ -31,13 +34,13 @@ name: Release
 #   - Generate AI notes: Use AI to summarize changes for release notes
 #
 # RC Release behavior:
-#   - Version format: vMAJOR.MINOR.PATCH-rc.N (e.g., v1.0.0-rc.1)
+#   - Version format: vMAJOR.MINOR.PATCH-rc.N (e.g., v2.2.0-rc.1)
 #   - Marked as GitHub pre-release
 #   - Docker images tagged with version and 'rc' (NOT 'latest')
 #   - Helm charts published with prerelease annotation
 #
 # Stable Release behavior:
-#   - Version format: vMAJOR.MINOR.PATCH (e.g., v1.0.11)
+#   - Version format: vMAJOR.MINOR.PATCH (e.g., v2.2.1)
 #   - Marked as GitHub release (not pre-release)
 #   - Docker images tagged with version and 'latest'
 #   - Helm charts published normally
@@ -45,25 +48,24 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version_type:
-        description: 'Version bump type (auto-detects from conventional commits)'
-        required: false
-        type: choice
-        options:
-          - auto
-          - patch
-          - minor
-          - major
-          - continue
-        default: auto
       release_type:
-        description: 'Release type'
+        description: 'Release type (the only choice you normally need to make)'
         required: true
         type: choice
         options:
           - stable
           - rc
         default: rc
+      bump:
+        description: 'Bump level for a NEW version line (stable → release). Ignored when continuing or promoting an RC. "auto" detects from conventional commits.'
+        required: false
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+        default: auto
       dry_run:
         description: 'Dry run (no actual release)'
         required: false
@@ -97,7 +99,6 @@ jobs:
     outputs:
       version: ${{ steps.calc_version.outputs.version }}
       is_rc: ${{ steps.calc_version.outputs.is_rc }}
-      version_type: ${{ steps.calc_version.outputs.version_type }}
       prev_tag: ${{ steps.calc_version.outputs.prev_tag }}
     steps:
       - name: Checkout code
@@ -108,9 +109,19 @@ jobs:
       - name: Calculate version
         id: calc_version
         run: |
-          # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./web/package.json').version")
-          echo "Current version: $CURRENT_VERSION"
+          # The latest git tag is the single source of truth for the current version.
+          # (Mirrors Fluxbase's approach; the release job keeps package.json in sync.)
+          git fetch --tags --force
+
+          LATEST_TAG=$(git tag -l 'v*' | sort -V | tail -n1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "Error: No 'v*' tags found. Cannot determine current version."
+            exit 1
+          fi
+          echo "Latest tag: $LATEST_TAG"
+
+          CURRENT_VERSION="${LATEST_TAG#v}"
+          PREV_TAG="$LATEST_TAG"
 
           RELEASE_TYPE="${{ inputs.release_type }}"
 
@@ -122,76 +133,63 @@ jobs:
             RC_SUFFIX="${BASH_REMATCH[4]}"
             RC_NUM="${BASH_REMATCH[5]:-0}"
             if [ -n "$RC_SUFFIX" ]; then
-              IS_CURRENT_RC="true"
+              LAST_IS_RC="true"
             else
-              IS_CURRENT_RC="false"
+              LAST_IS_RC="false"
             fi
           else
-            echo "Error: Cannot parse version $CURRENT_VERSION"
+            echo "Error: Cannot parse version '$CURRENT_VERSION' (from tag $LATEST_TAG)"
             exit 1
           fi
 
-          echo "Parsed: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH, RC_SUFFIX=$RC_SUFFIX, RC_NUM=$RC_NUM, IS_CURRENT_RC=$IS_CURRENT_RC"
+          echo "Parsed: MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH, RC_NUM=$RC_NUM, LAST_IS_RC=$LAST_IS_RC"
 
           IS_RC="false"
           if [ "$RELEASE_TYPE" = "rc" ]; then
             IS_RC="true"
           fi
 
-          # Get previous tag
-          PREV_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n1)
           echo "prev_tag=${PREV_TAG}" >> $GITHUB_OUTPUT
 
-          # Determine version type
-          INPUT_VERSION_TYPE="${{ inputs.version_type }}"
-          VERSION_TYPE=""
-
-          if [ "$INPUT_VERSION_TYPE" = "continue" ]; then
-            if [ "$IS_CURRENT_RC" != "true" ]; then
-              echo "Error: 'continue' requires current version to be an RC (current: $CURRENT_VERSION)"
-              echo "Use auto/patch/minor/major to create a new version instead."
-              exit 1
-            fi
-            VERSION_TYPE="continue"
-          elif [ "$INPUT_VERSION_TYPE" = "auto" ]; then
-            # Auto-detect version type from conventional commits
-            VERSION_TYPE="patch"  # default
-
-            if [ -n "$PREV_TAG" ]; then
-              # Check for breaking changes
-              if git log "$PREV_TAG"..HEAD --oneline --grep="BREAKING CHANGE:" > /dev/null 2>&1; then
-                VERSION_TYPE="major"
-              # Check for feat! (breaking change notation)
-              elif git log "$PREV_TAG"..HEAD --oneline --grep="feat!" > /dev/null 2>&1; then
-                VERSION_TYPE="major"
-              # Check for new features
-              elif git log "$PREV_TAG"..HEAD --oneline --grep="^feat:" > /dev/null 2>&1; then
-                VERSION_TYPE="minor"
-              fi
-            fi
-            echo "Auto-detected version type: $VERSION_TYPE"
-          else
-            VERSION_TYPE="$INPUT_VERSION_TYPE"
-            echo "Using manual version type: $VERSION_TYPE"
-          fi
-
-          echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
-
-          # Handle RC → RC (continue) or RC → stable (promote)
-          if [ "$IS_CURRENT_RC" = "true" ] && [ "$VERSION_TYPE" = "continue" ]; then
+          # ----------------------------------------------------------------------
+          # Version state machine. One input (release_type) drives everything.
+          #   last is RC  + rc      → continue the RC series (increment rc.N)
+          #   last is RC  + stable  → promote RC to stable (strip -rc.N)
+          #   last is stable + rc   → new version line, auto-detect bump, + -rc.1
+          #   last is stable + stable → new version line, auto-detect bump
+          # ----------------------------------------------------------------------
+          if [ "$LAST_IS_RC" = "true" ]; then
             BASE_VERSION="${MAJOR}.${MINOR}.${PATCH}"
             if [ "$IS_RC" = "true" ]; then
-              # Continue RC series: increment RC number
+              # RC → RC: continue the series
               NEW_VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
               echo "Continuing RC series: $CURRENT_VERSION → $NEW_VERSION"
             else
-              # Promote RC to stable: strip RC suffix
+              # RC → stable: promote
               NEW_VERSION="${BASE_VERSION}"
               echo "Promoting RC to stable: $CURRENT_VERSION → $NEW_VERSION"
             fi
           else
-            # Calculate base version based on version_type
-            case "$VERSION_TYPE" in
+            # Stable → release: compute a new version line.
+            # Bump level comes from the `bump` input (auto-detect by default).
+            INPUT_BUMP="${{ inputs.bump }}"
+            BUMP="$INPUT_BUMP"
+
+            if [ "$BUMP" = "auto" ]; then
+              BUMP="patch"  # default fallback
+              if git log "$PREV_TAG"..HEAD --oneline --grep="BREAKING CHANGE:" | grep -q .; then
+                BUMP="major"
+              elif git log "$PREV_TAG"..HEAD --oneline --grep="feat!" | grep -q .; then
+                BUMP="major"
+              elif git log "$PREV_TAG"..HEAD --oneline --grep="^feat:" | grep -q .; then
+                BUMP="minor"
+              fi
+              echo "Auto-detected bump: $BUMP"
+            else
+              echo "Using manual bump: $BUMP"
+            fi
+
+            case "$BUMP" in
               major)
                 BASE_VERSION="$((MAJOR + 1)).0.0"
                 ;;
@@ -202,77 +200,47 @@ jobs:
                 BASE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
                 ;;
               *)
-                echo "Error: Unknown version_type '$VERSION_TYPE'"
+                echo "Error: Unknown bump '$BUMP'"
                 exit 1
                 ;;
             esac
 
-            # Apply RC suffix if needed
             if [ "$IS_RC" = "true" ]; then
               NEW_VERSION="${BASE_VERSION}-rc.1"
             else
               NEW_VERSION="$BASE_VERSION"
             fi
-            echo "New $VERSION_TYPE release: $CURRENT_VERSION → $NEW_VERSION"
+            echo "New $BUMP release: $CURRENT_VERSION → $NEW_VERSION"
           fi
 
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "is_rc=$IS_RC" >> $GITHUB_OUTPUT
 
-  release:
+  generate-changelog:
+    name: Generate Changelog
     runs-on: ubuntu-latest
     needs: get-version
+    if: inputs.dry_run == false
     env:
-      VERSION: ${{ needs.get-version.outputs.version }}
-      IS_RC: ${{ needs.get-version.outputs.is_rc }}
       PREV_TAG: ${{ needs.get-version.outputs.prev_tag }}
+    outputs:
+      body: ${{ steps.build_body.outputs.body }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        working-directory: web
-        run: bun install --frozen-lockfile
-
-      - name: Install Fluxbase CLI
-        run: curl -fsSL https://raw.githubusercontent.com/nimbleflux/fluxbase/main/install-cli.sh | bash
-
-      - name: Prepare SvelteKit
-        working-directory: web
-        run: bunx svelte-kit sync
-
-      - name: Run unit tests
-        working-directory: web
-        run: bun run test
-
-      - name: Build app
-        working-directory: web
-        run: bun run build
-
-      - name: Display version info
-        run: |
-          echo "Version: ${{ env.VERSION }}"
-          echo "Is RC: ${{ env.IS_RC }}"
-          echo "Previous tag: ${{ env.PREV_TAG }}"
-          echo "Dry run: ${{ inputs.dry_run }}"
-
       - name: Generate AI summary
         id: ai_summary
-        if: inputs.generate_ai_notes && !inputs.dry_run
+        if: inputs.generate_ai_notes
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           # Check if API key is set
           if [ -z "$GROQ_API_KEY" ]; then
             echo "::warning::GROQ_API_KEY secret is not set, skipping AI summary"
-            echo "summary=This release includes bug fixes, improvements, and new features. See the changelog below for details." >> $GITHUB_OUTPUT
+            echo "summary=" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -321,7 +289,7 @@ jobs:
 
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "::warning::Groq API returned status $HTTP_STATUS"
-            echo "summary=This release includes bug fixes, improvements, and new features. See the changelog below for details." >> $GITHUB_OUTPUT
+            echo "summary=" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -330,14 +298,118 @@ jobs:
 
           if [ -z "$SUMMARY" ]; then
             echo "::warning::Could not extract summary from API response"
-            echo "summary=This release includes bug fixes, improvements, and new features. See the changelog below for details." >> $GITHUB_OUTPUT
+            echo "summary=" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           echo "AI Summary: $SUMMARY"
-          # Escape for use in body
-          SUMMARY=$(echo "$SUMMARY" | sed 's/\"/\\\"/g' | tr '\n' ' ')
           echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+
+      - name: Build changelog body
+        id: build_body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG="${{ env.PREV_TAG }}"
+          AI_SUMMARY="${{ steps.ai_summary.outputs.summary }}"
+
+          FEATURES=""
+          FIXES=""
+          OTHER=""
+
+          # Group commits by conventional-commit type (feat → Features, fix → Bug Fixes, else → Other)
+          FEATURES=$(git log "${PREV_TAG}"..HEAD --oneline --no-merges --grep="^feat" 2>/dev/null | sed 's/^/ - /')
+          FIXES=$(git log "${PREV_TAG}"..HEAD --oneline --no-merges --grep="^fix" 2>/dev/null | sed 's/^/ - /')
+          OTHER=$(git log "${PREV_TAG}"..HEAD --oneline --no-merges \
+            --grep="^feat" --grep="^fix" --invert-grep 2>/dev/null | sed 's/^/ - /')
+
+          # Stats: commit count + contributor count since the last tag
+          COMMIT_COUNT=$(git rev-list --count --no-merges "${PREV_TAG}"..HEAD 2>/dev/null || echo 0)
+          CONTRIBUTOR_COUNT=$(git shortlog -sne --no-merges "${PREV_TAG}"..HEAD 2>/dev/null | wc -l | tr -d ' ')
+
+          # GitHub's `merged:` qualifier needs a date; derive it from the tag's commit
+          MERGED_SINCE=$(git log -1 --format=%cI "${PREV_TAG}" 2>/dev/null)
+
+          # Assemble the changelog
+          {
+            # Optional AI lead paragraph
+            if [ -n "$AI_SUMMARY" ]; then
+              printf '%s\n\n' "$AI_SUMMARY"
+            fi
+
+            # Merged pull requests since the last tag
+            PR_LIST=$(gh pr list --state merged --base main \
+              --search "merged:>${MERGED_SINCE}" \
+              --json number,title,author \
+              --template '{{range .}} - {{.title}} (#{{.number}}) @{{.author.login}}{{"\n"}}{{end}}' 2>/dev/null || true)
+            if [ -n "$PR_LIST" ]; then
+              printf '### Merged Pull Requests\n\n%s\n' "$PR_LIST"
+            fi
+
+            if [ -n "$FEATURES" ]; then
+              printf '### Features\n\n%s\n' "$FEATURES"
+            fi
+            if [ -n "$FIXES" ]; then
+              printf '### Bug Fixes\n\n%s\n' "$FIXES"
+            fi
+            if [ -n "$OTHER" ]; then
+              printf '### Other Changes\n\n%s\n' "$OTHER"
+            fi
+
+            printf '\n**%s commits** by **%s contributors**\n\n' "$COMMIT_COUNT" "$CONTRIBUTOR_COUNT"
+            printf '**Full Changelog**: https://github.com/${{ github.repository }}/compare/%s...v%s\n' "$PREV_TAG" "${{ needs.get-version.outputs.version }}"
+          } > /tmp/changelog.md
+
+          echo "--- Generated changelog ---"
+          cat /tmp/changelog.md
+          echo "----------------------------"
+
+          BODY=$(jq -Rs . < /tmp/changelog.md)
+          echo "body=$BODY" >> $GITHUB_OUTPUT
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [get-version, generate-changelog]
+    env:
+      VERSION: ${{ needs.get-version.outputs.version }}
+      IS_RC: ${{ needs.get-version.outputs.is_rc }}
+      PREV_TAG: ${{ needs.get-version.outputs.prev_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Install Fluxbase CLI
+        run: curl -fsSL https://raw.githubusercontent.com/nimbleflux/fluxbase/main/install-cli.sh | bash
+
+      - name: Prepare SvelteKit
+        working-directory: web
+        run: bunx svelte-kit sync
+
+      - name: Run unit tests
+        working-directory: web
+        run: bun run test
+
+      - name: Build app
+        working-directory: web
+        run: bun run build
+
+      - name: Display version info
+        run: |
+          echo "Version: ${{ env.VERSION }}"
+          echo "Is RC: ${{ env.IS_RC }}"
+          echo "Previous tag: ${{ env.PREV_TAG }}"
+          echo "Dry run: ${{ inputs.dry_run }}"
 
       - name: Update package.json version
         if: inputs.dry_run == false
@@ -376,33 +448,14 @@ jobs:
 
           echo "Committed and tagged v${{ env.VERSION }}"
 
-      - name: Generate release body
-        id: release_body
-        if: inputs.dry_run == false
-        run: |
-          AI_SUMMARY="${{ steps.ai_summary.outputs.summary }}"
-          VERSION="${{ env.VERSION }}"
-
-          # Create release body
-          cat > /tmp/release-body.txt << EOF
-          $AI_SUMMARY
-
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ env.PREV_TAG }}...v$VERSION
-          EOF
-
-          # Read body and set as output (properly escaped)
-          BODY=$(cat /tmp/release-body.txt | jq -Rs .)
-          echo "body=$BODY" >> $GITHUB_OUTPUT
-
       - name: Create GitHub Release
         if: inputs.dry_run == false
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
-          name: v${{ env.VERSION }}
+          name: v${{ env.VERSION }}"
           prerelease: ${{ env.IS_RC == 'true' }}
-          body: ${{ steps.release_body.outputs.body }}
-          generate_release_notes: true
+          body: ${{ needs.generate-changelog.outputs.body }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
