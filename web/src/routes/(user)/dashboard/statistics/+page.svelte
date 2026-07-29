@@ -1095,44 +1095,50 @@
 				{ namespace: 'wayli' }
 			);
 			// Optimistically show the job in the sidebar immediately.
-			if (jobData) {
-				const jobId = (jobData as any).job_id || (jobData as any).id;
-				if (jobId) {
-					try {
-						const { addJobToStore } = await import('$lib/stores/job-store');
-						addJobToStore({
-							id: jobId,
-							job_name: 'refresh-daily-activity',
-							namespace: 'wayli',
-							status: 'pending',
-							created_at: new Date().toISOString(),
-							created_by: ''
-						});
-					} catch {
-						/* store not initialised — non-fatal */
-					}
+			const jobId = (jobData as any)?.job_id || (jobData as any)?.id;
+			if (jobId) {
+				try {
+					const { addJobToStore } = await import('$lib/stores/job-store');
+					addJobToStore({
+						id: jobId,
+						job_name: 'refresh-daily-activity',
+						namespace: 'wayli',
+						status: 'pending',
+						created_at: new Date().toISOString(),
+						created_by: ''
+					});
+				} catch {
+					/* store not initialised — non-fatal */
 				}
 			}
 			if (submitErr) throw submitErr;
 
-			// Poll for job completion before re-fetching the calendar data.
-			// The job populates the cache table; we can only read the result
-			// once it's done.
-			const jobId = (jobData as any)?.job_id || (jobData as any)?.id;
+			// Wait for the job to complete via the job store's realtime updates.
+			// The store subscribes to postgres_changes on jobs.queue and updates
+			// on every status change. We watch for the job to reach a terminal
+			// state, then re-fetch the calendar data.
 			if (jobId) {
-				let completed = false;
-				for (let i = 0; i < 120; i++) {
-					// 120 × 2s = 4 min max wait
-					await new Promise((r) => setTimeout(r, 2000));
-					const { data: jobStatus } = await fluxbase.jobs.get(jobId);
-					const status = (jobStatus as any)?.status;
-					if (status === 'completed' || status === 'failed' || status === 'cancelled') {
-						completed = status === 'completed';
-						break;
-					}
-				}
-				if (!completed) {
-					toast.error('Activity refresh job did not complete in time');
+				const { jobsStore } = await import('$lib/stores/job-store');
+				const finished = await new Promise<boolean>((resolve) => {
+					const unsub = jobsStore.subscribe((jobs) => {
+						const job = jobs.get(jobId);
+						if (job?.status === 'completed') {
+							unsub();
+							resolve(true);
+						} else if (job?.status === 'failed' || job?.status === 'cancelled') {
+							unsub();
+							resolve(false);
+						}
+					});
+					// Safety timeout: 5 minutes
+					setTimeout(() => {
+						unsub();
+						resolve(false);
+					}, 5 * 60 * 1000);
+				});
+
+				if (!finished) {
+					toast.error('Activity refresh job failed or timed out');
 					return;
 				}
 			}
