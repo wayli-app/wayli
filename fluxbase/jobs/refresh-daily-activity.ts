@@ -1,11 +1,9 @@
 /**
  * Refresh daily activity aggregation (per-user, on-demand).
  *
- * Aggregates tracker_data into per-day distance/time/points, upserting into
- * tracker_daily_activity. Uses a single server-side SQL query (via the
- * refresh-daily-activity-sql RPC) instead of fetching raw points in batches —
- * the batch approach was unreliable due to SDK pagination issues and API row
- * limits. One query, all data, no pagination.
+ * Aggregates tracker_data into per-day distance/time/points via the
+ * refresh-daily-activity-sql RPC, which runs a single INSERT...SELECT GROUP BY
+ * in Postgres. No batch fetching of raw points, no pagination issues.
  *
  * @fluxbase:require-role authenticated
  * @fluxbase:timeout 300
@@ -17,8 +15,8 @@ import type { FluxbaseClient, JobUtils } from './types';
 
 export async function handler(
 	_req: Request,
-	fluxbase: FluxbaseClient,
-	_fluxbaseService: FluxbaseClient,
+	_fluxbase: FluxbaseClient,
+	fluxbaseService: FluxbaseClient,
 	job: JobUtils
 ) {
 	const context = job.getJobContext();
@@ -30,17 +28,14 @@ export async function handler(
 	console.log(`📊 Refreshing daily activity for user ${userId}`);
 	job.reportProgress(10, 'Aggregating daily activity...');
 
-	// Use the user-scoped client — the RPC runs with auth.uid() = the user,
-	// so RLS scoping is automatic.
-	const db = fluxbase;
+	// Use the user-scoped client so the RPC's auth.uid() resolves correctly.
+	// The RPC handles the INSERT...SELECT with the user's own ID.
+	const db = _fluxbase;
 
 	try {
-		// Call the server-side aggregation RPC. It does a single INSERT...SELECT
-		// GROUP BY that processes ALL of the user's tracker_data in Postgres,
-		// avoiding the need to fetch and paginate raw points in the job.
 		const { data, error } = await (db.rpc as any).invoke(
 			'refresh-daily-activity-sql',
-			{ user_id: userId },
+			{},
 			{ namespace: 'wayli' }
 		);
 
@@ -50,7 +45,8 @@ export async function handler(
 		}
 
 		const result = (data as any)?.result ?? data;
-		const daysUpserted = (result as any)?.days_upserted ?? 0;
+		const rows = Array.isArray(result) ? result : [];
+		const daysUpserted = (rows[0] as any)?.days_upserted ?? (result as any)?.days_upserted ?? 0;
 
 		job.reportProgress(100, `Done: ${daysUpserted} days`);
 		console.log(`✅ Daily activity refreshed: ${daysUpserted} days for user ${userId}`);
