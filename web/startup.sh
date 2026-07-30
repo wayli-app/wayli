@@ -92,6 +92,9 @@ sync_all() {
     fluxbase chatbots sync --dir /app/fluxbase/chatbots --namespace wayli || failed=1
 
     echo "Syncing declarative schema..."
+    # Enable required extensions via Fluxbase API (PostGIS not in Fluxbase's bootstrap)
+    fluxbase extensions enable postgis 2>/dev/null || true
+    fluxbase extensions enable postgis_topology 2>/dev/null || true
     fluxbase schema sync --dir /app/fluxbase/schema --namespace wayli || failed=1
 
     echo "Syncing MCP tools..."

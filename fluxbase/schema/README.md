@@ -10,7 +10,7 @@ history if ever needed).
 | File | Purpose |
 |------|---------|
 | [`public.sql`](public.sql) | Desired-state schema for the `public` schema: tables, views, indexes, constraints, functions, triggers, RLS policies, and grants. Managed declaratively via `fluxbase schema sync`. |
-| [`extensions.sql`](extensions.sql) | PostGIS extensions Wayli needs but Fluxbase's bootstrap doesn't enable. pgschema can't manage extensions, so they live here and are applied separately. |
+| [`extensions.sql`](extensions.sql) | Documentation of extensions Wayli needs (PostGIS). Enabled via `fluxbase extensions enable` in the sync flow — not raw SQL. |
 | [`.generate-filter.py`](.generate-filter.py) | The script used to produce `public.sql` from a live `pgschema dump` (filtering out extension-owned objects). Re-run it when regenerating the baseline. |
 
 ## How it works

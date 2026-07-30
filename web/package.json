@@ -25,7 +25,7 @@
     "test:e2e:headed": "playwright test --headed",
     "sync:functions": "fluxbase functions sync --namespace wayli --dir ../fluxbase/functions/",
     "sync:jobs": "fluxbase jobs sync --namespace wayli --dir ../fluxbase/jobs/",
-    "sync:schema": "fluxbase schema sync --namespace wayli --dir ../fluxbase/schema/",
+    "sync:schema": "fluxbase extensions enable postgis && fluxbase extensions enable postgis_topology && fluxbase schema sync --namespace wayli --dir ../fluxbase/schema/",
     "sync:chatbots": "fluxbase chatbots sync --namespace wayli --dir ../fluxbase/chatbots/",
     "sync:rpc": "fluxbase rpc sync --namespace wayli --dir ../fluxbase/rpc/",
     "sync:rpc:reliable": "touch ../fluxbase/rpc/*.sql && for i in 1 2 3 4 5; do bun run sync:rpc; COUNT=$(docker exec fluxbase-postgres psql -U fluxbase -d fluxbase -tA -c \"SELECT count(*) FROM rpc.procedures WHERE namespace='wayli' AND tenant_id IS NOT NULL;\" 2>/dev/null || echo 0); echo \"RPCs in DB: $COUNT\"; if [ \"$COUNT\" -ge 7 ]; then echo \"All RPCs verified.\"; break; fi; echo \"Retrying in 2s (attempt $i)...\"; sleep 2; done",

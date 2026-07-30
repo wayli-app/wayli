@@ -4,15 +4,13 @@
 -- Fluxbase's bootstrap (run on every server startup) already enables:
 --   uuid-ossp, pgcrypto, pg_trgm, btree_gin, vector, postgres_fdw
 --
--- NOTE: These CREATE EXTENSION statements are now included at the top of
--- public.sql itself, because the declarative schema's direct-apply path runs
--- as the admin (superuser) user, which has the privileges to create extensions.
--- The Fluxbase SQL execute API (service_role) and `fluxbase extensions enable`
--- (requires catalog population) can't be used for this. This file is kept for
--- documentation/reference only.
+-- These are enabled via the Fluxbase extensions API (`fluxbase extensions enable`)
+-- in sync:schema / startup.sh, NOT via raw SQL. This ensures they're tracked in
+-- platform.enabled_extensions and visible in the admin UI.
 --
 -- PostGIS provides the geography/geometry types and ST_* functions used by
 -- tracker_data.location (geography) and the place_visits location indexes.
-
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS postgis_topology;
+--
+-- To enable manually:
+--   fluxbase extensions enable postgis
+--   fluxbase extensions enable postgis_topology
