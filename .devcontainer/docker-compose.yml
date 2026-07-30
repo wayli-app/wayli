@@ -21,6 +21,10 @@ services:
       FLUXBASE_SERVER: ${FLUXBASE_BASE_URL:-http://fluxbase:8080}
       FLUXBASE_TOKEN: ${FLUXBASE_SERVICE_ROLE_KEY}
       FLUXBASE_ENCRYPTION_KEY: ${FLUXBASE_ENCRYPTION_KEY}
+      # DB credentials for applying extensions.sql (psql) before schema sync
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fluxbase}
+      POSTGRES_USER: ${POSTGRES_USER:-fluxbase}
+      POSTGRES_DB: ${POSTGRES_DB:-fluxbase}
     ports:
       - '4000:4000'
     networks:

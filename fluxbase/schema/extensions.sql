@@ -11,5 +11,5 @@
 -- PostGIS provides the geography/geometry types and ST_* functions used by
 -- tracker_data.location (geography) and the place_visits location indexes.
 
-CREATE EXTENSION IF NOT EXISTS "postgis" WITH SCHEMA "public";
-CREATE EXTENSION IF NOT EXISTS "postgis_topology" WITH SCHEMA "topology";
+CREATE EXTENSION IF NOT EXISTS "postgis";
+CREATE EXTENSION IF NOT EXISTS "postgis_topology";
