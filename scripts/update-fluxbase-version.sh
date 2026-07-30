@@ -51,17 +51,17 @@ SDK_PACKAGE="@nimbleflux/fluxbase-sdk"
 SDK_REACT_PACKAGE="@nimbleflux/fluxbase-sdk-react"
 
 if grep -q "$SDK_PACKAGE" "$ROOT_DIR/web/package.json"; then
-    sed -i '' "s|\"$SDK_PACKAGE\": \"\\^[0-9a-zA-Z._-]*\"|\"$SDK_PACKAGE\": \"^$NEW_VERSION\"|g" "$ROOT_DIR/web/package.json"
-    echo "  Updated $SDK_PACKAGE to ^$NEW_VERSION"
+    sed -i '' "s|\"$SDK_PACKAGE\": \"[\\^]*[0-9a-zA-Z._-]*\"|\"$SDK_PACKAGE\": \"$NEW_VERSION\"|g" "$ROOT_DIR/web/package.json"
+    echo "  Updated $SDK_PACKAGE to $NEW_VERSION"
 else
     # Add the package to dependencies
-    sed -i '' "s|\"dependencies\": {|\"dependencies\": {\n\t\t\"$SDK_PACKAGE\": \"^$NEW_VERSION\",|g" "$ROOT_DIR/web/package.json"
-    echo "  Added $SDK_PACKAGE ^$NEW_VERSION"
+    sed -i '' "s|\"dependencies\": {|\"dependencies\": {\n\t\t\"$SDK_PACKAGE\": \"$NEW_VERSION\",|g" "$ROOT_DIR/web/package.json"
+    echo "  Added $SDK_PACKAGE $NEW_VERSION"
 fi
 
 if grep -q "$SDK_REACT_PACKAGE" "$ROOT_DIR/web/package.json"; then
-    sed -i '' "s|\"$SDK_REACT_PACKAGE\": \"\\^[0-9a-zA-Z._-]*\"|\"$SDK_REACT_PACKAGE\": \"^$NEW_VERSION\"|g" "$ROOT_DIR/web/package.json"
-    echo "  Updated $SDK_REACT_PACKAGE to ^$NEW_VERSION"
+    sed -i '' "s|\"$SDK_REACT_PACKAGE\": \"[\\^]*[0-9a-zA-Z._-]*\"|\"$SDK_REACT_PACKAGE\": \"$NEW_VERSION\"|g" "$ROOT_DIR/web/package.json"
+    echo "  Updated $SDK_REACT_PACKAGE to $NEW_VERSION"
 else
     echo "  Note: $SDK_REACT_PACKAGE not found in package.json (skipping)"
 fi
