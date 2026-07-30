@@ -65,12 +65,18 @@ by their extensions, not Wayli) and normalizes a few pgschema-dump quirks
   after Fluxbase has bootstrapped its own schemas. A fresh deploy goes through
   Fluxbase, which creates `auth`/`storage`/`platform` first.
 
-## Supported change types (verified)
+## Supported change types (verified on Fluxbase rc.6)
 
-Wayli's schema uses pgvector/PostGIS operators, so every apply runs through
-Fluxbase's **direct-apply fallback** path (pgschema's plan-based path can't
-validate extension operators in its temp schema). The fallback's capabilities
-were verified against the devcontainer:
+Schema applies use Fluxbase's **direct-apply path** (the primary path for app
+schemas). It applies the declared DDL idempotently — `CREATE IF NOT EXISTS` +
+`CREATE OR REPLACE` + `MakeSQLIdempotent` (which prepends DROP IF EXISTS for
+policies, triggers, indexes, and standalone constraints). This avoids pgschema's
+whole-schema plan diffing, which is incompatible with Fluxbase's infrastructure
+grant model (pgschema would try to revoke Fluxbase's service_role/tenant grants).
+pgschema's plan remains available for `fluxbase schema plan`/`validate` (drift
+detection), where destructive output is informational.
+
+Verified end-to-end against the devcontainer:
 
 | Change type | Works? | Notes |
 |---|---|---|
@@ -79,23 +85,16 @@ were verified against the devcontainer:
 | Function body change | ✅ | `CREATE OR REPLACE FUNCTION` |
 | View definition change | ✅ | `CREATE OR REPLACE VIEW` |
 | Policy change (USING/WITH CHECK) | ✅ | DROP IF EXISTS + CREATE |
+| Trigger re-creation | ✅ | DROP IF EXISTS + CREATE (idempotent) |
+| Index definition change | ✅ | DROP IF EXISTS + CREATE (non-concurrent) |
 | Standalone `ALTER TABLE ADD CONSTRAINT` | ✅ | DROP IF EXISTS + ADD |
+| Destructive change blocking | ✅ | DROP TABLE/COLUMN/etc. blocked unless allow_destructive=true |
+| `fluxbase schema plan`/`validate` (drift) | ✅ | Works (pgschema 1.12.1); may report infra-grant noise |
 | **Inline constraint change** (in `CREATE TABLE`) | ❌ | `CREATE TABLE IF NOT EXISTS` is a no-op when the table exists |
-| **Column type change** | ❌ | Fallback only adds columns, never alters types |
-| **Index operator/method change** | ❌ | `CREATE INDEX IF NOT EXISTS` won't replace an existing index |
-| Drop column / table | ❌ | Destructive; blocked by default and not handled by fallback |
-| `fluxbase schema validate` (drift check) | ❌ | Uses plan path; errors on extension operators |
+| **Column type change** | ❌ | Destructive; blocked (not silently ignored) |
+| Drop column / table | ❌ | Destructive; blocked by default |
 
 For change types marked ❌, apply the change via a one-off SQL migration
 (`docker exec fluxbase-postgres psql ...`) **and** update `public.sql` to match,
-so the two stay in sync. Track these limitations in the Fluxbase issues below.
-
-## Known limitations (Fluxbase follow-ups)
-
-These gaps are in Fluxbase's declarative app-schema fallback, not in `public.sql`:
-- Inline `CREATE TABLE` constraint/column-type/index changes don't propagate
-  (the fallback only handles existence + missing columns).
-- `fluxbase schema validate` and `plan` fail for schemas using extension operators.
-- `fluxbase schema sync` reports `Applied 0 change(s)` even when the fallback
-  makes changes (misleading feedback).
+so the two stay in sync.
 
