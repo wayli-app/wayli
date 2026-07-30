@@ -62,6 +62,7 @@ COPY --from=builder /app/web/static /usr/share/nginx/html/static/
 # Copy nginx config and scripts
 COPY web/nginx.conf /etc/nginx/nginx.conf
 COPY web/startup.sh web/docker-entrypoint.sh /app/
+COPY scripts/ /app/scripts/
 RUN chmod +x /app/startup.sh /app/docker-entrypoint.sh && \
     cp /app/startup.sh /usr/local/bin/startup.sh
 

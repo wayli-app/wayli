@@ -93,11 +93,9 @@ sync_all() {
 
     echo "Syncing declarative schema..."
     # Apply extensions first (PostGIS etc. — pgschema can't manage CREATE EXTENSION).
-    # The Wayli container has psql and can reach fluxbase-postgres on the network.
-    if [ -n "$FLUXBASE_DATABASE_HOST" ]; then
-        PGPASSWORD="${FLUXBASE_DATABASE_PASSWORD}" psql -h "$FLUXBASE_DATABASE_HOST" -p "${FLUXBASE_DATABASE_PORT:-5432}" -U "${FLUXBASE_DATABASE_USER:-fluxbase}" -d "${FLUXBASE_DATABASE_DATABASE:-fluxbase}" -f /app/fluxbase/schema/extensions.sql 2>/dev/null || \
-            echo "Warning: could not apply extensions.sql (may already be installed or DB unreachable)"
-    fi
+    # Uses the Fluxbase SQL execute API (no psql or direct DB access needed).
+    bash /app/scripts/apply-extensions.sh /app/fluxbase/schema/extensions.sql || \
+        echo "Warning: could not apply extensions.sql (server may not be ready)"
     fluxbase schema sync --dir /app/fluxbase/schema --namespace wayli || failed=1
 
     echo "Syncing MCP tools..."
