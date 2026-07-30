@@ -60,3 +60,42 @@ by their extensions, not Wayli) and normalizes a few pgschema-dump quirks
   owned by their extensions, created via `extensions.sql` / the extension itself.
 - **Fluxbase-owned schemas** (`auth`, `storage`, `platform`, `app`): managed by
   Fluxbase's own internal declarative schema, never by Wayli.
+- **Cross-schema dependencies:** `public.sql` references `auth.users` (e.g. FKs,
+  `auth.uid()`, `auth.jwt()`). It is **not standalone** — it can only be applied
+  after Fluxbase has bootstrapped its own schemas. A fresh deploy goes through
+  Fluxbase, which creates `auth`/`storage`/`platform` first.
+
+## Supported change types (verified)
+
+Wayli's schema uses pgvector/PostGIS operators, so every apply runs through
+Fluxbase's **direct-apply fallback** path (pgschema's plan-based path can't
+validate extension operators in its temp schema). The fallback's capabilities
+were verified against the devcontainer:
+
+| Change type | Works? | Notes |
+|---|---|---|
+| New table / view / index / trigger | ✅ | `CREATE IF NOT EXISTS` |
+| Add column to existing table | ✅ | `ALTER TABLE ADD COLUMN` via ensureMissingColumns |
+| Function body change | ✅ | `CREATE OR REPLACE FUNCTION` |
+| View definition change | ✅ | `CREATE OR REPLACE VIEW` |
+| Policy change (USING/WITH CHECK) | ✅ | DROP IF EXISTS + CREATE |
+| Standalone `ALTER TABLE ADD CONSTRAINT` | ✅ | DROP IF EXISTS + ADD |
+| **Inline constraint change** (in `CREATE TABLE`) | ❌ | `CREATE TABLE IF NOT EXISTS` is a no-op when the table exists |
+| **Column type change** | ❌ | Fallback only adds columns, never alters types |
+| **Index operator/method change** | ❌ | `CREATE INDEX IF NOT EXISTS` won't replace an existing index |
+| Drop column / table | ❌ | Destructive; blocked by default and not handled by fallback |
+| `fluxbase schema validate` (drift check) | ❌ | Uses plan path; errors on extension operators |
+
+For change types marked ❌, apply the change via a one-off SQL migration
+(`docker exec fluxbase-postgres psql ...`) **and** update `public.sql` to match,
+so the two stay in sync. Track these limitations in the Fluxbase issues below.
+
+## Known limitations (Fluxbase follow-ups)
+
+These gaps are in Fluxbase's declarative app-schema fallback, not in `public.sql`:
+- Inline `CREATE TABLE` constraint/column-type/index changes don't propagate
+  (the fallback only handles existence + missing columns).
+- `fluxbase schema validate` and `plan` fail for schemas using extension operators.
+- `fluxbase schema sync` reports `Applied 0 change(s)` even when the fallback
+  makes changes (misleading feedback).
+
