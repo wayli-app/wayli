@@ -10,7 +10,6 @@ history if ever needed).
 | File | Purpose |
 |------|---------|
 | [`public.sql`](public.sql) | Desired-state schema for the `public` schema: tables, views, indexes, constraints, functions, triggers, RLS policies, and grants. Managed declaratively via `fluxbase schema sync`. |
-| [`extensions.sql`](extensions.sql) | Documentation of extensions Wayli needs (PostGIS). Enabled via `fluxbase extensions enable` in the sync flow — not raw SQL. |
 | [`.generate-filter.py`](.generate-filter.py) | The script used to produce `public.sql` from a live `pgschema dump` (filtering out extension-owned objects). Re-run it when regenerating the baseline. |
 
 ## How it works
@@ -57,7 +56,8 @@ by their extensions, not Wayli) and normalizes a few pgschema-dump quirks
 ## What's NOT in public.sql
 
 - **Extension objects** (`spatial_ref_sys`, `geometry_columns`, PostGIS functions):
-  owned by their extensions, created via `extensions.sql` / the extension itself.
+  owned by their extensions. Extensions are enabled via `fluxbase extensions enable`
+  (PostGIS, postgis_topology) in the sync flow — not managed by `public.sql`.
 - **Fluxbase-owned schemas** (`auth`, `storage`, `platform`, `app`): managed by
   Fluxbase's own internal declarative schema, never by Wayli.
 - **Cross-schema dependencies:** `public.sql` references `auth.users` (e.g. FKs,
