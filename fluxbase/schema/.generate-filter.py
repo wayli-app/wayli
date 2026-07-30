@@ -56,6 +56,7 @@ KEEP_FUNCTION_NAMES = {
     "update_tracker_distances_enhanced", "update_tracker_distances_small_batch",
     "update_user_profiles_updated_at", "update_want_to_visit_places_updated_at",
     "update_workers_updated_at", "validate_tracking_query_limits",
+    "MAX_PLAUSIBLE_SPEED_KMH",
 }
 
 HEADER_RE = re.compile(r'^-- Name:\s*(.*?);\s*Type:\s*([A-Z_]+);')
@@ -73,9 +74,15 @@ def block_references_keep(block_text, obj_type, name):
             return True
         # else fall back to name-prefix match against kept relations
         return any(name.startswith(r + "_") for r in KEEP_RELATIONS)
-    if obj_type in ("CONSTRAINT", "TRIGGER"):
+    if obj_type == "CONSTRAINT":
         m = re.search(r'\b(?:ON|TABLE)\s+(?:public\.)?(\w+)', block_text, re.IGNORECASE)
         return bool(m and m.group(1) in KEEP_RELATIONS)
+    if obj_type == "TRIGGER":
+        # Handle both CREATE TRIGGER ... ON <table> and COMMENT ON TRIGGER <name> ON <table>.
+        # The COMMENT form has two ON clauses; we need the table (the second ON).
+        # Strategy: find all ON <word> matches and check if any is a kept relation.
+        matches = re.findall(r'\bON\s+(?:public\.)?(\w+)', block_text, re.IGNORECASE)
+        return any(t in KEEP_RELATIONS for t in matches)
     if obj_type == "POLICY":
         m = re.search(r'\bON\s+(?:public\.)?(\w+)', block_text, re.IGNORECASE)
         return bool(m and m.group(1) in KEEP_RELATIONS)
@@ -156,12 +163,20 @@ def main():
         i = j
 
     result = "\n".join(out)
-    # Normalize invalid function-level search_path markers. pgschema dumps
-    # `SET search_path = ""` (empty quoted identifier) which fails to apply in a
-    # fresh validation schema ("zero-length delimited identifier"). Replace with
-    # an explicit `public` search_path — functions resolve unqualified names
-    # against the app schema.
+    # Normalize invalid function-level search_path markers. pgschema dumps empty
+    # search_path in two forms: `SET search_path = ""` (double-quoted, empty
+    # identifier) and `SET search_path = ''` (single-quoted, empty string). Both
+    # fail to apply ("zero-length delimited identifier" or unresolved names).
+    # Replace with an explicit `public` search_path so functions resolve
+    # unqualified names against the app schema.
     result = result.replace('SET search_path = ""', 'SET search_path = public')
+    result = result.replace("SET search_path = ''", 'SET search_path = public')
+    # Unquote all-uppercase function names (e.g. "MAX_PLAUSIBLE_SPEED_KMH").
+    # pgschema dumps these quoted to preserve case, but callers reference them
+    # unquoted (lowercase via PG case-folding). A quoted "MAX_PLAUSIBLE_SPEED_KMH"
+    # and an unquoted max_plausible_speed_kmh are DIFFERENT functions in PG.
+    # Unquote CREATE FUNCTION definitions so the name folds to lowercase.
+    result = re.sub(r'CREATE OR REPLACE FUNCTION "([A-Z][A-Z0-9_]+)"', r'CREATE OR REPLACE FUNCTION \1', result)
     # Unquote PostGIS function calls. pgschema dumps these as "ST_Distance"(...)
     # (quoted), but PostGIS registers them lowercase as st_distance. A quoted
     # identifier skips case-folding, so "ST_Distance" is not found at apply time

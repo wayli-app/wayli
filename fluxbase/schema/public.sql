@@ -1741,6 +1741,19 @@ CREATE POLICY trip_media_owner_select ON trip_media FOR SELECT TO PUBLIC USING (
 CREATE POLICY trip_media_owner_update ON trip_media FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
 --
+-- Name: MAX_PLAUSIBLE_SPEED_KMH(); Type: FUNCTION; Schema: -; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION MAX_PLAUSIBLE_SPEED_KMH()
+RETURNS numeric
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $$
+    SELECT 1000::numeric;
+$$;
+
+--
 -- Name: can_comment(uuid); Type: FUNCTION; Schema: -; Owner: -
 --
 
@@ -4444,6 +4457,12 @@ CREATE OR REPLACE TRIGGER trigger_mark_setup_complete
     EXECUTE FUNCTION mark_setup_complete();
 
 --
+-- Name: trigger_mark_setup_complete; Type: TRIGGER; Schema: -; Owner: -
+--
+
+COMMENT ON TRIGGER trigger_mark_setup_complete ON user_profiles IS 'Marks setup as complete when first user profile is created';
+
+--
 -- Name: trigger_prevent_role_escalation; Type: TRIGGER; Schema: -; Owner: -
 --
 
@@ -4460,6 +4479,12 @@ CREATE OR REPLACE TRIGGER trigger_sync_user_role
     AFTER INSERT OR UPDATE OF role ON user_profiles
     FOR EACH ROW
     EXECUTE FUNCTION sync_user_role_to_auth();
+
+--
+-- Name: trigger_sync_user_role; Type: TRIGGER; Schema: -; Owner: -
+--
+
+COMMENT ON TRIGGER trigger_sync_user_role ON user_profiles IS 'Syncs user role from user_profiles.role to auth.users.role for JWT claims';
 
 --
 -- Name: trigger_update_want_to_visit_places_updated_at; Type: TRIGGER; Schema: -; Owner: -
@@ -4719,6 +4744,24 @@ CREATE OR REPLACE VIEW visible_plan_items AS
         END AS currency
    FROM trip_plan_items tpi
   WHERE can_see_trip(trip_id);
+
+--
+-- Name: MAX_PLAUSIBLE_SPEED_KMH(); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION MAX_PLAUSIBLE_SPEED_KMH() TO service_role;
+
+--
+-- Name: MAX_PLAUSIBLE_SPEED_KMH(); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION MAX_PLAUSIBLE_SPEED_KMH() TO tenant_migration_role;
+
+--
+-- Name: MAX_PLAUSIBLE_SPEED_KMH(); Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT EXECUTE ON FUNCTION MAX_PLAUSIBLE_SPEED_KMH() TO tenant_service;
 
 --
 -- Name: calculate_distances_batch_v2(p_user_id uuid, p_offset integer, p_limit integer); Type: PRIVILEGE; Schema: privileges; Owner: -
