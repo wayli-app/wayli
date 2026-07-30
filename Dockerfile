@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Fluxbase CLI for resource synchronization
 # Set FLUXBASE_CLI_VERSION to 'local' to use a pre-built CLI from ./bin/fluxbase
 # Otherwise, installs from GitHub release (e.g., 'latest' or 'v0.0.1-rc.112')
-ARG FLUXBASE_CLI_VERSION=v2026.7.3-rc.25
+ARG FLUXBASE_CLI_VERSION=v2026.7.6
 RUN curl -fsSL https://raw.githubusercontent.com/nimbleflux/fluxbase/main/install-cli.sh | bash -s -- ${FLUXBASE_CLI_VERSION}
 
 WORKDIR /app
@@ -62,6 +62,7 @@ COPY --from=builder /app/web/static /usr/share/nginx/html/static/
 # Copy nginx config and scripts
 COPY web/nginx.conf /etc/nginx/nginx.conf
 COPY web/startup.sh web/docker-entrypoint.sh /app/
+COPY scripts/ /app/scripts/
 RUN chmod +x /app/startup.sh /app/docker-entrypoint.sh && \
     cp /app/startup.sh /usr/local/bin/startup.sh
 

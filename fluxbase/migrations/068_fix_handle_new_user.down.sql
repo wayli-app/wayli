@@ -1,2 +1,0 @@
--- Revert to the old function definition (broken but matches pre-068 state)
--- No-op: the old function was broken anyway. On rollback we leave the fixed version.

@@ -1,1 +1,0 @@
--- No-op revert: the old function didn't claim settings, which was broken.

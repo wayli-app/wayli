@@ -1,1 +1,0 @@
--- No-op: dropping the view would break functionality
