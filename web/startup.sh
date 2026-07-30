@@ -92,10 +92,6 @@ sync_all() {
     fluxbase chatbots sync --dir /app/fluxbase/chatbots --namespace wayli || failed=1
 
     echo "Syncing declarative schema..."
-    # Apply extensions first (PostGIS etc. — pgschema can't manage CREATE EXTENSION).
-    # Uses the Fluxbase SQL execute API (no psql or direct DB access needed).
-    bash /app/scripts/apply-extensions.sh /app/fluxbase/schema/extensions.sql || \
-        echo "Warning: could not apply extensions.sql (server may not be ready)"
     fluxbase schema sync --dir /app/fluxbase/schema --namespace wayli || failed=1
 
     echo "Syncing MCP tools..."
