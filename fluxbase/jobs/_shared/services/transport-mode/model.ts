@@ -7,7 +7,7 @@ import {
 	SPEED_CV_THRESHOLDS
 } from './config.ts';
 import { NUM_MODES, TRANSPORT_MODES, MODE_INDEX } from './states.ts';
-import type { ModeFeatures } from './types.ts';
+import type { ModeFeatures, SegmentContext } from './types.ts';
 
 const LOG_ZERO = -Infinity;
 
@@ -49,16 +49,18 @@ function buildTransitionMatrix(): number[][] {
 	return T.map((row) => row.map(safeLog));
 }
 
-export function emissionScores(f: ModeFeatures): number[] {
+export function emissionScores(f: ModeFeatures, segCtx?: SegmentContext): number[] {
 	const scores = new Array(NUM_MODES).fill(1);
 	const PRIOR: Record<string, number> = {
 		stationary: 1.0,
 		walking: 1.0,
 		cycling: 0.9,
 		car: 1.0,
-		train: 0.45,
+		train: 0.5,
 		airplane: 0.05
 	};
+	// Per-point station proximity is on the feature (f.stationProximity).
+	const meanIntervalSec = segCtx?.meanIntervalSec ?? 0;
 	for (let m = 0; m < NUM_MODES; m++) {
 		const mode = TRANSPORT_MODES[m];
 		const limits = MODE_PHYSICAL_LIMITS[mode];
@@ -76,23 +78,38 @@ export function emissionScores(f: ModeFeatures): number[] {
 		} else {
 			s = Math.max(0.0008, 0.1 * Math.max(0, 1 - (f.speed - limits.max) / 15));
 		}
+		// Train-vs-car in the 55-115 overlap. Strong steady->train boost gated
+		// on per-point rail context (f.stationProximity, time-decayed from a
+		// station) — cruise control is equally steady, so without nearby rail
+		// context the overlap stays a balanced call leaning car.
 		if (mode === 'train' || mode === 'car') {
 			if (f.speed >= 55 && f.speed <= 115) {
+				const railBoost = 1.3 + (2.6 - 1.3) * f.stationProximity; // 1.3 .. 2.6
 				if (mode === 'train') {
-					if (f.speedCV < 0.08) s *= 2.6;
+					if (f.speedCV < 0.08) s *= railBoost;
+					else if (f.speedCV < 0.12) s *= 1.1;
 					else if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 0.6;
 				} else {
-					if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 1.2;
+					if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 1.3;
+					else if (f.speedCV > 0.12) s *= 1.15;
 				}
-				if (mode === 'train' && f.headingTurnRate > 5) s *= 0.5;
+				if (mode === 'train' && f.headingTurnRate > 4) s *= 0.5;
 			}
 		}
+		// Per-point rail anchor: nearer a station -> more train, less car.
 		if (mode === 'train' && f.atTrainStation) s *= 4.0;
+		if (mode === 'train' && f.stationProximity > 0) s *= 1 + 1.6 * f.stationProximity;
 		if (mode === 'airplane' && f.atAirport) s *= 4.0;
 		if (mode === 'car' && f.onHighway && f.speed > 50) s *= 1.8;
 		if (mode === 'stationary' && f.atVenue && f.speed < 3) s *= 2.5;
 		if (f.atTrainStation && (mode === 'car' || mode === 'cycling')) s *= 0.3;
+		if (f.stationProximity > 0 && mode === 'car' && f.speed > 30) s *= 1 - 0.4 * f.stationProximity;
 		if (f.atAirport && mode !== 'airplane' && mode !== 'stationary') s *= 0.3;
+		// Measurement-density feature: sparse -> train, dense -> car.
+		if (meanIntervalSec > 0 && f.speed >= 30 && f.speed <= 200) {
+			if (mode === 'train' && meanIntervalSec >= 30) s *= 1.25;
+			if (mode === 'car' && meanIntervalSec < 8) s *= 1.15;
+		}
 		s = s * (0.3 + 0.7 * f.accuracyWeight);
 		s *= PRIOR[mode] ?? 1;
 		scores[m] = s;
@@ -105,7 +122,7 @@ export interface ViterbiResult {
 	logProbs: number[];
 }
 
-export function viterbi(features: ModeFeatures[]): ViterbiResult {
+export function viterbi(features: ModeFeatures[], segCtx?: SegmentContext): ViterbiResult {
 	const n = features.length;
 	if (n === 0) return { path: [], logProbs: [] };
 	const logT = buildTransitionMatrix();
@@ -113,10 +130,10 @@ export function viterbi(features: ModeFeatures[]): ViterbiResult {
 	start[MODE_INDEX['stationary']] = safeLog((1 / NUM_MODES) * 1.3);
 	const dp: number[][] = Array.from({ length: n }, () => new Array(NUM_MODES).fill(LOG_ZERO));
 	const back: number[][] = Array.from({ length: n }, () => new Array(NUM_MODES).fill(0));
-	const e0 = emissionScores(features[0]);
+	const e0 = emissionScores(features[0], segCtx);
 	for (let s = 0; s < NUM_MODES; s++) dp[0][s] = start[s] + safeLog(e0[s]);
 	for (let t = 1; t < n; t++) {
-		const et = emissionScores(features[t]);
+		const et = emissionScores(features[t], segCtx);
 		for (let s = 0; s < NUM_MODES; s++) {
 			let best = LOG_ZERO;
 			let bestPrev = 0;

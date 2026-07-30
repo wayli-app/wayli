@@ -143,6 +143,7 @@
 
 	// Database Maintenance
 	let isRefreshingPlaceVisits = $state(false);
+	let isDetectingTransportModes = $state(false);
 	let isReverseGeocodingAllUsers = $state(false);
 	let isForceRegeocoding = $state(false);
 	let isFillingCountryCodes = $state(false);
@@ -864,6 +865,35 @@
 			});
 		} finally {
 			isRefreshingPlaceVisits = false;
+		}
+	}
+
+	async function detectTransportModesAllUsers() {
+		if (isDetectingTransportModes) return;
+
+		isDetectingTransportModes = true;
+		try {
+			// Runs the scheduled (all-users) transport-mode detector. The job is
+			// incremental per-user (resumes from each user's watermark, or does a
+			// full backfill on first run). Same job the daily 04:00 cron runs.
+			const { error } = await fluxbase.jobs.submit(
+				'scheduled-detect-transport-mode',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 5
+				}
+			);
+			if (error) throw error;
+
+			toast.success(t('serverAdmin.detectTransportModesQueued'));
+		} catch (error: any) {
+			console.error('Failed to queue transport-mode detection:', error);
+			toast.error(t('serverAdmin.detectTransportModesFailed'), {
+				description: error?.message
+			});
+		} finally {
+			isDetectingTransportModes = false;
 		}
 	}
 
@@ -3256,6 +3286,30 @@
 											class={`h-3.5 w-3.5 ${isFillingCountryCodes ? 'animate-spin' : ''}`}
 										/>
 										{isFillingCountryCodes ? t('serverAdmin.running') : t('serverAdmin.run')}
+									</button>
+								</div>
+
+								<!-- Re-detect Transport Modes Card -->
+								<div
+									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-card"
+								>
+									<div class="min-w-0 flex-1">
+										<span class="text-sm font-medium text-muted-foreground">
+											{t('serverAdmin.detectTransportModes')}
+										</span>
+										<p class="text-xs text-muted-foreground">
+											{t('serverAdmin.detectTransportModesDescription')}
+										</p>
+									</div>
+									<button
+										onclick={detectTransportModesAllUsers}
+										disabled={isDetectingTransportModes}
+										class="bg-primary hover:bg-primary/90 ml-3 inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										<RefreshCw
+											class={`h-3.5 w-3.5 ${isDetectingTransportModes ? 'animate-spin' : ''}`}
+										/>
+										{isDetectingTransportModes ? t('serverAdmin.running') : t('serverAdmin.run')}
 									</button>
 								</div>
 

@@ -2,12 +2,7 @@
 // Client-side statistics calculation service for processing tracker data incrementally
 
 import { fluxbase } from '$lib/fluxbase';
-import {
-	detectEnhancedMode,
-	createEnhancedModeContext,
-	type EnhancedModeContext
-} from '$lib/utils/enhanced-transport-mode';
-import { detectTransportModes, type ModeObservation } from '$lib/services/transport-mode';
+import { detectTransportModes, type ModeObservation, type DetectionContext } from '$lib/services/transport-mode';
 import { haversine } from '$lib/utils/multi-point-speed';
 import {
 	isAtTrainStation,
@@ -86,6 +81,7 @@ export interface TrackerDataPoint {
 	speed?: number; // Speed in m/s from database
 	distance?: number; // Distance in meters from previous point
 	accuracy?: number; // GPS accuracy (HDOP/radius) in meters
+	heading?: number; // Course over ground in degrees [0, 360)
 	tz_diff?: number; // Timezone difference from UTC in hours
 	type?: string;
 	class?: string;
@@ -113,7 +109,6 @@ export type ErrorCallback = (error: Error, canRetry: boolean) => void;
 export class ClientStatisticsService {
 	private fluxbase: FluxbaseClient;
 	private statistics: ClientStatistics;
-	private transportContext: EnhancedModeContext;
 	private isProcessing: boolean = false;
 	private currentOffset: number = 0;
 	private totalCount: number = 0;
@@ -122,6 +117,11 @@ export class ClientStatisticsService {
 	private calendarPoints: TrackerDataPoint[] = [];
 	private isUsingSampledData: boolean = false;
 
+	// Cross-batch continuity: tail of the previous batch's live observations,
+	// threaded into the next detectTransportModes call so journeys spanning a
+	// page boundary decode as one Viterbi segment instead of two.
+	private detectionContext: DetectionContext = {};
+
 	// Sampling configuration
 	private readonly MAX_POINTS_TARGET = 3000; // Target max points to process
 	private readonly SAMPLING_THRESHOLD = 2000; // Start sampling above this count
@@ -129,7 +129,6 @@ export class ClientStatisticsService {
 	constructor(fluxbaseClient?: FluxbaseClient) {
 		this.fluxbase = fluxbaseClient || fluxbase;
 		this.statistics = this.initializeStatistics();
-		this.transportContext = this.initializeTransportContext();
 	}
 
 	/**
@@ -180,13 +179,6 @@ export class ClientStatisticsService {
 				geocoding_provider: 'database'
 			}
 		};
-	}
-
-	/**
-	 * Initialize transport mode detection context
-	 */
-	private initializeTransportContext(): EnhancedModeContext {
-		return createEnhancedModeContext();
 	}
 
 	/**
@@ -353,10 +345,10 @@ export class ClientStatisticsService {
 
 		this.isProcessing = true;
 		this.statistics = this.initializeStatistics();
-		this.transportContext = this.initializeTransportContext();
 		this.currentOffset = 0;
 		this.isUsingSampledData = false;
 		this.rawDataPoints = [];
+		this.detectionContext = {};
 
 		try {
 			// Get total count first
@@ -507,6 +499,7 @@ export class ClientStatisticsService {
 				speed,
 				distance,
 				accuracy,
+				heading,
 				tz_diff,
 				transport_mode,
 				detection_reason,
@@ -577,21 +570,34 @@ export class ClientStatisticsService {
 			const coords = this.extractCoordinates(point);
 			if (!coords) return;
 			liveIndices.push(index);
-			liveObservations.push({
-				timestamp: new Date(point.recorded_at).getTime(),
-				lat: coords[1],
-				lng: coords[0],
-				speed: velocities[index],
-				heading: null, // tracker_data.heading isn't selected by the page query
-				accuracy: point.accuracy ?? null,
-				geocode: this.createGeocodeFeature(point)
-			});
+				liveObservations.push({
+					timestamp: new Date(point.recorded_at).getTime(),
+					lat: coords[1],
+					lng: coords[0],
+					speed: velocities[index],
+					heading: point.heading ?? null,
+					accuracy: point.accuracy ?? null,
+					geocode: this.createGeocodeFeature(point)
+				});
 		});
 
 		// Run the HMM over all live points in the batch at once. They're in
 		// chronological order (the query orders by recorded_at asc), so
 		// gap-segmentation inside detectTransportModes handles segment boundaries.
-		const liveDecisions = detectTransportModes(liveObservations);
+		// `detectionContext` carries the previous batch's tail so journeys spanning
+		// a page boundary decode coherently (no car/train flip at the seam).
+		const liveDecisions = detectTransportModes(liveObservations, this.detectionContext);
+
+		// Remember the tail of this batch's live observations for the next call.
+		// Only retain live points (stored-mode points already have an authoritative
+		// mode and don't need continuity seeding). If there are none, keep the
+		// previous context so a fully-stored page doesn't wipe the live tail.
+		if (liveObservations.length > 0) {
+			const TAIL = 6;
+			this.detectionContext = {
+				prevObs: liveObservations.slice(-TAIL)
+			};
+		}
 
 		// 3. Build the processed batch: stored modes pass through; live points
 		//    get their HMM decision; points we couldn't geocode fall back to the
@@ -611,24 +617,30 @@ export class ClientStatisticsService {
 					transportMode = d.mode;
 					detectionReason = d.reason;
 				} else if (velocities[index] !== undefined) {
-					// Last-resort fallback (no coords / decode failed): single-point
-					// legacy detection so the point isn't left as 'unknown'.
-					const coords = this.extractCoordinates(point);
-					if (coords) {
-						const { mode, reason } = detectEnhancedMode(
-							coords[1],
-							coords[0],
-							coords[1],
-							coords[0],
-							1,
-							this.createGeocodeFeature(point),
-							this.transportContext,
-							velocities[index] / 3.6,
-							new Date(point.recorded_at).getTime(),
-							point.accuracy
-						);
-						transportMode = mode;
-						detectionReason = reason;
+					// Last-resort fallback: the point had no usable coordinates so it
+					// wasn't included in the batch-level Viterbi decode. Decode it on
+					// its own via the HMM's emission-only single-point path (the same
+					// path detectTransportModes uses for 1-point segments). Using the
+					// HMM here keeps the mode vocabulary coherent and avoids the
+					// legacy per-point rule engine, which flickers car↔train.
+					const ts = new Date(point.recorded_at).getTime();
+					const [decision] = detectTransportModes(
+						[
+							{
+								timestamp: ts,
+								lat: 0,
+								lng: 0,
+								speed: velocities[index],
+								heading: point.heading ?? null,
+								accuracy: point.accuracy ?? null,
+								geocode: this.createGeocodeFeature(point)
+							}
+						],
+						this.detectionContext
+					);
+					if (decision) {
+						transportMode = decision.mode;
+						detectionReason = decision.reason;
 					}
 				}
 			}
@@ -1036,7 +1048,6 @@ export class ClientStatisticsService {
 	 */
 	reset(): void {
 		this.statistics = this.initializeStatistics();
-		this.transportContext = this.initializeTransportContext();
 		this.currentOffset = 0;
 		this.totalCount = 0;
 		this.isProcessing = false;

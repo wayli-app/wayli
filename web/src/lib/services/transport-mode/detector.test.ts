@@ -2,7 +2,7 @@
 
 import { describe, test, expect } from 'vitest';
 import { detectTransportModes } from './detector';
-import { SEGMENT_GAP_MS } from './segmentation';
+import { SEGMENT_GAP_MS, segmentByGaps } from './segmentation';
 import type { ModeObservation } from './types';
 
 const SEC = 1000;
@@ -28,6 +28,18 @@ function run(
 		accuracy: 15,
 		geocode: null
 	}));
+}
+
+/**
+ * A geocode feature whose addendum marks it as a train station (matches the
+ * `osm.railway = 'station'` tag isAtTrainStation checks for).
+ */
+function stationGeocode() {
+	return {
+		type: 'Feature',
+		geometry: { type: 'Point', coordinates: [4, 52] },
+		properties: { addendum: { osm: { railway: 'station' } } }
+	} as ModeObservation['geocode'];
 }
 
 describe('detectTransportModes', () => {
@@ -73,17 +85,24 @@ describe('detectTransportModes', () => {
 		expect(decisions.every((d) => d.mode === 'car' || d.mode === 'train')).toBe(true);
 	});
 
-	test('low coefficient-of-variation + straight heading favours train in the overlap', () => {
-		// Rock-steady 100 km/h, dead-straight heading → train-like. With car-like
-		// CV this would be car; the CV signal is the discriminator.
+	test('low coefficient-of-variation + straight heading without station context is a balanced call', () => {
+		// Rock-steady 100 km/h, dead-straight heading. Pure speed-steadiness is
+		// NOT a reliable train signal on its own (cruise-control highway driving
+		// is equally steady), so without station/rail context the model no longer
+		// confidently calls train here — it's a car/train coin-flip. The strong
+		// train signal requires corroborating rail context (see the contagion
+		// test). This pins that the run resolves cleanly to car or train (never
+		// walking/airplane) and stays coherent, without over-claiming train.
 		const obs = run(Array(10).fill(100), {
 			headings: Array(10).fill(0) // perfectly straight
 		});
 		const decisions = detectTransportModes(obs);
-		const train = decisions.filter((d) => d.mode === 'train').length;
-		const car = decisions.filter((d) => d.mode === 'car').length;
-		// At least a strong train presence; the HMM should not be all-car here.
-		expect(train).toBeGreaterThan(car);
+		const modes = decisions.map((d) => d.mode);
+		// Every point is car or train — never an unrelated mode.
+		expect(modes.every((m) => m === 'car' || m === 'train')).toBe(true);
+		// No oscillation within the steady run: it settles on one mode.
+		const distinct = new Set(modes);
+		expect(distinct.size).toBe(1);
 	});
 
 	test('stationary points decode to stationary', () => {
@@ -131,5 +150,141 @@ describe('detectTransportModes', () => {
 		expect(decisions).toHaveLength(1);
 		expect(decisions[0].mode).toBe('walking');
 		expect(decisions[0].confidence).toBeGreaterThan(0);
+	});
+
+	// ─── Regression tests for the anti-flipping / rework work ────────────────
+
+	test('a garbage 481,402 km/h speed spike is clamped and does not flip the run', () => {
+		// The DB has recorded values up to 481402.9 km/h. Feature extraction
+		// clamps to MAX_PLAUSIBLE_SPEED_KMH; a single such spike must not poison
+		// the CV window or flip a steady walking run.
+		const obs = run([5, 5, 5, 481402, 5, 5, 5]);
+		const decisions = detectTransportModes(obs);
+		const walking = decisions.filter((d) => d.mode === 'walking').length;
+		expect(walking).toBeGreaterThanOrEqual(5);
+		expect(decisions.some((d) => d.mode === 'airplane')).toBe(false);
+	});
+
+	test('a station visit mid-journey makes the whole moving segment lean train (contagion)', () => {
+		// Overlap-band speed (95 km/h) that speed alone would call car. The single
+		// station point (index 3) used to boost only that point; segment contagion
+		// should now pull the whole moving leg toward train.
+		const obs = run([95, 95, 95, 95, 95, 95, 95]);
+		obs[3].geocode = stationGeocode();
+		const decisions = detectTransportModes(obs);
+		const train = decisions.filter((d) => d.mode === 'train').length;
+		const car = decisions.filter((d) => d.mode === 'car').length;
+		// Without contagion the per-point station boost alone isn't enough to
+		// dominate; with contagion the segment should resolve to train.
+		expect(train).toBeGreaterThan(car);
+		expect(train).toBeGreaterThanOrEqual(4);
+	});
+
+	test('sparse sampling in the overlap band biases toward train (density feature)', () => {
+		// Two identical steady 90 km/h runs; one dense (10s), one sparse (45s).
+		// The sparse one should have at least as strong a train presence as the
+		// dense one — density is the car signal here.
+		const dense = run([90, 90, 90, 90, 90, 90, 90], { spacingMs: 10 * SEC });
+		const sparse = run([90, 90, 90, 90, 90, 90, 90], { spacingMs: 45 * SEC });
+		const denseTrain = detectTransportModes(dense).filter((d) => d.mode === 'train').length;
+		const sparseTrain = detectTransportModes(sparse).filter((d) => d.mode === 'train').length;
+		expect(sparseTrain).toBeGreaterThanOrEqual(denseTrain);
+	});
+
+	test('cross-batch continuity keeps one journey coherent across a page boundary', () => {
+		// A steady overlap-band journey split into two "pages". Without context,
+		// each page decodes independently and the seam can disagree. With the
+		// context tail threaded, the second page is decoded with the first page's
+		// tail prepended so the whole journey decodes as one segment.
+		const page1 = run([90, 90, 90, 90], { startTs: 0 });
+		const page2 = run([90, 90, 90, 90], { startTs: 4 * 10 * SEC });
+		const combined = detectTransportModes([...page1, ...page2]);
+
+		// Now simulate the paged decode: page1 alone, then page2 with page1's tail.
+		const dec1 = detectTransportModes(page1);
+		const dec2 = detectTransportModes(page2, { prevObs: page1.slice(-6) });
+
+		// The stitched result must match the combined decode for page2's points.
+		const combinedPage2 = combined.slice(page1.length);
+		expect(dec2.map((d) => d.mode)).toEqual(combinedPage2.map((d) => d.mode));
+		expect(dec1).toHaveLength(page1.length);
+		expect(dec2).toHaveLength(page2.length);
+	});
+
+	test('a sustained steady overlap journey with a blip and page break does not oscillate', () => {
+		// A long steady 100 km/h run, straight heading, split across two pages
+		// with a single speed blip. Speed/CV/heading alone can't tell steady
+		// highway from steady rail, so the mode is allowed to settle to either
+		// car OR train — but the anti-flip guarantees are: (1) it must NOT
+		// oscillate car->train->car within the run, (2) the lone blip must NOT
+		// escalate the journey to airplane, and (3) the page seam must stay
+		// coherent (no isolated different mode at the boundary).
+		const speeds1 = [100, 100, 100, 100, 100, 100, 130]; // long steady, then a blip
+		const speeds2 = [100, 100, 100, 100, 100, 100, 100];
+		const page1 = run(speeds1, { headings: speeds1.map(() => 0), startTs: 0 });
+		const page2 = run(speeds2, { headings: speeds2.map(() => 0), startTs: speeds1.length * 10 * SEC });
+		const dec1 = detectTransportModes(page1);
+		const dec2 = detectTransportModes(page2, { prevObs: page1.slice(-6) });
+		const modes = [...dec1, ...dec2].map((d) => d.mode);
+
+		// (1) No oscillation: only car and/or train appear, and the dominant
+		// mode covers the large majority of the run.
+		const distinct = new Set(modes);
+		for (const m of distinct) expect(['car', 'train']).toContain(m);
+		const car = modes.filter((m) => m === 'car').length;
+		const train = modes.filter((m) => m === 'train').length;
+		expect(Math.max(car, train)).toBeGreaterThanOrEqual(11);
+		// (2) A 130 km/h blip must never become airplane.
+		expect(modes.some((m) => m === 'airplane')).toBe(false);
+		// (3) The seam (last point of page1 vs first of page2) is coherent:
+		// they don't differ wildly just because they were decoded separately.
+		expect(dec1.at(-1)?.mode).toBe(dec2[0]?.mode);
+	});
+});
+
+describe('segmentByGaps', () => {
+	/** Minimal timestamped item for segmentByGaps (it only needs `timestamp`). */
+	function tsAt(ms: number[]): { timestamp: number }[] {
+		return ms.map((m) => ({ timestamp: m }));
+	}
+
+	test('a single contiguous run is one segment', () => {
+		const segs = segmentByGaps(tsAt([0, 10, 20, 30]));
+		expect(segs).toEqual([[0, 1, 2, 3]]);
+	});
+
+	test('a >SEGMENT_GAP_MS gap splits into separate segments', () => {
+		// 0..30 contiguous, then a 10-min gap, then 70..90 contiguous.
+		const segs = segmentByGaps(tsAt([0, 10, 20, 30, 30 + SEGMENT_GAP_MS + 1, 70, 90]));
+		expect(segs).toEqual([
+			[0, 1, 2, 3],
+			[4, 5, 6]
+		]);
+	});
+
+	test('a gap of exactly SEGMENT_GAP_MS does NOT split (split is strict >)', () => {
+		const segs = segmentByGaps(tsAt([0, SEGMENT_GAP_MS]));
+		expect(segs).toEqual([[0, 1]]);
+	});
+
+	test('returns the same boundaries the detector uses', () => {
+		// Two walking segments separated by a >5min gap must decode as two
+		// independent segments — segmentByGaps must report exactly that split,
+		// matching detectTransportModes' internal segmentation.
+		const walk1 = run([5, 5, 5, 5], { startTs: 0 });
+		const walk2 = run([5, 5, 5, 5], { startTs: 10 * MIN + SEGMENT_GAP_MS + 1 });
+		const obs = [...walk1, ...walk2];
+		const segs = segmentByGaps(obs);
+		expect(segs).toHaveLength(2);
+		expect(segs[0]).toEqual([0, 1, 2, 3]);
+		expect(segs[1]).toEqual([4, 5, 6, 7]);
+	});
+
+	test('empty input returns no segments', () => {
+		expect(segmentByGaps([])).toEqual([]);
+	});
+
+	test('a single item is a single one-element segment', () => {
+		expect(segmentByGaps(tsAt([42]))).toEqual([[0]]);
 	});
 });

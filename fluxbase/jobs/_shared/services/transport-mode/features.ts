@@ -8,6 +8,18 @@ import {
 	isOnHighwayOrMotorway,
 	getVenueTypeFromAddendum
 } from './geocode-features.ts';
+import { MAX_PLAUSIBLE_SPEED_KMH } from './config.ts';
+
+/**
+ * Clamp a raw speed to a plausible range. Negative speeds and absurd outliers
+ * (the DB has recorded up to ~481000 km/h from the distance trigger) are pulled
+ * to the airplane band ceiling so a single glitch can't poison a CV window or
+ * dominate an emission. See MAX_PLAUSIBLE_SPEED_KMH.
+ */
+function clampSpeed(speed: number): number {
+	if (!Number.isFinite(speed) || speed < 0) return 0;
+	return Math.min(speed, MAX_PLAUSIBLE_SPEED_KMH);
+}
 
 function headingDelta(a: number, b: number): number {
 	let d = ((a - b + 540) % 360) - 180;
@@ -49,19 +61,20 @@ export function extractFeatures(observations: ModeObservation[], cvWindow = 5): 
 		const half = Math.floor(cvWindow / 2);
 		const lo = Math.max(0, i - half);
 		const hi = Math.min(n, i + half + 1);
-		const window = observations.slice(lo, hi).map((o) => Math.max(0, o.speed));
+		const window = observations.slice(lo, hi).map((o) => clampSpeed(o.speed));
 		const speedCV = coefficientOfVariation(window);
 		const prev = i > 0 ? observations[i - 1] : obs;
 		const headingTurnRate = turnRateDegPerSec(prev, obs);
 		features[i] = {
-			speed: Math.max(0, obs.speed),
+			speed: clampSpeed(obs.speed),
 			speedCV,
 			headingTurnRate,
 			atTrainStation: isAtTrainStation(obs.geocode),
 			atAirport: isAtAirport(obs.geocode),
 			onHighway: isOnHighwayOrMotorway(obs.geocode),
 			atVenue: getVenueTypeFromAddendum(obs.geocode) !== null,
-			accuracyWeight: accuracyWeight(obs.accuracy)
+			accuracyWeight: accuracyWeight(obs.accuracy),
+			stationProximity: 0
 		};
 	}
 	return features;
