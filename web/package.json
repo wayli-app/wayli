@@ -25,7 +25,6 @@
     "test:e2e:headed": "playwright test --headed",
     "sync:functions": "fluxbase functions sync --namespace wayli --dir ../fluxbase/functions/",
     "sync:jobs": "fluxbase jobs sync --namespace wayli --dir ../fluxbase/jobs/",
-    "sync:migrations": "fluxbase migrations sync --namespace wayli --dir ../fluxbase/migrations/",
     "sync:schema": "fluxbase schema sync --namespace wayli --dir ../fluxbase/schema/",
     "sync:chatbots": "fluxbase chatbots sync --namespace wayli --dir ../fluxbase/chatbots/",
     "sync:rpc": "fluxbase rpc sync --namespace wayli --dir ../fluxbase/rpc/",

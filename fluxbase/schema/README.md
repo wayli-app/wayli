@@ -1,8 +1,9 @@
 # Wayli Declarative Database Schema
 
 This directory is the **single source of truth** for Wayli's application database
-schema (the `public` schema). It replaces the previous 80 imperative migration
-files (now archived under `fluxbase/migrations/.archive/`).
+schema (the `public` schema). It replaces the previous imperative migration
+files, which have been removed from the tree (they remain available in Git
+history if ever needed).
 
 ## Files
 
