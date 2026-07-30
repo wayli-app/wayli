@@ -316,6 +316,17 @@ fluxbase:
     public_base_url: 'https://flux.your-domain.com'
     debug: false
 
+    ## Declarative app schema: apply Wayli's public.sql on server startup.
+    ## Opt-in Fluxbase feature; the schema is synced via `fluxbase schema sync`.
+    database:
+      declarative_app_schema:
+        enabled: true
+        schema: public
+        namespaces:
+          - wayli
+        on_startup: true
+        allow_destructive: false
+
   # ## Existing secret for sensitive configuration
   # ## Should contain keys: jwt-secret, setup-token, db-password, smtp-password, etc.
   existingSecret: ""

@@ -91,8 +91,8 @@ sync_all() {
     echo "Syncing chatbots..."
     fluxbase chatbots sync --dir /app/fluxbase/chatbots --namespace wayli || failed=1
 
-    echo "Syncing migrations..."
-    fluxbase migrations sync --dir /app/fluxbase/migrations --namespace wayli || failed=1
+    echo "Syncing declarative schema..."
+    fluxbase schema sync --dir /app/fluxbase/schema --namespace wayli || failed=1
 
     echo "Syncing MCP tools..."
     fluxbase mcp tools sync --dir /app/fluxbase/mcp-tools --namespace wayli || failed=1

@@ -61,7 +61,7 @@ services:
 
   # Fluxbase API
   fluxbase:
-    image: ghcr.io/nimbleflux/fluxbase:2026.7.4-rc.1
+    image: ghcr.io/nimbleflux/fluxbase:2026.7.4-rc.4
     container_name: fluxbase
     ports:
       - '8080:8080'
@@ -72,6 +72,10 @@ services:
       FLUXBASE_DATABASE_USER: ${POSTGRES_USER:-fluxbase}
       FLUXBASE_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-fluxbase}
       FLUXBASE_DATABASE_SSL_MODE: disable
+
+      # Declarative app schema: apply Wayli's public.sql on startup (opt-in Fluxbase feature)
+      FLUXBASE_DATABASE_DECLARATIVE_APP_SCHEMA_ENABLED: 'true'
+      FLUXBASE_DATABASE_DECLARATIVE_APP_SCHEMA_NAMESPACES: '[wayli]'
 
       # Required secrets (generate with: ./scripts/quick-start.sh)
       FLUXBASE_AUTH_JWT_SECRET: ${FLUXBASE_AUTH_JWT_SECRET}
