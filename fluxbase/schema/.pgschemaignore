@@ -1,0 +1,22 @@
+# Wayli .pgschemaignore
+#
+# Suppresses schema-diff noise on objects that pgschema sees in the live database
+# but that are NOT managed by Wayli's declarative public.sql:
+#
+# 1. PostGIS extension types (geometry_dump, valid_detail) — owned by the postgis
+#    extension, created via fluxbase/schema/extensions.sql, not declaratively.
+# 2. Privileges granted to Fluxbase-managed roles (tenant_migration_role,
+#    tenant_service) and base-table owner grants (fluxbase, service_role) that
+#    Fluxbase's multi-tenancy/bootstrap adds — Wayli's RLS grants (to
+#    authenticated/anon) are still managed; these tenant/owner roles are not.
+#
+# This keeps `fluxbase schema plan`/`validate` clean (no false drift) while
+# Wayli's public.sql remains the source of truth for structure + RLS policies.
+
+[types]
+patterns = ["geometry_dump", "valid_detail"]
+
+[privileges]
+# Ignore grants to Fluxbase-managed tenant/owner roles on all objects.
+# Wayli still manages grants to authenticated/anon (its RLS model).
+patterns = ["tenant_migration_role", "tenant_service", "fluxbase"]
