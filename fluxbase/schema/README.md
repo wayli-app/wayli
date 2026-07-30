@@ -65,7 +65,7 @@ by their extensions, not Wayli) and normalizes a few pgschema-dump quirks
   after Fluxbase has bootstrapped its own schemas. A fresh deploy goes through
   Fluxbase, which creates `auth`/`storage`/`platform` first.
 
-## Supported change types (verified on Fluxbase rc.6)
+## Supported change types (verified)
 
 Schema applies use Fluxbase's **direct-apply path** (the primary path for app
 schemas). It applies the declared DDL idempotently — `CREATE IF NOT EXISTS` +
