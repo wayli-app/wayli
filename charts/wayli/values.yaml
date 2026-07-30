@@ -130,8 +130,12 @@ web:
     # maxUnavailable: 1
 
   ## Liveness and readiness probes
+  ## Enabled: ensures the old Fluxbase pod stays in Service endpoints until the
+  ## new one is fully ready (passes /health after bootstrap + schema apply),
+  ## so Wayli's syncResources init container always reaches the correct version
+  ## during rolling updates.
   livenessProbe:
-    enabled: false
+    enabled: true
     httpGet:
       path: /health
       port: http
@@ -142,7 +146,7 @@ web:
     successThreshold: 1
 
   readinessProbe:
-    enabled: false
+    enabled: true
     httpGet:
       path: /health
       port: http
