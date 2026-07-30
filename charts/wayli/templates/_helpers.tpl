@@ -299,8 +299,11 @@ Init container for syncing Fluxbase resources using CLI
       set -e
       echo "Syncing Fluxbase resources..."
       echo "Using Fluxbase version $(fluxbase version)"
-      echo "Syncing database migrations..."
-      fluxbase migrations sync --dir /app/fluxbase/migrations --namespace wayli
+      echo "Enabling required extensions..."
+      fluxbase extensions enable postgis 2>/dev/null || true
+      fluxbase extensions enable postgis_topology 2>/dev/null || true
+      echo "Syncing declarative schema..."
+      fluxbase schema sync --dir /app/fluxbase/schema --namespace wayli
       echo "Syncing RPC functions..."
       fluxbase rpc sync --dir /app/fluxbase/rpc --namespace wayli
       echo "Syncing edge functions..."
