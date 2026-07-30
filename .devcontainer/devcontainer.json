@@ -62,6 +62,6 @@
 			"onAutoForward": "notify"
 		}
 	},
-	"postCreateCommand": "bash -c 'curl -fsSL https://bun.sh/install | bash && echo \"export BUN_INSTALL=$HOME/.bun\" >> ~/.bashrc && echo \"export PATH=$BUN_INSTALL/bin:$PATH\" >> ~/.bashrc && export BUN_INSTALL=$HOME/.bun && export PATH=$BUN_INSTALL/bin:$PATH && cd /workspace/web && bun install && bun run sync:all || (sleep 3 && bun run sync:all) || echo \"Fluxbase sync skipped (service may not be ready)\"'",
+	"postCreateCommand": "bash -c 'cd /workspace/web && bun install && bun run sync:all || (echo \"Retrying sync in 5s...\" && sleep 5 && bun run sync:all) || echo \"Fluxbase sync skipped (service may not be ready)\"'",
 	"remoteUser": "node"
 }
