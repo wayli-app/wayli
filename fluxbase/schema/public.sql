@@ -2557,7 +2557,16 @@ $$;
 
 COMMENT ON FUNCTION handle_new_user() IS 'Trigger function to create user_profiles and user_preferences entries for new users.
     First user is automatically assigned admin role using atomic row-level locking to prevent race conditions.
-    Uses empty search_path for security (SECURITY DEFINER function).';
+    Uses empty search_path for security (SECURITY DEFINER function).
+
+    NOTE: This function is currently DEAD CODE. The matching CREATE TRIGGER on
+    auth.users cannot live in public.sql because Fluxbase owns and re-applies
+    the auth schema on every restart (wiping triggers Wayli attaches to
+    auth.users). Profile creation is instead handled app-side by
+    ensureUserProfile() in web/src/lib/services/session/user-profile-bootstrap.ts,
+    called from the signup, signin, and OAuth-callback flows. Kept here as
+    documentation of the original intent and as a reference for the first-user
+    admin assignment logic.';
 
 --
 -- Name: is_current_user_admin(); Type: FUNCTION; Schema: -; Owner: -
@@ -2876,6 +2885,12 @@ BEGIN
     -- Must check user_profiles (not auth.users) because the first auth.users
     -- row is being inserted RIGHT NOW and hasn't committed yet.
     IF NOT EXISTS (SELECT 1 FROM user_profiles LIMIT 1) THEN
+        -- BUG (in dead code): 'instance_admin' is NOT in the user_profiles_role_check
+        -- constraint (role IN ('user','admin','moderator','reader')) and would be
+        -- rejected. The correct value is 'admin' (matches is_current_user_admin,
+        -- sync_user_role_to_auth, and all RLS policies). This trigger is unwired
+        -- (Fluxbase wipes auth.users triggers on restart); first-user-admin is
+        -- now handled app-side by ensureUserProfile(). Do not resurrect as-is.
         NEW.role := 'instance_admin';
     END IF;
     RETURN NEW;

@@ -7,6 +7,7 @@
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { sessionManager } from '$lib/services/session';
+	import { ensureUserProfile } from '$lib/services/session/user-profile-bootstrap';
 	import TwoFactorVerify from '$lib/components/TwoFactorVerify.svelte';
 
 	import { goto } from '$app/navigation';
@@ -189,24 +190,22 @@
 				}
 			}, 100);
 
-			// Check onboarding status
-			console.log('🔍 [SignIn] Checking user profile for user:', user.id);
-			const { data: profile, error: profileError } = await fluxbase
-				.from<Record<string, any>>('user_profiles')
-				.select('onboarding_completed, first_login_at')
-				.eq('id', user.id)
-				.single();
+			// Check onboarding status. ensureUserProfile creates the row if it's
+			// missing (e.g. for users whose profile was lost when the DB was
+			// reset, or who signed up while the auth.users trigger was absent).
+			console.log('🔍 [SignIn] Ensuring user profile for user:', user.id);
+			const profile = await ensureUserProfile({ userId: user.id });
 
-			if (profileError) {
-				console.error('❌ [SignIn] Error fetching profile:', profileError);
-				// Profile fetch failed - redirect to dashboard anyway
+			if (!profile) {
+				console.error('❌ [SignIn] Could not ensure profile');
+				// Profile fetch/create failed - redirect to dashboard anyway
 				toast.success(t('auth.signedInSuccessfully'));
-				console.log('🔄 [SignIn] Profile query failed, redirecting to dashboard');
+				console.log('🔄 [SignIn] Profile ensure failed, redirecting to dashboard');
 				goto('/dashboard/statistics', { replaceState: true });
 				return;
 			}
 
-			console.log('✅ [SignIn] Profile fetched:', profile);
+			console.log('✅ [SignIn] Profile ready:', profile);
 
 			// If first-time user, redirect to onboarding
 			if (!profile?.onboarding_completed) {
