@@ -22,6 +22,7 @@
 	import { get } from 'svelte/store';
 	import { aiDrawer, type AiPageContext, type PlanSuggestion } from '$lib/stores/ai-drawer';
 	import { fade, slide } from 'svelte/transition';
+	import { focusTrap } from '$lib/utils/focus-trap';
 
 	let t = $derived($translate);
 
@@ -707,6 +708,7 @@
 
 	<!-- Drawer -->
 	<aside
+		use:focusTrap={true}
 		class="bg-card border-border fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l shadow-2xl md:w-[28rem] lg:w-[32rem]"
 		transition:slide={{ duration: 250 }}
 	>
@@ -721,7 +723,7 @@
 			<div class="flex items-center gap-1">
 				<button
 					type="button"
-					class="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5"
+					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.conversations')}
 					onclick={() => (showConversationList = !showConversationList)}
 				>
@@ -729,7 +731,7 @@
 				</button>
 				<button
 					type="button"
-					class="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5"
+					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.share')}
 					onclick={openSharePanel}
 				>
@@ -737,7 +739,7 @@
 				</button>
 				<button
 					type="button"
-					class="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5"
+					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.newConversation')}
 					onclick={startNewConversation}
 				>
@@ -745,7 +747,7 @@
 				</button>
 				<button
 					type="button"
-					class="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5"
+					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('common.actions.close')}
 					onclick={() => aiDrawer.close()}
 				>

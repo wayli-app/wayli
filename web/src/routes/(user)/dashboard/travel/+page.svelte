@@ -959,7 +959,7 @@
 {:else}
 	<div class="space-y-6">
 		<!-- Header -->
-		<div class="flex items-center justify-between">
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<div class="flex items-center gap-3">
 				<Globe class="text-primary h-6 w-6" />
 				<div>
@@ -974,31 +974,33 @@
 					</p>
 				</div>
 			</div>
-			<div class="flex items-center gap-2">
+			<div class="flex flex-wrap items-center gap-2">
 				{#if publicJournalUrl}
 					<a
 						href={publicJournalUrl}
 						target="_blank"
 						rel="noopener"
+						aria-label="Public journal"
 						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
 					>
 						<ExternalLink class="h-3.5 w-3.5" />
-						Public
+						<span class="hidden sm:inline">Public</span>
 					</a>
 				{/if}
 				<button
 					type="button"
 					onclick={() => (showGenerationModal = true)}
 					disabled={isGenerating}
+					aria-label="Auto-detect trips"
 					class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
 					title="Detect new trips from your location data"
 				>
 					{#if isGenerating}
 						<Loader2 class="h-3.5 w-3.5 animate-spin" />
-						Generating...
+						<span class="hidden sm:inline">Generating...</span>
 					{:else}
 						<Sparkles class="h-3.5 w-3.5" />
-						Auto-detect Trips
+						<span class="hidden sm:inline">Auto-detect Trips</span>
 					{/if}
 				</button>
 				{#if trips.length > 0}
@@ -1006,6 +1008,7 @@
 						type="button"
 						onclick={recalculateAllDistances}
 						disabled={isRecalculating}
+						aria-label="Refresh all"
 						class="border-border text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
 						title="Recalculate distance for all trips"
 					>
@@ -1014,7 +1017,7 @@
 						{:else}
 							<RefreshCw class="h-3.5 w-3.5" />
 						{/if}
-						Refresh All
+						<span class="hidden sm:inline">Refresh All</span>
 					</button>
 				{/if}
 				<button
@@ -1257,65 +1260,77 @@
 							</button>
 
 							<!-- Trip actions bar (always visible) -->
-							<div class="border-border bg-muted/30 flex items-center gap-2 border-t px-4 py-2">
+							<div
+								class="border-border bg-muted/30 flex flex-wrap items-center gap-1 border-t px-3 py-2 sm:gap-2 sm:px-4"
+							>
 								<button
 									type="button"
 									onclick={() => openNewEditor(trip.id)}
-									class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+									class="text-primary hover:bg-primary/10 inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
 								>
 									<Plus class="h-3 w-3" />
 									Add Entry
 								</button>
 								<a
 									href="/dashboard/travel/{trip.id}/plan"
-									class="text-primary hover:bg-primary/10 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
+									class="text-primary hover:bg-primary/10 inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
 								>
 									<Calendar class="h-3 w-3" /> Plan
 								</a>
-								<div class="flex-1"></div>
-								<button
-									type="button"
-									onclick={async () => {
-										await recalculateDistance(trip);
-										const sd = (trip.start_date || '').slice(0, 10);
-										const ed = (trip.end_date || '').slice(0, 10);
-										goto(`/dashboard/statistics?trip=${trip.id}&start=${sd}&end=${ed}`);
-									}}
-									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-									title="View location data for this trip"
-								>
-									<MapPin class="h-3 w-3" /> Location Data
-								</button>
-								<button
-									type="button"
-									onclick={() => openEditTripModal(trip)}
-									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-									title="Edit trip"
-								>
-									<Pencil class="h-3 w-3" /> Edit
-								</button>
-								<button
-									type="button"
-									onclick={() => toggleVisibility(trip.id, trip.visibility)}
-									class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
-									title="Click to cycle: private → friends → public"
-								>
-									{#if trip.visibility === 'public'}
-										<Eye class="h-3 w-3" /> Public
-									{:else if trip.visibility === 'friends'}
-										<Users class="h-3 w-3" /> Friends
-									{:else}
-										<EyeOff class="h-3 w-3" /> Private
-									{/if}
-								</button>
-								<button
-									type="button"
-									onclick={() => deleteTrip(trip.id)}
-									class="text-muted-foreground hover:text-destructive rounded-lg p-1 transition-colors"
-									title="Delete trip"
-								>
-									<Trash2 class="h-3.5 w-3.5" />
-								</button>
+								<div class="ml-auto flex flex-wrap items-center gap-1 sm:gap-2">
+									<button
+										type="button"
+										onclick={async () => {
+											await recalculateDistance(trip);
+											const sd = (trip.start_date || '').slice(0, 10);
+											const ed = (trip.end_date || '').slice(0, 10);
+											goto(`/dashboard/statistics?trip=${trip.id}&start=${sd}&end=${ed}`);
+										}}
+										class="text-muted-foreground hover:text-foreground inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+										title="View location data for this trip"
+										aria-label="Location data"
+									>
+										<MapPin class="h-3 w-3" />
+										<span class="hidden sm:inline">Location Data</span>
+									</button>
+									<button
+										type="button"
+										onclick={() => openEditTripModal(trip)}
+										class="text-muted-foreground hover:text-foreground inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+										title="Edit trip"
+										aria-label="Edit trip"
+									>
+										<Pencil class="h-3 w-3" />
+										<span class="hidden sm:inline">Edit</span>
+									</button>
+									<button
+										type="button"
+										onclick={() => toggleVisibility(trip.id, trip.visibility)}
+										class="text-muted-foreground hover:text-foreground inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
+										title="Click to cycle: private → friends → public"
+										aria-label="Visibility: {trip.visibility}"
+									>
+										{#if trip.visibility === 'public'}
+											<Eye class="h-3 w-3" />
+											<span class="hidden sm:inline">Public</span>
+										{:else if trip.visibility === 'friends'}
+											<Users class="h-3 w-3" />
+											<span class="hidden sm:inline">Friends</span>
+										{:else}
+											<EyeOff class="h-3 w-3" />
+											<span class="hidden sm:inline">Private</span>
+										{/if}
+									</button>
+									<button
+										type="button"
+										onclick={() => deleteTrip(trip.id)}
+										class="text-muted-foreground hover:text-destructive inline-flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg p-1 transition-colors"
+										title="Delete trip"
+										aria-label="Delete trip"
+									>
+										<Trash2 class="h-3.5 w-3.5" />
+									</button>
+								</div>
 							</div>
 
 							<!-- Expanded entries -->
@@ -1496,10 +1511,11 @@
 				<!-- Entry editor modal -->
 				{#if showEditor}
 					<div
-						class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+						class="bg-background/80 fixed inset-0 z-50 flex items-start justify-center p-4 backdrop-blur-sm sm:items-center"
 					>
 						<div
-							class="border-border bg-card w-full max-w-2xl space-y-4 rounded-2xl border p-6 shadow-2xl"
+							class="border-border bg-card mt-0 w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl border p-4 shadow-2xl sm:mt-0 sm:p-6"
+							style="max-height: calc(100dvh - 2rem)"
 						>
 							<div class="flex items-center justify-between">
 								<h2 class="text-foreground text-lg font-bold">
@@ -1514,23 +1530,13 @@
 								</button>
 							</div>
 
-							<div class="flex gap-3">
-								<label class="flex flex-col gap-1">
-									<span class="text-muted-foreground text-xs font-medium">Start date</span>
-									<input
-										type="date"
-										bind:value={editorDate}
-										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-									/>
-								</label>
-								<label class="flex flex-col gap-1">
-									<span class="text-muted-foreground text-xs font-medium">End date (optional)</span>
-									<input
-										type="date"
-										bind:value={editorEndDate}
-										class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-									/>
-								</label>
+							<div class="flex flex-col gap-1">
+								<span class="text-muted-foreground text-xs font-medium">Date range</span>
+								<DateRangePicker
+									bind:startDate={editorDate}
+									bind:endDate={editorEndDate}
+									pickLabel="Pick a date"
+								/>
 							</div>
 
 							<input
@@ -1602,11 +1608,12 @@
 					<div
 						role="dialog"
 						tabindex="-1"
-						class="bg-background/80 fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+						class="bg-background/80 fixed inset-0 z-50 flex items-start justify-center p-4 backdrop-blur-sm sm:items-center"
 						onkeydown={(e) => e.key === 'Escape' && (showTripModal = false)}
 					>
 						<div
-							class="border-border bg-card w-full max-w-md space-y-4 rounded-2xl border p-6 shadow-2xl"
+							class="border-border bg-card mt-0 w-full max-w-md space-y-4 overflow-y-auto rounded-2xl border p-4 shadow-2xl sm:mt-0 sm:p-6"
+							style="max-height: calc(100dvh - 2rem)"
 						>
 							<div class="flex items-center justify-between">
 								<h2 class="text-foreground text-lg font-bold">

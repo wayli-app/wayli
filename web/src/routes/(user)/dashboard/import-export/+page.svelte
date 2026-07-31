@@ -393,7 +393,7 @@
 					<span class="mb-2 block text-sm font-medium text-muted-foreground"
 						>{t('importExport.dateRange')}</span
 					>
-					<div class="datepicker-import-export-fix relative">
+					<div class="relative">
 						<DateRangePicker
 							bind:startDate={localExportStartDate}
 							bind:endDate={localExportEndDate}

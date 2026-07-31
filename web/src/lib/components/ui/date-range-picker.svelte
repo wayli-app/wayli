@@ -58,20 +58,22 @@
 
 	const toggleDatePicker = () => (isOpen = !isOpen);
 
+	// Native (mobile) range handling. On touch devices the date range is a
+	// single bordered box containing two native <input type="date"> fields
+	// (From / To). Each opens the OS date picker on a genuine tap — the only
+	// reliable trigger, since HTMLInputElement.showPicker() requires transient
+	// user activation and cannot be chained across fields, and is unreliable
+	// for date inputs on iOS Safari (see WebKit bug 261703).
 	function handleNativeStartDateChange(event: Event) {
 		const target = event.target as HTMLInputElement;
-		if (target.value) {
-			startDate = new Date(target.value);
-			handleChange();
-		}
+		startDate = target.value ? new Date(target.value) : '';
+		handleChange();
 	}
 
 	function handleNativeEndDateChange(event: Event) {
 		const target = event.target as HTMLInputElement;
-		if (target.value) {
-			endDate = new Date(target.value);
-			handleChange();
-		}
+		endDate = target.value ? new Date(target.value) : '';
+		handleChange();
 	}
 
 	let formattedStartDate = $derived(() => formatDate(startDate));
@@ -98,29 +100,12 @@
 
 <div class="date-filter">
 	{#if useNativePicker}
-		<!-- Native date inputs for mobile -->
-		<div class="native-date-picker">
-			<div class="date-inputs-container">
-				<div class="date-input-group">
-					<label for="start-date" class="date-label">From</label>
-					<input
-						id="start-date"
-						type="date"
-						value={formatDateForInput(startDate)}
-						onchange={handleNativeStartDateChange}
-						class="native-date-input"
-					/>
-				</div>
-				<div class="date-input-group">
-					<label for="end-date" class="date-label">To</label>
-					<input
-						id="end-date"
-						type="date"
-						value={formatDateForInput(endDate)}
-						onchange={handleNativeEndDateChange}
-						class="native-date-input"
-					/>
-				</div>
+		<!-- One bordered box containing two native date inputs (From / To).
+		     Each opens the OS picker on a real tap — reliable on iOS & Android. -->
+		<div class="native-date-box">
+			<div class="native-box-header">
+				<i class="icon-calendar"></i>
+				<span class="native-box-label">{pickLabel}</span>
 				{#if showClear && startDate}
 					<button
 						type="button"
@@ -131,6 +116,26 @@
 						<i class="os-icon-x"></i>
 					</button>
 				{/if}
+			</div>
+			<div class="native-fields">
+				<label class="native-field-group">
+					<span class="date-label">From</span>
+					<input
+						type="date"
+						value={formatDateForInput(startDate)}
+						onchange={handleNativeStartDateChange}
+						class="native-date-input"
+					/>
+				</label>
+				<label class="native-field-group">
+					<span class="date-label">To</span>
+					<input
+						type="date"
+						value={formatDateForInput(endDate)}
+						onchange={handleNativeEndDateChange}
+						class="native-date-input"
+					/>
+				</label>
 			</div>
 		</div>
 	{:else}
@@ -220,23 +225,43 @@
 		background-color: rgb(243 244 246);
 	}
 
-	/* Native date picker styles for mobile */
-	.native-date-picker {
-		width: 100%;
-	}
-
-	.date-inputs-container {
+	/* Native date range box for mobile: one bordered control, two date inputs */
+	.native-date-box {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 6px;
 		width: 100%;
+		border: 1px solid rgb(229 231 235);
+		border-radius: 0.5rem;
+		background-color: rgb(255 255 255);
+		padding: 8px 12px;
 	}
 
-	.date-input-group {
+	.native-box-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 20px;
+	}
+
+	.native-box-label {
+		font-size: 12px;
+		font-weight: 500;
+		color: rgb(107 114 128);
+		flex: 1;
+	}
+
+	.native-fields {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+	}
+
+	.native-field-group {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
-		flex: 1;
+		min-width: 0;
 	}
 
 	.date-label {
@@ -247,12 +272,13 @@
 
 	.native-date-input {
 		width: 100%;
-		padding: 8px 12px;
+		padding: 8px 10px;
 		border: 1px solid rgb(229 231 235);
-		border-radius: 0.5rem;
-		background-color: rgb(255 255 255);
+		border-radius: 0.375rem;
+		background-color: rgb(249 250 251);
 		font-size: 14px;
 		color: rgb(17 24 39);
+		min-height: 40px;
 		transition: all 0.2s ease-in-out;
 	}
 
@@ -263,29 +289,36 @@
 	}
 
 	.clear-button-native {
-		align-self: flex-start;
-		padding: 8px 12px;
-		border-radius: 0.5rem;
-		background-color: rgb(243 244 246);
-		border: 1px solid rgb(229 231 235);
-		cursor: pointer;
-		transition: all 0.2s ease-in-out;
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		padding: 4px;
+		border-radius: 4px;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		transition: background-color 0.2s ease-in-out;
 	}
 
 	.clear-button-native:hover {
-		background-color: rgb(229 231 235);
+		background-color: rgb(243 244 246);
 	}
 
-	/* Dark mode styles for native date picker */
+	:global(.dark) .native-date-box {
+		background-color: rgb(31 41 55);
+		border-color: rgb(75 85 99);
+	}
+
+	:global(.dark) .native-box-label {
+		color: rgb(156 163 175);
+	}
+
 	:global(.dark) .date-label {
 		color: rgb(209 213 219);
 	}
 
 	:global(.dark) .native-date-input {
-		background-color: rgb(31 41 55);
+		background-color: rgb(55 65 81);
 		border-color: rgb(75 85 99);
 		color: rgb(243 244 246);
 	}
@@ -293,11 +326,6 @@
 	:global(.dark) .native-date-input:focus {
 		border-color: rgb(59 130 246);
 		box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
-	}
-
-	:global(.dark) .clear-button-native {
-		background-color: rgb(55 65 81);
-		border-color: rgb(75 85 99);
 	}
 
 	:global(.dark) .clear-button-native:hover {
