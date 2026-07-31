@@ -5,7 +5,7 @@
 
 	import AppNav from '$lib/components/AppNav.svelte';
 	import AiDrawer from '$lib/components/ai/AiDrawer.svelte';
-	import { aiDrawer } from '$lib/stores/ai-drawer';
+	import { aiDrawer, type AiPage } from '$lib/stores/ai-drawer';
 	import OnboardingChecklistBanner from '$lib/components/OnboardingChecklistBanner.svelte';
 	import { Sparkles } from 'lucide-svelte';
 	import { t, changeLocale, type SupportedLocale } from '$lib/i18n';
@@ -115,6 +115,33 @@
 			aiEnabled = false;
 		}
 	}
+
+	// ponytail: route-aware AI context. The chatbot only defines explicit page
+	// contexts for `default` and `plan`; other labels still drive the drawer's
+	// badge + suggestions and the per-message context header. The plan page sets
+	// its own richer context (trip_id, cities, …) so we never override it here —
+	// we only seed a page label for non-plan routes so the assistant knows what
+	// surface the user is on (statistics / trips / journal / …).
+	function pageLabelFromPath(pathname: string): AiPage {
+		if (pathname.endsWith('/statistics')) return 'statistics';
+		if (/\/dashboard\/travel(\/|$|\?)/.test(pathname) && !pathname.includes('/plan'))
+			return 'trips';
+		if (pathname.includes('/want-to-visit')) return 'want-to-visit';
+		if (pathname.includes('/journal')) return 'journal';
+		return 'default';
+	}
+
+	$effect(() => {
+		// Re-derive whenever the route changes.
+		const pathname = page.url.pathname;
+		const label = pageLabelFromPath(pathname);
+		const current = $aiDrawer.pageContext;
+		// Don't clobber the plan page's richer context, and avoid redundant updates.
+		if (label === 'plan') return;
+		if (current.page === label && current.trip_id == null) return;
+		// Only auto-seed generic routes; pages with their own handlers opt in.
+		aiDrawer.setContext({ page: label });
+	});
 
 	onMount(async () => {
 		try {

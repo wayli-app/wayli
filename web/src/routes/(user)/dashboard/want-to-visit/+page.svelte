@@ -28,7 +28,7 @@
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
-	import { reverseGeocode } from '$lib/services/external/pelias.service';
+	import { reverseGeocode, forwardGeocode } from '$lib/services/external/pelias.service';
 
 	import { toast } from 'svelte-sonner';
 
@@ -39,6 +39,7 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { WantToVisitService } from '$lib/services/want-to-visit.service';
 	import { fluxbase } from '$lib/fluxbase';
+	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
 
 	import type { UserProfile } from '$lib/types/user.types';
 	import type { Place } from '$lib/types/want-to-visit.types';
@@ -317,6 +318,49 @@
 			});
 	}
 
+	// ponytail: AI assistant accept handler. When the assistant proposes adding
+	// a place to the wishlist (target:'want_to_visit'), the user accepts via a
+	// clickable chip; this geocodes the suggestion and writes it through the
+	// existing service so RLS + the map refresh behave identically to a manual
+	// add. Deletes are handled by item_id.
+	async function handleAcceptSuggestion(item: PlanSuggestion) {
+		try {
+			if (item.action === 'delete' && item.item_id) {
+				await WantToVisitService.deletePlace(item.item_id);
+				places = places.filter((p) => p.id !== item.item_id);
+				updateMarkers();
+				toast.success(t('wantToVisit.placeRemoved'));
+				return;
+			}
+
+			// create (default): geocode the address to coordinates, then add.
+			const query = item.address || item.title;
+			if (!query) {
+				toast.error(t('wantToVisit.failedToAddPlace'));
+				return;
+			}
+			const geo = await forwardGeocode(query);
+			let lat: number | null = geo?.lat ?? null;
+			let lng: number | null = geo?.lon ?? null;
+			if (lat == null || lng == null) {
+				toast.error(t('wantToVisit.failedToAddPlace'));
+				return;
+			}
+			const newPlace = await WantToVisitService.addPlace({
+				title: item.title,
+				type: item.type || 'place',
+				coordinates: `${lat}, ${lng}`,
+				address: item.address ?? undefined
+			});
+			places = [newPlace, ...places];
+			updateMarkers();
+			toast.success(t('wantToVisit.placeAdded'));
+		} catch (e) {
+			console.error('Error accepting AI suggestion:', e);
+			toast.error(t('wantToVisit.failedToAddPlace'));
+		}
+	}
+
 	function editPlace(place: Place) {
 		editingPlace = place;
 		title = place.title;
@@ -551,6 +595,17 @@
 			attributes: true,
 			attributeFilter: ['class']
 		});
+
+		// ponytail: register this page with the AI assistant as the
+		// 'want-to-visit' surface so wishlist suggestions route here, and reset
+		// to default + unregister when the user navigates away.
+		aiDrawer.setContext({ page: 'want-to-visit' });
+		aiDrawer.setAcceptHandler('want_to_visit', handleAcceptSuggestion);
+
+		return () => {
+			aiDrawer.setAcceptHandler('want_to_visit', null);
+			aiDrawer.setContext({ page: 'default' });
+		};
 	});
 
 	async function performReverseGeocoding(lat: number, lng: number) {

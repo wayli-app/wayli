@@ -1702,6 +1702,8 @@
     "connectionError": "Could not connect to the assistant.",
     "configError": "Configuration error",
     "greeting": "Hi! I am your Wayli AI assistant. Ask me about your trips, places you visited, journal entries — or open a trip plan page to plan a trip.",
+    "planGreeting": "Hi! I'm your trip planner for {destination}. Ask me for an itinerary or activities.",
+    "planGreetingDays": "Hi! I'm your trip planner for {destination} ({days} days). Ask me for an itinerary, restaurants, or activities.",
     "emptyState": "Ask a question or pick a suggestion below.",
     "conversations": "Conversations",
     "newConversation": "New conversation",
@@ -1709,6 +1711,24 @@
     "untitled": "Untitled conversation",
     "copied": "Copied",
     "copy": "Copy",
+    "context": {
+      "statistics": "Statistics",
+      "trips": "Trips",
+      "journal": "Journal",
+      "wantToVisit": "Want to visit"
+    },
+    "quota": {
+      "requests": "{used}/{limit} requests today",
+      "tokens": "{used}/{limit} tokens today",
+      "resetsAt": "Resets {time}",
+      "unlimited": "Unlimited",
+      "exceeded": "You've reached your daily AI limit. It resets {time}."
+    },
+    "rateLimited": "Too many requests. Please slow down and try again shortly.",
+    "quotaExceeded": "Daily limit reached",
+    "retry": "Retry",
+    "parseFailed": "I suggested some items but couldn't format them for the chips. Ask me to resend them as a list.",
+    "rowsReturned": "{count} rows found",
     "suggestions": {
       "countries": "Which countries have I visited?",
       "recentTrips": "What were my last four trips?",
@@ -1716,10 +1736,18 @@
       "tripCount": "How many trips did I take last year?",
       "planItinerary": "Suggest a 3-day itinerary for {city}",
       "planRestaurants": "Suggest restaurants for this trip",
-      "planFree": "What free time activities could I add?"
+      "planFree": "What free time activities could I add?",
+      "statsSpike": "What drove my distance up this week?",
+      "statsTopMode": "Which transport mode did I use most?",
+      "statsSummary": "Summarize my travel stats this year",
+      "tripsSummary": "Summarize my most recent trip",
+      "tripsDraft": "Help me write a journal entry",
+      "journalRecent": "What did I write about recently?"
     },
     "reasoning": "Reasoning · {count} step(s)",
     "update": "Update",
+    "approve": "Approve",
+    "reject": "Reject",
     "deleteItem": "Delete item",
     "share": "Share / debug transcript",
     "shareTitle": "Conversation transcript",
