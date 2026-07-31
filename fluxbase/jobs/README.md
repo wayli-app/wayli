@@ -230,12 +230,28 @@ For a deeper technical comparison of geocoding options, see [this article](https
 
 ### Vector Embeddings (Semantic Search)
 
+Embeddings populate the `wayli-pois` knowledge base so the assistant's
+`vector_search` / RAG returns behavioral context (e.g. "where do I usually get
+morning coffee?") and can personalize trip-plan recommendations.
+
 | File | Description |
 |------|-------------|
-| [sync-trip-embeddings.ts](sync-trip-embeddings.ts) | Generate/sync vector embeddings for user trips |
-| [sync-poi-embeddings.ts](sync-poi-embeddings.ts) | Generate/sync vector embeddings for user POIs |
-| [scheduled-sync-trip-embeddings.ts](scheduled-sync-trip-embeddings.ts) | Scheduled job to sync trip embeddings for all users |
-| [scheduled-sync-poi-embeddings.ts](scheduled-sync-poi-embeddings.ts) | Scheduled job to sync POI embeddings for all users |
+| [sync-poi-embeddings.ts](sync-poi-embeddings.ts) | Aggregate a user's place visits per POI into behavioral docs and upsert them into the `wayli-pois` KB. Idempotent (deletes then re-adds the user's docs). Fails open with a clear message if no embedding provider is configured. |
+
+> **Prerequisite:** an AI provider with `use_for_embeddings = true` must be
+> configured in Fluxbase admin (`ai.providers`). Without it, KB `addDocument`
+> calls fail and the job exits with a clear message instead of corrupting state.
+> The job is triggered after place-visit detection; a scheduled variant for all
+> users is still TODO (see `scheduled-sync-poi-embeddings.ts` below).
+
+#### TODO (not yet implemented)
+
+- `scheduled-sync-poi-embeddings.ts` — iterate all users and submit per-user
+  `sync-poi-embeddings` jobs on a schedule (model: `scheduled-refresh-daily-activity.ts`).
+- `sync-trip-embeddings.ts` / `scheduled-sync-trip-embeddings.ts` — trip-level
+  semantic search. Note: the `wayli-trips` KB referenced in the deprecated
+  `trip_embeddings` comment (`schema/public.sql`) does **not** exist yet and
+  must be created (`bun run sync:kb`) before these can run.
 
 ### User Preferences
 

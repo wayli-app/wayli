@@ -16,13 +16,26 @@
 		Pencil,
 		Share2
 	} from 'lucide-svelte';
-	import { ChatService, type ChatMessage, type AgentThought } from '$lib/services/chat.service';
+	import {
+		ChatService,
+		type ChatMessage,
+		type AgentThought,
+		type UsageStats,
+		type DailyQuotaSnapshot
+	} from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import {
+		extractSuggestions as aiExtractSuggestions,
+		looksLikeUnparsedProposal as aiLooksLikeUnparsedProposal,
+		serializeCurrentPlan as aiSerializeCurrentPlan,
+		isSuggestionAlreadyInPlan as aiIsSuggestionAlreadyInPlan
+	} from '$lib/utils/ai-suggestions';
 	import { translate, currentLocale } from '$lib/i18n';
 	import { get } from 'svelte/store';
 	import { aiDrawer, type AiPageContext, type PlanSuggestion } from '$lib/stores/ai-drawer';
 	import { fade, slide } from 'svelte/transition';
 	import { focusTrap } from '$lib/utils/focus-trap';
+	import { goto } from '$app/navigation';
 
 	let t = $derived($translate);
 
@@ -37,6 +50,9 @@
 		// Agent reasoning events received while this assistant turn was streaming.
 		// Populated only for assistant turns; empty for user turns.
 		thoughts?: AgentThought[];
+		// Token usage for this turn (populated on onDone). Not restored on reload
+		// unless the server returns it in the persisted message.
+		usage?: UsageStats;
 	};
 
 	let messages = $state<ChatTurn[]>([]);
@@ -44,6 +60,13 @@
 	let isSending = $state(false);
 	let isConnecting = $state(false);
 	let connectionError = $state<string | null>(null);
+	// Phase 3: live per-user daily quota (seeded on connect, refreshed onDone).
+	let dailyQuota = $state<DailyQuotaSnapshot | null>(null);
+	// The last user message text, so Retry can resend it after an error.
+	let lastUserMsg = $state('');
+	// Structured error kind for branching the UI (rate-limited / quota /
+	// config / network). Reset on a successful send.
+	let errorKind = $state<'rate_limited' | 'quota' | 'config' | 'network' | null>(null);
 	let inputEl: HTMLInputElement | null = $state(null);
 	let scrollContainer: HTMLElement | null = $state(null);
 	// Track which messages have their reasoning panel expanded (keyed by message index).
@@ -71,6 +94,10 @@
 	let showConversationList = $state(false);
 	let activeConversationId = $state<string | null>(null);
 
+	// Signature of the last plan context we sent to the model, used to detect
+	// when the trip/plan changed mid-conversation so we can re-inject context.
+	let lastSentPlanSig = '';
+
 	let chatService: ChatService | null = null;
 	// ponytail: pageContext is already reactive ($derived from $aiDrawer).
 	// No need for a separate currentCtx snapshot — use pageContext directly in
@@ -86,12 +113,24 @@
 	let contextLabel = $derived(
 		pageContext.page === 'plan'
 			? `${t('ai.planning')}: ${pageContext.trip_title ?? ''}`
-			: t('ai.dataAnalysis')
+			: pageContext.page === 'statistics'
+				? t('ai.context.statistics')
+				: pageContext.page === 'trips'
+					? t('ai.context.trips')
+					: pageContext.page === 'journal'
+						? t('ai.context.journal')
+						: pageContext.page === 'want-to-visit'
+							? t('ai.context.wantToVisit')
+							: t('ai.dataAnalysis')
 	);
 
-	// In plan mode + accept handler registered → show suggestion chips
+	// Suggestion chips render when there's something to act on: either a
+	// registered write handler (plan items, wishlist, …) or a navigate chip
+	// (which acts via goto() and needs no handler).
 	let canAcceptSuggestions = $derived(
-		pageContext.page === 'plan' && aiDrawer.getAcceptSuggestionHandler() !== null
+		(pageContext.page === 'plan' && aiDrawer.getAcceptSuggestionHandler() !== null) ||
+			aiDrawer.getAcceptHandler('want_to_visit') !== undefined ||
+			aiDrawer.getAcceptHandler('journal_draft') !== undefined
 	);
 
 	$effect(() => {
@@ -168,25 +207,91 @@
 						if (openThoughts[lastIdx]) scrollToBottom();
 					}
 				},
-				onDone: () => {
+				onDone: (usage, extras) => {
 					isSending = false;
+					errorKind = null;
+					// Phase 3.1: capture per-turn usage + live quota. The service
+					// already maps these from snake_case; we just store them.
+					if (usage) {
+						const lastIdx = messages.length - 1;
+						if (messages[lastIdx]?.role === 'assistant') {
+							messages[lastIdx].usage = usage;
+							messages = [...messages];
+						}
+					}
+					if (extras?.dailyQuota) {
+						dailyQuota = extras.dailyQuota;
+					}
 				},
-				onError: (error: any) => {
-					console.error('Chat error:', error);
+				onError: (error: any, code?: string) => {
+					console.error('Chat error:', error, code);
+					// Phase 3.2: branch by code so the user gets an actionable
+					// message instead of a generic "something went wrong".
+					const c = (code ?? '').toLowerCase();
+					if (c.includes('rate') || c === 'rate_limited' || c === '429') {
+						errorKind = 'rate_limited';
+					} else if (
+						c.includes('quota') ||
+						c.includes('daily') ||
+						c.includes('limit') ||
+						c === 'daily_limit_exceeded'
+					) {
+						errorKind = 'quota';
+					} else if (
+						c.includes('config') ||
+						c.includes('provider') ||
+						c.includes('not_configured')
+					) {
+						errorKind = 'config';
+					} else {
+						errorKind = 'network';
+					}
 					const lastIdx = messages.length - 1;
 					if (messages[lastIdx]?.role === 'assistant') {
-						messages[lastIdx].content = t('ai.error');
+						const msg =
+							errorKind === 'rate_limited'
+								? t('ai.rateLimited')
+								: errorKind === 'quota'
+									? t('ai.quota.exceeded', { time: formatResetsAt() })
+									: errorKind === 'config'
+										? t('ai.configError')
+										: t('ai.error');
+						messages[lastIdx].content = msg;
 						messages = [...messages];
 					}
 					isSending = false;
 				}
 			});
+			// Seed quota for the first turn (live updates arrive via onDone).
+			chatService
+				.getDailyUsageForName(CHATBOT)
+				.then((q) => {
+					dailyQuota = q;
+				})
+				.catch(() => {});
 			isConnecting = false;
 			return true;
 		} catch (err: any) {
 			connectionError = err?.message ?? String(err);
 			isConnecting = false;
 			return false;
+		}
+	}
+
+	// Human-friendly "in 3 hours" style for the quota reset timestamp.
+	function formatResetsAt(): string {
+		const ts = dailyQuota?.resetsAt;
+		if (!ts) return '';
+		try {
+			const d = new Date(ts);
+			const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+			const diffMs = d.getTime() - Date.now();
+			const diffH = Math.round(diffMs / 3_600_000);
+			if (Math.abs(diffH) >= 1) return rtf.format(diffH, 'hour');
+			const diffM = Math.round(diffMs / 60_000);
+			return rtf.format(diffM, 'minute');
+		} catch {
+			return ts;
 		}
 	}
 
@@ -214,10 +319,21 @@
 			activeConversationId = convoId;
 			if (convo?.messages && Array.isArray(convo.messages)) {
 				messages = convo.messages
-					.map((m: any) => ({
-						role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-						content: String(m.content ?? m.text ?? '')
-					}))
+					.map((m: any) => {
+						const turn: ChatTurn = {
+							role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+							content: String(m.content ?? m.text ?? '')
+						};
+						// Phase 3.3: restore per-turn usage if the server persisted it.
+						if (m.usage && (m.usage.prompt_tokens || m.usage.completion_tokens)) {
+							turn.usage = {
+								promptTokens: m.usage.prompt_tokens ?? 0,
+								completionTokens: m.usage.completion_tokens ?? 0,
+								totalTokens: m.usage.total_tokens
+							};
+						}
+						return turn;
+					})
 					.filter((m) => m.content);
 				scrollToBottom();
 			}
@@ -256,8 +372,8 @@
 					role: 'assistant',
 					content:
 						numDays != null
-							? `Hi! I'm your trip planner for ${destination} (${numDays} days). Ask me for an itinerary, restaurants, or activities.`
-							: `Hi! I'm your trip planner for ${destination}. Ask me for an itinerary or activities.`
+							? t('ai.planGreetingDays', { destination, days: numDays })
+							: t('ai.planGreeting', { destination })
 				}
 			];
 		} else {
@@ -306,6 +422,16 @@
 			lines.push(``);
 			lines.push(m.content);
 			lines.push(``);
+			// Phase 3.4: include per-turn token usage when available — invaluable
+			// for debugging cost/quota issues from a shared transcript.
+			if (m.usage) {
+				lines.push(
+					`> usage: prompt=${m.usage.promptTokens} completion=${m.usage.completionTokens}` +
+						(m.usage.totalTokens != null ? ` total=${m.usage.totalTokens}` : '') +
+						(m.usage.cachedTokens ? ` cached=${m.usage.cachedTokens}` : '')
+				);
+				lines.push(``);
+			}
 			if (m.thoughts && m.thoughts.length > 0) {
 				lines.push(`<details><summary>Reasoning events (${m.thoughts.length})</summary>`);
 				lines.push(``);
@@ -338,6 +464,17 @@
 			lines.push(connectionError);
 			lines.push('```');
 		}
+		if (errorKind) {
+			lines.push(`## Error kind: ${errorKind}`);
+			lines.push(``);
+		}
+		if (dailyQuota) {
+			lines.push(`## Daily quota snapshot`);
+			lines.push(``);
+			lines.push('```json');
+			lines.push(JSON.stringify(dailyQuota, null, 2));
+			lines.push('```');
+		}
 		return lines.join('\n');
 	}
 
@@ -364,28 +501,19 @@
 		URL.revokeObjectURL(url);
 	}
 
-	// Suggestion parsing for plan mode (ported from TripPlannerChat)
+	// Suggestion parsing for plan mode (ported from TripPlannerChat). The pure
+	// helpers live in $lib/utils/ai-suggestions.ts (unit-tested there); this
+	// component keeps only the markdown bullet parser, which needs page context.
 	type ParsedSuggestion = PlanSuggestion;
 
 	function extractSuggestions(content: string): ParsedSuggestion[] {
-		// 1. Try fenced ```json code block first (richer data: cost, address, time)
-		const jsonMatch = content.match(/```json\s*\n?(\[[\s\S]*?\])\s*\n?```/);
-		if (jsonMatch) {
-			try {
-				const parsed = JSON.parse(jsonMatch[1]);
-				if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-			} catch {}
-		}
-		// 2. Try raw JSON array (no fence)
-		const rawJsonMatch = content.match(/\[\s*\{[\s\S]*\}\s*\]/);
-		if (rawJsonMatch) {
-			try {
-				const parsed = JSON.parse(rawJsonMatch[0]);
-				if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-			} catch {}
-		}
-		// 3. Fallback: parse markdown bullet points (model-agnostic)
-		return extractFromBullets(content);
+		return aiExtractSuggestions(content, extractFromBullets);
+	}
+
+	// Whether a turn *looks* like it proposed plan items but failed to parse
+	// (a fence present, or bolded bullets) — used to show a visible error.
+	function looksLikeUnparsedProposal(content: string, parsed: ParsedSuggestion[]): boolean {
+		return aiLooksLikeUnparsedProposal(content, parsed, canAcceptSuggestions);
 	}
 
 	// ponytail: bullet-point parser — extracts suggestions from the markdown
@@ -516,8 +644,50 @@
 		return content.replace(/```json\s*\n?(\[[\s\S]*?\])\s*\n?```/g, '').trim();
 	}
 
+	// Phase 1.2: serialize the current plan items into a compact context block
+	// so the model has real item_ids for update/delete suggestions without a
+	// get-trip-plan RPC round-trip on every turn. Returns '' when there are no
+	// items, so empty plans don't add noise. The plan page sets
+	// current_plan_items in the ai-drawer store; we only re-send when the set
+	// of item ids changes (tracked by the caller via planSig for the trip, and
+	// here by a separate signature so intra-trip edits are captured).
+	function serializeCurrentPlan(items: unknown): string {
+		return aiSerializeCurrentPlan(items);
+	}
+
+	// Phase 1.4: a create suggestion is "already added" if its title+day match
+	// an item in the current plan — so reloaded conversations can't double-add.
+	// Update/delete suggestions match by item_id.
+	function isSuggestionAlreadyInPlan(sug: ParsedSuggestion): boolean {
+		return aiIsSuggestionAlreadyInPlan(sug, pageContext.current_plan_items);
+	}
+
+	// ponytail: intercept clicks on links inside rendered assistant messages so
+	// internal app links use SPA navigation (goto) instead of a full page reload.
+	// External links are left to the browser (open in a new tab). The markdown
+	// renderer is shared with the journal, so we handle this at the container
+	// level via event delegation rather than modifying the shared util.
+	function handleLinkClick(e: MouseEvent) {
+		const target = e.target as HTMLElement | null;
+		const anchor = target?.closest('a');
+		if (!anchor) return;
+		const href = anchor.getAttribute('href');
+		if (!href) return;
+		// Only intercept internal path links (not mailto/tel/external/http(s)).
+		if (href.startsWith('/') && !href.startsWith('//')) {
+			e.preventDefault();
+			goto(href);
+		}
+	}
+
 	async function onAcceptSuggestion(sug: ParsedSuggestion) {
-		const handler = aiDrawer.getAcceptSuggestionHandler();
+		// Navigate suggestions open an in-app route directly (no handler needed);
+		// everything else dispatches to the registered per-target handler.
+		if (sug.target === 'navigate' && sug.href) {
+			goto(sug.href);
+			return;
+		}
+		const handler = aiDrawer.getHandlerForSuggestion(sug);
 		if (!handler) return;
 		await handler(sug);
 	}
@@ -599,6 +769,7 @@
 		if (!ok) return;
 
 		const userMsg = input.trim();
+		lastUserMsg = userMsg;
 		input = '';
 		isSending = true;
 
@@ -616,14 +787,32 @@
 		// ponytail: pageContext is a STRING identifier (e.g. 'plan') that the
 		// supervisor uses to look up a PageProfile. Trip context data has to
 		// travel in the message body because pageContext is not an object.
-		const isFirstUserMessage = messages.filter((m) => m.role === 'user').length === 0;
+		//
+		// Context is injected on EVERY turn (not just the first message) so the
+		// model never drifts: user_language is always sent to prevent the
+		// documented bug where it reverts to the trip-title's language, and the
+		// full TRIP CONTEXT block is re-sent whenever the underlying trip/cities
+		// change (switching trips mid-conversation) so the model stays accurate.
+		const userMsgCount = messages.filter((m) => m.role === 'user').length;
+		const isFirstUserMessage = userMsgCount === 0;
 		const inPlanMode = pageContext.page === 'plan';
-		let msgToSend = userMsg;
-		// Always send user_language so the supervisor picks the right response
-		// language regardless of trip destination / conversation history.
 		const userLang = (get(currentLocale) as string) || 'en';
-		if (isFirstUserMessage && inPlanMode) {
-			const ctxBlock = [
+
+		// Signature of the plan context; if it changed since the last send we
+		// re-inject the full block instead of a compact hint.
+		const planSig = [
+			pageContext.trip_id ?? '',
+			pageContext.trip_title ?? '',
+			pageContext.num_days ?? '',
+			pageContext.primary_city ?? '',
+			pageContext.home_city ?? ''
+		].join('|');
+		const contextChanged = planSig !== lastSentPlanSig;
+		const fullContextNeeded = isFirstUserMessage || (inPlanMode && contextChanged);
+
+		const headers: string[] = [];
+		if (inPlanMode) {
+			const tripBlock = [
 				`[TRIP CONTEXT]`,
 				`trip_id=${pageContext.trip_id ?? ''}`,
 				`trip_title=${pageContext.trip_title ?? ''}`,
@@ -634,14 +823,29 @@
 				`home_city=${pageContext.home_city ?? ''}`,
 				`user_language=${userLang}`
 			].join('; ');
-			msgToSend = `${ctxBlock}\n\n${userMsg}`;
+			// Full block on first message or when context changed; compact hint
+			// otherwise (the conversation already has the static fields).
+			headers.push(
+				fullContextNeeded
+					? tripBlock
+					: `[TRIP] trip_id=${pageContext.trip_id ?? ''}; user_language=${userLang}`
+			);
+			// Phase 1.2: inject the current plan so the model can emit
+			// update/delete suggestions with real item_ids without a round-trip
+			// to the get-trip-plan RPC. Only when changed & non-empty.
+			const planBlock = serializeCurrentPlan(pageContext.current_plan_items);
+			if (planBlock) headers.push(planBlock);
+		} else if (isFirstUserMessage) {
+			// First message on a non-plan page: minimal lang hint.
+			headers.push(`[LANG] user_language=${userLang}`);
 		} else {
-			// Non-plan mode: still prefix the first message with a minimal lang hint
-			// so the supervisor doesn't infer language from conversation history.
-			if (isFirstUserMessage) {
-				msgToSend = `[LANG] user_language=${userLang}\n\n${userMsg}`;
-			}
+			// Subsequent non-plan turns: still keep the language pinned so the
+			// model doesn't drift back to the conversation/history language.
+			headers.push(`[LANG] user_language=${userLang}`);
 		}
+		lastSentPlanSig = planSig;
+
+		const msgToSend = headers.length ? `${headers.join('\n')}\n\n${userMsg}` : userMsg;
 
 		messages = [...messages, { role: 'user', content: userMsg }];
 		messages = [...messages, { role: 'assistant', content: '...' }];
@@ -674,7 +878,35 @@
 		}
 	}
 
-	// Suggestion chips for empty state
+	// Retry the last message after a transient (network) error: drop the error
+	// bubble, restore the message into the input, and resend.
+	async function retryLast() {
+		if (!lastUserMsg || isSending) return;
+		// Remove the trailing error assistant message so the retry reads cleanly.
+		messages = messages.filter(
+			(m, idx) =>
+				!(
+					idx === messages.length - 1 &&
+					m.role === 'assistant' &&
+					(m.content === t('ai.error') ||
+						m.content === t('ai.connectionError') ||
+						m.content === t('ai.rateLimited'))
+				)
+		);
+		errorKind = null;
+		input = lastUserMsg;
+		await send();
+	}
+
+	// Whether the input should be disabled (quota/rate-limit hit — no point
+	// letting the user type until the window resets).
+	let inputDisabled = $derived(
+		isSending || isConnecting || errorKind === 'quota' || errorKind === 'rate_limited'
+	);
+
+	// Suggestion chips for empty state — page-aware where possible so the
+	// prompt reflects the surface the user is on rather than only generic
+	// history questions.
 	const dataSuggestions = [
 		() => t('ai.suggestions.countries'),
 		() => t('ai.suggestions.recentTrips'),
@@ -689,6 +921,30 @@
 		t('ai.suggestions.planRestaurants'),
 		t('ai.suggestions.planFree')
 	]);
+
+	// ponytail: per-surface prompts. These seed the assistant with the current
+	// screen in mind (statistics spike, trip summary, …). Falls back to the
+	// generic data-analysis chips for unknown pages.
+	const pageSuggestions = $derived.by<string[]>(() => {
+		switch (pageContext.page) {
+			case 'statistics':
+				return [
+					t('ai.suggestions.statsSpike'),
+					t('ai.suggestions.statsTopMode'),
+					t('ai.suggestions.statsSummary')
+				];
+			case 'trips':
+				return [
+					t('ai.suggestions.tripsSummary'),
+					t('ai.suggestions.tripsDraft'),
+					t('ai.suggestions.countries')
+				];
+			case 'journal':
+				return [t('ai.suggestions.journalRecent'), t('ai.suggestions.cities')];
+			default:
+				return dataSuggestions.map((f) => f());
+		}
+	});
 
 	function useSuggestion(text: string) {
 		input = text;
@@ -807,6 +1063,53 @@
 			</div>
 		{/if}
 
+		<!-- Phase 3: daily quota strip (only when a limit is configured). -->
+		{#if dailyQuota && (dailyQuota.requests.limit > 0 || dailyQuota.tokens.limit > 0)}
+			{@const reqNear =
+				dailyQuota.requests.limit > 0 &&
+				dailyQuota.requests.used / dailyQuota.requests.limit >= 0.8}
+			<div
+				class="border-border flex items-center justify-between gap-2 border-b px-4 py-1.5 text-[10px] {reqNear
+					? 'bg-amber-500/10'
+					: ''}"
+				title={dailyQuota.resetsAt ? t('ai.quota.resetsAt', { time: formatResetsAt() }) : ''}
+			>
+				<span class="text-muted-foreground">
+					{#if dailyQuota.requests.limit > 0}
+						{t('ai.quota.requests', {
+							used: dailyQuota.requests.used,
+							limit: dailyQuota.requests.limit
+						})}
+					{/if}
+				</span>
+				<span class="text-muted-foreground">
+					{#if dailyQuota.tokens.limit > 0}
+						{t('ai.quota.tokens', { used: dailyQuota.tokens.used, limit: dailyQuota.tokens.limit })}
+					{:else}
+						{t('ai.quota.unlimited')}
+					{/if}
+				</span>
+			</div>
+		{/if}
+
+		<!-- Phase 3.2: actionable error banner (retry on transient errors). -->
+		{#if errorKind === 'network' || errorKind === 'rate_limited'}
+			<div
+				class="border-border flex items-center justify-between gap-2 border-b bg-amber-500/10 px-4 py-2 text-xs"
+			>
+				<span class="text-amber-700 dark:text-amber-300">
+					{errorKind === 'rate_limited' ? t('ai.rateLimited') : t('ai.connectionError')}
+				</span>
+				<button
+					type="button"
+					class="rounded px-2 py-0.5 text-[11px] font-medium underline-offset-2 hover:bg-amber-500/20 hover:underline"
+					onclick={retryLast}
+				>
+					{t('ai.retry')}
+				</button>
+			</div>
+		{/if}
+
 		<!-- Messages -->
 		<div bind:this={scrollContainer} class="flex-1 space-y-4 overflow-y-auto p-4">
 			{#if messages.length === 0 && !isConnecting}
@@ -814,7 +1117,7 @@
 				<div class="space-y-3">
 					<p class="text-muted-foreground text-sm">{t('ai.emptyState')}</p>
 					<div class="flex flex-wrap gap-2">
-						{#each pageContext.page === 'plan' ? planSuggestions : dataSuggestions.map( (f) => f() ) as suggestion}
+						{#each pageContext.page === 'plan' ? planSuggestions : pageSuggestions as suggestion}
 							<button
 								type="button"
 								class="border-border hover:bg-muted hover:border-primary/40 rounded-full border px-3 py-1.5 text-xs transition-colors"
@@ -836,7 +1139,10 @@
 							</div>
 						</div>
 					{:else}
-						{@const suggestions = canAcceptSuggestions ? extractSuggestions(msg.content) : []}
+						{@const rawSuggestions = extractSuggestions(msg.content)}
+						{@const suggestions = rawSuggestions.filter(
+							(s) => s.target === 'navigate' || aiDrawer.getHandlerForSuggestion(s) !== undefined
+						)}
 						{@const displayContent = stripJsonBlocks(msg.content)}
 						{@const hasThoughts = (msg.thoughts?.length ?? 0) > 0}
 						<div class="flex justify-start">
@@ -944,6 +1250,8 @@
 									</details>
 								{/if}
 								<div
+									role="presentation"
+									onclick={handleLinkClick}
 									class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
 								>
 									{#if msg.content === '...'}
@@ -959,7 +1267,7 @@
 											{@const action = sug.action ?? 'create'}
 											{@const key = chipKey(i, sugIdx)}
 											{@const isExpanded = expandedChips.has(key)}
-											{@const isAdded = chipAdded.has(key)}
+											{@const isAdded = chipAdded.has(key) || isSuggestionAlreadyInPlan(sug)}
 											{@const chipClass =
 												action === 'delete'
 													? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400'
@@ -983,7 +1291,7 @@
 														? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
 														: sug.title}
 
-											{#if action === 'create' && !isAdded}
+											{#if action === 'create' && !isAdded && (sug.target ?? 'plan_item') === 'plan_item'}
 												<!-- Expandable create chip: click to expand, adjust day/time, then add -->
 												<button
 													type="button"
@@ -1129,6 +1437,11 @@
 										{/each}
 									</div>
 								{/if}
+								{#if looksLikeUnparsedProposal(msg.content, rawSuggestions)}
+									<p class="text-muted-foreground mt-1.5 text-[11px] italic">
+										{t('ai.parseFailed')}
+									</p>
+								{/if}
 								{#if msg.content !== '...'}
 									<div class="mt-1 flex items-center gap-2">
 										<button
@@ -1160,12 +1473,12 @@
 				onkeydown={handleKeydown}
 				placeholder={t('ai.placeholder')}
 				class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				disabled={isSending || isConnecting}
+				disabled={inputDisabled}
 			/>
 			<button
 				type="button"
 				onclick={send}
-				disabled={isSending || isConnecting || !input.trim()}
+				disabled={inputDisabled || !input.trim()}
 				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
 			>
 				{#if isSending}
