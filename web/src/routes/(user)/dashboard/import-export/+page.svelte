@@ -254,25 +254,25 @@
 
 	<div class="grid gap-8 md:grid-cols-2">
 		<!-- Import Section -->
-		<div class="flex flex-col rounded-xl border p-6 bg-card border-border">
+		<div class="bg-card border-border flex flex-col rounded-xl border p-6">
 			<div class="mb-6 flex items-center gap-3">
-				<FileDown class="h-5 w-5 text-muted-foreground" />
-				<h2 class="text-xl font-semibold text-foreground">
+				<FileDown class="text-muted-foreground h-5 w-5" />
+				<h2 class="text-foreground text-xl font-semibold">
 					{t('importExport.importData')}
 				</h2>
 			</div>
-			<p class="mb-6 text-sm text-muted-foreground">
+			<p class="text-muted-foreground mb-6 text-sm">
 				{t('importExport.importDescription')}
 			</p>
 			{#if lastSuccessfulImport}
-				<div class="mb-4 text-xs text-muted-foreground">
+				<div class="text-muted-foreground mb-4 text-xs">
 					{t('importExport.lastSuccessfulImport', { date: lastSuccessfulImport })}
 				</div>
 			{/if}
 
 			<div class="flex-1 space-y-4">
 				<div>
-					<label for="fileInput" class="mb-1.5 block text-sm font-medium text-foreground"
+					<label for="fileInput" class="text-foreground mb-1.5 block text-sm font-medium"
 						>{t('importExport.selectFile')}</label
 					>
 					<div class="relative">
@@ -282,12 +282,12 @@
 							id="fileInput"
 							bind:this={fileInputEl}
 							accept=".geojson,.json,.kml,.gpx,.rec,.zip"
-							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 block w-full cursor-pointer rounded-md border border-gray-300 text-sm text-muted-foreground file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:border-border dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
+							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 text-muted-foreground dark:border-border block w-full cursor-pointer rounded-md border border-gray-300 text-sm file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
 							onchange={handleFileSelect}
 						/>
 					</div>
 					{#if selectedFile}
-						<p class="mt-1 text-xs text-muted-foreground">
+						<p class="text-muted-foreground mt-1 text-xs">
 							{t('importExport.selectedFile', { filename: selectedFile.name })}
 							{#if importFormat}
 								| {t('importExport.detectedFormat', { format: importFormat })}
@@ -297,10 +297,10 @@
 				</div>
 
 				<div class="mt-6">
-					<h3 class="mb-3 text-sm font-medium text-foreground">
+					<h3 class="text-foreground mb-3 text-sm font-medium">
 						{t('importExport.supportedFormats')}
 					</h3>
-					<div class="space-y-2 text-sm text-muted-foreground">
+					<div class="text-muted-foreground space-y-2 text-sm">
 						{#each importFormats as format (format.label)}
 							<div class="flex items-center gap-2">
 								<format.icon class="h-4 w-4" />
@@ -329,20 +329,20 @@
 		</div>
 
 		<!-- Export Section -->
-		<div class="flex flex-col rounded-xl border p-6 bg-card border-border">
+		<div class="bg-card border-border flex flex-col rounded-xl border p-6">
 			<div class="mb-6 flex items-center gap-3">
-				<FileDown class="h-5 w-5 text-muted-foreground" />
-				<h2 class="text-xl font-semibold text-foreground">
+				<FileDown class="text-muted-foreground h-5 w-5" />
+				<h2 class="text-foreground text-xl font-semibold">
 					{t('importExport.exportData')}
 				</h2>
 			</div>
-			<p class="mb-6 text-sm text-muted-foreground">
+			<p class="text-muted-foreground mb-6 text-sm">
 				{t('importExport.exportDescription')}
 			</p>
 
 			<div class="flex-1 space-y-4">
 				<div>
-					<label class="mb-1.5 block text-sm font-medium text-foreground" for="includeLocationData"
+					<label class="text-foreground mb-1.5 block text-sm font-medium" for="includeLocationData"
 						>{t('importExport.include')}</label
 					>
 					<div class="space-y-2">
@@ -350,32 +350,32 @@
 							<input
 								type="checkbox"
 								bind:checked={includeLocationDataExport}
-								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
+								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
 							/>
-							<span class="text-sm text-muted-foreground">{t('importExport.locationData')}</span>
+							<span class="text-muted-foreground text-sm">{t('importExport.locationData')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
 								bind:checked={includeWantToVisitExport}
-								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
+								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
 							/>
-							<span class="text-sm text-muted-foreground">{t('importExport.wantToVisit')}</span>
+							<span class="text-muted-foreground text-sm">{t('importExport.wantToVisit')}</span>
 						</label>
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
 								bind:checked={includeTripsExport}
-								class="text-primary h-4 w-4 rounded border-gray-300 focus:ring-primary"
+								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
 							/>
-							<span class="text-sm text-muted-foreground">{t('importExport.trips')}</span>
+							<span class="text-muted-foreground text-sm">{t('importExport.trips')}</span>
 						</label>
 					</div>
 				</div>
 
 				<!-- Format selector -->
 				<div class="mt-4">
-					<label class="mb-2 block text-sm font-medium text-muted-foreground" for="exportFormat">
+					<label class="text-muted-foreground mb-2 block text-sm font-medium" for="exportFormat">
 						Format
 					</label>
 					<select
@@ -390,7 +390,7 @@
 				</div>
 
 				<div class="mt-4">
-					<span class="mb-2 block text-sm font-medium text-muted-foreground"
+					<span class="text-muted-foreground mb-2 block text-sm font-medium"
 						>{t('importExport.dateRange')}</span
 					>
 					<div class="relative">
@@ -403,7 +403,7 @@
 						/>
 					</div>
 					{#if !localExportStartDate && !localExportEndDate}
-						<p class="mt-2 text-xs text-muted-foreground">
+						<p class="text-muted-foreground mt-2 text-xs">
 							{t('importExport.exportAllDataHint')}
 						</p>
 					{/if}

@@ -299,22 +299,22 @@
 </svelte:head>
 
 {#if isLoading}
-	<div class="flex min-h-screen items-center justify-center bg-background">
+	<div class="bg-background flex min-h-screen items-center justify-center">
 		<div class="border-primary h-10 w-10 animate-spin rounded-full border-2"></div>
 	</div>
 {:else if notFound || !trip}
-	<div class="flex min-h-screen flex-col items-center justify-center gap-3 bg-background p-4">
+	<div class="bg-background flex min-h-screen flex-col items-center justify-center gap-3 p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
 		<p class="text-muted-foreground text-lg">{t('publicTrip.tripNotFound')}</p>
-		<a href="/u/{username}" class="text-primary hover:underline text-sm"
+		<a href="/u/{username}" class="text-primary text-sm hover:underline"
 			>{t('publicTrip.backToProfile')}</a
 		>
 	</div>
 {:else}
 	<!-- Reading progress bar -->
-	<div class="fixed top-0 left-0 z-[60] h-1 bg-transparent w-full">
+	<div class="fixed top-0 left-0 z-[60] h-1 w-full bg-transparent">
 		<div
-			class="h-full bg-primary transition-all duration-150 ease-out"
+			class="bg-primary h-full transition-all duration-150 ease-out"
 			style="width: {scrollProgress}%"
 		></div>
 	</div>
@@ -411,26 +411,26 @@
 							onkeydown={(e) => e.key === 'Enter' && (activeEntryId = entry.id)}
 							role="button"
 							tabindex="0"
-							class="animate-fade-in-up scroll-mt-4 rounded-3xl bg-card border-border border p-6 transition-all duration-300 cursor-pointer {activeEntryId ===
+							class="animate-fade-in-up bg-card border-border cursor-pointer scroll-mt-4 rounded-3xl border p-6 transition-all duration-300 {activeEntryId ===
 							entry.id
-								? 'ring-primary/30 ring-2 shadow-lg'
+								? 'ring-primary/30 shadow-lg ring-2'
 								: 'shadow-sm hover:shadow-md'}"
 							style="animation-delay: {i * 100}ms"
 						>
 							<!-- Date badge -->
 							<div class="mb-4 flex items-center gap-3">
 								<div
-									class="flex h-12 w-12 flex-col items-center justify-center rounded-2xl bg-primary/10 text-primary"
+									class="bg-primary/10 text-primary flex h-12 w-12 flex-col items-center justify-center rounded-2xl"
 								>
-									<span class="text-[10px] font-bold uppercase leading-none">
+									<span class="text-[10px] leading-none font-bold uppercase">
 										{new Date(entry.entry_date).toLocaleDateString(undefined, { month: 'short' })}
 									</span>
-									<span class="text-lg font-extrabold leading-tight">
+									<span class="text-lg leading-tight font-extrabold">
 										{new Date(entry.entry_date).getDate()}
 									</span>
 								</div>
 								<div>
-									<div class="text-xs font-medium text-muted-foreground">
+									<div class="text-muted-foreground text-xs font-medium">
 										{new Date(entry.entry_date).toLocaleDateString(undefined, {
 											weekday: 'long',
 											year: 'numeric',
@@ -439,7 +439,7 @@
 										})}
 									</div>
 									{#if entry.end_date && entry.end_date !== entry.entry_date}
-										<div class="text-xs text-muted-foreground/60">
+										<div class="text-muted-foreground/60 text-xs">
 											{t('publicTrip.until', {
 												date: new Date(entry.end_date).toLocaleDateString(undefined, {
 													month: 'short',
@@ -452,7 +452,7 @@
 							</div>
 
 							{#if entry.title}
-								<h3 class="mb-3 text-2xl font-bold tracking-tight text-foreground">
+								<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
 									{entry.title}
 								</h3>
 							{/if}
@@ -485,7 +485,7 @@
 							{/if}
 
 							<!-- Engagement -->
-							<div class="mt-5 flex items-start gap-3 border-t border-border pt-4">
+							<div class="border-border mt-5 flex items-start gap-3 border-t pt-4">
 								<EntryLikeButton {tripId} entryId={entry.id} />
 								<div class="flex-1">
 									<EntryComments {tripId} entryId={entry.id} />
@@ -582,10 +582,10 @@
 			<!-- Sticky map sidebar -->
 			<div class="hidden lg:block">
 				<div class="sticky top-6 space-y-4">
-					<div class="overflow-hidden rounded-3xl border border-border shadow-xl">
-						<div class="flex items-center gap-2 border-b border-border bg-card px-4 py-3">
+					<div class="border-border overflow-hidden rounded-3xl border shadow-xl">
+						<div class="border-border bg-card flex items-center gap-2 border-b px-4 py-3">
 							<MapPin class="text-primary h-4 w-4" />
-							<span class="text-sm font-semibold text-foreground">
+							<span class="text-foreground text-sm font-semibold">
 								{#if activeEntryId}
 									{entries.find((e) => e.id === activeEntryId)?.entry_date
 										? new Date(
@@ -597,7 +597,7 @@
 								{/if}
 							</span>
 							{#if highlightPoints.length > 0}
-								<span class="ml-auto text-xs text-muted-foreground">
+								<span class="text-muted-foreground ml-auto text-xs">
 									{t('publicTrip.points', { count: highlightPoints.length })}
 								</span>
 							{/if}
@@ -611,7 +611,7 @@
 							/>
 						{:else}
 							<div
-								class="flex h-64 items-center justify-center px-6 text-center text-sm text-muted-foreground"
+								class="text-muted-foreground flex h-64 items-center justify-center px-6 text-center text-sm"
 							>
 								{t('publicTrip.noGpsData')}
 							</div>
@@ -620,8 +620,8 @@
 
 					<!-- Entry navigation dots -->
 					{#if entries.length > 1}
-						<div class="rounded-2xl border border-border bg-card p-4 shadow-sm">
-							<div class="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+						<div class="border-border bg-card rounded-2xl border p-4 shadow-sm">
+							<div class="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
 								{t('publicTrip.entries')}
 							</div>
 							<div class="flex flex-wrap gap-2">
@@ -654,9 +654,9 @@
 <!-- Mobile map -->
 {#if !isLoading && !notFound && trip && (allGpsPoints.length > 0 || cityMarkers.length > 0)}
 	<div
-		class="mt-4 overflow-hidden rounded-3xl border border-border bg-card p-3 shadow-sm lg:hidden"
+		class="border-border bg-card mt-4 overflow-hidden rounded-3xl border p-3 shadow-sm lg:hidden"
 	>
-		<div class="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+		<div class="text-foreground mb-2 flex items-center gap-2 text-sm font-semibold">
 			<MapPin class="text-primary h-4 w-4" />
 			{#if activeEntryId}
 				{t('plan.dayLabel', { day: entries.findIndex((e) => e.id === activeEntryId) + 1 })}
@@ -706,7 +706,7 @@
 		<img
 			src={lightbox.storage_path}
 			alt={lightbox.caption || 'Photo'}
-			class="max-h-[92vh] max-w-full rounded-lg object-contain animate-scale-in"
+			class="animate-scale-in max-h-[92vh] max-w-full rounded-lg object-contain"
 			role="presentation"
 		/>
 	</div>

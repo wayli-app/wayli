@@ -384,14 +384,14 @@
 </svelte:head>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 dark:from-background dark:via-card dark:to-background"
+	class="dark:from-background dark:via-card dark:to-background flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4"
 >
 	<div class="w-full max-w-md">
 		<!-- Back to home -->
 		<div class="mb-8">
 			<a
 				href="/"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+				class="hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center text-sm text-gray-600 transition-colors"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToHome')}
@@ -399,14 +399,14 @@
 		</div>
 
 		<!-- Sign In Form -->
-		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
+		<div class="bg-card border-border rounded-2xl border p-8 shadow-xl">
 			<div class="mb-8 text-center">
 				<div
 					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
 				>
 					<LogIn class="h-6 w-6 text-white" />
 				</div>
-				<h1 class="mb-2 text-2xl font-bold text-foreground">
+				<h1 class="text-foreground mb-2 text-2xl font-bold">
 					{t('auth.signInToAccount')}
 				</h1>
 				<p class="text-muted-foreground">
@@ -417,7 +417,7 @@
 			{#if isLoadingSettings}
 				<div class="flex items-center justify-center py-8">
 					<div
-						class="border-t-primary h-8 w-8 animate-spin rounded-full border-4 border-border"
+						class="border-t-primary border-border h-8 w-8 animate-spin rounded-full border-4"
 					></div>
 				</div>
 			{:else if oauthOnlyMode && oauthProviders.length > 0}
@@ -428,7 +428,7 @@
 							type="button"
 							onclick={() => signInWithOAuth(provider.provider)}
 							disabled={loading}
-							class="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+							class="hover:bg-muted dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{#if isKnownProvider(provider.provider)}
 								{@render providerIcon(provider.provider, 'lg')}
@@ -440,7 +440,7 @@
 				</div>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"
@@ -454,19 +454,19 @@
 				<form onsubmit={handleSignIn} class="space-y-6">
 					<!-- Email Field -->
 					<div>
-						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
+						<label for="email" class="text-muted-foreground mb-2 block text-sm font-medium">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 							/>
 							<input
 								id="email"
 								type="email"
 								bind:value={email}
 								required
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
+								class="focus:ring-primary dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2"
 								placeholder={t('auth.enterYourEmail')}
 							/>
 						</div>
@@ -474,25 +474,25 @@
 
 					<!-- Password Field -->
 					<div>
-						<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
+						<label for="password" class="text-muted-foreground mb-2 block text-sm font-medium">
 							{t('auth.password')}
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 							/>
 							<input
 								id="password"
 								type={showPassword ? 'text' : 'password'}
 								bind:value={password}
 								required
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
+								class="focus:ring-primary dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2"
 								placeholder={t('auth.enterYourPassword')}
 							/>
 							<button
 								type="button"
 								onclick={togglePassword}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-muted-foreground"
+								class="text-muted-foreground hover:text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer transition-colors"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -509,9 +509,9 @@
 							<input
 								type="checkbox"
 								bind:checked={rememberMe}
-								class="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-gray-300 dark:border-border dark:bg-muted"
+								class="text-primary focus:ring-primary dark:border-border dark:bg-muted h-4 w-4 cursor-pointer rounded border-gray-300"
 							/>
-							<span class="ml-2 text-sm text-muted-foreground">
+							<span class="text-muted-foreground ml-2 text-sm">
 								{t('auth.rememberMe')}
 							</span>
 						</label>
@@ -527,7 +527,7 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="bg-primary hover:bg-primary/90 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium text-primary-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-3 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{#if loading}<Loader2 class="h-5 w-5 animate-spin" />{/if}
 						{loading ? t('auth.signingIn') : t('auth.signIn')}
@@ -538,10 +538,10 @@
 				{#if oauthProviders.length > 0}
 					<div class="relative my-6">
 						<div class="absolute inset-0 flex items-center">
-							<div class="w-full border-t border-gray-300 dark:border-border"></div>
+							<div class="dark:border-border w-full border-t border-gray-300"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="px-2 text-muted-foreground bg-card">
+							<span class="text-muted-foreground bg-card px-2">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>
@@ -556,7 +556,7 @@
 								type="button"
 								onclick={() => signInWithOAuth(provider.provider)}
 								disabled={loading}
-								class="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+								class="hover:bg-muted dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{#if isKnownProvider(provider.provider)}
 									{@render providerIcon(provider.provider, 'sm')}
@@ -568,7 +568,7 @@
 				{/if}
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"

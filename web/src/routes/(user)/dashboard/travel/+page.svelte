@@ -969,7 +969,7 @@
 						{trips.length === 1 ? 'trip' : 'trips'}
 						{#if entries.length > 0}· {entries.length} entries{/if}
 						{#if pendingCount > 0}
-							· <span class="text-amber-500 font-medium">{pendingCount} suggested</span>
+							· <span class="font-medium text-amber-500">{pendingCount} suggested</span>
 						{/if}
 					</p>
 				</div>
@@ -1023,7 +1023,7 @@
 				<button
 					type="button"
 					onclick={openTripModal}
-					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors"
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
 				>
 					<Plus class="h-4 w-4" />
 					New Trip
@@ -1035,7 +1035,7 @@
 		{#if visitedCountries.length > 0}
 			<div class="bg-card border-border mb-4 rounded-2xl border p-4">
 				<div class="mb-3 flex items-center justify-between">
-					<h3 class="text-foreground text-sm font-bold uppercase tracking-wide">Where I've Been</h3>
+					<h3 class="text-foreground text-sm font-bold tracking-wide uppercase">Where I've Been</h3>
 					<span class="text-muted-foreground text-xs">
 						{visitedCountries.length}
 						{visitedCountries.length === 1 ? 'country' : 'countries'}
@@ -1052,7 +1052,7 @@
 				<!-- Pending suggestions (collapsible) -->
 				{#if pendingTrips.length > 0}
 					<div
-						class="border-amber-300/40 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10 rounded-2xl border-2 border-dashed"
+						class="rounded-2xl border-2 border-dashed border-amber-300/40 bg-amber-50/50 dark:border-amber-500/20 dark:bg-amber-950/10"
 					>
 						<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 						<div
@@ -1060,11 +1060,11 @@
 							tabindex="0"
 							onclick={() => (suggestionsExpanded = !suggestionsExpanded)}
 							onkeydown={(e) => e.key === 'Enter' && (suggestionsExpanded = !suggestionsExpanded)}
-							class="hover:bg-amber-100/30 dark:hover:bg-amber-950/20 flex w-full cursor-pointer items-center justify-between p-4 transition-colors"
+							class="flex w-full cursor-pointer items-center justify-between p-4 transition-colors hover:bg-amber-100/30 dark:hover:bg-amber-950/20"
 						>
 							<div class="flex items-center gap-2">
 								<Sparkles class="h-4 w-4 text-amber-500" />
-								<span class="text-sm font-semibold text-foreground">
+								<span class="text-foreground text-sm font-semibold">
 									{pendingCount} suggested {pendingCount === 1 ? 'trip' : 'trips'}
 								</span>
 							</div>
@@ -1086,7 +1086,7 @@
 											e.stopPropagation();
 											approveAll();
 										}}
-										class="bg-amber-500 hover:bg-amber-600 rounded-lg px-3 py-1 text-xs font-medium text-white transition-colors"
+										class="rounded-lg bg-amber-500 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-600"
 									>
 										Approve All
 									</button>
@@ -1129,7 +1129,7 @@
 											<button
 												type="button"
 												onclick={() => approveSuggestion(trip.id)}
-												class="bg-primary hover:bg-primary/90 rounded-lg px-3 py-1 text-xs font-medium text-primary-foreground transition-colors"
+												class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-3 py-1 text-xs font-medium transition-colors"
 											>
 												Approve
 											</button>
@@ -1179,7 +1179,7 @@
 					{#each visibleTrips as trip, i (trip.id)}
 						<div
 							data-trip-id={trip.id}
-							class="bg-card border-border scroll-mt-4 animate-fade-in-up overflow-hidden rounded-2xl border"
+							class="bg-card border-border animate-fade-in-up scroll-mt-4 overflow-hidden rounded-2xl border"
 							style="animation-delay: {Math.min(i * 60, 400)}ms"
 						>
 							<!-- Trip header -->
@@ -1402,7 +1402,7 @@
 													<!-- Date badge -->
 													<div class="mb-2 flex items-center gap-2">
 														<div
-															class="bg-primary/10 text-primary flex h-9 w-9 flex-col items-center justify-center rounded-lg text-[10px] font-bold uppercase leading-tight"
+															class="bg-primary/10 text-primary flex h-9 w-9 flex-col items-center justify-center rounded-lg text-[10px] leading-tight font-bold uppercase"
 														>
 															{new Date(entry.entry_date).toLocaleDateString(undefined, {
 																month: 'short'
@@ -1587,7 +1587,7 @@
 									type="button"
 									onclick={() => saveEntry('published')}
 									disabled={isSaving || !editorDate}
-									class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+									class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 								>
 									{#if isSaving}
 										<Loader2 class="h-4 w-4 animate-spin" />
@@ -1692,7 +1692,7 @@
 									{/if}
 								{:else}
 									<div
-										class="border-border flex h-20 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground"
+										class="border-border text-muted-foreground flex h-20 items-center justify-center rounded-lg border border-dashed text-xs"
 									>
 										No cover image
 									</div>
@@ -1723,7 +1723,7 @@
 							<!-- Sharing & permissions (edit mode only) -->
 							{#if editingTrip}
 								<div class="border-border space-y-3 border-t pt-4">
-									<span class="text-foreground text-xs font-bold uppercase tracking-wide">
+									<span class="text-foreground text-xs font-bold tracking-wide uppercase">
 										Sharing & Permissions
 									</span>
 
@@ -1869,7 +1869,7 @@
 									type="button"
 									onclick={saveTrip}
 									disabled={isCreatingTrip || !tripTitle || !tripStartDate}
-									class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+									class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
 								>
 									{#if isCreatingTrip}
 										<Loader2 class="h-4 w-4 animate-spin" />

@@ -206,7 +206,7 @@
 	</div>
 {:else if pageMode === 'signin'}
 	<div class="bg-background relative flex min-h-screen flex-col items-center justify-center p-4">
-		<div class="bg-white/75 dark:bg-white/10 mb-8 rounded-3xl p-10 shadow-xl">
+		<div class="mb-8 rounded-3xl bg-white/75 p-10 shadow-xl dark:bg-white/10">
 			<img src="/logo.svg" alt="Wayli" class="h-56 w-auto" />
 		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
@@ -214,7 +214,7 @@
 			{#if isLoggedIn}
 				<a
 					href="/dashboard/travel"
-					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
+					class="bg-primary hover:bg-primary/90 text-primary-foreground mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium transition-colors"
 				>
 					<BookOpen class="h-4 w-4" />
 					{t('common.navigation.dashboard')}
@@ -222,7 +222,7 @@
 			{:else}
 				<a
 					href="/auth/signin"
-					class="bg-primary hover:bg-primary/90 mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-primary-foreground transition-colors"
+					class="bg-primary hover:bg-primary/90 text-primary-foreground mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium transition-colors"
 				>
 					<User class="h-4 w-4" />
 					{t('auth.signIn')}
@@ -230,7 +230,7 @@
 			{/if}
 		</div>
 		<div
-			class="bg-background/80 border-border fixed right-4 top-4 z-40 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
+			class="bg-background/80 border-border fixed top-4 right-4 z-40 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
 		>
 			<button
 				onclick={() => handleThemeChange('light')}
@@ -255,7 +255,7 @@
 	<div class="bg-background min-h-screen">
 		<!-- Top bar -->
 		<div
-			class="bg-background/80 border-border fixed right-4 top-4 z-40 flex items-center gap-3 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
+			class="bg-background/80 border-border fixed top-4 right-4 z-40 flex items-center gap-3 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
 		>
 			<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-right" />
 			<div class="flex gap-2">
@@ -300,14 +300,14 @@
 			class="relative overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-700"
 		>
 			<div
-				class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"
+				class="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent"
 			></div>
 			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-20">
-				<div class="bg-white/75 dark:bg-white/10 mb-6 inline-flex rounded-3xl p-6 backdrop-blur-md">
+				<div class="mb-6 inline-flex rounded-3xl bg-white/75 p-6 backdrop-blur-md dark:bg-white/10">
 					<img src="/logo.svg" alt="Wayli" class="h-20 w-auto drop-shadow-2xl" />
 				</div>
 				<h1
-					class="bg-gradient-to-r from-primary via-primary to-primary/60 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
+					class="from-primary via-primary to-primary/60 bg-gradient-to-r bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
 				>
 					{t('landing.heroHeadline')}
 				</h1>
@@ -317,7 +317,7 @@
 				<div class="mt-8 flex items-center justify-center gap-3">
 					<a
 						href="#stories"
-						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors"
+						class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
 					>
 						<BookOpen class="h-4 w-4" />
 						{t('community.exploreStories')}

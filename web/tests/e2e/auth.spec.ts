@@ -81,24 +81,16 @@ test.describe('Authentication Pages', () => {
 });
 
 test.describe('Protected Routes', () => {
-	test('should redirect to signin when accessing dashboard without auth', async ({ page }) => {
-		await page.goto('/dashboard');
+	// These routes live under the (user) group and are guarded client-side
+	// by dashboard/+layout.svelte, which redirects unauthenticated users to signin.
+	const protectedRoutes = ['/dashboard', '/dashboard/statistics', '/dashboard/travel'];
 
-		// Should redirect to sign in page
-		await expect(page).toHaveURL(/signin/);
-	});
+	for (const route of protectedRoutes) {
+		test(`should redirect to signin when accessing ${route} without auth`, async ({ page }) => {
+			await page.goto(route);
 
-	test('should redirect to signin when accessing map without auth', async ({ page }) => {
-		await page.goto('/map');
-
-		// Should redirect to sign in page
-		await expect(page).toHaveURL(/signin/);
-	});
-
-	test('should redirect to signin when accessing settings without auth', async ({ page }) => {
-		await page.goto('/settings');
-
-		// Should redirect to sign in page
-		await expect(page).toHaveURL(/signin/);
-	});
+			// Should redirect to sign in page
+			await expect(page).toHaveURL(/signin/);
+		});
+	}
 });

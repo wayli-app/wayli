@@ -1504,7 +1504,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-lg rounded-xl p-8 shadow-2xl bg-card"
+			class="bg-card relative w-full max-w-lg rounded-xl p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1514,12 +1514,12 @@
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>
-					<h2 id="add-user-modal-title" class="text-2xl font-bold text-foreground">Add New User</h2>
+					<h2 id="add-user-modal-title" class="text-foreground text-2xl font-bold">Add New User</h2>
 					<p class="text-muted-foreground">Create a new user account.</p>
 				</div>
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-muted"
+					class="text-muted-foreground hover:bg-muted dark:hover:bg-muted rounded-full p-1 transition-colors"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -1532,11 +1532,11 @@
 					<div>
 						<label
 							for="newUserFirstName"
-							class="mb-1 block text-sm font-medium text-muted-foreground">First Name *</label
+							class="text-muted-foreground mb-1 block text-sm font-medium">First Name *</label
 						>
 						<div class="relative">
 							<UserIcon
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 							/>
 							<Input
 								type="text"
@@ -1552,11 +1552,11 @@
 					<div>
 						<label
 							for="newUserLastName"
-							class="mb-1 block text-sm font-medium text-muted-foreground">Last Name *</label
+							class="text-muted-foreground mb-1 block text-sm font-medium">Last Name *</label
 						>
 						<div class="relative">
 							<UserIcon
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 							/>
 							<Input
 								type="text"
@@ -1571,11 +1571,11 @@
 				</div>
 
 				<div>
-					<label for="newUserEmail" class="mb-1 block text-sm font-medium text-muted-foreground"
+					<label for="newUserEmail" class="text-muted-foreground mb-1 block text-sm font-medium"
 						>Email Address *</label
 					>
 					<div class="relative">
-						<Mail class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+						<Mail class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2" />
 						<Input
 							type="email"
 							id="newUserEmail"
@@ -1591,11 +1591,11 @@
 					<div>
 						<label
 							for="newUserPassword"
-							class="mb-1 block text-sm font-medium text-muted-foreground">Password *</label
+							class="text-muted-foreground mb-1 block text-sm font-medium">Password *</label
 						>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 							/>
 							<Input
 								type="password"
@@ -1611,11 +1611,11 @@
 					<div>
 						<label
 							for="newUserConfirmPassword"
-							class="mb-1 block text-sm font-medium text-muted-foreground">Confirm Password *</label
+							class="text-muted-foreground mb-1 block text-sm font-medium">Confirm Password *</label
 						>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 							/>
 							<Input
 								type="password"
@@ -1630,7 +1630,7 @@
 				</div>
 
 				<div>
-					<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span>
+					<span class="text-muted-foreground mb-2 block text-sm font-medium">Role</span>
 					<RoleSelector bind:role={newUserRole} />
 				</div>
 			</div>
@@ -1639,7 +1639,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={handleCloseAddUserModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-muted-foreground hover:bg-muted"
+					class="dark:text-muted-foreground hover:bg-muted rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700"
 				>
 					Cancel
 				</button>
@@ -1669,7 +1669,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-md rounded-lg p-6 shadow-xl bg-card"
+			class="bg-card relative w-full max-w-md rounded-lg p-6 shadow-xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -1685,22 +1685,22 @@
 					</div>
 				</div>
 				<div>
-					<h3 id="delete-user-modal-title" class="text-lg font-medium text-foreground">
+					<h3 id="delete-user-modal-title" class="text-foreground text-lg font-medium">
 						Delete User
 					</h3>
-					<p id="delete-user-modal-description" class="text-sm text-muted-foreground">
+					<p id="delete-user-modal-description" class="text-muted-foreground text-sm">
 						Are you sure you want to delete this user? This action cannot be undone.
 					</p>
 				</div>
 			</div>
 
-			<div class="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-muted">
+			<div class="dark:bg-muted mb-4 rounded-lg bg-gray-50 p-4">
 				<div class="flex items-center">
 					<div>
-						<div class="text-sm font-medium text-foreground">
+						<div class="text-foreground text-sm font-medium">
 							{getUserDisplayName(userToDelete)}
 						</div>
-						<div class="text-sm text-muted-foreground">{userToDelete.email}</div>
+						<div class="text-muted-foreground text-sm">{userToDelete.email}</div>
 					</div>
 				</div>
 			</div>
@@ -1709,7 +1709,7 @@
 				<button
 					type="button"
 					onclick={handleCloseDeleteConfirm}
-					class="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700 dark:text-muted-foreground hover:bg-muted"
+					class="dark:text-muted-foreground hover:bg-muted cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-gray-700"
 				>
 					Cancel
 				</button>
@@ -1737,12 +1737,12 @@
 		</div>
 
 		<!-- Tab Navigation -->
-		<div class="mb-6 border-b border-border">
+		<div class="border-border mb-6 border-b">
 			<nav class="-mb-px flex space-x-8">
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'settings'
 						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
+						: 'text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground border-transparent'}"
 					onclick={() => (activeTab = 'settings')}
 				>
 					<div class="flex items-center gap-2">
@@ -1753,7 +1753,7 @@
 				<button
 					class="cursor-pointer border-b-2 px-1 py-2 text-sm font-medium {activeTab === 'users'
 						? 'border-primary text-primary dark:border-primary dark:text-primary'
-						: 'border-transparent text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground'}"
+						: 'text-muted-foreground hover:border-border hover:text-foreground dark:hover:text-muted-foreground border-transparent'}"
 					onclick={() => (activeTab = 'users')}
 				>
 					<div class="flex items-center gap-2">
@@ -1767,11 +1767,11 @@
 		<!-- Users Tab -->
 		{#if activeTab === 'users'}
 			<div
-				class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card"
+				class="border-border dark:border-border dark:bg-card mb-8 rounded-xl border bg-white p-6"
 			>
 				<div class="mb-4">
-					<h2 class="text-xl font-semibold text-foreground">User Management</h2>
-					<p class="mt-1 text-sm text-muted-foreground">
+					<h2 class="text-foreground text-xl font-semibold">User Management</h2>
+					<p class="text-muted-foreground mt-1 text-sm">
 						Manage users and their permissions. Total users: {pagination.total}
 						{#if searchQuery}
 							(Showing {users.length} filtered results)
@@ -1783,7 +1783,7 @@
 					<div class="flex items-center gap-2">
 						<div class="relative">
 							<Search
-								class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
 							/>
 							<Input
 								type="text"
@@ -1811,43 +1811,43 @@
 				</div>
 
 				<div
-					class="overflow-hidden rounded-lg border border-border bg-white dark:border-border dark:bg-card"
+					class="border-border dark:border-border dark:bg-card overflow-hidden rounded-lg border bg-white"
 				>
 					{#if users.length === 0}
 						<div class="py-8 text-center">
-							<UserIcon class="mx-auto h-12 w-12 text-muted-foreground" />
-							<h3 class="mt-2 text-sm font-medium text-foreground">No users found</h3>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<UserIcon class="text-muted-foreground mx-auto h-12 w-12" />
+							<h3 class="text-foreground mt-2 text-sm font-medium">No users found</h3>
+							<p class="text-muted-foreground mt-1 text-sm">
 								{searchQuery
 									? 'Try adjusting your search terms.'
 									: 'No users have been created yet.'}
 							</p>
 						</div>
 					{:else}
-						<table class="min-w-full divide-y divide-border dark:divide-border">
-							<thead class="bg-gray-50 dark:bg-muted">
+						<table class="divide-border dark:divide-border min-w-full divide-y">
+							<thead class="dark:bg-muted bg-gray-50">
 								<tr>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
+										class="text-muted-foreground px-6 py-3 text-left text-xs font-medium tracking-wider uppercase"
 									>
 										User
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
+										class="text-muted-foreground px-6 py-3 text-left text-xs font-medium tracking-wider uppercase"
 									>
 										Role
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
+										class="text-muted-foreground px-6 py-3 text-left text-xs font-medium tracking-wider uppercase"
 									>
 										Created
 									</th>
 									<th
 										scope="col"
-										class="px-6 py-3 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
+										class="text-muted-foreground px-6 py-3 text-left text-xs font-medium tracking-wider uppercase"
 									>
 										Status
 									</th>
@@ -1856,17 +1856,17 @@
 									</th>
 								</tr>
 							</thead>
-							<tbody class="divide-y divide-border bg-white dark:divide-border dark:bg-card">
+							<tbody class="divide-border dark:divide-border dark:bg-card divide-y bg-white">
 								{#each users as user (user.id)}
 									<tr>
 										<td class="px-6 py-4 whitespace-nowrap">
 											<div class="flex items-center gap-3">
 												<UserAvatar {user} size="lg" />
 												<div>
-													<div class="text-sm font-medium text-foreground">
+													<div class="text-foreground text-sm font-medium">
 														{getUserDisplayName(user)}
 													</div>
-													<div class="text-sm text-muted-foreground">{user.email}</div>
+													<div class="text-muted-foreground text-sm">{user.email}</div>
 												</div>
 											</div>
 										</td>
@@ -1875,35 +1875,35 @@
 												class="inline-flex rounded-full px-2 text-xs leading-5 font-semibold {user.role ===
 												'admin'
 													? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-													: 'bg-gray-100 text-gray-800 dark:bg-background/20 dark:text-muted-foreground'}"
+													: 'dark:bg-background/20 dark:text-muted-foreground bg-gray-100 text-gray-800'}"
 											>
 												{user.role === 'admin' ? 'Admin' : 'User'}
 											</span>
 										</td>
-										<td class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
+										<td class="text-muted-foreground px-6 py-4 text-sm whitespace-nowrap">
 											{formatDate(user.created_at)}
 										</td>
-										<td class="px-6 py-4 text-sm whitespace-nowrap text-muted-foreground">
+										<td class="text-muted-foreground px-6 py-4 text-sm whitespace-nowrap">
 											Active
 										</td>
 										<td class="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
 											<div class="flex items-center justify-end gap-2">
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+													class="text-muted-foreground hover:bg-muted hover:text-muted-foreground cursor-pointer rounded p-1"
 													onclick={() => handleEditUser(user)}
 													title="Edit user"
 												>
 													<Edit class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+													class="text-muted-foreground cursor-pointer rounded p-1 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
 													onclick={() => handleClearUserPlaceVisits(user)}
 													title={t('serverAdmin.clearUserPlaceVisits')}
 												>
 													<RotateCcw class="h-4 w-4" />
 												</button>
 												<button
-													class="cursor-pointer rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+													class="text-muted-foreground cursor-pointer rounded p-1 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
 													onclick={() => handleDeleteUser(user)}
 													title="Delete user"
 												>
@@ -1919,10 +1919,10 @@
 						<!-- Pagination Controls -->
 						{#if pagination.totalPages > 1}
 							<div
-								class="border-t border-border bg-white px-6 py-3 dark:border-border dark:bg-card"
+								class="border-border dark:border-border dark:bg-card border-t bg-white px-6 py-3"
 							>
 								<div class="flex items-center justify-between">
-									<div class="flex items-center text-sm text-muted-foreground">
+									<div class="text-muted-foreground flex items-center text-sm">
 										<span>
 											Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(
 												pagination.page * pagination.limit,
@@ -1935,7 +1935,7 @@
 										<button
 											onclick={goToPreviousPage}
 											disabled={!pagination.hasPrev}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+											class="text-muted-foreground hover:bg-muted relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											<span class="sr-only">Previous</span>
 											<ChevronLeft class="h-5 w-5" />
@@ -1958,7 +1958,7 @@
 										<button
 											onclick={goToNextPage}
 											disabled={!pagination.hasNext}
-											class="relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+											class="text-muted-foreground hover:bg-muted relative inline-flex items-center rounded-md px-2 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											<span class="sr-only">Next</span>
 											<ChevronRight class="h-5 w-5" />
@@ -1976,19 +1976,19 @@
 		{#if activeTab === 'settings'}
 			<div class="space-y-8">
 				<!-- Wayli Settings -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-foreground">
+						<h2 class="text-foreground text-xl font-semibold">
 							{t('serverAdmin.wayliSettings')}
 						</h2>
-						<p class="mt-1 text-sm text-muted-foreground">
+						<p class="text-muted-foreground mt-1 text-sm">
 							{t('serverAdmin.wayliSettingsDescription')}
 						</p>
 					</div>
 
 					<div class="space-y-4">
 						<div>
-							<label for="serverName" class="block text-sm font-medium text-muted-foreground">
+							<label for="serverName" class="text-muted-foreground block text-sm font-medium">
 								{t('serverAdmin.serverName')}
 							</label>
 							<Input
@@ -2003,7 +2003,7 @@
 						<div>
 							<label
 								for="serverPexelsApiKey"
-								class="block text-sm font-medium text-muted-foreground"
+								class="text-muted-foreground block text-sm font-medium"
 							>
 								{t('serverAdmin.serverPexelsKey')}
 							</label>
@@ -2047,14 +2047,14 @@
 									placeholder={t('serverAdmin.enterPexelsApiKey')}
 								/>
 							{/if}
-							<p class="mt-1 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-xs">
 								{t('serverAdmin.serverPexelsKeyDescription')}
 							</p>
 						</div>
 
 						<div>
 							<div class="flex items-center justify-between">
-								<span class="block text-sm font-medium text-muted-foreground">
+								<span class="text-muted-foreground block text-sm font-medium">
 									Enable Pexels API Rate Limit
 								</span>
 								<Switch
@@ -2062,7 +2062,7 @@
 									label="Enable Pexels API Rate Limit"
 								/>
 							</div>
-							<p class="mt-1 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-xs">
 								{#if pexelsRateLimitEnabled}
 									Rate limiting is enabled. Configure the limit below.
 								{:else}
@@ -2074,7 +2074,7 @@
 								<div class="mt-3">
 									<label
 										for="pexelsRateLimit"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										Requests per hour
 									</label>
@@ -2087,7 +2087,7 @@
 										class="w-full"
 										placeholder={t('serverAdmin.rateLimitPlaceholder')}
 									/>
-									<p class="mt-1 text-xs text-muted-foreground">
+									<p class="text-muted-foreground mt-1 text-xs">
 										Default: 200 (Pexels free tier limit)
 									</p>
 								</div>
@@ -2095,7 +2095,7 @@
 						</div>
 
 						<div>
-							<label for="peliasEndpoint" class="block text-sm font-medium text-muted-foreground">
+							<label for="peliasEndpoint" class="text-muted-foreground block text-sm font-medium">
 								Pelias Geocoding Endpoint
 							</label>
 							<Input
@@ -2107,7 +2107,7 @@
 								pattern="https?://.+"
 								required
 							/>
-							<p class="mt-1 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-xs">
 								Geocoding service URL for address lookups and reverse geocoding
 							</p>
 						</div>
@@ -2124,12 +2124,12 @@
 				</div>
 
 				<!-- Authentication Settings -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-foreground">
+						<h2 class="text-foreground text-xl font-semibold">
 							{t('serverAdmin.authenticationSettings')}
 						</h2>
-						<p class="mt-1 text-sm text-muted-foreground">
+						<p class="text-muted-foreground mt-1 text-sm">
 							{t('serverAdmin.authSettingsDescription')}
 						</p>
 					</div>
@@ -2152,7 +2152,7 @@
 						{/if}
 
 						<div class="flex items-center justify-between">
-							<span class="text-sm text-muted-foreground">
+							<span class="text-muted-foreground text-sm">
 								{t('serverAdmin.enableSignup')}
 							</span>
 							<Switch
@@ -2163,7 +2163,7 @@
 						</div>
 
 						<div class="flex items-center justify-between">
-							<span class="text-sm text-muted-foreground">
+							<span class="text-muted-foreground text-sm">
 								{t('serverAdmin.requireEmailVerification')}
 							</span>
 							<Switch
@@ -2175,10 +2175,10 @@
 
 						<div class="flex items-center justify-between">
 							<div>
-								<span class="text-sm text-muted-foreground">
+								<span class="text-muted-foreground text-sm">
 									{t('serverAdmin.disablePasswordLogin')}
 								</span>
-								<p class="text-xs text-muted-foreground">
+								<p class="text-muted-foreground text-xs">
 									{t('serverAdmin.disablePasswordLoginDescription')}
 								</p>
 							</div>
@@ -2214,12 +2214,12 @@
 				</div>
 
 				<!-- Email & SMTP Settings -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4">
-						<h2 class="text-xl font-semibold text-foreground">
+						<h2 class="text-foreground text-xl font-semibold">
 							{t('serverAdmin.emailSettings')}
 						</h2>
-						<p class="mt-1 text-sm text-muted-foreground">
+						<p class="text-muted-foreground mt-1 text-sm">
 							{t('serverAdmin.emailSettingsDescription')}
 						</p>
 					</div>
@@ -2241,14 +2241,14 @@
 							</div>
 						{/if}
 
-						<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-card border-border">
-							<h3 class="font-medium text-foreground">
+						<div class="dark:bg-card border-border space-y-3 rounded border bg-gray-50 p-4">
+							<h3 class="text-foreground font-medium">
 								{t('serverAdmin.smtpConfiguration')}
 							</h3>
 
 							<div class="grid grid-cols-2 gap-4">
 								<div>
-									<label for="smtpHost" class="block text-sm font-medium text-muted-foreground">
+									<label for="smtpHost" class="text-muted-foreground block text-sm font-medium">
 										{t('serverAdmin.smtpHost')}
 									</label>
 									<Input
@@ -2262,7 +2262,7 @@
 								</div>
 
 								<div>
-									<label for="smtpPort" class="block text-sm font-medium text-muted-foreground">
+									<label for="smtpPort" class="text-muted-foreground block text-sm font-medium">
 										{t('serverAdmin.smtpPort')}
 									</label>
 									<Input
@@ -2277,7 +2277,7 @@
 							</div>
 
 							<div>
-								<label for="smtpUsername" class="block text-sm font-medium text-muted-foreground">
+								<label for="smtpUsername" class="text-muted-foreground block text-sm font-medium">
 									{t('serverAdmin.smtpUsername')}
 								</label>
 								<Input
@@ -2291,7 +2291,7 @@
 							</div>
 
 							<div>
-								<label for="smtpPassword" class="block text-sm font-medium text-muted-foreground">
+								<label for="smtpPassword" class="text-muted-foreground block text-sm font-medium">
 									{t('serverAdmin.smtpPassword')}
 								</label>
 								<Input
@@ -2305,7 +2305,7 @@
 							</div>
 
 							<div class="flex items-center justify-between">
-								<span class="text-sm text-muted-foreground">
+								<span class="text-muted-foreground text-sm">
 									{t('serverAdmin.smtpUseTls')}
 								</span>
 								<Switch
@@ -2318,7 +2318,7 @@
 							<div>
 								<label
 									for="smtpFromAddress"
-									class="block text-sm font-medium text-muted-foreground"
+									class="text-muted-foreground block text-sm font-medium"
 								>
 									{t('serverAdmin.smtpFromAddress')}
 								</label>
@@ -2333,7 +2333,7 @@
 							</div>
 
 							<div>
-								<label for="smtpFromName" class="block text-sm font-medium text-muted-foreground">
+								<label for="smtpFromName" class="text-muted-foreground block text-sm font-medium">
 									{t('serverAdmin.smtpFromName')}
 								</label>
 								<Input
@@ -2361,14 +2361,14 @@
 				</div>
 
 				<!-- OAuth Settings -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4 flex items-center gap-3">
 						<Lock class="h-6 w-6 text-indigo-500" />
 						<div>
-							<h2 class="text-xl font-semibold text-foreground">
+							<h2 class="text-foreground text-xl font-semibold">
 								{t('serverAdmin.oauthSettings')}
 							</h2>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-sm">
 								{t('serverAdmin.oauthSettingsDescription')}
 							</p>
 						</div>
@@ -2378,13 +2378,13 @@
 						<!-- Configured Providers List -->
 						{#if isLoadingOAuth}
 							<div class="flex items-center justify-center py-8">
-								<RefreshCw class="h-5 w-5 animate-spin text-muted-foreground" />
+								<RefreshCw class="text-muted-foreground h-5 w-5 animate-spin" />
 							</div>
 						{:else if oauthProviders.length > 0}
 							<div class="space-y-2">
 								{#each oauthProviders as provider}
 									<div
-										class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-card border-border"
+										class="dark:bg-card border-border flex items-center justify-between rounded-lg border bg-gray-50 p-3"
 									>
 										<div class="flex items-center gap-3">
 											<div
@@ -2395,10 +2395,10 @@
 												</span>
 											</div>
 											<div>
-												<div class="text-sm font-medium text-foreground">
+												<div class="text-foreground text-sm font-medium">
 													{provider.display_name}
 												</div>
-												<div class="text-xs text-muted-foreground">
+												<div class="text-muted-foreground text-xs">
 													{provider.provider_name}
 												</div>
 											</div>
@@ -2411,14 +2411,14 @@
 											/>
 											<button
 												onclick={() => editOAuthProvider(provider)}
-												class="rounded p-1.5 text-muted-foreground hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
+												class="text-muted-foreground hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground rounded p-1.5"
 												title={t('serverAdmin.edit')}
 											>
 												<Edit class="h-4 w-4" />
 											</button>
 											<button
 												onclick={() => deleteOAuthProvider(provider.id)}
-												class="rounded p-1.5 text-muted-foreground hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+												class="text-muted-foreground rounded p-1.5 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
 												title={t('serverAdmin.delete')}
 											>
 												<Trash2 class="h-4 w-4" />
@@ -2428,7 +2428,7 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="py-4 text-center text-sm text-muted-foreground">
+							<p class="text-muted-foreground py-4 text-center text-sm">
 								{t('serverAdmin.noOAuthProviders')}
 							</p>
 						{/if}
@@ -2438,7 +2438,7 @@
 							<div
 								class="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-900/20"
 							>
-								<h3 class="font-medium text-foreground">
+								<h3 class="text-foreground font-medium">
 									{oauthEditingId
 										? t('serverAdmin.editOAuthProvider')
 										: t('serverAdmin.addOAuthProvider')}
@@ -2447,7 +2447,7 @@
 								<div>
 									<label
 										for="oauthProvider"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										{t('serverAdmin.oauthProvider')}
 									</label>
@@ -2472,7 +2472,7 @@
 									<div>
 										<label
 											for="oauthCustomName"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.oauthCustomName')}
 										</label>
@@ -2483,7 +2483,7 @@
 											class="w-full"
 											placeholder={t('serverAdmin.oauthCustomNamePlaceholder')}
 										/>
-										<p class="mt-1 text-xs text-muted-foreground">
+										<p class="text-muted-foreground mt-1 text-xs">
 											{t('serverAdmin.oauthCustomNameHint')}
 										</p>
 									</div>
@@ -2492,7 +2492,7 @@
 									<div>
 										<label
 											for="oauthDiscoveryUrl"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.oauthDiscoveryUrl')}
 										</label>
@@ -2518,7 +2518,7 @@
 												{t('serverAdmin.oauthDiscover')}
 											</button>
 										</div>
-										<p class="mt-1 text-xs text-muted-foreground">
+										<p class="text-muted-foreground mt-1 text-xs">
 											{t('serverAdmin.oauthDiscoveryUrlHint')}
 										</p>
 									</div>
@@ -2527,7 +2527,7 @@
 									<div>
 										<label
 											for="oauthAuthorizationUrl"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.oauthAuthorizationUrl')}
 										</label>
@@ -2544,7 +2544,7 @@
 									<div>
 										<label
 											for="oauthTokenUrl"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.oauthTokenUrl')}
 										</label>
@@ -2561,7 +2561,7 @@
 									<div>
 										<label
 											for="oauthUserInfoUrl"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.oauthUserInfoUrl')}
 										</label>
@@ -2578,7 +2578,7 @@
 									<div>
 										<label
 											for="oauthScopes"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.oauthScopes')}
 										</label>
@@ -2589,7 +2589,7 @@
 											class="w-full"
 											placeholder={t('serverAdmin.oauthScopesPlaceholder')}
 										/>
-										<p class="mt-1 text-xs text-muted-foreground">
+										<p class="text-muted-foreground mt-1 text-xs">
 											{t('serverAdmin.oauthScopesHint')}
 										</p>
 									</div>
@@ -2598,7 +2598,7 @@
 								<div>
 									<label
 										for="oauthDisplayName"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										{t('serverAdmin.oauthDisplayName')}
 									</label>
@@ -2616,7 +2616,7 @@
 								<div>
 									<label
 										for="oauthClientId"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										{t('serverAdmin.oauthClientId')}
 									</label>
@@ -2632,7 +2632,7 @@
 								<div>
 									<label
 										for="oauthClientSecret"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										{t('serverAdmin.oauthClientSecret')}
 									</label>
@@ -2648,7 +2648,7 @@
 								</div>
 
 								<div class="flex items-center justify-between">
-									<span class="text-sm text-muted-foreground">
+									<span class="text-muted-foreground text-sm">
 										{t('serverAdmin.oauthEnabled')}
 									</span>
 									<Switch bind:checked={oauthFormEnabled} label={t('serverAdmin.oauthEnabled')} />
@@ -2657,7 +2657,7 @@
 								<div class="flex justify-end gap-2">
 									<button
 										onclick={resetOAuthForm}
-										class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+										class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
 									>
 										{t('serverAdmin.cancel')}
 									</button>
@@ -2678,7 +2678,7 @@
 						{:else}
 							<button
 								onclick={() => (showOAuthForm = true)}
-								class="w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600 hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground"
+								class="hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600"
 							>
 								+ {t('serverAdmin.addOAuthProvider')}
 							</button>
@@ -2688,15 +2688,15 @@
 
 				<!-- Landing Page (hidden when community hub is enabled) -->
 				<div
-					class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card {communityEnabled
+					class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6 {communityEnabled
 						? 'hidden'
 						: ''}"
 				>
 					<div class="mb-4 flex items-center gap-3">
-						<BookOpen class="h-6 w-6 text-primary" />
+						<BookOpen class="text-primary h-6 w-6" />
 						<div>
-							<h2 class="text-xl font-semibold text-foreground">Landing Page</h2>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<h2 class="text-foreground text-xl font-semibold">Landing Page</h2>
+							<p class="text-muted-foreground mt-1 text-sm">
 								Select a user whose public travel journal is shown when visitors land on the site.
 							</p>
 						</div>
@@ -2704,13 +2704,13 @@
 
 					<div class="space-y-4">
 						{#if usersWithUsernames.length === 0}
-							<p class="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+							<p class="bg-muted text-muted-foreground rounded-lg p-3 text-sm">
 								No users have set a public username yet. Users can set one in their Account Settings
 								under "Public Profile".
 							</p>
 						{:else}
 							<label class="block">
-								<span class="mb-1.5 block text-sm font-medium text-foreground"
+								<span class="text-foreground mb-1.5 block text-sm font-medium"
 									>Show this user's blog</span
 								>
 								<select
@@ -2724,8 +2724,8 @@
 										</option>
 									{/each}
 								</select>
-								<p class="mt-1 text-xs text-muted-foreground">
-									Visitors will be redirected to <code class="bg-muted px-1 rounded"
+								<p class="text-muted-foreground mt-1 text-xs">
+									Visitors will be redirected to <code class="bg-muted rounded px-1"
 										>/u/{landingRedirectUsername || 'username'}</code
 									>
 								</p>
@@ -2736,7 +2736,7 @@
 							type="button"
 							onclick={saveLandingRedirect}
 							disabled={isSavingLandingRedirect || usersWithUsernames.length === 0}
-							class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 						>
 							{isSavingLandingRedirect ? 'Saving...' : 'Save'}
 						</button>
@@ -2744,11 +2744,11 @@
 				</div>
 
 				<!-- Community Hub (always visible — controls whether landing page shows community or redirect) -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4 flex items-center gap-3">
 						<div>
-							<h2 class="text-xl font-semibold text-foreground">Community Hub</h2>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<h2 class="text-foreground text-xl font-semibold">Community Hub</h2>
+							<p class="text-muted-foreground mt-1 text-sm">
 								Configure the landing page for this instance.
 							</p>
 						</div>
@@ -2758,11 +2758,11 @@
 							<input
 								type="checkbox"
 								bind:checked={communityEnabled}
-								class="h-4 w-4 rounded border-border"
+								class="border-border h-4 w-4 rounded"
 							/>
 							<div>
-								<span class="text-sm font-medium text-foreground">Enable community hub</span>
-								<p class="text-xs text-muted-foreground">
+								<span class="text-foreground text-sm font-medium">Enable community hub</span>
+								<p class="text-muted-foreground text-xs">
 									When enabled, the landing page shows public stories from all users. When disabled,
 									it redirects to the configured user's blog (or shows a sign-in page).
 								</p>
@@ -2772,7 +2772,7 @@
 							type="button"
 							onclick={saveCommunitySettings}
 							disabled={isSavingCommunity}
-							class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 						>
 							{isSavingCommunity ? 'Saving...' : 'Save'}
 						</button>
@@ -2780,14 +2780,14 @@
 				</div>
 
 				<!-- AI Settings -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4 flex items-center gap-3">
 						<Bot class="h-6 w-6 text-purple-500" />
 						<div>
-							<h2 class="text-xl font-semibold text-foreground">
+							<h2 class="text-foreground text-xl font-semibold">
 								{t('serverAdmin.aiSettings')}
 							</h2>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-sm">
 								{t('serverAdmin.aiSettingsDescription')}
 							</p>
 						</div>
@@ -2812,10 +2812,10 @@
 
 						<div class="flex items-center justify-between">
 							<div>
-								<span class="text-sm font-medium text-muted-foreground">
+								<span class="text-muted-foreground text-sm font-medium">
 									{t('serverAdmin.aiEnabled')}
 								</span>
-								<p class="text-xs text-muted-foreground">
+								<p class="text-muted-foreground text-xs">
 									{t('serverAdmin.aiEnabledDescription')}
 								</p>
 							</div>
@@ -2829,10 +2829,10 @@
 						{#if aiEnabled}
 							<div class="flex items-center justify-between">
 								<div>
-									<span class="text-sm font-medium text-muted-foreground">
+									<span class="text-muted-foreground text-sm font-medium">
 										{t('serverAdmin.allowUserOverride')}
 									</span>
-									<p class="text-xs text-muted-foreground">
+									<p class="text-muted-foreground text-xs">
 										{t('serverAdmin.allowUserOverrideDescription')}
 									</p>
 								</div>
@@ -2843,12 +2843,12 @@
 								/>
 							</div>
 
-							<div class="space-y-3 rounded border bg-gray-50 p-4 dark:bg-card border-border">
+							<div class="dark:bg-card border-border space-y-3 rounded border bg-gray-50 p-4">
 								<div class="grid grid-cols-2 gap-4">
 									<div>
 										<label
 											for="providerName"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.aiProviderName')}
 										</label>
@@ -2864,7 +2864,7 @@
 									<div>
 										<label
 											for="providerDisplayName"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.aiDisplayName')}
 										</label>
@@ -2880,7 +2880,7 @@
 								</div>
 
 								<div>
-									<label for="providerType" class="block text-sm font-medium text-muted-foreground">
+									<label for="providerType" class="text-muted-foreground block text-sm font-medium">
 										{t('serverAdmin.aiProvider')}
 									</label>
 									<select
@@ -2898,7 +2898,7 @@
 								<div>
 									<label
 										for="providerModel"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										{t('serverAdmin.aiModel')}
 									</label>
@@ -2910,7 +2910,7 @@
 										class="w-full"
 										placeholder={t('serverAdmin.modelPlaceholder')}
 									/>
-									<p class="mt-1 text-xs text-muted-foreground">
+									<p class="text-muted-foreground mt-1 text-xs">
 										{t('serverAdmin.aiModelDescription')}
 									</p>
 								</div>
@@ -2918,7 +2918,7 @@
 								<div>
 									<label
 										for="providerApiKey"
-										class="block text-sm font-medium text-muted-foreground"
+										class="text-muted-foreground block text-sm font-medium"
 									>
 										{t('serverAdmin.aiApiKey')}
 									</label>
@@ -2936,7 +2936,7 @@
 									<div>
 										<label
 											for="providerApiEndpoint"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.aiApiEndpoint')}
 										</label>
@@ -2948,7 +2948,7 @@
 											class="w-full"
 											placeholder={t('serverAdmin.aiApiEndpointPlaceholder')}
 										/>
-										<p class="mt-1 text-xs text-muted-foreground">
+										<p class="text-muted-foreground mt-1 text-xs">
 											{t('serverAdmin.aiApiEndpointDescription')}
 										</p>
 									</div>
@@ -2958,7 +2958,7 @@
 									<div>
 										<label
 											for="providerMaxTokens"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.aiMaxTokens')}
 										</label>
@@ -2976,7 +2976,7 @@
 									<div>
 										<label
 											for="providerTemperature"
-											class="block text-sm font-medium text-muted-foreground"
+											class="text-muted-foreground block text-sm font-medium"
 										>
 											{t('serverAdmin.aiTemperature')}
 										</label>
@@ -3009,14 +3009,14 @@
 				</div>
 
 				<!-- Web Search (Tavily) -->
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-4 flex items-center gap-3">
 						<Globe class="h-6 w-6 text-sky-500" />
 						<div class="flex-1">
-							<h2 class="text-xl font-semibold text-foreground">
+							<h2 class="text-foreground text-xl font-semibold">
 								{t('serverAdmin.tavilyTitle')}
 							</h2>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-sm">
 								{t('serverAdmin.tavilyDescription')}
 								<a
 									href="https://tavily.com"
@@ -3040,7 +3040,7 @@
 					<div class="space-y-4">
 						<!-- API Key -->
 						<div>
-							<label class="mb-1 block text-sm font-medium text-foreground" for="tavily-api-key">
+							<label class="text-foreground mb-1 block text-sm font-medium" for="tavily-api-key">
 								{t('serverAdmin.tavilyKey')}
 							</label>
 							<input
@@ -3052,7 +3052,7 @@
 								autocomplete="off"
 							/>
 							{#if tavilyIntegration?.config?.api_key}
-								<p class="mt-1 text-xs text-muted-foreground">
+								<p class="text-muted-foreground mt-1 text-xs">
 									{t('serverAdmin.tavilyKeyMasked')}
 									{#if tavilyIntegration.updated_at}
 										· {new Date(tavilyIntegration.updated_at).toLocaleDateString()}
@@ -3073,7 +3073,7 @@
 
 						<!-- Base URL -->
 						<div>
-							<label class="mb-1 block text-sm font-medium text-foreground" for="tavily-base-url">
+							<label class="text-foreground mb-1 block text-sm font-medium" for="tavily-base-url">
 								{t('serverAdmin.tavilyBaseURL')}
 							</label>
 							<input
@@ -3087,7 +3087,7 @@
 
 						<!-- Default Depth -->
 						<div>
-							<label class="mb-1 block text-sm font-medium text-foreground" for="tavily-depth">
+							<label class="text-foreground mb-1 block text-sm font-medium" for="tavily-depth">
 								{t('serverAdmin.tavilyDepth')}
 							</label>
 							<select
@@ -3098,7 +3098,7 @@
 								<option value="basic">{t('serverAdmin.tavilyDepthBasic')}</option>
 								<option value="advanced">{t('serverAdmin.tavilyDepthAdvanced')}</option>
 							</select>
-							<p class="mt-1 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-xs">
 								{t('serverAdmin.tavilyDepthHint')}
 							</p>
 						</div>
@@ -3121,7 +3121,7 @@
 									type="button"
 									onclick={testTavily}
 									disabled={tavilyTesting || tavilySaving}
-									class="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+									class="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 								>
 									{tavilyTesting ? t('serverAdmin.tavilyTesting') : t('serverAdmin.tavilyTest')}
 								</button>
@@ -3138,14 +3138,14 @@
 					</div>
 				</div>
 
-				<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+				<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 					<div class="mb-6 flex items-center gap-3">
 						<Database class="h-6 w-6 text-emerald-500" />
 						<div>
-							<h2 class="text-xl font-semibold text-foreground">
+							<h2 class="text-foreground text-xl font-semibold">
 								{t('serverAdmin.databaseMaintenance')}
 							</h2>
-							<p class="mt-1 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-sm">
 								{t('serverAdmin.databaseMaintenanceDescription')}
 							</p>
 						</div>
@@ -3153,11 +3153,11 @@
 
 					<div class="space-y-6">
 						<!-- Data Processing Pipeline -->
-						<div class="rounded-lg border p-4 border-border">
-							<h3 class="mb-1 text-sm font-semibold text-foreground">
+						<div class="border-border rounded-lg border p-4">
+							<h3 class="text-foreground mb-1 text-sm font-semibold">
 								{t('serverAdmin.pipelineTitle')}
 							</h3>
-							<p class="mb-4 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mb-4 text-xs">
 								{t('serverAdmin.pipelineDescription')}
 							</p>
 
@@ -3165,7 +3165,7 @@
 							<div class="flex flex-col items-center">
 								<!-- Step 1: Reverse Geocode -->
 								<div
-									class="flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-border dark:bg-card"
+									class="dark:border-border dark:bg-card flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
 								>
 									<div class="flex items-start gap-3">
 										<span
@@ -3173,10 +3173,10 @@
 											>1</span
 										>
 										<div class="min-w-0">
-											<span class="text-sm font-medium text-muted-foreground">
+											<span class="text-muted-foreground text-sm font-medium">
 												{t('serverAdmin.reverseGeocode')}
 											</span>
-											<p class="text-xs text-muted-foreground">
+											<p class="text-muted-foreground text-xs">
 												{t('serverAdmin.reverseGeocodeDescription')}
 											</p>
 										</div>
@@ -3195,13 +3195,13 @@
 
 								<!-- Connector -->
 								<div class="flex flex-col items-center py-1">
-									<div class="h-4 w-0.5 bg-gray-300 dark:bg-muted"></div>
-									<ChevronDown class="h-4 w-4 text-muted-foreground" />
+									<div class="dark:bg-muted h-4 w-0.5 bg-gray-300"></div>
+									<ChevronDown class="text-muted-foreground h-4 w-4" />
 								</div>
 
 								<!-- Step 2: Sync Place Visits -->
 								<div
-									class="flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-border dark:bg-card"
+									class="dark:border-border dark:bg-card flex w-full max-w-xl items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4"
 								>
 									<div class="flex items-start gap-3">
 										<span
@@ -3209,10 +3209,10 @@
 											>2</span
 										>
 										<div class="min-w-0">
-											<span class="text-sm font-medium text-muted-foreground">
+											<span class="text-muted-foreground text-sm font-medium">
 												{t('serverAdmin.refreshPlaceVisits')}
 											</span>
-											<p class="text-xs text-muted-foreground">
+											<p class="text-muted-foreground text-xs">
 												{t('serverAdmin.refreshPlaceVisitsDescription')}
 											</p>
 										</div>
@@ -3234,24 +3234,24 @@
 						</div>
 
 						<!-- Standalone Operations -->
-						<div class="rounded-lg border p-4 border-border">
-							<h3 class="mb-1 text-sm font-semibold text-foreground">
+						<div class="border-border rounded-lg border p-4">
+							<h3 class="text-foreground mb-1 text-sm font-semibold">
 								{t('serverAdmin.standaloneTitle')}
 							</h3>
-							<p class="mb-4 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mb-4 text-xs">
 								{t('serverAdmin.standaloneDescription')}
 							</p>
 
 							<div class="flex flex-wrap gap-3">
 								<!-- Force Re-geocode Card -->
 								<div
-									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-card"
+									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-muted-foreground">
+										<span class="text-muted-foreground text-sm font-medium">
 											{t('serverAdmin.forceRegeocode')}
 										</span>
-										<p class="text-xs text-muted-foreground">
+										<p class="text-muted-foreground text-xs">
 											{t('serverAdmin.forceRegeocodeDescription')}
 										</p>
 									</div>
@@ -3267,13 +3267,13 @@
 
 								<!-- Fill Country Codes Card -->
 								<div
-									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-card"
+									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-muted-foreground">
+										<span class="text-muted-foreground text-sm font-medium">
 											{t('serverAdmin.fillCountryCodes')}
 										</span>
-										<p class="text-xs text-muted-foreground">
+										<p class="text-muted-foreground text-xs">
 											{t('serverAdmin.fillCountryCodesDescription')}
 										</p>
 									</div>
@@ -3291,13 +3291,13 @@
 
 								<!-- Re-detect Transport Modes Card -->
 								<div
-									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-border dark:bg-card"
+									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-muted-foreground">
+										<span class="text-muted-foreground text-sm font-medium">
 											{t('serverAdmin.detectTransportModes')}
 										</span>
-										<p class="text-xs text-muted-foreground">
+										<p class="text-muted-foreground text-xs">
 											{t('serverAdmin.detectTransportModesDescription')}
 										</p>
 									</div>
@@ -3318,10 +3318,10 @@
 									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
 								>
 									<div class="min-w-0 flex-1">
-										<span class="text-sm font-medium text-muted-foreground">
+										<span class="text-muted-foreground text-sm font-medium">
 											{t('serverAdmin.clearPlaceVisits')}
 										</span>
-										<p class="text-xs text-muted-foreground">
+										<p class="text-muted-foreground text-xs">
 											{t('serverAdmin.clearPlaceVisitsDescription')}
 										</p>
 									</div>
@@ -3351,21 +3351,21 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
+							class="dark:bg-card mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
 						>
-							<h3 class="mb-2 text-lg font-semibold text-foreground">
+							<h3 class="text-foreground mb-2 text-lg font-semibold">
 								{t('serverAdmin.forceRegeocodeConfirmTitle')}
 							</h3>
-							<p class="mb-6 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mb-6 text-sm">
 								{t('serverAdmin.forceRegeocodeConfirmMessage')}
 							</p>
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelForceRegeocode}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground hover:bg-muted"
+									class="dark:border-border dark:text-muted-foreground hover:bg-muted rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -3392,7 +3392,7 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
+							class="dark:bg-card mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
@@ -3403,17 +3403,17 @@
 								>
 									<Trash2 class="h-5 w-5 text-red-600 dark:text-red-400" />
 								</div>
-								<h3 class="text-lg font-semibold text-foreground">
+								<h3 class="text-foreground text-lg font-semibold">
 									{t('serverAdmin.clearPlaceVisitsConfirmTitle')}
 								</h3>
 							</div>
-							<p class="mb-6 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mb-6 text-sm">
 								{t('serverAdmin.clearPlaceVisitsConfirmMessage')}
 							</p>
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground hover:bg-muted"
+									class="dark:border-border dark:text-muted-foreground hover:bg-muted rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -3440,7 +3440,7 @@
 					>
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<div
-							class="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-card"
+							class="dark:bg-card mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
 							onclick={(e) => e.stopPropagation()}
 							onkeydown={(e) => e.stopPropagation()}
 							role="document"
@@ -3451,26 +3451,26 @@
 								>
 									<RotateCcw class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 								</div>
-								<h3 class="text-lg font-semibold text-foreground">
+								<h3 class="text-foreground text-lg font-semibold">
 									{t('serverAdmin.clearUserPlaceVisitsConfirmTitle')}
 								</h3>
 							</div>
-							<div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-card">
-								<div class="font-medium text-foreground">
+							<div class="dark:bg-card mb-4 rounded-lg bg-gray-50 p-3">
+								<div class="text-foreground font-medium">
 									{userToClearPlaceVisits.first_name || ''}
 									{userToClearPlaceVisits.last_name || ''}
 								</div>
-								<div class="text-sm text-muted-foreground">
+								<div class="text-muted-foreground text-sm">
 									{userToClearPlaceVisits.email}
 								</div>
 							</div>
-							<p class="mb-6 text-sm text-muted-foreground">
+							<p class="text-muted-foreground mb-6 text-sm">
 								{t('serverAdmin.clearUserPlaceVisitsConfirmMessage')}
 							</p>
 							<div class="flex justify-end gap-3">
 								<button
 									onclick={cancelClearUserPlaceVisits}
-									class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-border dark:text-muted-foreground hover:bg-muted"
+									class="dark:border-border dark:text-muted-foreground hover:bg-muted rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
 								>
 									{t('serverAdmin.cancel')}
 								</button>
@@ -3490,8 +3490,8 @@
 {:else}
 	<div class="flex h-64 items-center justify-center">
 		<div class="text-center">
-			<Settings class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-			<h2 class="mb-2 text-xl font-semibold text-foreground">Access Denied</h2>
+			<Settings class="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+			<h2 class="text-foreground mb-2 text-xl font-semibold">Access Denied</h2>
 			<p class="text-muted-foreground">You don't have permission to access this page.</p>
 		</div>
 	</div>

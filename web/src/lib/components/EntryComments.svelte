@@ -82,7 +82,7 @@
 
 <div class="space-y-3">
 	{#if comments.length > 0}
-		<div class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+		<div class="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
 			<MessageCircle class="h-3.5 w-3.5" />
 			{comments.length}
 			{comments.length === 1 ? 'comment' : 'comments'}
@@ -134,7 +134,7 @@
 				type="button"
 				onclick={handleSubmit}
 				disabled={isSubmitting || !commentBody.trim()}
-				class="bg-primary hover:bg-primary/90 rounded-lg p-1.5 text-primary-foreground transition-colors disabled:opacity-50"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg p-1.5 transition-colors disabled:opacity-50"
 				aria-label="Post comment"
 			>
 				{#if isSubmitting}

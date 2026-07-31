@@ -65,7 +65,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="animate-fade-in bg-card border-border relative w-full max-w-md rounded-2xl border p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -75,7 +75,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+				class="text-muted-foreground hover:bg-muted hover:text-muted-foreground absolute top-4 right-4 rounded-full p-2"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -89,10 +89,10 @@
 					<Shield class="h-6 w-6 text-amber-600 dark:text-amber-400" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-foreground">
+					<h2 class="text-foreground text-2xl font-bold">
 						{t('auth.confirmYourIdentity')}
 					</h2>
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{t('auth.confirmYourIdentityDescription')}
 					</p>
 				</div>
@@ -100,9 +100,9 @@
 
 			<!-- Account Info -->
 			{#if userEmail}
-				<div class="mb-4 rounded-lg border bg-gray-50 p-3 dark:bg-card border-border">
-					<p class="text-xs text-muted-foreground">{t('auth.account')}</p>
-					<p class="font-medium text-foreground">{userEmail}</p>
+				<div class="dark:bg-card border-border mb-4 rounded-lg border bg-gray-50 p-3">
+					<p class="text-muted-foreground text-xs">{t('auth.account')}</p>
+					<p class="text-foreground font-medium">{userEmail}</p>
 				</div>
 			{/if}
 
@@ -118,17 +118,17 @@
 
 			<!-- Password Input -->
 			<div class="mb-6">
-				<label for="reauth-password" class="mb-2 block text-sm font-medium text-muted-foreground">
+				<label for="reauth-password" class="text-muted-foreground mb-2 block text-sm font-medium">
 					{t('auth.password')}
 				</label>
 				<div class="relative">
-					<Lock class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+					<Lock class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2" />
 					<input
 						id="reauth-password"
 						type="password"
 						bind:value={password}
 						placeholder={t('auth.enterPasswordPlaceholder')}
-						class="w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-border dark:text-foreground dark:placeholder:text-muted-foreground bg-card"
+						class="focus:ring-primary dark:border-border dark:text-foreground dark:placeholder:text-muted-foreground bg-card w-full rounded-lg border border-gray-300 py-3 pr-4 pl-10 text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2"
 						disabled={isLoading}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' && !isLoading && password) {
@@ -143,7 +143,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
+					class="dark:border-border dark:text-muted-foreground hover:bg-muted flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors"
 					disabled={isLoading}
 				>
 					{t('common.actions.cancel')}

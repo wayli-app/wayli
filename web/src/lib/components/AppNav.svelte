@@ -188,7 +188,7 @@
 	}}
 />
 
-<div class="flex h-screen bg-background">
+<div class="bg-background flex h-screen">
 	<!-- Sidebar -->
 	<aside
 		use:focusTrap={isSidebarOpen}
@@ -198,7 +198,7 @@
 	>
 		<!-- Sidebar Header - Fixed at top -->
 		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
-			<a href="/dashboard/travel" class="flex cursor-pointer items-center border-border p-4">
+			<a href="/dashboard/travel" class="border-border flex cursor-pointer items-center p-4">
 				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
 				<span class="text-foreground text-xl font-bold">Wayli</span>
 			</a>
@@ -283,16 +283,16 @@
 			<div class="mb-4">
 				<div class="space-y-1">
 					{#each navUser as item (item.href)}
-			<a
-				href={item.href}
-				class="relative flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
-					.url.pathname === item.href ||
-				(item.href === '/dashboard/travel' &&
-					$page.url.pathname.startsWith('/dashboard/travel'))
-					? 'bg-primary text-primary-foreground'
-					: 'text-muted-foreground hover:bg-muted'}"
-				onclick={handleCloseSidebar}
-			>
+						<a
+							href={item.href}
+							class="relative flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
+								.url.pathname === item.href ||
+							(item.href === '/dashboard/travel' &&
+								$page.url.pathname.startsWith('/dashboard/travel'))
+								? 'bg-primary text-primary-foreground'
+								: 'text-muted-foreground hover:bg-muted'}"
+							onclick={handleCloseSidebar}
+						>
 							<item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}

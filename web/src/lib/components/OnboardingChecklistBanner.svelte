@@ -188,7 +188,7 @@
 			<div class="mb-3 flex items-center justify-between">
 				<div class="flex items-center gap-2">
 					<Rocket class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-					<h3 class="font-semibold text-foreground">
+					<h3 class="text-foreground font-semibold">
 						{t('onboarding.checklistTitle')}
 					</h3>
 				</div>
@@ -212,7 +212,7 @@
 						{Math.round((completedCount / totalSteps) * 100)}%
 					</span>
 				</div>
-				<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-muted">
+				<div class="dark:bg-muted h-2 w-full rounded-full bg-gray-200">
 					<div
 						class="h-2 rounded-full bg-blue-600 transition-all duration-500 dark:bg-blue-500"
 						style="width: {(completedCount / totalSteps) * 100}%"
@@ -256,10 +256,10 @@
 
 						<!-- Text content -->
 						<div class="min-w-0 flex-1">
-							<h4 class="mb-0.5 text-sm font-medium text-foreground">
+							<h4 class="text-foreground mb-0.5 text-sm font-medium">
 								{t(step.titleKey)}
 							</h4>
-							<p class="line-clamp-2 text-xs text-muted-foreground">
+							<p class="text-muted-foreground line-clamp-2 text-xs">
 								{t(step.descriptionKey)}
 							</p>
 						</div>

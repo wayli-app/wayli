@@ -92,7 +92,7 @@
 		type="button"
 		onclick={handleRegister}
 		disabled={isLoading || !email.trim() || !password.trim()}
-		class="bg-primary hover:bg-primary/90 mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground transition-colors disabled:opacity-50"
+		class="bg-primary hover:bg-primary/90 text-primary-foreground mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
 	>
 		{#if isLoading}
 			<Loader2 class="h-4 w-4 animate-spin" />

@@ -88,7 +88,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="animate-fade-in bg-card border-border relative w-full max-w-md rounded-2xl border p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -98,7 +98,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+				class="text-muted-foreground hover:bg-muted hover:text-muted-foreground absolute top-4 right-4 rounded-full p-2"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -109,11 +109,11 @@
 				<div
 					class="bg-primary/10 dark:bg-primary/30 flex h-12 w-12 items-center justify-center rounded-full"
 				>
-					<Shield class="text-primary h-6 w-6 dark:text-muted-foreground" />
+					<Shield class="text-primary dark:text-muted-foreground h-6 w-6" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-foreground">Two-Factor Authentication</h2>
-					<p class="text-sm text-muted-foreground">Enter your verification code</p>
+					<h2 class="text-foreground text-2xl font-bold">Two-Factor Authentication</h2>
+					<p class="text-muted-foreground text-sm">Enter your verification code</p>
 				</div>
 			</div>
 
@@ -129,7 +129,7 @@
 
 			<!-- Code Input -->
 			<div class="mb-6">
-				<label for="code" class="mb-2 block text-sm font-medium text-muted-foreground">
+				<label for="code" class="text-muted-foreground mb-2 block text-sm font-medium">
 					{#if useBackupCode}
 						Backup Code
 					{:else}
@@ -142,7 +142,7 @@
 					bind:value={code}
 					placeholder={useBackupCode ? 'XXXXXXXX' : '000000'}
 					maxlength={useBackupCode ? 8 : 6}
-					class="w-full rounded-lg border border-gray-300 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2 focus:ring-primary dark:border-border dark:text-foreground dark:placeholder:text-muted-foreground bg-card"
+					class="focus:ring-primary dark:border-border dark:text-foreground dark:placeholder:text-muted-foreground bg-card w-full rounded-lg border border-gray-300 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 placeholder-gray-400 transition-colors focus:border-transparent focus:ring-2"
 					disabled={isLoading}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' && !isLoading) {
@@ -150,7 +150,7 @@
 						}
 					}}
 				/>
-				<p class="mt-2 text-xs text-muted-foreground">
+				<p class="text-muted-foreground mt-2 text-xs">
 					{#if useBackupCode}
 						Enter one of your 8-character backup codes
 					{:else}
@@ -163,7 +163,7 @@
 			<div class="mb-6">
 				<button
 					onclick={toggleCodeType}
-					class="flex w-full items-center justify-center gap-2 rounded-lg border bg-gray-50 px-4 py-2 text-sm text-gray-700 transition-colors dark:bg-card dark:text-muted-foreground border-border hover:bg-muted"
+					class="dark:bg-card dark:text-muted-foreground border-border hover:bg-muted flex w-full items-center justify-center gap-2 rounded-lg border bg-gray-50 px-4 py-2 text-sm text-gray-700 transition-colors"
 					disabled={isLoading}
 				>
 					<Key class="h-4 w-4" />
@@ -179,7 +179,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground hover:bg-muted"
+					class="dark:border-border dark:text-muted-foreground hover:bg-muted flex-1 rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition-colors"
 					disabled={isLoading}
 				>
 					Cancel

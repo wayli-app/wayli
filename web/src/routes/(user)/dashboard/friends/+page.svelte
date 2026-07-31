@@ -169,7 +169,7 @@
 							type="button"
 							onclick={() => handleSendRequest(user.id)}
 							disabled={sendingTo.has(user.id)}
-							class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors disabled:opacity-50"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
 						>
 							{#if sendingTo.has(user.id)}
 								<Loader2 class="h-3 w-3 animate-spin" />
@@ -186,7 +186,7 @@
 		<!-- Pending requests -->
 		{#if pendingRequests.length > 0}
 			<div>
-				<h2 class="text-foreground mb-3 text-sm font-bold uppercase tracking-wide">
+				<h2 class="text-foreground mb-3 text-sm font-bold tracking-wide uppercase">
 					Pending requests ({pendingRequests.length})
 				</h2>
 				<div class="space-y-2">
@@ -207,7 +207,7 @@
 							<button
 								type="button"
 								onclick={() => handleAccept(req.id)}
-								class="bg-primary hover:bg-primary/90 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-primary-foreground"
+								class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium"
 							>
 								<Check class="h-3 w-3" />
 								Accept
@@ -227,7 +227,7 @@
 
 		<!-- Friends list -->
 		<div>
-			<h2 class="text-foreground mb-3 text-sm font-bold uppercase tracking-wide">
+			<h2 class="text-foreground mb-3 text-sm font-bold tracking-wide uppercase">
 				Your friends ({friends.length})
 			</h2>
 			{#if friends.length === 0}

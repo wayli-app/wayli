@@ -433,8 +433,10 @@
 			pts.reduce((a, p) => a + (typeof p.distance === 'number' ? p.distance : 0), 0);
 		const halfTime = (pts: any[]) =>
 			pts.reduce((a, p) => a + (typeof p.time_spent === 'number' ? p.time_spent : 0), 0);
-		const distDelta = firstHalf.length > 0 ? percentDelta(halfDist(firstHalf), halfDist(secondHalf)) : null;
-		const timeDelta = firstHalf.length > 0 ? percentDelta(halfTime(firstHalf), halfTime(secondHalf)) : null;
+		const distDelta =
+			firstHalf.length > 0 ? percentDelta(halfDist(firstHalf), halfDist(secondHalf)) : null;
+		const timeDelta =
+			firstHalf.length > 0 ? percentDelta(halfTime(firstHalf), halfTime(secondHalf)) : null;
 		const ptsDelta =
 			firstHalf.length > 0 ? percentDelta(firstHalf.length, secondHalf.length) : null;
 
@@ -1295,10 +1297,13 @@
 						}
 					});
 					// Safety timeout: 5 minutes
-					setTimeout(() => {
-						unsub();
-						resolve(false);
-					}, 5 * 60 * 1000);
+					setTimeout(
+						() => {
+							unsub();
+							resolve(false);
+						},
+						5 * 60 * 1000
+					);
 				});
 
 				if (!finished) {
@@ -1468,12 +1473,12 @@
 <!-- Large Dataset Warning Modal -->
 {#if showLargeDatasetWarning}
 	<div class="fixed inset-0 z-[3000] flex items-center justify-center bg-black/50">
-		<div class="mx-4 max-w-md rounded-lg p-6 shadow-xl bg-card">
+		<div class="bg-card mx-4 max-w-md rounded-lg p-6 shadow-xl">
 			<div class="mb-4 flex items-center">
 				<AlertTriangle class="mr-3 h-6 w-6 text-yellow-500" />
-				<h3 class="text-lg font-semibold text-foreground">Large Dataset Warning</h3>
+				<h3 class="text-foreground text-lg font-semibold">Large Dataset Warning</h3>
 			</div>
-			<div class="mb-6 text-sm text-muted-foreground">
+			<div class="text-muted-foreground mb-6 text-sm">
 				<p class="mb-2">
 					You have <strong>{totalPointsCount.toLocaleString()}</strong> data points in the selected date
 					range.
@@ -1489,7 +1494,7 @@
 			<div class="flex justify-end space-x-3">
 				<button
 					onclick={() => handleLargeDatasetConfirmation(false)}
-					class="rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+					class="hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted rounded-md bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700"
 				>
 					Cancel
 				</button>
@@ -1542,7 +1547,7 @@
 		</nav>
 	{/if}
 	<!-- Map -->
-	<div class="relative isolate z-0 h-96 w-full rounded-lg md:h-[600px] bg-muted">
+	<div class="bg-muted relative isolate z-0 h-96 w-full rounded-lg md:h-[600px]">
 		<div
 			bind:this={mapContainer}
 			class="h-full w-full rounded-lg"
@@ -1553,7 +1558,7 @@
 		<button
 			type="button"
 			onclick={toggleHeatmap}
-			class="absolute right-4 top-4 z-[1001] inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors {showHeatmap
+			class="absolute top-4 right-4 z-[1001] inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors {showHeatmap
 				? 'border-primary bg-primary text-primary-foreground'
 				: 'border-border bg-card text-foreground hover:bg-muted'}"
 			title={t('statistics.heatmapToggle') || 'Show where you spend time'}
@@ -1564,34 +1569,34 @@
 
 		<!-- Map Legend -->
 		<div
-			class="absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg p-3 shadow-lg bg-card"
+			class="bg-card absolute bottom-4 left-4 z-[1001] max-h-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-y-auto rounded-lg p-3 shadow-lg"
 		>
-			<h4 class="mb-2 text-sm font-semibold text-muted-foreground">
+			<h4 class="text-muted-foreground mb-2 text-sm font-semibold">
 				{t('statistics.modeColors')}
 			</h4>
 			<div class="space-y-1">
 				{#each Object.entries(transportModeColors) as [mode, color] (mode)}
 					<div class="flex items-center space-x-2">
 						<div class="h-3 w-3 rounded-full" style="background-color: {color}"></div>
-						<span class="text-xs text-muted-foreground">{translateTransportMode(mode)}</span>
+						<span class="text-muted-foreground text-xs">{translateTransportMode(mode)}</span>
 					</div>
 				{/each}
 				<!-- Exclusion Zones Legend -->
-				<div class="mt-2 border-t pt-2 border-border">
-					<div class="mb-1 text-xs font-semibold text-muted-foreground">
+				<div class="border-border mt-2 border-t pt-2">
+					<div class="text-muted-foreground mb-1 text-xs font-semibold">
 						{t('statistics.exclusionZones') || 'Exclusion Zones'}
 					</div>
 					<div class="flex items-center space-x-2">
 						<div
 							class="h-3 w-3 rounded-full border-2 border-dashed border-blue-500 bg-blue-500/10"
 						></div>
-						<span class="text-xs text-muted-foreground">🏠 Home</span>
+						<span class="text-muted-foreground text-xs">🏠 Home</span>
 					</div>
 					<div class="flex items-center space-x-2">
 						<div
 							class="h-3 w-3 rounded-full border-2 border-dashed border-red-500 bg-red-500/10"
 						></div>
-						<span class="text-xs text-muted-foreground">🚫 Exclusions</span>
+						<span class="text-muted-foreground text-xs">🚫 Exclusions</span>
 					</div>
 				</div>
 			</div>
@@ -1600,13 +1605,16 @@
 		<!-- Segment editor: appears when a segment is selected by clicking a point. -->
 		{#if selectedSegmentIdxs.size > 0}
 			<div
-				class="absolute left-1/2 top-4 z-[1002] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg border border-border bg-card p-3 shadow-lg"
+				class="border-border bg-card absolute top-4 left-1/2 z-[1002] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg border p-3 shadow-lg"
 			>
 				<div class="mb-2 flex items-center justify-between">
-					<h4 class="text-sm font-semibold text-foreground">
+					<h4 class="text-foreground text-sm font-semibold">
 						{selectedSegmentIdxs.size}
-						{selectedSegmentIdxs.size === 1 ? t('statistics.segmentSingular') : t('statistics.segmentPlural')}
-						· {selectedSegmentPoints.length} {t('statistics.pointsLabel')}
+						{selectedSegmentIdxs.size === 1
+							? t('statistics.segmentSingular')
+							: t('statistics.segmentPlural')}
+						· {selectedSegmentPoints.length}
+						{t('statistics.pointsLabel')}
 					</h4>
 					<button
 						type="button"
@@ -1620,7 +1628,7 @@
 						<X class="h-4 w-4" />
 					</button>
 				</div>
-				<p class="mb-2 text-xs text-muted-foreground">
+				<p class="text-muted-foreground mb-2 text-xs">
 					{t('statistics.editModeHelp')}
 				</p>
 				<div class="flex flex-wrap gap-1.5">
@@ -1639,7 +1647,7 @@
 						type="button"
 						disabled={isUpdatingMode}
 						onclick={() => applyModeToSegment(null)}
-						class="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted disabled:opacity-50"
+						class="border-border text-muted-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium shadow-sm disabled:opacity-50"
 						title={t('statistics.resetToAuto') || 'Reset to auto'}
 					>
 						{t('statistics.resetToAuto') || 'Auto'}
@@ -1651,10 +1659,10 @@
 		<!-- Point Details Popup -->
 		{#if selectedPoint}
 			<div
-				class="absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg p-4 shadow-lg sm:left-auto sm:w-80 bg-card"
+				class="bg-card absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg p-4 shadow-lg sm:left-auto sm:w-80"
 			>
 				<div class="mb-3 flex items-start justify-between">
-					<h4 class="text-sm font-semibold text-muted-foreground">
+					<h4 class="text-muted-foreground text-sm font-semibold">
 						{t('statistics.pointDetails')}
 					</h4>
 					<button
@@ -1668,14 +1676,14 @@
 				<div class="space-y-2 text-xs">
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.date')}:</span>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<span class="text-muted-foreground font-medium">{t('statistics.date')}:</span>
+							<div class="dark:text-muted-foreground text-gray-800">
 								{formatDateWithTimezoneSync(selectedPoint.recorded_at, selectedPoint.tz_diff)}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.mode')}:</span>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<span class="text-muted-foreground font-medium">{t('statistics.mode')}:</span>
+							<div class="dark:text-muted-foreground text-gray-800">
 								{translateTransportMode(selectedPoint.transport_mode || 'unknown')}
 							</div>
 						</div>
@@ -1683,14 +1691,14 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.coordinates')}:</span>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<span class="text-muted-foreground font-medium">{t('statistics.coordinates')}:</span>
+							<div class="dark:text-muted-foreground text-gray-800">
 								{selectedPoint.lat}, {selectedPoint.lon}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.popupSpeed')}:</span>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<span class="text-muted-foreground font-medium">{t('statistics.popupSpeed')}:</span>
+							<div class="dark:text-muted-foreground text-gray-800">
 								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
 							</div>
 						</div>
@@ -1698,17 +1706,17 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.popupDistance')}:</span
+							<span class="text-muted-foreground font-medium">{t('statistics.popupDistance')}:</span
 							>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<div class="dark:text-muted-foreground text-gray-800">
 								{selectedPoint.distance
 									? `${(selectedPoint.distance / 1000).toFixed(2)} km`
 									: 'N/A'}
 							</div>
 						</div>
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.country')}:</span>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<span class="text-muted-foreground font-medium">{t('statistics.country')}:</span>
+							<div class="dark:text-muted-foreground text-gray-800">
 								{selectedPoint.country_code || 'N/A'}
 							</div>
 						</div>
@@ -1716,8 +1724,8 @@
 
 					<div class="grid grid-cols-2 gap-2">
 						<div>
-							<span class="font-medium text-muted-foreground">{t('statistics.popupReason')}</span>
-							<div class="text-gray-800 dark:text-muted-foreground">
+							<span class="text-muted-foreground font-medium">{t('statistics.popupReason')}</span>
+							<div class="dark:text-muted-foreground text-gray-800">
 								{selectedPoint.detection_reason
 									? getTransportDetectionReasonLabel(
 											selectedPoint.detection_reason as TransportDetectionReason
@@ -1733,11 +1741,11 @@
 		<!-- No Data Message -->
 		{#if !isLoading && !isInitialLoad && (!statisticsData || Object.keys(statisticsData).length === 0)}
 			<div
-				class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-background/80"
+				class="dark:bg-background/80 absolute inset-0 flex items-center justify-center bg-white/80"
 			>
 				<div class="text-center">
-					<MapPin class="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-					<h3 class="mb-4 text-lg font-semibold text-muted-foreground">
+					<MapPin class="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+					<h3 class="text-muted-foreground mb-4 text-lg font-semibold">
 						{t('statistics.noDataMessage')}
 					</h3>
 					<a
@@ -1755,17 +1763,17 @@
 	{#if statisticsLoading}
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each Array(8) as _, index (`loading-${index}`)}
-				<div class="rounded-lg border p-4 bg-card border-border">
+				<div class="bg-card border-border rounded-lg border p-4">
 					<div class="mb-3 flex items-center gap-2">
-						<div class="h-5 w-5 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
-						<div class="h-5 w-32 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
+						<div class="dark:bg-muted h-5 w-5 animate-pulse rounded bg-gray-200"></div>
+						<div class="dark:bg-muted h-5 w-32 animate-pulse rounded bg-gray-200"></div>
 					</div>
 					<div class="space-y-3">
 						{#each Array(3) as _innerItem, index2 (`loading-inner-${index}-${index2}`)}
 							<div class="flex items-center gap-4">
-								<div class="h-4 w-20 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
-								<div class="h-4 w-16 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
-								<div class="h-4 w-12 animate-pulse rounded bg-gray-200 dark:bg-muted"></div>
+								<div class="dark:bg-muted h-4 w-20 animate-pulse rounded bg-gray-200"></div>
+								<div class="dark:bg-muted h-4 w-16 animate-pulse rounded bg-gray-200"></div>
+								<div class="dark:bg-muted h-4 w-12 animate-pulse rounded bg-gray-200"></div>
 							</div>
 						{/each}
 					</div>
@@ -1773,7 +1781,7 @@
 			{/each}
 		</div>
 	{:else if !statisticsData || Object.keys(statisticsData).length === 0}
-		<div class="mb-8 py-8 text-center font-semibold text-muted-foreground">
+		<div class="text-muted-foreground mb-8 py-8 text-center font-semibold">
 			No statistics available for this period.
 		</div>
 	{:else}
@@ -1781,14 +1789,14 @@
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
 			{#each getStatistics() as stat, index (`stat-${index}-${stat.id || 'unknown'}`)}
 				{@const IconComponent = stat.icon}
-				<div class="rounded-lg border p-4 bg-card border-border">
+				<div class="bg-card border-border rounded-lg border p-4">
 					<div class="flex items-center gap-2">
 						<IconComponent
 							class="h-5 w-5 {stat.color === 'green' ? 'text-green-500' : 'text-blue-500'}"
 						/>
-						<span class="text-sm font-medium text-muted-foreground">{stat.title}</span>
+						<span class="text-muted-foreground text-sm font-medium">{stat.title}</span>
 					</div>
-					<div class="mt-1 text-2xl font-bold text-foreground">
+					<div class="text-foreground mt-1 text-2xl font-bold">
 						{stat.value}
 					</div>
 					{#if stat.delta != null}
@@ -1797,7 +1805,8 @@
 								? 'text-green-600 dark:text-green-400'
 								: 'text-red-600 dark:text-red-400'}"
 						>
-							{stat.delta >= 0 ? '▲' : '▼'} {Math.abs(stat.delta).toFixed(0)}% vs first half
+							{stat.delta >= 0 ? '▲' : '▼'}
+							{Math.abs(stat.delta).toFixed(0)}% vs first half
 						</div>
 					{/if}
 				</div>
@@ -1812,10 +1821,10 @@
 		<div class="mb-8 flex flex-col gap-6">
 			{#if statisticsData.countryTimeDistribution && statisticsData.countryTimeDistribution.length > 0}
 				<div class="w-full">
-					<div class="w-full rounded-lg border p-4 bg-card border-border">
+					<div class="bg-card border-border w-full rounded-lg border p-4">
 						<div class="mb-3 flex items-center gap-2">
 							<Globe2 class="text-primary dark:text-primary h-5 w-5" />
-							<span class="text-lg font-semibold text-gray-800 dark:text-foreground">
+							<span class="dark:text-foreground text-lg font-semibold text-gray-800">
 								{t('statistics.countryTimeDistribution')}
 							</span>
 						</div>
@@ -1824,12 +1833,12 @@
 								<div>
 									<div class="mb-1 flex items-center gap-2">
 										<span class="text-xl">{getFlagEmoji(country.country_code)}</span>
-										<span class="text-base text-muted-foreground">
+										<span class="text-muted-foreground text-base">
 											{$getCountryNameReactive(country.country_code)}
 										</span>
 									</div>
 									<div class="relative w-full">
-										<div class="h-4 rounded bg-gray-200 dark:bg-muted">
+										<div class="dark:bg-muted h-4 rounded bg-gray-200">
 											<div
 												class="bg-primary flex h-4 items-center justify-center rounded text-xs font-bold text-white transition-all duration-300"
 												style="width: {country.percent}%; min-width: 2.5rem;"
@@ -1841,7 +1850,7 @@
 								</div>
 							{/each}
 						</div>
-						<div class="mt-4 text-xs text-muted-foreground">
+						<div class="text-muted-foreground mt-4 text-xs">
 							{t('statistics.ofSelectedPeriod')}
 						</div>
 					</div>
@@ -1852,24 +1861,24 @@
 
 	<!-- Train Station Visits Table -->
 	{#if statisticsData && !statisticsLoading && !statisticsError && statisticsData.trainStationVisits && statisticsData.trainStationVisits.length > 0}
-		<div class="mb-8 w-full rounded-lg border p-4 md:w-1/2 bg-card border-border">
+		<div class="bg-card border-border mb-8 w-full rounded-lg border p-4 md:w-1/2">
 			<div class="mb-3 flex items-center gap-2">
 				<Train class="text-primary dark:text-primary h-5 w-5" />
-				<span class="text-lg font-semibold text-gray-800 dark:text-foreground">
+				<span class="dark:text-foreground text-lg font-semibold text-gray-800">
 					{t('statistics.trainStationVisits')}
 				</span>
 			</div>
 			<div class="-mx-4 overflow-x-auto px-4">
-				<table class="min-w-full divide-y divide-border">
+				<table class="divide-border min-w-full divide-y">
 					<thead>
 						<tr>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
+								class="text-muted-foreground px-4 py-2 text-left text-xs font-medium tracking-wider uppercase"
 							>
 								Station
 							</th>
 							<th
-								class="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase"
+								class="text-muted-foreground px-4 py-2 text-left text-xs font-medium tracking-wider uppercase"
 							>
 								Visits
 							</th>
@@ -1880,11 +1889,11 @@
 							.slice()
 							.sort((a: { count: number }, b: { count: number }) => b.count - a.count) as station, index (`station-${index}-${station.name || 'unknown'}`)}
 							<tr>
-								<td class="px-4 py-2 text-sm whitespace-nowrap text-foreground">
+								<td class="text-foreground px-4 py-2 text-sm whitespace-nowrap">
 									{station.name}
 								</td>
 								<td
-									class="text-primary px-4 py-2 text-sm font-bold whitespace-nowrap dark:text-muted-foreground"
+									class="text-primary dark:text-muted-foreground px-4 py-2 text-sm font-bold whitespace-nowrap"
 								>
 									{station.count}
 								</td>
@@ -1893,18 +1902,25 @@
 					</tbody>
 				</table>
 			</div>
-			</div>
-		{/if}
+		</div>
+	{/if}
 
-		<!-- Extra visualizations: activity calendar, time-of-day, speed, mode donut, records -->
-		{#if statisticsData && !statisticsLoading && !statisticsError}
-			{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
-			{#if rawDataPoints.length > 0}
-				<StatisticsCharts points={rawDataPoints} historyPoints={historyPoints} {calendarLoading} {calendarRefreshing} onRefreshCalendar={refreshCalendar} {transportModeColors} />
-			{/if}
+	<!-- Extra visualizations: activity calendar, time-of-day, speed, mode donut, records -->
+	{#if statisticsData && !statisticsLoading && !statisticsError}
+		{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
+		{#if rawDataPoints.length > 0}
+			<StatisticsCharts
+				points={rawDataPoints}
+				{historyPoints}
+				{calendarLoading}
+				{calendarRefreshing}
+				onRefreshCalendar={refreshCalendar}
+				{transportModeColors}
+			/>
 		{/if}
+	{/if}
 
-		<!-- Error Display -->
+	<!-- Error Display -->
 	{#if statisticsError}
 		<div
 			class="mb-8 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
@@ -1926,21 +1942,21 @@
 	<!-- Loading Overlay -->
 	{#if isLoading}
 		<div
-			class="fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70 dark:bg-background/70"
+			class="dark:bg-background/70 fixed inset-0 z-[2000] flex flex-col items-center justify-center bg-white/70"
 		>
-			<Loader2 class="text-primary h-16 w-16 animate-spin dark:text-muted-foreground" />
+			<Loader2 class="text-primary dark:text-muted-foreground h-16 w-16 animate-spin" />
 			<div class="mt-4 text-center">
-				<div class="mb-2 text-lg font-medium text-muted-foreground">
+				<div class="text-muted-foreground mb-2 text-lg font-medium">
 					{loadingStage || t('statistics.loading')}
 				</div>
 				{#if loadingProgress > 0}
-					<div class="mb-2 h-2 w-64 max-w-[80vw] rounded-full bg-gray-200 dark:bg-muted">
+					<div class="dark:bg-muted mb-2 h-2 w-64 max-w-[80vw] rounded-full bg-gray-200">
 						<div
 							class="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
 							style="width: {Math.round(loadingProgress)}%"
 						></div>
 					</div>
-					<div class="text-sm text-muted-foreground">
+					<div class="text-muted-foreground text-sm">
 						{t('statistics.percentComplete', { percent: Math.round(loadingProgress) })}
 					</div>
 				{/if}

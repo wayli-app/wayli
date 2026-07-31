@@ -137,8 +137,8 @@
 	<!-- Header -->
 	<div class="mb-8">
 		<div class="flex items-center gap-3">
-			<Link class="text-primary h-8 w-8 dark:text-muted-foreground" />
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">
+			<Link class="text-primary dark:text-muted-foreground h-8 w-8" />
+			<h1 class="text-foreground text-3xl font-bold tracking-tight">
 				{t('connections.title')}
 			</h1>
 		</div>
@@ -147,15 +147,15 @@
 	<!-- Connections -->
 	<div class="space-y-6">
 		<!-- OwnTracks Integration -->
-		<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Database class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">
+					<Database class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
 						{t('connections.owntracksIntegration')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-muted-foreground">
+				<p class="text-muted-foreground mt-1 text-sm">
 					{t('connections.owntracksDescription')}
 				</p>
 				<!-- App Download Links -->
@@ -164,7 +164,7 @@
 						href="https://play.google.com/store/apps/details?id=org.owntracks.android"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+						class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors"
 					>
 						<Smartphone class="h-4 w-4" />
 						{t('connections.downloadAndroid')}
@@ -174,7 +174,7 @@
 						href="https://apps.apple.com/app/owntracks/id692424691"
 						target="_blank"
 						rel="noopener noreferrer"
-						class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+						class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors"
 					>
 						<Smartphone class="h-4 w-4" />
 						{t('connections.downloadIOS')}
@@ -186,7 +186,7 @@
 			<div class="space-y-4">
 				<!-- API Key Status -->
 				<div>
-					<label class="mb-1.5 block text-sm font-medium text-foreground" for="owntracksApiKey"
+					<label class="text-foreground mb-1.5 block text-sm font-medium" for="owntracksApiKey"
 						>{t('connections.apiKey')}</label
 					>
 					{#if owntracksApiKeyConfigured}
@@ -198,7 +198,7 @@
 								{t('connections.apiKeyConfigured')}
 							</span>
 						</div>
-						<p class="mt-1.5 text-xs text-muted-foreground">
+						<p class="text-muted-foreground mt-1.5 text-xs">
 							{t('connections.apiKeyConfiguredDescription')}
 						</p>
 					{:else}
@@ -226,7 +226,7 @@
 				</button>
 
 				{#if owntracksApiKeyConfigured}
-					<p class="text-xs text-muted-foreground">
+					<p class="text-muted-foreground text-xs">
 						{t('connections.regenerateWarning')}
 					</p>
 				{/if}
@@ -259,18 +259,18 @@
 		aria-modal="true"
 		tabindex="-1"
 	>
-		<div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-card">
+		<div class="dark:bg-card w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
 			<div class="mb-4 flex items-start justify-between">
 				<div class="flex items-center gap-2">
 					<AlertTriangle class="h-5 w-5 text-amber-500" />
-					<h2 class="text-lg font-semibold text-foreground">
+					<h2 class="text-foreground text-lg font-semibold">
 						{t('connections.saveYourApiKey')}
 					</h2>
 				</div>
 				<button
 					type="button"
 					onclick={closeApiKeyModal}
-					class="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+					class="text-muted-foreground hover:bg-muted hover:text-muted-foreground rounded-md p-1"
 				>
 					<X class="h-5 w-5" />
 				</button>
@@ -287,7 +287,7 @@
 			<div class="space-y-4">
 				<!-- API Endpoint -->
 				<div>
-					<label for="apiEndpoint" class="mb-1.5 block text-sm font-medium text-foreground">
+					<label for="apiEndpoint" class="text-foreground mb-1.5 block text-sm font-medium">
 						{t('connections.apiEndpoint')}
 					</label>
 					<div class="flex gap-2">
@@ -296,14 +296,14 @@
 							type="text"
 							value={newlyGeneratedEndpoint}
 							readonly
-							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 text-xs text-gray-900 dark:border-border dark:bg-card dark:text-foreground"
+							class="border-border dark:border-border dark:bg-card dark:text-foreground flex-1 rounded-md border bg-gray-50 px-3 py-2 text-xs text-gray-900"
 						/>
 						<button
 							type="button"
 							onclick={() =>
 								newlyGeneratedEndpoint &&
 								copyToClipboard(newlyGeneratedEndpoint, t('connections.apiEndpoint'))}
-							class="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-muted dark:border-border dark:text-muted-foreground dark:hover:bg-card"
+							class="border-border hover:bg-muted dark:border-border dark:text-muted-foreground dark:hover:bg-card flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-700 transition-colors"
 						>
 							{#if copiedField === t('connections.apiEndpoint')}
 								<Check class="h-4 w-4" />
@@ -316,7 +316,7 @@
 
 				<!-- API Key -->
 				<div>
-					<label for="apiKey" class="mb-1.5 block text-sm font-medium text-foreground">
+					<label for="apiKey" class="text-foreground mb-1.5 block text-sm font-medium">
 						{t('connections.apiKey')}
 					</label>
 					<div class="flex gap-2">
@@ -325,14 +325,14 @@
 							type="text"
 							value={newlyGeneratedApiKey}
 							readonly
-							class="flex-1 rounded-md border border-border bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900 dark:border-border dark:bg-card dark:text-foreground"
+							class="border-border dark:border-border dark:bg-card dark:text-foreground flex-1 rounded-md border bg-gray-50 px-3 py-2 font-mono text-sm text-gray-900"
 						/>
 						<button
 							type="button"
 							onclick={() =>
 								newlyGeneratedApiKey &&
 								copyToClipboard(newlyGeneratedApiKey, t('connections.apiKey'))}
-							class="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-muted dark:border-border dark:text-muted-foreground dark:hover:bg-card"
+							class="border-border hover:bg-muted dark:border-border dark:text-muted-foreground dark:hover:bg-card flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-gray-700 transition-colors"
 						>
 							{#if copiedField === t('connections.apiKey')}
 								<Check class="h-4 w-4" />

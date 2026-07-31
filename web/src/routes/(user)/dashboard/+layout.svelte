@@ -237,7 +237,7 @@
 		<button
 			type="button"
 			onclick={() => aiDrawer.toggle()}
-			class="bg-primary hover:bg-primary/90 fixed right-6 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full text-primary-foreground shadow-2xl transition-all hover:scale-105"
+			class="bg-primary hover:bg-primary/90 text-primary-foreground fixed right-6 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all hover:scale-105"
 			style="bottom: calc(1.5rem + env(safe-area-inset-bottom)); right: calc(1.5rem + env(safe-area-inset-right))"
 			aria-label={t('common.navigation.ask') || 'AI'}
 			title={t('common.navigation.ask') || 'AI'}

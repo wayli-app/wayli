@@ -8,6 +8,11 @@ node_modules
 /.svelte-kit
 /build
 
+# Test artifacts
+/coverage
+/playwright-report
+/test-results
+
 # OS
 .DS_Store
 Thumbs.db

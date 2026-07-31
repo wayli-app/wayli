@@ -1299,19 +1299,19 @@
 		</div>
 	{:else}
 		<!-- Profile Settings -->
-		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card mb-8 rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div
 					class="flex items-center gap-2"
 					role="group"
 					aria-labelledby="preferred-language-label"
 				>
-					<User class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">
+					<User class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
 						{t('accountSettings.profile')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-foreground">
+				<p class="dark:text-foreground mt-1 text-sm text-gray-600">
 					{t('accountSettings.profileDescription')}
 				</p>
 			</div>
@@ -1323,11 +1323,11 @@
 						<img
 							src={profileAvatarUrl}
 							alt=""
-							class="h-20 w-20 rounded-full object-cover border-2 border-border"
+							class="border-border h-20 w-20 rounded-full border-2 object-cover"
 						/>
 					{:else}
 						<div
-							class="bg-muted flex h-20 w-20 items-center justify-center rounded-full border-2 border-border text-2xl font-bold text-muted-foreground"
+							class="bg-muted border-border text-muted-foreground flex h-20 w-20 items-center justify-center rounded-full border-2 text-2xl font-bold"
 						>
 							{(firstNameInput || '?')[0]?.toUpperCase()}
 						</div>
@@ -1366,11 +1366,11 @@
 				<div class="mb-4">
 					<label
 						for="email"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+						class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 						>{t('accountSettings.email')}</label
 					>
 					<Input id="email" type="email" value={profile?.email} disabled class="w-full" />
-					<p class="mt-1 text-xs text-muted-foreground">
+					<p class="text-muted-foreground mt-1 text-xs">
 						{t('accountSettings.emailCannotChange')}
 					</p>
 				</div>
@@ -1379,12 +1379,12 @@
 				<div class="mb-4">
 					<label
 						for="homeAddress"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+						class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 					>
 						{t('accountSettings.homeLocationOptional')}
 						{#if !homeAddressInput && !profile?.home_address_skipped}
 							<span
-								class="bg-primary/10 text-primary dark:bg-primary/30 ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium dark:text-muted-foreground"
+								class="bg-primary/10 text-primary dark:bg-primary/30 dark:text-muted-foreground ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
 							>
 								{t('accountSettings.recommended')}
 							</span>
@@ -1392,7 +1392,7 @@
 					</label>
 
 					<!-- Context help -->
-					<p class="mb-2 text-sm text-muted-foreground">
+					<p class="text-muted-foreground mb-2 text-sm">
 						{t('accountSettings.homeLocationContext')}
 					</p>
 
@@ -1410,19 +1410,19 @@
 						{#if isHomeAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
 								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+									class="border-primary h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
 								></div>
 							</div>
 						{/if}
 					</div>
 					{#if homeAddressSuggestions.length > 0 && showHomeAddressSuggestions}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
+							class="border-border dark:border-border dark:bg-card mt-1 max-h-48 overflow-y-auto rounded-md border bg-white shadow-lg"
 						>
 							{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-muted focus:bg-muted focus:outline-none dark:text-foreground dark:hover:bg-muted dark:focus:bg-muted {selectedHomeAddressIndex ===
+									class="hover:bg-muted focus:bg-muted dark:text-foreground dark:hover:bg-muted dark:focus:bg-muted w-full px-3 py-2 text-left text-sm text-gray-900 focus:outline-none {selectedHomeAddressIndex ===
 									index
 										? 'bg-primary/10 dark:bg-primary/20'
 										: ''}"
@@ -1430,7 +1430,7 @@
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
-										<div class="text-xs text-muted-foreground">
+										<div class="text-muted-foreground text-xs">
 											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
 												6
 											)}
@@ -1440,7 +1440,7 @@
 							{/each}
 							{#if homeAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
+									class="text-muted-foreground cursor-default px-3 py-2 text-center text-sm select-none"
 								>
 									{homeAddressSearchError}
 								</div>
@@ -1448,10 +1448,10 @@
 						</div>
 					{:else if showHomeAddressSuggestions && homeAddressSearchError}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-white shadow-lg dark:border-border dark:bg-card"
+							class="border-border dark:border-border dark:bg-card mt-1 max-h-48 overflow-y-auto rounded-md border bg-white shadow-lg"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
+								class="text-muted-foreground cursor-default px-3 py-2 text-center text-sm select-none"
 							>
 								{homeAddressSearchError}
 							</div>
@@ -1477,13 +1477,13 @@
 						<button
 							type="button"
 							onclick={handleSkipHomeAddressField}
-							class="mt-2 text-sm text-muted-foreground hover:text-muted-foreground"
+							class="text-muted-foreground hover:text-muted-foreground mt-2 text-sm"
 						>
 							{t('accountSettings.skipThisField')}
 						</button>
 					{/if}
 
-					<p class="mt-1 text-xs text-muted-foreground">
+					<p class="text-muted-foreground mt-1 text-xs">
 						💡 {t('accountSettings.tripDetectionHelp')}
 					</p>
 				</div>
@@ -1492,7 +1492,7 @@
 					<div>
 						<label
 							for="firstName"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+							class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 							>{t('accountSettings.firstName')}</label
 						>
 						<Input
@@ -1507,7 +1507,7 @@
 					<div>
 						<label
 							for="lastName"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+							class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 							>{t('accountSettings.lastName')}</label
 						>
 						<Input
@@ -1531,15 +1531,15 @@
 		</div>
 
 		<!-- Security Settings -->
-		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card mb-8 rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Lock class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">
+					<Lock class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
 						{t('accountSettings.security')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-foreground">
+				<p class="dark:text-foreground mt-1 text-sm text-gray-600">
 					{t('accountSettings.securityDescription')}
 				</p>
 			</div>
@@ -1548,7 +1548,7 @@
 				<div>
 					<label
 						for="currentPassword"
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+						class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 						>{t('accountSettings.currentPassword')}</label
 					>
 					<Input id="currentPassword" type="password" bind:value={currentPassword} class="w-full" />
@@ -1558,7 +1558,7 @@
 					<div>
 						<label
 							for="newPassword"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+							class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 							>{t('accountSettings.newPassword')}</label
 						>
 						<Input id="newPassword" type="password" bind:value={newPassword} class="w-full" />
@@ -1567,7 +1567,7 @@
 					<div>
 						<label
 							for="confirmPassword"
-							class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+							class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 							>{t('common.fields.confirmPassword')}</label
 						>
 						<Input
@@ -1592,19 +1592,19 @@
 		</div>
 
 		<!-- Public Profile -->
-		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card mb-8 rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Globe class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">Public Profile</h2>
+					<Globe class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">Public Profile</h2>
 				</div>
-				<p class="mt-1 text-sm text-muted-foreground">
+				<p class="text-muted-foreground mt-1 text-sm">
 					Set a public username to share your travel journal with the world.
 				</p>
 			</div>
 
 			<div>
-				<label for="username" class="mb-1.5 block text-sm font-medium text-foreground">
+				<label for="username" class="text-foreground mb-1.5 block text-sm font-medium">
 					Username
 				</label>
 				<input
@@ -1613,13 +1613,13 @@
 					bind:value={usernameInput}
 					oninput={onUsernameInput}
 					placeholder="e.g. bart"
-					class="focus:ring-primary w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+					class="focus:ring-primary border-border w-full rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 				/>
-				<p class="mt-1 text-xs text-muted-foreground">
+				<p class="text-muted-foreground mt-1 text-xs">
 					Lowercase letters, numbers, and hyphens. 3–30 characters.
 				</p>
 				{#if usernameStatus === 'checking'}
-					<p class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+					<p class="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
 						<Loader2 class="h-3 w-3 animate-spin" /> Checking availability...
 					</p>
 				{:else if usernameStatus === 'available'}
@@ -1636,7 +1636,7 @@
 					</p>
 				{/if}
 				{#if usernamePreview}
-					<p class="mt-2 text-xs text-primary break-all">
+					<p class="text-primary mt-2 text-xs break-all">
 						🌐 {usernamePreview}
 					</p>
 				{/if}
@@ -1644,8 +1644,8 @@
 
 			<!-- Cover photo -->
 			<div class="mt-6">
-				<span class="mb-1.5 block text-sm font-medium text-foreground"> Cover photo </span>
-				<div class="overflow-hidden rounded-lg border border-border bg-muted">
+				<span class="text-foreground mb-1.5 block text-sm font-medium"> Cover photo </span>
+				<div class="border-border bg-muted overflow-hidden rounded-lg border">
 					{#if profileCoverUrl}
 						<PannableCover
 							src={profileCoverUrl}
@@ -1667,7 +1667,7 @@
 							class="h-32 w-full"
 						/>
 					{:else}
-						<div class="flex h-32 items-center justify-center text-muted-foreground text-sm">
+						<div class="text-muted-foreground flex h-32 items-center justify-center text-sm">
 							No cover photo
 						</div>
 					{/if}
@@ -1711,23 +1711,23 @@
 		</div>
 
 		<!-- Two-Factor Authentication -->
-		<div class="mb-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card mb-8 rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Shield class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">
+					<Shield class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
 						{t('accountSettings.twoFactorAuthentication')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-foreground">
+				<p class="dark:text-foreground mt-1 text-sm text-gray-600">
 					{t('accountSettings.twoFactorAuthDescription')}
 				</p>
 			</div>
 
 			{#if isCheckingTwoFactor}
-				<div class="flex items-center gap-2 text-sm text-muted-foreground">
+				<div class="text-muted-foreground flex items-center gap-2 text-sm">
 					<div
-						class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+						class="border-primary h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
 					></div>
 					<span>{t('auth.checking2FAStatus')}</span>
 				</div>
@@ -1737,13 +1737,13 @@
 					<div
 						class="flex items-center justify-between rounded-lg border p-4 {twoFactorEnabled
 							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-							: ' bg-gray-50 dark:bg-card'} border-border"
+							: ' dark:bg-card bg-gray-50'} border-border"
 					>
 						<div class="flex items-center gap-3">
 							<div
 								class="flex h-10 w-10 items-center justify-center rounded-full {twoFactorEnabled
 									? 'bg-green-100 dark:bg-green-900/30'
-									: 'bg-gray-200 dark:bg-muted'}"
+									: 'dark:bg-muted bg-gray-200'}"
 							>
 								<Shield
 									class="h-5 w-5 {twoFactorEnabled
@@ -1752,10 +1752,10 @@
 								/>
 							</div>
 							<div>
-								<p class="font-medium text-foreground">
+								<p class="text-foreground font-medium">
 									{twoFactorEnabled ? t('accountSettings.enabled') : t('accountSettings.disabled')}
 								</p>
-								<p class="text-sm text-muted-foreground">
+								<p class="text-muted-foreground text-sm">
 									{twoFactorEnabled
 										? t('accountSettings.twoFactorEnabled')
 										: t('accountSettings.2faStatusDisabled')}
@@ -1765,7 +1765,7 @@
 						{#if twoFactorEnabled}
 							<button
 								onclick={() => (showTwoFactorDisable = true)}
-								class="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 bg-card"
+								class="bg-card rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
 							>
 								{t('accountSettings.disable')}
 							</button>
@@ -1781,10 +1781,10 @@
 
 					<!-- Info Message -->
 					<div
-						class="bg-primary/5 dark:bg-primary/20 flex items-start gap-3 rounded-lg border border-primary/20 p-3 dark:border-primary/30"
+						class="bg-primary/5 dark:bg-primary/20 border-primary/20 dark:border-primary/30 flex items-start gap-3 rounded-lg border p-3"
 					>
-						<Info class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-muted-foreground" />
-						<p class="text-primary text-xs dark:text-muted-foreground">
+						<Info class="text-primary dark:text-muted-foreground mt-0.5 h-4 w-4 flex-shrink-0" />
+						<p class="text-primary dark:text-muted-foreground text-xs">
 							{t('accountSettings.2faInfoMessage')}
 						</p>
 					</div>
@@ -1793,15 +1793,15 @@
 		</div>
 
 		<!-- Preferences -->
-		<div class="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<Globe class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">
+					<Globe class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
 						{t('accountSettings.preferences')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-foreground">
+				<p class="dark:text-foreground mt-1 text-sm text-gray-600">
 					{t('accountSettings.preferencesSubtitle')}
 				</p>
 			</div>
@@ -1809,7 +1809,7 @@
 			<div class="grid gap-6 md:grid-cols-2">
 				<div>
 					<span
-						class="mb-1.5 block text-sm font-medium text-gray-900 dark:bg-card dark:text-foreground"
+						class="dark:bg-card dark:text-foreground mb-1.5 block text-sm font-medium text-gray-900"
 						id="preferred-language-label">{t('accountSettings.preferredLanguage')}</span
 					>
 					<div class="flex items-center" role="group" aria-labelledby="preferred-language-label">
@@ -1825,7 +1825,7 @@
 
 				<!-- Units -->
 				<div>
-					<span class="mb-1.5 block text-sm font-medium text-foreground">Distance units</span>
+					<span class="text-foreground mb-1.5 block text-sm font-medium">Distance units</span>
 					<select
 						bind:value={preferredUnit}
 						class="border-border focus:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
@@ -1837,7 +1837,7 @@
 
 				<!-- Timezone -->
 				<div>
-					<span class="mb-1.5 block text-sm font-medium text-foreground">Timezone</span>
+					<span class="text-foreground mb-1.5 block text-sm font-medium">Timezone</span>
 					<select
 						bind:value={preferredTimezone}
 						class="border-border focus:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
@@ -1860,14 +1860,14 @@
 
 				<!-- Notifications -->
 				<div>
-					<span class="mb-1.5 block text-sm font-medium text-foreground">Notifications</span>
+					<span class="text-foreground mb-1.5 block text-sm font-medium">Notifications</span>
 					<label class="flex items-center gap-2">
 						<input
 							type="checkbox"
 							bind:checked={notificationsEnabled}
-							class="h-4 w-4 rounded border-border"
+							class="border-border h-4 w-4 rounded"
 						/>
-						<span class="text-sm text-muted-foreground">Enable in-app notifications</span>
+						<span class="text-muted-foreground text-sm">Enable in-app notifications</span>
 					</label>
 				</div>
 			</div>
@@ -1887,15 +1887,15 @@
 		<!-- When aiAllowUserOverride is true, users can configure their own AI provider through the SDK -->
 
 		<!-- Trips Settings -->
-		<div class="mt-8 rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+		<div class="border-border dark:border-border dark:bg-card mt-8 rounded-xl border bg-white p-6">
 			<div class="mb-6">
 				<div class="flex items-center gap-2">
-					<MapPin class="h-5 w-5 text-muted-foreground" />
-					<h2 class="text-xl font-semibold text-foreground">
+					<MapPin class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
 						{t('accountSettings.trips')}
 					</h2>
 				</div>
-				<p class="mt-1 text-sm text-gray-600 dark:text-foreground">
+				<p class="dark:text-foreground mt-1 text-sm text-gray-600">
 					{t('accountSettings.tripsDescription')}
 				</p>
 			</div>
@@ -1903,13 +1903,13 @@
 			<!-- Pexels API Key Section -->
 			<div class="mb-8">
 				<div class="mb-4 flex items-center gap-2">
-					<Image class="h-5 w-5 text-muted-foreground" />
-					<h3 class="text-lg font-semibold text-foreground">
+					<Image class="text-muted-foreground h-5 w-5" />
+					<h3 class="text-foreground text-lg font-semibold">
 						{t('accountSettings.tripImageSuggestionsTitle')}
 					</h3>
 				</div>
 
-				<p class="mb-4 text-sm text-muted-foreground">
+				<p class="text-muted-foreground mb-4 text-sm">
 					{t('accountSettings.tripImageSuggestionsDescription')}
 				</p>
 
@@ -1928,7 +1928,7 @@
 				{/if}
 
 				<div>
-					<label for="pexels-api-key" class="mb-1.5 block text-sm font-medium text-foreground"
+					<label for="pexels-api-key" class="text-foreground mb-1.5 block text-sm font-medium"
 						>{serverPexelsApiKeyAvailable
 							? t('accountSettings.personalPexelsApiKeyOptional')
 							: t('accountSettings.personalPexelsApiKey')}</label
@@ -1975,7 +1975,7 @@
 							class="w-full"
 						/>
 					{/if}
-					<p class="mt-1.5 text-xs text-muted-foreground">
+					<p class="text-muted-foreground mt-1.5 text-xs">
 						{#if pexelsApiKeyConfigured}
 							✅ {t('accountSettings.usingPersonalApiKey')}
 						{:else if serverPexelsApiKeyAvailable}
@@ -1988,20 +1988,20 @@
 
 				<!-- Personal Rate Limit Configuration (show if personal key is configured or being entered) -->
 				{#if pexelsApiKeyConfigured || pexelsApiKeyInput.trim().length > 0}
-					<div class="mt-4 space-y-2 border-t pt-4 border-border">
-						<h4 class="text-sm font-medium text-foreground">Personal Rate Limit</h4>
+					<div class="border-border mt-4 space-y-2 border-t pt-4">
+						<h4 class="text-foreground text-sm font-medium">Personal Rate Limit</h4>
 
 						<label class="flex items-center gap-2">
 							<input
 								type="checkbox"
 								bind:checked={pexelsRateLimitEnabled}
-								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300 dark:border-border dark:bg-muted"
+								class="text-primary focus:ring-primary dark:border-border dark:bg-muted h-4 w-4 rounded border-gray-300"
 							/>
-							<span class="text-sm text-muted-foreground">Set custom rate limit</span>
+							<span class="text-muted-foreground text-sm">Set custom rate limit</span>
 						</label>
 
 						{#if !pexelsRateLimitEnabled}
-							<p class="text-xs text-muted-foreground">
+							<p class="text-muted-foreground text-xs">
 								Using default: <span class="font-medium">200 requests/hour</span>
 							</p>
 						{/if}
@@ -2015,11 +2015,11 @@
 										min="1"
 										max="10000"
 										placeholder="200"
-										class="focus:border-primary focus:ring-primary w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:ring-1 focus:outline-none dark:border-border dark:bg-muted dark:text-foreground"
+										class="focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-foreground w-24 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:ring-1 focus:outline-none"
 									/>
-									<span class="text-sm text-muted-foreground">requests per hour</span>
+									<span class="text-muted-foreground text-sm">requests per hour</span>
 								</div>
-								<p class="text-xs text-muted-foreground">
+								<p class="text-muted-foreground text-xs">
 									Pexels free tier: 200/hour. Paid plans offer higher limits.
 								</p>
 							</div>
@@ -2029,16 +2029,16 @@
 
 				<!-- Info notification -->
 				<div
-					class="bg-primary/5 dark:bg-primary/20 mt-4 flex items-start gap-3 rounded-lg border border-primary/20 p-3 dark:border-primary/30"
+					class="bg-primary/5 dark:bg-primary/20 border-primary/20 dark:border-primary/30 mt-4 flex items-start gap-3 rounded-lg border p-3"
 				>
-					<Info class="text-primary mt-0.5 h-4 w-4 flex-shrink-0 dark:text-muted-foreground" />
-					<p class="text-primary text-xs dark:text-muted-foreground">
+					<Info class="text-primary dark:text-muted-foreground mt-0.5 h-4 w-4 flex-shrink-0" />
+					<p class="text-primary dark:text-muted-foreground text-xs">
 						{t('accountSettings.dontHavePexelsApiKey')}
 						<a
 							href="https://www.pexels.com/api/"
 							target="_blank"
 							rel="noopener noreferrer"
-							class="hover:text-primary/80 font-medium underline dark:hover:text-muted-foreground"
+							class="hover:text-primary/80 dark:hover:text-muted-foreground font-medium underline"
 							>{t('accountSettings.getApiKey')}</a
 						>.
 					</p>
@@ -2048,24 +2048,24 @@
 			<!-- Data Sampling Section -->
 			<div class="mb-8">
 				<div class="mb-4 flex items-center gap-2">
-					<Database class="h-5 w-5 text-muted-foreground" />
-					<h3 class="text-lg font-semibold text-foreground">
+					<Database class="text-muted-foreground h-5 w-5" />
+					<h3 class="text-foreground text-lg font-semibold">
 						{t('accountSettings.samplingTitle')}
 					</h3>
 				</div>
-				<p class="mb-4 text-sm text-muted-foreground">
+				<p class="text-muted-foreground mb-4 text-sm">
 					{t('accountSettings.samplingDescription')}
 				</p>
 
 				<label class="mb-4 flex items-center gap-2 text-sm">
 					<input type="checkbox" bind:checked={samplingEnabled} class="h-4 w-4" />
-					<span class="font-medium text-foreground">{t('accountSettings.samplingEnable')}</span>
+					<span class="text-foreground font-medium">{t('accountSettings.samplingEnable')}</span>
 				</label>
 
 				{#if samplingEnabled}
 					<div class="mb-4 grid gap-4 sm:grid-cols-2">
 						<label class="flex flex-col gap-1">
-							<span class="text-xs font-medium text-muted-foreground">
+							<span class="text-muted-foreground text-xs font-medium">
 								{t('accountSettings.samplingMinDistance')}
 							</span>
 							<input
@@ -2073,11 +2073,11 @@
 								min="0"
 								max="5000"
 								bind:value={samplingMinDistance}
-								class="rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm dark:border-border"
+								class="dark:border-border rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm"
 							/>
 						</label>
 						<label class="flex flex-col gap-1">
-							<span class="text-xs font-medium text-muted-foreground">
+							<span class="text-muted-foreground text-xs font-medium">
 								{t('accountSettings.samplingMinTime')}
 							</span>
 							<input
@@ -2085,16 +2085,16 @@
 								min="0"
 								max="3600"
 								bind:value={samplingMinTime}
-								class="rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm dark:border-border"
+								class="dark:border-border rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm"
 							/>
 						</label>
 					</div>
-					<p class="mb-4 text-xs text-muted-foreground">
+					<p class="text-muted-foreground mb-4 text-xs">
 						{t('accountSettings.samplingHybridHint')}
 					</p>
 
 					{#if samplingLastRun}
-						<p class="mb-4 text-xs text-muted-foreground">
+						<p class="text-muted-foreground mb-4 text-xs">
 							{t('accountSettings.samplingLastRun', {
 								date: new Date(samplingLastRun).toLocaleString(),
 								deleted: samplingLastDeleted ?? 0
@@ -2115,15 +2115,15 @@
 			<!-- Excluded Zones Section -->
 			<div>
 				<div class="mb-4 flex items-center gap-2">
-					<MapPin class="h-5 w-5 text-muted-foreground" />
-					<h3 class="text-lg font-semibold text-foreground">
+					<MapPin class="text-muted-foreground h-5 w-5" />
+					<h3 class="text-foreground text-lg font-semibold">
 						{t('accountSettings.excludedZones')}
 					</h3>
 				</div>
-				<p class="mb-4 text-sm text-muted-foreground">
+				<p class="text-muted-foreground mb-4 text-sm">
 					{t('accountSettings.excludedZonesDescription')}
 				</p>
-				<p class="mb-4 text-xs text-muted-foreground">
+				<p class="text-muted-foreground mb-4 text-xs">
 					{t('accountSettings.excludedZonesHelp')}
 				</p>
 			</div>
@@ -2133,10 +2133,10 @@
 					<div class="space-y-3">
 						{#each tripExclusions as exclusion (exclusion.id)}
 							<div
-								class="flex items-center justify-between rounded-lg border bg-gray-50 p-3 dark:bg-card border-border"
+								class="dark:bg-card border-border flex items-center justify-between rounded-lg border bg-gray-50 p-3"
 							>
 								<div class="flex-1">
-									<div class="font-medium text-foreground">{exclusion.name}</div>
+									<div class="text-foreground font-medium">{exclusion.name}</div>
 									<!-- Dual-purpose badges -->
 									<div class="mt-1 flex gap-2">
 										<span
@@ -2152,11 +2152,11 @@
 											📍 {t('accountSettings.excludedZonePlacesBadge')}
 										</span>
 									</div>
-									<div class="text-sm text-muted-foreground">
+									<div class="text-muted-foreground text-sm">
 										{exclusion.location.display_name}
 									</div>
 									{#if exclusion.location.coordinates}
-										<div class="text-xs text-muted-foreground">
+										<div class="text-muted-foreground text-xs">
 											📍 {exclusion.location.coordinates.lat.toFixed(6)}, {exclusion.location.coordinates.lng.toFixed(
 												6
 											)}
@@ -2182,7 +2182,7 @@
 						{/each}
 					</div>
 				{:else}
-					<div class="py-8 text-center text-muted-foreground">
+					<div class="text-muted-foreground py-8 text-center">
 						<MapPin class="mx-auto mb-4 h-12 w-12 opacity-50" />
 						<p>{t('accountSettings.noExcludedZones')}</p>
 						<p class="text-sm">
@@ -2194,13 +2194,13 @@
 				{#if tripExclusions.length < 10}
 					<button
 						onclick={() => (showAddExclusionModal = true)}
-						class="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground"
+						class="hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-3 text-gray-600 transition-colors"
 					>
 						<Plus class="h-4 w-4" />
 						{t('accountSettings.addTripExclusion')}
 					</button>
 				{:else}
-					<div class="py-4 text-center text-sm text-muted-foreground">
+					<div class="text-muted-foreground py-4 text-center text-sm">
 						{t('accountSettings.maxTripExclusionsReached')}
 					</div>
 				{/if}
@@ -2239,21 +2239,21 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="animate-fade-in bg-card border-border relative w-full max-w-md cursor-default rounded-2xl border p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
 		>
-			<h3 class="mb-6 text-center text-2xl font-bold text-foreground">
+			<h3 class="text-foreground mb-6 text-center text-2xl font-bold">
 				{t('accountSettings.addTripExclusionModal')}
 			</h3>
 			<div class="space-y-6">
 				<div>
 					<label
 						for="add-exclusion-name"
-						class="mb-2 block text-sm font-medium text-muted-foreground"
+						class="text-muted-foreground mb-2 block text-sm font-medium"
 						>{t('common.fields.name')}</label
 					>
 					<Input
@@ -2267,7 +2267,7 @@
 				<div>
 					<label
 						for="add-exclusion-address"
-						class="mb-2 block text-sm font-medium text-muted-foreground"
+						class="text-muted-foreground mb-2 block text-sm font-medium"
 						>{t('common.fields.address')}</label
 					>
 					<div class="relative">
@@ -2284,19 +2284,19 @@
 						{#if isExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
 								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+									class="border-primary h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
 								></div>
 							</div>
 						{/if}
 					</div>
 					{#if exclusionAddressSuggestions.length > 0 && showExclusionAddressSuggestions}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-border bg-card"
+							class="dark:border-border bg-card mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg"
 						>
 							{#each exclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedExclusionAddressIndex ===
+									class="focus:bg-muted dark:text-foreground dark:focus:bg-muted w-full px-3 py-2 text-left text-sm text-gray-900 focus:outline-none {selectedExclusionAddressIndex ===
 									index
 										? 'bg-primary/10 dark:bg-primary/20'
 										: ''} hover:bg-muted"
@@ -2304,7 +2304,7 @@
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
-										<div class="text-xs text-muted-foreground">
+										<div class="text-muted-foreground text-xs">
 											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
 												6
 											)}
@@ -2314,7 +2314,7 @@
 							{/each}
 							{#if exclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
+									class="text-muted-foreground cursor-default px-3 py-2 text-center text-sm select-none"
 								>
 									{exclusionAddressSearchError}
 								</div>
@@ -2322,10 +2322,10 @@
 						</div>
 					{:else if showExclusionAddressSuggestions && exclusionAddressSearchError}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-border bg-card"
+							class="dark:border-border bg-card mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
+								class="text-muted-foreground cursor-default px-3 py-2 text-center text-sm select-none"
 							>
 								{exclusionAddressSearchError}
 							</div>
@@ -2356,7 +2356,7 @@
 					</button>
 					<button
 						onclick={() => (showAddExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+						class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200"
 					>
 						{t('common.actions.cancel')}
 					</button>
@@ -2383,21 +2383,21 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md cursor-default rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="animate-fade-in bg-card border-border relative w-full max-w-md cursor-default rounded-2xl border p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
 		>
-			<h3 class="mb-6 text-center text-2xl font-bold text-foreground">
+			<h3 class="text-foreground mb-6 text-center text-2xl font-bold">
 				{t('accountSettings.editTripExclusionModal')}
 			</h3>
 			<div class="space-y-6">
 				<div>
 					<label
 						for="edit-exclusion-name"
-						class="mb-2 block text-sm font-medium text-muted-foreground"
+						class="text-muted-foreground mb-2 block text-sm font-medium"
 						>{t('common.fields.name')}</label
 					>
 					<Input
@@ -2411,7 +2411,7 @@
 				<div>
 					<label
 						for="edit-exclusion-address"
-						class="mb-2 block text-sm font-medium text-muted-foreground"
+						class="text-muted-foreground mb-2 block text-sm font-medium"
 						>{t('common.fields.address')}</label
 					>
 					<div class="relative">
@@ -2428,19 +2428,19 @@
 						{#if isEditExclusionAddressSearching}
 							<div class="absolute top-1/2 right-3 -translate-y-1/2">
 								<div
-									class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+									class="border-primary h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
 								></div>
 							</div>
 						{/if}
 					</div>
 					{#if editExclusionAddressSuggestions.length > 0 && showEditExclusionAddressSuggestions}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-border bg-card"
+							class="dark:border-border bg-card mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg"
 						>
 							{#each editExclusionAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 								<button
 									type="button"
-									class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedEditExclusionAddressIndex ===
+									class="focus:bg-muted dark:text-foreground dark:focus:bg-muted w-full px-3 py-2 text-left text-sm text-gray-900 focus:outline-none {selectedEditExclusionAddressIndex ===
 									index
 										? 'bg-primary/10 dark:bg-primary/20'
 										: ''} hover:bg-muted"
@@ -2448,7 +2448,7 @@
 								>
 									<div class="font-medium">{suggestion.display_name}</div>
 									{#if suggestion.coordinates}
-										<div class="text-xs text-muted-foreground">
+										<div class="text-muted-foreground text-xs">
 											📍 {suggestion.coordinates.lat.toFixed(6)}, {suggestion.coordinates.lng.toFixed(
 												6
 											)}
@@ -2458,7 +2458,7 @@
 							{/each}
 							{#if editExclusionAddressSearchError}
 								<div
-									class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
+									class="text-muted-foreground cursor-default px-3 py-2 text-center text-sm select-none"
 								>
 									{editExclusionAddressSearchError}
 								</div>
@@ -2466,10 +2466,10 @@
 						</div>
 					{:else if showEditExclusionAddressSuggestions && editExclusionAddressSearchError}
 						<div
-							class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-border bg-card"
+							class="dark:border-border bg-card mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg"
 						>
 							<div
-								class="cursor-default px-3 py-2 text-center text-sm text-muted-foreground select-none"
+								class="text-muted-foreground cursor-default px-3 py-2 text-center text-sm select-none"
 							>
 								{editExclusionAddressSearchError}
 							</div>
@@ -2502,7 +2502,7 @@
 					</button>
 					<button
 						onclick={() => (showEditExclusionModal = false)}
-						class="flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+						class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex-1 cursor-pointer rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200"
 					>
 						{t('common.actions.cancel')}
 					</button>

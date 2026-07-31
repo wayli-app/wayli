@@ -120,12 +120,12 @@
 </script>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-background dark:via-card dark:to-background"
+	class="dark:from-background dark:via-card dark:to-background flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100"
 >
 	<div class="text-center">
 		{#if loading}
 			<Loader2 class="text-primary dark:text-primary mx-auto mb-4 h-8 w-8 animate-spin" />
-			<h2 class="mb-2 text-xl font-semibold text-foreground">Completing authentication...</h2>
+			<h2 class="text-foreground mb-2 text-xl font-semibold">Completing authentication...</h2>
 			<p class="text-muted-foreground">Please wait while we complete your sign in.</p>
 		{:else if error}
 			<div

@@ -9,51 +9,143 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded runs on PRs; serialize runs per ref on push.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  build:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: '1.3.10'
+          cache: true
+          cache-cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
       - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check formatting and lint
+        run: bun run lint
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: web
-        run: |
-          bun install --frozen-lockfile
-          bun pm ls @sveltejs/vite-plugin-svelte
-          bun pm ls @sveltejs/kit
-          bun pm ls vitest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
+          cache: true
+          cache-cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Prepare SvelteKit
-        working-directory: web
         run: bunx svelte-kit sync
 
-      # - name: Lint
-      #   working-directory: web
-      #   run: bun run lint --if-present
+      # Runs unit tests AND collects coverage. Coverage is generated for
+      # visibility only — it is uploaded as an artifact below but does NOT
+      # fail this job (thresholds remain advisory until coverage is raised).
+      - name: Run unit tests with coverage (report-only)
+        run: bun run test:unit -- --run --config vitest.ci.config.ts --coverage
 
-      # - name: Type check
-      #   working-directory: web
-      #   run: |
-      #     # Try the normal check first
-      #     bun run check --if-present || {
-      #       echo "⚠️ Type check failed, trying alternative approach..."
-      #       # Fallback: run svelte-check directly
-      #       bunx svelte-check --tsconfig ./tsconfig.json || {
-      #         echo "❌ Type check failed even with fallback"
-      #         exit 1
-      #       }
-      #     }
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: web/coverage/
+          retention-days: 14
 
-      - name: Run unit tests
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
         working-directory: web
-        run: bun run test:unit -- --run --config vitest.ci.config.ts
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
+          cache: true
+          cache-cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare SvelteKit
+        run: bunx svelte-kit sync
 
       - name: Build app
-        working-directory: web
         run: bun run build
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
+          cache: true
+          cache-cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare SvelteKit
+        run: bunx svelte-kit sync
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/bun.lock') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps chromium
+
+      - name: Run E2E tests
+        run: bun run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 14

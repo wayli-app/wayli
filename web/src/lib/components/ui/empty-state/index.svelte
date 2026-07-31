@@ -19,13 +19,13 @@
 
 <div class={cn('flex flex-col items-center justify-center rounded-lg p-8 text-center', className)}>
 	{#if icon}
-		<div class="mb-4 text-muted-foreground">{@render icon()}</div>
+		<div class="text-muted-foreground mb-4">{@render icon()}</div>
 	{/if}
-	<h3 class="mb-1 text-base font-semibold text-foreground">{title}</h3>
+	<h3 class="text-foreground mb-1 text-base font-semibold">{title}</h3>
 	{#if description}
-		<p class="mb-4 max-w-sm text-sm text-muted-foreground">{description}</p>
+		<p class="text-muted-foreground mb-4 max-w-sm text-sm">{description}</p>
 	{:else if children}
-		<div class="mb-4 max-w-sm text-sm text-muted-foreground">{@render children()}</div>
+		<div class="text-muted-foreground mb-4 max-w-sm text-sm">{@render children()}</div>
 	{/if}
 	{#if cta}
 		{@render cta()}

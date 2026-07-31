@@ -39,11 +39,11 @@
 	});
 </script>
 
-<div class="flex min-h-screen items-center justify-center px-4 bg-background">
+<div class="bg-background flex min-h-screen items-center justify-center px-4">
 	<div class="w-full max-w-md">
-		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
+		<div class="bg-card border-border rounded-2xl border p-8 shadow-xl">
 			<div class="mb-8 text-center">
-				<h1 class="mb-2 text-2xl font-bold text-foreground">Welcome to Wayli</h1>
+				<h1 class="text-foreground mb-2 text-2xl font-bold">Welcome to Wayli</h1>
 				<p class="text-muted-foreground">Choose how you'd like to get started</p>
 			</div>
 
@@ -59,7 +59,7 @@
 
 				<a
 					href="/auth/signup"
-					class="flex w-full items-center justify-center gap-3 rounded-lg bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+					class="hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted flex w-full items-center justify-center gap-3 rounded-lg bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors"
 				>
 					<Lock class="h-5 w-5" />
 					Create new account
@@ -70,7 +70,7 @@
 			<div class="mt-8 text-center">
 				<a
 					href="/"
-					class="text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+					class="hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground text-sm text-gray-600 transition-colors"
 				>
 					Back to home
 				</a>

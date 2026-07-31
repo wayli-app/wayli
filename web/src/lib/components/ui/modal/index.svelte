@@ -56,7 +56,7 @@
 			transition:fly={{ y: 8, duration: 200 }}
 			class="relative w-full cursor-default rounded-2xl p-8 shadow-2xl {sizeClasses[
 				size
-			]} my-4 max-h-[calc(100vh-2rem)] overflow-y-auto bg-card"
+			]} bg-card my-4 max-h-[calc(100vh-2rem)] overflow-y-auto"
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -69,14 +69,14 @@
 			{#if title || showCloseButton}
 				<div class="mb-6 flex items-start justify-between">
 					{#if title}
-						<h2 id="modal-title" class="text-2xl font-bold text-foreground">
+						<h2 id="modal-title" class="text-foreground text-2xl font-bold">
 							{title}
 						</h2>
 					{/if}
 					{#if showCloseButton}
 						<button
 							type="button"
-							class="absolute top-4 right-4 cursor-pointer p-1 text-muted-foreground transition-colors hover:text-red-500"
+							class="text-muted-foreground absolute top-4 right-4 cursor-pointer p-1 transition-colors hover:text-red-500"
 							onclick={closeModal}
 							onkeydown={(e) => {
 								if (e.key === 'Enter') closeModal();

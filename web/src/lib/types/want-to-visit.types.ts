@@ -13,7 +13,11 @@ export interface Place {
 	favorite?: boolean;
 	rating?: number;
 	image_url?: string | null;
-	image_attribution?: { photographer?: string; photographer_url?: string; pexels_url?: string } | null;
+	image_attribution?: {
+		photographer?: string;
+		photographer_url?: string;
+		pexels_url?: string;
+	} | null;
 	created_at: string;
 	updated_at: string;
 }

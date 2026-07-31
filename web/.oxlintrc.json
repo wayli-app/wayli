@@ -1,0 +1,63 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/tc39-proposal-structs/main/.oxlintrc.schema.json",
+  "categories": {
+    "correctness": "error",
+    "perf": "warn",
+    "suspicious": "warn"
+  },
+  "plugins": ["typescript", "unicorn", "import"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "globals": {
+    "$lib": "readonly",
+    "$app": "readonly",
+    "$routes": "readonly",
+    "$components": "readonly",
+    "$stores": "readonly",
+    "$utils": "readonly",
+    "$services": "readonly",
+    "$types": "readonly"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": "off",
+    "typescript/no-unused-vars": "off",
+    "typescript/no-explicit-any": "off",
+    "typescript/no-empty-object-type": "off",
+    "unicorn/no-empty-file": "off",
+    "unicorn/prefer-string-starts-ends-with": "off",
+    "unicorn/filename-case": "off",
+    "import/no-default-export": "off",
+    "unicorn/no-useless-fallback-in-spread": "warn",
+    "unicorn/no-new-array": "warn",
+    "unicorn/no-thenable": "warn",
+    "eslint/no-unassigned-vars": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["*.svelte"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["*.test.ts", "*.spec.ts", "tests/**/*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-non-null-assertion": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    ".svelte-kit/**",
+    "build/**",
+    "dist/**",
+    "node_modules/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**"
+  ]
+}

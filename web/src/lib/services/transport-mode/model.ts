@@ -186,7 +186,8 @@ export function emissionScores(f: ModeFeatures, segCtx?: SegmentContext): number
 				const railBoost = 1.3 + (2.6 - 1.3) * f.stationProximity; // 1.3 .. 2.6
 				if (mode === 'train') {
 					if (f.speedCV < 0.08) s *= railBoost;
-					else if (f.speedCV < 0.12) s *= 1.1; // borderline -> slight nudge
+					else if (f.speedCV < 0.12)
+						s *= 1.1; // borderline -> slight nudge
 					else if (f.speedCV > SPEED_CV_THRESHOLDS.CAR_LIKE) s *= 0.6;
 				} else {
 					// Symmetric car nudges so the overlap isn't train-biased:

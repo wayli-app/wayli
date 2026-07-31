@@ -8,6 +8,10 @@ bun.lockb
 # Generated build artifacts
 coverage/
 
+# Playwright generated output
+playwright-report/
+test-results/
+
 # Tool-managed JSON (translations + SvelteKit tsconfig) — not enforced by prettier
 static/messages/*.json
 tsconfig*.json

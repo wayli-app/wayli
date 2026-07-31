@@ -79,6 +79,6 @@
 		draggable="false"
 	/>
 	{#if isDragging}
-		<div class="pointer-events-none absolute inset-0 ring-2 ring-primary/40"></div>
+		<div class="ring-primary/40 pointer-events-none absolute inset-0 ring-2"></div>
 	{/if}
 </div>

@@ -51,12 +51,12 @@
 
 {#if loading}
 	<div
-		class="icon animate-pulse rounded bg-gray-200 dark:bg-muted {className}"
+		class="icon dark:bg-muted animate-pulse rounded bg-gray-200 {className}"
 		style="width: {size}px; height: {size}px;"
 	></div>
 {:else if error}
 	<div
-		class="icon flex items-center justify-center text-muted-foreground dark:text-muted-foreground {className}"
+		class="icon text-muted-foreground dark:text-muted-foreground flex items-center justify-center {className}"
 		style="width: {size}px; height: {size}px;"
 	>
 		<svg

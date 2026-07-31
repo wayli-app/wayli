@@ -25,7 +25,7 @@
 			type="button"
 			class="rounded-lg border-2 p-4 text-left transition-all {role === roleOption.id
 				? 'border-primary bg-primary/5 dark:bg-primary/30'
-				: 'border-gray-300 hover:border-border dark:border-border dark:hover:border-border'}"
+				: 'hover:border-border dark:border-border dark:hover:border-border border-gray-300'}"
 			onclick={() => (role = roleOption.id as 'admin' | 'user')}
 		>
 			<div class="mb-2 flex items-center">
@@ -34,9 +34,9 @@
 						? 'text-primary dark:text-muted-foreground'
 						: 'text-muted-foreground'}"
 				/>
-				<span class="font-semibold text-foreground">{roleOption.label}</span>
+				<span class="text-foreground font-semibold">{roleOption.label}</span>
 			</div>
-			<p class="text-sm text-muted-foreground">{roleOption.description}</p>
+			<p class="text-muted-foreground text-sm">{roleOption.description}</p>
 		</button>
 	{/each}
 </div>

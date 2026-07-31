@@ -67,7 +67,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative w-full max-w-md rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="animate-fade-in bg-card border-border relative w-full max-w-md rounded-2xl border p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -77,7 +77,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+				class="text-muted-foreground hover:bg-muted hover:text-muted-foreground absolute top-4 right-4 rounded-full p-2"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -91,8 +91,8 @@
 					<ShieldOff class="h-6 w-6 text-red-600 dark:text-red-400" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-foreground">Disable Two-Factor Authentication</h2>
-					<p class="text-sm text-muted-foreground">Confirm your password to continue</p>
+					<h2 class="text-foreground text-2xl font-bold">Disable Two-Factor Authentication</h2>
+					<p class="text-muted-foreground text-sm">Confirm your password to continue</p>
 				</div>
 			</div>
 
@@ -123,7 +123,7 @@
 			<div class="mb-6">
 				<label
 					for="disable-2fa-password"
-					class="mb-2 block text-sm font-medium text-muted-foreground"
+					class="text-muted-foreground mb-2 block text-sm font-medium"
 				>
 					Enter your password
 				</label>
@@ -132,7 +132,7 @@
 					type="password"
 					bind:value={password}
 					placeholder="••••••••"
-					class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 transition focus:border-red-500 focus:ring-2 focus:ring-red-500 focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
+					class="dark:border-border dark:bg-card dark:text-foreground w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 transition focus:border-red-500 focus:ring-2 focus:ring-red-500 focus:outline-none"
 					onkeydown={(e) => {
 						if (e.key === 'Enter' && password) {
 							handleDisable();
@@ -145,7 +145,7 @@
 			<div class="flex gap-3">
 				<button
 					onclick={handleClose}
-					class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+					class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200"
 				>
 					Cancel
 				</button>

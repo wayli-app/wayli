@@ -149,7 +149,7 @@
 	>
 		<!-- Modal Box -->
 		<div
-			class="animate-fade-in relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="animate-fade-in bg-card border-border relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -159,7 +159,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+				class="text-muted-foreground hover:bg-muted hover:text-muted-foreground absolute top-4 right-4 rounded-full p-2"
 				aria-label="Close"
 			>
 				<X class="h-5 w-5" />
@@ -170,17 +170,17 @@
 				<div
 					class="bg-primary/10 dark:bg-primary/30 flex h-12 w-12 items-center justify-center rounded-full"
 				>
-					<Shield class="text-primary h-6 w-6 dark:text-muted-foreground" />
+					<Shield class="text-primary dark:text-muted-foreground h-6 w-6" />
 				</div>
 				<div>
-					<h2 class="text-2xl font-bold text-foreground">
+					<h2 class="text-foreground text-2xl font-bold">
 						{currentStep === 'setup'
 							? 'Set Up Two-Factor Authentication'
 							: currentStep === 'verify'
 								? 'Verify Your Code'
 								: 'Backup Codes'}
 					</h2>
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{currentStep === 'setup'
 							? 'Step 1 of 3: Scan QR code'
 							: currentStep === 'verify'
@@ -204,23 +204,23 @@
 				{#if isLoading}
 					<div class="flex flex-col items-center justify-center py-12">
 						<div
-							class="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"
+							class="border-primary h-12 w-12 animate-spin rounded-full border-4 border-t-transparent"
 						></div>
-						<p class="mt-4 text-sm text-muted-foreground">Generating QR code...</p>
+						<p class="text-muted-foreground mt-4 text-sm">Generating QR code...</p>
 					</div>
 				{:else if qrCodeSrc}
 					<div class="space-y-6">
 						<!-- QR Code -->
 						<div class="flex justify-center">
-							<div class="rounded-lg border-4 bg-white p-4 border-border">
+							<div class="border-border rounded-lg border-4 bg-white p-4">
 								<img src={qrCodeSrc} alt="2FA QR Code" class="h-48 w-48" />
 							</div>
 						</div>
 
 						<!-- Instructions -->
-						<div class="space-y-2 text-sm text-muted-foreground">
+						<div class="text-muted-foreground space-y-2 text-sm">
 							<p class="font-semibold">Scan this QR code with your authenticator app:</p>
-							<ul class="list-inside list-disc space-y-1 text-muted-foreground">
+							<ul class="text-muted-foreground list-inside list-disc space-y-1">
 								<li>Google Authenticator</li>
 								<li>Microsoft Authenticator</li>
 								<li>Authy</li>
@@ -229,19 +229,19 @@
 						</div>
 
 						<!-- Manual Entry -->
-						<div class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border">
-							<p class="mb-2 text-sm font-medium text-muted-foreground">
+						<div class="dark:bg-card border-border rounded-lg border bg-gray-50 p-4">
+							<p class="text-muted-foreground mb-2 text-sm font-medium">
 								Or enter this code manually:
 							</p>
 							<div class="flex items-center gap-2">
 								<code
-									class="flex-1 rounded px-3 py-2 font-mono text-sm text-gray-900 dark:text-foreground bg-card"
+									class="dark:text-foreground bg-card flex-1 rounded px-3 py-2 font-mono text-sm text-gray-900"
 								>
 									{manualEntryKey}
 								</code>
 								<button
 									onclick={() => copyToClipboard(manualEntryKey, 'secret')}
-									class="rounded-lg p-2 text-gray-600 hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+									class="hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted rounded-lg p-2 text-gray-600"
 									aria-label="Copy secret"
 								>
 									{#if secretCopied}
@@ -268,7 +268,7 @@
 			{#if currentStep === 'verify'}
 				<div class="space-y-6">
 					<div>
-						<p class="mb-4 text-sm text-muted-foreground">
+						<p class="text-muted-foreground mb-4 text-sm">
 							Enter the 6-digit code from your authenticator app to complete setup:
 						</p>
 						<input
@@ -278,7 +278,7 @@
 							maxlength="6"
 							pattern="[0-9]*"
 							inputmode="numeric"
-							class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
+							class="focus:border-primary focus:ring-primary dark:border-border dark:bg-card dark:text-foreground w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-center font-mono text-2xl tracking-widest text-gray-900 transition focus:ring-2 focus:outline-none"
 							oninput={(e) => {
 								const target = e.target as HTMLInputElement;
 								target.value = target.value.replace(/[^0-9]/g, '');
@@ -290,7 +290,7 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => (currentStep = 'setup')}
-							class="flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+							class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex-1 rounded-lg border border-gray-300 px-6 py-3 font-semibold text-gray-700 shadow transition-all duration-200"
 						>
 							Back
 						</button>
@@ -325,7 +325,7 @@
 
 					<!-- Backup Codes -->
 					<div>
-						<p class="mb-3 text-sm font-semibold text-foreground">Save your backup codes:</p>
+						<p class="text-foreground mb-3 text-sm font-semibold">Save your backup codes:</p>
 						<div
 							class="mb-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20"
 						>
@@ -334,11 +334,11 @@
 								your account if you lose your authenticator device.
 							</p>
 						</div>
-						<div class="rounded-lg border bg-gray-50 p-4 dark:bg-card border-border">
+						<div class="dark:bg-card border-border rounded-lg border bg-gray-50 p-4">
 							<div class="grid grid-cols-2 gap-2 font-mono text-sm">
 								{#each backupCodes as code}
 									<div
-										class="rounded bg-white px-3 py-2 text-gray-900 dark:bg-muted dark:text-foreground"
+										class="dark:bg-muted dark:text-foreground rounded bg-white px-3 py-2 text-gray-900"
 									>
 										{code}
 									</div>
@@ -351,13 +351,13 @@
 					<div class="flex gap-3">
 						<button
 							onclick={() => copyToClipboard(backupCodes.join('\n'), 'backupCodes')}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+							class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200"
 						>
 							{backupCodesCopied ? 'Copied!' : 'Copy Codes'}
 						</button>
 						<button
 							onclick={handleBackupCodesDownload}
-							class="flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200 dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+							class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex-1 rounded-lg border border-gray-300 px-4 py-3 font-semibold text-gray-700 shadow transition-all duration-200"
 						>
 							Download
 						</button>

@@ -76,7 +76,7 @@
 		aria-label="Close modal"
 	>
 		<div
-			class="relative w-full max-w-lg rounded-xl p-8 shadow-2xl bg-card"
+			class="bg-card relative w-full max-w-lg rounded-xl p-8 shadow-2xl"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
 			role="dialog"
@@ -86,12 +86,12 @@
 			<!-- Modal Header -->
 			<div class="mb-6 flex items-start justify-between">
 				<div>
-					<h2 id="user-edit-modal-title" class="text-2xl font-bold text-foreground">Edit User</h2>
+					<h2 id="user-edit-modal-title" class="text-foreground text-2xl font-bold">Edit User</h2>
 					<p class="text-muted-foreground">Update the user's details and role.</p>
 				</div>
 				<button
 					onclick={closeModal}
-					class="rounded-full p-1 text-muted-foreground transition-colors hover:bg-muted dark:hover:bg-muted"
+					class="text-muted-foreground hover:bg-muted dark:hover:bg-muted rounded-full p-1 transition-colors"
 					aria-label="Close modal"
 				>
 					<X class="h-6 w-6" />
@@ -103,12 +103,12 @@
 				<div class="mb-8 flex items-center gap-4">
 					<UserAvatar user={localUser} />
 					<div>
-						<p class="text-lg font-semibold text-foreground">
+						<p class="text-foreground text-lg font-semibold">
 							{localUser.full_name ||
 								`${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() ||
 								'N/A'}
 						</p>
-						<p class="text-sm text-muted-foreground">{localUser.email}</p>
+						<p class="text-muted-foreground text-sm">{localUser.email}</p>
 					</div>
 				</div>
 			{/if}
@@ -118,36 +118,36 @@
 				<div class="space-y-6">
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label for="firstName" class="mb-1 block text-sm font-medium text-muted-foreground"
+							<label for="firstName" class="text-muted-foreground mb-1 block text-sm font-medium"
 								>First Name</label
 							>
 							<div class="relative">
 								<UserIcon
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+									class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 								/>
 								<input
 									type="text"
 									id="firstName"
 									bind:value={localUser.first_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-white dark:focus:border-primary dark:focus:ring-primary"
+									class="focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:text-white"
 									placeholder="e.g. Jane"
 								/>
 							</div>
 						</div>
 
 						<div>
-							<label for="lastName" class="mb-1 block text-sm font-medium text-muted-foreground"
+							<label for="lastName" class="text-muted-foreground mb-1 block text-sm font-medium"
 								>Last Name</label
 							>
 							<div class="relative">
 								<UserIcon
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+									class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 								/>
 								<input
 									type="text"
 									id="lastName"
 									bind:value={localUser.last_name}
-									class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-white dark:focus:border-primary dark:focus:ring-primary"
+									class="focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:text-white"
 									placeholder="e.g. Doe"
 								/>
 							</div>
@@ -155,25 +155,25 @@
 					</div>
 
 					<div>
-						<label for="email" class="mb-1 block text-sm font-medium text-muted-foreground"
+						<label for="email" class="text-muted-foreground mb-1 block text-sm font-medium"
 							>Email Address</label
 						>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2"
 							/>
 							<input
 								type="email"
 								id="email"
 								bind:value={localUser.email}
-								class="w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:text-white dark:focus:border-primary dark:focus:ring-primary"
+								class="focus:border-primary focus:ring-primary dark:border-border dark:bg-muted dark:focus:border-primary dark:focus:ring-primary w-full rounded-lg border border-gray-300 bg-gray-50 py-3 pr-4 pl-10 text-gray-900 dark:text-white"
 								placeholder="e.g. jane.doe@example.com"
 							/>
 						</div>
 					</div>
 
 					<div>
-						<span class="mb-2 block text-sm font-medium text-muted-foreground">Role</span>
+						<span class="text-muted-foreground mb-2 block text-sm font-medium">Role</span>
 						<RoleSelector bind:role={localUser.role} />
 					</div>
 				</div>
@@ -183,7 +183,7 @@
 			<div class="mt-8 flex justify-end gap-3">
 				<button
 					onclick={closeModal}
-					class="rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-muted-foreground hover:bg-muted"
+					class="dark:text-muted-foreground hover:bg-muted rounded-lg px-5 py-2.5 text-sm font-medium text-gray-700"
 				>
 					Cancel
 				</button>

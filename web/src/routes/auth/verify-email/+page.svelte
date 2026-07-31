@@ -93,13 +93,13 @@
 	<title>{t('auth.verifyYourEmail')} · Wayli</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center px-4 bg-background">
+<div class="bg-background flex min-h-screen items-center justify-center px-4">
 	<div class="w-full max-w-md">
 		<!-- Back to signin -->
 		<div class="mb-8">
 			<a
 				href="/auth/signin"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+				class="hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center text-sm text-gray-600 transition-colors"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToSignIn')}
@@ -107,16 +107,16 @@
 		</div>
 
 		<!-- Verification Card -->
-		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
+		<div class="bg-card border-border rounded-2xl border p-8 shadow-xl">
 			<div class="mb-6 text-center">
 				<!-- Email Icon -->
 				<div
 					class="bg-primary/10 dark:bg-primary/30 mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
 				>
-					<Mail class="text-primary h-8 w-8 dark:text-muted-foreground" />
+					<Mail class="text-primary dark:text-muted-foreground h-8 w-8" />
 				</div>
 
-				<h1 class="mb-2 text-2xl font-bold text-foreground">
+				<h1 class="text-foreground mb-2 text-2xl font-bold">
 					{t('auth.verifyYourEmail')}
 				</h1>
 				<p class="text-muted-foreground">
@@ -126,8 +126,8 @@
 
 			<!-- Email Address -->
 			{#if email}
-				<div class="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-muted/50">
-					<p class="text-center text-sm font-medium text-foreground">
+				<div class="dark:bg-muted/50 mb-6 rounded-lg bg-gray-50 p-4">
+					<p class="text-foreground text-center text-sm font-medium">
 						{email}
 					</p>
 				</div>
@@ -135,25 +135,25 @@
 
 			<!-- Instructions -->
 			<div class="mb-6 space-y-3">
-				<div class="flex items-start gap-3 text-sm text-muted-foreground">
+				<div class="text-muted-foreground flex items-start gap-3 text-sm">
 					<div
-						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-muted-foreground"
+						class="bg-primary/10 text-primary dark:bg-primary/30 dark:text-muted-foreground mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold"
 					>
 						1
 					</div>
 					<p>{t('auth.checkInboxForEmail')}</p>
 				</div>
-				<div class="flex items-start gap-3 text-sm text-muted-foreground">
+				<div class="text-muted-foreground flex items-start gap-3 text-sm">
 					<div
-						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-muted-foreground"
+						class="bg-primary/10 text-primary dark:bg-primary/30 dark:text-muted-foreground mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold"
 					>
 						2
 					</div>
 					<p>{t('auth.clickVerificationLink')}</p>
 				</div>
-				<div class="flex items-start gap-3 text-sm text-muted-foreground">
+				<div class="text-muted-foreground flex items-start gap-3 text-sm">
 					<div
-						class="bg-primary/10 text-primary dark:bg-primary/30 mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold dark:text-muted-foreground"
+						class="bg-primary/10 text-primary dark:bg-primary/30 dark:text-muted-foreground mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold"
 					>
 						3
 					</div>
@@ -167,7 +167,7 @@
 					type="button"
 					onclick={resendVerificationEmail}
 					disabled={resendLoading || resendCooldown > 0}
-					class="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted"
+					class="hover:bg-muted dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{#if resendLoading}
 						<span class="flex items-center justify-center gap-2">
@@ -183,8 +183,8 @@
 			</div>
 
 			<!-- Help Text -->
-			<div class="rounded-lg bg-gray-50 p-4 dark:bg-muted/50">
-				<p class="text-center text-sm text-muted-foreground">
+			<div class="dark:bg-muted/50 rounded-lg bg-gray-50 p-4">
+				<p class="text-muted-foreground text-center text-sm">
 					{t('auth.didntReceiveEmail')}
 					<br />
 					<span class="text-xs">{t('auth.checkSpamFolder')}</span>
@@ -194,7 +194,7 @@
 
 		<!-- Additional Help -->
 		<div class="mt-6 text-center">
-			<p class="text-sm text-muted-foreground">
+			<p class="text-muted-foreground text-sm">
 				{t('auth.needHelp')}
 				<a
 					href="mailto:support@wayli.app"

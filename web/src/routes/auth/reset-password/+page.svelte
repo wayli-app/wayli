@@ -74,13 +74,13 @@
 	<title>{t('auth.resetPassword')} · Wayli</title>
 </svelte:head>
 
-<div class="flex min-h-screen items-center justify-center px-4 bg-background">
+<div class="bg-background flex min-h-screen items-center justify-center px-4">
 	<div class="w-full max-w-md">
 		<!-- Back to sign in -->
 		<div class="mb-8">
 			<a
 				href="/auth/signin"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+				class="hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center text-sm text-gray-600 transition-colors"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToSignIn')}
@@ -88,7 +88,7 @@
 		</div>
 
 		<!-- Reset Password Form -->
-		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
+		<div class="bg-card border-border rounded-2xl border p-8 shadow-xl">
 			{#if !token}
 				<!-- Invalid or missing token -->
 				<div class="text-center">
@@ -97,10 +97,10 @@
 					>
 						<AlertCircle class="h-6 w-6 text-red-600 dark:text-red-400" />
 					</div>
-					<h1 class="mb-2 text-2xl font-bold text-foreground">
+					<h1 class="text-foreground mb-2 text-2xl font-bold">
 						{t('auth.invalidResetLink')}
 					</h1>
-					<p class="mb-6 text-muted-foreground">
+					<p class="text-muted-foreground mb-6">
 						{t('auth.invalidResetLinkDescription')}
 					</p>
 					<a
@@ -117,7 +117,7 @@
 					>
 						<Lock class="h-6 w-6 text-white" />
 					</div>
-					<h1 class="mb-2 text-2xl font-bold text-foreground">
+					<h1 class="text-foreground mb-2 text-2xl font-bold">
 						{t('auth.resetPassword')}
 					</h1>
 					<p class="text-muted-foreground">
@@ -135,7 +135,7 @@
 								{t('auth.passwordResetSuccess')}
 							</p>
 						</div>
-						<p class="text-sm text-muted-foreground">
+						<p class="text-muted-foreground text-sm">
 							{t('auth.redirectingToDashboard')}
 						</p>
 					</div>
@@ -143,25 +143,25 @@
 					<form onsubmit={handlePasswordReset} class="space-y-6">
 						<!-- New Password Field -->
 						<div>
-							<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
+							<label for="password" class="text-muted-foreground mb-2 block text-sm font-medium">
 								{t('auth.newPassword')}
 							</label>
 							<div class="relative">
 								<Lock
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+									class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 								/>
 								<input
 									id="password"
 									type={showPassword ? 'text' : 'password'}
 									bind:value={password}
 									required
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
+									class="focus:ring-primary dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2"
 									placeholder={t('auth.enterNewPassword')}
 								/>
 								<button
 									type="button"
 									onclick={togglePassword}
-									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-muted-foreground"
+									class="text-muted-foreground hover:text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer transition-colors"
 								>
 									{#if showPassword}
 										<EyeOff class="h-5 w-5" />
@@ -170,7 +170,7 @@
 									{/if}
 								</button>
 							</div>
-							<p class="mt-1 text-xs text-muted-foreground">
+							<p class="text-muted-foreground mt-1 text-xs">
 								{t('auth.passwordMinLength')}
 							</p>
 						</div>
@@ -179,26 +179,26 @@
 						<div>
 							<label
 								for="confirmPassword"
-								class="mb-2 block text-sm font-medium text-muted-foreground"
+								class="text-muted-foreground mb-2 block text-sm font-medium"
 							>
 								{t('auth.confirmPassword')}
 							</label>
 							<div class="relative">
 								<Lock
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+									class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 								/>
 								<input
 									id="confirmPassword"
 									type={showConfirmPassword ? 'text' : 'password'}
 									bind:value={confirmPassword}
 									required
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
+									class="focus:ring-primary dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2"
 									placeholder={t('auth.confirmNewPassword')}
 								/>
 								<button
 									type="button"
 									onclick={toggleConfirmPassword}
-									class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors hover:text-muted-foreground"
+									class="text-muted-foreground hover:text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer transition-colors"
 								>
 									{#if showConfirmPassword}
 										<EyeOff class="h-5 w-5" />

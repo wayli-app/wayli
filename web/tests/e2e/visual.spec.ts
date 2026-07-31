@@ -12,13 +12,11 @@ test.describe('Visual Consistency', () => {
 		// Wait for page to fully load
 		await page.waitForLoadState('networkidle');
 
-		// Check that the main container is visible
-		const container = page.locator('.container, main, [data-testid="main"]').first();
-		await expect(container).toBeVisible();
-
-		// Check that form is centered or properly positioned
-		const form = page.locator('form');
-		await expect(form).toBeVisible();
+		// The signin page renders a centered card (no <main> or <form> element),
+		// so assert the heading and the form controls that actually exist.
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 	});
 
 	test('should have consistent button styling', async ({ page }) => {
@@ -96,14 +94,15 @@ test.describe('Responsive Design', () => {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
 			await page.goto('/auth/signin');
 
-			// Form should be visible and properly sized for viewport
-			const form = page.locator('form');
-			await expect(form).toBeVisible();
+			// The signin card (no <form> element exists); anchor on the email
+			// input, which renders inside the centered card on every viewport.
+			const emailInput = page.getByRole('textbox', { name: /email/i });
+			await expect(emailInput).toBeVisible();
 
-			const boundingBox = await form.boundingBox();
+			const boundingBox = await emailInput.boundingBox();
 			expect(boundingBox).toBeTruthy();
 
-			// Form width should not exceed viewport
+			// Input width should not exceed viewport
 			expect(boundingBox!.width).toBeLessThanOrEqual(viewport.width);
 		});
 	}
