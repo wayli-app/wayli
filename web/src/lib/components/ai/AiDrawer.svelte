@@ -14,14 +14,16 @@
 		Brain,
 		Wrench,
 		Pencil,
-		Share2
+		Share2,
+		Square
 	} from 'lucide-svelte';
 	import {
 		ChatService,
 		type ChatMessage,
 		type AgentThought,
 		type UsageStats,
-		type DailyQuotaSnapshot
+		type DailyQuotaSnapshot,
+		type QueryResultData
 	} from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import {
@@ -53,6 +55,10 @@
 		// Token usage for this turn (populated on onDone). Not restored on reload
 		// unless the server returns it in the persisted message.
 		usage?: UsageStats;
+		// Friendly progress step shown while streaming (from onProgress). Cleared on done.
+		streamingStep?: string;
+		// Query results returned by tools during this turn (from onQueryResult).
+		queryResults?: QueryResultData[];
 	};
 
 	let messages = $state<ChatTurn[]>([]);
@@ -208,17 +214,35 @@
 						if (openThoughts[lastIdx]) scrollToBottom();
 					}
 				},
+				onProgress: (step, _message) => {
+					// Surface a friendly progress step on the in-flight bubble so the
+					// user sees "Searching your trips…" instead of a bare spinner.
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].streamingStep = step;
+						messages = [...messages];
+						scrollToBottom();
+					}
+				},
+				onQueryResult: (result) => {
+					// Collect tool query results on the turn so we can surface a
+					// "N rows found" summary under the message.
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].queryResults = [...(messages[lastIdx].queryResults ?? []), result];
+						messages = [...messages];
+					}
+				},
 				onDone: (usage, extras) => {
 					isSending = false;
 					errorKind = null;
-					// Phase 3.1: capture per-turn usage + live quota. The service
-					// already maps these from snake_case; we just store them.
-					if (usage) {
-						const lastIdx = messages.length - 1;
-						if (messages[lastIdx]?.role === 'assistant') {
-							messages[lastIdx].usage = usage;
-							messages = [...messages];
-						}
+					// Clear the streaming step indicator and capture per-turn usage +
+					// live quota. The service already maps these from snake_case.
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].streamingStep = undefined;
+						if (usage) messages[lastIdx].usage = usage;
+						messages = [...messages];
 					}
 					if (extras?.dailyQuota) {
 						dailyQuota = extras.dailyQuota;
@@ -226,8 +250,10 @@
 				},
 				onError: (error: any, code?: string) => {
 					console.error('Chat error:', error, code);
-					// Phase 3.2: branch by code so the user gets an actionable
-					// message instead of a generic "something went wrong".
+					// Branch by code so the user gets an actionable banner instead
+					// of a generic bubble. errorKind drives the styled banner below
+					// the header; we drop the trailing '...' placeholder so the
+					// error doesn't read as a normal assistant reply.
 					const c = (code ?? '').toLowerCase();
 					if (c.includes('rate') || c === 'rate_limited' || c === '429') {
 						errorKind = 'rate_limited';
@@ -247,19 +273,9 @@
 					} else {
 						errorKind = 'network';
 					}
-					const lastIdx = messages.length - 1;
-					if (messages[lastIdx]?.role === 'assistant') {
-						const msg =
-							errorKind === 'rate_limited'
-								? t('ai.rateLimited')
-								: errorKind === 'quota'
-									? t('ai.quota.exceeded', { time: formatResetsAt() })
-									: errorKind === 'config'
-										? t('ai.configError')
-										: t('ai.error');
-						messages[lastIdx].content = msg;
-						messages = [...messages];
-					}
+					messages = messages.filter(
+						(m, idx) => !(idx === messages.length - 1 && m.content === '...')
+					);
 					isSending = false;
 				}
 			});
@@ -285,6 +301,9 @@
 		if (!ts) return '';
 		try {
 			const d = new Date(ts);
+			// If the reset is in the past or unparseable, fall back to a literal
+			// time so we never render an empty "It resets ." clause.
+			if (isNaN(d.getTime())) return '';
 			const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 			const diffMs = d.getTime() - Date.now();
 			const diffH = Math.round(diffMs / 3_600_000);
@@ -292,7 +311,44 @@
 			const diffM = Math.round(diffMs / 60_000);
 			return rtf.format(diffM, 'minute');
 		} catch {
-			return ts;
+			return '';
+		}
+	}
+
+	// Map an opaque backend progress step to a friendly, localized verb shown
+	// while the assistant works. The supervisor emits free-form step strings,
+	// so unknown values fall back to a generic "Working…".
+	function friendlyStep(step: string | undefined): string {
+		if (!step) return t('ai.steps.working');
+		const s = step.toLowerCase();
+		if (s.includes('search') || s.includes('query') || s.includes('sql'))
+			return t('ai.steps.searching');
+		if (s.includes('read') || s.includes('journal') || s.includes('entry'))
+			return t('ai.steps.reading');
+		if (s.includes('plan') || s.includes('route')) return t('ai.steps.planning');
+		if (s.includes('think') || s.includes('reason') || s.includes('synthes'))
+			return t('ai.steps.thinking');
+		if (s.includes('web') || s.includes('search the web')) return t('ai.steps.web');
+		return t('ai.steps.working');
+	}
+
+	// Stop the in-flight generation. The service cancels the supervisor turn;
+	// we clear the trailing placeholder + step indicator so the UI settles.
+	function stopGeneration() {
+		if (!chatService) return;
+		try {
+			chatService.cancel();
+		} catch (err) {
+			console.error('Stop failed:', err);
+		}
+		isSending = false;
+		// Remove the trailing '...' placeholder if it's still there, and clear
+		// any lingering step indicator on the last assistant turn.
+		messages = messages.filter((m, idx) => !(idx === messages.length - 1 && m.content === '...'));
+		const lastIdx = messages.length - 1;
+		if (messages[lastIdx]?.role === 'assistant') {
+			messages[lastIdx].streamingStep = undefined;
+			messages = [...messages];
 		}
 	}
 
@@ -304,7 +360,6 @@
 			const newId = await chatService.startChat(CHATBOT, NAMESPACE);
 			activeConversationId = newId;
 			messages = [];
-			showGreeting();
 		} catch (err: any) {
 			connectionError = err?.message ?? String(err);
 		}
@@ -352,40 +407,27 @@
 			if (activeConversationId === convoId) {
 				activeConversationId = null;
 				messages = [];
-				showGreeting();
 			}
 		} catch (err) {
 			console.error('Failed to delete conversation:', err);
 		}
 	}
 
-	function showGreeting() {
-		if (messages.length > 0) return;
+	// The empty-state greeting, computed reactively from the current page
+	// context (and re-rendered on locale change). Previously this was an
+	// imperative showGreeting() that mutated messages and only ran on
+	// conversation actions — so first-time users saw a bare empty-state string.
+	// Now the empty state always shows the warm greeting.
+	let greetingText = $derived.by(() => {
 		const inPlanMode = pageContext.page === 'plan';
-		const tripTitle = pageContext.trip_title;
-		const numDays = pageContext.num_days;
-		const primaryCity = pageContext.primary_city;
-		const destination = primaryCity || tripTitle;
-
+		const destination = pageContext.primary_city || pageContext.trip_title;
 		if (inPlanMode && destination) {
-			messages = [
-				{
-					role: 'assistant',
-					content:
-						numDays != null
-							? t('ai.planGreetingDays', { destination, days: numDays })
-							: t('ai.planGreeting', { destination })
-				}
-			];
-		} else {
-			messages = [
-				{
-					role: 'assistant',
-					content: t('ai.greeting')
-				}
-			];
+			return pageContext.num_days != null
+				? t('ai.planGreetingDays', { destination, days: pageContext.num_days })
+				: t('ai.planGreeting', { destination });
 		}
-	}
+		return t('ai.greeting');
+	});
 
 	function scrollToBottom() {
 		requestAnimationFrame(() => {
@@ -879,6 +921,23 @@
 		}
 	}
 
+	// Auto-grow the textarea up to a max height, so multi-line prompts wrap
+	// instead of scrolling. Reset to 1 row when emptied.
+	function autosizeTextarea() {
+		if (!inputEl) return;
+		inputEl.style.height = 'auto';
+		inputEl.style.height = `${Math.min(inputEl.scrollHeight, 128)}px`;
+	}
+
+	// Escape closes the drawer (focus-trap only handles Tab, by design). Bound
+	// via <svelte:window> so it works regardless of focus within the drawer.
+	function handleDrawerKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && isOpen) {
+			e.preventDefault();
+			aiDrawer.close();
+		}
+	}
+
 	// Retry the last message after a transient (network) error: drop the error
 	// bubble, restore the message into the input, and resend.
 	async function retryLast() {
@@ -953,12 +1012,14 @@
 	}
 </script>
 
+<svelte:window onkeydown={handleDrawerKeydown} />
+
 {#if isOpen}
 	<!-- Backdrop (mobile only) -->
 	<button
 		type="button"
 		class="fixed inset-0 z-40 bg-black/50 md:hidden"
-		aria-label="Close AI drawer"
+		aria-label={t('common.actions.close')}
 		onclick={() => aiDrawer.close()}
 		transition:fade={{ duration: 150 }}
 	></button>
@@ -966,6 +1027,9 @@
 	<!-- Drawer -->
 	<aside
 		use:focusTrap={true}
+		role="dialog"
+		aria-modal="true"
+		aria-label={t('ai.title')}
 		class="bg-card border-border fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l shadow-2xl md:w-[28rem] lg:w-[32rem]"
 		transition:slide={{ duration: 250 }}
 	>
@@ -982,6 +1046,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.conversations')}
+					aria-label={t('ai.conversations')}
 					onclick={() => (showConversationList = !showConversationList)}
 				>
 					<MessageSquare class="h-4 w-4" />
@@ -990,6 +1055,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.share')}
+					aria-label={t('ai.share')}
 					onclick={openSharePanel}
 				>
 					<Share2 class="h-4 w-4" />
@@ -998,6 +1064,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.newConversation')}
+					aria-label={t('ai.newConversation')}
 					onclick={startNewConversation}
 				>
 					<Plus class="h-4 w-4" />
@@ -1006,6 +1073,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('common.actions.close')}
+					aria-label={t('common.actions.close')}
 					onclick={() => aiDrawer.close()}
 				>
 					<X class="h-4 w-4" />
@@ -1045,6 +1113,7 @@
 									type="button"
 									class="text-muted-foreground hover:text-destructive p-1"
 									title={t('common.actions.delete')}
+									aria-label={t('common.actions.delete')}
 									onclick={() => deleteConversation(convo.id)}
 								>
 									<Trash2 class="h-3 w-3" />
@@ -1056,24 +1125,26 @@
 			</div>
 		{/if}
 
-		<!-- Configuration error banner -->
+		<!-- Connection error banner (initial connect failure — distinct from
+		     per-turn errors which surface via errorKind below). -->
 		{#if connectionError}
 			<div class="border-border bg-destructive/10 border-b px-4 py-2 text-xs">
 				<p class="text-destructive font-medium">{t('ai.configError')}</p>
-				<p class="text-muted-foreground">{connectionError}</p>
+				<p class="text-muted-foreground">{t('ai.configErrorDesc')}</p>
 			</div>
 		{/if}
 
-		<!-- Phase 3: daily quota strip (only when a limit is configured). -->
+		<!-- Daily quota strip (only when a limit is configured). Made slightly
+		     larger and surfaces the reset time as visible text for discoverability. -->
 		{#if dailyQuota && (dailyQuota.requests.limit > 0 || dailyQuota.tokens.limit > 0)}
 			{@const reqNear =
 				dailyQuota.requests.limit > 0 &&
 				dailyQuota.requests.used / dailyQuota.requests.limit >= 0.8}
+			{@const resets = formatResetsAt()}
 			<div
-				class="border-border flex items-center justify-between gap-2 border-b px-4 py-1.5 text-[10px] {reqNear
-					? 'bg-amber-500/10'
+				class="border-border flex items-center justify-between gap-2 border-b px-4 py-1.5 text-[11px] {reqNear
+					? 'bg-amber-500/15'
 					: ''}"
-				title={dailyQuota.resetsAt ? t('ai.quota.resetsAt', { time: formatResetsAt() }) : ''}
 			>
 				<span class="text-muted-foreground">
 					{#if dailyQuota.requests.limit > 0}
@@ -1083,40 +1154,67 @@
 						})}
 					{/if}
 				</span>
-				<span class="text-muted-foreground">
+				<span class="text-muted-foreground flex items-center gap-2">
 					{#if dailyQuota.tokens.limit > 0}
 						{t('ai.quota.tokens', { used: dailyQuota.tokens.used, limit: dailyQuota.tokens.limit })}
 					{:else}
 						{t('ai.quota.unlimited')}
 					{/if}
+					{#if resets}<span class="opacity-70">· {t('ai.quota.resetsAt', { time: resets })}</span
+						>{/if}
 				</span>
 			</div>
 		{/if}
 
-		<!-- Phase 3.2: actionable error banner (retry on transient errors). -->
-		{#if errorKind === 'network' || errorKind === 'rate_limited'}
+		<!-- Unified error banner: all error kinds get the same styled treatment
+		     (previously quota/config were injected as plain assistant bubbles). -->
+		{#if errorKind}
+			{@const errColor =
+				errorKind === 'quota' || errorKind === 'config'
+					? 'bg-destructive/10 text-destructive'
+					: 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}
+			{@const errText =
+				errorKind === 'rate_limited'
+					? t('ai.rateLimited')
+					: errorKind === 'quota'
+						? t('ai.quota.exceeded', { time: formatResetsAt() })
+						: errorKind === 'config'
+							? t('ai.configErrorDesc')
+							: t('ai.connectionError')}
 			<div
-				class="border-border flex items-center justify-between gap-2 border-b bg-amber-500/10 px-4 py-2 text-xs"
+				class="border-border flex items-center justify-between gap-2 border-b px-4 py-2 text-xs {errColor}"
+				role="alert"
 			>
-				<span class="text-amber-700 dark:text-amber-300">
-					{errorKind === 'rate_limited' ? t('ai.rateLimited') : t('ai.connectionError')}
-				</span>
-				<button
-					type="button"
-					class="rounded px-2 py-0.5 text-[11px] font-medium underline-offset-2 hover:bg-amber-500/20 hover:underline"
-					onclick={retryLast}
-				>
-					{t('ai.retry')}
-				</button>
+				<span>{errText}</span>
+				{#if errorKind === 'network' || errorKind === 'rate_limited'}
+					<button
+						type="button"
+						class="rounded px-2 py-0.5 text-[11px] font-medium underline-offset-2 hover:bg-black/5 hover:underline dark:hover:bg-white/10"
+						onclick={retryLast}
+					>
+						{t('ai.retry')}
+					</button>
+				{/if}
 			</div>
 		{/if}
 
 		<!-- Messages -->
 		<div bind:this={scrollContainer} class="flex-1 space-y-4 overflow-y-auto p-4">
-			{#if messages.length === 0 && !isConnecting}
-				<!-- Empty state with suggestions -->
+			{#if isConnecting && messages.length === 0}
+				<!-- Connecting state: first-time WebSocket connect, no spinner elsewhere -->
+				<div
+					class="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-sm"
+				>
+					<Loader2 class="h-5 w-5 animate-spin" />
+					<span>{t('ai.connecting')}</span>
+				</div>
+			{:else if messages.length === 0}
+				<!-- Empty state: greeting explains what the assistant can do, then
+				     page-aware suggestion chips. Shown on first open (showGreeting
+				     runs via $effect on isOpen) so users get the warm welcome. -->
 				<div class="space-y-3">
-					<p class="text-muted-foreground text-sm">{t('ai.emptyState')}</p>
+					<p class="text-foreground text-sm leading-relaxed">{greetingText}</p>
+					<p class="text-muted-foreground text-xs">{t('ai.emptyState')}</p>
 					<div class="flex flex-wrap gap-2">
 						{#each pageContext.page === 'plan' ? planSuggestions : pageSuggestions as suggestion}
 							<button
@@ -1253,15 +1351,42 @@
 								<div
 									role="presentation"
 									onclick={handleLinkClick}
+									aria-live="polite"
+									aria-atomic="false"
 									class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
 								>
 									{#if msg.content === '...'}
-										<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+										<div class="text-muted-foreground flex items-center gap-2 py-0.5 text-sm">
+											<Loader2 class="h-4 w-4 animate-spin" />
+											{#if msg.streamingStep}
+												<span>{friendlyStep(msg.streamingStep)}</span>
+											{/if}
+										</div>
 									{:else}
 										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 										{@html renderMarkdown(displayContent)}
+										{#if msg.streamingStep}
+											<div
+												class="text-muted-foreground not-prose mt-1.5 flex items-center gap-1.5 border-t border-current/10 pt-1.5 text-[11px]"
+											>
+												<Loader2 class="h-3 w-3 animate-spin" />
+												{friendlyStep(msg.streamingStep)}
+											</div>
+										{/if}
 									{/if}
 								</div>
+								{#if msg.queryResults && msg.queryResults.length > 0 && msg.content !== '...'}
+									<div class="mt-1 flex flex-wrap gap-1">
+										{#each msg.queryResults as qr}
+											<span
+												class="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]"
+												title={qr.query}
+											>
+												{t('ai.rowsReturned', { count: qr.rowCount })}
+											</span>
+										{/each}
+									</div>
+								{/if}
 								{#if suggestions.length > 0 && msg.content !== '...'}
 									<div class="mt-1.5 flex flex-col gap-1.5">
 										{#each suggestions as sug, sugIdx (sugIdx)}
@@ -1474,28 +1599,41 @@
 		</div>
 
 		<!-- Input -->
-		<div class="border-border flex items-center gap-2 border-t p-3">
-			<input
-				type="text"
+		<div
+			class="border-border flex items-end gap-2 border-t p-3"
+			style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
+		>
+			<textarea
 				bind:value={input}
 				bind:this={inputEl}
 				onkeydown={handleKeydown}
+				oninput={autosizeTextarea}
+				rows="1"
 				placeholder={t('ai.placeholder')}
-				class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				disabled={inputDisabled}
-			/>
-			<button
-				type="button"
-				onclick={send}
-				disabled={inputDisabled || !input.trim()}
-				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
-			>
-				{#if isSending}
-					<Loader2 class="h-4 w-4 animate-spin" />
-				{:else}
+				aria-label={t('ai.placeholder')}
+				class="border-border focus:ring-primary max-h-32 flex-1 resize-none rounded-lg border bg-transparent px-3 py-2 text-sm leading-relaxed focus:ring-2 focus:outline-none"
+				disabled={inputDisabled}></textarea>
+			{#if isSending}
+				<button
+					type="button"
+					onclick={stopGeneration}
+					aria-label={t('ai.stop')}
+					title={t('ai.stop')}
+					class="bg-destructive hover:bg-destructive/90 text-destructive-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors"
+				>
+					<Square class="h-4 w-4" />
+				</button>
+			{:else}
+				<button
+					type="button"
+					onclick={send}
+					disabled={inputDisabled || !input.trim()}
+					aria-label={t('common.actions.send') || 'Send'}
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+				>
 					<Send class="h-4 w-4" />
-				{/if}
-			</button>
+				</button>
+			{/if}
 		</div>
 	</aside>
 {/if}
