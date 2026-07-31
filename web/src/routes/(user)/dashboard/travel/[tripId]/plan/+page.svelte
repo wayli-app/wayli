@@ -59,6 +59,9 @@
 	let collaborators = $state<Collaborator[]>([]);
 	let isLoading = $state(true);
 	let selectedDay = $state<number | null>(null);
+	// Tapped day in the cost-per-day chart (mobile-friendly alternative to the
+	// hover tooltip, which is invisible on touch devices).
+	let selectedCostDay = $state<number | null>(null);
 	let showCollaboratorModal = $state(false);
 	let collaboratorUsername = $state('');
 	let isAddingCollaborator = $state(false);
@@ -650,6 +653,14 @@
 	// ── Drag and drop ──
 	let draggedItem = $state<PlanItem | null>(null);
 
+	// HTML5 drag-and-drop doesn't fire on touch devices, so we offer a
+	// tap-to-move alternative there: tap an item to pick it up, then tap a
+	// day card to drop it. `movingItem` holds the picked-up item.
+	let movingItem = $state<PlanItem | null>(null);
+	const isTouchDevice =
+		typeof window !== 'undefined' &&
+		('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
 	function onDragStart(e: DragEvent, item: PlanItem) {
 		draggedItem = item;
 		e.dataTransfer?.setData('text/plain', item.id);
@@ -665,6 +676,22 @@
 			moveItem(draggedItem, dayNumber);
 		}
 		draggedItem = null;
+	}
+
+	// Tap-to-move handlers (touch devices only).
+	function beginMoveItem(item: PlanItem) {
+		movingItem = movingItem?.id === item.id ? null : item;
+	}
+
+	function moveToDay(dayNumber: number) {
+		if (movingItem && movingItem.day_number !== dayNumber) {
+			moveItem(movingItem, dayNumber);
+		}
+		movingItem = null;
+	}
+
+	function cancelMove() {
+		movingItem = null;
 	}
 
 	// ── Collaborators ──
@@ -863,11 +890,11 @@
 					{#each budgetByCategory as cat (cat.category)}
 						{@const maxCat = Math.max(...budgetByCategory.map((c) => c.total))}
 						<div class="flex items-center gap-2 text-xs">
-							<span class="w-4 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
-							<span class="text-muted-foreground w-20 truncate">
+							<span class="w-4 shrink-0 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
+							<span class="text-muted-foreground w-16 shrink-0 truncate sm:w-20">
 								{t('plan.type.' + cat.category)}
 							</span>
-							<div class="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+							<div class="bg-muted h-2 min-w-0 flex-1 overflow-hidden rounded-full">
 								<div
 									class="h-full rounded-full"
 									style="width: {(cat.total / maxCat) * 100}%; background: {TYPE_CONFIG[
@@ -875,7 +902,7 @@
 									]?.color ?? '#6b7280'}"
 								></div>
 							</div>
-							<span class="text-muted-foreground w-12 text-right font-mono">
+							<span class="text-muted-foreground w-10 shrink-0 text-right font-mono sm:w-12">
 								{cat.total.toFixed(0)}
 							</span>
 						</div>
@@ -888,13 +915,14 @@
 						<div class="text-muted-foreground mb-2 text-[10px] font-medium uppercase">
 							{t('plan.costPerDay', { currency: dailyCosts[0]?.currency ?? 'EUR' })}
 						</div>
-						<div class="flex gap-1">
+						<div class="flex gap-1.5">
 							<!-- Y-axis -->
-							<div class="flex flex-col justify-between text-right" style="height: 80px;">
-								<span class="text-muted-foreground text-[8px]">{maxDailyCost.toFixed(0)}</span>
-								<span class="text-muted-foreground text-[8px]">{(maxDailyCost / 2).toFixed(0)}</span
+							<div class="flex flex-col justify-between text-right" style="height: 96px;">
+								<span class="text-muted-foreground text-[10px]">{maxDailyCost.toFixed(0)}</span>
+								<span class="text-muted-foreground text-[10px]"
+									>{(maxDailyCost / 2).toFixed(0)}</span
 								>
-								<span class="text-muted-foreground text-[8px]">0</span>
+								<span class="text-muted-foreground text-[10px]">0</span>
 							</div>
 							<!-- Bars -->
 							<div class="relative flex-1">
@@ -904,24 +932,31 @@
 									<div class="border-border border-t"></div>
 									<div class="border-border border-t"></div>
 								</div>
-								<div class="relative flex items-end gap-1" style="height: 80px;">
+								<div class="relative flex items-end gap-1" style="height: 96px;">
 									{#each dailyCategoryBreakdown as d (d.day)}
-										<div
-											class="group relative flex h-full flex-1 cursor-default flex-col justify-end"
+										<button
+											type="button"
+											class="group relative flex h-full min-w-[18px] flex-1 cursor-pointer flex-col justify-end rounded-t-sm focus:outline-none {selectedCostDay ===
+											d.day
+												? 'ring-2 ring-primary ring-offset-1'
+												: ''}"
+											aria-label="{t('plan.dayLabel', { day: d.day })}: {d.total.toFixed(0)} {d.currency}"
+											onclick={() =>
+												(selectedCostDay = selectedCostDay === d.day ? null : d.day)}
 										>
 											<!-- Stacked segments -->
 											{#each d.categories as cat (cat.category)}
 												<div
 													class="w-full transition-all"
 													style="height: {(cat.amount / maxDailyCost) *
-														80}px; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
+														96}px; background: {TYPE_CONFIG[cat.category]?.color ?? '#6b7280'}"
 												></div>
 											{/each}
 											<!-- Empty bar for zero-cost days -->
 											{#if d.total === 0}
 												<div class="w-full" style="height: 2px; background: #e5e7eb"></div>
 											{/if}
-											<!-- Tooltip on hover -->
+											<!-- Tooltip on hover (desktop pointer devices) -->
 											{#if d.total > 0}
 												<div
 													class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-3 text-xs shadow-xl group-hover:block"
@@ -940,17 +975,44 @@
 													{/each}
 												</div>
 											{/if}
-										</div>
+										</button>
 									{/each}
 								</div>
 								<!-- Day numbers -->
-								<div class="flex gap-1">
+								<div class="mt-1 flex gap-1">
 									{#each dailyCategoryBreakdown as d (d.day)}
-										<div class="text-muted-foreground flex-1 text-center text-[8px]">
+										<div
+											class="text-muted-foreground flex-1 text-center text-[10px] {selectedCostDay ===
+											d.day
+												? 'text-foreground font-bold'
+												: ''}"
+										>
 											{d.day}
 										</div>
 									{/each}
 								</div>
+								<!-- Tap-to-show breakdown (mobile-friendly) -->
+								{#if selectedCostDay !== null}
+									{@const picked = dailyCategoryBreakdown.find((d) => d.day === selectedCostDay)}
+									{#if picked}
+										<div
+											class="bg-muted/50 mt-2 rounded-lg p-2.5 text-xs sm:hidden"
+										>
+											<div class="text-foreground mb-1 font-bold">
+												{t('plan.dayCost', {
+													day: picked.day,
+													cost: `${picked.total.toFixed(0)} ${picked.currency}`
+												})}
+											</div>
+											{#each picked.categories as cat (cat.category)}
+												<div class="text-muted-foreground flex items-center gap-1.5">
+													<span>{TYPE_CONFIG[cat.category]?.icon}</span>
+													{t('plan.type.' + cat.category)}: {cat.amount.toFixed(0)}
+												</div>
+											{/each}
+										</div>
+									{/if}
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -963,6 +1025,22 @@
 	<div>
 		{#if selectedDay === null}
 			<!-- Calendar overview -->
+			{#if movingItem}
+				<div
+					class="bg-primary/10 text-primary mb-3 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-medium"
+				>
+					<span>
+						Moving: <strong>{movingItem.title}</strong> — tap a day to move it
+					</span>
+					<button
+						type="button"
+						onclick={cancelMove}
+						class="hover:bg-primary/20 rounded px-2 py-1 font-medium underline"
+					>
+						{t('common.actions.cancel')}
+					</button>
+				</div>
+			{/if}
 			<div
 				class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7"
 			>
@@ -970,13 +1048,21 @@
 					<div
 						role="button"
 						tabindex="0"
-						onclick={() => openDay(day.number)}
+						onclick={() => {
+							if (movingItem) {
+								moveToDay(day.number);
+							} else {
+								openDay(day.number);
+							}
+						}}
 						onkeydown={(e) => e.key === 'Enter' && openDay(day.number)}
 						ondragover={onDragOver}
 						ondrop={(e) => onDrop(e, day.number)}
 						class="bg-card border-border flex min-h-44 cursor-pointer flex-col rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md {day
 							.items.length > 0
 							? 'border-primary/30'
+							: ''} {movingItem
+							? 'border-primary ring-2 ring-primary/40'
 							: ''}"
 					>
 						<!-- Header -->
@@ -1001,14 +1087,33 @@
 						<div class="flex-1 space-y-1">
 							{#each day.items.slice(0, 4) as item (item.id)}
 								<div
-									class="truncate cursor-grab rounded px-1.5 py-0.5 text-[10px] font-medium text-white transition-shadow hover:shadow-md active:cursor-grabbing"
-									draggable="true"
+									class="truncate rounded px-1.5 py-0.5 text-[10px] font-medium text-white transition-shadow {movingItem?.id ===
+									item.id
+										? 'ring-2 ring-white'
+										: ''} {isTouchDevice
+										? 'cursor-pointer'
+										: 'cursor-grab hover:shadow-md active:cursor-grabbing'}"
+									draggable={isTouchDevice ? 'false' : 'true'}
 									role="button"
 									tabindex="0"
-									aria-label="Plan item: {item.title}. Drag to move between days."
+									aria-label="Plan item: {item.title}. {isTouchDevice
+										? 'Tap to select, then tap a day to move.'
+										: 'Drag to move between days.'}"
 									ondragstart={(e) => {
 										e.stopPropagation();
 										onDragStart(e, item);
+									}}
+									onclick={(e) => {
+										e.stopPropagation();
+										if (isTouchDevice) {
+											beginMoveItem(item);
+										}
+									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter' && isTouchDevice) {
+											e.stopPropagation();
+											beginMoveItem(item);
+										}
 									}}
 									style="background: {TYPE_CONFIG[item.type]?.color ?? '#6b7280'}"
 									title={item.title}
@@ -1314,14 +1419,14 @@
 										>
 											{t('plan.editDetails')}
 										</summary>
-										<div class="mt-2 grid grid-cols-2 gap-2">
+										<div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
 											<label class="flex flex-col gap-0.5">
 												<span class="text-muted-foreground text-[10px]">{t('plan.startTime')}</span>
 												<input
 													type="time"
 													bind:value={item.start_time}
 													onchange={() => saveItem(item)}
-													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													class="border-border min-h-[40px] rounded border bg-transparent px-2 py-1.5 text-xs"
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
@@ -1330,7 +1435,7 @@
 													type="time"
 													bind:value={item.end_time}
 													onchange={() => saveItem(item)}
-													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													class="border-border min-h-[40px] rounded border bg-transparent px-2 py-1.5 text-xs"
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
@@ -1341,7 +1446,7 @@
 													onchange={() => saveItem(item)}
 													step="0.01"
 													placeholder="0.00"
-													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													class="border-border min-h-[40px] rounded border bg-transparent px-2 py-1.5 text-xs"
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
@@ -1351,7 +1456,7 @@
 													bind:value={item.currency}
 													onchange={() => saveItem(item)}
 													maxlength="3"
-													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													class="border-border min-h-[40px] rounded border bg-transparent px-2 py-1.5 text-xs"
 												/>
 											</label>
 											<label class="flex flex-col gap-0.5">
@@ -1363,7 +1468,7 @@
 													oninput={() => handleBookingUrlChange(item)}
 													onchange={() => saveItem(item)}
 													placeholder="https://..."
-													class="border-border rounded border bg-transparent px-2 py-1 text-xs"
+													class="border-border min-h-[40px] rounded border bg-transparent px-2 py-1.5 text-xs"
 												/>
 												{#if item.booking_url && loadingPreview === item.booking_url}
 													<div

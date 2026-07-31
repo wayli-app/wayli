@@ -35,6 +35,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { focusTrap } from '$lib/utils/focus-trap';
 
 	let {
 		isAdmin = false,
@@ -190,6 +191,7 @@
 <div class="flex h-screen bg-background">
 	<!-- Sidebar -->
 	<aside
+		use:focusTrap={isSidebarOpen}
 		class="border-border bg-card fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r transition-transform duration-300 ease-in-out md:static md:translate-x-0 {isSidebarOpen
 			? 'translate-x-0'
 			: '-translate-x-full'}"
@@ -202,7 +204,7 @@
 			</a>
 			<button
 				onclick={handleCloseSidebar}
-				class="text-muted-foreground hover:text-foreground cursor-pointer rounded-md p-1 md:hidden"
+				class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 md:hidden"
 			>
 				<X class="h-5 w-5" />
 			</button>
@@ -214,7 +216,7 @@
 				{#each navMain as item (item.href)}
 					<a
 						href={item.href}
-						class="flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
+						class="flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
 							.url.pathname === item.href ||
 						(item.href === '/dashboard/travel' &&
 							$page.url.pathname.startsWith('/dashboard/travel'))
@@ -249,7 +251,7 @@
 			<div class="mb-4 flex justify-start gap-2">
 				<button
 					onclick={() => handleThemeChange('light')}
-					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
+					class="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'light'
 						? 'bg-primary/10 text-primary'
 						: 'text-muted-foreground hover:bg-muted'}"
@@ -259,7 +261,7 @@
 				</button>
 				<button
 					onclick={() => handleThemeChange('dark')}
-					class="cursor-pointer rounded-lg p-2 font-medium transition-colors {currentTheme ===
+					class="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg p-2 font-medium transition-colors {currentTheme ===
 					'dark'
 						? 'bg-primary/10 text-primary'
 						: 'text-muted-foreground hover:bg-muted'}"
@@ -281,16 +283,16 @@
 			<div class="mb-4">
 				<div class="space-y-1">
 					{#each navUser as item (item.href)}
-						<a
-							href={item.href}
-							class="relative flex cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors {$page
-								.url.pathname === item.href ||
-							(item.href === '/dashboard/travel' &&
-								$page.url.pathname.startsWith('/dashboard/travel'))
-								? 'bg-primary text-primary-foreground'
-								: 'text-muted-foreground hover:bg-muted'}"
-							onclick={handleCloseSidebar}
-						>
+			<a
+				href={item.href}
+				class="relative flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
+					.url.pathname === item.href ||
+				(item.href === '/dashboard/travel' &&
+					$page.url.pathname.startsWith('/dashboard/travel'))
+					? 'bg-primary text-primary-foreground'
+					: 'text-muted-foreground hover:bg-muted'}"
+				onclick={handleCloseSidebar}
+			>
 							<item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
@@ -323,7 +325,7 @@
 					handleSignOut();
 					handleCloseSidebar();
 				}}
-				class="text-destructive hover:bg-destructive/10 flex w-full cursor-pointer items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
+				class="text-destructive hover:bg-destructive/10 flex min-h-[44px] w-full cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors"
 			>
 				<LogOut class="mr-3 h-5 w-5" />
 				{t('common.navigation.signOut')}
@@ -344,13 +346,13 @@
 	{/if}
 
 	<!-- Main Content -->
-	<div class="flex flex-1 flex-col overflow-hidden">
+	<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen ? '' : undefined}>
 		<!-- Top bar for mobile -->
 		<div class="border-border bg-card border-b p-4 md:hidden">
 			<div class="flex items-center justify-between">
 				<button
 					onclick={handleToggleSidebar}
-					class="text-muted-foreground hover:text-foreground cursor-pointer rounded-md p-1"
+					class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1"
 				>
 					<Menu class="h-6 w-6" />
 				</button>
@@ -363,7 +365,7 @@
 		</div>
 
 		<!-- Content Area -->
-		<main class="flex-1 overflow-auto">
+		<main class="flex-1 overflow-auto pb-24 md:pb-0">
 			{#if children}
 				{@render children()}
 			{/if}

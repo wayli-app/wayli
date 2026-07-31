@@ -1011,7 +1011,7 @@
 				</p>
 			</div>
 		</div>
-		<div class="flex items-center gap-2">
+		<div class="flex flex-wrap items-center gap-2">
 			<button
 				type="button"
 				onclick={() => (mapExpanded = !mapExpanded)}
@@ -1022,7 +1022,7 @@
 			</button>
 			<select
 				bind:value={sortBy}
-				class="border-border rounded-lg border bg-transparent px-2 py-2 text-sm"
+				class="border-border min-w-[7rem] flex-1 rounded-lg border bg-transparent px-2 py-2 text-sm sm:flex-none"
 				title="Sort by"
 			>
 				<option value="date">Recent</option>
@@ -1032,7 +1032,7 @@
 			</select>
 			<select
 				bind:value={groupBy}
-				class="border-border rounded-lg border bg-transparent px-2 py-2 text-sm"
+				class="border-border min-w-[7rem] flex-1 rounded-lg border bg-transparent px-2 py-2 text-sm sm:flex-none"
 				title="Group by"
 			>
 				<option value="none">No grouping</option>
@@ -1041,7 +1041,7 @@
 				<option value="type">By type</option>
 			</select>
 			<button
-				class="bg-primary hover:bg-primary/90 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+				class="bg-primary hover:bg-primary/90 inline-flex w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors sm:w-auto"
 				onclick={() => {
 					showAddForm = true;
 					title = '';

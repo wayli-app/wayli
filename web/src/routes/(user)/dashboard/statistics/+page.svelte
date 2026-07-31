@@ -1437,7 +1437,7 @@
 			margin-top: 8px;
 			overflow-x: auto;
 		}
-		@media (max-width: 600px) {
+		@media (max-width: 767px) {
 			.datepicker-statistics-fix .datepicker-dropdown {
 				left: 0 !important;
 				right: auto !important;
@@ -1454,7 +1454,7 @@
 			position: absolute !important;
 			z-index: 3000 !important;
 		}
-		@media (max-width: 600px) {
+		@media (max-width: 767px) {
 			.datepicker-statistics-fix .calendars-container {
 				left: 0 !important;
 				right: auto !important;
