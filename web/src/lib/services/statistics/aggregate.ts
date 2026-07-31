@@ -62,7 +62,9 @@ export function activityCalendar(
 	if (points.length === 0) return [];
 	const anchorToday = opts.anchorToday ?? true;
 
-	const sorted = [...points].sort((a, b) => toDate(a.recorded_at).getTime() - toDate(b.recorded_at).getTime());
+	const sorted = [...points].sort(
+		(a, b) => toDate(a.recorded_at).getTime() - toDate(b.recorded_at).getTime()
+	);
 
 	// Anchor the window. When anchorToday is true (the default for the calendar
 	// widget), the grid ALWAYS spans [today − days+1, today] so it fills the
@@ -226,7 +228,9 @@ export function recordsAndStreaks(points: ProcessedPoint[]): RecordsAndStreaks {
 	let currentRun = 0;
 	let currentStreak = 0;
 	let prevDate: Date | null = null;
-	const sortedDays = calendar.filter((d) => d.points > 0).sort((a, b) => a.date.localeCompare(b.date));
+	const sortedDays = calendar
+		.filter((d) => d.points > 0)
+		.sort((a, b) => a.date.localeCompare(b.date));
 
 	for (const day of sortedDays) {
 		const d = new Date(day.date + 'T00:00:00');

@@ -43,7 +43,7 @@
 					{#if showDetails && error}
 						<details class="mb-4">
 							<summary
-								class="text-foreground mb-2 cursor-pointer font-semibold marker:text-muted-foreground"
+								class="text-foreground marker:text-muted-foreground mb-2 cursor-pointer font-semibold"
 							>
 								Error Details
 							</summary>
@@ -64,7 +64,7 @@
 							type="button"
 							onclick={retry}
 							aria-label="Retry loading"
-							class="bg-destructive hover:bg-destructive/90 inline-flex items-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-medium text-destructive-foreground transition-colors"
+							class="bg-destructive hover:bg-destructive/90 text-destructive-foreground inline-flex items-center gap-2 rounded-md border border-transparent px-4 py-2 text-sm font-medium transition-colors"
 						>
 							<RefreshCw class="h-4 w-4" />
 							Try Again

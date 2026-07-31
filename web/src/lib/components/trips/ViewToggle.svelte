@@ -5,7 +5,7 @@
 </script>
 
 <div
-	class="flex gap-1 rounded-md border border-border bg-white p-1 dark:border-border dark:bg-card"
+	class="border-border dark:border-border dark:bg-card flex gap-1 rounded-md border bg-white p-1"
 >
 	<button
 		class="cursor-pointer rounded p-1.5 transition-colors {view === 'list'

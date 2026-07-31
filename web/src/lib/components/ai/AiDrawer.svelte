@@ -830,7 +830,7 @@
 					{#if msg.role === 'user'}
 						<div class="flex justify-end">
 							<div
-								class="bg-primary text-primary-foreground max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-sm px-4 py-2 text-sm"
+								class="bg-primary text-primary-foreground max-w-[80%] rounded-2xl rounded-br-sm px-4 py-2 text-sm whitespace-pre-wrap"
 							>
 								{msg.content}
 							</div>
@@ -862,9 +862,12 @@
 											<Brain class="h-3 w-3" />
 											{t('ai.reasoning', { count: msg.thoughts!.length })}
 											{#if msg.thoughts?.find((th) => th.plan?.route?.length)?.plan?.route}
-												{@const route = msg.thoughts!.find((th) => th.plan?.route?.length)!.plan!.route!}
+												{@const route = msg.thoughts!.find((th) => th.plan?.route?.length)!.plan!
+													.route!}
 												{@const usedWeb = route.includes('web')}
-												{@const webToolCalled = msg.thoughts?.some((th) => th.kind === 'tool_call' && th.tool_name === 'web_search')}
+												{@const webToolCalled = msg.thoughts?.some(
+													(th) => th.kind === 'tool_call' && th.tool_name === 'web_search'
+												)}
 												<span
 													class="bg-muted text-foreground ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium"
 													title="Agents the supervisor routed to this turn"
@@ -904,7 +907,7 @@
 															<span class="text-foreground font-medium">{thought.tool_name}</span>
 															{#if thought.tool_args != null}
 																<code
-																	class="block break-all whitespace-pre-wrap text-[10px] opacity-70"
+																	class="block text-[10px] break-all whitespace-pre-wrap opacity-70"
 																	>{JSON.stringify(thought.tool_args)}</code
 																>
 															{/if}
@@ -926,12 +929,12 @@
 														</div>
 													{:else if thought.kind === 'reasoning'}
 														<Brain class="mt-0.5 h-3 w-3 flex-shrink-0" />
-														<div class="min-w-0 flex-1 whitespace-pre-wrap break-words opacity-80">
+														<div class="min-w-0 flex-1 break-words whitespace-pre-wrap opacity-80">
 															{thought.delta}
 														</div>
 													{:else if thought.kind === 'tool_result'}
 														<Check class="mt-0.5 h-3 w-3 flex-shrink-0" />
-														<div class="min-w-0 flex-1 whitespace-pre-wrap break-words opacity-70">
+														<div class="min-w-0 flex-1 break-words whitespace-pre-wrap opacity-70">
 															{thought.delta}
 														</div>
 													{/if}
@@ -1119,7 +1122,7 @@
 													<Icon class="h-3 w-3 flex-shrink-0" />
 													<span class="min-w-0 flex-1 truncate">{label}</span>
 													{#if action === 'create' && isAdded}
-														<span class="text-emerald-600 flex-shrink-0 text-[10px]">✓</span>
+														<span class="flex-shrink-0 text-[10px] text-emerald-600">✓</span>
 													{/if}
 												</button>
 											{/if}
@@ -1163,7 +1166,7 @@
 				type="button"
 				onclick={send}
 				disabled={isSending || isConnecting || !input.trim()}
-				class="bg-primary hover:bg-primary/90 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-primary-foreground transition-colors disabled:opacity-50"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
 			>
 				{#if isSending}
 					<Loader2 class="h-4 w-4 animate-spin" />

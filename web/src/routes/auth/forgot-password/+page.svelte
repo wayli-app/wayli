@@ -49,14 +49,14 @@
 </svelte:head>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4 dark:from-background dark:via-card dark:to-background"
+	class="dark:from-background dark:via-card dark:to-background flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-white to-gray-100 px-4"
 >
 	<div class="w-full max-w-md">
 		<!-- Back to sign in -->
 		<div class="mb-8">
 			<a
 				href="/auth/signin"
-				class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+				class="hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center text-sm text-gray-600 transition-colors"
 			>
 				<ArrowLeft class="mr-2 h-4 w-4" />
 				{t('auth.backToSignIn')}
@@ -64,14 +64,14 @@
 		</div>
 
 		<!-- Forgot Password Form -->
-		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
+		<div class="bg-card border-border rounded-2xl border p-8 shadow-xl">
 			<div class="mb-8 text-center">
 				<div
 					class="bg-primary dark:bg-primary mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
 				>
 					<KeyRound class="h-6 w-6 text-white" />
 				</div>
-				<h1 class="mb-2 text-2xl font-bold text-foreground">
+				<h1 class="text-foreground mb-2 text-2xl font-bold">
 					{t('auth.forgotPasswordTitle')}
 				</h1>
 				<p class="text-muted-foreground">
@@ -101,19 +101,19 @@
 				<form onsubmit={handleSubmit} class="space-y-6">
 					<!-- Email Field -->
 					<div>
-						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
+						<label for="email" class="text-muted-foreground mb-2 block text-sm font-medium">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 							/>
 							<input
 								id="email"
 								type="email"
 								bind:value={email}
 								required
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground"
+								class="focus:ring-primary dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2"
 								placeholder={t('auth.enterYourEmail')}
 							/>
 						</div>
@@ -130,7 +130,7 @@
 				</form>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{t('auth.dontHaveAccount')}
 						<a
 							href="/auth/signup"

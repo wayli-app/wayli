@@ -226,7 +226,7 @@
 					class="group relative aspect-square overflow-hidden rounded-md transition-opacity {draggedId ===
 					item.id
 						? 'opacity-30'
-						: ''} {dragOverId === item.id ? 'ring-2 ring-primary' : ''}"
+						: ''} {dragOverId === item.id ? 'ring-primary ring-2' : ''}"
 					draggable="true"
 					role="button"
 					tabindex="0"
@@ -239,7 +239,7 @@
 				>
 					{#if coverMediaId === item.id}
 						<div class="absolute top-1 left-1 z-10 rounded-full bg-amber-400 p-1 shadow-lg">
-							<Star class="h-3 w-3 text-white fill-white" />
+							<Star class="h-3 w-3 fill-white text-white" />
 						</div>
 					{/if}
 					<button
@@ -333,7 +333,7 @@
 		<img
 			src={lightbox.storage_path}
 			alt={lightbox.caption || 'Photo'}
-			class="max-h-[92vh] max-w-full rounded-lg object-contain animate-scale-in"
+			class="animate-scale-in max-h-[92vh] max-w-full rounded-lg object-contain"
 			role="presentation"
 		/>
 	</div>

@@ -63,9 +63,9 @@
 	{disabled}
 	onclick={toggle}
 	onkeydown={handleKeydown}
-	class="relative inline-flex {classes.container} flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-900 {checked
+	class="relative inline-flex {classes.container} focus:ring-primary flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-gray-900 {checked
 		? 'bg-primary'
-		: 'bg-gray-200 dark:bg-muted'} {disabled ? 'cursor-not-allowed opacity-50' : ''}"
+		: 'dark:bg-muted bg-gray-200'} {disabled ? 'cursor-not-allowed opacity-50' : ''}"
 >
 	<span class="sr-only">{label || 'Toggle'}</span>
 	<span

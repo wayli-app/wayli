@@ -28,7 +28,14 @@
 		transportModeColors: Record<string, string>;
 	};
 
-	let { points, historyPoints = [], calendarLoading = false, calendarRefreshing = false, onRefreshCalendar, transportModeColors }: Props = $props();
+	let {
+		points,
+		historyPoints = [],
+		calendarLoading = false,
+		calendarRefreshing = false,
+		onRefreshCalendar,
+		transportModeColors
+	}: Props = $props();
 
 	// The activity calendar + records/streaks use the trailing-window history
 	// (always ~53 weeks ending today, like GitHub's graph) so they're meaningful
@@ -46,7 +53,9 @@
 	// A positioned <div> driven by this state appears instantly. `chart`
 	// identifies which chart owns the tooltip so only that chart's <div> renders
 	// (avoids the same tooltip text bleeding into the neighbouring chart).
-	let tooltip = $state<{ chart: string; label: string; sub: string; x: number; y: number } | null>(null);
+	let tooltip = $state<{ chart: string; label: string; sub: string; x: number; y: number } | null>(
+		null
+	);
 
 	function showTooltip(chart: string, label: string, sub: string, e: MouseEvent) {
 		const rect = (e.currentTarget.closest('section') as HTMLElement)?.getBoundingClientRect();
@@ -71,7 +80,6 @@
 		tooltip = null;
 	}
 
-
 	// ── Activity calendar geometry ──────────────────────────────────────────
 	// GitHub-style grid: weeks as columns, weekdays as rows.
 	const CELL = 11;
@@ -88,7 +96,10 @@
 	// (e.g. a 10,000 km flight) doesn't flatten the rest of the year into the
 	// lightest shade. Anything at/above p90 is full saturation; below scales.
 	let p90Distance = $derived.by(() => {
-		const dists = displayCal.map((d) => d.distance).filter((d) => d > 0).sort((a, b) => a - b);
+		const dists = displayCal
+			.map((d) => d.distance)
+			.filter((d) => d > 0)
+			.sort((a, b) => a - b);
 		if (dists.length === 0) return 1;
 		const idx = Math.floor(dists.length * 0.9);
 		return Math.max(1, dists[Math.min(idx, dists.length - 1)]);
@@ -98,9 +109,9 @@
 		if (distance <= 0) return 'rgba(148,163,184,0.12)'; // soft slate
 		const t = Math.min(1, distance / p90Distance);
 		// Pastel teal ramp: light → medium
-		const r = Math.round(167 + (20 - 167) * t);  // 167 → 20
-		const g = Math.round(211 + (184 - 211) * t);  // 211 → 184
-		const b = Math.round(198 + (166 - 198) * t);  // 198 → 166
+		const r = Math.round(167 + (20 - 167) * t); // 167 → 20
+		const g = Math.round(211 + (184 - 211) * t); // 211 → 184
+		const b = Math.round(198 + (166 - 198) * t); // 198 → 166
 		return `rgb(${r},${g},${b})`;
 	}
 
@@ -125,13 +136,28 @@
 		lastMonday.setDate(lastDate.getDate() - (lastDate.getDay() === 0 ? 6 : lastDate.getDay() - 1));
 		const thisMonday = new Date(date);
 		thisMonday.setDate(date.getDate() - (jsDay === 0 ? 6 : jsDay - 1));
-		const weekDiff = Math.round((lastMonday.getTime() - thisMonday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+		const weekDiff = Math.round(
+			(lastMonday.getTime() - thisMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)
+		);
 		const col = Math.max(0, Math.min(WEEKS - 1, WEEKS - 1 - weekDiff));
 
 		return { x: col * CELL_PITCH, y: row * CELL_PITCH };
 	}
 
-	const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+	const MONTHS = [
+		'Jan',
+		'Feb',
+		'Mar',
+		'Apr',
+		'May',
+		'Jun',
+		'Jul',
+		'Aug',
+		'Sep',
+		'Oct',
+		'Nov',
+		'Dec'
+	];
 
 	/** Month labels for the horizontal axis: one per month boundary, positioned
 	 *  at its first column. Returns [{label, x}] entries. */
@@ -280,10 +306,12 @@
 
 {#if points.length > 0}
 	<!-- Activity calendar (distance per day, trailing ~53 weeks ending today) -->
-	<section class="relative mb-8 w-full rounded-lg border p-4 bg-card border-border">
+	<section class="bg-card border-border relative mb-8 w-full rounded-lg border p-4">
 		<div class="mb-3 flex items-center gap-2">
-			<CalendarDays class="text-blue-500 h-5 w-5" />
-			<h3 class="text-lg font-semibold text-foreground">{t('statistics.activity') || 'Activity'}</h3>
+			<CalendarDays class="h-5 w-5 text-blue-500" />
+			<h3 class="text-foreground text-lg font-semibold">
+				{t('statistics.activity') || 'Activity'}
+			</h3>
 			{#if onRefreshCalendar}
 				<button
 					type="button"
@@ -303,7 +331,9 @@
 				{t('statistics.loadingActivity') || 'Loading activity…'}
 			</div>
 		{:else if historyFor.length === 0}
-			<div class="text-muted-foreground flex h-32 flex-col items-center justify-center gap-3 text-sm">
+			<div
+				class="text-muted-foreground flex h-32 flex-col items-center justify-center gap-3 text-sm"
+			>
 				<p>No activity data yet. Run the refresh to build the calendar.</p>
 				{#if onRefreshCalendar}
 					<button
@@ -318,69 +348,91 @@
 				{/if}
 			</div>
 		{:else}
-		<div class="overflow-x-auto">
-			<svg width={CAL_W} height={CAL_H + 28} role="img" aria-label="Activity calendar (distance per day)">
-				<!-- Month axis -->
-				{#each monthLabels as ml (ml.label + String(ml.x))}
-					<text x={ml.x} y={9} font-size="9" fill="currentColor" class="text-muted-foreground">{ml.label}</text>
-				{/each}
-				<!-- Day cells (translate down to leave room for the month axis) -->
-				<g transform="translate(0, 14)">
-					{#each displayCal as day, i (day.date)}
-						{@const pos = cellPosition(i)}
-						<rect
-							x={pos.x}
-							y={pos.y}
-							width={CELL}
-							height={CELL}
-							rx="2"
-							fill={calColor(day.distance)}
-							onmouseenter={(e) => showTooltip('activity', day.date, fmtDistance(day.distance), e)}
-							onmousemove={moveTooltip}
-							onmouseleave={hideTooltip}
-							role="presentation"
-						></rect>
+			<div class="overflow-x-auto">
+				<svg
+					width={CAL_W}
+					height={CAL_H + 28}
+					role="img"
+					aria-label="Activity calendar (distance per day)"
+				>
+					<!-- Month axis -->
+					{#each monthLabels as ml (ml.label + String(ml.x))}
+						<text x={ml.x} y={9} font-size="9" fill="currentColor" class="text-muted-foreground"
+							>{ml.label}</text
+						>
 					{/each}
-				</g>
-			</svg>
-		</div>
-		<div class="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-			<span>{t('statistics.less') || 'Less'}</span>
-			{#each [0.15, 0.4, 0.7, 1] as t}
-				<span
-					class="inline-block h-2.5 w-2.5 rounded-sm"
-					style="background:{calColor(p90Distance * t)}"
-				></span>
-			{/each}
-			<span>{t('statistics.more') || 'More'}</span>
-			<span class="ml-2">{t('statistics.distancePerDay') || 'distance per day'}</span>
-		</div>
-		{#if tooltip && tooltip.chart === 'activity'}
-			<div
-				class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
-				style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
-			>
-				{tooltip.label}
-				<span class="opacity-70">· {tooltip.sub}</span>
+					<!-- Day cells (translate down to leave room for the month axis) -->
+					<g transform="translate(0, 14)">
+						{#each displayCal as day, i (day.date)}
+							{@const pos = cellPosition(i)}
+							<rect
+								x={pos.x}
+								y={pos.y}
+								width={CELL}
+								height={CELL}
+								rx="2"
+								fill={calColor(day.distance)}
+								onmouseenter={(e) =>
+									showTooltip('activity', day.date, fmtDistance(day.distance), e)}
+								onmousemove={moveTooltip}
+								onmouseleave={hideTooltip}
+								role="presentation"
+							></rect>
+						{/each}
+					</g>
+				</svg>
 			</div>
-		{/if}
+			<div class="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
+				<span>{t('statistics.less') || 'Less'}</span>
+				{#each [0.15, 0.4, 0.7, 1] as t}
+					<span
+						class="inline-block h-2.5 w-2.5 rounded-sm"
+						style="background:{calColor(p90Distance * t)}"
+					></span>
+				{/each}
+				<span>{t('statistics.more') || 'More'}</span>
+				<span class="ml-2">{t('statistics.distancePerDay') || 'distance per day'}</span>
+			</div>
+			{#if tooltip && tooltip.chart === 'activity'}
+				<div
+					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
+					style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
+				>
+					{tooltip.label}
+					<span class="opacity-70">· {tooltip.sub}</span>
+				</div>
+			{/if}
 		{/if}
 	</section>
 
 	<div class="mb-8 flex w-full flex-col gap-4 md:flex-row">
 		<!-- Time-of-day radial -->
-		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
-		<div class="mb-3 flex items-center gap-2">
-			<Clock class="text-blue-500 h-5 w-5" />
-			<h3 class="text-lg font-semibold text-foreground">{t('statistics.timeOfDay') || 'Time of day'}</h3>
-		</div>
+		<section class="bg-card border-border relative flex-1 rounded-lg border p-4">
+			<div class="mb-3 flex items-center gap-2">
+				<Clock class="h-5 w-5 text-blue-500" />
+				<h3 class="text-foreground text-lg font-semibold">
+					{t('statistics.timeOfDay') || 'Time of day'}
+				</h3>
+			</div>
 			<div class="flex justify-center">
-				<svg width="190" height="190" viewBox="0 0 190 190" role="img" aria-label="Time of day distribution">
+				<svg
+					width="190"
+					height="190"
+					viewBox="0 0 190 190"
+					role="img"
+					aria-label="Time of day distribution"
+				>
 					{#each hours as h (h.hour)}
 						<path
 							d={hourArc(h.hour)}
 							fill={h.distance > 0 ? 'rgba(129,140,248,0.5)' : 'rgba(148,163,184,0.08)'}
-							onmouseenter={(e) => showTooltip('timeofday', `${h.hour}:00–${h.hour + 1}:00`, fmtDistance(h.distance), e)}
+							onmouseenter={(e) =>
+								showTooltip(
+									'timeofday',
+									`${h.hour}:00–${h.hour + 1}:00`,
+									fmtDistance(h.distance),
+									e
+								)}
 							onmousemove={moveTooltip}
 							onmouseleave={hideTooltip}
 							role="presentation"
@@ -395,12 +447,14 @@
 							text-anchor="middle"
 							font-size="9"
 							fill="currentColor"
-							class="text-muted-foreground"
-						>{labelHour}</text>
+							class="text-muted-foreground">{labelHour}</text
+						>
 					{/each}
 				</svg>
 			</div>
-			<p class="mt-2 text-center text-xs text-muted-foreground">{t('statistics.whenYouMoveMost') || 'When you move most'}</p>
+			<p class="text-muted-foreground mt-2 text-center text-xs">
+				{t('statistics.whenYouMoveMost') || 'When you move most'}
+			</p>
 			{#if tooltip && tooltip.chart === 'timeofday'}
 				<div
 					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
@@ -413,12 +467,18 @@
 		</section>
 
 		<!-- Speed histogram -->
-		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
-		<div class="mb-3 flex items-center gap-2">
-			<Gauge class="text-blue-500 h-5 w-5" />
-			<h3 class="text-lg font-semibold text-foreground">{t('statistics.speed') || 'Speed'}</h3>
-		</div>
-			<svg width="100%" height="140" viewBox="0 0 320 140" role="img" aria-label="Speed distribution">
+		<section class="bg-card border-border relative flex-1 rounded-lg border p-4">
+			<div class="mb-3 flex items-center gap-2">
+				<Gauge class="h-5 w-5 text-blue-500" />
+				<h3 class="text-foreground text-lg font-semibold">{t('statistics.speed') || 'Speed'}</h3>
+			</div>
+			<svg
+				width="100%"
+				height="140"
+				viewBox="0 0 320 140"
+				role="img"
+				aria-label="Speed distribution"
+			>
 				{#each speedBuckets as b, i (b.label)}
 					{@const h = (b.count / maxSpeedCount) * 110}
 					<rect
@@ -427,18 +487,29 @@
 						width={speedBarW - 4}
 						height={Math.max(h, b.count > 0 ? 1 : 0)}
 						rx="2"
-						fill={b.count > 0 ? softModeColor(b.dominantMode ?? 'unknown') : 'rgba(148,163,184,0.12)'}
+						fill={b.count > 0
+							? softModeColor(b.dominantMode ?? 'unknown')
+							: 'rgba(148,163,184,0.12)'}
 						onmouseenter={(e) => showTooltip('speed', `${b.label} km/h`, `${b.count} points`, e)}
 						onmousemove={moveTooltip}
 						onmouseleave={hideTooltip}
 						role="presentation"
 					></rect>
-					<text x={i * speedBarW + speedBarW / 2} y={133} text-anchor="middle" font-size="7" fill="currentColor" class="text-muted-foreground">
+					<text
+						x={i * speedBarW + speedBarW / 2}
+						y={133}
+						text-anchor="middle"
+						font-size="7"
+						fill="currentColor"
+						class="text-muted-foreground"
+					>
 						{b.label}
 					</text>
 				{/each}
 			</svg>
-			<p class="mt-1 text-center text-xs text-muted-foreground">{t('statistics.speedAxisLabel') || 'km/h, coloured by dominant mode'}</p>
+			<p class="text-muted-foreground mt-1 text-center text-xs">
+				{t('statistics.speedAxisLabel') || 'km/h, coloured by dominant mode'}
+			</p>
 			{#if tooltip && tooltip.chart === 'speed'}
 				<div
 					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
@@ -451,13 +522,21 @@
 		</section>
 
 		<!-- Mode donut -->
-		<section class="relative flex-1 rounded-lg border p-4 bg-card border-border">
-		<div class="mb-3 flex items-center gap-2">
-			<PieChart class="text-blue-500 h-5 w-5" />
-			<h3 class="text-lg font-semibold text-foreground">{t('statistics.modeShare') || 'Mode share'}</h3>
-		</div>
+		<section class="bg-card border-border relative flex-1 rounded-lg border p-4">
+			<div class="mb-3 flex items-center gap-2">
+				<PieChart class="h-5 w-5 text-blue-500" />
+				<h3 class="text-foreground text-lg font-semibold">
+					{t('statistics.modeShare') || 'Mode share'}
+				</h3>
+			</div>
 			<div class="flex items-center gap-4">
-				<svg width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Transport mode share by distance">
+				<svg
+					width="120"
+					height="120"
+					viewBox="0 0 120 120"
+					role="img"
+					aria-label="Transport mode share by distance"
+				>
 					{#if segments.length === 0}
 						<circle cx="60" cy="60" r="50" fill="rgba(120,120,120,0.1)" />
 					{:else}
@@ -465,7 +544,13 @@
 							<path
 								d={donutPath(seg.start, seg.end)}
 								fill={softModeColor(seg.mode)}
-								onmouseenter={(e) => showTooltip('donut', seg.mode, `${fmtDistance(seg.distance)} · ${(seg.frac * 100).toFixed(0)}%`, e)}
+								onmouseenter={(e) =>
+									showTooltip(
+										'donut',
+										seg.mode,
+										`${fmtDistance(seg.distance)} · ${(seg.frac * 100).toFixed(0)}%`,
+										e
+									)}
 								onmousemove={moveTooltip}
 								onmouseleave={hideTooltip}
 								role="presentation"
@@ -478,7 +563,10 @@
 					{#each modeDistances.slice(0, 5) as seg (seg.mode)}
 						<div class="text-xs">
 							<div class="flex items-center gap-2">
-								<span class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-sm" style="background:{modeColor(seg.mode)}"></span>
+								<span
+									class="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-sm"
+									style="background:{modeColor(seg.mode)}"
+								></span>
 								<span class="text-muted-foreground capitalize">{seg.mode}</span>
 								<span class="text-foreground ml-auto font-medium">{fmtDistance(seg.distance)}</span>
 							</div>

@@ -361,7 +361,7 @@
 
 <div class="space-y-4">
 	<div class="flex items-center justify-between">
-		<h3 class="text-lg font-semibold text-foreground">{t('exportJobs.title')}</h3>
+		<h3 class="text-foreground text-lg font-semibold">{t('exportJobs.title')}</h3>
 	</div>
 
 	{#if loading}
@@ -371,13 +371,13 @@
 			></div>
 		</div>
 	{:else if filteredExportJobs.length === 0}
-		<div class="py-8 text-center text-muted-foreground">
+		<div class="text-muted-foreground py-8 text-center">
 			<p>{t('exportJobs.noJobsFound')}</p>
 		</div>
 	{:else}
 		<div class="space-y-3">
 			{#each filteredExportJobs as job (job.id)}
-				<div class="rounded-lg border p-4 bg-card border-border">
+				<div class="bg-card border-border rounded-lg border p-4">
 					<div class="mb-3 flex items-center justify-between">
 						<div class="flex items-center gap-3">
 							<!-- Status icon -->
@@ -400,16 +400,16 @@
 
 							<!-- Job info -->
 							<div class="flex-1">
-								<h4 class="font-medium text-foreground">
+								<h4 class="text-foreground font-medium">
 									{t('exportJobs.created')}: {new Date(job.created_at).toLocaleString()}
 								</h4>
-								<div class="text-xs text-muted-foreground">
+								<div class="text-muted-foreground text-xs">
 									{t('exportJobs.dateRange')}: {job.data?.startDate && job.data?.endDate
 										? `${new Date(job.data.startDate).toISOString().split('T')[0]} ${t('exportJobs.to')} ${new Date(job.data.endDate).toISOString().split('T')[0]}`
 										: t('exportJobs.allData')}
 								</div>
 								{#if job.status === 'completed'}
-									<div class="text-xs text-muted-foreground">
+									<div class="text-muted-foreground text-xs">
 										{#if new Date(new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000) > new Date()}
 											{t('exportJobs.linkValidUntil')}: {new Date(
 												new Date(job.created_at).getTime() + 7 * 24 * 60 * 60 * 1000
@@ -420,7 +420,7 @@
 									</div>
 								{/if}
 								{#if job.status === 'running' && getJobETA()}
-									<div class="text-xs text-muted-foreground">ETA: {getJobETA()}</div>
+									<div class="text-muted-foreground text-xs">ETA: {getJobETA()}</div>
 								{/if}
 							</div>
 						</div>
@@ -440,11 +440,11 @@
 					<!-- Progress bar for running jobs -->
 					{#if job.status === 'running' || job.status === 'queued' || job.status === 'pending'}
 						<div class="mb-3">
-							<div class="mb-1 flex justify-between text-sm text-muted-foreground">
+							<div class="text-muted-foreground mb-1 flex justify-between text-sm">
 								<span>{t('exportJobs.progress')}</span>
 								<span>{job.progress}%</span>
 							</div>
-							<div class="h-2 w-full rounded-full bg-gray-200 dark:bg-muted">
+							<div class="dark:bg-muted h-2 w-full rounded-full bg-gray-200">
 								<div
 									class="bg-primary dark:bg-primary h-2 rounded-full transition-all duration-300"
 									style="width: {job.progress}%"
@@ -480,7 +480,7 @@
 								{/if}
 								{#if job.data.format}
 									<span
-										class="inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800 dark:text-muted-foreground bg-muted"
+										class="dark:text-muted-foreground bg-muted inline-flex items-center rounded-full px-2 py-1 text-xs text-gray-800"
 									>
 										{job.data.format === 'GeoJSON' ? job.data.format : 'JSON'}
 									</span>
@@ -500,7 +500,7 @@
 
 					<!-- Result info -->
 					{#if job.result && job.status === 'completed'}
-						<div class="mb-3 text-sm text-muted-foreground">
+						<div class="text-muted-foreground mb-3 text-sm">
 							{#if job.result.file_size}
 								<span class="mr-4"
 									>{t('exportJobs.size')}: {job.result.file_size

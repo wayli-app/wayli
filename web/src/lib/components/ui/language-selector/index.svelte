@@ -146,7 +146,7 @@
 	<button
 		type="button"
 		onclick={() => (isOpen = !isOpen)}
-		class="flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:outline-none {sizeClasses[
+		class="focus:ring-primary flex items-center gap-2 rounded-lg font-medium transition-all duration-200 focus:ring-2 focus:ring-offset-1 focus:outline-none {sizeClasses[
 			size
 		]} {variantClasses[variant]} {variant === 'button' ? 'text-white' : 'text-muted-foreground'}"
 		aria-haspopup="listbox"

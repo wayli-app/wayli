@@ -32,4 +32,3 @@ declare module 'leaflet' {
 		options?: LeafletHeatmapOptions
 	): Layer;
 }
-

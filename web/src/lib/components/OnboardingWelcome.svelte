@@ -163,7 +163,7 @@
 	>
 		<!-- Modal Content -->
 		<div
-			class="relative w-full max-w-2xl rounded-2xl border p-8 shadow-2xl bg-card border-border"
+			class="bg-card border-border relative w-full max-w-2xl rounded-2xl border p-8 shadow-2xl"
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -173,7 +173,7 @@
 			<!-- Close Button -->
 			<button
 				onclick={handleClose}
-				class="absolute top-4 right-4 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
+				class="text-muted-foreground hover:bg-muted hover:text-muted-foreground absolute top-4 right-4 rounded-lg p-2 transition-colors"
 				aria-label={t('common.close')}
 			>
 				<X class="h-5 w-5" />
@@ -187,7 +187,7 @@
 							? 'bg-primary'
 							: i < currentStep
 								? 'bg-primary/50'
-								: 'bg-gray-300 dark:bg-muted'}"
+								: 'dark:bg-muted bg-gray-300'}"
 					></div>
 				{/each}
 			</div>
@@ -200,13 +200,13 @@
 					>
 						👋
 					</div>
-					<h2 class="mb-4 text-3xl font-bold text-foreground">
+					<h2 class="text-foreground mb-4 text-3xl font-bold">
 						{t('onboarding.welcome')}
 					</h2>
-					<p class="mb-8 text-lg text-muted-foreground">
+					<p class="text-muted-foreground mb-8 text-lg">
 						{t('onboarding.welcomeMessage')}
 					</p>
-					<p class="mb-6 text-sm text-muted-foreground">
+					<p class="text-muted-foreground mb-6 text-sm">
 						{t('onboarding.stepProgress', { current: 1, total: 3 })}
 					</p>
 					<button
@@ -226,13 +226,13 @@
 						>
 							<Home class="h-8 w-8 text-green-600 dark:text-green-400" />
 						</div>
-						<h2 class="mb-4 text-3xl font-bold text-foreground">
+						<h2 class="text-foreground mb-4 text-3xl font-bold">
 							{t('onboarding.setHomeLocation')}
 						</h2>
-						<p class="mb-2 text-muted-foreground">
+						<p class="text-muted-foreground mb-2">
 							{t('onboarding.homeLocationHelp')}
 						</p>
-						<p class="mb-6 text-sm text-muted-foreground">
+						<p class="text-muted-foreground mb-6 text-sm">
 							{t('onboarding.homeLocationOptional')}
 						</p>
 					</div>
@@ -241,7 +241,7 @@
 					<div class="mb-8">
 						<label
 							for="onboarding-address"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
+							class="text-muted-foreground mb-2 block text-sm font-medium"
 						>
 							{t('onboarding.homeAddressLabel')}
 						</label>
@@ -253,12 +253,12 @@
 								oninput={handleAddressInput}
 								onkeydown={handleAddressKeydown}
 								placeholder={t('onboarding.homeAddressPlaceholder')}
-								class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-primary focus:outline-none dark:border-border dark:bg-muted dark:text-foreground"
+								class="focus:border-primary dark:border-border dark:bg-muted dark:text-foreground w-full rounded-lg border border-gray-300 px-4 py-3 focus:outline-none"
 							/>
 							{#if isSearching}
 								<div class="absolute top-1/2 right-3 -translate-y-1/2">
 									<div
-										class="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"
+										class="border-primary h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"
 									></div>
 								</div>
 							{/if}
@@ -267,12 +267,12 @@
 						<!-- Suggestions Dropdown -->
 						{#if homeAddressSuggestions.length > 0 && showSuggestions}
 							<div
-								class="mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg dark:border-border bg-card"
+								class="dark:border-border bg-card mt-1 max-h-48 overflow-y-auto rounded-md border border-gray-300 shadow-lg"
 							>
 								{#each homeAddressSuggestions as suggestion, index (suggestion.display_name + index)}
 									<button
 										type="button"
-										class="w-full px-3 py-2 text-left text-sm text-gray-900 focus:bg-muted focus:outline-none dark:text-foreground dark:focus:bg-muted {selectedAddressIndex ===
+										class="focus:bg-muted dark:text-foreground dark:focus:bg-muted w-full px-3 py-2 text-left text-sm text-gray-900 focus:outline-none {selectedAddressIndex ===
 										index
 											? 'bg-primary/10 dark:bg-primary/20'
 											: ''} hover:bg-muted"
@@ -280,7 +280,7 @@
 									>
 										<div class="font-medium">{suggestion.display_name}</div>
 										{#if suggestion.lat && suggestion.lon}
-											<div class="text-xs text-muted-foreground">
+											<div class="text-muted-foreground text-xs">
 												📍 {parseFloat(suggestion.lat).toFixed(6)}, {parseFloat(
 													suggestion.lon
 												).toFixed(6)}
@@ -301,19 +301,19 @@
 							</div>
 						{/if}
 
-						<p class="mt-2 text-xs text-muted-foreground">
+						<p class="text-muted-foreground mt-2 text-xs">
 							{t('onboarding.homeLocationTip')}
 						</p>
 					</div>
 
 					<!-- Action Buttons -->
-					<p class="mb-4 text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground mb-4 text-center text-sm">
 						{t('onboarding.stepProgress', { current: 2, total: 3 })}
 					</p>
 					<div class="flex gap-4">
 						<button
 							onclick={handleSkip}
-							class="flex-1 rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-all hover:scale-105 dark:border-border dark:text-muted-foreground hover:bg-muted"
+							class="dark:border-border dark:text-muted-foreground hover:bg-muted flex-1 rounded-lg border-2 border-gray-300 px-6 py-3 font-semibold text-gray-700 transition-all hover:scale-105"
 						>
 							{t('onboarding.skipForNow')}
 						</button>
@@ -335,7 +335,7 @@
 						>
 							<Rocket class="text-primary h-8 w-8" />
 						</div>
-						<h2 class="mb-2 text-3xl font-bold text-foreground">
+						<h2 class="text-foreground mb-2 text-3xl font-bold">
 							{t('onboarding.nextStepsTitle')}
 						</h2>
 						<p class="text-muted-foreground">
@@ -351,7 +351,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
+							class="hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border flex items-start gap-4 rounded-lg border p-4 transition-all"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
@@ -359,10 +359,10 @@
 								<Link class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-foreground">
+								<h3 class="text-foreground font-semibold">
 									{t('onboarding.configureOwnTracks')}
 								</h3>
-								<p class="text-sm text-muted-foreground">
+								<p class="text-muted-foreground text-sm">
 									{t('onboarding.configureOwnTracksDesc')}
 								</p>
 							</div>
@@ -374,7 +374,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
+							class="hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border flex items-start gap-4 rounded-lg border p-4 transition-all"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30"
@@ -382,10 +382,10 @@
 								<Import class="h-5 w-5 text-green-600 dark:text-green-400" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-foreground">
+								<h3 class="text-foreground font-semibold">
 									{t('onboarding.importData')}
 								</h3>
-								<p class="text-sm text-muted-foreground">
+								<p class="text-muted-foreground text-sm">
 									{t('onboarding.importDataDesc')}
 								</p>
 							</div>
@@ -398,7 +398,7 @@
 								onclick={() => {
 									handleFinish();
 								}}
-								class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
+								class="hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border flex items-start gap-4 rounded-lg border p-4 transition-all"
 							>
 								<div
 									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30"
@@ -406,10 +406,10 @@
 									<Settings class="h-5 w-5 text-orange-600 dark:text-orange-400" />
 								</div>
 								<div>
-									<h3 class="font-semibold text-foreground">
+									<h3 class="text-foreground font-semibold">
 										{t('onboarding.configureAI')}
 									</h3>
-									<p class="text-sm text-muted-foreground">
+									<p class="text-muted-foreground text-sm">
 										{t('onboarding.configureAIDesc')}
 									</p>
 								</div>
@@ -422,7 +422,7 @@
 							onclick={() => {
 								handleFinish();
 							}}
-							class="flex items-start gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border"
+							class="hover:border-primary/50 hover:bg-muted dark:hover:border-primary/50 dark:hover:bg-muted/50 border-border flex items-start gap-4 rounded-lg border p-4 transition-all"
 						>
 							<div
 								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"
@@ -430,10 +430,10 @@
 								<Map class="h-5 w-5 text-purple-600 dark:text-purple-400" />
 							</div>
 							<div>
-								<h3 class="font-semibold text-foreground">
+								<h3 class="text-foreground font-semibold">
 									{t('onboarding.generateTrips')}
 								</h3>
-								<p class="text-sm text-muted-foreground">
+								<p class="text-muted-foreground text-sm">
 									{t('onboarding.generateTripsDesc')}
 								</p>
 							</div>
@@ -441,7 +441,7 @@
 					</div>
 
 					<!-- Action Button -->
-					<p class="mb-4 text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground mb-4 text-center text-sm">
 						{t('onboarding.stepProgress', { current: 3, total: 3 })}
 					</p>
 					<button

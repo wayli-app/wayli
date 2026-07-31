@@ -426,7 +426,7 @@
 </svelte:head>
 
 <div
-	class="flex min-h-screen items-center justify-center bg-linear-to-br from-gray-50 via-white to-gray-100 px-4 dark:from-background dark:via-card dark:to-background"
+	class="dark:from-background dark:via-card dark:to-background flex min-h-screen items-center justify-center bg-linear-to-br from-gray-50 via-white to-gray-100 px-4"
 >
 	<div class="w-full max-w-md">
 		<!-- Back to home (hidden during initial setup) -->
@@ -434,7 +434,7 @@
 			<div class="mb-8">
 				<a
 					href="/"
-					class="inline-flex items-center text-sm text-gray-600 transition-colors hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+					class="hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground inline-flex items-center text-sm text-gray-600 transition-colors"
 				>
 					<ArrowLeft class="mr-2 h-4 w-4" />
 					{t('auth.backToHome')}
@@ -457,10 +457,10 @@
 							</div>
 						</div>
 						<div class="flex-1">
-							<h3 class="text-primary mb-2 text-lg font-semibold dark:text-foreground">
+							<h3 class="text-primary dark:text-foreground mb-2 text-lg font-semibold">
 								{t('signup.firstUserWelcome')}
 							</h3>
-							<p class="text-primary text-sm dark:text-muted-foreground">
+							<p class="text-primary dark:text-muted-foreground text-sm">
 								{t('signup.firstUserAdminInfo')}
 							</p>
 						</div>
@@ -470,9 +470,9 @@
 		{/if}
 
 		<!-- Sign Up Form -->
-		<div class="rounded-2xl border p-8 shadow-xl bg-card border-border">
+		<div class="bg-card border-border rounded-2xl border p-8 shadow-xl">
 			<div class="mb-8 text-center">
-				<h1 class="mb-2 text-2xl font-bold text-foreground">
+				<h1 class="text-foreground mb-2 text-2xl font-bold">
 					{t('auth.createYourAccount')}
 				</h1>
 				<p class="text-muted-foreground">{t('auth.joinWayli')}</p>
@@ -480,17 +480,17 @@
 
 			{#if isLoadingSettings}
 				<div
-					class="bg-primary/5 dark:bg-primary/20 mb-6 rounded-lg border border-primary/20 p-4 dark:border-primary/30"
+					class="bg-primary/5 dark:bg-primary/20 border-primary/20 dark:border-primary/30 mb-6 rounded-lg border p-4"
 				>
 					<div class="flex items-center">
 						<div
-							class="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"
+							class="border-primary mr-2 h-5 w-5 animate-spin rounded-full border-2 border-t-transparent"
 						></div>
 						<div>
-							<h3 class="text-primary text-sm font-medium dark:text-muted-foreground">
+							<h3 class="text-primary dark:text-muted-foreground text-sm font-medium">
 								{t('auth.loadingSettings')}
 							</h3>
-							<p class="text-primary mt-1 text-sm dark:text-muted-foreground">
+							<p class="text-primary dark:text-muted-foreground mt-1 text-sm">
 								{t('auth.checkingRegistrationStatus')}
 							</p>
 						</div>
@@ -527,7 +527,7 @@
 			{:else if oauthOnlyMode && oauthProviders.length > 0 && !isFirstUser}
 				<!-- OAuth-only mode: show only OAuth buttons -->
 				<div class="space-y-4">
-					<p class="text-center text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-center text-sm">
 						{t('auth.signUpWithProvider')}
 					</p>
 					{#each oauthProviders as provider}
@@ -535,7 +535,7 @@
 							type="button"
 							onclick={() => signInWithOAuth(provider.provider)}
 							disabled={loading}
-							class="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+							class="hover:bg-muted dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{#if isKnownProvider(provider.provider)}
 								{@render providerIcon(provider.provider, 'lg')}
@@ -547,7 +547,7 @@
 				</div>
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"
@@ -562,12 +562,12 @@
 					<!-- Name Fields -->
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label for="firstName" class="mb-2 block text-sm font-medium text-muted-foreground">
+							<label for="firstName" class="text-muted-foreground mb-2 block text-sm font-medium">
 								{t('auth.firstName')}
 							</label>
 							<div class="relative">
 								<User
-									class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+									class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 								/>
 								<input
 									id="firstName"
@@ -575,16 +575,16 @@
 									bind:value={firstName}
 									required
 									disabled={registrationDisabled}
-									class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground"
+									class="focus:ring-primary disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed"
 									placeholder={t('auth.firstName')}
 								/>
 								{#if errors.firstName}
-									<p class="mt-1 text-sm text-destructive">{errors.firstName}</p>
+									<p class="text-destructive mt-1 text-sm">{errors.firstName}</p>
 								{/if}
 							</div>
 						</div>
 						<div>
-							<label for="lastName" class="mb-2 block text-sm font-medium text-muted-foreground">
+							<label for="lastName" class="text-muted-foreground mb-2 block text-sm font-medium">
 								{t('auth.lastName')}
 							</label>
 							<input
@@ -593,23 +593,23 @@
 								bind:value={lastName}
 								required
 								disabled={registrationDisabled}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground"
+								class="focus:ring-primary disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed"
 								placeholder={t('auth.lastName')}
 							/>
 							{#if errors.lastName}
-								<p class="mt-1 text-sm text-destructive">{errors.lastName}</p>
+								<p class="text-destructive mt-1 text-sm">{errors.lastName}</p>
 							{/if}
 						</div>
 					</div>
 
 					<!-- Email Field -->
 					<div>
-						<label for="email" class="mb-2 block text-sm font-medium text-muted-foreground">
+						<label for="email" class="text-muted-foreground mb-2 block text-sm font-medium">
 							{t('auth.emailAddress')}
 						</label>
 						<div class="relative">
 							<Mail
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 							/>
 							<input
 								id="email"
@@ -617,7 +617,7 @@
 								bind:value={email}
 								required
 								disabled={registrationDisabled}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground"
+								class="focus:ring-primary disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-4 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed"
 								placeholder={t('auth.enterYourEmail')}
 							/>
 						</div>
@@ -625,12 +625,12 @@
 
 					<!-- Password Field -->
 					<div>
-						<label for="password" class="mb-2 block text-sm font-medium text-muted-foreground">
+						<label for="password" class="text-muted-foreground mb-2 block text-sm font-medium">
 							{t('auth.password')}
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 							/>
 							<input
 								id="password"
@@ -638,14 +638,14 @@
 								bind:value={password}
 								required
 								disabled={registrationDisabled}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground"
+								class="focus:ring-primary disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed"
 								placeholder={t('auth.createPassword')}
 							/>
 							<button
 								type="button"
 								onclick={togglePassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:text-muted-foreground"
+								class="text-muted-foreground hover:text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{#if showPassword}
 									<EyeOff class="h-5 w-5" />
@@ -658,7 +658,7 @@
 						<!-- Password Requirements -->
 						{#if password.length > 0}
 							<div class="mt-3 space-y-2">
-								<p class="text-xs font-medium text-muted-foreground">
+								<p class="text-muted-foreground text-xs font-medium">
 									{t('auth.passwordRequirements')}
 								</p>
 								<div class="space-y-1">
@@ -749,13 +749,13 @@
 					<div>
 						<label
 							for="confirmPassword"
-							class="mb-2 block text-sm font-medium text-muted-foreground"
+							class="text-muted-foreground mb-2 block text-sm font-medium"
 						>
 							{t('auth.confirmPassword')}
 						</label>
 						<div class="relative">
 							<Lock
-								class="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-muted-foreground"
+								class="text-muted-foreground absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform"
 							/>
 							<input
 								id="confirmPassword"
@@ -763,7 +763,7 @@
 								bind:value={confirmPassword}
 								required
 								disabled={registrationDisabled}
-								class="focus:ring-primary w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground {!doPasswordsMatch &&
+								class="focus:ring-primary disabled:bg-muted disabled:text-muted-foreground dark:border-border dark:bg-muted dark:text-foreground dark:placeholder:text-muted-foreground dark:disabled:bg-card dark:disabled:text-muted-foreground w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 text-gray-900 placeholder-gray-500 transition-colors focus:border-transparent focus:ring-2 disabled:cursor-not-allowed {!doPasswordsMatch &&
 								confirmPassword.length > 0
 									? 'border-red-500'
 									: ''}"
@@ -773,7 +773,7 @@
 								type="button"
 								onclick={toggleConfirmPassword}
 								disabled={registrationDisabled}
-								class="absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer text-muted-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:text-muted-foreground"
+								class="text-muted-foreground hover:text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 transform cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{#if showConfirmPassword}
 									<EyeOff class="h-5 w-5" />
@@ -807,10 +807,10 @@
 				{#if oauthProviders.length > 0}
 					<div class="relative my-6">
 						<div class="absolute inset-0 flex items-center">
-							<div class="w-full border-t border-gray-300 dark:border-border"></div>
+							<div class="dark:border-border w-full border-t border-gray-300"></div>
 						</div>
 						<div class="relative flex justify-center text-sm">
-							<span class="px-2 text-muted-foreground bg-card">
+							<span class="text-muted-foreground bg-card px-2">
 								{t('auth.orContinueWith')}
 							</span>
 						</div>
@@ -825,7 +825,7 @@
 								type="button"
 								onclick={() => signInWithOAuth(provider.provider)}
 								disabled={loading}
-								class="flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+								class="hover:bg-muted dark:border-border dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{#if isKnownProvider(provider.provider)}
 									{@render providerIcon(provider.provider, 'sm')}
@@ -837,7 +837,7 @@
 				{/if}
 
 				<div class="mt-6 text-center">
-					<p class="text-sm text-muted-foreground">
+					<p class="text-muted-foreground text-sm">
 						{t('auth.alreadyHaveAccount')}
 						<a
 							href="/auth/signin"

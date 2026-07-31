@@ -658,8 +658,7 @@
 	// day card to drop it. `movingItem` holds the picked-up item.
 	let movingItem = $state<PlanItem | null>(null);
 	const isTouchDevice =
-		typeof window !== 'undefined' &&
-		('ontouchstart' in window || navigator.maxTouchPoints > 0);
+		typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
 	function onDragStart(e: DragEvent, item: PlanItem) {
 		draggedItem = item;
@@ -797,11 +796,11 @@
 							<img
 								src={collab.avatar_url}
 								alt={collab.username}
-								class="h-8 w-8 rounded-full border-2 border-border object-cover"
+								class="border-border h-8 w-8 rounded-full border-2 object-cover"
 							/>
 						{:else}
 							<div
-								class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-muted text-xs font-bold"
+								class="border-border bg-muted flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold"
 							>
 								{collab.username?.[0]?.toUpperCase() ?? '?'}
 							</div>
@@ -890,7 +889,8 @@
 					{#each budgetByCategory as cat (cat.category)}
 						{@const maxCat = Math.max(...budgetByCategory.map((c) => c.total))}
 						<div class="flex items-center gap-2 text-xs">
-							<span class="w-4 shrink-0 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span>
+							<span class="w-4 shrink-0 text-center">{TYPE_CONFIG[cat.category]?.icon ?? '📌'}</span
+							>
 							<span class="text-muted-foreground w-16 shrink-0 truncate sm:w-20">
 								{t('plan.type.' + cat.category)}
 							</span>
@@ -938,11 +938,12 @@
 											type="button"
 											class="group relative flex h-full min-w-[18px] flex-1 cursor-pointer flex-col justify-end rounded-t-sm focus:outline-none {selectedCostDay ===
 											d.day
-												? 'ring-2 ring-primary ring-offset-1'
+												? 'ring-primary ring-2 ring-offset-1'
 												: ''}"
-											aria-label="{t('plan.dayLabel', { day: d.day })}: {d.total.toFixed(0)} {d.currency}"
-											onclick={() =>
-												(selectedCostDay = selectedCostDay === d.day ? null : d.day)}
+											aria-label="{t('plan.dayLabel', { day: d.day })}: {d.total.toFixed(
+												0
+											)} {d.currency}"
+											onclick={() => (selectedCostDay = selectedCostDay === d.day ? null : d.day)}
 										>
 											<!-- Stacked segments -->
 											{#each d.categories as cat (cat.category)}
@@ -959,7 +960,7 @@
 											<!-- Tooltip on hover (desktop pointer devices) -->
 											{#if d.total > 0}
 												<div
-													class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg border p-3 text-xs shadow-xl group-hover:block"
+													class="bg-card border-border pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full rounded-lg border p-3 text-xs whitespace-nowrap shadow-xl group-hover:block"
 												>
 													<div class="text-foreground font-bold">
 														{t('plan.dayCost', {
@@ -995,9 +996,7 @@
 								{#if selectedCostDay !== null}
 									{@const picked = dailyCategoryBreakdown.find((d) => d.day === selectedCostDay)}
 									{#if picked}
-										<div
-											class="bg-muted/50 mt-2 rounded-lg p-2.5 text-xs sm:hidden"
-										>
+										<div class="bg-muted/50 mt-2 rounded-lg p-2.5 text-xs sm:hidden">
 											<div class="text-foreground mb-1 font-bold">
 												{t('plan.dayCost', {
 													day: picked.day,
@@ -1061,9 +1060,7 @@
 						class="bg-card border-border flex min-h-44 cursor-pointer flex-col rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md {day
 							.items.length > 0
 							? 'border-primary/30'
-							: ''} {movingItem
-							? 'border-primary ring-2 ring-primary/40'
-							: ''}"
+							: ''} {movingItem ? 'border-primary ring-primary/40 ring-2' : ''}"
 					>
 						<!-- Header -->
 						<div class="mb-2 flex items-center justify-between">
@@ -1145,7 +1142,7 @@
 			<div class="border-border bg-card mt-4 overflow-hidden rounded-xl border">
 				<div class="border-border flex items-center gap-2 border-b px-4 py-2">
 					<MapPin class="text-primary h-4 w-4" />
-					<span class="text-sm font-semibold text-foreground">{t('plan.entireRoute')}</span>
+					<span class="text-foreground text-sm font-semibold">{t('plan.entireRoute')}</span>
 					{#if allMapPoints.length > 0}
 						<span class="text-muted-foreground ml-auto text-xs"
 							>{t('plan.stopsAcrossDays', { stops: allMapPoints.length, days: numDays })}</span
@@ -1191,7 +1188,7 @@
 				<div class="bg-card border-border rounded-xl border p-4">
 					<div class="mb-3 flex items-center gap-2">
 						<Plus class="text-primary h-4 w-4" />
-						<span class="text-sm font-medium text-foreground">{t('plan.addStop')}</span>
+						<span class="text-foreground text-sm font-medium">{t('plan.addStop')}</span>
 					</div>
 					<!-- Smart search (URL or place) -->
 					<div class="relative mb-3">
@@ -1263,7 +1260,7 @@
 										</div>
 									{/if}
 									{#if newItemPreview.rating}
-										<div class="text-amber-500 flex items-center gap-0.5 text-xs">
+										<div class="flex items-center gap-0.5 text-xs text-amber-500">
 											<Star class="h-3 w-3 fill-current" />
 											{newItemPreview.rating}
 										</div>
@@ -1318,7 +1315,7 @@
 						<button
 							type="button"
 							onclick={() => addItem(selectedDay!)}
-							class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-1.5 text-sm font-medium text-primary-foreground"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-4 py-1.5 text-sm font-medium"
 						>
 							{t('plan.add')}
 						</button>
@@ -1415,7 +1412,7 @@
 									<!-- Expandable edit panel -->
 									<details class="mt-2">
 										<summary
-											class="text-muted-foreground cursor-pointer text-[10px] hover:text-foreground"
+											class="text-muted-foreground hover:text-foreground cursor-pointer text-[10px]"
 										>
 											{t('plan.editDetails')}
 										</summary>
@@ -1502,7 +1499,7 @@
 																</div>
 															{/if}
 															{#if pv.rating}
-																<div class="text-amber-500 flex items-center gap-0.5 text-[9px]">
+																<div class="flex items-center gap-0.5 text-[9px] text-amber-500">
 																	<Star class="h-2.5 w-2.5 fill-current" />
 																	{pv.rating}
 																</div>
@@ -1562,7 +1559,7 @@
 								<button
 									type="button"
 									onclick={() => removeItem(item.id)}
-									class="text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+									class="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
 								>
 									<Trash2 class="h-3.5 w-3.5" />
 								</button>
@@ -1576,7 +1573,7 @@
 					<div class="border-border bg-card overflow-hidden rounded-xl border">
 						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
 							<MapPin class="text-primary h-4 w-4" />
-							<span class="text-sm font-semibold text-foreground"
+							<span class="text-foreground text-sm font-semibold"
 								>{t('plan.routeForDay', { day: selectedDay })}</span
 							>
 							<span class="text-muted-foreground ml-auto text-xs"
@@ -1589,7 +1586,7 @@
 					<div class="border-border bg-card overflow-hidden rounded-xl border">
 						<div class="border-border flex items-center gap-2 border-b px-4 py-2">
 							<MapPin class="text-primary h-4 w-4" />
-							<span class="text-sm font-semibold text-foreground">{t('plan.stopLocation')}</span>
+							<span class="text-foreground text-sm font-semibold">{t('plan.stopLocation')}</span>
 						</div>
 						<TripMap points={dayMapPoints} class="h-48" />
 					</div>
@@ -1635,7 +1632,7 @@
 						type="button"
 						onclick={handleAddCollaborator}
 						disabled={isAddingCollaborator}
-						class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+						class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
 					>
 						{#if isAddingCollaborator}<Loader2 class="h-4 w-4 animate-spin" />{:else}{t(
 								'plan.invite'

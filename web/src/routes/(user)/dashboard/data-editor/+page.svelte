@@ -708,19 +708,19 @@
 			<button
 				type="button"
 				onclick={() => setPreset(7)}
-				class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-xs hover:bg-muted"
+				class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
 				>7d</button
 			>
 			<button
 				type="button"
 				onclick={() => setPreset(30)}
-				class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-xs hover:bg-muted"
+				class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
 				>30d</button
 			>
 			<button
 				type="button"
 				onclick={() => setPreset(90)}
-				class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-xs hover:bg-muted"
+				class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
 				>90d</button
 			>
 		</div>
@@ -756,7 +756,7 @@
 				type="button"
 				onclick={() => (showSampleModal = true)}
 				disabled={selectedCount === 0}
-				class="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 border-border text-muted-foreground hover:text-foreground"
+				class="border-border text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40"
 				title="Thin out selected points (keep only a percentage)"
 			>
 				<ScatterChart class="h-3 w-3" />
@@ -783,12 +783,12 @@
 		</button>
 	</div>
 
-		<!-- Map + side panel -->
-		<div class="flex flex-1 overflow-hidden">
-			<!-- Map -->
-			<div class="relative z-0 flex-1">
+	<!-- Map + side panel -->
+	<div class="flex flex-1 overflow-hidden">
+		<!-- Map -->
+		<div class="relative z-0 flex-1">
 			{#if isLoading}
-				<div class="absolute inset-0 flex items-center justify-center bg-muted/50">
+				<div class="bg-muted/50 absolute inset-0 flex items-center justify-center">
 					<div class="text-muted-foreground flex flex-col items-center gap-3">
 						<Loader2 class="h-8 w-8 animate-spin" />
 						<span class="text-sm">{loadingStage}</span>
@@ -810,14 +810,14 @@
 				<div
 					class="bg-card/90 border-border absolute bottom-4 left-4 rounded-lg border p-3 text-xs backdrop-blur-md"
 				>
-					<div class="mb-1 font-semibold text-foreground">{t('dataEditor.transportMode')}</div>
+					<div class="text-foreground mb-1 font-semibold">{t('dataEditor.transportMode')}</div>
 					{#each Object.entries(COLOR_BY_MODE) as [mode, color]}
 						<div class="flex items-center gap-2 py-0.5">
 							<div class="h-2 w-2 rounded-full" style="background:{color}"></div>
 							<span class="text-muted-foreground capitalize">{mode}</span>
 						</div>
 					{/each}
-					<div class="mt-1 flex items-center gap-2 border-t border-border pt-1">
+					<div class="border-border mt-1 flex items-center gap-2 border-t pt-1">
 						<div class="h-2 w-2 rounded-full bg-gray-400 opacity-30"></div>
 						<span class="text-muted-foreground">{t('dataEditor.excluded')}</span>
 					</div>
@@ -832,7 +832,7 @@
 			<button
 				type="button"
 				onclick={() => (showMobilePanel = true)}
-				class="bg-card/90 border-border text-foreground absolute right-4 bottom-4 z-10 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium shadow-md backdrop-blur-md transition-colors hover:bg-muted md:hidden"
+				class="bg-card/90 border-border text-foreground hover:bg-muted absolute right-4 bottom-4 z-10 inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium shadow-md backdrop-blur-md transition-colors md:hidden"
 				aria-label="Open details"
 			>
 				<Database class="h-4 w-4" />
@@ -861,8 +861,8 @@
 			class="bg-card border-border fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t shadow-2xl md:hidden"
 		>
 			<!-- Drag handle / close affordance -->
-			<div class="sticky top-0 z-10 bg-card pb-1 pt-2">
-				<div class="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted"></div>
+			<div class="bg-card sticky top-0 z-10 pt-2 pb-1">
+				<div class="bg-muted mx-auto mb-2 h-1.5 w-10 rounded-full"></div>
 				<div class="flex items-center justify-between px-4 pb-2">
 					<span class="text-foreground text-sm font-bold">{t('dataEditor.heading')}</span>
 					<button
@@ -879,166 +879,162 @@
 		</div>
 	{/if}
 
-{#snippet sidePanel()}
-	<!-- Stats -->
-	<div class="border-border border-b p-4">
-		<div class="text-muted-foreground text-xs">{t('dataEditor.showingDateRange')}</div>
-		<div class="text-foreground text-sm font-medium">
-			{new Date(startDate).toLocaleDateString()} → {new Date(endDate).toLocaleDateString()}
-		</div>
-		<div class="text-muted-foreground mt-2 text-xs">
-			{t('dataEditor.loadedOfTotal')
-				.replace('{loaded}', String(allPoints.length))
-				.replace('{total}', String(totalCount))}
-		</div>
-	</div>
-
-	<!-- Selection info -->
-	<div class="border-border border-b p-4">
-		{#if selectedCount > 0}
-			<div class="mb-2 flex items-center gap-2">
-				<div class="bg-red-500/10 inline-flex h-8 w-8 items-center justify-center rounded-full">
-					<span class="text-red-500 text-sm font-bold">{selectedCount}</span>
-				</div>
-				<span class="text-foreground text-sm font-medium">{t('dataEditor.selected')}</span>
+	{#snippet sidePanel()}
+		<!-- Stats -->
+		<div class="border-border border-b p-4">
+			<div class="text-muted-foreground text-xs">{t('dataEditor.showingDateRange')}</div>
+			<div class="text-foreground text-sm font-medium">
+				{new Date(startDate).toLocaleDateString()} → {new Date(endDate).toLocaleDateString()}
 			</div>
+			<div class="text-muted-foreground mt-2 text-xs">
+				{t('dataEditor.loadedOfTotal')
+					.replace('{loaded}', String(allPoints.length))
+					.replace('{total}', String(totalCount))}
+			</div>
+		</div>
 
-			{#if selectedPoints.length > 0}
-				<div class="text-muted-foreground mb-2 text-xs">
-					{new Date(selectedPoints[0].recorded_at).toLocaleString()}
-					{#if selectedCount > 1}
-						→ {new Date(selectedPoints[selectedPoints.length - 1].recorded_at).toLocaleString()}
+		<!-- Selection info -->
+		<div class="border-border border-b p-4">
+			{#if selectedCount > 0}
+				<div class="mb-2 flex items-center gap-2">
+					<div class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10">
+						<span class="text-sm font-bold text-red-500">{selectedCount}</span>
+					</div>
+					<span class="text-foreground text-sm font-medium">{t('dataEditor.selected')}</span>
+				</div>
+
+				{#if selectedPoints.length > 0}
+					<div class="text-muted-foreground mb-2 text-xs">
+						{new Date(selectedPoints[0].recorded_at).toLocaleString()}
+						{#if selectedCount > 1}
+							→ {new Date(selectedPoints[selectedPoints.length - 1].recorded_at).toLocaleString()}
+						{/if}
+					</div>
+				{/if}
+
+				<button
+					type="button"
+					onclick={() => (showDeleteConfirm = true)}
+					disabled={isDeleting}
+					class="bg-destructive hover:bg-destructive/90 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
+				>
+					{#if isDeleting}
+						<Loader2 class="h-4 w-4 animate-spin" /> {t('dataEditor.deleting')}
+					{:else}
+						<Trash2 class="h-4 w-4" />
+						{t('dataEditor.deletePoints').replace('{count}', String(selectedCount))}
+					{/if}
+				</button>
+			{:else}
+				<div class="text-muted-foreground py-4 text-center text-xs">
+					{#if selectionMode === 'none'}
+						{t('dataEditor.selectModeHint')}
+					{:else}
+						{selectionMode === 'box' ? t('dataEditor.boxSelectHint') : t('dataEditor.addPointHint')}
 					{/if}
 				</div>
 			{/if}
+		</div>
 
-			<button
-				type="button"
-				onclick={() => (showDeleteConfirm = true)}
-				disabled={isDeleting}
-				class="bg-destructive hover:bg-destructive/90 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
-			>
-				{#if isDeleting}
-					<Loader2 class="h-4 w-4 animate-spin" /> {t('dataEditor.deleting')}
-				{:else}
-					<Trash2 class="h-4 w-4" />
-					{t('dataEditor.deletePoints').replace('{count}', String(selectedCount))}
-				{/if}
-			</button>
-		{:else}
-			<div class="text-muted-foreground py-4 text-center text-xs">
-				{#if selectionMode === 'none'}
-					{t('dataEditor.selectModeHint')}
-				{:else}
-					{selectionMode === 'box'
-						? t('dataEditor.boxSelectHint')
-						: t('dataEditor.addPointHint')}
-				{/if}
-			</div>
-		{/if}
-	</div>
-
-	<!-- Point edit panel -->
-	{#if editingPoint}
-		<div class="border-border border-t p-4">
-			<div class="mb-3 flex items-center justify-between">
-				<span class="text-foreground text-xs font-bold uppercase"
-					>{t('dataEditor.editPoint')}</span
-				>
-				<button
-					type="button"
-					onclick={() => (editingPoint = null)}
-					class="text-muted-foreground hover:text-foreground"
-				>
-					<X class="h-4 w-4" />
-				</button>
-			</div>
-			<div class="text-muted-foreground mb-3 text-[10px]">
-				{new Date(editingPoint.recorded_at).toLocaleString()}
-			</div>
-			<div class="space-y-2">
-				<label class="block">
-					<span class="text-muted-foreground mb-0.5 block text-[10px]"
-						>{t('dataEditor.latitude')}</span
+		<!-- Point edit panel -->
+		{#if editingPoint}
+			<div class="border-border border-t p-4">
+				<div class="mb-3 flex items-center justify-between">
+					<span class="text-foreground text-xs font-bold uppercase"
+						>{t('dataEditor.editPoint')}</span
 					>
-					<input
-						type="number"
-						bind:value={editingPoint.lat}
-						step="0.0001"
-						class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-2 py-1 text-xs focus:ring-2 focus:outline-none"
-					/>
-				</label>
-				<label class="block">
-					<span class="text-muted-foreground mb-0.5 block text-[10px]"
-						>{t('dataEditor.longitude')}</span
-					>
-					<input
-						type="number"
-						bind:value={editingPoint.lng}
-						step="0.0001"
-						class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-2 py-1 text-xs focus:ring-2 focus:outline-none"
-					/>
-				</label>
-				{#if editingPoint.speed}
-					<div class="text-muted-foreground text-[10px]">
-						Speed: {editingPoint.speed.toFixed(1)} km/h
-					</div>
-				{/if}
-				{#if editingPoint.accuracy}
-					<div class="text-muted-foreground text-[10px]">
-						Accuracy: ±{editingPoint.accuracy.toFixed(0)}m
-					</div>
-				{/if}
-				<div class="flex gap-2 pt-1">
 					<button
 						type="button"
-						onclick={savePointEdits}
-						class="bg-primary hover:bg-primary/90 flex-1 rounded-lg px-3 py-1.5 text-xs font-medium text-primary-foreground"
+						onclick={() => (editingPoint = null)}
+						class="text-muted-foreground hover:text-foreground"
 					>
-						{t('common.actions.save')}
-					</button>
-					<button
-						type="button"
-						onclick={deleteSinglePoint}
-						class="bg-destructive hover:bg-destructive/90 rounded-lg px-3 py-1.5 text-xs font-medium text-white"
-					>
-						{t('common.actions.delete')}
+						<X class="h-4 w-4" />
 					</button>
 				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Exclusion zones -->
-	{#if exclusionZones.length > 0}
-		<div class="p-4">
-			<div class="text-muted-foreground mb-2 text-xs font-medium">
-				{t('dataEditor.exclusionZones').replace('{count}', String(exclusionZones.length))}
-			</div>
-			<div class="space-y-1">
-				{#each exclusionZones as zone (zone.name)}
-					<div
-						class="border-border flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
-					>
-						<div class="bg-red-500/10 flex h-2 w-2 flex-shrink-0 rounded-full"></div>
-						<span class="text-foreground">{zone.name}</span>
-						<span class="text-muted-foreground ml-auto">{zone.radius}m</span>
+				<div class="text-muted-foreground mb-3 text-[10px]">
+					{new Date(editingPoint.recorded_at).toLocaleString()}
+				</div>
+				<div class="space-y-2">
+					<label class="block">
+						<span class="text-muted-foreground mb-0.5 block text-[10px]"
+							>{t('dataEditor.latitude')}</span
+						>
+						<input
+							type="number"
+							bind:value={editingPoint.lat}
+							step="0.0001"
+							class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-2 py-1 text-xs focus:ring-2 focus:outline-none"
+						/>
+					</label>
+					<label class="block">
+						<span class="text-muted-foreground mb-0.5 block text-[10px]"
+							>{t('dataEditor.longitude')}</span
+						>
+						<input
+							type="number"
+							bind:value={editingPoint.lng}
+							step="0.0001"
+							class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-2 py-1 text-xs focus:ring-2 focus:outline-none"
+						/>
+					</label>
+					{#if editingPoint.speed}
+						<div class="text-muted-foreground text-[10px]">
+							Speed: {editingPoint.speed.toFixed(1)} km/h
+						</div>
+					{/if}
+					{#if editingPoint.accuracy}
+						<div class="text-muted-foreground text-[10px]">
+							Accuracy: ±{editingPoint.accuracy.toFixed(0)}m
+						</div>
+					{/if}
+					<div class="flex gap-2 pt-1">
+						<button
+							type="button"
+							onclick={savePointEdits}
+							class="bg-primary hover:bg-primary/90 text-primary-foreground flex-1 rounded-lg px-3 py-1.5 text-xs font-medium"
+						>
+							{t('common.actions.save')}
+						</button>
+						<button
+							type="button"
+							onclick={deleteSinglePoint}
+							class="bg-destructive hover:bg-destructive/90 rounded-lg px-3 py-1.5 text-xs font-medium text-white"
+						>
+							{t('common.actions.delete')}
+						</button>
 					</div>
-				{/each}
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 
-	<!-- Home address -->
-	{#if homeAddress}
-		<div class="border-border border-t p-4">
-			<div class="flex items-center gap-2 text-xs">
-				<Home class="h-3.5 w-3.5 text-blue-500" />
-				<span class="text-muted-foreground">{t('dataEditor.homeAddressSet')}</span>
+		<!-- Exclusion zones -->
+		{#if exclusionZones.length > 0}
+			<div class="p-4">
+				<div class="text-muted-foreground mb-2 text-xs font-medium">
+					{t('dataEditor.exclusionZones').replace('{count}', String(exclusionZones.length))}
+				</div>
+				<div class="space-y-1">
+					{#each exclusionZones as zone (zone.name)}
+						<div class="border-border flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
+							<div class="flex h-2 w-2 flex-shrink-0 rounded-full bg-red-500/10"></div>
+							<span class="text-foreground">{zone.name}</span>
+							<span class="text-muted-foreground ml-auto">{zone.radius}m</span>
+						</div>
+					{/each}
+				</div>
 			</div>
-		</div>
-	{/if}
-{/snippet}
+		{/if}
+
+		<!-- Home address -->
+		{#if homeAddress}
+			<div class="border-border border-t p-4">
+				<div class="flex items-center gap-2 text-xs">
+					<Home class="h-3.5 w-3.5 text-blue-500" />
+					<span class="text-muted-foreground">{t('dataEditor.homeAddressSet')}</span>
+				</div>
+			</div>
+		{/if}
+	{/snippet}
 </div>
 
 <!-- Delete confirmation modal -->
@@ -1049,7 +1045,7 @@
 		<div class="border-border bg-card w-full max-w-md rounded-2xl border p-6 shadow-2xl">
 			<div class="mb-4 flex items-center gap-3">
 				<div class="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full">
-					<AlertTriangle class="h-6 w-6 text-destructive" />
+					<AlertTriangle class="text-destructive h-6 w-6" />
 				</div>
 				<div>
 					<h2 class="text-foreground text-lg font-bold">
@@ -1110,20 +1106,20 @@
 				<button
 					type="button"
 					onclick={() => (sampleMode = 'percent')}
-					class="px-3 py-2 text-sm font-medium border-b-2 transition-colors {sampleMode ===
+					class="border-b-2 px-3 py-2 text-sm font-medium transition-colors {sampleMode ===
 					'percent'
 						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground'}"
+						: 'text-muted-foreground border-transparent'}"
 				>
 					{t('dataEditor.percentage')}
 				</button>
 				<button
 					type="button"
 					onclick={() => (sampleMode = 'distance')}
-					class="px-3 py-2 text-sm font-medium border-b-2 transition-colors {sampleMode ===
+					class="border-b-2 px-3 py-2 text-sm font-medium transition-colors {sampleMode ===
 					'distance'
 						? 'border-primary text-primary'
-						: 'border-transparent text-muted-foreground'}"
+						: 'text-muted-foreground border-transparent'}"
 				>
 					{t('dataEditor.minDistanceTime')}
 				</button>
@@ -1190,7 +1186,7 @@
 				<button
 					type="button"
 					onclick={handleSampleApply}
-					class="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground"
+					class="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-4 py-2 text-sm font-medium"
 				>
 					{t('common.actions.apply')}
 				</button>

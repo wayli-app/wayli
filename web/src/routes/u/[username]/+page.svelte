@@ -239,7 +239,7 @@
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
 		<p class="text-muted-foreground text-lg">{t('profile.travelerNotFound')}</p>
-		<a href="/" class="text-primary hover:underline text-sm">{t('profile.home')}</a>
+		<a href="/" class="text-primary text-sm hover:underline">{t('profile.home')}</a>
 	</div>
 {:else if profile}
 	<!-- Floating top bar -->
@@ -310,7 +310,7 @@
 		<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30"></div>
 
 		<!-- Hero content -->
-		<div class="absolute inset-bottom-0 bottom-0 mx-auto max-w-6xl px-6 pb-8">
+		<div class="inset-bottom-0 absolute bottom-0 mx-auto max-w-6xl px-6 pb-8">
 			<div class="flex items-end gap-5">
 				<!-- Avatar -->
 				{#if profile.avatar_url}
@@ -384,7 +384,7 @@
 		<div class="mx-auto max-w-6xl px-4 pt-8">
 			<div class="bg-card border-border rounded-2xl border p-4">
 				<div class="mb-3 flex items-center justify-between">
-					<h3 class="text-foreground text-sm font-bold uppercase tracking-wide">Where I've Been</h3>
+					<h3 class="text-foreground text-sm font-bold tracking-wide uppercase">Where I've Been</h3>
 					<span class="text-muted-foreground text-xs">
 						{visitedCountries.length}
 						{visitedCountries.length === 1 ? 'country' : 'countries'}
@@ -431,7 +431,7 @@
 					</button>
 				{/each}
 				{#if stats.tripsWithJournal > 0}
-					<div class="mx-1 h-4 w-px bg-border"></div>
+					<div class="bg-border mx-1 h-4 w-px"></div>
 					<button
 						type="button"
 						onclick={() => (journalOnly = !journalOnly)}
@@ -459,7 +459,7 @@
 					{@const isLarge = hasJournal || tripDays >= 7}
 					<a
 						href="/u/{username}/trips/{trip.id}"
-						class="group relative overflow-hidden rounded-xl shadow-md transition-all duration-500 hover:shadow-xl animate-fade-in-up {isLarge
+						class="group animate-fade-in-up relative overflow-hidden rounded-xl shadow-md transition-all duration-500 hover:shadow-xl {isLarge
 							? 'col-span-2 row-span-2'
 							: ''}"
 						style="animation-delay: {i * 40}ms"

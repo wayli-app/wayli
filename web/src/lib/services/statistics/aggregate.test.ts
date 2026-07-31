@@ -11,11 +11,7 @@ import {
 	type ProcessedPoint
 } from './aggregate';
 
-function pt(
-	day: string,
-	hour: number,
-	opts: Partial<ProcessedPoint> = {}
-): ProcessedPoint {
+function pt(day: string, hour: number, opts: Partial<ProcessedPoint> = {}): ProcessedPoint {
 	// day = 'YYYY-MM-DD'
 	return {
 		recorded_at: `${day}T${String(hour).padStart(2, '0')}:00:00`,
@@ -106,7 +102,13 @@ describe('timeOfDayDistribution', () => {
 describe('speedDistribution', () => {
 	test('bins speeds and finds dominant mode per bucket', () => {
 		const points: ProcessedPoint[] = [
-			{ recorded_at: '2026-03-01T09:00:00', lat: 52, lon: 4, speed: 0, transport_mode: 'stationary' },
+			{
+				recorded_at: '2026-03-01T09:00:00',
+				lat: 52,
+				lon: 4,
+				speed: 0,
+				transport_mode: 'stationary'
+			},
 			{ recorded_at: '2026-03-01T09:00:10', lat: 52, lon: 4, speed: 5, transport_mode: 'walking' },
 			{ recorded_at: '2026-03-01T09:00:20', lat: 52, lon: 4, speed: 6, transport_mode: 'walking' },
 			{ recorded_at: '2026-03-01T09:00:30', lat: 52, lon: 4, speed: 70, transport_mode: 'car' }

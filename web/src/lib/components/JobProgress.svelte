@@ -11,7 +11,7 @@
 <div class="space-y-4">
 	<!-- Progress Display -->
 	<div class="flex items-center justify-between">
-		<div class="text-sm font-medium text-muted-foreground">
+		<div class="text-muted-foreground text-sm font-medium">
 			Progress: {status}
 		</div>
 		<div class="text-right">
@@ -22,7 +22,7 @@
 	</div>
 
 	<!-- Progress Bar -->
-	<div class="h-3 w-full rounded-full bg-gray-200 dark:bg-muted">
+	<div class="dark:bg-muted h-3 w-full rounded-full bg-gray-200">
 		<div
 			class="h-3 rounded-full bg-green-600 transition-all duration-300 ease-out"
 			style="width: {progress}%"

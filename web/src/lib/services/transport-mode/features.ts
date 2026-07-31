@@ -83,10 +83,7 @@ function accuracyWeight(accuracy: number | null): number {
  * (the train-vs-car signal) but small enough to react within a stop-start
  * urban segment.
  */
-export function extractFeatures(
-	observations: ModeObservation[],
-	cvWindow = 5
-): ModeFeatures[] {
+export function extractFeatures(observations: ModeObservation[], cvWindow = 5): ModeFeatures[] {
 	const n = observations.length;
 	const features: ModeFeatures[] = new Array(n);
 

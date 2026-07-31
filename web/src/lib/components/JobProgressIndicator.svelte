@@ -370,13 +370,13 @@
 		</div>
 
 		<div class="min-w-0 flex-1">
-			<div class="mb-1 text-xs font-medium text-muted-foreground">
+			<div class="text-muted-foreground mb-1 text-xs font-medium">
 				{t('jobProgress.uploading')}: {upload.fileName}
 			</div>
 
 			{#if upload.status === 'uploading'}
 				<div class="relative mb-1">
-					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-muted">
+					<div class="dark:bg-muted h-4 w-full rounded-full bg-gray-200">
 						<div
 							class="bg-primary relative h-4 rounded-full transition-all duration-300 dark:bg-blue-500"
 							style="width: {upload.percentage}%"
@@ -391,16 +391,16 @@
 						</div>
 					</div>
 				</div>
-				<div class="text-xs text-muted-foreground">
+				<div class="text-muted-foreground text-xs">
 					{(upload.loaded / 1024 / 1024).toFixed(1)} / {(upload.total / 1024 / 1024).toFixed(1)} MB
 				</div>
 			{:else if upload.status === 'processing'}
 				<div class="relative mb-1">
-					<div class="h-4 w-full rounded-full bg-gray-200 dark:bg-muted">
+					<div class="dark:bg-muted h-4 w-full rounded-full bg-gray-200">
 						<div class="bg-primary h-4 w-full animate-pulse rounded-full dark:bg-blue-500"></div>
 					</div>
 				</div>
-				<div class="text-xs text-muted-foreground">{t('jobProgress.creatingJob')}</div>
+				<div class="text-muted-foreground text-xs">{t('jobProgress.creatingJob')}</div>
 			{:else if upload.status === 'completed'}
 				<div class="text-xs text-green-600 dark:text-green-400">
 					✅ {t('jobProgress.uploadComplete')}
@@ -425,7 +425,7 @@
 	<div
 		role="button"
 		tabindex="0"
-		class="mb-3 flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted"
+		class="hover:bg-muted mb-3 flex w-full cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors"
 		onclick={() => openJobDetail(job)}
 		onkeydown={(e) => e.key === 'Enter' && openJobDetail(job)}
 	>
@@ -434,17 +434,17 @@
 		</div>
 
 		<div class="min-w-0 flex-1">
-			<div class="mb-1 text-xs font-medium text-muted-foreground">
+			<div class="text-muted-foreground mb-1 text-xs font-medium">
 				{jobTypeName}
 			</div>
 
 			{#if job.status === 'running' || job.status === 'pending'}
 				<div class="relative mb-1">
-					<div class="h-4 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-muted">
+					<div class="dark:bg-muted h-4 w-full overflow-hidden rounded-full bg-gray-200">
 						{#if indeterminate}
 							<!-- Indeterminate progress bar with sliding animation -->
 							<div
-								class="bg-primary h-4 w-1/2 rounded-full dark:bg-blue-500 animate-progress-indeterminate"
+								class="bg-primary animate-progress-indeterminate h-4 w-1/2 rounded-full dark:bg-blue-500"
 							></div>
 						{:else}
 							<!-- Determinate progress bar with percentage -->
@@ -464,7 +464,7 @@
 					</div>
 				</div>
 				{#if eta && !indeterminate}
-					<div class="text-xs text-muted-foreground">{eta}</div>
+					<div class="text-muted-foreground text-xs">{eta}</div>
 				{/if}
 			{:else if job.status === 'completed'}
 				<div class="text-xs text-green-600 dark:text-green-400">
@@ -473,7 +473,7 @@
 			{:else if job.status === 'failed'}
 				<div class="text-xs text-red-600 dark:text-red-400">❌ Failed</div>
 			{:else if job.status === 'cancelled'}
-				<div class="text-xs text-muted-foreground">⏹️ Cancelled</div>
+				<div class="text-muted-foreground text-xs">⏹️ Cancelled</div>
 			{/if}
 		</div>
 
@@ -481,7 +481,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleCancelJob(job, e)}
-				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-red-500 dark:hover:bg-muted dark:hover:text-red-400"
+				class="text-muted-foreground hover:bg-muted dark:hover:bg-muted flex-shrink-0 rounded p-1 hover:text-red-500 dark:hover:text-red-400"
 				title={t('jobProgress.cancelJob')}
 				aria-label={t('jobProgress.cancelJob')}
 			>
@@ -491,7 +491,7 @@
 			<button
 				type="button"
 				onclick={(e) => handleDownloadExport(job, e)}
-				class="hover:text-primary flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-muted dark:hover:bg-muted dark:hover:text-muted-foreground"
+				class="hover:text-primary text-muted-foreground hover:bg-muted dark:hover:bg-muted dark:hover:text-muted-foreground flex-shrink-0 rounded p-1"
 				title={t('jobProgress.downloadExport')}
 				aria-label={t('jobProgress.downloadExport')}
 			>
@@ -501,7 +501,7 @@
 			<button
 				type="button"
 				onclick={(e) => dismissJob(job.id, e)}
-				class="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground"
+				class="text-muted-foreground hover:bg-muted dark:hover:bg-muted hover:text-muted-foreground flex-shrink-0 rounded p-1"
 				title={t('jobProgress.dismiss')}
 				aria-label={t('jobProgress.dismiss')}
 			>
@@ -553,12 +553,12 @@
 		style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999999 !important; pointer-events: auto !important;"
 	>
 		<div
-			class="cancel-job-modal-content relative mx-4 w-full max-w-md rounded-lg p-6 shadow-xl bg-card"
+			class="cancel-job-modal-content bg-card relative mx-4 w-full max-w-md rounded-lg p-6 shadow-xl"
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 		>
 			<div class="mb-4">
-				<h3 class="text-lg font-semibold text-foreground">Cancel Job</h3>
-				<p class="mt-2 text-sm text-muted-foreground">
+				<h3 class="text-foreground text-lg font-semibold">Cancel Job</h3>
+				<p class="text-muted-foreground mt-2 text-sm">
 					Are you sure you want to cancel the {getJobTypeDisplayName(
 						jobToCancel.job_name
 					).toLowerCase()} job? This action cannot be undone.
@@ -567,7 +567,7 @@
 			<div class="flex justify-end gap-3">
 				<button
 					onclick={cancelConfirmation}
-					class="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
+					class="hover:bg-muted dark:bg-muted dark:text-muted-foreground dark:hover:bg-muted rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700"
 				>
 					Keep Running
 				</button>

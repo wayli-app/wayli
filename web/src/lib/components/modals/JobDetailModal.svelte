@@ -431,7 +431,7 @@
 		tabindex="0"
 	>
 		<div
-			class="job-detail-modal-content relative w-full max-w-2xl rounded-2xl shadow-2xl bg-card"
+			class="job-detail-modal-content bg-card relative w-full max-w-2xl rounded-2xl shadow-2xl"
 			style="position: relative !important; z-index: 100000000 !important; pointer-events: auto !important;"
 			onclick={(e) => e.stopPropagation()}
 			onkeydown={(e) => e.stopPropagation()}
@@ -439,13 +439,13 @@
 			tabindex="-1"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b p-6 border-border">
+			<div class="border-border flex items-center justify-between border-b p-6">
 				<div class="flex items-center gap-3">
 					<div class="flex h-10 w-10 items-center justify-center rounded-lg {status.bgColor}">
 						<JobIcon class="h-5 w-5 {status.color}" />
 					</div>
 					<div>
-						<h2 id="job-detail-title" class="text-lg font-semibold text-foreground">
+						<h2 id="job-detail-title" class="text-foreground text-lg font-semibold">
 							{getJobTypeDisplayName(displayJob.job_name)}
 						</h2>
 						<span
@@ -457,7 +457,7 @@
 				</div>
 				<button
 					type="button"
-					class="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
+					class="text-muted-foreground hover:bg-muted hover:text-muted-foreground rounded-lg p-2 transition-colors"
 					onclick={handleClose}
 					aria-label="Close modal"
 				>
@@ -466,20 +466,20 @@
 			</div>
 
 			<!-- Status Section -->
-			<div class="border-b p-6 border-border">
+			<div class="border-border border-b p-6">
 				{#if displayJob.status === 'running' || displayJob.status === 'pending'}
 					<div class="mb-3">
 						{#if !indeterminate}
 							<div class="mb-1 flex items-center justify-between text-sm">
 								<span class="text-muted-foreground">Progress</span>
-								<span class="font-medium text-foreground">{displayJob.progress_percent || 0}%</span>
+								<span class="text-foreground font-medium">{displayJob.progress_percent || 0}%</span>
 							</div>
 						{/if}
-						<div class="h-3 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-muted">
+						<div class="dark:bg-muted h-3 w-full overflow-hidden rounded-full bg-gray-200">
 							{#if indeterminate}
 								<!-- Indeterminate progress bar with sliding animation -->
 								<div
-									class="bg-primary dark:bg-primary h-3 w-1/2 rounded-full animate-progress-indeterminate"
+									class="bg-primary dark:bg-primary animate-progress-indeterminate h-3 w-1/2 rounded-full"
 								></div>
 							{:else}
 								<!-- Determinate progress bar with percentage -->
@@ -491,12 +491,12 @@
 						</div>
 					</div>
 					{#if eta && !indeterminate}
-						<p class="text-sm text-muted-foreground">{eta}</p>
+						<p class="text-muted-foreground text-sm">{eta}</p>
 					{:else if !indeterminate}
-						<p class="text-sm text-muted-foreground">Determining ETA...</p>
+						<p class="text-muted-foreground text-sm">Determining ETA...</p>
 					{/if}
 					{#if displayJob.progress_message}
-						<p class="mt-1 text-sm text-muted-foreground">
+						<p class="text-muted-foreground mt-1 text-sm">
 							{displayJob.progress_message}
 						</p>
 					{/if}
@@ -505,7 +505,7 @@
 						type="button"
 						onclick={handleCancelJob}
 						disabled={isCancelling}
-						class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 bg-card"
+						class="bg-card mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
 					>
 						<StopCircle class="h-4 w-4" />
 						{isCancelling ? t('jobProgress.cancelling') : t('jobProgress.cancelJob')}
@@ -517,20 +517,20 @@
 						{displayJob.error || 'Job failed. Check logs for details.'}
 					</p>
 				{:else if displayJob.status === 'cancelled'}
-					<p class="text-sm text-muted-foreground">Job was cancelled.</p>
+					<p class="text-muted-foreground text-sm">Job was cancelled.</p>
 				{/if}
 			</div>
 
 			<!-- Logs Section -->
 			<div class="p-6">
 				<div class="mb-3 flex items-center justify-between">
-					<h3 class="text-sm font-medium text-foreground">Execution Logs</h3>
+					<h3 class="text-foreground text-sm font-medium">Execution Logs</h3>
 
 					<!-- Log Level Selector -->
 					<div class="level-dropdown relative">
 						<button
 							type="button"
-							class="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors dark:border-border dark:text-muted-foreground bg-card hover:bg-muted"
+							class="dark:border-border dark:text-muted-foreground bg-card hover:bg-muted flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors"
 							onclick={() => (showLevelDropdown = !showLevelDropdown)}
 						>
 							<span class="capitalize">{selectedLevel}</span>
@@ -539,14 +539,14 @@
 
 						{#if showLevelDropdown}
 							<div
-								class="absolute right-0 z-10 mt-1 w-32 rounded-lg border py-1 shadow-lg bg-card border-border"
+								class="bg-card border-border absolute right-0 z-10 mt-1 w-32 rounded-lg border py-1 shadow-lg"
 							>
 								{#each ['debug', 'info', 'warn', 'error'] as const as level}
 									<button
 										type="button"
 										class="flex w-full items-center px-3 py-2 text-left text-sm {selectedLevel ===
 										level
-											? 'bg-gray-100 dark:bg-muted'
+											? 'dark:bg-muted bg-gray-100'
 											: ''} hover:bg-muted"
 										onclick={() => selectLevel(level)}
 									>
@@ -562,19 +562,21 @@
 				<div
 					bind:this={logsContainer}
 					onscroll={handleScroll}
-					class="overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs dark:bg-background border-border"
+					class="dark:bg-background border-border overflow-y-auto rounded-lg border bg-gray-50 p-3 font-mono text-xs"
 					style="height: 256px; min-height: 256px; max-height: 256px;"
 				>
 					{#if isLoadingLogs}
-						<div class="flex h-full items-center justify-center text-muted-foreground">
+						<div class="text-muted-foreground flex h-full items-center justify-center">
 							Loading logs...
 						</div>
 					{:else if logsError}
-						<div class="text-muted-foreground flex h-full flex-col items-center justify-center gap-1 text-center text-sm">
+						<div
+							class="text-muted-foreground flex h-full flex-col items-center justify-center gap-1 text-center text-sm"
+						>
 							<span class="text-amber-500">{logsError}</span>
 						</div>
 					{:else if groupedLogs.length === 0}
-						<div class="flex h-full items-center justify-center text-muted-foreground">
+						<div class="text-muted-foreground flex h-full items-center justify-center">
 							No logs available
 						</div>
 					{:else}
@@ -585,7 +587,7 @@
 								>
 								{#if log.count > 1}
 									<span
-										class="flex-shrink-0 rounded bg-gray-200 px-1.5 text-gray-600 dark:bg-muted dark:text-muted-foreground"
+										class="dark:bg-muted dark:text-muted-foreground flex-shrink-0 rounded bg-gray-200 px-1.5 text-gray-600"
 										>x{log.count}</span
 									>
 								{/if}

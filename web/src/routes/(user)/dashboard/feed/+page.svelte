@@ -185,7 +185,7 @@
 						</div>
 					{/if}
 					<div class="p-5">
-						<div class="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+						<div class="text-muted-foreground mb-2 flex items-center gap-2 text-xs">
 							<Calendar class="h-3 w-3" />
 							{new Date(entry.entry_date).toLocaleDateString(undefined, {
 								weekday: 'long',
@@ -208,7 +208,7 @@
 							{#if entry.body.length > 500}
 								<a
 									href={entry.username ? `/u/${entry.username}/trips/${entry.trip_id}` : '#'}
-									class="text-primary hover:underline mt-2 inline-block text-sm font-medium"
+									class="text-primary mt-2 inline-block text-sm font-medium hover:underline"
 								>
 									Read more →
 								</a>

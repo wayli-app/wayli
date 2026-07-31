@@ -70,25 +70,25 @@
 
 <div class="space-y-4">
 	<div class="relative">
-		<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+		<Search class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
 		<input
 			type="text"
 			bind:value={searchQuery}
 			placeholder={t('trips.searchTrips')}
-			class="w-full rounded-md border border-border bg-white py-2 pr-4 pl-10 text-sm placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+			class="border-border focus:border-primary focus:ring-primary w-full rounded-md border bg-white py-2 pr-4 pl-10 text-sm placeholder:text-gray-400 focus:ring-1 focus:outline-none"
 		/>
 	</div>
 
-	<div class="rounded-lg border border-border bg-white dark:border-border dark:bg-card">
+	<div class="border-border dark:border-border dark:bg-card rounded-lg border bg-white">
 		<table class="w-full">
 			<thead>
-				<tr class="border-b border-border bg-white dark:border-border dark:bg-card">
+				<tr class="border-border dark:border-border dark:bg-card border-b bg-white">
 					<th class="w-8 px-6 py-4">
-						<input type="checkbox" class="rounded border-gray-300 dark:border-border" />
+						<input type="checkbox" class="dark:border-border rounded border-gray-300" />
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
+							class="hover:text-primary dark:hover:text-primary text-foreground flex cursor-pointer items-center gap-1 text-left text-sm font-medium"
 							onclick={() => toggleSort('title')}
 						>
 							Trip Name
@@ -105,7 +105,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
+							class="hover:text-primary dark:hover:text-primary text-foreground flex cursor-pointer items-center gap-1 text-left text-sm font-medium"
 							onclick={() => toggleSort('labels')}
 						>
 							Labels
@@ -122,7 +122,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
+							class="hover:text-primary dark:hover:text-primary text-foreground flex cursor-pointer items-center gap-1 text-left text-sm font-medium"
 							onclick={() => toggleSort('distance')}
 						>
 							Distance
@@ -139,7 +139,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
+							class="hover:text-primary dark:hover:text-primary text-foreground flex cursor-pointer items-center gap-1 text-left text-sm font-medium"
 							onclick={() => toggleSort('startDate')}
 						>
 							Start Date
@@ -156,7 +156,7 @@
 					</th>
 					<th class="px-6 py-4">
 						<button
-							class="hover:text-primary dark:hover:text-primary flex cursor-pointer items-center gap-1 text-left text-sm font-medium text-foreground"
+							class="hover:text-primary dark:hover:text-primary text-foreground flex cursor-pointer items-center gap-1 text-left text-sm font-medium"
 							onclick={() => toggleSort('duration')}
 						>
 							Duration
@@ -171,20 +171,20 @@
 							{/if}
 						</button>
 					</th>
-					<th class="px-6 py-4 text-sm font-medium text-foreground">Countries</th>
-					<th class="px-6 py-4 text-sm font-medium text-foreground">Actions</th>
+					<th class="text-foreground px-6 py-4 text-sm font-medium">Countries</th>
+					<th class="text-foreground px-6 py-4 text-sm font-medium">Actions</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each sortedTrips as trip (trip.title)}
 					<tr
-						class="border-b border-border hover:bg-muted dark:border-border dark:hover:bg-muted"
+						class="border-border hover:bg-muted dark:border-border dark:hover:bg-muted border-b"
 						onmouseenter={() => handleRowHover(trip)}
 					>
 						<td class="w-8 px-6 py-4">
-							<input type="checkbox" class="rounded border-gray-300 dark:border-border" />
+							<input type="checkbox" class="dark:border-border rounded border-gray-300" />
 						</td>
-						<td class="px-6 py-4 text-sm font-medium text-foreground">{trip.title}</td>
+						<td class="text-foreground px-6 py-4 text-sm font-medium">{trip.title}</td>
 						<td class="px-6 py-4">
 							<div class="flex gap-1">
 								{#each trip.labels as label (label)}
@@ -207,9 +207,9 @@
 								{/each}
 							</div>
 						</td>
-						<td class="px-6 py-4 text-sm text-muted-foreground">{trip.distance}</td>
-						<td class="px-6 py-4 text-sm text-muted-foreground">{trip.startDate}</td>
-						<td class="px-6 py-4 text-sm text-muted-foreground">{trip.duration}</td>
+						<td class="text-muted-foreground px-6 py-4 text-sm">{trip.distance}</td>
+						<td class="text-muted-foreground px-6 py-4 text-sm">{trip.startDate}</td>
+						<td class="text-muted-foreground px-6 py-4 text-sm">{trip.duration}</td>
 						<td class="px-6 py-4">
 							<div class="flex gap-1">
 								{#each trip.countries as country (country)}
@@ -223,26 +223,26 @@
 						</td>
 						<td class="px-6 py-4">
 							<div class="flex justify-end gap-2">
-								<button class="cursor-pointer rounded p-1 hover:bg-muted" aria-label="Edit">
-									<Edit class="h-4 w-4 text-muted-foreground" />
+								<button class="hover:bg-muted cursor-pointer rounded p-1" aria-label="Edit">
+									<Edit class="text-muted-foreground h-4 w-4" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 hover:bg-muted"
+									class="hover:bg-muted cursor-pointer rounded p-1"
 									aria-label="View points of interest"
 								>
-									<MapPin class="h-4 w-4 text-muted-foreground" />
+									<MapPin class="text-muted-foreground h-4 w-4" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 hover:bg-muted"
+									class="hover:bg-muted cursor-pointer rounded p-1"
 									aria-label="View statistics"
 								>
-									<BarChart2 class="h-4 w-4 text-muted-foreground" />
+									<BarChart2 class="text-muted-foreground h-4 w-4" />
 								</button>
-								<button class="cursor-pointer rounded p-1 hover:bg-muted" aria-label="View on map">
-									<Map class="h-4 w-4 text-muted-foreground" />
+								<button class="hover:bg-muted cursor-pointer rounded p-1" aria-label="View on map">
+									<Map class="text-muted-foreground h-4 w-4" />
 								</button>
 								<button
-									class="cursor-pointer rounded p-1 text-red-500 hover:bg-muted hover:text-red-600"
+									class="hover:bg-muted cursor-pointer rounded p-1 text-red-500 hover:text-red-600"
 									aria-label="Delete"
 									onclick={() => onDelete(trip)}
 								>
@@ -258,7 +258,7 @@
 
 	<div class="flex items-center gap-2">
 		<button
-			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-muted dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-muted"
+			class="border-border hover:bg-muted dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-muted cursor-pointer rounded-md border bg-white p-2 text-gray-600"
 			class:bg-primary={view === 'list'}
 			class:text-white={view === 'list'}
 			class:border-primary={view === 'list'}
@@ -267,7 +267,7 @@
 			<List class="h-5 w-5" />
 		</button>
 		<button
-			class="cursor-pointer rounded-md border border-border bg-white p-2 text-gray-600 hover:bg-muted dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-muted"
+			class="border-border hover:bg-muted dark:border-border dark:bg-card dark:text-muted-foreground dark:hover:bg-muted cursor-pointer rounded-md border bg-white p-2 text-gray-600"
 			class:bg-primary={view === 'tiles'}
 			class:text-white={view === 'tiles'}
 			class:border-primary={view === 'tiles'}

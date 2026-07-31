@@ -222,7 +222,10 @@ describe('detectTransportModes', () => {
 		const speeds1 = [100, 100, 100, 100, 100, 100, 130]; // long steady, then a blip
 		const speeds2 = [100, 100, 100, 100, 100, 100, 100];
 		const page1 = run(speeds1, { headings: speeds1.map(() => 0), startTs: 0 });
-		const page2 = run(speeds2, { headings: speeds2.map(() => 0), startTs: speeds1.length * 10 * SEC });
+		const page2 = run(speeds2, {
+			headings: speeds2.map(() => 0),
+			startTs: speeds1.length * 10 * SEC
+		});
 		const dec1 = detectTransportModes(page1);
 		const dec2 = detectTransportModes(page2, { prevObs: page1.slice(-6) });
 		const modes = [...dec1, ...dec2].map((d) => d.mode);

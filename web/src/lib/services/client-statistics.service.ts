@@ -2,7 +2,11 @@
 // Client-side statistics calculation service for processing tracker data incrementally
 
 import { fluxbase } from '$lib/fluxbase';
-import { detectTransportModes, type ModeObservation, type DetectionContext } from '$lib/services/transport-mode';
+import {
+	detectTransportModes,
+	type ModeObservation,
+	type DetectionContext
+} from '$lib/services/transport-mode';
 import { haversine } from '$lib/utils/multi-point-speed';
 import {
 	isAtTrainStation,
@@ -283,7 +287,10 @@ export class ClientStatisticsService {
 			// otherwise be cached for 24h and block the real data from loading.
 			if (this.calendarPoints.length >= 3) {
 				try {
-					sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: this.calendarPoints }));
+					sessionStorage.setItem(
+						cacheKey,
+						JSON.stringify({ ts: Date.now(), data: this.calendarPoints })
+					);
 				} catch {
 					/* quota / unavailable — ignore */
 				}
@@ -293,7 +300,6 @@ export class ClientStatisticsService {
 			console.error('❌ loadCalendarHistory failed:', err);
 		}
 	}
-
 
 	/** Expose the trailing-window points for the calendar/streaks widgets. */
 	getCalendarPoints(): TrackerDataPoint[] {
@@ -552,7 +558,12 @@ export class ClientStatisticsService {
 			const currentCoords = this.extractCoordinates(point);
 			const nextCoords = nextPoint ? this.extractCoordinates(nextPoint) : null;
 			if (currentCoords && nextCoords) {
-				const distance = haversine(currentCoords[1], currentCoords[0], nextCoords[1], nextCoords[0]);
+				const distance = haversine(
+					currentCoords[1],
+					currentCoords[0],
+					nextCoords[1],
+					nextCoords[0]
+				);
 				const timeSpent = this.calculateTimeSpent(point, nextPoint!);
 				if (timeSpent > 0) return (distance / timeSpent) * 3.6;
 			}
@@ -570,15 +581,15 @@ export class ClientStatisticsService {
 			const coords = this.extractCoordinates(point);
 			if (!coords) return;
 			liveIndices.push(index);
-				liveObservations.push({
-					timestamp: new Date(point.recorded_at).getTime(),
-					lat: coords[1],
-					lng: coords[0],
-					speed: velocities[index],
-					heading: point.heading ?? null,
-					accuracy: point.accuracy ?? null,
-					geocode: this.createGeocodeFeature(point)
-				});
+			liveObservations.push({
+				timestamp: new Date(point.recorded_at).getTime(),
+				lat: coords[1],
+				lng: coords[0],
+				speed: velocities[index],
+				heading: point.heading ?? null,
+				accuracy: point.accuracy ?? null,
+				geocode: this.createGeocodeFeature(point)
+			});
 		});
 
 		// Run the HMM over all live points in the batch at once. They're in

@@ -159,7 +159,7 @@
 </script>
 
 <div class="relative">
-	<label for="address-input" class="mb-2 block text-sm font-medium text-muted-foreground">
+	<label for="address-input" class="text-muted-foreground mb-2 block text-sm font-medium">
 		{label}
 		{#if required}
 			<span class="text-red-500">*</span>
@@ -176,14 +176,14 @@
 		{required}
 		oninput={handleInput}
 		onkeydown={handleKeydown}
-		class="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:ring-primary focus:outline-none dark:border-border dark:bg-card dark:text-foreground"
+		class="focus:ring-primary dark:border-border dark:bg-card dark:text-foreground w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 transition focus:ring-2 focus:outline-none"
 	/>
 
 	{#if showClearButton && inputValue}
 		<button
 			type="button"
 			aria-label="Clear address"
-			class="absolute top-2 right-2 rounded p-1 text-muted-foreground hover:bg-muted focus:ring-2 focus:ring-primary focus:outline-none dark:hover:bg-muted"
+			class="text-muted-foreground hover:bg-muted focus:ring-primary dark:hover:bg-muted absolute top-2 right-2 rounded p-1 focus:ring-2 focus:outline-none"
 			onclick={clearAddress}
 		>
 			✕
@@ -206,29 +206,29 @@
 	<!-- Suggestions Dropdown -->
 	{#if showSuggestions}
 		<div
-			class="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 shadow-lg dark:border-border bg-card"
+			class="dark:border-border bg-card absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gray-300 shadow-lg"
 		>
 			{#if suggestions.length > 0}
 				{#each suggestions as suggestion, index (suggestion.display_name + index)}
 					<button
 						type="button"
 						data-testid="address-suggestion"
-						class="w-full px-4 py-2 text-left focus:bg-muted focus:outline-none dark:focus:bg-muted {selectedIndex ===
+						class="focus:bg-muted dark:focus:bg-muted w-full px-4 py-2 text-left focus:outline-none {selectedIndex ===
 						index
-							? 'bg-gray-100 dark:bg-muted'
+							? 'dark:bg-muted bg-gray-100'
 							: ''} hover:bg-muted"
 						onclick={() => selectAddress(suggestion)}
 					>
-						<div class="text-sm text-foreground">{suggestion.display_name}</div>
+						<div class="text-foreground text-sm">{suggestion.display_name}</div>
 						{#if suggestion.coordinates}
-							<div class="text-xs text-muted-foreground">
+							<div class="text-muted-foreground text-xs">
 								{suggestion.coordinates.lat.toFixed(4)}, {suggestion.coordinates.lng.toFixed(4)}
 							</div>
 						{/if}
 					</button>
 				{/each}
 			{:else if searchError}
-				<div class="px-4 py-2 text-sm text-muted-foreground">
+				<div class="text-muted-foreground px-4 py-2 text-sm">
 					{searchError}
 				</div>
 			{/if}
