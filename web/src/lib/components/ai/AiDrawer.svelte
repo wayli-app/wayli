@@ -15,7 +15,8 @@
 		Wrench,
 		Pencil,
 		Share2,
-		Square
+		Square,
+		Map
 	} from 'lucide-svelte';
 	import {
 		ChatService,
@@ -35,7 +36,7 @@
 	import { translate, currentLocale } from '$lib/i18n';
 	import { get } from 'svelte/store';
 	import { aiDrawer, type AiPageContext, type PlanSuggestion } from '$lib/stores/ai-drawer';
-	import { fade, slide } from 'svelte/transition';
+	import { fade, fly, slide } from 'svelte/transition';
 	import { focusTrap } from '$lib/utils/focus-trap';
 	import { goto } from '$app/navigation';
 
@@ -103,6 +104,37 @@
 	// Signature of the last plan context we sent to the model, used to detect
 	// when the trip/plan changed mid-conversation so we can re-inject context.
 	let lastSentPlanSig = '';
+
+	// Mobile bottom-sheet drag state. The sheet starts expanded; dragging the
+	// grabber handle down translates the panel, and releasing past a threshold
+	// dismisses it. Desktop ignores these (the sheet is md:hidden-corrected).
+	let sheetDragY = $state(0); // current vertical translate during a drag (px)
+	let isDraggingSheet = $state(false);
+	let dragStartY = 0;
+	const SHEET_DISMISS_THRESHOLD = 120; // px dragged down to close
+
+	function onSheetPointerDown(e: PointerEvent) {
+		// Only the grabber handle initiates a drag (it has data-grabber).
+		if (!(e.target as HTMLElement)?.closest('[data-grabber]')) return;
+		isDraggingSheet = true;
+		dragStartY = e.clientY;
+		(e.target as Element).setPointerCapture?.(e.pointerId);
+	}
+
+	function onSheetPointerMove(e: PointerEvent) {
+		if (!isDraggingSheet) return;
+		// Only allow dragging downward (negative would pull the sheet up off-screen).
+		sheetDragY = Math.max(0, e.clientY - dragStartY);
+	}
+
+	function onSheetPointerUp() {
+		if (!isDraggingSheet) return;
+		isDraggingSheet = false;
+		if (sheetDragY > SHEET_DISMISS_THRESHOLD) {
+			aiDrawer.close();
+		}
+		sheetDragY = 0;
+	}
 
 	let chatService: ChatService | null = null;
 	// ponytail: pageContext is already reactive ($derived from $aiDrawer).
@@ -1042,22 +1074,46 @@
 		transition:fade={{ duration: 150 }}
 	></button>
 
-	<!-- Drawer -->
+	<!-- Drawer: bottom-sheet on mobile (md:hidden layout), right-side panel on
+	     desktop. The grabber handle (mobile only) drives drag-to-dismiss. -->
 	<aside
 		use:focusTrap={true}
 		role="dialog"
 		aria-modal="true"
 		aria-label={t('ai.title')}
-		class="bg-card border-border fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l shadow-2xl md:w-[28rem] lg:w-[32rem]"
-		transition:slide={{ duration: 250 }}
+		onpointerdown={onSheetPointerDown}
+		onpointermove={onSheetPointerMove}
+		onpointerup={onSheetPointerUp}
+		onpointercancel={onSheetPointerUp}
+		class="bg-card border-border fixed z-50 flex flex-col shadow-2xl transition-transform duration-200 {isDraggingSheet
+			? '!transition-none'
+			: ''} inset-x-0 top-auto bottom-0 max-h-[90vh] w-full rounded-t-2xl border-t md:inset-y-0 md:top-0 md:right-0 md:left-auto md:max-h-none md:w-[28rem] md:rounded-none md:border-0 md:border-l lg:w-[32rem]"
+		style="transform: translateY({sheetDragY}px)"
+		transition:fly={{ duration: 250, y: 24 }}
 	>
+		<!-- Grabber handle (mobile only) — drag down to dismiss -->
+		<div
+			data-grabber
+			class="flex shrink-0 cursor-grab justify-center pt-2 active:cursor-grabbing md:hidden"
+			aria-hidden="true"
+		>
+			<span class="bg-muted h-1.5 w-10 rounded-full"></span>
+		</div>
+
 		<!-- Header -->
 		<header class="border-border flex items-center justify-between border-b p-3">
-			<div class="flex items-center gap-2">
-				<Sparkles class="text-primary h-4 w-4" />
-				<h2 class="text-foreground text-sm font-semibold">{t('ai.title')}</h2>
-				<span class="text-muted-foreground text-xs">·</span>
-				<span class="text-muted-foreground truncate text-xs">{contextLabel}</span>
+			<div class="flex min-w-0 items-center gap-2">
+				<!-- Mode icon: route-aware (plan vs. data analysis) -->
+				{#if pageContext.page === 'plan'}
+					<Map class="text-primary h-4 w-4 flex-shrink-0" />
+				{:else}
+					<Sparkles class="text-primary h-4 w-4 flex-shrink-0" />
+				{/if}
+				<h2 class="text-foreground shrink-0 text-sm font-semibold">{t('ai.title')}</h2>
+				<span class="text-muted-foreground shrink-0 text-xs">·</span>
+				<span class="text-muted-foreground truncate text-xs" title={contextLabel}>
+					{contextLabel}
+				</span>
 			</div>
 			<div class="flex items-center gap-1">
 				<button
@@ -1614,7 +1670,7 @@
 
 		<!-- Input -->
 		<div
-			class="border-border flex items-end gap-2 border-t p-3"
+			class="border-border relative flex items-end gap-2 border-t p-3"
 			style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
 		>
 			<textarea
@@ -1623,10 +1679,16 @@
 				onkeydown={handleKeydown}
 				oninput={autosizeTextarea}
 				rows="1"
+				maxlength="4000"
 				placeholder={t('ai.placeholder')}
 				aria-label={t('ai.placeholder')}
 				class="border-border focus:ring-primary max-h-32 flex-1 resize-none rounded-lg border bg-transparent px-3 py-2 text-sm leading-relaxed focus:ring-2 focus:outline-none"
 				disabled={inputDisabled}></textarea>
+			{#if input.length > 500}
+				<span class="text-muted-foreground pointer-events-none absolute bottom-1 left-3 text-[9px]">
+					{input.length}/4000
+				</span>
+			{/if}
 			{#if isSending}
 				<button
 					type="button"
