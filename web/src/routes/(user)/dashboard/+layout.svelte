@@ -33,11 +33,9 @@
 	let aiEnabled = $state(true); // Default to true until we know otherwise
 	// One-time discoverability hint on the AI FAB: a pulse + "new" badge until
 	// the user opens the drawer (or dismisses). Persisted in localStorage so it
-	// doesn't nag returning users.
-	let aiFabHintDismissed = $state(
-		typeof localStorage !== 'undefined' &&
-			localStorage.getItem('wayli.ai.fab_hint_dismissed') === '1'
-	);
+	// doesn't nag returning users. Initialized false (SSR-safe) and read in
+	// onMount — localStorage isn't available during server rendering.
+	let aiFabHintDismissed = $state(false);
 
 	let isInitializing = true;
 	// Get realtime connection status from job store
@@ -162,6 +160,8 @@
 	});
 
 	onMount(async () => {
+		// Read the persisted FAB-hint dismissal now that we're in the browser.
+		aiFabHintDismissed = localStorage.getItem('wayli.ai.fab_hint_dismissed') === '1';
 		try {
 			// Session manager is already initialized in root layout
 			// Wait a bit for any pending auth state changes to settle
