@@ -2557,7 +2557,16 @@ $$;
 
 COMMENT ON FUNCTION handle_new_user() IS 'Trigger function to create user_profiles and user_preferences entries for new users.
     First user is automatically assigned admin role using atomic row-level locking to prevent race conditions.
-    Uses empty search_path for security (SECURITY DEFINER function).';
+    Uses empty search_path for security (SECURITY DEFINER function).
+
+    NOTE: This function is currently DEAD CODE. The matching CREATE TRIGGER on
+    auth.users cannot live in public.sql because Fluxbase owns and re-applies
+    the auth schema on every restart (wiping triggers Wayli attaches to
+    auth.users). Profile creation is instead handled app-side by
+    ensureUserProfile() in web/src/lib/services/session/user-profile-bootstrap.ts,
+    called from the signup, signin, and OAuth-callback flows. Kept here as
+    documentation of the original intent and as a reference for the first-user
+    admin assignment logic.';
 
 --
 -- Name: is_current_user_admin(); Type: FUNCTION; Schema: -; Owner: -

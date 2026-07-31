@@ -5,6 +5,7 @@
 	import { t } from '$lib/i18n';
 
 	import { fluxbase } from '$lib/fluxbase';
+	import { ensureUserProfile } from '$lib/services/session/user-profile-bootstrap';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -79,12 +80,10 @@
 			if (userError) throw userError;
 
 			if (userData && userData.user) {
-				// Check onboarding status
-				const { data: profile } = await fluxbase
-					.from<Record<string, any>>('user_profiles')
-					.select('onboarding_completed, first_login_at')
-					.eq('id', userData.user.id)
-					.single();
+				// OAuth providers don't always flow through the signup page, so
+				// ensure the profile exists here too. Idempotent; handles
+				// first-user-admin.
+				const profile = await ensureUserProfile({ userId: userData.user.id });
 
 				// If first-time user, update first_login_at and redirect to onboarding
 				if (!profile?.onboarding_completed) {

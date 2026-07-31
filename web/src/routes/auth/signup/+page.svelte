@@ -6,6 +6,7 @@
 	import { translate } from '$lib/i18n';
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
+	import { ensureUserProfile } from '$lib/services/session/user-profile-bootstrap';
 	import { readSetting } from '$lib/utils/settings';
 
 	import { goto } from '$app/navigation';
@@ -145,12 +146,9 @@
 			if (user && !hasRedirected) {
 				hasRedirected = true;
 
-				// Check if this is a new user who needs onboarding
-				const { data: profile } = await fluxbase
-					.from<Record<string, any>>('user_profiles')
-					.select('onboarding_completed, first_login_at')
-					.eq('id', user.id)
-					.single();
+				// Ensure the profile row exists (covers email-verification and
+				// any path where the store fires before the explicit check).
+				const profile = await ensureUserProfile({ userId: user.id });
 
 				// If first-time user, redirect to onboarding
 				if (!profile?.onboarding_completed) {
@@ -233,14 +231,18 @@
 
 				// Explicitly check profile and redirect (don't rely only on store subscription)
 				try {
-					const { data: profile } = await fluxbase
-						.from<Record<string, any>>('user_profiles')
-						.select('onboarding_completed, first_login_at')
-						.eq('id', data.user.id)
-						.single();
+					// Ensure the profile row exists. The old auth.users trigger
+					// can't survive Fluxbase's declarative schema, so we create
+					// the profile app-side. Idempotent; handles first-user-admin.
+					const profile = await ensureUserProfile({
+						userId: data.user.id,
+						first_name: firstName.trim(),
+						last_name: lastName.trim(),
+						full_name: `${firstName.trim()} ${lastName.trim()}`.trim()
+					});
 
 					// Update first_login_at if needed
-					if (!profile?.first_login_at) {
+					if (profile && !profile.first_login_at) {
 						await fluxbase
 							.from<Record<string, any>>('user_profiles')
 							.update({ first_login_at: new Date().toISOString() })
