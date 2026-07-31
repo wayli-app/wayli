@@ -8,6 +8,7 @@
       "add": "Add",
       "remove": "Remove",
       "close": "Close",
+      "send": "Send",
       "back": "Back",
       "next": "Next",
       "previous": "Previous",
@@ -93,6 +94,9 @@
       "explore": "Explore",
       "feed": "Feed",
       "friends": "Friends"
+    },
+    "badges": {
+      "new": "NEW"
     },
     "validation": {
       "fillAllFields": "Please fill in all fields",
@@ -442,6 +446,8 @@
     "importDataDesc": "Have location data from another app? Import it to continue your journey",
     "generateTrips": "Auto-detect trips",
     "generateTripsDesc": "Let Wayli analyze your location data and auto-detect trips",
+    "tryAi": "Try the AI assistant",
+    "tryAiDesc": "Ask about your trips, plan an itinerary, or recall places you visited",
     "configureAI": "Configure AI provider",
     "configureAIDesc": "Set up an AI provider to enable smart features like trip summaries",
     "getStarted": "Get Started",
@@ -1769,6 +1775,11 @@
       "journalRecent": "What did I write about recently?"
     },
     "reasoning": "Reasoning · {count} step(s)",
+    "routeTooltip": "Steps the assistant took this turn",
+    "webSearched": "Searched the web",
+    "webNotSearched": "Web search was planned but didn't run",
+    "technicalDetails": "Technical details",
+    "route": "Steps",
     "update": "Update",
     "approve": "Approve",
     "reject": "Reject",

@@ -332,6 +332,17 @@
 		return t('ai.steps.working');
 	}
 
+	// Translate an internal agent codename (supervisor/sql/synthesizer/…) to a
+	// friendly, localized label for the reasoning panel. Unknown agents fall
+	// back to the raw name (still useful in the share/debug transcript).
+	function friendlyAgent(name: string | undefined): string {
+		if (!name) return '';
+		const key = `ai.agents.${name}`;
+		const label = t(key);
+		// t() falls back to the key string when missing — detect that.
+		return label === key ? name : label;
+	}
+
 	// Stop the in-flight generation. The service cancels the supervisor turn;
 	// we clear the trailing placeholder + step indicator so the UI settles.
 	function stopGeneration() {
@@ -894,6 +905,13 @@
 		messages = [...messages, { role: 'assistant', content: '...' }];
 		scrollToBottom();
 
+		// Notify onboarding (and any listener) that the user engaged with the
+		// assistant for the first time, so the "Try the AI assistant" checklist
+		// step can be marked complete.
+		if (isFirstUserMessage) {
+			window.dispatchEvent(new CustomEvent('ai-first-message'));
+		}
+
 		try {
 			await chatService!.sendMessage(
 				msgToSend,
@@ -1275,27 +1293,23 @@
 												)}
 												<span
 													class="bg-muted text-foreground ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium"
-													title="Agents the supervisor routed to this turn"
+													title={t('ai.routeTooltip')}
 												>
 													{#each route as agent, ri (agent)}
 														{#if ri > 0}<span class="opacity-40">→</span>{/if}
-														<span>{agent}</span>
+														<span>{friendlyAgent(agent)}</span>
 													{/each}
 												</span>
-												<span
-													class="ml-0.5 inline-flex items-center gap-0.5 text-[9px] {usedWeb
-														? webToolCalled
+												{#if usedWeb}
+													<span
+														class="ml-0.5 inline-flex items-center gap-0.5 text-[9px] {webToolCalled
 															? 'text-green-600 dark:text-green-400'
-															: 'text-amber-600 dark:text-amber-400'
-														: ''}"
-													title={usedWeb
-														? webToolCalled
-															? 'Web agent ran and searched'
-															: 'Web agent was routed but did not search (check audit log / Tavily key)'
-														: ''}
-												>
-													{#if usedWeb}{webToolCalled ? '🔍' : '⚠️'}{/if}
-												</span>
+															: 'text-amber-600 dark:text-amber-400'}"
+														title={webToolCalled ? t('ai.webSearched') : t('ai.webNotSearched')}
+													>
+														{webToolCalled ? '🔍' : '⚠️'}
+													</span>
+												{/if}
 											{/if}
 											<ChevronRight
 												class="ml-auto h-3 w-3 transition-transform {openThoughts[i]
@@ -1320,9 +1334,10 @@
 													{:else if thought.kind === 'plan' && thought.plan}
 														<Sparkles class="text-primary mt-0.5 h-3 w-3 flex-shrink-0" />
 														<div class="min-w-0 flex-1">
-															<span class="text-foreground">Route:</span>
+															<span class="text-foreground">{t('ai.route')}:</span>
 															<span class="opacity-80"
-																>{thought.plan.route?.join(' → ') || '—'}</span
+																>{thought.plan.route?.map((a) => friendlyAgent(a)).join(' → ') ||
+																	'—'}</span
 															>
 															{#if thought.plan.sub_questions?.length}
 																<ul class="mt-0.5 list-disc pl-4 text-[10px] opacity-70">
@@ -1422,7 +1437,7 @@
 														: action === 'approve'
 															? `${t('ai.approve')}: ${sug.title}`
 															: action === 'update'
-																? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
+																? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? sug.title}`
 																: sug.title}
 
 											{#if action === 'create' && !isAdded && (sug.target ?? 'plan_item') === 'plan_item'}
@@ -1436,32 +1451,31 @@
 													<Icon class="h-3 w-3 flex-shrink-0" />
 													<span class="min-w-0 flex-1 truncate">{label}</span>
 													{#if sug.address}
-														<span class="text-muted-foreground flex-shrink-0 truncate text-[10px]"
-															>📍 {sug.address.slice(0, 20)}{sug.address.length > 20
-																? '…'
-																: ''}</span
+														<span
+															class="text-muted-foreground max-w-[40%] flex-shrink-0 truncate text-[10px]"
+															>📍 {sug.address}</span
 														>
 													{/if}
 												</button>
 												{#if isExpanded}
 													{@const edit = chipEdits[key]}
 													<div class="bg-muted/50 border-border ml-4 rounded-lg border p-2.5">
-														<div class="mb-2 flex items-center gap-2 text-[10px]">
+														<div class="mb-2 flex items-center gap-2 text-[11px]">
 															<span class="text-foreground truncate font-medium">{sug.title}</span>
 															{#if chipGeocoding.has(key)}
-																<Loader2 class="text-muted-foreground h-2.5 w-2.5 animate-spin" />
+																<Loader2 class="text-muted-foreground h-3 w-3 animate-spin" />
 															{/if}
 														</div>
 														{#if edit}
 															<div class="space-y-2">
-																<div class="flex items-center gap-2">
+																<div class="flex flex-wrap items-center gap-2">
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('common.day')}:
 																		<select
 																			bind:value={edit.day}
-																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] rounded border px-2 py-1 text-[11px]"
 																		>
 																			{#each Array.from({ length: (pageContext.num_days as number) || 3 }, (_, idx) => idx + 1) as dayNum}
 																				<option value={dayNum}>{t('common.day')} {dayNum}</option>
@@ -1469,35 +1483,35 @@
 																		</select>
 																	</label>
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('ai.time')}:
 																		<input
 																			type="time"
 																			bind:value={edit.time}
 																			disabled={edit.noTime}
-																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px] disabled:opacity-40"
+																			class="border-border bg-card min-h-[32px] rounded border px-2 py-1 text-[11px] disabled:opacity-40"
 																		/>
 																	</label>
 																	<label
-																		class="text-muted-foreground flex items-center gap-0.5 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		<input
 																			type="checkbox"
 																			bind:checked={edit.noTime}
-																			class="h-2.5 w-2.5"
+																			class="h-3.5 w-3.5"
 																		/>
 																		{t('ai.noTime')}
 																	</label>
 																</div>
-																<div class="flex items-center gap-2">
+																<div class="flex flex-wrap items-center gap-2">
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('ai.type')}:
 																		<select
 																			bind:value={edit.type}
-																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] rounded border px-2 py-1 text-[11px]"
 																		>
 																			{#each ['sightseeing', 'food', 'activity', 'transport', 'accommodation', 'rest', 'shopping'] as typ}
 																				<option value={typ}>{typ}</option>
@@ -1505,7 +1519,7 @@
 																		</select>
 																	</label>
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('ai.cost')}:
 																		<input
@@ -1513,13 +1527,13 @@
 																			bind:value={edit.cost}
 																			step="0.01"
 																			placeholder="0"
-																			class="border-border bg-card w-16 rounded border px-1.5 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] w-20 rounded border px-2 py-1 text-[11px]"
 																		/>
 																		<input
 																			type="text"
 																			bind:value={edit.currency}
 																			placeholder="€"
-																			class="border-border bg-card w-8 rounded border px-1 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] w-12 rounded border px-2 py-1 text-[11px]"
 																		/>
 																	</label>
 																</div>
@@ -1528,23 +1542,23 @@
 																		type="text"
 																		bind:value={edit.address}
 																		placeholder={t('ai.addressPlaceholder') || 'Address'}
-																		class="border-border bg-card w-full rounded border px-1.5 py-0.5 text-[10px]"
+																		class="border-border bg-card min-h-[32px] w-full rounded border px-2 py-1 text-[11px]"
 																	/>
 																</div>
 																<div class="flex items-center justify-end gap-1.5 pt-1">
 																	<button
 																		type="button"
 																		onclick={() => toggleChip(key, sug)}
-																		class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-[10px]"
+																		class="text-muted-foreground hover:text-foreground min-h-[36px] rounded px-3 py-1 text-[11px]"
 																	>
 																		{t('common.actions.cancel')}
 																	</button>
 																	<button
 																		type="button"
 																		onclick={() => confirmAddChip(key, sug)}
-																		class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1 rounded px-2.5 py-1 text-[10px] font-medium"
+																		class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex min-h-[36px] items-center gap-1 rounded px-3 py-1 text-[11px] font-medium"
 																	>
-																		<Plus class="h-2.5 w-2.5" />
+																		<Plus class="h-3 w-3" />
 																		{t('ai.addToDay', { day: edit.day })}
 																	</button>
 																</div>
