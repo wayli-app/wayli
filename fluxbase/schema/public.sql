@@ -2885,6 +2885,12 @@ BEGIN
     -- Must check user_profiles (not auth.users) because the first auth.users
     -- row is being inserted RIGHT NOW and hasn't committed yet.
     IF NOT EXISTS (SELECT 1 FROM user_profiles LIMIT 1) THEN
+        -- BUG (in dead code): 'instance_admin' is NOT in the user_profiles_role_check
+        -- constraint (role IN ('user','admin','moderator','reader')) and would be
+        -- rejected. The correct value is 'admin' (matches is_current_user_admin,
+        -- sync_user_role_to_auth, and all RLS policies). This trigger is unwired
+        -- (Fluxbase wipes auth.users triggers on restart); first-user-admin is
+        -- now handled app-side by ensureUserProfile(). Do not resurrect as-is.
         NEW.role := 'instance_admin';
     END IF;
     RETURN NEW;
