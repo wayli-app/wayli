@@ -4647,6 +4647,35 @@ CREATE OR REPLACE VIEW my_trips WITH (security_barrier=true, security_invoker=tr
 
 COMMENT ON VIEW my_trips IS 'Secure view of trips filtered to current user. Use this for LLM queries.';
 
+-- ponytail: pending (auto-detected) trips are excluded from my_trips so that
+-- trip counts/summaries don't include un-confirmed detections. This separate
+-- view exposes them (same columns as my_trips) so the assistant can describe
+-- and act on detected trip suggestions. Mirrors the UI's loadPendingTrips split.
+CREATE OR REPLACE VIEW my_pending_trips WITH (security_barrier=true, security_invoker=true) AS
+ SELECT id,
+    title,
+    description,
+    start_date,
+    end_date,
+    status,
+    image_url,
+    labels,
+    metadata,
+    (metadata ->> 'dataPoints'::text)::integer AS data_points,
+    (metadata ->> 'tripDays'::text)::integer AS trip_days,
+    metadata ->> 'primaryCity'::text AS primary_city,
+    metadata ->> 'primaryCountryCode'::text AS primary_country_code,
+    array_to_string(ARRAY( SELECT jsonb_array_elements_text(trips.metadata -> 'visitedCities'::text) AS jsonb_array_elements_text), ', '::text) AS visited_cities,
+    array_to_string(ARRAY( SELECT jsonb_array_elements_text(trips.metadata -> 'visitedCountryCodes'::text) AS jsonb_array_elements_text), ', '::text) AS visited_country_codes,
+    created_at,
+    updated_at,
+    start_date AS started_at
+   FROM trips
+  WHERE user_id = auth.uid() AND status = 'pending'::text;
+
+
+COMMENT ON VIEW my_pending_trips IS 'Secure view of the current user''s auto-detected (pending) trips. Use for surfacing trip suggestions to approve/reject.';
+
 --
 -- Name: public_profiles; Type: VIEW; Schema: -; Owner: -
 --
@@ -6010,6 +6039,24 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 --
 
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE my_trips TO tenant_service;
+
+--
+-- Name: my_pending_trips; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT SELECT ON TABLE my_pending_trips TO authenticated;
+
+--
+-- Name: my_pending_trips; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE my_pending_trips TO service_role;
+
+--
+-- Name: my_pending_trips; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE my_pending_trips TO tenant_service;
 
 --
 -- Name: public_profiles; Type: PRIVILEGE; Schema: privileges; Owner: -

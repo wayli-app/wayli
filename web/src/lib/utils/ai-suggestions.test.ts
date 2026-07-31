@@ -122,6 +122,33 @@ describe('extractSuggestions', () => {
 		const content = '```json\n[{"day":1,"title":"A",},]\n```';
 		expect(extractSuggestions(content)).toHaveLength(1);
 	});
+
+	it('parses trip-composition suggestions (target: trip, approve/reject/create)', () => {
+		const content = `Here are your pending suggestions:
+
+\`\`\`json
+[
+  {"target":"trip","action":"approve","item_id":"abc","day":0,"title":"Detected Berlin"},
+  {"target":"trip","action":"reject","item_id":"def","day":0,"title":"Detected Rome"}
+]
+\`\`\``;
+		const out = extractSuggestions(content);
+		expect(out).toHaveLength(2);
+		expect(out[0].target).toBe('trip');
+		expect(out[0].action).toBe('approve');
+		expect(out[0].item_id).toBe('abc');
+		expect(out[1].action).toBe('reject');
+	});
+
+	it('parses a trip-create suggestion with date fields', () => {
+		const content =
+			'```json\n[{"target":"trip","action":"create","day":0,"title":"Lisbon","start_date":"2024-10-10","end_date":"2024-10-14","primary_city":"Lisbon"}]\n```';
+		const out = extractSuggestions(content);
+		expect(out).toHaveLength(1);
+		expect(out[0].target).toBe('trip');
+		expect(out[0].start_date).toBe('2024-10-10');
+		expect(out[0].end_date).toBe('2024-10-14');
+	});
 });
 
 describe('looksLikeUnparsedProposal', () => {

@@ -130,7 +130,8 @@
 	let canAcceptSuggestions = $derived(
 		(pageContext.page === 'plan' && aiDrawer.getAcceptSuggestionHandler() !== null) ||
 			aiDrawer.getAcceptHandler('want_to_visit') !== undefined ||
-			aiDrawer.getAcceptHandler('journal_draft') !== undefined
+			aiDrawer.getAcceptHandler('journal_draft') !== undefined ||
+			aiDrawer.getAcceptHandler('trip') !== undefined
 	);
 
 	$effect(() => {
@@ -1269,27 +1270,35 @@
 											{@const isExpanded = expandedChips.has(key)}
 											{@const isAdded = chipAdded.has(key) || isSuggestionAlreadyInPlan(sug)}
 											{@const chipClass =
-												action === 'delete'
+												action === 'delete' || action === 'reject'
 													? 'bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400'
 													: action === 'update'
 														? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400'
-														: isAdded
-															? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-															: 'bg-primary/10 hover:bg-primary/20 text-primary'}
+														: action === 'approve'
+															? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+															: isAdded
+																? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+																: 'bg-primary/10 hover:bg-primary/20 text-primary'}
 											{@const Icon =
-												action === 'delete'
+												action === 'delete' || action === 'reject'
 													? Trash2
 													: action === 'update'
 														? Pencil
-														: isAdded
+														: action === 'approve'
 															? Check
-															: Plus}
+															: isAdded
+																? Check
+																: Plus}
 											{@const label =
 												action === 'delete'
 													? sug.reason || t('ai.deleteItem')
-													: action === 'update'
-														? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
-														: sug.title}
+													: action === 'reject'
+														? sug.reason || t('ai.reject')
+														: action === 'approve'
+															? `${t('ai.approve')}: ${sug.title}`
+															: action === 'update'
+																? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
+																: sug.title}
 
 											{#if action === 'create' && !isAdded && (sug.target ?? 'plan_item') === 'plan_item'}
 												<!-- Expandable create chip: click to expand, adjust day/time, then add -->

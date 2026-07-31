@@ -1746,6 +1746,8 @@
     },
     "reasoning": "Reasoning · {count} step(s)",
     "update": "Update",
+    "approve": "Approve",
+    "reject": "Reject",
     "deleteItem": "Delete item",
     "share": "Share / debug transcript",
     "shareTitle": "Conversation transcript",

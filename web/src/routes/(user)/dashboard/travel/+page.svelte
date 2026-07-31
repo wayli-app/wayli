@@ -14,6 +14,7 @@
 	import { fetchTrackPoints } from '$lib/services/gps.service';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { getTripsService } from '$lib/services/service-layer-adapter';
+	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { compressImage } from '$lib/utils/image-compress';
 	import { uploadMedia } from '$lib/services/trip-media.service';
@@ -260,6 +261,16 @@
 
 		isLoading = false;
 		setupObserver();
+
+		// ponytail: register this page with the AI assistant as the 'trips'
+		// surface so trip-composition suggestions route here. The dashboard
+		// layout already sets page context 'trips' for this route; we register
+		// the accept handler and reset it on navigation.
+		aiDrawer.setAcceptHandler('trip', handleTripSuggestion);
+
+		return () => {
+			aiDrawer.setAcceptHandler('trip', null);
+		};
 	});
 
 	// ── Data loaders ──
@@ -621,6 +632,52 @@
 			pendingTrips = [];
 		} catch (err) {
 			console.error('Reject all failed:', err);
+		}
+	}
+
+	// ponytail: AI assistant accept handler for trip suggestions (target:'trip').
+	// Approve/reject delegate to the existing approveSuggestion/rejectSuggestion
+	// so the FULL pipeline runs (cover image, embeddings, visit re-detect) — the
+	// assistant never short-circuits those side effects. Create uses the
+	// create-trip RPC; update uses the trips service.
+	async function handleTripSuggestion(item: PlanSuggestion) {
+		try {
+			if (item.action === 'approve' && item.item_id) {
+				await approveSuggestion(item.item_id);
+				return;
+			}
+			if (item.action === 'reject' && item.item_id) {
+				await rejectSuggestion(item.item_id);
+				return;
+			}
+			if (item.action === 'create') {
+				const { data, error } = await fluxbase.rpc.invoke('create-trip', {
+					title: item.title,
+					start_date: item.start_date,
+					end_date: item.end_date || item.start_date,
+					description: item.description || null,
+					primary_city: item.primary_city || null
+				});
+				if (error) throw error;
+				await loadTrips();
+				toast.success(t('travel.tripCreated'));
+				return;
+			}
+			if (item.action === 'update' && item.item_id) {
+				const tripsService = await getTripsService();
+				const changes = item.changes ?? {};
+				await tripsService.updateTrip({
+					id: item.item_id,
+					title: changes.title,
+					description: undefined as any
+				} as any);
+				await loadTrips();
+				toast.success(t('travel.tripUpdated'));
+				return;
+			}
+		} catch (err) {
+			console.error('AI trip suggestion failed:', err);
+			toast.error(t('travel.saveTripFailed'));
 		}
 	}
 

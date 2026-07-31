@@ -46,8 +46,8 @@ export type SuggestionTarget =
 	'plan_item' | 'want_to_visit' | 'journal_draft' | 'trip' | 'navigate';
 
 export type PlanSuggestion = {
-	// Common
-	action?: 'create' | 'update' | 'delete';
+	// Common. 'approve'/'reject' are used by trip-detection suggestions.
+	action?: 'create' | 'update' | 'delete' | 'approve' | 'reject';
 	reason?: string;
 	/** Which entity this suggestion writes/navigates. Defaults to 'plan_item'. */
 	target?: SuggestionTarget;
@@ -64,6 +64,11 @@ export type PlanSuggestion = {
 	end_address?: string | null;
 	// Navigate target: in-app route to open via goto() (e.g. '/dashboard/travel?trip=<id>').
 	href?: string;
+	// Trip-create fields (target: 'trip', action: 'create').
+	start_date?: string;
+	end_date?: string;
+	description?: string;
+	primary_city?: string;
 	// Update/Delete fields
 	item_id?: string;
 	changes?: Partial<{
