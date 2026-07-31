@@ -14,6 +14,10 @@ import {
 	isSuggestionAlreadyInPlan
 } from './ai-suggestions';
 
+// Module-level fallback for the bullet-parser test path. Declared here (not in
+// the describe block) so oxlint's consistent-function-scoping rule is satisfied.
+const bulletFallback = (c: string) => [{ day: 1, title: c.slice(0, 3) }];
+
 describe('safeJsonArrayParse', () => {
 	it('parses a well-formed JSON array', () => {
 		const out = safeJsonArrayParse('[{"day":1,"title":"Museum"}]');
@@ -80,9 +84,6 @@ describe('extractNavLinks', () => {
 });
 
 describe('extractSuggestions', () => {
-	// Module-level fallback so it isn't recreated per call (oxlint no-shadow).
-	const bulletFallback = (c: string) => [{ day: 1, title: c.slice(0, 3) }];
-
 	it('extracts from a ```json fenced block', () => {
 		const content = 'Here:\n\n```json\n[{"day":1,"title":"A"}]\n```';
 		const out = extractSuggestions(content);
