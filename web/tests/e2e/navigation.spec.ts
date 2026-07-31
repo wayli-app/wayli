@@ -12,9 +12,10 @@ test.describe('Public Pages', () => {
 		// Page should load without errors
 		await expect(page).toHaveTitle(/Wayli/);
 
-		// Should have basic navigation elements
-		const header = page.locator('header, nav').first();
-		await expect(header).toBeVisible();
+		// The landing page renders its content in a <section> (no traditional
+		// header/nav), so assert the page body and visible content instead.
+		await expect(page.locator('body')).toBeVisible();
+		await expect(page.getByRole('link', { name: /sign in/i }).first()).toBeVisible();
 	});
 
 	test('should have responsive layout', async ({ page }) => {
