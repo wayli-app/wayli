@@ -14,14 +14,17 @@
 		Brain,
 		Wrench,
 		Pencil,
-		Share2
+		Share2,
+		Square,
+		Map
 	} from 'lucide-svelte';
 	import {
 		ChatService,
 		type ChatMessage,
 		type AgentThought,
 		type UsageStats,
-		type DailyQuotaSnapshot
+		type DailyQuotaSnapshot,
+		type QueryResultData
 	} from '$lib/services/chat.service';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import {
@@ -33,7 +36,7 @@
 	import { translate, currentLocale } from '$lib/i18n';
 	import { get } from 'svelte/store';
 	import { aiDrawer, type AiPageContext, type PlanSuggestion } from '$lib/stores/ai-drawer';
-	import { fade, slide } from 'svelte/transition';
+	import { fade, fly, slide } from 'svelte/transition';
 	import { focusTrap } from '$lib/utils/focus-trap';
 	import { goto } from '$app/navigation';
 
@@ -53,6 +56,10 @@
 		// Token usage for this turn (populated on onDone). Not restored on reload
 		// unless the server returns it in the persisted message.
 		usage?: UsageStats;
+		// Friendly progress step shown while streaming (from onProgress). Cleared on done.
+		streamingStep?: string;
+		// Query results returned by tools during this turn (from onQueryResult).
+		queryResults?: QueryResultData[];
 	};
 
 	let messages = $state<ChatTurn[]>([]);
@@ -97,6 +104,37 @@
 	// Signature of the last plan context we sent to the model, used to detect
 	// when the trip/plan changed mid-conversation so we can re-inject context.
 	let lastSentPlanSig = '';
+
+	// Mobile bottom-sheet drag state. The sheet starts expanded; dragging the
+	// grabber handle down translates the panel, and releasing past a threshold
+	// dismisses it. Desktop ignores these (the sheet is md:hidden-corrected).
+	let sheetDragY = $state(0); // current vertical translate during a drag (px)
+	let isDraggingSheet = $state(false);
+	let dragStartY = 0;
+	const SHEET_DISMISS_THRESHOLD = 120; // px dragged down to close
+
+	function onSheetPointerDown(e: PointerEvent) {
+		// Only the grabber handle initiates a drag (it has data-grabber).
+		if (!(e.target as HTMLElement)?.closest('[data-grabber]')) return;
+		isDraggingSheet = true;
+		dragStartY = e.clientY;
+		(e.target as Element).setPointerCapture?.(e.pointerId);
+	}
+
+	function onSheetPointerMove(e: PointerEvent) {
+		if (!isDraggingSheet) return;
+		// Only allow dragging downward (negative would pull the sheet up off-screen).
+		sheetDragY = Math.max(0, e.clientY - dragStartY);
+	}
+
+	function onSheetPointerUp() {
+		if (!isDraggingSheet) return;
+		isDraggingSheet = false;
+		if (sheetDragY > SHEET_DISMISS_THRESHOLD) {
+			aiDrawer.close();
+		}
+		sheetDragY = 0;
+	}
 
 	let chatService: ChatService | null = null;
 	// ponytail: pageContext is already reactive ($derived from $aiDrawer).
@@ -208,17 +246,35 @@
 						if (openThoughts[lastIdx]) scrollToBottom();
 					}
 				},
+				onProgress: (step, _message) => {
+					// Surface a friendly progress step on the in-flight bubble so the
+					// user sees "Searching your trips…" instead of a bare spinner.
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].streamingStep = step;
+						messages = [...messages];
+						scrollToBottom();
+					}
+				},
+				onQueryResult: (result) => {
+					// Collect tool query results on the turn so we can surface a
+					// "N rows found" summary under the message.
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].queryResults = [...(messages[lastIdx].queryResults ?? []), result];
+						messages = [...messages];
+					}
+				},
 				onDone: (usage, extras) => {
 					isSending = false;
 					errorKind = null;
-					// Phase 3.1: capture per-turn usage + live quota. The service
-					// already maps these from snake_case; we just store them.
-					if (usage) {
-						const lastIdx = messages.length - 1;
-						if (messages[lastIdx]?.role === 'assistant') {
-							messages[lastIdx].usage = usage;
-							messages = [...messages];
-						}
+					// Clear the streaming step indicator and capture per-turn usage +
+					// live quota. The service already maps these from snake_case.
+					const lastIdx = messages.length - 1;
+					if (messages[lastIdx]?.role === 'assistant') {
+						messages[lastIdx].streamingStep = undefined;
+						if (usage) messages[lastIdx].usage = usage;
+						messages = [...messages];
 					}
 					if (extras?.dailyQuota) {
 						dailyQuota = extras.dailyQuota;
@@ -226,8 +282,10 @@
 				},
 				onError: (error: any, code?: string) => {
 					console.error('Chat error:', error, code);
-					// Phase 3.2: branch by code so the user gets an actionable
-					// message instead of a generic "something went wrong".
+					// Branch by code so the user gets an actionable banner instead
+					// of a generic bubble. errorKind drives the styled banner below
+					// the header; we drop the trailing '...' placeholder so the
+					// error doesn't read as a normal assistant reply.
 					const c = (code ?? '').toLowerCase();
 					if (c.includes('rate') || c === 'rate_limited' || c === '429') {
 						errorKind = 'rate_limited';
@@ -247,19 +305,9 @@
 					} else {
 						errorKind = 'network';
 					}
-					const lastIdx = messages.length - 1;
-					if (messages[lastIdx]?.role === 'assistant') {
-						const msg =
-							errorKind === 'rate_limited'
-								? t('ai.rateLimited')
-								: errorKind === 'quota'
-									? t('ai.quota.exceeded', { time: formatResetsAt() })
-									: errorKind === 'config'
-										? t('ai.configError')
-										: t('ai.error');
-						messages[lastIdx].content = msg;
-						messages = [...messages];
-					}
+					messages = messages.filter(
+						(m, idx) => !(idx === messages.length - 1 && m.content === '...')
+					);
 					isSending = false;
 				}
 			});
@@ -285,6 +333,9 @@
 		if (!ts) return '';
 		try {
 			const d = new Date(ts);
+			// If the reset is in the past or unparseable, fall back to a literal
+			// time so we never render an empty "It resets ." clause.
+			if (isNaN(d.getTime())) return '';
 			const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 			const diffMs = d.getTime() - Date.now();
 			const diffH = Math.round(diffMs / 3_600_000);
@@ -292,7 +343,55 @@
 			const diffM = Math.round(diffMs / 60_000);
 			return rtf.format(diffM, 'minute');
 		} catch {
-			return ts;
+			return '';
+		}
+	}
+
+	// Map an opaque backend progress step to a friendly, localized verb shown
+	// while the assistant works. The supervisor emits free-form step strings,
+	// so unknown values fall back to a generic "Working…".
+	function friendlyStep(step: string | undefined): string {
+		if (!step) return t('ai.steps.working');
+		const s = step.toLowerCase();
+		if (s.includes('search') || s.includes('query') || s.includes('sql'))
+			return t('ai.steps.searching');
+		if (s.includes('read') || s.includes('journal') || s.includes('entry'))
+			return t('ai.steps.reading');
+		if (s.includes('plan') || s.includes('route')) return t('ai.steps.planning');
+		if (s.includes('think') || s.includes('reason') || s.includes('synthes'))
+			return t('ai.steps.thinking');
+		if (s.includes('web') || s.includes('search the web')) return t('ai.steps.web');
+		return t('ai.steps.working');
+	}
+
+	// Translate an internal agent codename (supervisor/sql/synthesizer/…) to a
+	// friendly, localized label for the reasoning panel. Unknown agents fall
+	// back to the raw name (still useful in the share/debug transcript).
+	function friendlyAgent(name: string | undefined): string {
+		if (!name) return '';
+		const key = `ai.agents.${name}`;
+		const label = t(key);
+		// t() falls back to the key string when missing — detect that.
+		return label === key ? name : label;
+	}
+
+	// Stop the in-flight generation. The service cancels the supervisor turn;
+	// we clear the trailing placeholder + step indicator so the UI settles.
+	function stopGeneration() {
+		if (!chatService) return;
+		try {
+			chatService.cancel();
+		} catch (err) {
+			console.error('Stop failed:', err);
+		}
+		isSending = false;
+		// Remove the trailing '...' placeholder if it's still there, and clear
+		// any lingering step indicator on the last assistant turn.
+		messages = messages.filter((m, idx) => !(idx === messages.length - 1 && m.content === '...'));
+		const lastIdx = messages.length - 1;
+		if (messages[lastIdx]?.role === 'assistant') {
+			messages[lastIdx].streamingStep = undefined;
+			messages = [...messages];
 		}
 	}
 
@@ -304,7 +403,6 @@
 			const newId = await chatService.startChat(CHATBOT, NAMESPACE);
 			activeConversationId = newId;
 			messages = [];
-			showGreeting();
 		} catch (err: any) {
 			connectionError = err?.message ?? String(err);
 		}
@@ -352,40 +450,27 @@
 			if (activeConversationId === convoId) {
 				activeConversationId = null;
 				messages = [];
-				showGreeting();
 			}
 		} catch (err) {
 			console.error('Failed to delete conversation:', err);
 		}
 	}
 
-	function showGreeting() {
-		if (messages.length > 0) return;
+	// The empty-state greeting, computed reactively from the current page
+	// context (and re-rendered on locale change). Previously this was an
+	// imperative showGreeting() that mutated messages and only ran on
+	// conversation actions — so first-time users saw a bare empty-state string.
+	// Now the empty state always shows the warm greeting.
+	let greetingText = $derived.by(() => {
 		const inPlanMode = pageContext.page === 'plan';
-		const tripTitle = pageContext.trip_title;
-		const numDays = pageContext.num_days;
-		const primaryCity = pageContext.primary_city;
-		const destination = primaryCity || tripTitle;
-
+		const destination = pageContext.primary_city || pageContext.trip_title;
 		if (inPlanMode && destination) {
-			messages = [
-				{
-					role: 'assistant',
-					content:
-						numDays != null
-							? t('ai.planGreetingDays', { destination, days: numDays })
-							: t('ai.planGreeting', { destination })
-				}
-			];
-		} else {
-			messages = [
-				{
-					role: 'assistant',
-					content: t('ai.greeting')
-				}
-			];
+			return pageContext.num_days != null
+				? t('ai.planGreetingDays', { destination, days: pageContext.num_days })
+				: t('ai.planGreeting', { destination });
 		}
-	}
+		return t('ai.greeting');
+	});
 
 	function scrollToBottom() {
 		requestAnimationFrame(() => {
@@ -852,6 +937,13 @@
 		messages = [...messages, { role: 'assistant', content: '...' }];
 		scrollToBottom();
 
+		// Notify onboarding (and any listener) that the user engaged with the
+		// assistant for the first time, so the "Try the AI assistant" checklist
+		// step can be marked complete.
+		if (isFirstUserMessage) {
+			window.dispatchEvent(new CustomEvent('ai-first-message'));
+		}
+
 		try {
 			await chatService!.sendMessage(
 				msgToSend,
@@ -876,6 +968,23 @@
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			send();
+		}
+	}
+
+	// Auto-grow the textarea up to a max height, so multi-line prompts wrap
+	// instead of scrolling. Reset to 1 row when emptied.
+	function autosizeTextarea() {
+		if (!inputEl) return;
+		inputEl.style.height = 'auto';
+		inputEl.style.height = `${Math.min(inputEl.scrollHeight, 128)}px`;
+	}
+
+	// Escape closes the drawer (focus-trap only handles Tab, by design). Bound
+	// via <svelte:window> so it works regardless of focus within the drawer.
+	function handleDrawerKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && isOpen) {
+			e.preventDefault();
+			aiDrawer.close();
 		}
 	}
 
@@ -953,35 +1062,65 @@
 	}
 </script>
 
+<svelte:window onkeydown={handleDrawerKeydown} />
+
 {#if isOpen}
 	<!-- Backdrop (mobile only) -->
 	<button
 		type="button"
 		class="fixed inset-0 z-40 bg-black/50 md:hidden"
-		aria-label="Close AI drawer"
+		aria-label={t('common.actions.close')}
 		onclick={() => aiDrawer.close()}
 		transition:fade={{ duration: 150 }}
 	></button>
 
-	<!-- Drawer -->
+	<!-- Drawer: bottom-sheet on mobile (md:hidden layout), right-side panel on
+	     desktop. The grabber handle (mobile only) drives drag-to-dismiss. -->
 	<aside
 		use:focusTrap={true}
-		class="bg-card border-border fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l shadow-2xl md:w-[28rem] lg:w-[32rem]"
-		transition:slide={{ duration: 250 }}
+		role="dialog"
+		aria-modal="true"
+		aria-label={t('ai.title')}
+		onpointerdown={onSheetPointerDown}
+		onpointermove={onSheetPointerMove}
+		onpointerup={onSheetPointerUp}
+		onpointercancel={onSheetPointerUp}
+		class="bg-card border-border fixed z-50 flex flex-col shadow-2xl transition-transform duration-200 {isDraggingSheet
+			? '!transition-none'
+			: ''} inset-x-0 top-auto bottom-0 max-h-[90vh] w-full rounded-t-2xl border-t md:inset-y-0 md:top-0 md:right-0 md:left-auto md:max-h-none md:w-[28rem] md:rounded-none md:border-0 md:border-l lg:w-[32rem]"
+		style="transform: translateY({sheetDragY}px)"
+		transition:fly={{ duration: 250, y: 24 }}
 	>
+		<!-- Grabber handle (mobile only) — drag down to dismiss -->
+		<div
+			data-grabber
+			class="flex shrink-0 cursor-grab justify-center pt-2 active:cursor-grabbing md:hidden"
+			aria-hidden="true"
+		>
+			<span class="bg-muted h-1.5 w-10 rounded-full"></span>
+		</div>
+
 		<!-- Header -->
 		<header class="border-border flex items-center justify-between border-b p-3">
-			<div class="flex items-center gap-2">
-				<Sparkles class="text-primary h-4 w-4" />
-				<h2 class="text-foreground text-sm font-semibold">{t('ai.title')}</h2>
-				<span class="text-muted-foreground text-xs">·</span>
-				<span class="text-muted-foreground truncate text-xs">{contextLabel}</span>
+			<div class="flex min-w-0 items-center gap-2">
+				<!-- Mode icon: route-aware (plan vs. data analysis) -->
+				{#if pageContext.page === 'plan'}
+					<Map class="text-primary h-4 w-4 flex-shrink-0" />
+				{:else}
+					<Sparkles class="text-primary h-4 w-4 flex-shrink-0" />
+				{/if}
+				<h2 class="text-foreground shrink-0 text-sm font-semibold">{t('ai.title')}</h2>
+				<span class="text-muted-foreground shrink-0 text-xs">·</span>
+				<span class="text-muted-foreground truncate text-xs" title={contextLabel}>
+					{contextLabel}
+				</span>
 			</div>
 			<div class="flex items-center gap-1">
 				<button
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.conversations')}
+					aria-label={t('ai.conversations')}
 					onclick={() => (showConversationList = !showConversationList)}
 				>
 					<MessageSquare class="h-4 w-4" />
@@ -990,6 +1129,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.share')}
+					aria-label={t('ai.share')}
 					onclick={openSharePanel}
 				>
 					<Share2 class="h-4 w-4" />
@@ -998,6 +1138,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('ai.newConversation')}
+					aria-label={t('ai.newConversation')}
 					onclick={startNewConversation}
 				>
 					<Plus class="h-4 w-4" />
@@ -1006,6 +1147,7 @@
 					type="button"
 					class="text-muted-foreground hover:bg-muted hover:text-foreground flex min-h-[44px] min-w-[44px] items-center justify-center rounded p-1.5"
 					title={t('common.actions.close')}
+					aria-label={t('common.actions.close')}
 					onclick={() => aiDrawer.close()}
 				>
 					<X class="h-4 w-4" />
@@ -1045,6 +1187,7 @@
 									type="button"
 									class="text-muted-foreground hover:text-destructive p-1"
 									title={t('common.actions.delete')}
+									aria-label={t('common.actions.delete')}
 									onclick={() => deleteConversation(convo.id)}
 								>
 									<Trash2 class="h-3 w-3" />
@@ -1056,24 +1199,26 @@
 			</div>
 		{/if}
 
-		<!-- Configuration error banner -->
+		<!-- Connection error banner (initial connect failure — distinct from
+		     per-turn errors which surface via errorKind below). -->
 		{#if connectionError}
 			<div class="border-border bg-destructive/10 border-b px-4 py-2 text-xs">
 				<p class="text-destructive font-medium">{t('ai.configError')}</p>
-				<p class="text-muted-foreground">{connectionError}</p>
+				<p class="text-muted-foreground">{t('ai.configErrorDesc')}</p>
 			</div>
 		{/if}
 
-		<!-- Phase 3: daily quota strip (only when a limit is configured). -->
+		<!-- Daily quota strip (only when a limit is configured). Made slightly
+		     larger and surfaces the reset time as visible text for discoverability. -->
 		{#if dailyQuota && (dailyQuota.requests.limit > 0 || dailyQuota.tokens.limit > 0)}
 			{@const reqNear =
 				dailyQuota.requests.limit > 0 &&
 				dailyQuota.requests.used / dailyQuota.requests.limit >= 0.8}
+			{@const resets = formatResetsAt()}
 			<div
-				class="border-border flex items-center justify-between gap-2 border-b px-4 py-1.5 text-[10px] {reqNear
-					? 'bg-amber-500/10'
+				class="border-border flex items-center justify-between gap-2 border-b px-4 py-1.5 text-[11px] {reqNear
+					? 'bg-amber-500/15'
 					: ''}"
-				title={dailyQuota.resetsAt ? t('ai.quota.resetsAt', { time: formatResetsAt() }) : ''}
 			>
 				<span class="text-muted-foreground">
 					{#if dailyQuota.requests.limit > 0}
@@ -1083,40 +1228,67 @@
 						})}
 					{/if}
 				</span>
-				<span class="text-muted-foreground">
+				<span class="text-muted-foreground flex items-center gap-2">
 					{#if dailyQuota.tokens.limit > 0}
 						{t('ai.quota.tokens', { used: dailyQuota.tokens.used, limit: dailyQuota.tokens.limit })}
 					{:else}
 						{t('ai.quota.unlimited')}
 					{/if}
+					{#if resets}<span class="opacity-70">· {t('ai.quota.resetsAt', { time: resets })}</span
+						>{/if}
 				</span>
 			</div>
 		{/if}
 
-		<!-- Phase 3.2: actionable error banner (retry on transient errors). -->
-		{#if errorKind === 'network' || errorKind === 'rate_limited'}
+		<!-- Unified error banner: all error kinds get the same styled treatment
+		     (previously quota/config were injected as plain assistant bubbles). -->
+		{#if errorKind}
+			{@const errColor =
+				errorKind === 'quota' || errorKind === 'config'
+					? 'bg-destructive/10 text-destructive'
+					: 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}
+			{@const errText =
+				errorKind === 'rate_limited'
+					? t('ai.rateLimited')
+					: errorKind === 'quota'
+						? t('ai.quota.exceeded', { time: formatResetsAt() })
+						: errorKind === 'config'
+							? t('ai.configErrorDesc')
+							: t('ai.connectionError')}
 			<div
-				class="border-border flex items-center justify-between gap-2 border-b bg-amber-500/10 px-4 py-2 text-xs"
+				class="border-border flex items-center justify-between gap-2 border-b px-4 py-2 text-xs {errColor}"
+				role="alert"
 			>
-				<span class="text-amber-700 dark:text-amber-300">
-					{errorKind === 'rate_limited' ? t('ai.rateLimited') : t('ai.connectionError')}
-				</span>
-				<button
-					type="button"
-					class="rounded px-2 py-0.5 text-[11px] font-medium underline-offset-2 hover:bg-amber-500/20 hover:underline"
-					onclick={retryLast}
-				>
-					{t('ai.retry')}
-				</button>
+				<span>{errText}</span>
+				{#if errorKind === 'network' || errorKind === 'rate_limited'}
+					<button
+						type="button"
+						class="rounded px-2 py-0.5 text-[11px] font-medium underline-offset-2 hover:bg-black/5 hover:underline dark:hover:bg-white/10"
+						onclick={retryLast}
+					>
+						{t('ai.retry')}
+					</button>
+				{/if}
 			</div>
 		{/if}
 
 		<!-- Messages -->
 		<div bind:this={scrollContainer} class="flex-1 space-y-4 overflow-y-auto p-4">
-			{#if messages.length === 0 && !isConnecting}
-				<!-- Empty state with suggestions -->
+			{#if isConnecting && messages.length === 0}
+				<!-- Connecting state: first-time WebSocket connect, no spinner elsewhere -->
+				<div
+					class="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 text-sm"
+				>
+					<Loader2 class="h-5 w-5 animate-spin" />
+					<span>{t('ai.connecting')}</span>
+				</div>
+			{:else if messages.length === 0}
+				<!-- Empty state: greeting explains what the assistant can do, then
+				     page-aware suggestion chips. Shown on first open (showGreeting
+				     runs via $effect on isOpen) so users get the warm welcome. -->
 				<div class="space-y-3">
-					<p class="text-muted-foreground text-sm">{t('ai.emptyState')}</p>
+					<p class="text-foreground text-sm leading-relaxed">{greetingText}</p>
+					<p class="text-muted-foreground text-xs">{t('ai.emptyState')}</p>
 					<div class="flex flex-wrap gap-2">
 						{#each pageContext.page === 'plan' ? planSuggestions : pageSuggestions as suggestion}
 							<button
@@ -1177,27 +1349,23 @@
 												)}
 												<span
 													class="bg-muted text-foreground ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium"
-													title="Agents the supervisor routed to this turn"
+													title={t('ai.routeTooltip')}
 												>
 													{#each route as agent, ri (agent)}
 														{#if ri > 0}<span class="opacity-40">→</span>{/if}
-														<span>{agent}</span>
+														<span>{friendlyAgent(agent)}</span>
 													{/each}
 												</span>
-												<span
-													class="ml-0.5 inline-flex items-center gap-0.5 text-[9px] {usedWeb
-														? webToolCalled
+												{#if usedWeb}
+													<span
+														class="ml-0.5 inline-flex items-center gap-0.5 text-[9px] {webToolCalled
 															? 'text-green-600 dark:text-green-400'
-															: 'text-amber-600 dark:text-amber-400'
-														: ''}"
-													title={usedWeb
-														? webToolCalled
-															? 'Web agent ran and searched'
-															: 'Web agent was routed but did not search (check audit log / Tavily key)'
-														: ''}
-												>
-													{#if usedWeb}{webToolCalled ? '🔍' : '⚠️'}{/if}
-												</span>
+															: 'text-amber-600 dark:text-amber-400'}"
+														title={webToolCalled ? t('ai.webSearched') : t('ai.webNotSearched')}
+													>
+														{webToolCalled ? '🔍' : '⚠️'}
+													</span>
+												{/if}
 											{/if}
 											<ChevronRight
 												class="ml-auto h-3 w-3 transition-transform {openThoughts[i]
@@ -1222,9 +1390,10 @@
 													{:else if thought.kind === 'plan' && thought.plan}
 														<Sparkles class="text-primary mt-0.5 h-3 w-3 flex-shrink-0" />
 														<div class="min-w-0 flex-1">
-															<span class="text-foreground">Route:</span>
+															<span class="text-foreground">{t('ai.route')}:</span>
 															<span class="opacity-80"
-																>{thought.plan.route?.join(' → ') || '—'}</span
+																>{thought.plan.route?.map((a) => friendlyAgent(a)).join(' → ') ||
+																	'—'}</span
 															>
 															{#if thought.plan.sub_questions?.length}
 																<ul class="mt-0.5 list-disc pl-4 text-[10px] opacity-70">
@@ -1253,15 +1422,42 @@
 								<div
 									role="presentation"
 									onclick={handleLinkClick}
+									aria-live="polite"
+									aria-atomic="false"
 									class="prose prose-sm dark:prose-invert bg-muted text-foreground overflow-hidden rounded-2xl rounded-bl-sm px-4 py-2 text-sm"
 								>
 									{#if msg.content === '...'}
-										<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+										<div class="text-muted-foreground flex items-center gap-2 py-0.5 text-sm">
+											<Loader2 class="h-4 w-4 animate-spin" />
+											{#if msg.streamingStep}
+												<span>{friendlyStep(msg.streamingStep)}</span>
+											{/if}
+										</div>
 									{:else}
 										<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 										{@html renderMarkdown(displayContent)}
+										{#if msg.streamingStep}
+											<div
+												class="text-muted-foreground not-prose mt-1.5 flex items-center gap-1.5 border-t border-current/10 pt-1.5 text-[11px]"
+											>
+												<Loader2 class="h-3 w-3 animate-spin" />
+												{friendlyStep(msg.streamingStep)}
+											</div>
+										{/if}
 									{/if}
 								</div>
+								{#if msg.queryResults && msg.queryResults.length > 0 && msg.content !== '...'}
+									<div class="mt-1 flex flex-wrap gap-1">
+										{#each msg.queryResults as qr}
+											<span
+												class="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px]"
+												title={qr.query}
+											>
+												{t('ai.rowsReturned', { count: qr.rowCount })}
+											</span>
+										{/each}
+									</div>
+								{/if}
 								{#if suggestions.length > 0 && msg.content !== '...'}
 									<div class="mt-1.5 flex flex-col gap-1.5">
 										{#each suggestions as sug, sugIdx (sugIdx)}
@@ -1297,7 +1493,7 @@
 														: action === 'approve'
 															? `${t('ai.approve')}: ${sug.title}`
 															: action === 'update'
-																? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? ''}`
+																? `${t('ai.update')}: ${sug.changes?.title ?? sug.reason ?? sug.title}`
 																: sug.title}
 
 											{#if action === 'create' && !isAdded && (sug.target ?? 'plan_item') === 'plan_item'}
@@ -1311,32 +1507,31 @@
 													<Icon class="h-3 w-3 flex-shrink-0" />
 													<span class="min-w-0 flex-1 truncate">{label}</span>
 													{#if sug.address}
-														<span class="text-muted-foreground flex-shrink-0 truncate text-[10px]"
-															>📍 {sug.address.slice(0, 20)}{sug.address.length > 20
-																? '…'
-																: ''}</span
+														<span
+															class="text-muted-foreground max-w-[40%] flex-shrink-0 truncate text-[10px]"
+															>📍 {sug.address}</span
 														>
 													{/if}
 												</button>
 												{#if isExpanded}
 													{@const edit = chipEdits[key]}
 													<div class="bg-muted/50 border-border ml-4 rounded-lg border p-2.5">
-														<div class="mb-2 flex items-center gap-2 text-[10px]">
+														<div class="mb-2 flex items-center gap-2 text-[11px]">
 															<span class="text-foreground truncate font-medium">{sug.title}</span>
 															{#if chipGeocoding.has(key)}
-																<Loader2 class="text-muted-foreground h-2.5 w-2.5 animate-spin" />
+																<Loader2 class="text-muted-foreground h-3 w-3 animate-spin" />
 															{/if}
 														</div>
 														{#if edit}
 															<div class="space-y-2">
-																<div class="flex items-center gap-2">
+																<div class="flex flex-wrap items-center gap-2">
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('common.day')}:
 																		<select
 																			bind:value={edit.day}
-																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] rounded border px-2 py-1 text-[11px]"
 																		>
 																			{#each Array.from({ length: (pageContext.num_days as number) || 3 }, (_, idx) => idx + 1) as dayNum}
 																				<option value={dayNum}>{t('common.day')} {dayNum}</option>
@@ -1344,35 +1539,35 @@
 																		</select>
 																	</label>
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('ai.time')}:
 																		<input
 																			type="time"
 																			bind:value={edit.time}
 																			disabled={edit.noTime}
-																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px] disabled:opacity-40"
+																			class="border-border bg-card min-h-[32px] rounded border px-2 py-1 text-[11px] disabled:opacity-40"
 																		/>
 																	</label>
 																	<label
-																		class="text-muted-foreground flex items-center gap-0.5 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		<input
 																			type="checkbox"
 																			bind:checked={edit.noTime}
-																			class="h-2.5 w-2.5"
+																			class="h-3.5 w-3.5"
 																		/>
 																		{t('ai.noTime')}
 																	</label>
 																</div>
-																<div class="flex items-center gap-2">
+																<div class="flex flex-wrap items-center gap-2">
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('ai.type')}:
 																		<select
 																			bind:value={edit.type}
-																			class="border-border bg-card rounded border px-1.5 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] rounded border px-2 py-1 text-[11px]"
 																		>
 																			{#each ['sightseeing', 'food', 'activity', 'transport', 'accommodation', 'rest', 'shopping'] as typ}
 																				<option value={typ}>{typ}</option>
@@ -1380,7 +1575,7 @@
 																		</select>
 																	</label>
 																	<label
-																		class="text-muted-foreground flex items-center gap-1 text-[10px]"
+																		class="text-muted-foreground flex items-center gap-1 text-[11px]"
 																	>
 																		{t('ai.cost')}:
 																		<input
@@ -1388,13 +1583,13 @@
 																			bind:value={edit.cost}
 																			step="0.01"
 																			placeholder="0"
-																			class="border-border bg-card w-16 rounded border px-1.5 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] w-20 rounded border px-2 py-1 text-[11px]"
 																		/>
 																		<input
 																			type="text"
 																			bind:value={edit.currency}
 																			placeholder="€"
-																			class="border-border bg-card w-8 rounded border px-1 py-0.5 text-[10px]"
+																			class="border-border bg-card min-h-[32px] w-12 rounded border px-2 py-1 text-[11px]"
 																		/>
 																	</label>
 																</div>
@@ -1403,23 +1598,23 @@
 																		type="text"
 																		bind:value={edit.address}
 																		placeholder={t('ai.addressPlaceholder') || 'Address'}
-																		class="border-border bg-card w-full rounded border px-1.5 py-0.5 text-[10px]"
+																		class="border-border bg-card min-h-[32px] w-full rounded border px-2 py-1 text-[11px]"
 																	/>
 																</div>
 																<div class="flex items-center justify-end gap-1.5 pt-1">
 																	<button
 																		type="button"
 																		onclick={() => toggleChip(key, sug)}
-																		class="text-muted-foreground hover:text-foreground rounded px-2 py-1 text-[10px]"
+																		class="text-muted-foreground hover:text-foreground min-h-[36px] rounded px-3 py-1 text-[11px]"
 																	>
 																		{t('common.actions.cancel')}
 																	</button>
 																	<button
 																		type="button"
 																		onclick={() => confirmAddChip(key, sug)}
-																		class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-1 rounded px-2.5 py-1 text-[10px] font-medium"
+																		class="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex min-h-[36px] items-center gap-1 rounded px-3 py-1 text-[11px] font-medium"
 																	>
-																		<Plus class="h-2.5 w-2.5" />
+																		<Plus class="h-3 w-3" />
 																		{t('ai.addToDay', { day: edit.day })}
 																	</button>
 																</div>
@@ -1474,28 +1669,47 @@
 		</div>
 
 		<!-- Input -->
-		<div class="border-border flex items-center gap-2 border-t p-3">
-			<input
-				type="text"
+		<div
+			class="border-border relative flex items-end gap-2 border-t p-3"
+			style="padding-bottom: calc(0.75rem + env(safe-area-inset-bottom))"
+		>
+			<textarea
 				bind:value={input}
 				bind:this={inputEl}
 				onkeydown={handleKeydown}
+				oninput={autosizeTextarea}
+				rows="1"
+				maxlength="4000"
 				placeholder={t('ai.placeholder')}
-				class="border-border focus:ring-primary flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-				disabled={inputDisabled}
-			/>
-			<button
-				type="button"
-				onclick={send}
-				disabled={inputDisabled || !input.trim()}
-				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
-			>
-				{#if isSending}
-					<Loader2 class="h-4 w-4 animate-spin" />
-				{:else}
+				aria-label={t('ai.placeholder')}
+				class="border-border focus:ring-primary max-h-32 flex-1 resize-none rounded-lg border bg-transparent px-3 py-2 text-sm leading-relaxed focus:ring-2 focus:outline-none"
+				disabled={inputDisabled}></textarea>
+			{#if input.length > 500}
+				<span class="text-muted-foreground pointer-events-none absolute bottom-1 left-3 text-[9px]">
+					{input.length}/4000
+				</span>
+			{/if}
+			{#if isSending}
+				<button
+					type="button"
+					onclick={stopGeneration}
+					aria-label={t('ai.stop')}
+					title={t('ai.stop')}
+					class="bg-destructive hover:bg-destructive/90 text-destructive-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors"
+				>
+					<Square class="h-4 w-4" />
+				</button>
+			{:else}
+				<button
+					type="button"
+					onclick={send}
+					disabled={inputDisabled || !input.trim()}
+					aria-label={t('common.actions.send') || 'Send'}
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-50"
+				>
 					<Send class="h-4 w-4" />
-				{/if}
-			</button>
+				</button>
+			{/if}
 		</div>
 	</aside>
 {/if}

@@ -31,6 +31,11 @@
 
 	// AI feature state
 	let aiEnabled = $state(true); // Default to true until we know otherwise
+	// One-time discoverability hint on the AI FAB: a pulse + "new" badge until
+	// the user opens the drawer (or dismisses). Persisted in localStorage so it
+	// doesn't nag returning users. Initialized false (SSR-safe) and read in
+	// onMount — localStorage isn't available during server rendering.
+	let aiFabHintDismissed = $state(false);
 
 	let isInitializing = true;
 	// Get realtime connection status from job store
@@ -143,7 +148,20 @@
 		aiDrawer.setContext({ page: label });
 	});
 
+	// Dismiss the FAB discoverability hint the first time the drawer opens,
+	// regardless of how it was opened (button, onboarding step, store call).
+	$effect(() => {
+		if ($aiDrawer.open && !aiFabHintDismissed) {
+			aiFabHintDismissed = true;
+			if (typeof localStorage !== 'undefined') {
+				localStorage.setItem('wayli.ai.fab_hint_dismissed', '1');
+			}
+		}
+	});
+
 	onMount(async () => {
+		// Read the persisted FAB-hint dismissal now that we're in the browser.
+		aiFabHintDismissed = localStorage.getItem('wayli.ai.fab_hint_dismissed') === '1';
 		try {
 			// Session manager is already initialized in root layout
 			// Wait a bit for any pending auth state changes to settle
@@ -263,13 +281,28 @@
 	{#if aiEnabled && !isCheckingAdmin}
 		<button
 			type="button"
-			onclick={() => aiDrawer.toggle()}
-			class="bg-primary hover:bg-primary/90 text-primary-foreground fixed right-6 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all hover:scale-105"
+			onclick={() => {
+				aiDrawer.toggle();
+				if (!aiFabHintDismissed) {
+					aiFabHintDismissed = true;
+					localStorage.setItem('wayli.ai.fab_hint_dismissed', '1');
+				}
+			}}
+			class="bg-primary hover:bg-primary/90 text-primary-foreground fixed right-6 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all hover:scale-105 {!aiFabHintDismissed
+				? 'animate-pulse'
+				: ''}"
 			style="bottom: calc(1.5rem + env(safe-area-inset-bottom)); right: calc(1.5rem + env(safe-area-inset-right))"
 			aria-label={t('common.navigation.ask') || 'AI'}
 			title={t('common.navigation.ask') || 'AI'}
 		>
 			<Sparkles class="h-6 w-6" />
+			{#if !aiFabHintDismissed}
+				<span
+					class="bg-primary ring-background absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white ring-2"
+				>
+					{t('common.badges.new')}
+				</span>
+			{/if}
 		</button>
 	{/if}
 

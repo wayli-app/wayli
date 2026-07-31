@@ -8,6 +8,7 @@
       "add": "Add",
       "remove": "Remove",
       "close": "Close",
+      "send": "Send",
       "back": "Back",
       "next": "Next",
       "previous": "Previous",
@@ -93,6 +94,9 @@
       "explore": "Explore",
       "feed": "Feed",
       "friends": "Friends"
+    },
+    "badges": {
+      "new": "NEW"
     },
     "validation": {
       "fillAllFields": "Please fill in all fields",
@@ -442,6 +446,8 @@
     "importDataDesc": "Have location data from another app? Import it to continue your journey",
     "generateTrips": "Auto-detect trips",
     "generateTripsDesc": "Let Wayli analyze your location data and auto-detect trips",
+    "tryAi": "Try the AI assistant",
+    "tryAiDesc": "Ask about your trips, plan an itinerary, or recall places you visited",
     "configureAI": "Configure AI provider",
     "configureAIDesc": "Set up an AI provider to enable smart features like trip summaries",
     "getStarted": "Get Started",
@@ -1701,6 +1707,30 @@
     "error": "Something went wrong. Try again.",
     "connectionError": "Could not connect to the assistant.",
     "configError": "Configuration error",
+    "connecting": "Connecting…",
+    "connected": "Connected",
+    "stop": "Stop",
+    "stopped": "Stopped",
+    "stopFailed": "Could not stop the response.",
+    "configErrorDesc": "The AI assistant isn't configured. An admin needs to add a provider in server settings.",
+    "steps": {
+      "searching": "Searching your trips…",
+      "reading": "Reading your journal…",
+      "planning": "Planning…",
+      "thinking": "Thinking…",
+      "web": "Searching the web…",
+      "working": "Working…"
+    },
+    "agents": {
+      "supervisor": "Coordinator",
+      "sql": "Your data",
+      "kb": "Your history",
+      "action": "Taking action",
+      "web": "Web search",
+      "chat": "Assistant",
+      "synthesizer": "Writing reply",
+      "verifier": "Checking"
+    },
     "greeting": "Hi! I am your Wayli AI assistant. Ask me about your trips, places you visited, journal entries — or open a trip plan page to plan a trip.",
     "planGreeting": "Hi! I'm your trip planner for {destination}. Ask me for an itinerary or activities.",
     "planGreetingDays": "Hi! I'm your trip planner for {destination} ({days} days). Ask me for an itinerary, restaurants, or activities.",
@@ -1745,6 +1775,11 @@
       "journalRecent": "What did I write about recently?"
     },
     "reasoning": "Reasoning · {count} step(s)",
+    "routeTooltip": "Steps the assistant took this turn",
+    "webSearched": "Searched the web",
+    "webNotSearched": "Web search was planned but didn't run",
+    "technicalDetails": "Technical details",
+    "route": "Steps",
     "update": "Update",
     "approve": "Approve",
     "reject": "Reject",

@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { Link, Import, Map, Settings, Rocket, X, Check } from 'lucide-svelte';
+	import { Link, Import, Map, Settings, Rocket, X, Check, Sparkles } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide } from 'svelte/transition';
 
 	import { translate } from '$lib/i18n';
 	import { OnboardingChecklistService } from '$lib/services/onboarding-checklist.service';
 	import { fluxbase } from '$lib/fluxbase';
+	import { aiDrawer } from '$lib/stores/ai-drawer';
 	import type { ChecklistState } from '$lib/types/onboarding.types';
 
 	import { page } from '$app/stores';
@@ -66,7 +67,21 @@
 			descriptionKey: 'onboarding.generateTripsDesc',
 			icon: Map,
 			completed: checklistState?.completed_steps?.includes('trips') ?? false
-		}
+		},
+		// Suggest trying the AI assistant once it's enabled. Completed on first
+		// message sent (handled in AiDrawer.send), not on page visit.
+		...(aiEnabled
+			? [
+					{
+						id: 'ai-assistant',
+						route: '#ai',
+						titleKey: 'onboarding.tryAi',
+						descriptionKey: 'onboarding.tryAiDesc',
+						icon: Sparkles,
+						completed: checklistState?.completed_steps?.includes('ai-assistant') ?? false
+					}
+				]
+			: [])
 	]);
 
 	let completedCount = $derived(steps.filter((s) => s.completed).length);
@@ -87,16 +102,27 @@
 		}
 	});
 
-	// Listen for onboarding completion event
+	// Listen for onboarding completion event, and for the user's first AI
+	// message (marks the "Try the AI assistant" step complete).
 	$effect(() => {
 		const handleOnboardingComplete = () => {
 			checkOnboardingCompleted();
 		};
+		const handleAiFirstMessage = async () => {
+			try {
+				await OnboardingChecklistService.markStepCompleted(userId, 'ai-assistant');
+				await loadChecklistState();
+			} catch (error) {
+				console.error('Error marking AI step complete:', error);
+			}
+		};
 
 		window.addEventListener('onboarding-completed', handleOnboardingComplete);
+		window.addEventListener('ai-first-message', handleAiFirstMessage);
 
 		return () => {
 			window.removeEventListener('onboarding-completed', handleOnboardingComplete);
+			window.removeEventListener('ai-first-message', handleAiFirstMessage);
 		};
 	});
 
@@ -229,7 +255,21 @@
 				{#each steps as step (step.id)}
 					{@const Icon = step.icon}
 					<a
-						href={step.route}
+						href={step.route === '#ai' ? undefined : step.route}
+						role={step.route === '#ai' ? 'button' : undefined}
+						tabindex="0"
+						onclick={(e) => {
+							if (step.route === '#ai') {
+								e.preventDefault();
+								aiDrawer.open();
+							}
+						}}
+						onkeydown={(e) => {
+							if (step.route === '#ai' && (e.key === 'Enter' || e.key === ' ')) {
+								e.preventDefault();
+								aiDrawer.open();
+							}
+						}}
 						class="flex items-start gap-3 rounded-lg border p-3 transition-all {step.completed
 							? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
 							: ' hover:border-blue-300 dark:hover:border-blue-600'} bg-card border-border"
