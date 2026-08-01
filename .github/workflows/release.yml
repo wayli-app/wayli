@@ -119,7 +119,19 @@ jobs:
           # (Mirrors Fluxbase's approach; the release job keeps package.json in sync.)
           git fetch --tags --force
 
-          LATEST_TAG=$(git tag -l 'v*' | sort -V | tail -n1)
+          # Determine the latest tag with correct semver precedence: a stable
+          # release (vX.Y.Z) always outranks any pre-release of the same base
+          # (vX.Y.Z-rc.N). `sort -V` and `git --sort=v:refname` both order some
+          # pre-releases AFTER their stable (e.g. v2.2.0-rc.39 after v2.2.0),
+          # which is wrong per semver and caused release version collisions.
+          # Prefer the highest stable tag; fall back to the highest RC only when
+          # no stable tag exists.
+          LATEST_STABLE=$(git tag -l 'v*[0-9].[0-9].[0-9]' | grep -v -e '-' | sort -V | tail -n1)
+          if [ -n "$LATEST_STABLE" ]; then
+            LATEST_TAG="$LATEST_STABLE"
+          else
+            LATEST_TAG=$(git tag -l 'v*' | sort -V | tail -n1)
+          fi
           if [ -z "$LATEST_TAG" ]; then
             echo "Error: No 'v*' tags found. Cannot determine current version."
             exit 1
@@ -171,7 +183,14 @@ jobs:
               NEW_VERSION="${BASE_VERSION}-rc.$((RC_NUM + 1))"
               echo "Continuing RC series: $CURRENT_VERSION → $NEW_VERSION"
             else
-              # RC → stable: promote
+              # RC → stable: promote. If the stable tag already exists, the RC
+              # series belongs to a version that already shipped -- fail loudly so
+              # the operator picks the right release (e.g. a new patch line)
+              # instead of recomputing an already-released version.
+              if git tag -l "v${BASE_VERSION}" | grep -q .; then
+                echo "::error::Stable v${BASE_VERSION} already exists (this RC series is for an already-released version). Re-run with the appropriate release for a new version line."
+                exit 1
+              fi
               NEW_VERSION="${BASE_VERSION}"
               echo "Promoting RC to stable: $CURRENT_VERSION → $NEW_VERSION"
             fi
@@ -183,11 +202,16 @@ jobs:
 
             if [ "$BUMP" = "auto" ]; then
               BUMP="patch"  # default fallback
-              if git log "$PREV_TAG"..HEAD --oneline --grep="BREAKING CHANGE:" | grep -q .; then
+              # Conventional-commit auto-detection. git log --grep uses basic
+              # regex by default, so pipe through `grep -E` for scoped commits
+              # (e.g. "feat(ai):", "fix(auth):"), which the old "^feat:" pattern
+              # missed entirely.
+              # BREAKING CHANGE: footer -> major; feat!/fix! -> major; feat -> minor.
+              if git log "$PREV_TAG"..HEAD --oneline | grep -qE "BREAKING CHANGE:"; then
                 BUMP="major"
-              elif git log "$PREV_TAG"..HEAD --oneline --grep="feat!" | grep -q .; then
+              elif git log "$PREV_TAG"..HEAD --oneline | grep -qE "^[0-9a-f]+ (feat|fix|chore|refactor|perf|build)(\(.+\))?!:"; then
                 BUMP="major"
-              elif git log "$PREV_TAG"..HEAD --oneline --grep="^feat:" | grep -q .; then
+              elif git log "$PREV_TAG"..HEAD --oneline | grep -qE "^[0-9a-f]+ feat(\(.+\))?:"; then
                 BUMP="minor"
               fi
               echo "Auto-detected bump: $BUMP"
@@ -447,12 +471,29 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add web/package.json web/bun.lock charts/wayli/Chart.yaml charts/wayli/values.yaml deploy/docker-compose/.env.example
-          git commit -m "chore(release): v${{ env.VERSION }}"
-          git tag v${{ env.VERSION }}
-          git push
-          git push --tags
 
-          echo "Committed and tagged v${{ env.VERSION }}"
+          # Only commit when the version bump actually produced a diff. When the
+          # target version is already in the files (e.g. a re-run, or the version
+          # was already committed), `git commit` fails with "nothing to commit" —
+          # guard against that so the release can proceed to tag/publish.
+          if git diff --staged --quiet; then
+            echo "No version-file changes to commit (version already at v${{ env.VERSION }})"
+          else
+            git commit -m "chore(release): v${{ env.VERSION }}"
+            git push
+          fi
+
+          # Tag only if it doesn't already exist, so re-runs don't fail on a
+          # duplicate tag. `git tag` errors on an existing tag; `git tag -l`
+          # lets us check first.
+          if [ -n "$(git tag -l v${{ env.VERSION }})" ]; then
+            echo "Tag v${{ env.VERSION }} already exists - skipping tag/push"
+          else
+            git tag v${{ env.VERSION }}
+            git push --tags
+          fi
+
+          echo "Release v${{ env.VERSION }} committed and tagged"
 
       - name: Create GitHub Release
         if: inputs.dry_run == false
