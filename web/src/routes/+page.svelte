@@ -4,6 +4,7 @@
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate, messages } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
+	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
@@ -33,6 +34,19 @@
 	>([]);
 	let pageMode = $state<'loading' | 'signin' | 'community'>('loading');
 	let isLoggedIn = $state(false);
+
+	// Render signed-in state from the reactive userStore (kept in sync by the
+	// SessionManager in the root layout), not the one-shot isLoggedIn flag —
+	// the latter can go stale if the session is validated/cleared after mount.
+	// The display name falls back through profile name, signup metadata, and
+	// email so the button always shows something meaningful.
+	let displayName = $derived(
+		($userStore?.full_name as string | undefined) ||
+			(($userStore?.metadata as Record<string, unknown> | null)?.full_name as string) ||
+			(($userStore?.metadata as Record<string, unknown> | null)?.first_name as string) ||
+			$userStore?.email ||
+			''
+	);
 
 	onMount(() => {
 		initializeTheme();
@@ -87,43 +101,38 @@
 			}
 
 			pageMode = 'community';
-			await loadCommunityContent(!!sessionUserId);
+			// Only fetch community content when authenticated. The /api/v1/tables/*
+			// data routes are auth-required, so an anonymous query 401s (the SDK's
+			// .from('trips') resolves to GET /api/v1/tables/trips). Skip it for anon
+			// visitors instead of firing a wasted request; they see the empty state.
+			if (sessionUserId) {
+				await loadCommunityContent();
+			}
 		})();
 	});
 
-	async function loadCommunityContent(isAuthed: boolean) {
+	// Load community content for an authenticated visitor. The /api/v1/tables/*
+	// data routes are auth-required, so this is only called when signed in — an
+	// anonymous visitor would get a 401 on every query. (Anonymous community
+	// browsing is gated at the call site; see onMount.)
+	async function loadCommunityContent() {
 		try {
-			// Query trips: for logged-in users, query without visibility filter
-			// (RLS returns public + owned + shared). For anonymous, filter public only.
-			// Include 'planned' status for authed users so their own draft trips appear.
-			let tripsQuery = fluxbase
+			// Query trips: RLS returns public + owned + shared for the signed-in
+			// user. Include 'planned' so the user's own draft trips appear.
+			const { data: tripsData } = await fluxbase
 				.from('trips')
 				.select('id, title, image_url, user_id, metadata')
-				.in('status', isAuthed ? ['active', 'completed', 'planned'] : ['active', 'completed'])
+				.in('status', ['active', 'completed', 'planned'])
 				.order('start_date', { ascending: false })
 				.limit(10);
 
-			if (!isAuthed) {
-				tripsQuery = tripsQuery.eq('visibility', 'public');
-			}
-
-			const { data: tripsData } = await tripsQuery;
 			const tripsList = (tripsData as any[]) ?? [];
 			if (tripsList.length === 0) return;
 
-			// Query entries: use base table for authed users (RLS-aware),
-			// public view for anonymous.
-			const entriesTable = isAuthed ? 'trip_entries' : 'public_trip_entries';
-			const mediaTable = isAuthed ? 'trip_media' : 'public_trip_media';
-
 			const [entriesResult, profilesResult, mediaResult] = await Promise.all([
 				fluxbase
-					.from(entriesTable)
-					.select(
-						isAuthed
-							? 'id, trip_id, title, body, entry_date, cover_media_id, status'
-							: 'id, trip_id, title, body, entry_date, cover_media_id'
-					)
+					.from('trip_entries')
+					.select('id, trip_id, title, body, entry_date, cover_media_id, status')
 					.in(
 						'trip_id',
 						tripsList.map((t) => t.id)
@@ -135,7 +144,7 @@
 					.select('id, username')
 					.in('id', [...new Set(tripsList.map((t) => t.user_id))]),
 				fluxbase
-					.from(mediaTable)
+					.from('trip_media')
 					.select('id, storage_path, thumbnail_path')
 					.in(
 						'trip_id',
@@ -144,7 +153,7 @@
 			]);
 
 			const entriesList = ((entriesResult.data as any[]) ?? []).filter(
-				(e) => !isAuthed || e.status === 'published'
+				(e) => e.status === 'published'
 			);
 			const profileMap = new Map<string, string>();
 			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
@@ -211,7 +220,10 @@
 		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
 			<p class="text-muted-foreground text-sm">{t('landing.selfHostedTagline')}</p>
-			{#if isLoggedIn}
+			{#if $userStore}
+				{#if displayName}
+					<p class="text-foreground text-sm font-medium">{displayName}</p>
+				{/if}
 				<a
 					href="/dashboard/travel"
 					class="bg-primary hover:bg-primary/90 text-primary-foreground mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium transition-colors"
@@ -276,13 +288,14 @@
 					<Moon class="h-4 w-4" />
 				</button>
 			</div>
-			{#if isLoggedIn}
+			{#if $userStore}
 				<a
-					href="/dashboard/travel"
-					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+					href="/dashboard/account-settings"
+					title={displayName || t('common.navigation.accountSettings')}
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex max-w-[10rem] items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 				>
-					<User class="h-4 w-4" />
-					{t('common.navigation.dashboard')}
+					<User class="h-4 w-4 shrink-0" />
+					<span class="truncate">{displayName || t('common.navigation.dashboard')}</span>
 				</a>
 			{:else}
 				<a
@@ -322,7 +335,7 @@
 						<BookOpen class="h-4 w-4" />
 						{t('community.exploreStories')}
 					</a>
-					{#if !isLoggedIn}
+					{#if !$userStore}
 						<a
 							href="/auth/signin"
 							class="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors"
@@ -431,7 +444,7 @@
 			{#if latestEntries.length === 0 && travelers.length === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
 					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
-					{#if isLoggedIn}
+					{#if $userStore}
 						<a href="/dashboard/travel" class="text-primary mt-4 text-sm hover:underline">
 							{t('community.publishFirstTrip')}
 						</a>
