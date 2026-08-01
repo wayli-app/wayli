@@ -4,6 +4,7 @@
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate, messages } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
+	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
@@ -33,6 +34,19 @@
 	>([]);
 	let pageMode = $state<'loading' | 'signin' | 'community'>('loading');
 	let isLoggedIn = $state(false);
+
+	// Render signed-in state from the reactive userStore (kept in sync by the
+	// SessionManager in the root layout), not the one-shot isLoggedIn flag —
+	// the latter can go stale if the session is validated/cleared after mount.
+	// The display name falls back through profile name, signup metadata, and
+	// email so the button always shows something meaningful.
+	let displayName = $derived(
+		($userStore?.full_name as string | undefined) ||
+			(($userStore?.metadata as Record<string, unknown> | null)?.full_name as string) ||
+			(($userStore?.metadata as Record<string, unknown> | null)?.first_name as string) ||
+			$userStore?.email ||
+			''
+	);
 
 	onMount(() => {
 		initializeTheme();
@@ -211,7 +225,10 @@
 		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
 			<p class="text-muted-foreground text-sm">{t('landing.selfHostedTagline')}</p>
-			{#if isLoggedIn}
+			{#if $userStore}
+				{#if displayName}
+					<p class="text-foreground text-sm font-medium">{displayName}</p>
+				{/if}
 				<a
 					href="/dashboard/travel"
 					class="bg-primary hover:bg-primary/90 text-primary-foreground mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium transition-colors"
@@ -276,13 +293,14 @@
 					<Moon class="h-4 w-4" />
 				</button>
 			</div>
-			{#if isLoggedIn}
+			{#if $userStore}
 				<a
-					href="/dashboard/travel"
-					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+					href="/dashboard/account-settings"
+					title={displayName || t('common.navigation.accountSettings')}
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex max-w-[10rem] items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 				>
-					<User class="h-4 w-4" />
-					{t('common.navigation.dashboard')}
+					<User class="h-4 w-4 shrink-0" />
+					<span class="truncate">{displayName || t('common.navigation.dashboard')}</span>
 				</a>
 			{:else}
 				<a
@@ -322,7 +340,7 @@
 						<BookOpen class="h-4 w-4" />
 						{t('community.exploreStories')}
 					</a>
-					{#if !isLoggedIn}
+					{#if !$userStore}
 						<a
 							href="/auth/signin"
 							class="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors"
@@ -431,7 +449,7 @@
 			{#if latestEntries.length === 0 && travelers.length === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
 					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
-					{#if isLoggedIn}
+					{#if $userStore}
 						<a href="/dashboard/travel" class="text-primary mt-4 text-sm hover:underline">
 							{t('community.publishFirstTrip')}
 						</a>
