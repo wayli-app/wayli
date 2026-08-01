@@ -101,43 +101,38 @@
 			}
 
 			pageMode = 'community';
-			await loadCommunityContent(!!sessionUserId);
+			// Only fetch community content when authenticated. The /api/v1/tables/*
+			// data routes are auth-required, so an anonymous query 401s (the SDK's
+			// .from('trips') resolves to GET /api/v1/tables/trips). Skip it for anon
+			// visitors instead of firing a wasted request; they see the empty state.
+			if (sessionUserId) {
+				await loadCommunityContent();
+			}
 		})();
 	});
 
-	async function loadCommunityContent(isAuthed: boolean) {
+	// Load community content for an authenticated visitor. The /api/v1/tables/*
+	// data routes are auth-required, so this is only called when signed in — an
+	// anonymous visitor would get a 401 on every query. (Anonymous community
+	// browsing is gated at the call site; see onMount.)
+	async function loadCommunityContent() {
 		try {
-			// Query trips: for logged-in users, query without visibility filter
-			// (RLS returns public + owned + shared). For anonymous, filter public only.
-			// Include 'planned' status for authed users so their own draft trips appear.
-			let tripsQuery = fluxbase
+			// Query trips: RLS returns public + owned + shared for the signed-in
+			// user. Include 'planned' so the user's own draft trips appear.
+			const { data: tripsData } = await fluxbase
 				.from('trips')
 				.select('id, title, image_url, user_id, metadata')
-				.in('status', isAuthed ? ['active', 'completed', 'planned'] : ['active', 'completed'])
+				.in('status', ['active', 'completed', 'planned'])
 				.order('start_date', { ascending: false })
 				.limit(10);
 
-			if (!isAuthed) {
-				tripsQuery = tripsQuery.eq('visibility', 'public');
-			}
-
-			const { data: tripsData } = await tripsQuery;
 			const tripsList = (tripsData as any[]) ?? [];
 			if (tripsList.length === 0) return;
 
-			// Query entries: use base table for authed users (RLS-aware),
-			// public view for anonymous.
-			const entriesTable = isAuthed ? 'trip_entries' : 'public_trip_entries';
-			const mediaTable = isAuthed ? 'trip_media' : 'public_trip_media';
-
 			const [entriesResult, profilesResult, mediaResult] = await Promise.all([
 				fluxbase
-					.from(entriesTable)
-					.select(
-						isAuthed
-							? 'id, trip_id, title, body, entry_date, cover_media_id, status'
-							: 'id, trip_id, title, body, entry_date, cover_media_id'
-					)
+					.from('trip_entries')
+					.select('id, trip_id, title, body, entry_date, cover_media_id, status')
 					.in(
 						'trip_id',
 						tripsList.map((t) => t.id)
@@ -149,7 +144,7 @@
 					.select('id, username')
 					.in('id', [...new Set(tripsList.map((t) => t.user_id))]),
 				fluxbase
-					.from(mediaTable)
+					.from('trip_media')
 					.select('id, storage_path, thumbnail_path')
 					.in(
 						'trip_id',
@@ -158,7 +153,7 @@
 			]);
 
 			const entriesList = ((entriesResult.data as any[]) ?? []).filter(
-				(e) => !isAuthed || e.status === 'published'
+				(e) => e.status === 'published'
 			);
 			const profileMap = new Map<string, string>();
 			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
