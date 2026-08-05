@@ -266,6 +266,7 @@
     "selfHostedTagline": "Self-hosted location tracking and trip management. Your data, your server, your privacy.",
     "heroHeadline": "Your travels. Your data. Your server.",
     "heroSubtext": "Self-hosted location tracking and trip management, with privacy by design.",
+    "goToDashboard": "Go to dashboard",
     "privacyFirst": "Privacy First",
     "privacyFirstDescription": "Your data stays on your server. No third-party tracking or data sharing.",
     "automaticTripDetection": "Automatic Trip Detection",
@@ -1188,6 +1189,12 @@
     "aiMaxTokensDescription": "Maximum tokens per response (default: 4096)",
     "aiTemperature": "Temperature",
     "aiTemperatureDescription": "Response creativity (0.0 = precise, 1.0 = creative)",
+    "aiUsageLimits": "Usage Limits",
+    "aiUsageLimitsDescription": "Caps applied per user per day. Turn off for no limit (default).",
+    "aiQuestionLimit": "Daily question limit",
+    "aiQuestionLimitDescription": "Max questions/messages a user can send each day",
+    "aiTokenBudget": "Daily token budget",
+    "aiTokenBudgetDescription": "Max tokens a user can consume each day",
     "aiSettingsSaved": "AI settings saved",
     "aiProviderReadOnly": "Read-only",
     "aiProviderReadOnlyDescription": "This AI provider is configured via environment variables or YAML configuration and cannot be modified through the UI.",
@@ -1659,7 +1666,8 @@
     "by": "by",
     "readMore": "Read more →",
     "explore": "Explore",
-    "exploreStories": "Explore stories"
+    "exploreStories": "Explore stories",
+    "yourTrips": "Your trips"
   },
   "plannerChat": {
     "title": "AI Assistant",

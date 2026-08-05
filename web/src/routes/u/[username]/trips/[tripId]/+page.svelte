@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
+	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
@@ -168,15 +169,23 @@
 	onMount(async () => {
 		window.addEventListener('scroll', onScroll, { passive: true });
 
-		let requireAuth = false;
-		try {
-			const setting = await readSetting(() =>
+		// Read the auth-required gate from the central settings store (one bulk
+		// fetch, no per-key 404). `public_trips_require_auth` is is_public, so
+		// anonymous visitors now honor the admin's setting — previously this read
+		// silently failed for anon and defaulted to "open", bypassing the gate.
+		await loadPublicSettings();
+		let setting = getSetting<unknown>('wayli.public_trips_require_auth', null);
+		if (setting === null) {
+			setting = await readSetting(() =>
 				fluxbase.settings.get('wayli.public_trips_require_auth')
 			);
-			requireAuth = setting?.value === true || setting?.value === 'true';
-		} catch {
-			// Settings endpoint requires auth — default to open
 		}
+		const requireAuth =
+			setting === true ||
+			setting === 'true' ||
+			(typeof setting === 'object' &&
+				setting &&
+				((setting as any).value === true || (setting as any).value === 'true'));
 		if (requireAuth) {
 			try {
 				const { data: session } = await fluxbase.auth.getSession();

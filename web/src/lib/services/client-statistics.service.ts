@@ -68,7 +68,18 @@ export interface ClientStatistics {
 		startDate?: string;
 		endDate?: string;
 	};
-	lastProcessedAt?: string;
+		lastProcessedAt?: string;
+}
+
+/**
+ * Coerce a value (PostgREST returns Postgres `numeric`/`decimal` as JSON
+ * strings) to a finite JS number. Returns `null` for null/undefined/empty so
+ * callers can keep treating missing values as null rather than 0 or NaN.
+ */
+function toNumber(value: unknown): number | null {
+	if (value === null || value === undefined || value === '') return null;
+	const n = typeof value === 'number' ? value : Number(value);
+	return Number.isFinite(n) ? n : null;
 }
 
 // Raw tracker data point (minimal fields for processing)
@@ -533,11 +544,22 @@ export class ClientStatisticsService {
 			throw new Error(`Failed to load batch: ${error.message}`);
 		}
 
-		// Process the data to handle COALESCE logic for city field
+		// Process the data: handle COALESCE logic for city field and coerce
+		// Postgres numeric columns to JS numbers. PostgREST returns numeric /
+		// decimal columns as JSON strings (to preserve precision), but the
+		// TrackerDataPoint interface and downstream consumers (e.g. the map
+		// popup's `.toFixed` calls) expect real numbers. Coercing here, at the
+		// single row→point boundary, keeps the interface honest everywhere.
 		const processedData =
 			(data as any[])?.map((point) => ({
 				...point,
-				city: point.city || point.address_city || null
+				city: point.city || point.address_city || null,
+				speed: toNumber(point.speed),
+				distance: toNumber(point.distance),
+				accuracy: toNumber(point.accuracy),
+				heading: toNumber(point.heading),
+				tz_diff: toNumber(point.tz_diff),
+				time_spent: toNumber(point.time_spent)
 			})) || [];
 
 		return processedData;

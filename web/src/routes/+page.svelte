@@ -4,6 +4,7 @@
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate, messages } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
+	import { loadPublicSettings, getSetting, allSettings } from '$lib/stores/settings.svelte';
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { goto } from '$app/navigation';
@@ -34,14 +35,30 @@
 	>([]);
 	let pageMode = $state<'loading' | 'signin' | 'community'>('loading');
 	let isLoggedIn = $state(false);
+	// Display name fetched from user_profiles (the source of truth for full_name).
+	// The raw SDK User on userStore has no name field, so we fetch it on mount.
+	let profileFullName = $state<string | null>(null);
+	// The signed-in user's own trips — shown when there are no public stories yet
+	// so the landing page is still useful to a logged-in visitor.
+	let myTrips = $state<
+		Array<{
+			id: string;
+			title: string;
+			image_url: string | null;
+			start_date: string;
+			status: string;
+			visibility: string;
+		}>
+	>([]);
 
 	// Render signed-in state from the reactive userStore (kept in sync by the
 	// SessionManager in the root layout), not the one-shot isLoggedIn flag —
 	// the latter can go stale if the session is validated/cleared after mount.
-	// The display name falls back through profile name, signup metadata, and
-	// email so the button always shows something meaningful.
+	// The display name falls back through the fetched profile name, signup
+	// metadata, and email so the button always shows something meaningful.
 	let displayName = $derived(
-		($userStore?.full_name as string | undefined) ||
+		profileFullName ||
+			($userStore?.full_name as string | undefined) ||
 			(($userStore?.metadata as Record<string, unknown> | null)?.full_name as string) ||
 			(($userStore?.metadata as Record<string, unknown> | null)?.first_name as string) ||
 			$userStore?.email ||
@@ -68,28 +85,29 @@
 			} catch {}
 			isLoggedIn = !!sessionUserId;
 
-			let redirectUser: string | null = null;
-			let communityDisabled = false;
-
-			// Only try to read settings if authenticated (settings are not public)
-			if (sessionUserId) {
-				try {
-					const resp = await fluxbase.settings.get('wayli.landing_redirect_username');
-					if (typeof resp === 'string' && resp.trim()) {
-						redirectUser = resp.trim();
-					} else if (resp && typeof resp === 'object') {
-						const v = (resp as any).value ?? (resp as any).data?.value;
-						if (v && typeof v === 'string') redirectUser = v.trim();
-					}
-				} catch {}
-
-				try {
-					const resp = await fluxbase.settings.get('wayli.community_enabled');
-					const val =
-						typeof resp === 'object' && resp && 'value' in resp ? (resp as any).value : resp;
-					communityDisabled = val === false || val === 'false';
-				} catch {}
-			}
+			// Read landing settings from the central settings store (populated by a
+			// single bulk fetch in the root layout). The batch endpoint unwraps the
+			// stored `{value: x}` so we read the raw value. These keys are marked
+			// is_public on write, so this works for anonymous visitors too — fixing
+			// the previous behavior where anon never saw the redirect/gating.
+			await loadPublicSettings();
+			const redirectRaw = getSetting<unknown>('wayli.landing_redirect_username', null);
+			const redirectUser =
+				typeof redirectRaw === 'string' && redirectRaw.trim()
+					? redirectRaw.trim()
+					: (() => {
+							// Tolerate the wrapped shape too (older writes / single-key reads).
+							const v = (redirectRaw as any)?.value ?? (redirectRaw as any)?.data?.value;
+							return v && typeof v === 'string' ? v.trim() : null;
+						})();
+			const communityRaw = getSetting<unknown>('wayli.community_enabled', null);
+			const communityDisabled =
+				communityRaw === false ||
+				communityRaw === 'false' ||
+				(typeof communityRaw === 'object' &&
+					communityRaw &&
+					((communityRaw as any).value === false ||
+						(communityRaw as any).value === 'false'));
 
 			if (communityDisabled) {
 				if (redirectUser) {
@@ -106,7 +124,26 @@
 			// .from('trips') resolves to GET /api/v1/tables/trips). Skip it for anon
 			// visitors instead of firing a wasted request; they see the empty state.
 			if (sessionUserId) {
+				// Fetch the signed-in user's display name from user_profiles (the
+				// raw SDK User has no name field). Mirrors AppNav.svelte.
+				try {
+					const { data: profile } = await fluxbase
+						.from('user_profiles')
+						.select('full_name, username')
+						.eq('id', sessionUserId)
+						.maybeSingle();
+					if ((profile as any)?.full_name) {
+						profileFullName = (profile as any).full_name;
+					}
+				} catch {}
+
 				await loadCommunityContent();
+
+				// If there are no public/visible stories, fall back to showing the
+				// signed-in user's own trips so the page is still useful to them.
+				if (latestEntries.length === 0) {
+					await loadMyTrips(sessionUserId);
+				}
 			}
 		})();
 	});
@@ -196,6 +233,24 @@
 				.sort((a, b) => b.trip_count - a.trip_count);
 		} catch (err) {
 			console.error('Failed to load community content:', err);
+		}
+	}
+
+	// Load the signed-in user's own trips (RLS-scoped to owner). Shown as a
+	// fallback when no public/visible stories exist, so the landing page still
+	// gives the user something relevant. Matches TripsService.getTrips fields.
+	async function loadMyTrips(userId: string) {
+		try {
+			const { data } = await fluxbase
+				.from('trips')
+				.select('id, title, image_url, start_date, status, visibility')
+				.eq('user_id', userId)
+				.in('status', ['active', 'completed', 'planned'])
+				.order('start_date', { ascending: false })
+				.limit(6);
+			myTrips = (data as any[]) ?? [];
+		} catch (err) {
+			console.error('Failed to load my trips:', err);
 		}
 	}
 
@@ -328,19 +383,29 @@
 					{t('landing.heroSubtext')}
 				</p>
 				<div class="mt-8 flex items-center justify-center gap-3">
-					<a
-						href="#stories"
-						class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
-					>
-						<BookOpen class="h-4 w-4" />
-						{t('community.exploreStories')}
-					</a>
-					{#if !$userStore}
+					{#if latestEntries.length > 0 || myTrips.length > 0}
+						<a
+							href="#stories"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
+						>
+							<BookOpen class="h-4 w-4" />
+							{t('community.exploreStories')}
+						</a>
+					{:else if $userStore}
+						<a
+							href="/dashboard/travel"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
+						>
+							<BookOpen class="h-4 w-4" />
+							{t('landing.goToDashboard')}
+						</a>
+					{:else}
 						<a
 							href="/auth/signin"
-							class="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
 						>
-							{t('landing.signIn')}
+							<User class="h-4 w-4" />
+							{t('auth.signIn')}
 						</a>
 					{/if}
 				</div>
@@ -440,8 +505,48 @@
 				</div>
 			{/if}
 
-			<!-- Empty state -->
-			{#if latestEntries.length === 0 && travelers.length === 0}
+			<!-- Your trips (fallback for signed-in users with no public stories) -->
+			{#if latestEntries.length === 0 && $userStore && myTrips.length > 0}
+				<div class="mb-16">
+					<div class="mb-6 flex items-center gap-2">
+						<BookOpen class="text-primary h-5 w-5" />
+						<h2 class="text-foreground text-xl font-bold">{t('community.yourTrips')}</h2>
+					</div>
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+						{#each myTrips as trip (trip.id)}
+							<a
+								href="/dashboard/travel"
+								class="group bg-card border-border overflow-hidden rounded-xl border transition-all hover:shadow-lg"
+							>
+								{#if trip.image_url}
+									<div class="h-32 overflow-hidden">
+										<img
+											src={trip.image_url}
+											alt={trip.title}
+											class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+											loading="lazy"
+										/>
+									</div>
+								{/if}
+								<div class="p-4">
+									<div class="text-muted-foreground mb-1 flex items-center gap-1.5 text-xs">
+										<Calendar class="h-3 w-3" />
+										{new Date(trip.start_date).toLocaleDateString(undefined, {
+											month: 'long',
+											day: 'numeric',
+											year: 'numeric'
+										})}
+									</div>
+									<h3 class="text-foreground mb-1 font-bold">{trip.title || 'Untitled'}</h3>
+								</div>
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Empty state (only when there's truly nothing to show) -->
+			{#if latestEntries.length === 0 && travelers.length === 0 && myTrips.length === 0}
 				<div class="flex flex-col items-center justify-center py-20 text-center">
 					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
 					{#if $userStore}

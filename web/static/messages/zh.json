@@ -262,6 +262,7 @@
 		"selfHostedTagline": "自托管位置跟踪和行程管理。您的数据、您的服务器、您的隐私。",
 		"heroHeadline": "你的旅行。你的数据。你的服务器。",
 		"heroSubtext": "自托管位置跟踪和行程管理，隐私保护贯穿设计。",
+		"goToDashboard": "前往仪表盘",
 		"privacyFirst": "隐私第一",
 		"privacyFirstDescription": "您的数据保留在您的服务器上。没有第三方跟踪或数据共享。",
 		"automaticTripDetection": "自动跳闸检测",
@@ -1186,6 +1187,12 @@
 		"aiMaxTokensDescription": "每个响应的最大令牌数（默认值：4096）",
 		"aiTemperature": "温度",
 		"aiTemperatureDescription": "响应创造力（0.0 = 精确，1.0 = 创造性）",
+		"aiUsageLimits": "使用限额",
+		"aiUsageLimitsDescription": "每用户每日上限。关闭则无限制（默认）。",
+		"aiQuestionLimit": "每日提问上限",
+		"aiQuestionLimitDescription": "用户每日可发送的提问/消息最大数量",
+		"aiTokenBudget": "每日令牌预算",
+		"aiTokenBudgetDescription": "用户每日可消耗的令牌最大数量",
 		"aiSettingsSaved": "AI 设置已保存",
 		"aiProviderReadOnly": "只读",
 		"aiProviderReadOnlyDescription": "此 AI 提供程序通过环境变量或 YAML 配置进行配置，无法通过 UI 进行修改。",
@@ -1657,7 +1664,8 @@
 		"subtitle": "发现我们社区的旅行故事",
 		"travelers": "旅行者",
 		"whereWeveBeen": "我们去过的地方",
-		"exploreStories": "探索故事"
+		"exploreStories": "探索故事",
+		"yourTrips": "你的旅行"
 	},
 	"feed": {
 		"noStories": "还没有故事。",

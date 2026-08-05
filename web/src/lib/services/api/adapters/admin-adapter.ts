@@ -35,16 +35,31 @@ export class AdminAdapter extends BaseAdapter {
 
 		const appSettings = await fluxbase.admin.settings.app.get();
 
-		const customSettings = await fluxbase.admin.settings.app.listSettings();
-		const wayliSettings = (customSettings || [])
-			.filter((s: { key: string }) => s.key.startsWith('wayli.'))
-			.reduce(
-				(acc: Record<string, unknown>, s: { key: string; value: unknown }) => ({
-					...acc,
-					[s.key]: s.value
-				}),
-				{}
-			);
+		// Namespace prefix fetch (one request, server-side `wayli.*` filter,
+		// RLS-filtered) instead of list-all + client filter. Falls back for
+		// older SDKs without the prefix option.
+		let wayliSettings: Record<string, unknown> = {};
+		try {
+			const getSettings = fluxbase.admin.settings.app.getSettings as any;
+			wayliSettings =
+				typeof getSettings === 'function'
+					? await getSettings.call(fluxbase.admin.settings.app, [], { prefix: 'wayli.' })
+					: {};
+		} catch {
+			// fall back to the list-all path
+		}
+		if (Object.keys(wayliSettings).length === 0) {
+			const customSettings = await fluxbase.admin.settings.app.listSettings();
+			wayliSettings = (customSettings || [])
+				.filter((s: { key: string }) => s.key.startsWith('wayli.'))
+				.reduce(
+					(acc: Record<string, unknown>, s: { key: string; value: unknown }) => ({
+						...acc,
+						[s.key]: s.value
+					}),
+					{}
+				);
+		}
 
 		let providers: Array<{ is_default?: boolean; enabled?: boolean }> = [];
 		let defaultProvider: { is_default?: boolean } | undefined;

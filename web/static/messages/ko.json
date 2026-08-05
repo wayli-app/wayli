@@ -262,6 +262,7 @@
 		"selfHostedTagline": "자체 호스팅 위치 추적 및 여행 관리. 귀하의 데이터, 귀하의 서버, 귀하의 개인 정보 보호.",
 		"heroHeadline": "당신의 여행. 당신의 데이터. 당신의 서버.",
 		"heroSubtext": "자체 호스팅 위치 추적 및 여행 관리. 설계부터 보호되는 개인정보 보호.",
+		"goToDashboard": "대시보드로",
 		"privacyFirst": "개인 정보 보호 우선",
 		"privacyFirstDescription": "귀하의 데이터는 귀하의 서버에 유지됩니다. 제3자 추적이나 데이터 공유가 없습니다.",
 		"automaticTripDetection": "자동 트립 감지",
@@ -1186,6 +1187,12 @@
 		"aiMaxTokensDescription": "응답당 최대 토큰(기본값: 4096)",
 		"aiTemperature": "온도",
 		"aiTemperatureDescription": "반응 창의성(0.0 = 정확, 1.0 = 창의적)",
+		"aiUsageLimits": "사용 한도",
+		"aiUsageLimitsDescription": "사용자별 하루 한도입니다. 끄면 제한 없음(기본값).",
+		"aiQuestionLimit": "일일 질문 한도",
+		"aiQuestionLimitDescription": "사용자가 하루에 보낼 수 있는 질문/메시지 최대 수",
+		"aiTokenBudget": "일일 토큰 예산",
+		"aiTokenBudgetDescription": "사용자가 하루에 소비할 수 있는 최대 토큰 수",
 		"aiSettingsSaved": "AI 설정이 저장되었습니다",
 		"aiProviderReadOnly": "읽기 전용",
 		"aiProviderReadOnlyDescription": "이 AI 공급자는 환경 변수 또는 YAML 구성을 통해 구성되며 UI를 통해 수정할 수 없습니다.",
@@ -1657,7 +1664,8 @@
 		"subtitle": "커뮤니티에서 여행 이야기를 찾아보세요",
 		"travelers": "여행자",
 		"whereWeveBeen": "우리가 있었던 곳",
-		"exploreStories": "스토리 탐색"
+		"exploreStories": "스토리 탐색",
+		"yourTrips": "내 여행"
 	},
 	"feed": {
 		"noStories": "아직 스토리가 없습니다.",

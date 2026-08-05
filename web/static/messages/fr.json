@@ -262,6 +262,7 @@
 		"selfHostedTagline": "Suivi de localisation et gestion des voyages auto-hébergés. Vos données, votre serveur, votre vie privée.",
 		"heroHeadline": "Vos voyages. Vos données. Votre serveur.",
 		"heroSubtext": "Suivi de localisation et gestion des voyages auto-hébergés, avec confidentialité par conception.",
+		"goToDashboard": "Aller au tableau de bord",
 		"privacyFirst": "La confidentialité d'abord",
 		"privacyFirstDescription": "Vos données restent sur votre serveur. Pas de suivi ou de partage de données par des tiers.",
 		"automaticTripDetection": "Détection automatique des déplacements",
@@ -1185,6 +1186,12 @@
 		"aiMaxTokensDescription": "Nombre maximum de jetons par réponse (par défaut : 4 096)",
 		"aiTemperature": "Température",
 		"aiTemperatureDescription": "Créativité de réponse (0,0 = précis, 1,0 = créatif)",
+		"aiUsageLimits": "Limites d'utilisation",
+		"aiUsageLimitsDescription": "Plafonds par utilisateur et par jour. Désactivez pour aucune limite (par défaut).",
+		"aiQuestionLimit": "Limite de questions quotidienne",
+		"aiQuestionLimitDescription": "Max. de questions/messages qu'un utilisateur peut envoyer par jour",
+		"aiTokenBudget": "Budget de tokens quotidien",
+		"aiTokenBudgetDescription": "Max. de tokens qu'un utilisateur peut consommer par jour",
 		"aiSettingsSaved": "Paramètres IA enregistrés",
 		"aiProviderReadOnly": "Lecture seule",
 		"aiProviderReadOnlyDescription": "Ce fournisseur d'IA est configuré via des variables d'environnement ou une configuration YAML et ne peut pas être modifié via l'interface utilisateur.",
@@ -1656,7 +1663,8 @@
 		"subtitle": "Découvrez les récits de voyage de notre communauté",
 		"travelers": "Voyageurs",
 		"whereWeveBeen": "Où nous sommes allés",
-		"exploreStories": "Explorez des histoires"
+		"exploreStories": "Explorez des histoires",
+		"yourTrips": "Vos voyages"
 	},
 	"feed": {
 		"noStories": "Pas encore d'histoires.",

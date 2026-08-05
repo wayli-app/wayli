@@ -262,6 +262,7 @@
 		"selfHostedTagline": "Selbstgehostete Standortverfolgung und Reisemanagement. Ihre Daten, Ihr Server, Ihre Privatsphäre.",
 		"heroHeadline": "Deine Reisen. Deine Daten. Dein Server.",
 		"heroSubtext": "Selbstgehostete Standortverfolgung und Reisemanagement, mit Privacy by Design.",
+		"goToDashboard": "Zum Dashboard",
 		"privacyFirst": "Datenschutz zuerst",
 		"privacyFirstDescription": "Ihre Daten bleiben auf Ihrem Server. Kein Tracking oder Datenaustausch durch Dritte.",
 		"automaticTripDetection": "Automatische Fahrterkennung",
@@ -1182,6 +1183,12 @@
 		"aiMaxTokensDescription": "Maximale Token pro Antwort (Standard: 4096)",
 		"aiTemperature": "Temperatur",
 		"aiTemperatureDescription": "Antwortkreativität (0,0 = präzise, ​​1,0 = kreativ)",
+		"aiUsageLimits": "Nutzungslimits",
+		"aiUsageLimitsDescription": "Grenzen pro Benutzer und Tag. Ausschalten für kein Limit (Standard).",
+		"aiQuestionLimit": "Tägliches Fragenlimit",
+		"aiQuestionLimitDescription": "Max. Fragen/Nachrichten, die ein Benutzer pro Tag senden kann",
+		"aiTokenBudget": "Tägliches Token-Budget",
+		"aiTokenBudgetDescription": "Max. Tokens, die ein Benutzer pro Tag verbrauchen kann",
 		"aiSettingsSaved": "AI-Einstellungen gespeichert",
 		"aiProviderReadOnly": "Schreibgeschützt",
 		"aiProviderReadOnlyDescription": "Dieser KI-Anbieter wird über Umgebungsvariablen oder YAML-Konfiguration konfiguriert und kann nicht über die Benutzeroberfläche geändert werden.",
@@ -1653,7 +1660,8 @@
 		"subtitle": "Entdecken Sie Reisegeschichten aus unserer Community",
 		"travelers": "Reisende",
 		"whereWeveBeen": "Wo wir waren",
-		"exploreStories": "Entdecken Sie Geschichten"
+		"exploreStories": "Entdecken Sie Geschichten",
+		"yourTrips": "Deine Reisen"
 	},
 	"feed": {
 		"noStories": "Noch keine Geschichten.",

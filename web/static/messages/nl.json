@@ -262,6 +262,7 @@
 		"selfHostedTagline": "Zelf-gehoste locatietracking en reisbeheer. Jouw data, jouw server, jouw privacy.",
 		"heroHeadline": "Jouw reizen. Jouw data. Jouw server.",
 		"heroSubtext": "Zelf-gehoste locatietracking en reisbeheer, met privacy als uitgangspunt.",
+		"goToDashboard": "Naar dashboard",
 		"privacyFirst": "Privacy Eerst",
 		"privacyFirstDescription": "Jouw data blijft op jouw server. Geen tracking of datadeling door derden.",
 		"automaticTripDetection": "Automatische Reisdetectie",
@@ -1182,6 +1183,12 @@
 		"aiMaxTokensDescription": "Maximum tokens per antwoord (standaard: 4096)",
 		"aiTemperature": "Temperatuur",
 		"aiTemperatureDescription": "Antwoord creativiteit (0.0 = precies, 1.0 = creatief)",
+		"aiUsageLimits": "Gebruikslimieten",
+		"aiUsageLimitsDescription": "Limieten per gebruiker per dag. Schakel uit voor geen limiet (standaard).",
+		"aiQuestionLimit": "Dagelijkse vraaggrens",
+		"aiQuestionLimitDescription": "Max aantal vragen/berichten dat een gebruiker per dag kan versturen",
+		"aiTokenBudget": "Dagelijks tokenbudget",
+		"aiTokenBudgetDescription": "Max aantal tokens dat een gebruiker per dag kan verbruiken",
 		"aiSettingsSaved": "AI instellingen opgeslagen",
 		"aiProviderReadOnly": "Alleen-lezen",
 		"aiProviderReadOnlyDescription": "Deze AI-provider is geconfigureerd via omgevingsvariabelen of YAML-configuratie en kan niet worden gewijzigd via de interface.",
@@ -1653,7 +1660,8 @@
 		"subtitle": "Ontdek reisverhalen uit onze gemeenschap",
 		"travelers": "Reizigers",
 		"whereWeveBeen": "Waar we zijn geweest",
-		"exploreStories": "Verken verhalen"
+		"exploreStories": "Verken verhalen",
+		"yourTrips": "Jouw reizen"
 	},
 	"feed": {
 		"noStories": "Nog geen verhalen.",

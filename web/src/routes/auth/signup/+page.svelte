@@ -8,6 +8,7 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { ensureUserProfile } from '$lib/services/session/user-profile-bootstrap';
 	import { readSetting } from '$lib/utils/settings';
+	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -79,12 +80,26 @@
 			// OAuth-only mode when password login is disabled
 			oauthOnlyMode = !authConfig.password_login_enabled;
 
-			// First user check - keep using custom Wayli setting for setup status.
-			// readSetting treats "Setting not found" (fresh install) as null -> setupComplete=false -> isFirstUser=true.
-			const isSetupComplete = await readSetting(() =>
-				fluxbase.settings.get('wayli.is_setup_complete')
-			);
-			const setupComplete = isSetupComplete?.value === true || isSetupComplete?.value === 'true';
+			// First user check — read from the central settings store (one bulk
+			// fetch shared across the app, no per-key 404). `is_setup_complete` is
+			// marked is_public so this works for anonymous (logged-out) signup
+			// visitors; absent on a fresh install → null → setupComplete=false →
+			// isFirstUser=true. Falls back to a direct read if the store hasn't
+			// populated yet (it loads in the root layout).
+			await loadPublicSettings();
+			let isSetupComplete = getSetting<unknown>('wayli.is_setup_complete', null);
+			if (isSetupComplete === null) {
+				isSetupComplete = await readSetting(() =>
+					fluxbase.settings.get('wayli.is_setup_complete')
+				);
+			}
+			const setupComplete =
+				isSetupComplete === true ||
+				isSetupComplete === 'true' ||
+				(typeof isSetupComplete === 'object' &&
+					isSetupComplete &&
+					((isSetupComplete as any).value === true ||
+						(isSetupComplete as any).value === 'true'));
 			isFirstUser = !setupComplete;
 
 			// First user can always sign up regardless of signup_enabled

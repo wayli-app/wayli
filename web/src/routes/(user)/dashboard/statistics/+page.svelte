@@ -1043,6 +1043,32 @@
 		segmentHighlight = [];
 	}
 
+	/** Close the Point Details popup. Leaves the segment selection intact so
+	 *  the relabel toolbar stays available after dismissing the popup. */
+	function closePointDetails() {
+		selectedPoint = null;
+	}
+
+	/** Speed comes from a Postgres numeric column, which PostgREST returns as a
+	 *  string. Coerce before formatting so we never call `.toFixed` on a string
+	 *  (which throws and blanks the page via the root error boundary). Prefer the
+	 *  detector's computed velocity when the raw speed is absent. */
+	function formatPointSpeed(point: any): string {
+		const raw = point.velocity ?? point.speed;
+		const speed = Number(raw);
+		if (!isFinite(speed) || speed <= 0) return 'N/A';
+		return `${speed.toFixed(1)} km/h`;
+	}
+
+	/** Distance (meters from the previous point) is also a Postgres numeric, so
+	 *  it arrives as a string. Coerce before dividing, and guard against <= 0 to
+	 *  avoid rendering "NaN km" or "0.00 km" for null/empty legs. */
+	function formatPointDistance(point: any): string {
+		const distance = Number(point.distance);
+		if (!isFinite(distance) || distance <= 0) return 'N/A';
+		return `${(distance / 1000).toFixed(2)} km`;
+	}
+
 	/** Draw a bright outline over every selected segment's markers. */
 	function drawSegmentHighlight() {
 		clearSegmentHighlight();
@@ -1699,7 +1725,7 @@
 						<div>
 							<span class="text-muted-foreground font-medium">{t('statistics.popupSpeed')}:</span>
 							<div class="dark:text-muted-foreground text-gray-800">
-								{selectedPoint.speed ? `${selectedPoint.speed.toFixed(1)} km/h` : 'N/A'}
+								{formatPointSpeed(selectedPoint)}
 							</div>
 						</div>
 					</div>
@@ -1709,9 +1735,7 @@
 							<span class="text-muted-foreground font-medium">{t('statistics.popupDistance')}:</span
 							>
 							<div class="dark:text-muted-foreground text-gray-800">
-								{selectedPoint.distance
-									? `${(selectedPoint.distance / 1000).toFixed(2)} km`
-									: 'N/A'}
+								{formatPointDistance(selectedPoint)}
 							</div>
 						</div>
 						<div>

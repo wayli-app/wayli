@@ -19,7 +19,8 @@
 		RefreshCw,
 		ArrowRight,
 		RotateCcw,
-		Globe
+		Globe,
+		Gauge
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -179,6 +180,13 @@
 	let providerTemperature = $state(0.7);
 	let providerIsDefault = $state(true);
 	let providerReadOnly = $state(false);
+
+	// AI usage limits (chatbot-level quotas enforced by Fluxbase). 0 = unlimited,
+	// which is the default. Mirrors the pexels_rate_limit toggle pattern.
+	let aiQuestionLimitEnabled = $state(false); // Daily question/turn limit on/off
+	let aiQuestionLimit = $state(100); // messages/day when enabled
+	let aiTokenBudgetEnabled = $state(false); // Daily token budget on/off
+	let aiTokenBudget = $state(200000); // tokens/day when enabled
 
 	// Handle Escape key for modals
 	$effect(() => {
@@ -827,6 +835,44 @@
 					: undefined
 			});
 
+			// Push usage limits to the wayli-assistant chatbot (0 = unlimited).
+			// Fluxbase enforces these server-side on the next message. We call the
+			// PUT /api/v1/admin/ai/chatbots/:id endpoint (field-level partial update).
+			// Prefer the SDK's updateChatbot() method when available; fall back to the
+			// underlying authenticated fetch for SDK versions that predate it.
+			const dailyRequestLimit = aiQuestionLimitEnabled ? aiQuestionLimit : 0;
+			const dailyTokenBudget = aiTokenBudgetEnabled ? aiTokenBudget : 0;
+			try {
+				const { data: chatbots } = await fluxbase.admin.ai.listChatbots('wayli');
+				const chatbot = (chatbots ?? []).find((c: any) => c.name === 'wayli-assistant');
+				if (chatbot) {
+					const ai = fluxbase.admin.ai as any;
+					const payload = {
+						daily_request_limit: dailyRequestLimit,
+						daily_token_budget: dailyTokenBudget
+					};
+					if (typeof ai.updateChatbot === 'function') {
+						await ai.updateChatbot(chatbot.id, payload);
+					} else {
+						// SDK pre-updateChatbot: reach the authenticated fetch directly.
+						await ai.fetch.put(`/api/v1/admin/ai/chatbots/${chatbot.id}`, payload);
+					}
+				}
+			} catch (e) {
+				console.error('Failed to update chatbot limits:', e);
+			}
+			// Also persist to wayli.* settings (for record-keeping / reload).
+			await serviceAdapter.updateCustomSetting(
+				'wayli.ai.daily_request_limit',
+				dailyRequestLimit,
+				'AI daily question limit (0 = unlimited)'
+			);
+			await serviceAdapter.updateCustomSetting(
+				'wayli.ai.daily_token_budget',
+				dailyTokenBudget,
+				'AI daily token budget (0 = unlimited)'
+			);
+
 			toast.success(t('serverAdmin.aiSettingsSaved'));
 
 			// Reload settings to get updated provider list
@@ -1280,6 +1326,23 @@
 				providerReadOnly = defaultProvider.read_only ?? false;
 				// Note: API key is not returned for security reasons
 			}
+
+			// Load chatbot usage limits from the live wayli-assistant record.
+			// These are enforced by Fluxbase server-side; 0 = unlimited.
+			try {
+				const { data: chatbots } = await fluxbase.admin.ai.listChatbots('wayli');
+				const chatbot = (chatbots ?? []).find((c: any) => c.name === 'wayli-assistant');
+				if (chatbot) {
+					const q = chatbot.daily_request_limit ?? 0;
+					aiQuestionLimitEnabled = q > 0;
+					aiQuestionLimit = q > 0 ? q : 100;
+					const tk = chatbot.daily_token_budget ?? 0;
+					aiTokenBudgetEnabled = tk > 0;
+					aiTokenBudget = tk > 0 ? tk : 200000;
+				}
+			} catch (e) {
+				console.error('Failed to load chatbot limits:', e);
+			}
 		}
 
 		// Custom Wayli settings
@@ -1376,10 +1439,17 @@
 		isSavingLandingRedirect = true;
 		try {
 			const username = landingRedirectUsername || null;
-			await fluxbase.admin.settings.app.setSetting('wayli.landing_redirect_username', {
-				value: username,
-				description: 'Username whose public journal is shown as the landing page'
-			});
+			// is_public so anonymous landing visitors can read it (the landing
+			// page reads this from the central settings store, which runs an
+			// anon-allowed bulk fetch; non-public rows are hidden from anon by RLS).
+			await fluxbase.admin.settings.app.setSetting(
+				'wayli.landing_redirect_username',
+				{ value: username },
+				{
+					description: 'Username whose public journal is shown as the landing page',
+					is_public: true
+				}
+			);
 			toast.success(username ? "Landing page set to user's blog" : 'Landing page reset to default');
 		} catch {
 			toast.error('Failed to save landing page setting');
@@ -1391,10 +1461,16 @@
 	async function saveCommunitySettings() {
 		isSavingCommunity = true;
 		try {
-			await fluxbase.admin.settings.app.setSetting('wayli.community_enabled', {
-				value: communityEnabled,
-				description: 'Enable community hub as the landing page'
-			});
+			// is_public so anonymous landing visitors honor the community-enabled
+			// gate (previously anon never saw this and always fell through).
+			await fluxbase.admin.settings.app.setSetting(
+				'wayli.community_enabled',
+				{ value: communityEnabled },
+				{
+					description: 'Enable community hub as the landing page',
+					is_public: true
+				}
+			);
 			toast.success(communityEnabled ? 'Community hub enabled' : 'Community hub disabled');
 		} catch {
 			toast.error('Failed to save community setting');
@@ -2980,20 +3056,85 @@
 										>
 											{t('serverAdmin.aiTemperature')}
 										</label>
-										<Input
-											id="providerTemperature"
-											type="number"
-											bind:value={providerTemperature}
-											disabled={providerReadOnly}
-											min="0"
-											max="2"
-											step="0.1"
-											class="w-full"
-										/>
-									</div>
+									<Input
+										id="providerTemperature"
+										type="number"
+										bind:value={providerTemperature}
+										disabled={providerReadOnly}
+										min="0"
+										max="2"
+										step="0.1"
+										class="w-full"
+									/>
 								</div>
 							</div>
-						{/if}
+						</div>
+
+						<!-- Usage Limits (chatbot quotas, 0 = unlimited) -->
+						<div class="dark:bg-card border-border space-y-3 rounded border bg-gray-50 p-4">
+							<div class="flex items-center gap-2">
+								<Gauge class="text-muted-foreground h-4 w-4" />
+								<span class="text-muted-foreground text-sm font-medium">
+									{t('serverAdmin.aiUsageLimits')}
+								</span>
+							</div>
+							<p class="text-muted-foreground text-xs">
+								{t('serverAdmin.aiUsageLimitsDescription')}
+							</p>
+
+							<!-- Daily question limit -->
+							<div class="flex items-center justify-between">
+								<div class="flex-1 pr-4">
+									<span class="text-muted-foreground block text-sm font-medium">
+										{t('serverAdmin.aiQuestionLimit')}
+									</span>
+									<p class="text-muted-foreground text-xs">
+										{t('serverAdmin.aiQuestionLimitDescription')}
+									</p>
+								</div>
+								<div class="flex items-center gap-3">
+									{#if aiQuestionLimitEnabled}
+										<Input
+											type="number"
+											bind:value={aiQuestionLimit}
+											min="1"
+											class="w-28"
+										/>
+									{/if}
+									<Switch
+										bind:checked={aiQuestionLimitEnabled}
+										label={t('serverAdmin.aiQuestionLimit')}
+									/>
+								</div>
+							</div>
+
+							<!-- Daily token budget -->
+							<div class="flex items-center justify-between">
+								<div class="flex-1 pr-4">
+									<span class="text-muted-foreground block text-sm font-medium">
+										{t('serverAdmin.aiTokenBudget')}
+									</span>
+									<p class="text-muted-foreground text-xs">
+										{t('serverAdmin.aiTokenBudgetDescription')}
+									</p>
+								</div>
+								<div class="flex items-center gap-3">
+									{#if aiTokenBudgetEnabled}
+										<Input
+											type="number"
+											bind:value={aiTokenBudget}
+											min="1"
+											class="w-32"
+										/>
+									{/if}
+									<Switch
+										bind:checked={aiTokenBudgetEnabled}
+										label={t('serverAdmin.aiTokenBudget')}
+									/>
+								</div>
+							</div>
+						</div>
+					{/if}
 
 						{#if !providerReadOnly}
 							<div class="flex justify-end">

@@ -262,6 +262,7 @@
 		"selfHostedTagline": "自己ホスト型の位置追跡と旅行管理。あなたのデータ、サーバー、プライバシー。",
 		"heroHeadline": "あなたの旅。あなたのデータ。あなたのサーバー。",
 		"heroSubtext": "自己ホスト型の位置追跡と旅行管理。プライバシーを設計から組み込んでいます。",
+		"goToDashboard": "ダッシュボードへ",
 		"privacyFirst": "プライバシー第一",
 		"privacyFirstDescription": "データはサーバー上に残ります。第三者による追跡やデータ共有はありません。",
 		"automaticTripDetection": "自動トリップ検出",
@@ -1186,6 +1187,12 @@
 		"aiMaxTokensDescription": "応答あたりの最大トークン数 (デフォルト: 4096)",
 		"aiTemperature": "温度",
 		"aiTemperatureDescription": "応答の創造性 (0.0 = 正確、1.0 = 創造的)",
+		"aiUsageLimits": "利用制限",
+		"aiUsageLimitsDescription": "ユーザーごと・1日あたりの上限です。オフにすると無制限（既定）。",
+		"aiQuestionLimit": "1日の質問上限",
+		"aiQuestionLimitDescription": "ユーザーが1日に送信できる質問/メッセージの最大数",
+		"aiTokenBudget": "1日のトークン予算",
+		"aiTokenBudgetDescription": "ユーザーが1日に消費できるトークンの最大数",
 		"aiSettingsSaved": "AI設定が保存されました",
 		"aiProviderReadOnly": "読み取り専用",
 		"aiProviderReadOnlyDescription": "この AI プロバイダーは環境変数または YAML 構成を介して構成され、UI を介して変更することはできません。",
@@ -1657,7 +1664,8 @@
 		"subtitle": "コミュニティから旅行のストーリーを見つけてください",
 		"travelers": "旅行者",
 		"whereWeveBeen": "私たちが行った場所",
-		"exploreStories": "ストーリーを探索する"
+		"exploreStories": "ストーリーを探索する",
+		"yourTrips": "あなたの旅行"
 	},
 	"feed": {
 		"noStories": "まだストーリーはありません。",
