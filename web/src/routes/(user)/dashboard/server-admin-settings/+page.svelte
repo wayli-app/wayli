@@ -1395,27 +1395,23 @@
 		// Ensure required storage buckets exist (self-healing)
 		ensureStorageBuckets().catch(() => {});
 
-		// Load landing redirect setting
-		try {
-			const redirectUser = await fluxbase.settings
-				.get('wayli.landing_redirect_username')
-				.catch(() => null);
-			if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
-				landingRedirectUsername = redirectUser.trim();
-			}
-		} catch {
-			// Setting not found — defaults are fine
+		// Load landing redirect + community settings from the already-fetched
+		// `custom` map (getAllSettings above) instead of two extra per-key
+		// requests that 404 on a fresh install. Values are stored as
+		// { value: <v> }; tolerate both the wrapped and raw shapes.
+		const redirectEntry = custom['wayli.landing_redirect_username'] as any;
+		const redirectUser =
+			typeof redirectEntry === 'string'
+				? redirectEntry
+				: redirectEntry?.value ?? redirectEntry?.data?.value ?? null;
+		if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
+			landingRedirectUsername = redirectUser.trim();
 		}
 
-		// Load community setting
-		try {
-			const commSetting = await fluxbase.settings.get('wayli.community_enabled').catch(() => null);
-			const val =
-				typeof commSetting === 'object' && commSetting ? (commSetting as any).value : commSetting;
-			communityEnabled = !(val === false || val === 'false');
-		} catch {
-			communityEnabled = true;
-		}
+		const commEntry = custom['wayli.community_enabled'] as any;
+		const commVal =
+			typeof commEntry === 'object' && commEntry ? commEntry.value : commEntry;
+		communityEnabled = !(commVal === false || commVal === 'false');
 
 		// Load users independently (not blocked by settings errors)
 		try {
