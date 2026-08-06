@@ -108,8 +108,7 @@
 				communityRaw === 'false' ||
 				(typeof communityRaw === 'object' &&
 					communityRaw &&
-					((communityRaw as any).value === false ||
-						(communityRaw as any).value === 'false'));
+					((communityRaw as any).value === false || (communityRaw as any).value === 'false'));
 
 			if (communityDisabled) {
 				if (redirectUser) {
@@ -361,11 +360,17 @@
 			{#if $userStore}
 				<a
 					href="/dashboard/account-settings"
-					title={profileUsername ? `@${profileUsername}` : displayName || t('common.navigation.accountSettings')}
+					title={profileUsername
+						? `@${profileUsername}`
+						: displayName || t('common.navigation.accountSettings')}
 					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex max-w-[10rem] items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 				>
 					<User class="h-4 w-4 shrink-0" />
-					<span class="truncate">{profileUsername ? `@${profileUsername}` : displayName || t('common.navigation.dashboard')}</span>
+					<span class="truncate"
+						>{profileUsername
+							? `@${profileUsername}`
+							: displayName || t('common.navigation.dashboard')}</span
+					>
 				</a>
 			{:else}
 				<a
@@ -520,8 +525,8 @@
 				</div>
 			{/if}
 
-		<!-- Your trips (shown to signed-in users alongside public stories) -->
-		{#if $userStore && myTrips.length > 0}
+			<!-- Your trips (shown to signed-in users alongside public stories) -->
+			{#if $userStore && myTrips.length > 0}
 				<div class="mb-16">
 					<div class="mb-6 flex items-center gap-2">
 						<BookOpen class="text-primary h-5 w-5" />

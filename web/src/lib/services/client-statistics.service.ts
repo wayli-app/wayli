@@ -68,7 +68,7 @@ export interface ClientStatistics {
 		startDate?: string;
 		endDate?: string;
 	};
-		lastProcessedAt?: string;
+	lastProcessedAt?: string;
 }
 
 /**

@@ -140,9 +140,7 @@
 		await loadPublicSettings();
 		let setting = getSetting<unknown>('wayli.public_trips_require_auth', null);
 		if (setting === null) {
-			setting = await readSetting(() =>
-				fluxbase.settings.get('wayli.public_trips_require_auth')
-			);
+			setting = await readSetting(() => fluxbase.settings.get('wayli.public_trips_require_auth'));
 		}
 		const requireAuth =
 			setting === true ||

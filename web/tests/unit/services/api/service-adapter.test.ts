@@ -27,13 +27,13 @@ const mockFluxbase = {
 	},
 	admin: {
 		settings: {
-		app: {
-			get: vi.fn(),
-			getSetting: vi.fn(),
-			getSettings: vi.fn(),
-			setSetting: vi.fn(),
-			listSettings: vi.fn(),
-			getSecretSetting: vi.fn(),
+			app: {
+				get: vi.fn(),
+				getSetting: vi.fn(),
+				getSettings: vi.fn(),
+				setSetting: vi.fn(),
+				listSettings: vi.fn(),
+				getSecretSetting: vi.fn(),
 				setSecretSetting: vi.fn(),
 				deleteSecretSetting: vi.fn(),
 				enableSignup: vi.fn(),

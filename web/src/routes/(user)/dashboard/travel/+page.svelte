@@ -185,10 +185,7 @@
 	});
 
 	const activeTripGpsPoints = $derived(
-		activeTripId
-			? (gpsCache.get(activeTripId) ?? [])
-						.map((p) => ({ lat: p.lat, lng: p.lng }))
-			: []
+		activeTripId ? (gpsCache.get(activeTripId) ?? []).map((p) => ({ lat: p.lat, lng: p.lng })) : []
 	);
 
 	const highlightPoints = $derived.by(() => {
@@ -927,7 +924,11 @@
 	// tracker_data rows — it's the same source the Statistics page relies on.
 	// Falls back to the raw per-row distance sum when the cache is empty for the
 	// range (e.g. a fresh user whose refresh-daily-activity job hasn't run yet).
-	async function sumTripDistance(userId: string, startDate: string, endDate: string): Promise<number> {
+	async function sumTripDistance(
+		userId: string,
+		startDate: string,
+		endDate: string
+	): Promise<number> {
 		const sd = (startDate || '').slice(0, 10);
 		const ed = (endDate || '').slice(0, 10);
 
@@ -1430,7 +1431,7 @@
 									     (invalidateSize never re-runs on the re-parented div). -->
 									{#if activeTripId === trip.id && loadingTripGps.has(trip.id)}
 										<div
-											class="text-muted-foreground flex items-center justify-center gap-2 border-b border-border py-6 text-xs lg:hidden"
+											class="text-muted-foreground border-border flex items-center justify-center gap-2 border-b py-6 text-xs lg:hidden"
 										>
 											<Loader2 class="h-3.5 w-3.5 animate-spin" />
 											{t('common.status.loading')}

@@ -1394,14 +1394,13 @@
 		const redirectUser =
 			typeof redirectEntry === 'string'
 				? redirectEntry
-				: redirectEntry?.value ?? redirectEntry?.data?.value ?? null;
+				: (redirectEntry?.value ?? redirectEntry?.data?.value ?? null);
 		if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
 			landingRedirectUsername = redirectUser.trim();
 		}
 
 		const commEntry = custom['wayli.community_enabled'] as any;
-		const commVal =
-			typeof commEntry === 'object' && commEntry ? commEntry.value : commEntry;
+		const commVal = typeof commEntry === 'object' && commEntry ? commEntry.value : commEntry;
 		communityEnabled = !(commVal === false || commVal === 'false');
 
 		// Load users independently (not blocked by settings errors)
@@ -3043,85 +3042,75 @@
 										>
 											{t('serverAdmin.aiTemperature')}
 										</label>
-									<Input
-										id="providerTemperature"
-										type="number"
-										bind:value={providerTemperature}
-										disabled={providerReadOnly}
-										min="0"
-										max="2"
-										step="0.1"
-										class="w-full"
-									/>
-								</div>
-							</div>
-						</div>
-
-						<!-- Usage Limits (chatbot quotas, 0 = unlimited) -->
-						<div class="dark:bg-card border-border space-y-3 rounded border bg-gray-50 p-4">
-							<div class="flex items-center gap-2">
-								<Gauge class="text-muted-foreground h-4 w-4" />
-								<span class="text-muted-foreground text-sm font-medium">
-									{t('serverAdmin.aiUsageLimits')}
-								</span>
-							</div>
-							<p class="text-muted-foreground text-xs">
-								{t('serverAdmin.aiUsageLimitsDescription')}
-							</p>
-
-							<!-- Daily question limit -->
-							<div class="flex items-center justify-between">
-								<div class="flex-1 pr-4">
-									<span class="text-muted-foreground block text-sm font-medium">
-										{t('serverAdmin.aiQuestionLimit')}
-									</span>
-									<p class="text-muted-foreground text-xs">
-										{t('serverAdmin.aiQuestionLimitDescription')}
-									</p>
-								</div>
-								<div class="flex items-center gap-3">
-									{#if aiQuestionLimitEnabled}
 										<Input
+											id="providerTemperature"
 											type="number"
-											bind:value={aiQuestionLimit}
-											min="1"
-											class="w-28"
+											bind:value={providerTemperature}
+											disabled={providerReadOnly}
+											min="0"
+											max="2"
+											step="0.1"
+											class="w-full"
 										/>
-									{/if}
-									<Switch
-										bind:checked={aiQuestionLimitEnabled}
-										label={t('serverAdmin.aiQuestionLimit')}
-									/>
+									</div>
 								</div>
 							</div>
 
-							<!-- Daily token budget -->
-							<div class="flex items-center justify-between">
-								<div class="flex-1 pr-4">
-									<span class="text-muted-foreground block text-sm font-medium">
-										{t('serverAdmin.aiTokenBudget')}
+							<!-- Usage Limits (chatbot quotas, 0 = unlimited) -->
+							<div class="dark:bg-card border-border space-y-3 rounded border bg-gray-50 p-4">
+								<div class="flex items-center gap-2">
+									<Gauge class="text-muted-foreground h-4 w-4" />
+									<span class="text-muted-foreground text-sm font-medium">
+										{t('serverAdmin.aiUsageLimits')}
 									</span>
-									<p class="text-muted-foreground text-xs">
-										{t('serverAdmin.aiTokenBudgetDescription')}
-									</p>
 								</div>
-								<div class="flex items-center gap-3">
-									{#if aiTokenBudgetEnabled}
-										<Input
-											type="number"
-											bind:value={aiTokenBudget}
-											min="1"
-											class="w-32"
+								<p class="text-muted-foreground text-xs">
+									{t('serverAdmin.aiUsageLimitsDescription')}
+								</p>
+
+								<!-- Daily question limit -->
+								<div class="flex items-center justify-between">
+									<div class="flex-1 pr-4">
+										<span class="text-muted-foreground block text-sm font-medium">
+											{t('serverAdmin.aiQuestionLimit')}
+										</span>
+										<p class="text-muted-foreground text-xs">
+											{t('serverAdmin.aiQuestionLimitDescription')}
+										</p>
+									</div>
+									<div class="flex items-center gap-3">
+										{#if aiQuestionLimitEnabled}
+											<Input type="number" bind:value={aiQuestionLimit} min="1" class="w-28" />
+										{/if}
+										<Switch
+											bind:checked={aiQuestionLimitEnabled}
+											label={t('serverAdmin.aiQuestionLimit')}
 										/>
-									{/if}
-									<Switch
-										bind:checked={aiTokenBudgetEnabled}
-										label={t('serverAdmin.aiTokenBudget')}
-									/>
+									</div>
+								</div>
+
+								<!-- Daily token budget -->
+								<div class="flex items-center justify-between">
+									<div class="flex-1 pr-4">
+										<span class="text-muted-foreground block text-sm font-medium">
+											{t('serverAdmin.aiTokenBudget')}
+										</span>
+										<p class="text-muted-foreground text-xs">
+											{t('serverAdmin.aiTokenBudgetDescription')}
+										</p>
+									</div>
+									<div class="flex items-center gap-3">
+										{#if aiTokenBudgetEnabled}
+											<Input type="number" bind:value={aiTokenBudget} min="1" class="w-32" />
+										{/if}
+										<Switch
+											bind:checked={aiTokenBudgetEnabled}
+											label={t('serverAdmin.aiTokenBudget')}
+										/>
+									</div>
 								</div>
 							</div>
-						</div>
-					{/if}
+						{/if}
 
 						{#if !providerReadOnly}
 							<div class="flex justify-end">

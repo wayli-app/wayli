@@ -89,17 +89,14 @@
 			await loadPublicSettings();
 			let isSetupComplete = getSetting<unknown>('wayli.is_setup_complete', null);
 			if (isSetupComplete === null) {
-				isSetupComplete = await readSetting(() =>
-					fluxbase.settings.get('wayli.is_setup_complete')
-				);
+				isSetupComplete = await readSetting(() => fluxbase.settings.get('wayli.is_setup_complete'));
 			}
 			const setupComplete =
 				isSetupComplete === true ||
 				isSetupComplete === 'true' ||
 				(typeof isSetupComplete === 'object' &&
 					isSetupComplete &&
-					((isSetupComplete as any).value === true ||
-						(isSetupComplete as any).value === 'true'));
+					((isSetupComplete as any).value === true || (isSetupComplete as any).value === 'true'));
 			isFirstUser = !setupComplete;
 
 			// First user can always sign up regardless of signup_enabled
