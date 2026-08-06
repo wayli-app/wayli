@@ -836,27 +836,18 @@
 			});
 
 			// Push usage limits to the wayli-assistant chatbot (0 = unlimited).
-			// Fluxbase enforces these server-side on the next message. We call the
-			// PUT /api/v1/admin/ai/chatbots/:id endpoint (field-level partial update).
-			// Prefer the SDK's updateChatbot() method when available; fall back to the
-			// underlying authenticated fetch for SDK versions that predate it.
+			// Fluxbase enforces these server-side on the next message via the
+			// field-level partial update (PUT /api/v1/admin/ai/chatbots/:id).
 			const dailyRequestLimit = aiQuestionLimitEnabled ? aiQuestionLimit : 0;
 			const dailyTokenBudget = aiTokenBudgetEnabled ? aiTokenBudget : 0;
 			try {
 				const { data: chatbots } = await fluxbase.admin.ai.listChatbots('wayli');
 				const chatbot = (chatbots ?? []).find((c: any) => c.name === 'wayli-assistant');
 				if (chatbot) {
-					const ai = fluxbase.admin.ai as any;
-					const payload = {
+					await fluxbase.admin.ai.updateChatbot(chatbot.id, {
 						daily_request_limit: dailyRequestLimit,
 						daily_token_budget: dailyTokenBudget
-					};
-					if (typeof ai.updateChatbot === 'function') {
-						await ai.updateChatbot(chatbot.id, payload);
-					} else {
-						// SDK pre-updateChatbot: reach the authenticated fetch directly.
-						await ai.fetch.put(`/api/v1/admin/ai/chatbots/${chatbot.id}`, payload);
-					}
+					});
 				}
 			} catch (e) {
 				console.error('Failed to update chatbot limits:', e);

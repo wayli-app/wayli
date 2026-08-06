@@ -27,12 +27,13 @@ const mockFluxbase = {
 	},
 	admin: {
 		settings: {
-			app: {
-				get: vi.fn(),
-				getSetting: vi.fn(),
-				setSetting: vi.fn(),
-				listSettings: vi.fn(),
-				getSecretSetting: vi.fn(),
+		app: {
+			get: vi.fn(),
+			getSetting: vi.fn(),
+			getSettings: vi.fn(),
+			setSetting: vi.fn(),
+			listSettings: vi.fn(),
+			getSecretSetting: vi.fn(),
 				setSecretSetting: vi.fn(),
 				deleteSecretSetting: vi.fn(),
 				enableSignup: vi.fn(),
@@ -946,9 +947,11 @@ describe('ServiceAdapter', () => {
 				mockFluxbase.admin.settings.app.get.mockResolvedValue({
 					signup_enabled: true
 				});
-				mockFluxbase.admin.settings.app.listSettings.mockResolvedValue([
-					{ key: 'wayli.feature', value: true }
-				]);
+				// getSettings([], {prefix}) returns a key→value map of visible
+				// wayli.* settings (the namespace bulk fetch).
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({
+					'wayli.feature': true
+				});
 				mockFluxbase.admin.ai.listProviders.mockResolvedValue({
 					data: [{ id: '1', name: 'openai', enabled: true }]
 				});
@@ -963,6 +966,7 @@ describe('ServiceAdapter', () => {
 
 				expect(result.app).toBeDefined();
 				expect(result.custom).toBeDefined();
+				expect(result.custom['wayli.feature']).toBe(true);
 			});
 		});
 

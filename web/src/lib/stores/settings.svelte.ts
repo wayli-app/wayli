@@ -23,16 +23,6 @@ import { browser } from '$app/environment';
 // The namespace this app reads. All Wayli settings live under `wayli.*`.
 const SETTING_PREFIX = 'wayli.';
 
-// Keys that genuinely should be readable by anonymous (logged-out) visitors.
-// The server must have these marked `is_public = true` for anon to receive
-// them; see the admin settings page write path.
-const PUBLIC_KEYS = [
-	'wayli.community_enabled',
-	'wayli.landing_redirect_username',
-	'wayli.is_setup_complete',
-	'wayli.public_trips_require_auth'
-];
-
 // Reactive cache. `null` = not loaded yet; `Record<string, unknown>` once
 // populated (possibly empty if the caller can't see any keys). `loading` tracks
 // the in-flight fetch so concurrent callers share one request.
@@ -49,10 +39,9 @@ let loadPromise: Promise<void> | null = null;
 /**
  * Fetch all visible `wayli.*` settings once and cache them.
  *
- * Prefers the namespace `prefix` fetch (one request, no key list needed,
- * silently drops keys the caller can't read). Falls back to an explicit
- * `PUBLIC_KEYS` list when the installed SDK predates the `prefix` option, so
- * the store works before the Fluxbase SDK is bumped too.
+ * Uses the namespace `prefix` fetch (one request, no key list needed, silently
+ * drops keys the caller can't read — no per-key 404s). Requires Fluxbase SDK
+ * ≥ 2026.8.3 (the `prefix` option on `getMany`).
  */
 export async function loadPublicSettings(force = false): Promise<void> {
 	if (!browser) return;
@@ -65,29 +54,12 @@ export async function loadPublicSettings(force = false): Promise<void> {
 	settingsState.loading = true;
 	loadPromise = (async () => {
 		try {
-			// Try the prefix fetch first. `getMany` accepts (keys, options).
-			const getMany = fluxbase.settings.getMany as any;
-			const result =
-				typeof getMany === 'function'
-					? await getMany.call(fluxbase.settings, [], { prefix: SETTING_PREFIX })
-					: {};
+			const result = await fluxbase.settings.getMany([], { prefix: SETTING_PREFIX });
 			settingsState.values = result ?? {};
 		} catch {
-			// Fallback: explicit key list (older SDK without prefix support, or
-			// a server that hasn't been upgraded). Inaccessible/unset keys are
-			// omitted by the batch endpoint — no 404s.
-			try {
-				const getMany = fluxbase.settings.getMany as any;
-				const result =
-					typeof getMany === 'function'
-						? await getMany.call(fluxbase.settings, PUBLIC_KEYS)
-						: {};
-				settingsState.values = result ?? {};
-			} catch {
-				// Network/auth error — cache an empty map so callers get
-				// fallbacks rather than re-fetching on every read.
-				settingsState.values = {};
-			}
+			// Network/auth error, or server returned an error — cache an empty
+			// map so callers get fallbacks rather than re-fetching on every read.
+			settingsState.values = {};
 		} finally {
 			settingsState.loading = false;
 		}

@@ -1510,32 +1510,12 @@ export class ServiceAdapter {
 		const appSettings = await fluxbase.admin.settings.app.get();
 
 		// Get custom Wayli settings via the namespace prefix fetch — one request
-		// that returns every visible `wayli.*` key server-side (RLS-filtered),
-		// instead of listSettings() returning ALL custom rows and filtering
-		// client-side. Falls back to listSettings+filter on older SDKs that don't
-		// support the prefix option.
-		let wayliSettings: Record<string, any> = {};
-		try {
-			const getSettings = fluxbase.admin.settings.app.getSettings as any;
-			wayliSettings =
-				typeof getSettings === 'function'
-					? await getSettings.call(fluxbase.admin.settings.app, [], { prefix: 'wayli.' })
-					: {};
-		} catch {
-			// fall back to the list-all path
-		}
-		if (Object.keys(wayliSettings).length === 0) {
-			const customSettings = await fluxbase.admin.settings.app.listSettings();
-			wayliSettings = (customSettings || [])
-				.filter((s: any) => s.key.startsWith('wayli.'))
-				.reduce(
-					(acc: any, s: any) => ({
-						...acc,
-						[s.key]: s.value
-					}),
-					{}
-				);
-		}
+		// that returns every visible `wayli.*` key server-side (RLS- and
+		// tenant-filtered) instead of listSettings() returning ALL custom rows
+		// and filtering client-side. Requires Fluxbase SDK ≥ 2026.8.3.
+		const wayliSettings = await fluxbase.admin.settings.app.getSettings([], {
+			prefix: 'wayli.'
+		});
 
 		// Get AI providers from FluxbaseAdmin SDK first
 		let providers: any[] = [];
