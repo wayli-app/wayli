@@ -202,11 +202,31 @@
 	onMount(async () => {
 		L = (await import('leaflet')).default;
 
-		map = L.map(mapContainer, { scrollWheelZoom: true, zoomControl: false });
+		map = L.map(mapContainer, {
+			scrollWheelZoom: true,
+			zoomControl: false,
+			// Clamp panning to a single world so the map can't be scrolled into
+			// empty/grey areas beyond the tile coverage (CartoDB tiles only cover
+			// roughly ±85° latitude), and tiles don't repeat horizontally (which
+			// would leave the visited-country GeoJSON highlight behind on the
+			// copied worlds). Atlas-style: one bounded world.
+			maxBounds: [
+				[-85, -180],
+				[85, 180]
+			],
+			maxBoundsViscosity: 0.8
+		});
 		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
 			L.tileLayer(TILE_URLS[theme].url, {
 				attribution: TILE_URLS[theme].attribution,
-				maxZoom: 5
+				maxZoom: 5,
+				// Don't wrap tiles horizontally — keeps a single bounded world so
+				// the country highlighting lines up with the base map.
+				noWrap: true,
+				bounds: [
+					[-85, -180],
+					[85, 180]
+				]
 			})
 		);
 

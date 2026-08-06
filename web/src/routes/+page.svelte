@@ -38,6 +38,8 @@
 	// Display name fetched from user_profiles (the source of truth for full_name).
 	// The raw SDK User on userStore has no name field, so we fetch it on mount.
 	let profileFullName = $state<string | null>(null);
+	// Username fetched alongside full_name — shown in the account pill as @username.
+	let profileUsername = $state<string | null>(null);
 	// The signed-in user's own trips — shown when there are no public stories yet
 	// so the landing page is still useful to a logged-in visitor.
 	let myTrips = $state<
@@ -135,15 +137,17 @@
 					if ((profile as any)?.full_name) {
 						profileFullName = (profile as any).full_name;
 					}
+					if ((profile as any)?.username) {
+						profileUsername = (profile as any).username;
+					}
 				} catch {}
 
 				await loadCommunityContent();
 
-				// If there are no public/visible stories, fall back to showing the
-				// signed-in user's own trips so the page is still useful to them.
-				if (latestEntries.length === 0) {
-					await loadMyTrips(sessionUserId);
-				}
+				// Always show the signed-in user's own trips alongside the public
+				// stories — the user should be able to see their own (private)
+				// stories regardless of whether public stories exist.
+				await loadMyTrips(sessionUserId);
 			}
 		})();
 	});
@@ -212,12 +216,17 @@
 				};
 			});
 
-			// Travelers
+			// Travelers directory — discoverable users who have at least one
+			// trip (any visibility the caller can see via RLS). Previously this
+			// only listed users with ≥1 PUBLIC trip, so a user with only private
+			// trips never appeared. Now we count any visible trip and respect
+			// each user's discoverability setting (discoverable !== 'nobody').
 			const userIds = [...new Set(tripsList.map((t) => t.user_id))];
+			// Count each user's visible trips (RLS-scoped; no visibility filter
+			// so private-trip users are included).
 			const { data: tripCounts } = await fluxbase
 				.from('trips')
 				.select('user_id')
-				.eq('visibility', 'public')
 				.in('user_id', userIds);
 			const countMap = new Map<string, number>();
 			for (const tr of (tripCounts as any[]) ?? [])
@@ -225,10 +234,16 @@
 
 			const { data: profiles } = await fluxbase
 				.from('public_profiles')
-				.select('id, username, full_name, avatar_url')
+				.select('id, username, full_name, avatar_url, discoverable')
 				.in('id', userIds);
 			travelers = ((profiles as any[]) ?? [])
-				.map((p) => ({ ...p, trip_count: countMap.get(p.id) ?? 0 }))
+				// Respect discoverability: hide users who opted out. Treat a
+				// missing/null value as the default 'everyone' (column default).
+				.filter((p) => ((p as any).discoverable ?? 'everyone') !== 'nobody')
+				.map((p) => {
+					const { discoverable: _d, ...rest } = p as any;
+					return { ...rest, trip_count: countMap.get(p.id) ?? 0 };
+				})
 				.filter((p) => p.trip_count > 0)
 				.sort((a, b) => b.trip_count - a.trip_count);
 		} catch (err) {
@@ -270,7 +285,7 @@
 	</div>
 {:else if pageMode === 'signin'}
 	<div class="bg-background relative flex min-h-screen flex-col items-center justify-center p-4">
-		<div class="mb-8 rounded-3xl bg-white/75 p-10 shadow-xl dark:bg-white/10">
+		<div class="mb-8 rounded-3xl bg-white/75 p-10 shadow-xl">
 			<img src="/logo.svg" alt="Wayli" class="h-56 w-auto" />
 		</div>
 		<div class="w-full max-w-sm space-y-4 text-center">
@@ -346,11 +361,11 @@
 			{#if $userStore}
 				<a
 					href="/dashboard/account-settings"
-					title={displayName || t('common.navigation.accountSettings')}
+					title={profileUsername ? `@${profileUsername}` : displayName || t('common.navigation.accountSettings')}
 					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex max-w-[10rem] items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 				>
 					<User class="h-4 w-4 shrink-0" />
-					<span class="truncate">{displayName || t('common.navigation.dashboard')}</span>
+					<span class="truncate">{profileUsername ? `@${profileUsername}` : displayName || t('common.navigation.dashboard')}</span>
 				</a>
 			{:else}
 				<a
@@ -371,7 +386,7 @@
 				class="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent"
 			></div>
 			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-20">
-				<div class="mb-6 inline-flex rounded-3xl bg-white/75 p-6 backdrop-blur-md dark:bg-white/10">
+				<div class="mb-6 inline-flex rounded-3xl bg-white/75 p-6 backdrop-blur-md">
 					<img src="/logo.svg" alt="Wayli" class="h-20 w-auto drop-shadow-2xl" />
 				</div>
 				<h1
@@ -505,8 +520,8 @@
 				</div>
 			{/if}
 
-			<!-- Your trips (fallback for signed-in users with no public stories) -->
-			{#if latestEntries.length === 0 && $userStore && myTrips.length > 0}
+		<!-- Your trips (shown to signed-in users alongside public stories) -->
+		{#if $userStore && myTrips.length > 0}
 				<div class="mb-16">
 					<div class="mb-6 flex items-center gap-2">
 						<BookOpen class="text-primary h-5 w-5" />

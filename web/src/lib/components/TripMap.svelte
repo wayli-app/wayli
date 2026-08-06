@@ -145,6 +145,12 @@
 		} else {
 			m.setView([0, 0], 2);
 		}
+
+		// Recompute the map's pixel size. When this component is reused (e.g.
+		// the map div is re-parented inside a newly-expanded trip card without a
+		// remount), Leaflet keeps a stale 0×0 size and tiles/layers don't lay out
+		// even though they were redrawn above. invalidateSize forces a relayout.
+		m.invalidateSize();
 	});
 
 	onDestroy(() => {

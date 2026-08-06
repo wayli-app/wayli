@@ -4702,7 +4702,8 @@ CREATE OR REPLACE VIEW public_profiles AS
     avatar_url,
     cover_photo_url,
     cover_focal_x,
-    cover_focal_y
+    cover_focal_y,
+    discoverable
    FROM user_profiles
   WHERE username IS NOT NULL;
 

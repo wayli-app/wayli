@@ -52,6 +52,8 @@
 	let usernameInput = $state('');
 	let usernameStatus = $state<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
 	let originalUsername = $state('');
+	// Discoverability in the travelers directory: 'everyone' | 'friends_of_friends' | 'nobody'.
+	let discoverableInput = $state<'everyone' | 'friends_of_friends' | 'nobody'>('everyone');
 
 	const USERNAME_RE = /^[a-z0-9-]{3,30}$/;
 	const usernamePreview = $derived(
@@ -325,6 +327,10 @@
 				profileAvatarUrl = (profile as any).avatar_url || '';
 				profileCoverUrl = (profile as any).cover_photo_url || '';
 				lastNameInput = profile.last_name || '';
+				const d = (profile as any).discoverable;
+				if (d === 'everyone' || d === 'friends_of_friends' || d === 'nobody') {
+					discoverableInput = d;
+				}
 
 				// Initialize home address if it exists
 				if (profile.home_address) {
@@ -753,6 +759,7 @@
 			(profile as any).username = usernameInput.trim() || null;
 			(profile as any).avatar_url = profileAvatarUrl || null;
 			(profile as any).cover_photo_url = profileCoverUrl || null;
+			(profile as any).discoverable = discoverableInput;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
 			// Update profile using service adapter
@@ -762,6 +769,7 @@
 				username: (profile as any).username,
 				avatar_url: (profile as any).avatar_url,
 				cover_photo_url: (profile as any).cover_photo_url,
+				discoverable: discoverableInput,
 				email: profile.email || '',
 				home_address: profile.home_address
 			});
@@ -1640,6 +1648,27 @@
 						🌐 {usernamePreview}
 					</p>
 				{/if}
+			</div>
+
+			<!-- Discoverability -->
+			<div class="mt-6">
+				<label for="discoverable" class="text-foreground mb-1.5 block text-sm font-medium">
+					{t('accountSettings.discoverable')}
+				</label>
+				<select
+					id="discoverable"
+					bind:value={discoverableInput}
+					class="focus:ring-primary border-border text-foreground w-full rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+				>
+					<option value="everyone">{t('accountSettings.discoverableEveryone')}</option>
+					<option value="friends_of_friends"
+						>{t('accountSettings.discoverableFriendsOfFriends')}</option
+					>
+					<option value="nobody">{t('accountSettings.discoverableNobody')}</option>
+				</select>
+				<p class="text-muted-foreground mt-1 text-xs">
+					{t('accountSettings.discoverableDescription')}
+				</p>
 			</div>
 
 			<!-- Cover photo -->

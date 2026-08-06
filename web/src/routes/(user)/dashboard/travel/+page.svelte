@@ -1424,23 +1424,28 @@
 							<!-- Expanded entries -->
 							{#if expandedTrips.has(trip.id)}
 								<div class="border-border border-t">
-									<!-- Mobile map inside expanded section -->
-									{#if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
-										<div class="border-border border-b lg:hidden">
-											<TripMap
-												points={mapPoints}
-												markers={mapMarkers}
-												{highlightPoints}
-												class="h-48"
-											/>
+									<!-- Mobile map inside expanded section. The {#key} forces a
+									     clean remount when the active trip changes — otherwise the
+									     reused Leaflet container keeps the previous trip's points
+									     (invalidateSize never re-runs on the re-parented div). -->
+									{#if activeTripId === trip.id && loadingTripGps.has(trip.id)}
+										<div
+											class="text-muted-foreground flex items-center justify-center gap-2 border-b border-border py-6 text-xs lg:hidden"
+										>
+											<Loader2 class="h-3.5 w-3.5 animate-spin" />
+											{t('common.status.loading')}
 										</div>
-								{:else if activeTripId === trip.id && loadingTripGps.has(trip.id)}
-									<div
-										class="text-muted-foreground flex items-center justify-center gap-2 border-b border-border py-6 text-xs lg:hidden"
-									>
-										<Loader2 class="h-3.5 w-3.5 animate-spin" />
-										{t('common.status.loading')}
-									</div>
+									{:else if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
+										<div class="border-border border-b lg:hidden">
+											{#key activeTripId}
+												<TripMap
+													points={mapPoints}
+													markers={mapMarkers}
+													{highlightPoints}
+													class="h-48"
+												/>
+											{/key}
+										</div>
 									{/if}
 
 									<!-- Entries for this trip -->
