@@ -57,14 +57,13 @@ export class AdminAdapter extends BaseAdapter {
 		let aiEnabled = false;
 		let allowUserOverride = false;
 		try {
-			const enableAISetting = await fluxbase.admin.settings.system.get('app.ai.enabled');
-			aiEnabled = Boolean((enableAISetting?.value as { value?: boolean })?.value ?? false);
-
-			const userOverrideSetting = await fluxbase.admin.settings.system.get(
+			const aiSettings = await fluxbase.admin.settings.app.getSettings([
+				'app.ai.enabled',
 				'app.ai.allow_user_provider_override'
-			);
+			]);
+			aiEnabled = Boolean((aiSettings as any)?.['app.ai.enabled'] ?? false);
 			allowUserOverride = Boolean(
-				(userOverrideSetting?.value as { value?: boolean })?.value ?? false
+				(aiSettings as any)?.['app.ai.allow_user_provider_override'] ?? false
 			);
 		} catch {
 			// Settings don't exist yet
