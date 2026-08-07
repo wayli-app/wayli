@@ -114,8 +114,9 @@ export async function loadTravelers(
  */
 export async function loadStories(
 	currentUserId: string | null,
-	limit = 12
-): Promise<CommunityStory[]> {
+	limit = 12,
+	offset = 0
+): Promise<{ stories: CommunityStory[]; hasMore: boolean }> {
 	// Community trips: RLS returns public + owned + shared.
 	const { data: tripsData, error: tripsError } = await fluxbase
 		.from('trips')
@@ -149,13 +150,15 @@ export async function loadStories(
 	const allTripIds = [...tripMap.keys()];
 	if (allTripIds.length === 0) return [];
 
+	// Request limit+1 rows from the offset — the extra row is a "has more"
+	// sentinel. PostgREST .range() is inclusive on both ends.
 	const [entriesResult, profilesResult, mediaResult] = await Promise.all([
 		fluxbase
 			.from('trip_entries')
 			.select('id, trip_id, title, body, entry_date, cover_media_id, status')
 			.in('trip_id', allTripIds)
 			.order('entry_date', { ascending: false })
-			.limit(limit * 2),
+			.range(offset, offset + limit),
 		fluxbase
 			.from('public_profiles')
 			.select('id, username')
@@ -174,14 +177,18 @@ export async function loadStories(
 	const entriesList = ((entriesResult.data as any[]) ?? []).filter((e) => e.status === 'published');
 
 	const seenEntry = new Set<string>();
-	return entriesList
-		.filter((e) => {
-			if (seenEntry.has(e.id)) return false;
-			seenEntry.add(e.id);
-			return true;
-		})
-		.slice(0, limit)
-		.map((e) => {
+	const deduped = entriesList.filter((e) => {
+		if (seenEntry.has(e.id)) return false;
+		seenEntry.add(e.id);
+		return true;
+	});
+
+	// If we got more than `limit` rows, there's another page.
+	const hasMore = deduped.length > limit;
+	const page = deduped.slice(0, limit);
+
+	return {
+		stories: page.map((e) => {
 			const trip = tripMap.get(e.trip_id);
 			const entryCover = e.cover_media_id ? mediaMap.get(e.cover_media_id) : null;
 			return {
@@ -194,7 +201,9 @@ export async function loadStories(
 				trip_image_url: entryCover ?? trip?.image_url,
 				username: trip ? profileMap.get(trip.user_id) : undefined
 			};
-		});
+		}),
+		hasMore
+	};
 }
 
 /**

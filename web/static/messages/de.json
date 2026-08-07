@@ -1573,7 +1573,7 @@
 		"itemUpdated": "Aktualisiert „{title}“"
 	},
 	"profile": {
-		"home": "← Startseite",
+		"home": "Startseite",
 		"myTravel": "Meine Reise",
 		"noTrips": "Noch keine Reisen.",
 		"traveled": "gereist",
@@ -1706,7 +1706,8 @@
   "storiesPage": {
     "title": "Geschichten",
     "subtitle": "Lies Reisegeschichten der Community.",
-    "empty": "Noch keine Geschichten veröffentlicht."
+    "empty": "Noch keine Geschichten veröffentlicht.",
+    "loadMore": "Mehr laden"
   },
 	"plannerChat": {
 		"addToDay": "Zum Tag {day} hinzufügen",

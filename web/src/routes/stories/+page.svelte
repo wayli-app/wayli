@@ -9,12 +9,16 @@
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { loadStories, type CommunityStory } from '$lib/services/community.service';
+	import { Loader2 } from 'lucide-svelte';
 
 	let t = $derived($translate);
 	let currentTheme = $state<'light' | 'dark'>('light');
 	let stories = $state<CommunityStory[]>([]);
 	let isLoading = $state(true);
+	let isLoadingMore = $state(false);
+	let hasMore = $state(false);
 	let currentUserId = $state<string | null>(null);
+	const PAGE_SIZE = 12;
 
 	onMount(() => {
 		initializeTheme();
@@ -53,7 +57,9 @@
 			}
 
 			try {
-				stories = await loadStories(currentUserId, 24);
+				const result = await loadStories(currentUserId, PAGE_SIZE, 0);
+				stories = result.stories;
+				hasMore = result.hasMore;
 			} catch (err) {
 				console.error('Failed to load stories:', err);
 			} finally {
@@ -61,6 +67,20 @@
 			}
 		})();
 	});
+
+	async function loadMore() {
+		if (isLoadingMore || !hasMore) return;
+		isLoadingMore = true;
+		try {
+			const result = await loadStories(currentUserId, PAGE_SIZE, stories.length);
+			stories = [...stories, ...result.stories];
+			hasMore = result.hasMore;
+		} catch (err) {
+			console.error('Failed to load more stories:', err);
+		} finally {
+			isLoadingMore = false;
+		}
+	}
 
 	function handleThemeChange(theme: 'light' | 'dark') {
 		setTheme(theme);
@@ -177,6 +197,23 @@
 					</a>
 				{/each}
 			</div>
+
+			{#if hasMore}
+				<div class="mt-8 flex justify-center">
+					<button
+						onclick={loadMore}
+						disabled={isLoadingMore}
+						class="bg-card border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
+					>
+						{#if isLoadingMore}
+							<Loader2 class="h-4 w-4 animate-spin" />
+							{t('common.status.loading')}
+						{:else}
+							{t('storiesPage.loadMore')}
+						{/if}
+					</button>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>

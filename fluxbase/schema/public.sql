@@ -4747,7 +4747,13 @@ COMMENT ON VIEW my_pending_trips IS 'Secure view of the current user''s auto-det
 -- Name: public_profiles; Type: VIEW; Schema: -; Owner: -
 --
 
-CREATE OR REPLACE VIEW public_profiles WITH (security_invoker = true) AS
+-- ponytail: this view is security_definer (the default) so it bypasses the
+-- underlying user_profiles RLS (which is owner-only). That's intentional —
+-- public_profiles exists to let anyone (anon + authenticated) browse the
+-- community directory. The WHERE filter excludes users who opted out
+-- (discoverable = 'nobody'); the is_discoverable_to() function handles the
+-- friends_of_friends nuance downstream in the travelers query.
+CREATE OR REPLACE VIEW public_profiles AS
  SELECT id,
     username,
     full_name,
@@ -4757,7 +4763,7 @@ CREATE OR REPLACE VIEW public_profiles WITH (security_invoker = true) AS
     cover_focal_y,
     discoverable
    FROM user_profiles
-  WHERE username IS NOT NULL;
+  WHERE username IS NOT NULL AND discoverable <> 'nobody';
 
 --
 -- Name: public_trip_entries; Type: VIEW; Schema: -; Owner: -

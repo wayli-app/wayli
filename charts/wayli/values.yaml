@@ -327,6 +327,15 @@ fluxbase:
         namespaces:
           - wayli
         on_startup: true
+
+    ## Storage: ensure the trip-images bucket exists on startup so photo
+    ## uploads (Polarsteps import, frontend media uploads) work immediately.
+    storage:
+      default_buckets:
+        - trip-images
+        - temp-files
+        - uploads
+        - public
         allow_destructive: false
 
   # ## Existing secret for sensitive configuration

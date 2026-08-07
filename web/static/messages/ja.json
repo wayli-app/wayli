@@ -1577,7 +1577,7 @@
 		"itemUpdated": "「{title}」を更新しました"
 	},
 	"profile": {
-		"home": "← ホーム",
+		"home": "ホーム",
 		"myTravel": "私の旅行",
 		"noTrips": "まだ旅行はありません。",
 		"traveled": "旅行した",
@@ -1710,7 +1710,8 @@
   "storiesPage": {
     "title": "ストーリー",
     "subtitle": "コミュニティの旅行ストーリーを読みましょう。",
-    "empty": "まだストーリーが公開されていません。"
+    "empty": "まだストーリーが公開されていません。",
+    "loadMore": "もっと見る"
   },
 	"plannerChat": {
 		"addToDay": "日に追加 {day}",

@@ -1647,7 +1647,7 @@
   },
   "profile": {
     "travelerNotFound": "Traveler not found.",
-    "home": "← Home",
+    "home": "Home",
     "myTravel": "My Travel",
     "traveled": "traveled",
     "noTrips": "No trips yet."
@@ -1690,7 +1690,8 @@
   "storiesPage": {
     "title": "Stories",
     "subtitle": "Read travel stories from the community.",
-    "empty": "No stories published yet."
+    "empty": "No stories published yet.",
+    "loadMore": "Load more"
   },
   "plannerChat": {
     "title": "AI Assistant",

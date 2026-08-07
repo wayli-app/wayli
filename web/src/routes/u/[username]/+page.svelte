@@ -249,7 +249,10 @@
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
 		<p class="text-muted-foreground text-lg">{t('profile.travelerNotFound')}</p>
-		<a href="/" class="text-primary text-sm hover:underline">{t('profile.home')}</a>
+		<a href="/" class="text-primary inline-flex items-center gap-1 text-sm hover:underline">
+			<ArrowLeft class="h-3.5 w-3.5" />
+			{t('profile.home')}
+		</a>
 	</div>
 {:else if profile}
 	<!-- Floating top bar -->

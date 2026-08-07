@@ -63,6 +63,7 @@ services:
       # Storage
       FLUXBASE_STORAGE_PROVIDER: local
       FLUXBASE_STORAGE_LOCAL_PATH: /app/storage
+      FLUXBASE_STORAGE_DEFAULT_BUCKETS: 'trip-images,temp-files,uploads,public'
       FLUXBASE_CORS_ALLOWED_ORIGINS: http://localhost:4000
 
       # Enable features

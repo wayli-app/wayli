@@ -1577,7 +1577,7 @@
 		"itemUpdated": "更新了“{title}”"
 	},
 	"profile": {
-		"home": "← Home",
+		"home": "Home",
 		"myTravel": "我的旅行",
 		"noTrips": "No trips yet.",
 		"traveled": "旅行过",
@@ -1710,7 +1710,8 @@
   "storiesPage": {
     "title": "故事",
     "subtitle": "阅读社区的旅行故事。",
-    "empty": "尚未发布故事。"
+    "empty": "尚未发布故事。",
+    "loadMore": "加载更多"
   },
 	"plannerChat": {
 		"addToDay": "添加到第 {day} 天",

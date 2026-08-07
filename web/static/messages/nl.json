@@ -1573,7 +1573,7 @@
 		"itemUpdated": "Bijgewerkt \"{title}\""
 	},
 	"profile": {
-		"home": "← Thuis",
+		"home": "Thuis",
 		"myTravel": "Mijn reis",
 		"noTrips": "Nog geen reizen.",
 		"traveled": "gereisd",
@@ -1706,7 +1706,8 @@
   "storiesPage": {
     "title": "Verhalen",
     "subtitle": "Lees reisverhalen van de community.",
-    "empty": "Nog geen verhalen gepubliceerd."
+    "empty": "Nog geen verhalen gepubliceerd.",
+    "loadMore": "Meer laden"
   },
 	"plannerChat": {
 		"addToDay": "Toevoegen aan dag {dag}",
