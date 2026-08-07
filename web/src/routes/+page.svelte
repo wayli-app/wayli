@@ -97,7 +97,12 @@
 			let sessionUserId: string | null = null;
 			try {
 				const { data: sessionData } = await fluxbase.auth.getSession();
-				sessionUserId = (sessionData as any)?.user?.id ?? null;
+				// SDK returns { data: { session: { user } } } — the user is nested
+				// under `session`, not top-level. Every other call site reads
+				// session.session.user.id; the old `sessionData.user.id` was always
+				// undefined, which meant sessionUserId was always null and the data-
+				// loading block below never ran (the "no trips on landing" bug).
+				sessionUserId = (sessionData as any)?.session?.user?.id ?? null;
 			} catch {}
 			isLoggedIn = !!sessionUserId;
 
@@ -522,16 +527,16 @@
 
 				<!-- CTAs as frosted-glass pills -->
 				<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-					<!-- Always-visible discover buttons (scroll to content) -->
+					<!-- Always-visible discover buttons → dedicated browse pages -->
 					<a
-						href="#stories"
+						href="/stories"
 						class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
 					>
 						<BookOpen class="h-4 w-4" />
 						{t('community.exploreStories')}
 					</a>
 					<a
-						href="#travelers"
+						href="/travelers"
 						class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
 					>
 						<Users class="h-4 w-4" />

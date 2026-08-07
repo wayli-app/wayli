@@ -122,6 +122,8 @@
     },
     "trip": "trip",
     "trips": "trips",
+    "traveler": "traveler",
+    "travelers": "travelers",
     "day": "day",
     "days": "days",
     "entries": "entries",
@@ -1679,6 +1681,16 @@
     "exploreStories": "Explore stories",
     "browseTravelers": "Browse travelers",
     "yourTrips": "Your trips"
+  },
+  "travelersPage": {
+    "title": "Travelers",
+    "subtitle": "Discover people who share their travel stories.",
+    "empty": "No travelers discovered yet."
+  },
+  "storiesPage": {
+    "title": "Stories",
+    "subtitle": "Read travel stories from the community.",
+    "empty": "No stories published yet."
   },
   "plannerChat": {
     "title": "AI Assistant",

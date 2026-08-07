@@ -71,6 +71,8 @@
 			"account": "帐户",
 			"dashboard": "仪表板",
 			"trips": "行程",
+			"traveler": "旅行者",
+			"travelers": "旅行者",
 			"locations": "地点",
 			"statistics": "位置数据",
 			"preferences": "偏好设置",
@@ -1700,6 +1702,16 @@
 		"title": "朋友们",
 		"yourFriends": "您的朋友 ({count})"
 	},
+  "travelersPage": {
+    "title": "旅行者",
+    "subtitle": "发现分享旅行故事的人。",
+    "empty": "尚未发现旅行者。"
+  },
+  "storiesPage": {
+    "title": "故事",
+    "subtitle": "阅读社区的旅行故事。",
+    "empty": "尚未发布故事。"
+  },
 	"plannerChat": {
 		"addToDay": "添加到第 {day} 天",
 		"addTrip": "添加到行程",

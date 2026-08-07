@@ -71,6 +71,8 @@
 			"account": "Account",
 			"dashboard": "Pannello di controllo",
 			"trips": "Viaggi",
+			"traveler": "viaggiatore",
+			"travelers": "viaggiatori",
 			"locations": "Posizioni",
 			"statistics": "Dati sulla posizione",
 			"preferences": "Preferenze",
@@ -1696,6 +1698,16 @@
 		"title": "Amici",
 		"yourFriends": "I tuoi amici ({count})"
 	},
+  "travelersPage": {
+    "title": "Viaggiatori",
+    "subtitle": "Scopri persone che condividono le loro storie di viaggio.",
+    "empty": "Nessun viaggiatore scoperto ancora."
+  },
+  "storiesPage": {
+    "title": "Storie",
+    "subtitle": "Leggi storie di viaggio della community.",
+    "empty": "Nessuna storia pubblicata ancora."
+  },
 	"plannerChat": {
 		"addToDay": "Aggiungi al giorno {giorno}",
 		"addTrip": "Aggiungi al viaggio",

@@ -71,6 +71,8 @@
 			"account": "アカウント",
 			"dashboard": "ダッシュボード",
 			"trips": "旅行",
+			"traveler": "トラベラー",
+			"travelers": "トラベラー",
 			"locations": "所在地",
 			"statistics": "位置データ",
 			"preferences": "設定",
@@ -1700,6 +1702,16 @@
 		"title": "友達",
 		"yourFriends": "あなたの友達 ({count})"
 	},
+  "travelersPage": {
+    "title": "トラベラー",
+    "subtitle": "旅行のストーリーをシェアする人々を見つけましょう。",
+    "empty": "まだトラベラーが見つかりません。"
+  },
+  "storiesPage": {
+    "title": "ストーリー",
+    "subtitle": "コミュニティの旅行ストーリーを読みましょう。",
+    "empty": "まだストーリーが公開されていません。"
+  },
 	"plannerChat": {
 		"addToDay": "日に追加 {day}",
 		"addTrip": "旅行に追加",

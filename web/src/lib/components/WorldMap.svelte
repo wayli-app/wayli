@@ -230,12 +230,27 @@
 				style: (f: any) => {
 					const numId = String(f.id || '').padStart(3, '0');
 					const isVisited = visitedNumeric.has(numId);
+					if (isVisited) {
+						return {
+							fillColor: '#3b82f6',
+							weight: 1,
+							opacity: 1,
+							color: '#1d4ed8',
+							fillOpacity: 0.7
+						};
+					}
+					// Unvisited countries: fill only, NO stroke. At 110m
+					// simplification some country borders follow parallels/straight
+					// lines (US-Canada 49th, African borders) and stroking every
+					// country at low zoom renders those as long horizontal lines
+					// across the viewport that look like graticule. Fill-only
+					// eliminates all vector lines except visited-country outlines.
 					return {
-						fillColor: isVisited ? '#3b82f6' : '#e5e7eb',
-						weight: isVisited ? 1 : 0.5,
-						opacity: 1,
-						color: isVisited ? '#1d4ed8' : '#d1d5db',
-						fillOpacity: isVisited ? 0.7 : 0.3
+						fillColor: '#e5e7eb',
+						weight: 0,
+						opacity: 0,
+						color: '#d1d5db',
+						fillOpacity: 0.3
 					};
 				},
 				onEachFeature: (f: any, layer: any) => {

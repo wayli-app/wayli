@@ -71,6 +71,8 @@
 			"account": "Konto",
 			"dashboard": "Armaturenbrett",
 			"trips": "Ausflüge",
+			"traveler": "Reisende",
+			"travelers": "Reisende",
 			"locations": "Standorte",
 			"statistics": "Standortdaten",
 			"preferences": "Präferenzen",
@@ -1696,6 +1698,16 @@
 		"title": "Freunde",
 		"yourFriends": "Deine Freunde ({count})"
 	},
+  "travelersPage": {
+    "title": "Reisende",
+    "subtitle": "Entdeck Leute, die ihre Reisegeschichten teilen.",
+    "empty": "Noch keine Reisenden entdeckt."
+  },
+  "storiesPage": {
+    "title": "Geschichten",
+    "subtitle": "Lies Reisegeschichten der Community.",
+    "empty": "Noch keine Geschichten veröffentlicht."
+  },
 	"plannerChat": {
 		"addToDay": "Zum Tag {day} hinzufügen",
 		"addTrip": "Zur Reise hinzufügen",

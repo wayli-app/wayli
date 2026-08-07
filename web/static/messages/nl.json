@@ -71,6 +71,8 @@
 			"account": "Account",
 			"dashboard": "Dashboard",
 			"trips": "Reizen",
+			"traveler": "reiziger",
+			"travelers": "reizigers",
 			"locations": "Locaties",
 			"statistics": "Locatiegegevens",
 			"preferences": "Voorkeuren",
@@ -1696,6 +1698,16 @@
 		"title": "Vrienden",
 		"yourFriends": "Je vrienden ({count})"
 	},
+  "travelersPage": {
+    "title": "Reizigers",
+    "subtitle": "Ontdek mensen die hun reisverhalen delen.",
+    "empty": "Nog geen reizigers gevonden."
+  },
+  "storiesPage": {
+    "title": "Verhalen",
+    "subtitle": "Lees reisverhalen van de community.",
+    "empty": "Nog geen verhalen gepubliceerd."
+  },
 	"plannerChat": {
 		"addToDay": "Toevoegen aan dag {dag}",
 		"addTrip": "Toevoegen aan reis",
