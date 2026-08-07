@@ -7,7 +7,6 @@
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { ensureUserProfile } from '$lib/services/session/user-profile-bootstrap';
-	import { readSetting } from '$lib/utils/settings';
 	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 
 	import { goto } from '$app/navigation';
@@ -87,10 +86,7 @@
 			// isFirstUser=true. Falls back to a direct read if the store hasn't
 			// populated yet (it loads in the root layout).
 			await loadPublicSettings();
-			let isSetupComplete = getSetting<unknown>('wayli.is_setup_complete', null);
-			if (isSetupComplete === null) {
-				isSetupComplete = await readSetting(() => fluxbase.settings.get('wayli.is_setup_complete'));
-			}
+			const isSetupComplete = getSetting<unknown>('wayli.is_setup_complete', null);
 			const setupComplete =
 				isSetupComplete === true ||
 				isSetupComplete === 'true' ||

@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { fluxbase } from '$lib/fluxbase';
-	import { readSetting } from '$lib/utils/settings';
 	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import TripMap from '$lib/components/TripMap.svelte';
@@ -174,10 +173,7 @@
 		// anonymous visitors now honor the admin's setting — previously this read
 		// silently failed for anon and defaulted to "open", bypassing the gate.
 		await loadPublicSettings();
-		let setting = getSetting<unknown>('wayli.public_trips_require_auth', null);
-		if (setting === null) {
-			setting = await readSetting(() => fluxbase.settings.get('wayli.public_trips_require_auth'));
-		}
+		const setting = getSetting<unknown>('wayli.public_trips_require_auth', null);
 		const requireAuth =
 			setting === true ||
 			setting === 'true' ||

@@ -38,19 +38,11 @@
 			}
 
 			await loadPublicSettings();
-			let requireAuth = false;
 			const setting = getSetting<unknown>('wayli.public_trips_require_auth', null);
-			if (setting === null) {
-				try {
-					const r = await fluxbase.settings.get('wayli.public_trips_require_auth');
-					requireAuth = (r as any)?.value === true || (r as any)?.value === 'true';
-				} catch {}
-			} else {
-				requireAuth =
-					setting === true ||
-					setting === 'true' ||
-					(typeof setting === 'object' && setting && (setting as any).value === true);
-			}
+			const requireAuth =
+				setting === true ||
+				setting === 'true' ||
+				(typeof setting === 'object' && setting && (setting as any).value === true);
 			if (requireAuth && !currentUserId) {
 				goto(`/auth/signin?redirectTo=/stories`);
 				return;

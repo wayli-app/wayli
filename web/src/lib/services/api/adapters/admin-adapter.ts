@@ -88,12 +88,13 @@ export class AdminAdapter extends BaseAdapter {
 
 		const secretsMetadata: Record<string, unknown> = {};
 		try {
-			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
-			if (pexelsSecretMeta) {
-				secretsMetadata.pexels_api_key = pexelsSecretMeta;
+			const allSecrets = await fluxbase.admin.settings.app.listSecretSettings();
+			const pexelsMeta = (allSecrets as any[])?.find((s) => s.key === 'pexels_api_key');
+			if (pexelsMeta) {
+				secretsMetadata.pexels_api_key = pexelsMeta;
 			}
 		} catch {
-			// Secret doesn't exist yet
+			// Secret listing not available
 		}
 
 		return {

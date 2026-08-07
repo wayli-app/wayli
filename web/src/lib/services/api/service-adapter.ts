@@ -1571,15 +1571,17 @@ export class ServiceAdapter {
 			}
 		};
 
-		// Get system secrets metadata
+		// Get system secrets metadata via listSecretSettings (batch — no per-key
+		// 404 when a secret isn't set yet).
 		const secretsMetadata: any = {};
 		try {
-			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
-			if (pexelsSecretMeta) {
-				secretsMetadata.pexels_api_key = pexelsSecretMeta;
+			const allSecrets = await fluxbase.admin.settings.app.listSecretSettings();
+			const pexelsMeta = (allSecrets as any[])?.find((s) => s.key === 'pexels_api_key');
+			if (pexelsMeta) {
+				secretsMetadata.pexels_api_key = pexelsMeta;
 			}
 		} catch {
-			// Secret doesn't exist yet
+			// Secret listing not available
 		}
 
 		return {

@@ -366,18 +366,18 @@
 				notificationsEnabled = preferences.notifications_enabled ?? false;
 			}
 
-			// Load user Pexels API key secret metadata
+			// Load user secret metadata via listSecrets (batch — no 404 per key).
 			try {
-				const secretMeta = await fluxbase.settings.getSecret('pexels_api_key');
-				if (secretMeta) {
+				const allSecrets = await fluxbase.settings.listSecrets();
+				const pexelsMeta = (allSecrets as any[])?.find((s: any) => s.key === 'pexels_api_key');
+				if (pexelsMeta) {
 					pexelsApiKeyConfigured = true;
-					pexelsApiKeyUpdatedAt = secretMeta.updated_at;
+					pexelsApiKeyUpdatedAt = pexelsMeta.updated_at;
 				} else {
 					pexelsApiKeyConfigured = false;
 					pexelsApiKeyUpdatedAt = null;
 				}
 			} catch {
-				// Secret doesn't exist yet
 				pexelsApiKeyConfigured = false;
 				pexelsApiKeyUpdatedAt = null;
 			}
@@ -387,16 +387,17 @@
 			// For now, we'll assume it's not available unless explicitly configured
 			serverPexelsApiKeyAvailable = false;
 
-			// Load user's personal Pexels rate limit using settings SDK.
-			// "Setting not found" is the normal case for users who haven't configured one;
-			// readSetting returns null for it (so no noisy console.error on every fresh account).
+			// Load user's personal Pexels rate limit. Use listSettings (batch list
+			// of the user's own settings) instead of getUserSetting (which 404s
+			// when the key isn't set). The list returns [] when no settings exist.
 			try {
-				const userRateLimit = await readSetting(() =>
-					fluxbase.settings.getUserSetting('wayli.pexels_rate_limit')
+				const allUserSettings = await fluxbase.settings.listSettings();
+				const rateLimitEntry = (allUserSettings as any[])?.find(
+					(s: any) => s.key === 'wayli.pexels_rate_limit'
 				);
+				const userRateLimit = rateLimitEntry?.value ?? null;
 
 				if (userRateLimit === undefined || userRateLimit === null) {
-					// Use server default
 					pexelsRateLimitEnabled = false;
 					pexelsRateLimit = 200;
 				} else {
@@ -414,9 +415,8 @@
 					}
 
 					if (loadedRateLimit === null || loadedRateLimit === 0) {
-						// Unlimited or invalid
 						pexelsRateLimitEnabled = false;
-						pexelsRateLimit = 200; // Default when re-enabled
+						pexelsRateLimit = 200;
 					} else {
 						pexelsRateLimitEnabled = true;
 						pexelsRateLimit = loadedRateLimit;
