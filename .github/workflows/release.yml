@@ -236,7 +236,18 @@ jobs:
             esac
 
             if [ "$IS_RC" = "true" ]; then
-              NEW_VERSION="${BASE_VERSION}-rc.1"
+              # If this base version already has RC tags (e.g. a previous
+              # release run cut v2.3.0-rc.1, then this run re-targeted the same
+              # base version), continue the series at max(rc.N)+1 instead of
+              # hardcoding rc.1 and colliding with the existing tag/chart version.
+              EXISTING_RC=$(git tag -l "v${BASE_VERSION}-rc.*" | sed -E "s/.*-rc\.([0-9]+)$/\1/" | sort -n | tail -n1)
+              if [ -n "$EXISTING_RC" ]; then
+                NEXT_RC=$((EXISTING_RC + 1))
+                echo "Base $BASE_VERSION already has RC tags (latest rc.$EXISTING_RC) — continuing series at rc.$NEXT_RC"
+              else
+                NEXT_RC=1
+              fi
+              NEW_VERSION="${BASE_VERSION}-rc.${NEXT_RC}"
             else
               NEW_VERSION="$BASE_VERSION"
             fi
@@ -696,8 +707,18 @@ jobs:
           fi
 
           git add charts/wayli/Chart.yaml
-          git commit -m "chore(chart): Bump version to $NEW_VERSION [skip ci]"
-          git push
+
+          # Only commit when the bump actually produced a diff. When the chart
+          # is already at the target version (e.g. a re-run of the release on an
+          # already-bumped commit), `git commit` fails with "nothing to commit"
+          # — guard against that so the publish can proceed. Mirrors the
+          # version-commit guard in the "Prepare release" step above.
+          if git diff --staged --quiet; then
+            echo "No chart changes to commit (already at version $NEW_VERSION)"
+          else
+            git commit -m "chore(chart): Bump version to $NEW_VERSION [skip ci]"
+            git push
+          fi
 
           echo "📦 Chart version set to $NEW_VERSION"
 
