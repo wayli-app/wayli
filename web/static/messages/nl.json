@@ -1659,6 +1659,8 @@
 		"explore": "Ontdekken",
 		"latestStories": "Nieuwste verhalen",
 		"noStoriesYet": "Nog geen openbare verhalen.",
+		"emptyHintOwn": "Je verhalen en reizen verschijnen hier zodra je ze publiceert.",
+		"emptyHintAnon": "Verhalen van de community verschijnen hier. Log in om je eigen te delen.",
 		"publishFirstTrip": "Publiceer je eerste reis →",
 		"readMore": "Lees meer →",
 		"signInToShare": "Meld u aan om uw verhalen te delen →",

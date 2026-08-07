@@ -1663,6 +1663,8 @@
 		"explore": "探検する",
 		"latestStories": "最新のストーリー",
 		"noStoriesYet": "まだ公開ストーリーはありません。",
+		"emptyHintOwn": "公開すると、あなたのストーリーと旅行がここに表示されます。",
+		"emptyHintAnon": "コミュニティのストーリーがここに表示されます。ログインして自分のものを共有しましょう。",
 		"publishFirstTrip": "初めての旅行を公開する →",
 		"readMore": "続きを読む→",
 		"signInToShare": "サインインしてストーリーを共有 →",

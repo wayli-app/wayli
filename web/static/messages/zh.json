@@ -1663,6 +1663,8 @@
 		"explore": "探索",
 		"latestStories": "最新故事",
 		"noStoriesYet": "还没有公开的故事。",
+		"emptyHintOwn": "发布后，你的故事和旅行将显示在这里。",
+		"emptyHintAnon": "社区的故事将显示在这里。登录以分享你的故事。",
 		"publishFirstTrip": "发布您的第一次旅行 →",
 		"readMore": "阅读更多→",
 		"signInToShare": "登录并分享您的故事 →",

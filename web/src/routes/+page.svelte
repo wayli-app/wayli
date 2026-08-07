@@ -1,12 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Sun, Moon, User, BookOpen, Globe, Calendar } from 'lucide-svelte';
+	import {
+		Sun,
+		Moon,
+		User,
+		BookOpen,
+		Globe,
+		Calendar,
+		Shield,
+		Server,
+		Route,
+		Sparkles,
+		ImagePlus
+	} from 'lucide-svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate, messages } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
 	import { loadPublicSettings, getSetting, allSettings } from '$lib/stores/settings.svelte';
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
+	import { getTripsService } from '$lib/services/service-layer-adapter';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 
@@ -235,10 +248,35 @@
 				.from('public_profiles')
 				.select('id, username, full_name, avatar_url, discoverable')
 				.in('id', userIds);
-			travelers = ((profiles as any[]) ?? [])
-				// Respect discoverability: hide users who opted out. Treat a
-				// missing/null value as the default 'everyone' (column default).
-				.filter((p) => ((p as any).discoverable ?? 'everyone') !== 'nobody')
+
+			// Filter by each candidate's discoverability setting. The server-side
+			// is_discoverable_to(target_user) function handles all three values
+			// (everyone / friends_of_friends / nobody) using the friends graph,
+			// so friends-of-friends is actually enforced. Fall back to the simple
+			// '!== nobody' client filter if the function isn't deployed yet
+			// (older schema) or the rpc errors.
+			const candidateProfiles = (profiles as any[]) ?? [];
+			let visible: any[];
+			try {
+				const checks = await Promise.all(
+					candidateProfiles.map((p) =>
+						fluxbase
+							.rpc('is_discoverable_to', { target_user: p.id })
+							.then((r: any) => ({ p, ok: !!r?.data }))
+							.catch(() => ({ p, ok: null }))
+					)
+				);
+				const serverAnswered = checks.some((c) => c.ok !== null);
+				visible = checks
+					.filter((c) =>
+						serverAnswered ? c.ok === true : (c.p.discoverable ?? 'everyone') !== 'nobody'
+					)
+					.map((c) => c.p);
+			} catch {
+				visible = candidateProfiles.filter((p) => (p.discoverable ?? 'everyone') !== 'nobody');
+			}
+
+			travelers = visible
 				.map((p) => {
 					const { discoverable: _d, ...rest } = p as any;
 					return { ...rest, trip_count: countMap.get(p.id) ?? 0 };
@@ -250,22 +288,52 @@
 		}
 	}
 
-	// Load the signed-in user's own trips (RLS-scoped to owner). Shown as a
-	// fallback when no public/visible stories exist, so the landing page still
-	// gives the user something relevant. Matches TripsService.getTrips fields.
+	// Load the signed-in user's own trips (RLS-scoped to owner). Shown so the
+	// landing page is always useful to a logged-in user — their own (private)
+	// stories appear here regardless of whether public stories exist.
 	async function loadMyTrips(userId: string) {
+		let rows: any[] = [];
 		try {
-			const { data } = await fluxbase
+			const { data, error } = await fluxbase
 				.from('trips')
 				.select('id, title, image_url, start_date, status, visibility')
 				.eq('user_id', userId)
 				.in('status', ['active', 'completed', 'planned'])
 				.order('start_date', { ascending: false })
 				.limit(6);
-			myTrips = (data as any[]) ?? [];
+			if (error) {
+				console.warn('[landing] myTrips query returned an error:', error);
+			}
+			rows = (data as any[]) ?? [];
 		} catch (err) {
-			console.error('Failed to load my trips:', err);
+			// Surface the failure clearly so we can diagnose why logged-in users
+			// sometimes see "No public stories yet" despite having trips.
+			console.warn('[landing] myTrips raw query failed:', err);
 		}
+
+		// Fallback: the Travel page loads trips successfully via TripsService;
+		// if the raw query came back empty/errored, retry through the same path
+		// to isolate whether the issue is the query or RLS.
+		if (rows.length === 0) {
+			try {
+				const tripsService = await getTripsService();
+				const all = (await tripsService.getTrips(userId)) ?? [];
+				rows = all
+					.filter((tp: any) => ['active', 'completed', 'planned'].includes(tp.status))
+					.slice(0, 6)
+					.map((tp: any) => ({
+						id: tp.id,
+						title: tp.title,
+						image_url: tp.image_url,
+						start_date: tp.start_date,
+						status: tp.status,
+						visibility: tp.visibility
+					}));
+			} catch (err) {
+				console.warn('[landing] myTrips TripsService fallback failed:', err);
+			}
+		}
+		myTrips = rows;
 	}
 
 	function handleThemeChange(theme: 'light' | 'dark') {
@@ -383,30 +451,42 @@
 			{/if}
 		</div>
 
-		<!-- Hero -->
-		<div
-			class="relative overflow-hidden bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-900 dark:via-slate-800 dark:to-slate-700"
-		>
+		<!-- Hero — full-bleed gradient echoing the /u/{user} profile header -->
+		<div class="relative h-[440px] w-full overflow-hidden sm:h-[480px]">
+			<!-- Rich backdrop: layered gradients (light + dark) -->
 			<div
-				class="from-background absolute inset-0 bg-gradient-to-t via-transparent to-transparent"
+				class="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-500 dark:from-slate-900 dark:via-slate-800 dark:to-slate-600"
 			></div>
-			<div class="relative mx-auto max-w-6xl px-4 py-12 text-center sm:py-20">
-				<div class="mb-6 inline-flex rounded-3xl bg-white/75 p-6 backdrop-blur-md">
+			<!-- Soft brand-color glow -->
+			<div
+				class="bg-primary/20 absolute -top-24 left-1/2 h-72 w-[40rem] -translate-x-1/2 rounded-full blur-3xl"
+			></div>
+			<!-- Bottom-up scrim so the headline/footer read clearly -->
+			<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/30"></div>
+
+			<div
+				class="relative mx-auto flex h-full max-w-6xl flex-col items-center justify-center px-4 text-center"
+			>
+				<div
+					class="mb-6 inline-flex rounded-3xl bg-white/80 p-6 shadow-2xl ring-1 ring-white/20 backdrop-blur-md"
+				>
 					<img src="/logo.svg" alt="Wayli" class="h-20 w-auto drop-shadow-2xl" />
 				</div>
 				<h1
-					class="from-primary via-primary to-primary/60 bg-gradient-to-r bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl"
+					class="max-w-3xl text-4xl font-extrabold tracking-tight text-white drop-shadow-lg sm:text-5xl"
 				>
 					{t('landing.heroHeadline')}
 				</h1>
-				<p class="text-muted-foreground mx-auto mt-4 max-w-2xl text-base sm:text-lg">
+				<p class="mt-4 max-w-2xl text-base text-white/80 sm:text-lg">
 					{t('landing.heroSubtext')}
 				</p>
-				<div class="mt-8 flex items-center justify-center gap-3">
+
+				<!-- CTAs as frosted-glass pills -->
+				<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
 					{#if latestEntries.length > 0 || myTrips.length > 0}
 						<a
 							href="#stories"
-							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
+							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
 						>
 							<BookOpen class="h-4 w-4" />
 							{t('community.exploreStories')}
@@ -414,7 +494,7 @@
 					{:else if $userStore}
 						<a
 							href="/dashboard/travel"
-							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
+							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
 						>
 							<BookOpen class="h-4 w-4" />
 							{t('landing.goToDashboard')}
@@ -422,12 +502,30 @@
 					{:else}
 						<a
 							href="/auth/signin"
-							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-colors"
+							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
 						>
 							<User class="h-4 w-4" />
 							{t('auth.signIn')}
 						</a>
 					{/if}
+				</div>
+
+				<!-- Feature trio -->
+				<div
+					class="mt-10 hidden flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm text-white/70 sm:flex"
+				>
+					<span class="inline-flex items-center gap-2">
+						<Shield class="h-4 w-4 text-white/50" />
+						{t('landing.privacyFirst')}
+					</span>
+					<span class="inline-flex items-center gap-2">
+						<Server class="h-4 w-4 text-white/50" />
+						{t('landing.selfHosted')}
+					</span>
+					<span class="inline-flex items-center gap-2">
+						<Route class="h-4 w-4 text-white/50" />
+						{t('landing.autoTrips')}
+					</span>
 				</div>
 			</div>
 		</div>
@@ -439,13 +537,15 @@
 				<div class="mb-16">
 					<div class="mb-6 flex items-center gap-2">
 						<BookOpen class="text-primary h-5 w-5" />
-						<h2 class="text-foreground text-xl font-bold">{t('community.latestStories')}</h2>
+						<h2 class="text-foreground text-sm font-bold tracking-wide uppercase">
+							{t('community.latestStories')}
+						</h2>
 					</div>
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each latestEntries as entry (entry.id)}
 							<a
 								href={entry.username ? `/u/${entry.username}/trips/${entry.trip_id}` : '#'}
-								class="group bg-card border-border overflow-hidden rounded-xl border transition-all hover:shadow-lg"
+								class="group bg-card border-border overflow-hidden rounded-2xl border transition-all hover:shadow-xl"
 							>
 								{#if entry.trip_image_url}
 									<div class="h-32 overflow-hidden">
@@ -492,12 +592,17 @@
 			<!-- Travelers Directory -->
 			{#if travelers.length > 0}
 				<div class="mb-16">
-					<h2 class="text-foreground mb-6 text-xl font-bold">{t('community.travelers')}</h2>
+					<div class="mb-6 flex items-center gap-2">
+						<Globe class="text-primary h-5 w-5" />
+						<h2 class="text-foreground text-sm font-bold tracking-wide uppercase">
+							{t('community.travelers')}
+						</h2>
+					</div>
 					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
 						{#each travelers as traveler (traveler.id)}
 							<a
 								href="/u/{traveler.username}"
-								class="bg-card border-border flex items-center gap-3 rounded-xl border p-4 transition-all hover:shadow-md"
+								class="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-all hover:shadow-lg"
 							>
 								{#if traveler.avatar_url}
 									<img
@@ -529,14 +634,16 @@
 			{#if $userStore && myTrips.length > 0}
 				<div class="mb-16">
 					<div class="mb-6 flex items-center gap-2">
-						<BookOpen class="text-primary h-5 w-5" />
-						<h2 class="text-foreground text-xl font-bold">{t('community.yourTrips')}</h2>
+						<Route class="text-primary h-5 w-5" />
+						<h2 class="text-foreground text-sm font-bold tracking-wide uppercase">
+							{t('community.yourTrips')}
+						</h2>
 					</div>
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each myTrips as trip (trip.id)}
 							<a
 								href="/dashboard/travel"
-								class="group bg-card border-border overflow-hidden rounded-xl border transition-all hover:shadow-lg"
+								class="group bg-card border-border overflow-hidden rounded-2xl border transition-all hover:shadow-xl"
 							>
 								{#if trip.image_url}
 									<div class="h-32 overflow-hidden">
@@ -565,19 +672,52 @@
 				</div>
 			{/if}
 
-			<!-- Empty state (only when there's truly nothing to show) -->
+			<!-- Empty state: placeholder preview (when there's truly nothing to show) -->
 			{#if latestEntries.length === 0 && travelers.length === 0 && myTrips.length === 0}
-				<div class="flex flex-col items-center justify-center py-20 text-center">
-					<p class="text-muted-foreground">{t('community.noStoriesYet')}</p>
-					{#if $userStore}
-						<a href="/dashboard/travel" class="text-primary mt-4 text-sm hover:underline">
-							{t('community.publishFirstTrip')}
-						</a>
-					{:else}
-						<a href="/auth/signin" class="text-primary mt-4 text-sm hover:underline">
-							{t('community.signInToShare')}
-						</a>
-					{/if}
+				<div class="mb-16">
+					<div class="mb-6 flex items-center gap-2">
+						<Sparkles class="text-primary h-5 w-5" />
+						<h2 class="text-foreground text-sm font-bold tracking-wide uppercase">
+							{t('community.latestStories')}
+						</h2>
+					</div>
+					<p class="text-muted-foreground mb-6 text-sm">
+						{$userStore ? t('community.emptyHintOwn') : t('community.emptyHintAnon')}
+					</p>
+					<!-- Dashed placeholder cards previewing the layout -->
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+						{#each { length: 3 } as _}
+							<div class="border-border bg-card/50 flex flex-col rounded-2xl border border-dashed">
+								<div class="text-muted-foreground/30 flex h-32 items-center justify-center">
+									<ImagePlus class="h-8 w-8" />
+								</div>
+								<div class="p-4">
+									<div class="bg-muted mb-3 h-3 w-1/3 rounded"></div>
+									<div class="bg-muted mb-2 h-4 w-2/3 rounded"></div>
+									<div class="bg-muted h-3 w-full rounded"></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+					<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+						{#if $userStore}
+							<a
+								href="/dashboard/travel"
+								class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+							>
+								<BookOpen class="h-4 w-4" />
+								{t('community.publishFirstTrip')}
+							</a>
+						{:else}
+							<a
+								href="/auth/signin"
+								class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
+							>
+								<User class="h-4 w-4" />
+								{t('community.signInToShare')}
+							</a>
+						{/if}
+					</div>
 				</div>
 			{/if}
 		</div>

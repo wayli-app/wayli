@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, TILE_URLS_NOLABELS } from '$lib/utils/map-theme';
 	import { feature } from 'topojson-client';
 	import type { Topology } from 'topojson-specification';
 
@@ -205,28 +205,19 @@
 		map = L.map(mapContainer, {
 			scrollWheelZoom: true,
 			zoomControl: false,
-			// Clamp panning to a single world so the map can't be scrolled into
-			// empty/grey areas beyond the tile coverage (CartoDB tiles only cover
-			// roughly ±85° latitude), and tiles don't repeat horizontally (which
-			// would leave the visited-country GeoJSON highlight behind on the
-			// copied worlds). Atlas-style: one bounded world.
-			maxBounds: [
-				[-85, -180],
-				[85, 180]
-			],
-			maxBoundsViscosity: 0.8
+			// Let the world repeat horizontally when panned (preferred look).
+			// No maxBounds: clamping would suppress the repetition.
+			worldCopyJump: false
 		});
 		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, {
-				attribution: TILE_URLS[theme].attribution,
-				maxZoom: 5,
-				// Don't wrap tiles horizontally — keeps a single bounded world so
-				// the country highlighting lines up with the base map.
-				noWrap: true,
-				bounds: [
-					[-85, -180],
-					[85, 180]
-				]
+			// No-labels tiles: the `_all` CartoDB tiles bake cartographic
+			// graticule (latitude/longitude rules) into the raster at these low
+			// zooms, showing up as unwanted thin horizontal lines across the
+			// whole viewport. Country borders come from the GeoJSON overlay
+			// below, so we use the label-free variant here.
+			L.tileLayer(TILE_URLS_NOLABELS[theme].url, {
+				attribution: TILE_URLS_NOLABELS[theme].attribution,
+				maxZoom: 5
 			})
 		);
 
@@ -278,3 +269,13 @@
 </svelte:head>
 
 <div bind:this={mapContainer} class="relative z-0 rounded-lg {className}"></div>
+
+<style>
+	/* Tiles only cover roughly ±85° latitude; with horizontal wrap enabled
+	   (no maxBounds) the area above/below would otherwise show Leaflet's default
+	   grey background as full-width bands. Make the container transparent so the
+	   gap blends into the surrounding card/page background. */
+	:global(.leaflet-container) {
+		background: transparent;
+	}
+</style>

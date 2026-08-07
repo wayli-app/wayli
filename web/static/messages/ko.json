@@ -1663,6 +1663,8 @@
 		"explore": "탐구하다",
 		"latestStories": "최신 뉴스",
 		"noStoriesYet": "아직 공개 스토리가 없습니다.",
+		"emptyHintOwn": "게시하면 여기에 내용과 여행이 표시됩니다.",
+		"emptyHintAnon": "커뮤니티의 이야기가 여기에 표시됩니다. 로그인하여 나누어 보세요.",
 		"publishFirstTrip": "첫 번째 여행을 게시하세요 →",
 		"readMore": "더 읽어보기 →",
 		"signInToShare": "당신의 이야기를 공유하려면 로그인하세요 →",

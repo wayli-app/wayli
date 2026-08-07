@@ -1659,6 +1659,8 @@
 		"explore": "Esplorare",
 		"latestStories": "Ultime storie",
 		"noStoriesYet": "Nessuna storia pubblica ancora.",
+		"emptyHintOwn": "Le tue storie e i tuoi viaggi appariranno qui una volta pubblicati.",
+		"emptyHintAnon": "Le storie della community appariranno qui. Accedi per condividere le tue.",
 		"publishFirstTrip": "Pubblica il tuo primo viaggio →",
 		"readMore": "Leggi di più→",
 		"signInToShare": "Accedi per condividere le tue storie →",
