@@ -88,7 +88,9 @@
 				.limit(1);
 			usernameStatus = (data as any[])?.length > 0 ? 'taken' : 'available';
 		} catch {
-			usernameStatus = 'idle';
+			// If the availability check fails (e.g. view query errors), don't
+			// block the save — the DB unique constraint catches real collisions.
+			usernameStatus = 'available';
 		}
 	}
 
@@ -736,7 +738,11 @@
 				toast.error('This username is already taken');
 				return;
 			}
-			if (usernameStatus !== 'available') {
+			// Don't block forever if the availability check didn't complete
+			// (e.g. the public_profiles query errored). The DB unique constraint
+			// will catch an actual collision — better to let the save attempt
+			// than to silently block the user.
+			if (usernameStatus === 'checking') {
 				toast.error('Please wait for the username check to complete');
 				return;
 			}
@@ -1626,6 +1632,25 @@
 				<p class="text-muted-foreground mt-1 text-xs">
 					Lowercase letters, numbers, and hyphens. 3–30 characters.
 				</p>
+				{#if !usernameInput.trim() && firstNameInput.trim()}
+					{@const suggested = firstNameInput
+						.trim()
+						.toLowerCase()
+						.replace(/[^a-z0-9-]/g, '')
+						.slice(0, 30)}
+					{#if suggested.length >= 3}
+						<button
+							type="button"
+							onclick={() => {
+								usernameInput = suggested;
+								onUsernameInput();
+							}}
+							class="text-primary mt-2 text-xs hover:underline"
+						>
+							Use "{suggested}" (from your name)
+						</button>
+					{/if}
+				{/if}
 				{#if usernameStatus === 'checking'}
 					<p class="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
 						<Loader2 class="h-3 w-3 animate-spin" /> Checking availability...
