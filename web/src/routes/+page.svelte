@@ -160,7 +160,7 @@
 					}
 				} catch {}
 
-				await loadCommunityContent(sessionUserId);
+				await loadCommunityContent(sessionUserId, profileUsername);
 
 				// Always show the signed-in user's own trips alongside the public
 				// stories — the user should be able to see their own (private)
@@ -174,7 +174,7 @@
 	// data routes are auth-required, so this is only called when signed in — an
 	// anonymous visitor would get a 401 on every query. (Anonymous community
 	// browsing is gated at the call site; see onMount.)
-	async function loadCommunityContent(userId: string) {
+	async function loadCommunityContent(userId: string, ownUsername?: string | null) {
 		// Build "Latest stories" from BOTH the community feed (public/shared
 		// trips + their published entries) AND the signed-in user's OWN
 		// published entries. The own-entries query is decoupled from the
@@ -247,6 +247,10 @@
 			);
 			const profileMap = new Map<string, string>();
 			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
+			// Seed the caller's own username so their own entries show a handle,
+			// even if they're not yet in public_profiles (e.g. username set after
+			// the entries were created, or the view hasn't propagated).
+			if (ownUsername && userId) profileMap.set(userId, ownUsername);
 			const mediaMap = new Map<string, string>();
 			for (const m of (mediaResult.data as any[]) ?? []) {
 				mediaMap.set(m.id, m.thumbnail_path ?? m.storage_path);
@@ -694,7 +698,9 @@
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each myTrips as trip (trip.id)}
 							<a
-								href="/dashboard/travel"
+								href={profileUsername
+									? `/u/${profileUsername}/trips/${trip.id}`
+									: '/dashboard/travel'}
 								class="group bg-card border-border overflow-hidden rounded-2xl border transition-all hover:shadow-xl"
 							>
 								{#if trip.image_url}
