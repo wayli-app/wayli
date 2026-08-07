@@ -725,7 +725,11 @@
 	}
 
 	async function handleSaveProfile() {
-		if (!profile) return;
+		console.log('[handleSaveProfile] called, profile=', !!profile);
+		if (!profile) {
+			console.warn('[handleSaveProfile] profile is null, aborting');
+			return;
+		}
 
 		// Block save if username is invalid or taken
 		const trimmedUsername = usernameInput.trim();
@@ -768,6 +772,12 @@
 			(profile as any).discoverable = discoverableInput;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
+			console.log('[handleSaveProfile] calling updateProfile with fields:', {
+				first_name: profile.first_name,
+				last_name: profile.last_name,
+				username: (profile as any).username,
+				discoverable: discoverableInput
+			});
 			// Update profile using service adapter
 			await serviceAdapter.updateProfile({
 				first_name: profile.first_name,
@@ -781,8 +791,9 @@
 			});
 
 			toast.success('Profile updated successfully!');
+			console.log('[handleSaveProfile] success');
 		} catch (error) {
-			console.error('❌ [AccountSettings] Error updating profile:', error);
+			console.error('❌ [handleSaveProfile] FAILED:', error);
 			const msg = error instanceof Error ? error.message : '';
 			if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already exists')) {
 				toast.error('This username is already taken. Please choose another.');
