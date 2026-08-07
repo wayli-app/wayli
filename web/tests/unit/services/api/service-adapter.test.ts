@@ -1189,7 +1189,9 @@ describe('ServiceAdapter', () => {
 	describe('AI Features', () => {
 		describe('isAIEnabled', () => {
 			it('should return true when AI is enabled and providers configured', async () => {
-				mockFluxbase.admin.settings.app.getSetting.mockResolvedValue(true);
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({
+					'app.ai.enabled': true
+				});
 				mockFluxbase.admin.ai.listProviders.mockResolvedValue({
 					data: [{ id: '1', enabled: true }]
 				});
@@ -1200,7 +1202,7 @@ describe('ServiceAdapter', () => {
 			});
 
 			it('should return false when AI is disabled', async () => {
-				mockFluxbase.admin.settings.app.getSetting.mockResolvedValue(false);
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({});
 
 				const result = await adapter.isAIEnabled();
 
@@ -1208,7 +1210,9 @@ describe('ServiceAdapter', () => {
 			});
 
 			it('should return false when no providers configured', async () => {
-				mockFluxbase.admin.settings.app.getSetting.mockResolvedValue(true);
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({
+					'app.ai.enabled': true
+				});
 				mockFluxbase.admin.ai.listProviders.mockResolvedValue({ data: [] });
 
 				const result = await adapter.isAIEnabled();

@@ -15,7 +15,8 @@ export class AdminAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		try {
-			const aiEnabled = await fluxbase.admin.settings.app.getSetting('app.ai.enabled');
+			const settings = await fluxbase.admin.settings.app.getSettings(['app.ai.enabled']);
+			const aiEnabled = Boolean((settings as any)?.['app.ai.enabled'] ?? false);
 			if (!aiEnabled) {
 				return false;
 			}
