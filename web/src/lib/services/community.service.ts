@@ -148,7 +148,7 @@ export async function loadStories(
 	const tripMap = new Map<string, any>();
 	for (const tr of [...tripsList, ...ownTrips]) tripMap.set(tr.id, tr);
 	const allTripIds = [...tripMap.keys()];
-	if (allTripIds.length === 0) return [];
+	if (allTripIds.length === 0) return { stories: [], hasMore: false };
 
 	// Request limit+1 rows from the offset — the extra row is a "has more"
 	// sentinel. PostgREST .range() is inclusive on both ends.
