@@ -4,6 +4,7 @@
 		Sun,
 		Moon,
 		User,
+		Users,
 		BookOpen,
 		Globe,
 		Calendar,
@@ -154,7 +155,7 @@
 					}
 				} catch {}
 
-				await loadCommunityContent();
+				await loadCommunityContent(sessionUserId);
 
 				// Always show the signed-in user's own trips alongside the public
 				// stories — the user should be able to see their own (private)
@@ -168,65 +169,103 @@
 	// data routes are auth-required, so this is only called when signed in — an
 	// anonymous visitor would get a 401 on every query. (Anonymous community
 	// browsing is gated at the call site; see onMount.)
-	async function loadCommunityContent() {
+	async function loadCommunityContent(userId: string) {
+		// Build "Latest stories" from BOTH the community feed (public/shared
+		// trips + their published entries) AND the signed-in user's OWN
+		// published entries. The own-entries query is decoupled from the
+		// community trips query so the user always sees their own stories here
+		// even if the community query errors or returns nothing — previously a
+		// silent early-return hid the user's own entries entirely.
 		try {
-			// Query trips: RLS returns public + owned + shared for the signed-in
-			// user. Include 'planned' so the user's own draft trips appear.
-			const { data: tripsData } = await fluxbase
+			// Community trips: RLS returns public + owned + shared. Surface the
+			// error (don't destructure it away) so a failure is diagnosable.
+			const { data: tripsData, error: tripsError } = await fluxbase
 				.from('trips')
 				.select('id, title, image_url, user_id, metadata')
 				.in('status', ['active', 'completed', 'planned'])
 				.order('start_date', { ascending: false })
 				.limit(10);
-
+			if (tripsError) {
+				console.warn('[landing] community trips query error:', tripsError);
+			}
 			const tripsList = (tripsData as any[]) ?? [];
-			if (tripsList.length === 0) return;
+
+			// Always also fetch the signed-in user's own trips so their entries
+			// are included even when the community query returned nothing.
+			let ownTrips: any[] = [];
+			if (userId) {
+				try {
+					const { data: ownData } = await fluxbase
+						.from('trips')
+						.select('id, title, image_url, user_id, metadata')
+						.eq('user_id', userId)
+						.in('status', ['active', 'completed', 'planned'])
+						.order('start_date', { ascending: false })
+						.limit(10);
+					ownTrips = (ownData as any[]) ?? [];
+				} catch (err) {
+					console.warn('[landing] own-trips query failed:', err);
+				}
+			}
+			// Merge + de-dup trips by id (own trips may already be in tripsList).
+			const tripMap = new Map<string, any>();
+			for (const tr of [...tripsList, ...ownTrips]) tripMap.set(tr.id, tr);
+			const allTripIds = [...tripMap.keys()];
+			if (allTripIds.length === 0) return;
 
 			const [entriesResult, profilesResult, mediaResult] = await Promise.all([
 				fluxbase
 					.from('trip_entries')
 					.select('id, trip_id, title, body, entry_date, cover_media_id, status')
-					.in(
-						'trip_id',
-						tripsList.map((t) => t.id)
-					)
+					.in('trip_id', allTripIds)
 					.order('entry_date', { ascending: false })
-					.limit(6),
+					.limit(12),
 				fluxbase
 					.from('public_profiles')
 					.select('id, username')
-					.in('id', [...new Set(tripsList.map((t) => t.user_id))]),
+					.in('id', [...new Set(allTripIds.map((id) => tripMap.get(id)!.user_id))]),
 				fluxbase
 					.from('trip_media')
 					.select('id, storage_path, thumbnail_path')
-					.in(
-						'trip_id',
-						tripsList.map((t) => t.id)
-					)
+					.in('trip_id', allTripIds)
 			]);
 
+			if (entriesResult.error) {
+				console.warn('[landing] trip_entries query error:', entriesResult.error);
+			}
+			// Published entries are visible to everyone; the owner additionally
+			// sees their own drafts, but we only surface published here so the
+			// public feed stays consistent. Own published entries are included
+			// via the ownTrips merge above.
 			const entriesList = ((entriesResult.data as any[]) ?? []).filter(
 				(e) => e.status === 'published'
 			);
 			const profileMap = new Map<string, string>();
 			for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
-			const tripMap = new Map<string, any>();
-			for (const tr of tripsList) tripMap.set(tr.id, tr);
 			const mediaMap = new Map<string, string>();
 			for (const m of (mediaResult.data as any[]) ?? []) {
 				mediaMap.set(m.id, m.thumbnail_path ?? m.storage_path);
 			}
 
-			latestEntries = entriesList.map((e) => {
-				const trip = tripMap.get(e.trip_id);
-				const entryCover = e.cover_media_id ? mediaMap.get(e.cover_media_id) : null;
-				return {
-					...e,
-					trip_title: trip?.title,
-					trip_image_url: entryCover ?? trip?.image_url,
-					username: trip ? profileMap.get(trip.user_id) : undefined
-				};
-			});
+			// De-dup entries by id, cap at 6 for the grid.
+			const seenEntry = new Set<string>();
+			latestEntries = entriesList
+				.filter((e) => {
+					if (seenEntry.has(e.id)) return false;
+					seenEntry.add(e.id);
+					return true;
+				})
+				.slice(0, 6)
+				.map((e) => {
+					const trip = tripMap.get(e.trip_id);
+					const entryCover = e.cover_media_id ? mediaMap.get(e.cover_media_id) : null;
+					return {
+						...e,
+						trip_title: trip?.title,
+						trip_image_url: entryCover ?? trip?.image_url,
+						username: trip ? profileMap.get(trip.user_id) : undefined
+					};
+				});
 
 			// Travelers directory — discoverable users who have at least one
 			// trip (any visibility the caller can see via RLS). Previously this
@@ -483,18 +522,26 @@
 
 				<!-- CTAs as frosted-glass pills -->
 				<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-					{#if latestEntries.length > 0 || myTrips.length > 0}
-						<a
-							href="#stories"
-							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
-						>
-							<BookOpen class="h-4 w-4" />
-							{t('community.exploreStories')}
-						</a>
-					{:else if $userStore}
+					<!-- Always-visible discover buttons (scroll to content) -->
+					<a
+						href="#stories"
+						class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
+					>
+						<BookOpen class="h-4 w-4" />
+						{t('community.exploreStories')}
+					</a>
+					<a
+						href="#travelers"
+						class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
+					>
+						<Users class="h-4 w-4" />
+						{t('community.browseTravelers')}
+					</a>
+					<!-- Primary contextual action -->
+					{#if $userStore}
 						<a
 							href="/dashboard/travel"
-							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
 						>
 							<BookOpen class="h-4 w-4" />
 							{t('landing.goToDashboard')}
@@ -502,7 +549,7 @@
 					{:else}
 						<a
 							href="/auth/signin"
-							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
+							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
 						>
 							<User class="h-4 w-4" />
 							{t('auth.signIn')}
@@ -531,7 +578,7 @@
 		</div>
 
 		<!-- Content -->
-		<div id="stories" class="mx-auto max-w-6xl px-4 py-6">
+		<div id="stories" class="mx-auto max-w-6xl scroll-mt-20 px-4 py-6">
 			<!-- Latest Stories -->
 			{#if latestEntries.length > 0}
 				<div class="mb-16">
@@ -591,7 +638,7 @@
 
 			<!-- Travelers Directory -->
 			{#if travelers.length > 0}
-				<div class="mb-16">
+				<div id="travelers" class="mb-16 scroll-mt-20">
 					<div class="mb-6 flex items-center gap-2">
 						<Globe class="text-primary h-5 w-5" />
 						<h2 class="text-foreground text-sm font-bold tracking-wide uppercase">
