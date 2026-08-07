@@ -224,8 +224,8 @@ export class UserProfileService {
 		try {
 			const { error } = await this.fluxbase
 				.from<Record<string, any>>('user_profiles')
-				.eq('id', userId)
-				.update(updates);
+				.update(updates)
+				.eq('id', userId);
 			if (error) {
 				console.error('Error updating user profile:', error);
 				return false;

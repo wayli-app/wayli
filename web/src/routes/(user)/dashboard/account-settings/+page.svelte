@@ -647,8 +647,8 @@
 			if (profile) {
 				const { error } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.eq('id', profile.id)
-					.update({ onboarding_completed: true });
+					.update({ onboarding_completed: true })
+					.eq('id', profile.id);
 
 				if (error) {
 					console.error('Error marking onboarding as completed:', error);
@@ -675,11 +675,11 @@
 			if (profile) {
 				const { error } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.eq('id', profile.id)
 					.update({
 						onboarding_completed: true,
 						home_address_skipped: true
-					});
+					})
+					.eq('id', profile.id);
 
 				if (error) {
 					console.error('Error marking onboarding as skipped:', error);
@@ -705,8 +705,8 @@
 			if (profile) {
 				const { error } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.eq('id', profile.id)
-					.update({ home_address_skipped: true });
+					.update({ home_address_skipped: true })
+					.eq('id', profile.id);
 
 				if (error) {
 					console.error('Error skipping home address:', error);

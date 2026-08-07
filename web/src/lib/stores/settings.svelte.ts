@@ -23,6 +23,20 @@ import { browser } from '$app/environment';
 // The namespace this app reads. All Wayli settings live under `wayli.*`.
 const SETTING_PREFIX = 'wayli.';
 
+// Known public settings keys — used as a fallback when the server doesn't
+// support the `prefix` option on the batch endpoint (Fluxbase < 2026.8.4).
+const PUBLIC_KEYS = [
+	'wayli.community_enabled',
+	'wayli.landing_redirect_username',
+	'wayli.is_setup_complete',
+	'wayli.public_trips_require_auth',
+	'wayli.server_name',
+	'wayli.pexels_rate_limit',
+	'wayli.pelias_endpoint',
+	'wayli.ai.daily_request_limit',
+	'wayli.ai.daily_token_budget'
+];
+
 // Reactive cache. `null` = not loaded yet; `Record<string, unknown>` once
 // populated (possibly empty if the caller can't see any keys). `loading` tracks
 // the in-flight fetch so concurrent callers share one request.
@@ -54,12 +68,21 @@ export async function loadPublicSettings(force = false): Promise<void> {
 	settingsState.loading = true;
 	loadPromise = (async () => {
 		try {
-			const result = await fluxbase.settings.getMany([], { prefix: SETTING_PREFIX });
+			// Try the prefix fetch first (requires Fluxbase server ≥ 2026.8.4).
+			// Pass a non-empty keys array so older servers that don't support
+			// prefix don't reject with "keys is required".
+			const result = await fluxbase.settings.getMany(PUBLIC_KEYS, { prefix: SETTING_PREFIX });
 			settingsState.values = result ?? {};
 		} catch {
-			// Network/auth error, or server returned an error — cache an empty
-			// map so callers get fallbacks rather than re-fetching on every read.
-			settingsState.values = {};
+			// Fallback: explicit key list (works on all server versions).
+			try {
+				const result = await fluxbase.settings.getMany(PUBLIC_KEYS);
+				settingsState.values = result ?? {};
+			} catch {
+				// Network/auth error — cache an empty map so callers get
+				// fallbacks rather than re-fetching on every read.
+				settingsState.values = {};
+			}
 		} finally {
 			settingsState.loading = false;
 		}
