@@ -313,11 +313,16 @@
 
 			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
-			// Load profile and preferences (server settings loaded via admin endpoint if needed)
-			const [profileResult, preferencesResult] = await Promise.all([
-				serviceAdapter.getProfile(),
-				serviceAdapter.getPreferences()
-			]);
+			// Load profile and preferences separately so a missing/failed
+			// preferences row doesn't prevent the profile from loading (which
+			// would leave the form dead — profile=null blocks the save button).
+			const profileResult = await serviceAdapter.getProfile();
+			let preferencesResult: any = {};
+			try {
+				preferencesResult = await serviceAdapter.getPreferences();
+			} catch (prefErr) {
+				console.warn('Could not load user preferences (non-fatal):', prefErr);
+			}
 
 			// Handle profile data - Edge Functions return { success: true, data: ... }
 			if (profileResult && typeof profileResult === 'object' && profileResult !== null) {
@@ -725,11 +730,7 @@
 	}
 
 	async function handleSaveProfile() {
-		console.log('[handleSaveProfile] called, profile=', !!profile);
-		if (!profile) {
-			console.warn('[handleSaveProfile] profile is null, aborting');
-			return;
-		}
+		if (!profile) return;
 
 		// Block save if username is invalid or taken
 		const trimmedUsername = usernameInput.trim();
@@ -772,12 +773,6 @@
 			(profile as any).discoverable = discoverableInput;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
-			console.log('[handleSaveProfile] calling updateProfile with fields:', {
-				first_name: profile.first_name,
-				last_name: profile.last_name,
-				username: (profile as any).username,
-				discoverable: discoverableInput
-			});
 			// Update profile using service adapter
 			await serviceAdapter.updateProfile({
 				first_name: profile.first_name,
@@ -791,9 +786,8 @@
 			});
 
 			toast.success('Profile updated successfully!');
-			console.log('[handleSaveProfile] success');
 		} catch (error) {
-			console.error('❌ [handleSaveProfile] FAILED:', error);
+			console.error('❌ [AccountSettings] Error updating profile:', error);
 			const msg = error instanceof Error ? error.message : '';
 			if (msg.includes('unique') || msg.includes('duplicate') || msg.includes('already exists')) {
 				toast.error('This username is already taken. Please choose another.');

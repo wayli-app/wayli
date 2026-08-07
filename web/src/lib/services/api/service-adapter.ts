@@ -164,18 +164,21 @@ export class ServiceAdapter {
 			throw new Error('User not authenticated');
 		}
 
-		// Get preferences from user_preferences table
+		// Get preferences from user_preferences table. Use maybeSingle so a
+		// missing row (new user with no preferences yet) returns null instead
+		// of throwing "No rows found" — which would abort loadUserData and
+		// leave the profile null, breaking the entire account-settings page.
 		const { data: preferences, error } = await fluxbase
 			.from<Record<string, any>>('user_preferences')
 			.select('*')
 			.eq('id', userData.user.id)
-			.single();
+			.maybeSingle();
 
 		if (error) {
 			throw new Error(error.message || 'Failed to fetch preferences');
 		}
 
-		return preferences;
+		return preferences ?? {};
 	}
 
 	async updatePreferences(preferences: Record<string, unknown>) {
