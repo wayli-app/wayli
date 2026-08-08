@@ -84,7 +84,7 @@ export async function loadTravelers(
 		const checks = await Promise.all(
 			candidateProfiles.map((p) =>
 				fluxbase
-					.rpc('is_discoverable_to', { target_user: p.id })
+					.rpc('is-discoverable-to', { target_user: p.id })
 					.then((r: any) => ({
 						p,
 						// Only count as "answered" when there's no error AND data is a
