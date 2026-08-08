@@ -405,8 +405,14 @@ jobs:
           cat /tmp/changelog.md
           echo "----------------------------"
 
-          BODY=$(jq -Rs . < /tmp/changelog.md)
-          echo "body=$BODY" >> $GITHUB_OUTPUT
+          # Use a heredoc delimiter that won't appear in the content, so
+          # multi-line markdown is passed cleanly to GITHUB_OUTPUT without
+          # jq JSON-escaping (which produces literal \n and surrounding quotes).
+          {
+            echo "body<<CHANGELOG_EOF"
+            cat /tmp/changelog.md
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
   release:
     runs-on: ubuntu-latest
