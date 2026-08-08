@@ -28,7 +28,8 @@
 			"apply": "適用する",
 			"create": "作成する",
 			"saving": "保存中...",
-			"uploading": "アップロード中..."
+			"uploading": "アップロード中...",
+			"send": "送信"
 		},
 		"status": {
 			"error": "エラー",
@@ -71,6 +72,8 @@
 			"account": "アカウント",
 			"dashboard": "ダッシュボード",
 			"trips": "旅行",
+			"traveler": "トラベラー",
+			"travelers": "トラベラー",
 			"locations": "所在地",
 			"statistics": "位置データ",
 			"preferences": "設定",
@@ -142,7 +145,12 @@
 		"undo": "元に戻す",
 		"unknown": "未知",
 		"unnamed": "無名",
-		"uploading": "アップロード中..."
+		"uploading": "アップロード中...",
+		"badges": {
+			"new": "新しい"
+		},
+		"traveler": "旅行者",
+		"travelers": "旅行者"
 	},
 	"country": {
 		"NL": "オランダ",
@@ -262,6 +270,7 @@
 		"selfHostedTagline": "自己ホスト型の位置追跡と旅行管理。あなたのデータ、サーバー、プライバシー。",
 		"heroHeadline": "あなたの旅。あなたのデータ。あなたのサーバー。",
 		"heroSubtext": "自己ホスト型の位置追跡と旅行管理。プライバシーを設計から組み込んでいます。",
+		"goToDashboard": "ダッシュボードへ",
 		"privacyFirst": "プライバシー第一",
 		"privacyFirstDescription": "データはサーバー上に残ります。第三者による追跡やデータ共有はありません。",
 		"automaticTripDetection": "自動トリップ検出",
@@ -272,7 +281,9 @@
 		"multiUserDescription": "家族や少人数のチームに最適です。管理者コントロールが含まれています。",
 		"readyToStart": "旅行の記録を始める準備はできましたか?",
 		"createAccountToday": "アカウントを作成して、今すぐ旅の記録を始めましょう。",
-		"createAccount": "アカウントを作成する"
+		"createAccount": "アカウントを作成する",
+		"autoTrips": "自動トリップ",
+		"selfHosted": "自己ホスト型"
 	},
 	"auth": {
 		"signIn": "サインイン",
@@ -448,7 +459,9 @@
 		"checklistDismissError": "チェックリストを閉じることができませんでした",
 		"checklistDismissed": "チェックリストが却下されました",
 		"checklistProgress": "{合計} 件中 {完了} 件が完了しました",
-		"checklistTitle": "Wayli を始めましょう"
+		"checklistTitle": "Wayli を始めましょう",
+		"tryAi": "AIアシスタントを試してみる",
+		"tryAiDesc": "旅行について尋ねたり、旅程を計画したり、訪れた場所を思い出したりできます"
 	},
 	"statistics": {
 		"loading": "読み込み中...",
@@ -882,6 +895,11 @@
 		"profile": "プロフィール",
 		"preferences": "設定",
 		"security": "安全",
+		"discoverable": "トラベラーディレクトリでの表示設定",
+		"discoverableEveryone": "全員に表示",
+		"discoverableFriendsOfFriends": "友達の友達",
+		"discoverableNobody": "非表示",
+		"discoverableDescription": "ランディングページのコミュニティトラベラーリストに表示するかどうかを設定します。",
 		"profileDescription": "個人情報とアカウントの詳細を管理する",
 		"preferencesSubtitle": "言語、単位、表示設定を構成します",
 		"securityDescription": "パスワードとセキュリティ設定を管理する",
@@ -1186,6 +1204,12 @@
 		"aiMaxTokensDescription": "応答あたりの最大トークン数 (デフォルト: 4096)",
 		"aiTemperature": "温度",
 		"aiTemperatureDescription": "応答の創造性 (0.0 = 正確、1.0 = 創造的)",
+		"aiUsageLimits": "利用制限",
+		"aiUsageLimitsDescription": "ユーザーごと・1日あたりの上限です。オフにすると無制限（既定）。",
+		"aiQuestionLimit": "1日の質問上限",
+		"aiQuestionLimitDescription": "ユーザーが1日に送信できる質問/メッセージの最大数",
+		"aiTokenBudget": "1日のトークン予算",
+		"aiTokenBudgetDescription": "ユーザーが1日に消費できるトークンの最大数",
 		"aiSettingsSaved": "AI設定が保存されました",
 		"aiProviderReadOnly": "読み取り専用",
 		"aiProviderReadOnlyDescription": "この AI プロバイダーは環境変数または YAML 構成を介して構成され、UI を介して変更することはできません。",
@@ -1563,7 +1587,7 @@
 		"itemUpdated": "「{title}」を更新しました"
 	},
 	"profile": {
-		"home": "← ホーム",
+		"home": "家",
 		"myTravel": "私の旅行",
 		"noTrips": "まだ旅行はありません。",
 		"traveled": "旅行した",
@@ -1651,13 +1675,17 @@
 		"explore": "探検する",
 		"latestStories": "最新のストーリー",
 		"noStoriesYet": "まだ公開ストーリーはありません。",
+		"emptyHintOwn": "公開すると、あなたのストーリーと旅行がここに表示されます。",
+		"emptyHintAnon": "コミュニティのストーリーがここに表示されます。ログインして自分のものを共有しましょう。",
 		"publishFirstTrip": "初めての旅行を公開する →",
 		"readMore": "続きを読む→",
 		"signInToShare": "サインインしてストーリーを共有 →",
 		"subtitle": "コミュニティから旅行のストーリーを見つけてください",
 		"travelers": "旅行者",
 		"whereWeveBeen": "私たちが行った場所",
-		"exploreStories": "ストーリーを探索する"
+		"exploreStories": "ストーリーを探索する",
+		"browseTravelers": "トラベラーを見る",
+		"yourTrips": "あなたの旅行"
 	},
 	"feed": {
 		"noStories": "まだストーリーはありません。",
@@ -1683,6 +1711,18 @@
 		"subtitle": "接続を管理し、旅行を共有する",
 		"title": "友達",
 		"yourFriends": "あなたの友達 ({count})"
+	},
+	"travelersPage": {
+		"title": "トラベラー",
+		"subtitle": "旅行のストーリーをシェアする人々を見つけましょう。",
+		"empty": "まだトラベラーが見つかりません。"
+	},
+	"storiesPage": {
+		"title": "ストーリー",
+		"subtitle": "コミュニティの旅行ストーリーを読みましょう。",
+		"empty": "まだストーリーが公開されていません。",
+		"loadMore": "もっと見る",
+		"allLoaded": "すべて表示しました"
 	},
 	"plannerChat": {
 		"addToDay": "日に追加 {day}",
@@ -1761,6 +1801,37 @@
 		"quotaExceeded": "1 日の制限に達しました",
 		"rateLimited": "リクエストが多すぎます。速度を落として、すぐにもう一度試してください。",
 		"retry": "リトライ",
-		"rowsReturned": "{count} 行が見つかりました"
+		"rowsReturned": "{count} 行が見つかりました",
+		"agents": {
+			"action": "行動を起こす",
+			"chat": "アシスタント",
+			"kb": "あなたの歴史",
+			"sql": "あなたのデータ",
+			"supervisor": "コーディネーター",
+			"synthesizer": "返信を書く",
+			"verifier": "チェック中",
+			"web": "ウェブ検索"
+		},
+		"approve": "承認する",
+		"configErrorDesc": "AI アシスタントが設定されていません。管理者はサーバー設定にプロバイダーを追加する必要があります。",
+		"connected": "接続済み",
+		"connecting": "接続中…",
+		"reject": "拒否する",
+		"route": "ステップ",
+		"routeTooltip": "アシスタントがこのターンに実行した手順",
+		"steps": {
+			"planning": "計画中…",
+			"reading": "日記を読んでいると…",
+			"searching": "旅行を検索中…",
+			"thinking": "考え…",
+			"web": "ウェブを検索中…",
+			"working": "働く…"
+		},
+		"stop": "停止",
+		"stopFailed": "応答を停止できませんでした。",
+		"stopped": "停止しました",
+		"technicalDetails": "技術的な詳細",
+		"webNotSearched": "Web 検索が計画されましたが、実行されませんでした",
+		"webSearched": "ウェブで検索した"
 	}
 }

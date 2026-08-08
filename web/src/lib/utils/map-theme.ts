@@ -40,6 +40,24 @@ export const TILE_URLS: Record<TileTheme, { url: string; attribution: string }> 
 };
 
 /**
+ * No-labels tile variants — same CartoDB basemap style but without labels/text
+ * and without the cartographic graticule (latitude/longitude rules) that `_all`
+ * tiles bake into the raster at low zooms. Used by the world/overview map,
+ * whose country borders come from a GeoJSON overlay, so the tile's own borders
+ * + graticule would render as unwanted thin horizontal lines across the map.
+ */
+export const TILE_URLS_NOLABELS: Record<TileTheme, { url: string; attribution: string }> = {
+	light: {
+		url: 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+		attribution: '&copy; OpenStreetMap &copy; CARTO'
+	},
+	dark: {
+		url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+		attribution: '&copy; OpenStreetMap &copy; CARTO'
+	}
+};
+
+/**
  * Watch theme changes and rebuild the tile layer on the given map.
  *
  * @param map The Leaflet map instance.

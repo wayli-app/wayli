@@ -198,7 +198,7 @@
 	>
 		<!-- Sidebar Header - Fixed at top -->
 		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
-			<a href="/dashboard/travel" class="border-border flex cursor-pointer items-center p-4">
+			<a href="/" class="border-border flex cursor-pointer items-center p-4">
 				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
 				<span class="text-foreground text-xl font-bold">Wayli</span>
 			</a>
@@ -356,7 +356,7 @@
 				>
 					<Menu class="h-6 w-6" />
 				</button>
-				<a href="/dashboard/travel" class="flex cursor-pointer items-center">
+				<a href="/" class="flex cursor-pointer items-center">
 					<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-6 w-6" />
 					<span class="text-foreground text-lg font-bold">Wayli</span>
 				</a>

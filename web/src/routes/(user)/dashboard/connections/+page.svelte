@@ -31,10 +31,13 @@
 			const user = data.user;
 			userId = user.id;
 
-			// Check if OwnTracks API key secret is configured
+			// Check if OwnTracks API key secret is configured (batch list, no 404).
 			try {
-				const secretMeta = await fluxbase.settings.getSecret('owntracks_api_key');
-				owntracksApiKeyConfigured = !!secretMeta;
+				const allSecrets = await fluxbase.settings.listSecrets();
+				const owntracksMeta = (allSecrets as any[])?.find(
+					(s: any) => s.key === 'owntracks_api_key'
+				);
+				owntracksApiKeyConfigured = !!owntracksMeta;
 
 				// We can't show the actual endpoint URL since we don't have the key value
 				// The user will see the endpoint only when generating a new key

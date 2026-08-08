@@ -35,7 +35,7 @@ services:
   #     - fluxbase
   # ============================================================================
   fluxbase:
-    image: ghcr.io/nimbleflux/fluxbase:${FLUXBASE_VERSION:-2026.8.2}
+    image: ghcr.io/nimbleflux/fluxbase:${FLUXBASE_VERSION:-2026.8.4}
     container_name: fluxbase
     depends_on:
       postgres:
@@ -63,6 +63,7 @@ services:
       # Storage
       FLUXBASE_STORAGE_PROVIDER: local
       FLUXBASE_STORAGE_LOCAL_PATH: /app/storage
+      FLUXBASE_STORAGE_DEFAULT_BUCKETS: 'trip-images,temp-files,uploads,public'
       FLUXBASE_CORS_ALLOWED_ORIGINS: http://localhost:4000
 
       # Enable features

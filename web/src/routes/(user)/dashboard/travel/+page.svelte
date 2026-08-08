@@ -96,7 +96,12 @@
 	let trips = $state<Trip[]>([]);
 	let entries = $state<JournalEntry[]>([]);
 	let pendingTrips = $state<Trip[]>([]);
-	let allGpsPoints = $state<GpsPoint[]>([]);
+	// GPS points are loaded lazily per trip (on expand), not eagerly for all
+	// trips. The cache maps tripId → points; the Set tracks in-flight loads so
+	// the UI can show a spinner. Loading all points for every trip on mount was
+	// the main cause of the slow Travel page — cards only need trip.metadata.
+	let gpsCache = $state<Map<string, GpsPoint[]>>(new Map());
+	let loadingTripGps = $state<Set<string>>(new Set());
 	let cityMarkers = $state<Array<{ lat: number; lng: number; label: string }>>([]);
 	let isLoading = $state(true);
 	let activeTripId = $state<string | null>(null);
@@ -180,11 +185,7 @@
 	});
 
 	const activeTripGpsPoints = $derived(
-		activeTripId
-			? allGpsPoints
-					.filter((p) => p.trip_id === activeTripId)
-					.map((p) => ({ lat: p.lat, lng: p.lng }))
-			: []
+		activeTripId ? (gpsCache.get(activeTripId) ?? []).map((p) => ({ lat: p.lat, lng: p.lng })) : []
 	);
 
 	const highlightPoints = $derived.by(() => {
@@ -193,8 +194,8 @@
 		if (!entry) return [];
 		const startDay = (entry.entry_date || '').slice(0, 10);
 		const endDay = (entry.end_date || entry.entry_date || '').slice(0, 10);
-		return allGpsPoints
-			.filter((p) => p.trip_id === entry.trip_id && p.date >= startDay && p.date <= endDay)
+		return (gpsCache.get(entry.trip_id) ?? [])
+			.filter((p) => p.date >= startDay && p.date <= endDay)
 			.map((p) => ({ lat: p.lat, lng: p.lng }));
 	});
 
@@ -244,6 +245,8 @@
 		if (urlTripId) {
 			expandedTrips = new Set([...expandedTrips, urlTripId]);
 			activeTripId = urlTripId;
+			// Deep-linked straight to a trip — fetch its track so the map shows.
+			loadTripGps(urlTripId);
 			setTimeout(() => {
 				document
 					.querySelector(`[data-trip-id="${urlTripId}"]`)
@@ -314,35 +317,55 @@
 		}
 	}
 
+	// Build the overview city markers from trip metadata only (cheap — no GPS
+	// fetch). Previously this also eagerly loaded raw tracker points for EVERY
+	// trip, which was the main cause of the slow Travel page load: cards and
+	// the overview map don't need raw points, only the active/expanded trip's
+	// map does (loaded on demand by loadTripGps).
 	async function loadGpsData() {
+		try {
+			for (const trip of trips) {
+				if (trip.metadata?.visitedCitiesDetailed) {
+					for (const c of trip.metadata.visitedCitiesDetailed) {
+						if (c.lat && c.lng && !cityMarkers.some((m) => m.lat === c.lat && m.lng === c.lng)) {
+							cityMarkers = [
+								...cityMarkers,
+								{ lat: c.lat, lng: c.lng, label: c.city || 'Unknown' }
+							];
+						}
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Failed to load city markers:', err);
+		}
+	}
+
+	// Lazily fetch the raw GPS track for a single trip, memoized in gpsCache.
+	// Triggered when a trip is expanded/deep-linked. No-op if already loaded or
+	// in-flight. Mirrors the per-trip fetch the page did before, just on demand.
+	async function loadTripGps(tripId: string) {
+		if (gpsCache.has(tripId) || loadingTripGps.has(tripId)) return;
+		const trip = trips.find((t) => t.id === tripId);
+		if (!trip) return;
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
-			if (!userId || trips.length === 0) return;
+			if (!userId) return;
 
-			const results = await Promise.all(
-				trips.map(async (trip) => {
-					const pts = (await fetchTrackPoints(userId, trip.start_date, trip.end_date, 500)).map(
-						(p) => ({ ...p, trip_id: trip.id })
-					);
-
-					if (trip.metadata?.visitedCitiesDetailed) {
-						for (const c of trip.metadata.visitedCitiesDetailed) {
-							if (c.lat && c.lng && !cityMarkers.some((m) => m.lat === c.lat && m.lng === c.lng)) {
-								cityMarkers = [
-									...cityMarkers,
-									{ lat: c.lat, lng: c.lng, label: c.city || 'Unknown' }
-								];
-							}
-						}
-					}
-
-					return pts;
-				})
+			loadingTripGps = new Set(loadingTripGps).add(tripId);
+			const pts = (await fetchTrackPoints(userId, trip.start_date, trip.end_date, 500)).map(
+				(p) => ({ ...p, trip_id: trip.id })
 			);
-			allGpsPoints = results.flat();
+			const next = new Map(gpsCache);
+			next.set(tripId, pts);
+			gpsCache = next;
 		} catch (err) {
-			console.error('Failed to load GPS:', err);
+			console.error('Failed to load trip GPS:', err);
+		} finally {
+			const next = new Set(loadingTripGps);
+			next.delete(tripId);
+			loadingTripGps = next;
 		}
 	}
 
@@ -393,6 +416,8 @@
 		} else {
 			next.add(tripId);
 			activeTripId = tripId;
+			// Lazily fetch this trip's GPS track now that it's expanded.
+			loadTripGps(tripId);
 		}
 		expandedTrips = next;
 		setTimeout(() => setupObserver(), 50);
@@ -570,7 +595,7 @@
 			}
 			pendingTrips = pendingTrips.filter((t) => t.id !== tripId);
 			await loadTrips();
-			await loadGpsData();
+			await loadGpsData(); // rebuilds city markers from the new trip's metadata
 			toast.success(t('travel.tripApproved'));
 		} catch (err) {
 			console.error('Approve failed:', err);
@@ -894,37 +919,67 @@
 		}
 	}
 
+	// Sum total distance (meters) for a trip's date window. Prefer the
+	// tracker_daily_activity cache (one indexed range scan) over paging raw
+	// tracker_data rows — it's the same source the Statistics page relies on.
+	// Falls back to the raw per-row distance sum when the cache is empty for the
+	// range (e.g. a fresh user whose refresh-daily-activity job hasn't run yet).
+	async function sumTripDistance(
+		userId: string,
+		startDate: string,
+		endDate: string
+	): Promise<number> {
+		const sd = (startDate || '').slice(0, 10);
+		const ed = (endDate || '').slice(0, 10);
+
+		// 1. Try the daily aggregate cache.
+		try {
+			const { data, error } = await fluxbase
+				.from('tracker_daily_activity')
+				.select('distance')
+				.eq('user_id', userId)
+				.gte('day', sd)
+				.lte('day', ed);
+			if (!error && data && data.length > 0) {
+				return data.reduce(
+					(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+					0
+				);
+			}
+		} catch {
+			// fall through to raw paging
+		}
+
+		// 2. Fallback: page raw tracker_data.distance (legacy path).
+		let total = 0;
+		let offset = 0;
+		while (true) {
+			const { data } = await fluxbase
+				.from<Record<string, any>>('tracker_data')
+				.select('distance')
+				.eq('user_id', userId)
+				.gte('recorded_at', `${sd}T00:00:00Z`)
+				.lte('recorded_at', `${ed}T23:59:59Z`)
+				.range(offset, offset + 999);
+			const batch = (data as any[]) ?? [];
+			if (batch.length === 0) break;
+			total += batch.reduce(
+				(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+				0
+			);
+			if (batch.length < 1000) break;
+			offset += 1000;
+		}
+		return total;
+	}
+
 	async function recalculateDistance(trip: Trip) {
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
-			const sd = (trip.start_date || '').slice(0, 10);
-			const ed = (trip.end_date || '').slice(0, 10);
-			let total = 0;
-			let offset = 0;
-
-			while (true) {
-				const { data } = await fluxbase
-					.from<Record<string, any>>('tracker_data')
-					.select('distance')
-					.eq('user_id', userId)
-					.gte('recorded_at', `${sd}T00:00:00Z`)
-					.lte('recorded_at', `${ed}T23:59:59Z`)
-					.range(offset, offset + 999);
-
-				const batch = (data as any[]) ?? [];
-				if (batch.length === 0) break;
-
-				total += batch.reduce(
-					(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
-					0
-				);
-
-				if (batch.length < 1000) break;
-				offset += 1000;
-			}
+			const total = await sumTripDistance(userId, trip.start_date, trip.end_date);
 
 			const newMetadata = { ...(trip.metadata ?? {}), distanceTraveled: Math.round(total) };
 			await fluxbase.from('trips').update({ metadata: newMetadata }).eq('id', trip.id);
@@ -944,30 +999,7 @@
 			if (!userId) return;
 
 			for (const trip of trips) {
-				const sd = (trip.start_date || '').slice(0, 10);
-				const ed = (trip.end_date || '').slice(0, 10);
-				let total = 0;
-				let offset = 0;
-
-				while (true) {
-					const { data } = await fluxbase
-						.from<Record<string, any>>('tracker_data')
-						.select('distance')
-						.eq('user_id', userId)
-						.gte('recorded_at', `${sd}T00:00:00Z`)
-						.lte('recorded_at', `${ed}T23:59:59Z`)
-						.range(offset, offset + 999);
-
-					const batch = (data as any[]) ?? [];
-					if (batch.length === 0) break;
-					total += batch.reduce(
-						(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
-						0
-					);
-					if (batch.length < 1000) break;
-					offset += 1000;
-				}
-
+				const total = await sumTripDistance(userId, trip.start_date, trip.end_date);
 				const newMetadata = { ...(trip.metadata ?? {}), distanceTraveled: Math.round(total) };
 				await fluxbase.from('trips').update({ metadata: newMetadata }).eq('id', trip.id);
 			}
@@ -1393,15 +1425,27 @@
 							<!-- Expanded entries -->
 							{#if expandedTrips.has(trip.id)}
 								<div class="border-border border-t">
-									<!-- Mobile map inside expanded section -->
-									{#if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
+									<!-- Mobile map inside expanded section. The {#key} forces a
+									     clean remount when the active trip changes — otherwise the
+									     reused Leaflet container keeps the previous trip's points
+									     (invalidateSize never re-runs on the re-parented div). -->
+									{#if activeTripId === trip.id && loadingTripGps.has(trip.id)}
+										<div
+											class="text-muted-foreground border-border flex items-center justify-center gap-2 border-b py-6 text-xs lg:hidden"
+										>
+											<Loader2 class="h-3.5 w-3.5 animate-spin" />
+											{t('common.status.loading')}
+										</div>
+									{:else if activeTripId === trip.id && (mapPoints.length > 0 || mapMarkers.length > 0)}
 										<div class="border-border border-b lg:hidden">
-											<TripMap
-												points={mapPoints}
-												markers={mapMarkers}
-												{highlightPoints}
-												class="h-48"
-											/>
+											{#key activeTripId}
+												<TripMap
+													points={mapPoints}
+													markers={mapMarkers}
+													{highlightPoints}
+													class="h-48"
+												/>
+											{/key}
 										</div>
 									{/if}
 
@@ -1967,6 +2011,13 @@
 									class="h-[420px]"
 								/>
 							{/key}
+						{:else if activeTripId && loadingTripGps.has(activeTripId)}
+							<div
+								class="text-muted-foreground flex h-64 items-center justify-center gap-2 px-6 text-center text-sm"
+							>
+								<Loader2 class="h-4 w-4 animate-spin" />
+								{t('common.status.loading')}
+							</div>
 						{:else}
 							<div
 								class="text-muted-foreground flex h-64 items-center justify-center px-6 text-center text-sm"

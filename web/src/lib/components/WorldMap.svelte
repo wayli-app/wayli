@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, TILE_URLS_NOLABELS } from '$lib/utils/map-theme';
 	import { feature } from 'topojson-client';
 	import type { Topology } from 'topojson-specification';
 
@@ -202,10 +202,21 @@
 	onMount(async () => {
 		L = (await import('leaflet')).default;
 
-		map = L.map(mapContainer, { scrollWheelZoom: true, zoomControl: false });
+		map = L.map(mapContainer, {
+			scrollWheelZoom: true,
+			zoomControl: false,
+			// Let the world repeat horizontally when panned (preferred look).
+			// No maxBounds: clamping would suppress the repetition.
+			worldCopyJump: false
+		});
 		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, {
-				attribution: TILE_URLS[theme].attribution,
+			// No-labels tiles: the `_all` CartoDB tiles bake cartographic
+			// graticule (latitude/longitude rules) into the raster at these low
+			// zooms, showing up as unwanted thin horizontal lines across the
+			// whole viewport. Country borders come from the GeoJSON overlay
+			// below, so we use the label-free variant here.
+			L.tileLayer(TILE_URLS_NOLABELS[theme].url, {
+				attribution: TILE_URLS_NOLABELS[theme].attribution,
 				maxZoom: 5
 			})
 		);
@@ -219,12 +230,27 @@
 				style: (f: any) => {
 					const numId = String(f.id || '').padStart(3, '0');
 					const isVisited = visitedNumeric.has(numId);
+					if (isVisited) {
+						return {
+							fillColor: '#3b82f6',
+							weight: 1,
+							opacity: 1,
+							color: '#1d4ed8',
+							fillOpacity: 0.7
+						};
+					}
+					// Unvisited countries: fill only, NO stroke. At 110m
+					// simplification some country borders follow parallels/straight
+					// lines (US-Canada 49th, African borders) and stroking every
+					// country at low zoom renders those as long horizontal lines
+					// across the viewport that look like graticule. Fill-only
+					// eliminates all vector lines except visited-country outlines.
 					return {
-						fillColor: isVisited ? '#3b82f6' : '#e5e7eb',
-						weight: isVisited ? 1 : 0.5,
-						opacity: 1,
-						color: isVisited ? '#1d4ed8' : '#d1d5db',
-						fillOpacity: isVisited ? 0.7 : 0.3
+						fillColor: '#e5e7eb',
+						weight: 0,
+						opacity: 0,
+						color: '#d1d5db',
+						fillOpacity: 0.3
 					};
 				},
 				onEachFeature: (f: any, layer: any) => {
@@ -258,3 +284,13 @@
 </svelte:head>
 
 <div bind:this={mapContainer} class="relative z-0 rounded-lg {className}"></div>
+
+<style>
+	/* Tiles only cover roughly ±85° latitude; with horizontal wrap enabled
+	   (no maxBounds) the area above/below would otherwise show Leaflet's default
+	   grey background as full-width bands. Make the container transparent so the
+	   gap blends into the surrounding card/page background. */
+	:global(.leaflet-container) {
+		background: transparent;
+	}
+</style>

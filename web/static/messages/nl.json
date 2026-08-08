@@ -28,7 +28,8 @@
 			"apply": "Toepassen",
 			"create": "Creëren",
 			"saving": "Besparing...",
-			"uploading": "Uploaden..."
+			"uploading": "Uploaden...",
+			"send": "Versturen"
 		},
 		"status": {
 			"error": "Fout",
@@ -71,6 +72,8 @@
 			"account": "Account",
 			"dashboard": "Dashboard",
 			"trips": "Reizen",
+			"traveler": "reiziger",
+			"travelers": "reizigers",
 			"locations": "Locaties",
 			"statistics": "Locatiegegevens",
 			"preferences": "Voorkeuren",
@@ -142,7 +145,12 @@
 		"undo": "Ongedaan maken",
 		"unknown": "Onbekend",
 		"unnamed": "Naamloos",
-		"uploading": "Uploaden..."
+		"uploading": "Uploaden...",
+		"badges": {
+			"new": "NIEUW"
+		},
+		"traveler": "reiziger",
+		"travelers": "reizigers"
 	},
 	"country": {
 		"NL": "Nederland",
@@ -262,6 +270,7 @@
 		"selfHostedTagline": "Zelf-gehoste locatietracking en reisbeheer. Jouw data, jouw server, jouw privacy.",
 		"heroHeadline": "Jouw reizen. Jouw data. Jouw server.",
 		"heroSubtext": "Zelf-gehoste locatietracking en reisbeheer, met privacy als uitgangspunt.",
+		"goToDashboard": "Naar dashboard",
 		"privacyFirst": "Privacy Eerst",
 		"privacyFirstDescription": "Jouw data blijft op jouw server. Geen tracking of datadeling door derden.",
 		"automaticTripDetection": "Automatische Reisdetectie",
@@ -272,7 +281,9 @@
 		"multiUserDescription": "Perfect voor gezinnen of kleine teams. Admin controles inbegrepen.",
 		"readyToStart": "Klaar om je reizen te tracken?",
 		"createAccountToday": "Maak een account aan en begin vandaag met het documenteren van je reizen.",
-		"createAccount": "Account Aanmaken"
+		"createAccount": "Account Aanmaken",
+		"autoTrips": "Automatische ritten",
+		"selfHosted": "Zelf gehost"
 	},
 	"auth": {
 		"signIn": "Inloggen",
@@ -448,7 +459,9 @@
 		"checklistDismissError": "Kan de checklist niet negeren",
 		"checklistDismissed": "Controlelijst afgewezen",
 		"checklistProgress": "{voltooid} van {totaal} voltooid",
-		"checklistTitle": "Ga aan de slag met Wayli"
+		"checklistTitle": "Ga aan de slag met Wayli",
+		"tryAi": "Probeer de AI-assistent",
+		"tryAiDesc": "Vraag naar uw reizen, plan een route of herinner plaatsen die u hebt bezocht"
 	},
 	"statistics": {
 		"loading": "Laden...",
@@ -882,6 +895,11 @@
 		"profile": "Profiel",
 		"preferences": "Voorkeuren",
 		"security": "Beveiliging",
+		"discoverable": "Zichtbaarheid in de reizigerslijst",
+		"discoverableEveryone": "Zichtbaar voor iedereen",
+		"discoverableFriendsOfFriends": "Vrienden van vrienden",
+		"discoverableNobody": "Verborgen",
+		"discoverableDescription": "Bepaal of je verschijnt in de community-reizigerslijst op de landingspagina.",
 		"profileDescription": "Beheer uw persoonlijke gegevens en accountdetails",
 		"preferencesSubtitle": "Configureer je taal, eenheden en weergavevoorkeuren",
 		"securityDescription": "Beheer uw wachtwoord en beveiligingsvoorkeuren",
@@ -1182,6 +1200,12 @@
 		"aiMaxTokensDescription": "Maximum tokens per antwoord (standaard: 4096)",
 		"aiTemperature": "Temperatuur",
 		"aiTemperatureDescription": "Antwoord creativiteit (0.0 = precies, 1.0 = creatief)",
+		"aiUsageLimits": "Gebruikslimieten",
+		"aiUsageLimitsDescription": "Limieten per gebruiker per dag. Schakel uit voor geen limiet (standaard).",
+		"aiQuestionLimit": "Dagelijkse vraaggrens",
+		"aiQuestionLimitDescription": "Max aantal vragen/berichten dat een gebruiker per dag kan versturen",
+		"aiTokenBudget": "Dagelijks tokenbudget",
+		"aiTokenBudgetDescription": "Max aantal tokens dat een gebruiker per dag kan verbruiken",
 		"aiSettingsSaved": "AI instellingen opgeslagen",
 		"aiProviderReadOnly": "Alleen-lezen",
 		"aiProviderReadOnlyDescription": "Deze AI-provider is geconfigureerd via omgevingsvariabelen of YAML-configuratie en kan niet worden gewijzigd via de interface.",
@@ -1559,7 +1583,7 @@
 		"itemUpdated": "Bijgewerkt \"{title}\""
 	},
 	"profile": {
-		"home": "← Thuis",
+		"home": "Thuis",
 		"myTravel": "Mijn reis",
 		"noTrips": "Nog geen reizen.",
 		"traveled": "gereisd",
@@ -1647,13 +1671,17 @@
 		"explore": "Ontdekken",
 		"latestStories": "Nieuwste verhalen",
 		"noStoriesYet": "Nog geen openbare verhalen.",
+		"emptyHintOwn": "Je verhalen en reizen verschijnen hier zodra je ze publiceert.",
+		"emptyHintAnon": "Verhalen van de community verschijnen hier. Log in om je eigen te delen.",
 		"publishFirstTrip": "Publiceer je eerste reis →",
 		"readMore": "Lees meer →",
 		"signInToShare": "Meld u aan om uw verhalen te delen →",
 		"subtitle": "Ontdek reisverhalen uit onze gemeenschap",
 		"travelers": "Reizigers",
 		"whereWeveBeen": "Waar we zijn geweest",
-		"exploreStories": "Verken verhalen"
+		"exploreStories": "Verken verhalen",
+		"browseTravelers": "Reizigers ontdekken",
+		"yourTrips": "Jouw reizen"
 	},
 	"feed": {
 		"noStories": "Nog geen verhalen.",
@@ -1679,6 +1707,18 @@
 		"subtitle": "Beheer uw verbindingen en deel reizen",
 		"title": "Vrienden",
 		"yourFriends": "Je vrienden ({count})"
+	},
+	"travelersPage": {
+		"title": "Reizigers",
+		"subtitle": "Ontdek mensen die hun reisverhalen delen.",
+		"empty": "Nog geen reizigers gevonden."
+	},
+	"storiesPage": {
+		"title": "Verhalen",
+		"subtitle": "Lees reisverhalen van de community.",
+		"empty": "Nog geen verhalen gepubliceerd.",
+		"loadMore": "Meer laden",
+		"allLoaded": "Je hebt alles gezien"
 	},
 	"plannerChat": {
 		"addToDay": "Toevoegen aan dag {dag}",
@@ -1757,6 +1797,37 @@
 		"quotaExceeded": "Daglimiet bereikt",
 		"rateLimited": "Te veel verzoeken. Doe het rustiger aan en probeer het binnenkort opnieuw.",
 		"retry": "Opnieuw proberen",
-		"rowsReturned": "{count} rijen gevonden"
+		"rowsReturned": "{count} rijen gevonden",
+		"agents": {
+			"action": "Actie ondernemen",
+			"chat": "Assistent",
+			"kb": "Jouw geschiedenis",
+			"sql": "Jouw gegevens",
+			"supervisor": "Coördinator",
+			"synthesizer": "Antwoord schrijven",
+			"verifier": "Controleren",
+			"web": "Zoeken op internet"
+		},
+		"approve": "Goedkeuren",
+		"configErrorDesc": "De AI-assistent is niet geconfigureerd. Een beheerder moet een provider toevoegen in de serverinstellingen.",
+		"connected": "Aangesloten",
+		"connecting": "Verbinden…",
+		"reject": "Afwijzen",
+		"route": "Stappen",
+		"routeTooltip": "Stappen die de assistent deze beurt zette",
+		"steps": {
+			"planning": "Planning…",
+			"reading": "Je dagboek lezen...",
+			"searching": "Je reizen zoeken…",
+			"thinking": "Denken…",
+			"web": "Zoeken op internet…",
+			"working": "Werken…"
+		},
+		"stop": "Stop",
+		"stopFailed": "Kon de reactie niet tegenhouden.",
+		"stopped": "Gestopt",
+		"technicalDetails": "Technische details",
+		"webNotSearched": "Zoeken op internet was gepland, maar is niet uitgevoerd",
+		"webSearched": "Op internet gezocht"
 	}
 }

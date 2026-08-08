@@ -106,8 +106,8 @@ export class ProfileAdapter extends BaseAdapter {
 		if (Object.keys(profileFields).length > 0) {
 			const { error: profileError } = await fluxbase
 				.from<Record<string, any>>('user_profiles')
-				.eq('id', userData.user.id)
-				.update(profileFields);
+				.update(profileFields)
+				.eq('id', userData.user.id);
 
 			if (profileError) {
 				throw new Error(`Failed to update profile: ${profileError.message}`);
@@ -176,11 +176,11 @@ export class ProfileAdapter extends BaseAdapter {
 
 		const { error } = await fluxbase
 			.from<Record<string, any>>('user_preferences')
-			.eq('id', userData.user.id)
 			.update({
 				...preferences,
 				updated_at: new Date().toISOString()
-			});
+			})
+			.eq('id', userData.user.id);
 
 		if (error) {
 			throw new Error(error.message || 'Failed to update preferences');

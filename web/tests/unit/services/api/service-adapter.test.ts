@@ -30,6 +30,7 @@ const mockFluxbase = {
 			app: {
 				get: vi.fn(),
 				getSetting: vi.fn(),
+				getSettings: vi.fn(),
 				setSetting: vi.fn(),
 				listSettings: vi.fn(),
 				getSecretSetting: vi.fn(),
@@ -946,9 +947,11 @@ describe('ServiceAdapter', () => {
 				mockFluxbase.admin.settings.app.get.mockResolvedValue({
 					signup_enabled: true
 				});
-				mockFluxbase.admin.settings.app.listSettings.mockResolvedValue([
-					{ key: 'wayli.feature', value: true }
-				]);
+				// getSettings([], {prefix}) returns a key→value map of visible
+				// wayli.* settings (the namespace bulk fetch).
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({
+					'wayli.feature': true
+				});
 				mockFluxbase.admin.ai.listProviders.mockResolvedValue({
 					data: [{ id: '1', name: 'openai', enabled: true }]
 				});
@@ -963,6 +966,7 @@ describe('ServiceAdapter', () => {
 
 				expect(result.app).toBeDefined();
 				expect(result.custom).toBeDefined();
+				expect(result.custom['wayli.feature']).toBe(true);
 			});
 		});
 
@@ -1185,7 +1189,9 @@ describe('ServiceAdapter', () => {
 	describe('AI Features', () => {
 		describe('isAIEnabled', () => {
 			it('should return true when AI is enabled and providers configured', async () => {
-				mockFluxbase.admin.settings.app.getSetting.mockResolvedValue(true);
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({
+					'app.ai.enabled': true
+				});
 				mockFluxbase.admin.ai.listProviders.mockResolvedValue({
 					data: [{ id: '1', enabled: true }]
 				});
@@ -1196,7 +1202,7 @@ describe('ServiceAdapter', () => {
 			});
 
 			it('should return false when AI is disabled', async () => {
-				mockFluxbase.admin.settings.app.getSetting.mockResolvedValue(false);
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({});
 
 				const result = await adapter.isAIEnabled();
 
@@ -1204,7 +1210,9 @@ describe('ServiceAdapter', () => {
 			});
 
 			it('should return false when no providers configured', async () => {
-				mockFluxbase.admin.settings.app.getSetting.mockResolvedValue(true);
+				mockFluxbase.admin.settings.app.getSettings.mockResolvedValue({
+					'app.ai.enabled': true
+				});
 				mockFluxbase.admin.ai.listProviders.mockResolvedValue({ data: [] });
 
 				const result = await adapter.isAIEnabled();

@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { fluxbase } from '$lib/fluxbase';
-	import { readSetting } from '$lib/utils/settings';
+	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 	import { userStore } from '$lib/stores/auth';
 	import {
 		MapPin,
@@ -129,15 +129,21 @@
 			currentUserId = null;
 		}
 
-		let requireAuth = false;
-		try {
-			const setting = await readSetting(() =>
-				fluxbase.settings.get('wayli.public_trips_require_auth')
-			);
-			requireAuth = setting?.value === true || setting?.value === 'true';
-		} catch {
-			// Settings endpoint requires auth — default to open for anonymous
-		}
+		// Read the auth-required gate from the central settings store (one bulk
+		// fetch in the root layout, no per-key 404). `public_trips_require_auth`
+		// is marked is_public, so anonymous visitors now honor the admin's setting
+		// — previously this read silently failed for anon (settings needed auth)
+		// and defaulted to "open", bypassing the gate for the exact audience it
+		// was meant to restrict. Fall back to a direct read if the store isn't
+		// populated yet, then default to open if still unset.
+		await loadPublicSettings();
+		const setting = getSetting<unknown>('wayli.public_trips_require_auth', null);
+		const requireAuth =
+			setting === true ||
+			setting === 'true' ||
+			(typeof setting === 'object' &&
+				setting &&
+				((setting as any).value === true || (setting as any).value === 'true'));
 		if (requireAuth && !currentUserId) {
 			if (!currentUserId) {
 				goto(`/auth/signin?redirectTo=/u/${username}`);
@@ -239,36 +245,47 @@
 	<div class="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-4">
 		<Compass class="text-muted-foreground h-12 w-12 opacity-40" />
 		<p class="text-muted-foreground text-lg">{t('profile.travelerNotFound')}</p>
-		<a href="/" class="text-primary text-sm hover:underline">{t('profile.home')}</a>
+		<a href="/" class="text-primary inline-flex items-center gap-1 text-sm hover:underline">
+			<ArrowLeft class="h-3.5 w-3.5" />
+			{t('profile.home')}
+		</a>
 	</div>
 {:else if profile}
-	<!-- Floating top bar -->
-	<div class="fixed top-0 right-0 z-50 flex items-center gap-2 p-4">
-		{#if currentUserId}
-			<a
-				href="/dashboard/feed"
-				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
-			>
-				<ArrowLeft class="h-3.5 w-3.5" />
-				Explore
-			</a>
-		{/if}
-		<button
-			type="button"
-			onclick={() => setTheme(appState.theme === 'dark' ? 'light' : 'dark')}
-			class="bg-background/80 text-foreground ring-border inline-flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
-			title="Toggle theme"
+	<!-- Floating top bar — matches landing/stories/travelers pill -->
+	<div
+		class="bg-background/80 border-border fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
+	>
+		<a
+			href="/"
+			class="text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
 		>
-			{#if appState.theme === 'dark'}
+			<ArrowLeft class="h-4 w-4" />
+			{t('profile.home')}
+		</a>
+		<div class="flex gap-1">
+			<button
+				type="button"
+				onclick={() => setTheme('light')}
+				class="cursor-pointer rounded-lg p-2 transition-colors {appState.theme === 'light'
+					? 'bg-primary/10 text-primary'
+					: 'text-muted-foreground hover:bg-muted'}"
+			>
 				<Sun class="h-4 w-4" />
-			{:else}
+			</button>
+			<button
+				type="button"
+				onclick={() => setTheme('dark')}
+				class="cursor-pointer rounded-lg p-2 transition-colors {appState.theme === 'dark'
+					? 'bg-primary/10 text-primary'
+					: 'text-muted-foreground hover:bg-muted'}"
+			>
 				<Moon class="h-4 w-4" />
-			{/if}
-		</button>
+			</button>
+		</div>
 		{#if isOwner}
 			<a
 				href="/dashboard/travel"
-				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 			>
 				<BookOpen class="h-4 w-4" />
 				{t('common.navigation.dashboard')}
@@ -276,7 +293,7 @@
 		{:else if currentUserId}
 			<a
 				href="/dashboard/travel"
-				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 			>
 				<BookOpen class="h-4 w-4" />
 				{t('profile.myTravel')}
@@ -284,7 +301,7 @@
 		{:else}
 			<a
 				href="/auth/signin"
-				class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
 			>
 				<LogIn class="h-4 w-4" />
 				{t('auth.signIn')}

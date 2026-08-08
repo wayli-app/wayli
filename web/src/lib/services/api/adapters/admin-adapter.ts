@@ -15,7 +15,8 @@ export class AdminAdapter extends BaseAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		try {
-			const aiEnabled = await fluxbase.admin.settings.app.getSetting('app.ai.enabled');
+			const settings = await fluxbase.admin.settings.app.getSettings(['app.ai.enabled']);
+			const aiEnabled = Boolean((settings as any)?.['app.ai.enabled'] ?? false);
 			if (!aiEnabled) {
 				return false;
 			}
@@ -35,16 +36,12 @@ export class AdminAdapter extends BaseAdapter {
 
 		const appSettings = await fluxbase.admin.settings.app.get();
 
-		const customSettings = await fluxbase.admin.settings.app.listSettings();
-		const wayliSettings = (customSettings || [])
-			.filter((s: { key: string }) => s.key.startsWith('wayli.'))
-			.reduce(
-				(acc: Record<string, unknown>, s: { key: string; value: unknown }) => ({
-					...acc,
-					[s.key]: s.value
-				}),
-				{}
-			);
+		// Namespace prefix fetch (one request, server-side `wayli.*` filter,
+		// RLS- and tenant-filtered) instead of list-all + client filter.
+		// Requires Fluxbase SDK ≥ 2026.8.3.
+		const wayliSettings = await fluxbase.admin.settings.app.getSettings([], {
+			prefix: 'wayli.'
+		});
 
 		let providers: Array<{ is_default?: boolean; enabled?: boolean }> = [];
 		let defaultProvider: { is_default?: boolean } | undefined;
@@ -61,14 +58,13 @@ export class AdminAdapter extends BaseAdapter {
 		let aiEnabled = false;
 		let allowUserOverride = false;
 		try {
-			const enableAISetting = await fluxbase.admin.settings.system.get('app.ai.enabled');
-			aiEnabled = Boolean((enableAISetting?.value as { value?: boolean })?.value ?? false);
-
-			const userOverrideSetting = await fluxbase.admin.settings.system.get(
+			const aiSettings = await fluxbase.admin.settings.app.getSettings([
+				'app.ai.enabled',
 				'app.ai.allow_user_provider_override'
-			);
+			]);
+			aiEnabled = Boolean((aiSettings as any)?.['app.ai.enabled'] ?? false);
 			allowUserOverride = Boolean(
-				(userOverrideSetting?.value as { value?: boolean })?.value ?? false
+				(aiSettings as any)?.['app.ai.allow_user_provider_override'] ?? false
 			);
 		} catch {
 			// Settings don't exist yet
@@ -93,12 +89,13 @@ export class AdminAdapter extends BaseAdapter {
 
 		const secretsMetadata: Record<string, unknown> = {};
 		try {
-			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
-			if (pexelsSecretMeta) {
-				secretsMetadata.pexels_api_key = pexelsSecretMeta;
+			const allSecrets = await fluxbase.admin.settings.app.listSecretSettings();
+			const pexelsMeta = (allSecrets as any[])?.find((s) => s.key === 'pexels_api_key');
+			if (pexelsMeta) {
+				secretsMetadata.pexels_api_key = pexelsMeta;
 			}
 		} catch {
-			// Secret doesn't exist yet
+			// Secret listing not available
 		}
 
 		return {

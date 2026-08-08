@@ -11,6 +11,7 @@
 	import { serviceAdapter } from '$lib/services/service-layer-adapter';
 	import { sessionManager } from '$lib/services/session';
 	import { initializeTheme } from '$lib/stores/app-state.svelte';
+	import { loadPublicSettings } from '$lib/stores/settings.svelte';
 	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
@@ -51,6 +52,17 @@
 			await serviceAdapter.initialize();
 		} catch (error) {
 			console.error('❌ [ROOT] Failed to initialize client service layer:', error);
+		}
+
+		// Fetch all visible wayli.* settings in one bulk request (cached in the
+		// settings store). Fire-and-forget — public pages read from the cache via
+		// fallbacks until it resolves, then re-render when values arrive. This
+		// replaces the per-page fluxbase.settings.get('wayli.x') calls that each
+		// fired a request and 404'd when the key was unset.
+		try {
+			await loadPublicSettings();
+		} catch {
+			// Non-fatal: callers fall back to defaults.
 		}
 	});
 

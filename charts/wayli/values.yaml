@@ -327,7 +327,15 @@ fluxbase:
         namespaces:
           - wayli
         on_startup: true
-        allow_destructive: false
+
+    ## Storage: ensure the trip-images bucket exists on startup so photo
+    ## uploads (Polarsteps import, frontend media uploads) work immediately.
+    storage:
+      default_buckets:
+        - trip-images
+        - temp-files
+        - uploads
+        - public
 
   # ## Existing secret for sensitive configuration
   # ## Should contain keys: jwt-secret, setup-token, db-password, smtp-password, etc.
@@ -429,6 +437,9 @@ fluxbase:
   #     max_upload_size: "1073741824"
   #     default_buckets:
   #       - "trip-images"
+  #       - "temp-files"
+  #       - "uploads"
+  #       - "public"
   #     s3_endpoint: ""
   #     s3_access_key: ""
   #     s3_secret_key: ""

@@ -210,6 +210,27 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
         .eq('id', existingTrip)
         .single();
       tripImageUrl = (existingTripData as any)?.image_url ?? null;
+
+      // If the existing trip has no cover (e.g. a previous import failed to
+      // download it), retry now rather than leaving it blank forever.
+      if (!tripImageUrl && tripJson.cover_photo_path) {
+        try {
+          const recovered = await downloadAndUploadPhoto(
+            fluxbase,
+            tripJson.cover_photo_path,
+            userId,
+            'covers',
+            `polarsteps-cover-${tripId}.jpg`
+          );
+          if (recovered) {
+            tripImageUrl = recovered;
+            await fluxbase.from('trips').update({ image_url: recovered }).eq('id', tripId);
+            console.log(`[polarsteps] Recovered missing cover for trip ${tripId}`);
+          }
+        } catch (err) {
+          console.warn(`[polarsteps] Cover recovery failed for trip ${tripId}:`, err);
+        }
+      }
       safeReportProgress(job, progress, `Merging into existing trip: ${tripJson.name}`);
     } else {
       isNewTrip = true;
@@ -519,21 +540,31 @@ async function downloadAndUploadPhoto(
 ): Promise<string | null> {
   try {
     const resp = await fetch(url);
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      console.warn(`[polarsteps] Failed to download photo (HTTP ${resp.status}): ${url}`);
+      return null;
+    }
 
     const blob = await resp.blob();
     const path = `${userId}/${subFolder}/${filename}`;
 
+    // upsert: true so re-imports don't silently fail on key collision (the
+    // old upsert: false meant a second import of the same trip would skip the
+    // cover photo because the storage object already existed).
     const { error } = await fluxbase.storage.from('trip-images').upload(path, blob, {
       contentType: blob.type || 'image/jpeg',
-      upsert: false
+      upsert: true
     });
 
-    if (error) return null;
+    if (error) {
+      console.warn(`[polarsteps] Storage upload failed for ${path}:`, error);
+      return null;
+    }
 
     const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
     return publicStorageUrl(data.publicUrl);
-  } catch {
+  } catch (err) {
+    console.warn(`[polarsteps] downloadAndUploadPhoto error for ${url}:`, err);
     return null;
   }
 }

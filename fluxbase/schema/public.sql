@@ -1882,6 +1882,58 @@ AS $$
 $$;
 
 --
+-- Name: is_discoverable_to(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+-- Whether `target_user` is visible to the current caller (auth.uid()) given
+-- the target's discoverability setting:
+--   everyone           -> visible to anyone (incl. anonymous)
+--   nobody             -> hidden from everyone
+--   friends_of_friends -> visible to direct friends and friends-of-friends
+-- The friends graph is user_connections(user_id, friend_id, status='accepted').
+-- An anonymous caller (auth.uid() IS NULL) sees only 'everyone'.
+-- Used by the community travelers directory.
+
+CREATE OR REPLACE FUNCTION is_discoverable_to(
+    target_user uuid
+)
+RETURNS boolean
+LANGUAGE sql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        CASE (SELECT discoverable FROM user_profiles WHERE id = target_user)
+            WHEN 'nobody' THEN false
+            WHEN 'everyone' THEN true
+            WHEN 'friends_of_friends' THEN
+                auth.uid() IS NOT NULL
+                AND (
+                    -- direct friend of the target
+                    EXISTS (
+                        SELECT 1 FROM user_connections c
+                        WHERE c.status = 'accepted'
+                          AND ((c.user_id = auth.uid() AND c.friend_id = target_user)
+                            OR (c.friend_id = auth.uid() AND c.user_id = target_user))
+                    )
+                    -- friend-of-a-friend: caller <-> mid <-> target
+                    OR EXISTS (
+                        SELECT 1
+                        FROM user_connections c1
+                        JOIN user_connections c2
+                          ON c2.status = 'accepted'
+                         AND ((c2.user_id = c1.friend_id AND c2.friend_id = target_user)
+                           OR (c2.friend_id = c1.friend_id AND c2.user_id = target_user))
+                        WHERE c1.status = 'accepted'
+                          AND ((c1.user_id = auth.uid())
+                            OR (c1.friend_id = auth.uid()))
+                    )
+                )
+            ELSE true -- null/missing discoverable -> default 'everyone'
+        END;
+$$;
+
+--
 -- Name: disable_tracker_data_trigger(); Type: FUNCTION; Schema: -; Owner: -
 --
 
@@ -4695,6 +4747,12 @@ COMMENT ON VIEW my_pending_trips IS 'Secure view of the current user''s auto-det
 -- Name: public_profiles; Type: VIEW; Schema: -; Owner: -
 --
 
+-- ponytail: this view is security_definer (the default) so it bypasses the
+-- underlying user_profiles RLS (which is owner-only). That's intentional —
+-- public_profiles exists to let anyone (anon + authenticated) browse the
+-- community directory. The WHERE filter excludes users who opted out
+-- (discoverable = 'nobody'); the is_discoverable_to() function handles the
+-- friends_of_friends nuance downstream in the travelers query.
 CREATE OR REPLACE VIEW public_profiles AS
  SELECT id,
     username,
@@ -4702,9 +4760,10 @@ CREATE OR REPLACE VIEW public_profiles AS
     avatar_url,
     cover_photo_url,
     cover_focal_x,
-    cover_focal_y
+    cover_focal_y,
+    discoverable
    FROM user_profiles
-  WHERE username IS NOT NULL;
+  WHERE username IS NOT NULL AND discoverable <> 'nobody';
 
 --
 -- Name: public_trip_entries; Type: VIEW; Schema: -; Owner: -

@@ -128,6 +128,14 @@ export interface WayliCustomSettings {
 		value: string;
 		description?: string;
 	};
+	'wayli.ai.daily_request_limit'?: {
+		value: number; // AI daily question limit, 0 = unlimited
+		description?: string;
+	};
+	'wayli.ai.daily_token_budget'?: {
+		value: number; // AI daily token budget, 0 = unlimited
+		description?: string;
+	};
 }
 
 /**

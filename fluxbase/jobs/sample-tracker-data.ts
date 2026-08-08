@@ -5,6 +5,14 @@
  * applies hybrid sampling: keeps points that are at least `min_distance_m` meters
  * AND `min_time_s` seconds apart from the previously kept point.
  *
+ * Incremental & idempotent: each run only samples the points that arrived since
+ * the previous run's `last_run_at` watermark — already-sampled history is never
+ * re-evaluated, so the result is deterministic across runs and can't over-delete
+ * due to a shifted reference set. The boundary is continuous: the first new
+ * point is compared against the most-recent kept point from before the
+ * watermark (the sampler's seed), and the final point is always kept so the
+ * trail ends on a real point.
+ *
  * Opt-in only. Never touches users without a config row.
  *
  * @fluxbase:require-role admin, service_role
@@ -25,6 +33,10 @@ interface SamplingConfig {
 	enabled: boolean;
 	min_distance_m: number;
 	min_time_s: number;
+	// Watermark from the previous successful run. Points at or before this
+	// timestamp have already been sampled and are NOT re-evaluated — each run
+	// only samples the points that arrived since. Null on the first run.
+	last_run_at: string | null;
 }
 
 interface TrackerPoint {
@@ -45,21 +57,37 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
 	return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function pickPointsToKeep(points: TrackerPoint[], cfg: SamplingConfig): Set<string> {
+function pickPointsToKeep(
+	points: TrackerPoint[],
+	cfg: SamplingConfig,
+	seed?: TrackerPoint | null
+): Set<string> {
 	// ponytail: O(n) single pass; sufficient for typical user (10k–500k points)
 	const keep = new Set<string>();
 	if (points.length === 0) return keep;
 
-	let lastKept = points[0];
-	keep.add(lastKept.recorded_at);
+	// Seed the comparison with the most-recent kept point from a previous run so
+	// the threshold check at the run boundary is continuous (the first new point
+	// is compared against the prior trail, not unconditionally kept). On the
+	// first run there's no seed, so the oldest point is kept as the anchor.
+	let lastKept: TrackerPoint;
+	if (seed) {
+		lastKept = seed;
+	} else {
+		lastKept = points[0];
+		keep.add(lastKept.recorded_at);
+	}
 
-	for (let i = 1; i < points.length; i++) {
+	const lastIdx = points.length - 1;
+	for (let i = 0; i < points.length; i++) {
 		const curr = points[i];
 		const dist = haversineMeters(lastKept.lat, lastKept.lng, curr.lat, curr.lng);
 		const dt =
 			(new Date(curr.recorded_at).getTime() - new Date(lastKept.recorded_at).getTime()) / 1000;
-		// Hybrid: must satisfy BOTH thresholds
-		if (dist >= cfg.min_distance_m && dt >= cfg.min_time_s) {
+		// Hybrid: must satisfy BOTH thresholds. The final point is always kept
+		// (mirrors the read-time sampler) so the trail ends on a real point,
+		// not an arbitrary dropped one.
+		if ((dist >= cfg.min_distance_m && dt >= cfg.min_time_s) || i === lastIdx) {
 			keep.add(curr.recorded_at);
 			lastKept = curr;
 		}
@@ -69,19 +97,25 @@ function pickPointsToKeep(points: TrackerPoint[], cfg: SamplingConfig): Set<stri
 
 async function fetchUserPoints(
 	fluxbaseService: FluxbaseClient,
-	userId: string
+	userId: string,
+	since?: string | null
 ): Promise<TrackerPoint[]> {
 	const all: TrackerPoint[] = [];
 	let offset = 0;
-	// ponytail: paginated walk — API caps .select() at 1000 rows
+	// ponytail: paginated walk — API caps .select() at 1000 rows. Bounded to
+	// points newer than the last run's watermark so already-sampled history is
+	// never re-evaluated; each run only samples what arrived since.
 	// eslint-disable-next-line no-constant-condition
 	while (true) {
-		const { data, error } = await fluxbaseService
+		let query = fluxbaseService
 			.from('tracker_data')
 			.select('recorded_at, location')
 			.eq('user_id', userId)
-			.order('recorded_at', { ascending: true })
-			.range(offset, offset + PAGE_SIZE - 1);
+			.order('recorded_at', { ascending: true });
+		if (since) {
+			query = query.gt('recorded_at', since);
+		}
+		const { data, error } = await query.range(offset, offset + PAGE_SIZE - 1);
 		if (error) throw error;
 		const rows = (data as any[]) ?? [];
 		for (const r of rows) {
@@ -109,6 +143,48 @@ async function fetchUserPoints(
 	return all;
 }
 
+/**
+ * Fetch the single most-recent point for the user at or before the watermark,
+ * to seed the sampler's comparison across runs. Without this, the first new
+ * point after a run boundary would be unconditionally kept (treated as the
+ * anchor), even if it's within the thresholds of the prior trail's last point.
+ * Returns null when there's no prior history (first run, or all history newer
+ * than the watermark).
+ */
+async function fetchSeedPoint(
+	fluxbaseService: FluxbaseClient,
+	userId: string,
+	before?: string | null
+): Promise<TrackerPoint | null> {
+	if (!before) return null;
+	const query = fluxbaseService
+		.from('tracker_data')
+		.select('recorded_at, location')
+		.eq('user_id', userId)
+		.lte('recorded_at', before)
+		.order('recorded_at', { ascending: false })
+		.range(0, 0);
+	const { data, error } = await query;
+	if (error) throw error;
+	const r = (data as any[])?.[0];
+	if (!r) return null;
+	const loc = r.location;
+	let lat: number | null = null;
+	let lng: number | null = null;
+	if (loc && typeof loc === 'object' && 'x' in loc && 'y' in loc) {
+		lng = Number(loc.x);
+		lat = Number(loc.y);
+	} else if (typeof loc === 'string') {
+		const m = loc.match(/-?\d+(\.\d+)?/g);
+		if (m && m.length >= 2) {
+			lng = Number(m[0]);
+			lat = Number(m[1]);
+		}
+	}
+	if (lat == null || lng == null) return null;
+	return { recorded_at: r.recorded_at, lat, lng };
+}
+
 async function deleteRecordedAt(
 	fluxbaseService: FluxbaseClient,
 	userId: string,
@@ -129,10 +205,27 @@ async function processUser(
 	fluxbaseService: FluxbaseClient,
 	cfg: SamplingConfig
 ): Promise<{ deleted: number; total: number }> {
-	const points = await fetchUserPoints(fluxbaseService, cfg.user_id);
-	if (points.length === 0) return { deleted: 0, total: 0 };
+	// Only sample points that arrived since the last run — already-sampled
+	// history is left untouched, so the result is deterministic across runs and
+	// each run is O(new points) instead of O(all history).
+	const points = await fetchUserPoints(fluxbaseService, cfg.user_id, cfg.last_run_at);
 
-	const keepSet = pickPointsToKeep(points, cfg);
+	// Still advance the watermark even when there are no new points, so the next
+	// run picks up from "now" rather than re-scanning this gap.
+	if (points.length === 0) {
+		await fluxbaseService
+			.from('user_data_sampling')
+			.update({ last_run_at: new Date().toISOString(), last_deleted: 0 })
+			.eq('user_id', cfg.user_id);
+		return { deleted: 0, total: 0 };
+	}
+
+	// Seed the sampler with the most-recent kept point from before the watermark
+	// so the first new point is compared against the prior trail (continuous
+	// thresholds across the run boundary) rather than unconditionally kept.
+	const seed = await fetchSeedPoint(fluxbaseService, cfg.user_id, cfg.last_run_at);
+
+	const keepSet = pickPointsToKeep(points, cfg, seed);
 	const toDelete = points.filter((p) => !keepSet.has(p.recorded_at)).map((p) => p.recorded_at);
 
 	if (toDelete.length > 0) {
@@ -169,7 +262,7 @@ export async function handler(
 
 	const { data: configs, error } = await fluxbaseService
 		.from('user_data_sampling')
-		.select('user_id, enabled, min_distance_m, min_time_s')
+		.select('user_id, enabled, min_distance_m, min_time_s, last_run_at')
 		.eq('enabled', true);
 
 	if (error) {

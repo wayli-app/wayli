@@ -28,7 +28,8 @@
 			"apply": "Aplicar",
 			"create": "Crear",
 			"saving": "Ahorro...",
-			"uploading": "Subiendo..."
+			"uploading": "Subiendo...",
+			"send": "Enviar"
 		},
 		"status": {
 			"error": "Error",
@@ -71,6 +72,8 @@
 			"account": "Cuenta",
 			"dashboard": "Panel de control",
 			"trips": "Viajes",
+			"traveler": "viajero",
+			"travelers": "viajeros",
 			"locations": "Ubicaciones",
 			"statistics": "Datos de ubicación",
 			"preferences": "Preferencias",
@@ -142,7 +145,12 @@
 		"undo": "Deshacer",
 		"unknown": "Desconocido",
 		"unnamed": "Sin nombre",
-		"uploading": "Subiendo..."
+		"uploading": "Subiendo...",
+		"badges": {
+			"new": "NUEVO"
+		},
+		"traveler": "viajero",
+		"travelers": "viajeros"
 	},
 	"country": {
 		"NL": "Países Bajos",
@@ -262,6 +270,7 @@
 		"selfHostedTagline": "Seguimiento de ubicación auto-hospedado y gestión de viajes. Tus datos, tu servidor, tu privacidad.",
 		"heroHeadline": "Tus viajes. Tus datos. Tu servidor.",
 		"heroSubtext": "Seguimiento de ubicación auto-hospedado y gestión de viajes, con privacidad por diseño.",
+		"goToDashboard": "Ir al panel",
 		"privacyFirst": "Privacidad Primero",
 		"privacyFirstDescription": "Tus datos permanecen en tu servidor. Sin seguimiento ni compartición de datos por terceros.",
 		"automaticTripDetection": "Detección Automática de Viajes",
@@ -272,7 +281,9 @@
 		"multiUserDescription": "Perfecto para familias o equipos pequeños. Controles de administrador incluidos.",
 		"readyToStart": "¿Listo para comenzar a rastrear tus viajes?",
 		"createAccountToday": "Crea una cuenta y comienza a documentar tus viajes hoy.",
-		"createAccount": "Crear Cuenta"
+		"createAccount": "Crear Cuenta",
+		"autoTrips": "Viajes automáticos",
+		"selfHosted": "Autohospedado"
 	},
 	"auth": {
 		"signIn": "Iniciar sesión",
@@ -448,7 +459,9 @@
 		"checklistDismissError": "No se pudo descartar la lista de verificación",
 		"checklistDismissed": "Lista de verificación descartada",
 		"checklistProgress": "{completado} de {total} completado",
-		"checklistTitle": "Get Started with Wayli"
+		"checklistTitle": "Get Started with Wayli",
+		"tryAi": "Prueba el asistente de IA",
+		"tryAiDesc": "Pregunte sobre sus viajes, planifique un itinerario o recuerde lugares que visitó"
 	},
 	"statistics": {
 		"loading": "Cargando...",
@@ -882,6 +895,11 @@
 		"profile": "Perfil",
 		"preferences": "Preferencias",
 		"security": "Seguridad",
+		"discoverable": "Visibilidad en el directorio de viajeros",
+		"discoverableEveryone": "Visible para todos",
+		"discoverableFriendsOfFriends": "Amigos de amigos",
+		"discoverableNobody": "Oculto",
+		"discoverableDescription": "Controla si apareces en la lista de viajeros de la comunidad en la página de inicio.",
 		"profileDescription": "Gestiona tu información personal y detalles de cuenta",
 		"preferencesSubtitle": "Configura tu idioma, unidades y preferencias de visualización",
 		"securityDescription": "Gestiona tu contraseña y preferencias de seguridad",
@@ -1182,6 +1200,12 @@
 		"aiMaxTokensDescription": "Tokens máximos por respuesta (predeterminado: 4096)",
 		"aiTemperature": "Temperatura",
 		"aiTemperatureDescription": "Creatividad de respuesta (0.0 = preciso, 1.0 = creativo)",
+		"aiUsageLimits": "Límites de uso",
+		"aiUsageLimitsDescription": "Límites por usuario al día. Desactívalo para sin límite (predeterminado).",
+		"aiQuestionLimit": "Límite diario de preguntas",
+		"aiQuestionLimitDescription": "Máx. de preguntas/mensajes que un usuario puede enviar al día",
+		"aiTokenBudget": "Presupuesto diario de tokens",
+		"aiTokenBudgetDescription": "Máx. de tokens que un usuario puede consumir al día",
 		"aiSettingsSaved": "Configuración de IA guardada",
 		"aiProviderReadOnly": "Solo lectura",
 		"aiProviderReadOnlyDescription": "Este proveedor de IA está configurado mediante variables de entorno o configuración YAML y no se puede modificar a través de la interfaz.",
@@ -1559,7 +1583,7 @@
 		"itemUpdated": "Actualizado \"{título}\""
 	},
 	"profile": {
-		"home": "← Inicio",
+		"home": "Hogar",
 		"myTravel": "mi viaje",
 		"noTrips": "Aún no hay viajes.",
 		"traveled": "viajado",
@@ -1647,13 +1671,17 @@
 		"explore": "Explorar",
 		"latestStories": "Últimas historias",
 		"noStoriesYet": "Aún no hay historias públicas.",
+		"emptyHintOwn": "Tus historias y viajes aparecerán aquí cuando los publiques.",
+		"emptyHintAnon": "Las historias de la comunidad aparecerán aquí. Inicia sesión para compartir las tuyas.",
 		"publishFirstTrip": "Publica tu primer viaje →",
 		"readMore": "Leer más →",
 		"signInToShare": "Inicia sesión para compartir tus historias →",
 		"subtitle": "Descubra historias de viajes de nuestra comunidad",
 		"travelers": "Viajeros",
 		"whereWeveBeen": "donde hemos estado",
-		"exploreStories": "Explorar historias"
+		"exploreStories": "Explorar historias",
+		"browseTravelers": "Explorar viajeros",
+		"yourTrips": "Tus viajes"
 	},
 	"feed": {
 		"noStories": "Aún no hay historias.",
@@ -1679,6 +1707,18 @@
 		"subtitle": "Gestiona tus conexiones y comparte viajes",
 		"title": "Amigos",
 		"yourFriends": "Tus amigos ({count})"
+	},
+	"travelersPage": {
+		"title": "Viajeros",
+		"subtitle": "Descubre personas que comparten sus historias de viaje.",
+		"empty": "Aún no se han descubierto viajeros."
+	},
+	"storiesPage": {
+		"title": "Historias",
+		"subtitle": "Lee historias de viaje de la comunidad.",
+		"empty": "Aún no se han publicado historias.",
+		"loadMore": "Cargar más",
+		"allLoaded": "Has llegado al final"
 	},
 	"plannerChat": {
 		"addToDay": "Agregar al día {día}",
@@ -1757,6 +1797,37 @@
 		"quotaExceeded": "Límite diario alcanzado",
 		"rateLimited": "Demasiadas solicitudes. Reduzca la velocidad y vuelva a intentarlo en breve.",
 		"retry": "Rever",
-		"rowsReturned": "{count} filas encontradas"
+		"rowsReturned": "{count} filas encontradas",
+		"agents": {
+			"action": "Tomar medidas",
+			"chat": "Asistente",
+			"kb": "tu historia",
+			"sql": "Tus datos",
+			"supervisor": "Coordinador",
+			"synthesizer": "Escribir respuesta",
+			"verifier": "De cheques",
+			"web": "búsqueda web"
+		},
+		"approve": "Aprobar",
+		"configErrorDesc": "El asistente de IA no está configurado. Un administrador necesita agregar un proveedor en la configuración del servidor.",
+		"connected": "Conectado",
+		"connecting": "Conectando…",
+		"reject": "Rechazar",
+		"route": "Pasos",
+		"routeTooltip": "Pasos que tomó el asistente en este turno",
+		"steps": {
+			"planning": "Planificación…",
+			"reading": "Leyendo tu diario...",
+			"searching": "Buscando tus viajes…",
+			"thinking": "Pensamiento…",
+			"web": "Buscando en la web…",
+			"working": "Laboral…"
+		},
+		"stop": "Detener",
+		"stopFailed": "No se pudo detener la respuesta.",
+		"stopped": "Interrumpido",
+		"technicalDetails": "Detalles técnicos",
+		"webNotSearched": "Se planeó una búsqueda web pero no se ejecutó",
+		"webSearched": "Busqué en la web"
 	}
 }

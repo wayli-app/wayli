@@ -41,10 +41,13 @@ export async function ensureUserProfile(
 
 	try {
 		// First, check whether a profile already exists. This avoids the
-		// first-user-admin race on every call: only insert when missing.
+		// first-user-admin race on every call: only insert when missing. Fetch
+		// onboarding_completed and first_login_at too: login entry points gate
+		// the onboarding redirect on these, so they must be present for returning
+		// users (otherwise the modal re-shows on every login).
 		const { data: existing, error: selectError } = await fluxbase
 			.from<Record<string, any>>('user_profiles')
-			.select('id, role')
+			.select('id, role, onboarding_completed, first_login_at')
 			.eq('id', userId)
 			.maybeSingle();
 

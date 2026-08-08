@@ -28,7 +28,8 @@
 			"apply": "申请",
 			"create": "创造",
 			"saving": "保存...",
-			"uploading": "正在上传..."
+			"uploading": "正在上传...",
+			"send": "发送"
 		},
 		"status": {
 			"error": "错误",
@@ -71,6 +72,8 @@
 			"account": "帐户",
 			"dashboard": "仪表板",
 			"trips": "行程",
+			"traveler": "旅行者",
+			"travelers": "旅行者",
 			"locations": "地点",
 			"statistics": "位置数据",
 			"preferences": "偏好设置",
@@ -142,7 +145,12 @@
 		"undo": "撤消",
 		"unknown": "未知",
 		"unnamed": "未命名",
-		"uploading": "正在上传..."
+		"uploading": "正在上传...",
+		"badges": {
+			"new": "新的"
+		},
+		"traveler": "游客",
+		"travelers": "旅行者"
 	},
 	"country": {
 		"NL": "荷兰",
@@ -262,6 +270,7 @@
 		"selfHostedTagline": "自托管位置跟踪和行程管理。您的数据、您的服务器、您的隐私。",
 		"heroHeadline": "你的旅行。你的数据。你的服务器。",
 		"heroSubtext": "自托管位置跟踪和行程管理，隐私保护贯穿设计。",
+		"goToDashboard": "前往仪表盘",
 		"privacyFirst": "隐私第一",
 		"privacyFirstDescription": "您的数据保留在您的服务器上。没有第三方跟踪或数据共享。",
 		"automaticTripDetection": "自动跳闸检测",
@@ -272,7 +281,9 @@
 		"multiUserDescription": "非常适合家庭或小团队。包括管理控件。",
 		"readyToStart": "准备好开始追踪您的旅行了吗？",
 		"createAccountToday": "创建帐户并立即开始记录您的旅程。",
-		"createAccount": "创建账户"
+		"createAccount": "创建账户",
+		"autoTrips": "自动行程",
+		"selfHosted": "自托管"
 	},
 	"auth": {
 		"signIn": "登入",
@@ -448,7 +459,9 @@
 		"checklistDismissError": "无法取消清单",
 		"checklistDismissed": "清单已被驳回",
 		"checklistProgress": "已完成 {completed} 个（共 {total} 个）",
-		"checklistTitle": "开始使用 Wayli"
+		"checklistTitle": "开始使用 Wayli",
+		"tryAi": "试试AI助手",
+		"tryAiDesc": "询问您的旅行、计划行程或回忆您去过的地方"
 	},
 	"statistics": {
 		"loading": "加载中...",
@@ -882,6 +895,11 @@
 		"profile": "轮廓",
 		"preferences": "偏好设置",
 		"security": "安全",
+		"discoverable": "旅行者目录中的可见性",
+		"discoverableEveryone": "对所有人可见",
+		"discoverableFriendsOfFriends": "朋友的朋友",
+		"discoverableNobody": "隐藏",
+		"discoverableDescription": "控制你是否出现在落地页的社区旅行者列表中。",
 		"profileDescription": "管理您的个人信息和帐户详细信息",
 		"preferencesSubtitle": "配置您的语言、单位和显示首选项",
 		"securityDescription": "管理您的密码和安全首选项",
@@ -1186,6 +1204,12 @@
 		"aiMaxTokensDescription": "每个响应的最大令牌数（默认值：4096）",
 		"aiTemperature": "温度",
 		"aiTemperatureDescription": "响应创造力（0.0 = 精确，1.0 = 创造性）",
+		"aiUsageLimits": "使用限额",
+		"aiUsageLimitsDescription": "每用户每日上限。关闭则无限制（默认）。",
+		"aiQuestionLimit": "每日提问上限",
+		"aiQuestionLimitDescription": "用户每日可发送的提问/消息最大数量",
+		"aiTokenBudget": "每日令牌预算",
+		"aiTokenBudgetDescription": "用户每日可消耗的令牌最大数量",
 		"aiSettingsSaved": "AI 设置已保存",
 		"aiProviderReadOnly": "只读",
 		"aiProviderReadOnlyDescription": "此 AI 提供程序通过环境变量或 YAML 配置进行配置，无法通过 UI 进行修改。",
@@ -1563,7 +1587,7 @@
 		"itemUpdated": "更新了“{title}”"
 	},
 	"profile": {
-		"home": "← Home",
+		"home": "家",
 		"myTravel": "我的旅行",
 		"noTrips": "No trips yet.",
 		"traveled": "旅行过",
@@ -1651,13 +1675,17 @@
 		"explore": "探索",
 		"latestStories": "最新故事",
 		"noStoriesYet": "还没有公开的故事。",
+		"emptyHintOwn": "发布后，你的故事和旅行将显示在这里。",
+		"emptyHintAnon": "社区的故事将显示在这里。登录以分享你的故事。",
 		"publishFirstTrip": "发布您的第一次旅行 →",
 		"readMore": "阅读更多→",
 		"signInToShare": "登录并分享您的故事 →",
 		"subtitle": "发现我们社区的旅行故事",
 		"travelers": "旅行者",
 		"whereWeveBeen": "我们去过的地方",
-		"exploreStories": "探索故事"
+		"exploreStories": "探索故事",
+		"browseTravelers": "浏览旅行者",
+		"yourTrips": "你的旅行"
 	},
 	"feed": {
 		"noStories": "还没有故事。",
@@ -1683,6 +1711,18 @@
 		"subtitle": "管理您的联系并分享行程",
 		"title": "朋友们",
 		"yourFriends": "您的朋友 ({count})"
+	},
+	"travelersPage": {
+		"title": "旅行者",
+		"subtitle": "发现分享旅行故事的人。",
+		"empty": "尚未发现旅行者。"
+	},
+	"storiesPage": {
+		"title": "故事",
+		"subtitle": "阅读社区的旅行故事。",
+		"empty": "尚未发布故事。",
+		"loadMore": "加载更多",
+		"allLoaded": "已显示全部"
 	},
 	"plannerChat": {
 		"addToDay": "添加到第 {day} 天",
@@ -1761,6 +1801,37 @@
 		"quotaExceeded": "已达每日限额",
 		"rateLimited": "请求太多。请放慢速度，稍后再试。",
 		"retry": "重试",
-		"rowsReturned": "找到 {count} 行"
+		"rowsReturned": "找到 {count} 行",
+		"agents": {
+			"action": "采取行动",
+			"chat": "助手",
+			"kb": "你的历史",
+			"sql": "您的数据",
+			"supervisor": "协调员",
+			"synthesizer": "写回复",
+			"verifier": "检查",
+			"web": "网页搜索"
+		},
+		"approve": "批准",
+		"configErrorDesc": "AI助手未配置。管理员需要在服务器设置中添加提供商。",
+		"connected": "已连接",
+		"connecting": "正在连接…",
+		"reject": "拒绝",
+		"route": "步骤",
+		"routeTooltip": "助理本轮采取的步骤",
+		"steps": {
+			"planning": "规划…",
+			"reading": "读你的日记…",
+			"searching": "正在搜索您的行程...",
+			"thinking": "思维…",
+			"web": "正在网上搜索...",
+			"working": "在职的…"
+		},
+		"stop": "停止",
+		"stopFailed": "无法停止响应。",
+		"stopped": "已停止",
+		"technicalDetails": "技术细节",
+		"webNotSearched": "计划进行网络搜索但未运行",
+		"webSearched": "网上搜了一下"
 	}
 }

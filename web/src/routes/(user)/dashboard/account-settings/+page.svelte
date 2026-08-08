@@ -52,6 +52,8 @@
 	let usernameInput = $state('');
 	let usernameStatus = $state<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
 	let originalUsername = $state('');
+	// Discoverability in the travelers directory: 'everyone' | 'friends_of_friends' | 'nobody'.
+	let discoverableInput = $state<'everyone' | 'friends_of_friends' | 'nobody'>('everyone');
 
 	const USERNAME_RE = /^[a-z0-9-]{3,30}$/;
 	const usernamePreview = $derived(
@@ -86,7 +88,9 @@
 				.limit(1);
 			usernameStatus = (data as any[])?.length > 0 ? 'taken' : 'available';
 		} catch {
-			usernameStatus = 'idle';
+			// If the availability check fails (e.g. view query errors), don't
+			// block the save — the DB unique constraint catches real collisions.
+			usernameStatus = 'available';
 		}
 	}
 
@@ -309,11 +313,16 @@
 
 			const serviceAdapter = new ServiceAdapter({ session: session.data?.session });
 
-			// Load profile and preferences (server settings loaded via admin endpoint if needed)
-			const [profileResult, preferencesResult] = await Promise.all([
-				serviceAdapter.getProfile(),
-				serviceAdapter.getPreferences()
-			]);
+			// Load profile and preferences separately so a missing/failed
+			// preferences row doesn't prevent the profile from loading (which
+			// would leave the form dead — profile=null blocks the save button).
+			const profileResult = await serviceAdapter.getProfile();
+			let preferencesResult: any = {};
+			try {
+				preferencesResult = await serviceAdapter.getPreferences();
+			} catch (prefErr) {
+				console.warn('Could not load user preferences (non-fatal):', prefErr);
+			}
 
 			// Handle profile data - Edge Functions return { success: true, data: ... }
 			if (profileResult && typeof profileResult === 'object' && profileResult !== null) {
@@ -325,6 +334,10 @@
 				profileAvatarUrl = (profile as any).avatar_url || '';
 				profileCoverUrl = (profile as any).cover_photo_url || '';
 				lastNameInput = profile.last_name || '';
+				const d = (profile as any).discoverable;
+				if (d === 'everyone' || d === 'friends_of_friends' || d === 'nobody') {
+					discoverableInput = d;
+				}
 
 				// Initialize home address if it exists
 				if (profile.home_address) {
@@ -353,18 +366,18 @@
 				notificationsEnabled = preferences.notifications_enabled ?? false;
 			}
 
-			// Load user Pexels API key secret metadata
+			// Load user secret metadata via listSecrets (batch — no 404 per key).
 			try {
-				const secretMeta = await fluxbase.settings.getSecret('pexels_api_key');
-				if (secretMeta) {
+				const allSecrets = await fluxbase.settings.listSecrets();
+				const pexelsMeta = (allSecrets as any[])?.find((s: any) => s.key === 'pexels_api_key');
+				if (pexelsMeta) {
 					pexelsApiKeyConfigured = true;
-					pexelsApiKeyUpdatedAt = secretMeta.updated_at;
+					pexelsApiKeyUpdatedAt = pexelsMeta.updated_at;
 				} else {
 					pexelsApiKeyConfigured = false;
 					pexelsApiKeyUpdatedAt = null;
 				}
 			} catch {
-				// Secret doesn't exist yet
 				pexelsApiKeyConfigured = false;
 				pexelsApiKeyUpdatedAt = null;
 			}
@@ -374,16 +387,17 @@
 			// For now, we'll assume it's not available unless explicitly configured
 			serverPexelsApiKeyAvailable = false;
 
-			// Load user's personal Pexels rate limit using settings SDK.
-			// "Setting not found" is the normal case for users who haven't configured one;
-			// readSetting returns null for it (so no noisy console.error on every fresh account).
+			// Load user's personal Pexels rate limit. Use listSettings (batch list
+			// of the user's own settings) instead of getUserSetting (which 404s
+			// when the key isn't set). The list returns [] when no settings exist.
 			try {
-				const userRateLimit = await readSetting(() =>
-					fluxbase.settings.getUserSetting('wayli.pexels_rate_limit')
+				const allUserSettings = await fluxbase.settings.listSettings();
+				const rateLimitEntry = (allUserSettings as any[])?.find(
+					(s: any) => s.key === 'wayli.pexels_rate_limit'
 				);
+				const userRateLimit = rateLimitEntry?.value ?? null;
 
 				if (userRateLimit === undefined || userRateLimit === null) {
-					// Use server default
 					pexelsRateLimitEnabled = false;
 					pexelsRateLimit = 200;
 				} else {
@@ -401,9 +415,8 @@
 					}
 
 					if (loadedRateLimit === null || loadedRateLimit === 0) {
-						// Unlimited or invalid
 						pexelsRateLimitEnabled = false;
-						pexelsRateLimit = 200; // Default when re-enabled
+						pexelsRateLimit = 200;
 					} else {
 						pexelsRateLimitEnabled = true;
 						pexelsRateLimit = loadedRateLimit;
@@ -639,8 +652,8 @@
 			if (profile) {
 				const { error } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.eq('id', profile.id)
-					.update({ onboarding_completed: true });
+					.update({ onboarding_completed: true })
+					.eq('id', profile.id);
 
 				if (error) {
 					console.error('Error marking onboarding as completed:', error);
@@ -667,11 +680,11 @@
 			if (profile) {
 				const { error } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.eq('id', profile.id)
 					.update({
 						onboarding_completed: true,
 						home_address_skipped: true
-					});
+					})
+					.eq('id', profile.id);
 
 				if (error) {
 					console.error('Error marking onboarding as skipped:', error);
@@ -697,8 +710,8 @@
 			if (profile) {
 				const { error } = await fluxbase
 					.from<Record<string, any>>('user_profiles')
-					.eq('id', profile.id)
-					.update({ home_address_skipped: true });
+					.update({ home_address_skipped: true })
+					.eq('id', profile.id);
 
 				if (error) {
 					console.error('Error skipping home address:', error);
@@ -730,7 +743,11 @@
 				toast.error('This username is already taken');
 				return;
 			}
-			if (usernameStatus !== 'available') {
+			// Don't block forever if the availability check didn't complete
+			// (e.g. the public_profiles query errored). The DB unique constraint
+			// will catch an actual collision — better to let the save attempt
+			// than to silently block the user.
+			if (usernameStatus === 'checking') {
 				toast.error('Please wait for the username check to complete');
 				return;
 			}
@@ -753,6 +770,7 @@
 			(profile as any).username = usernameInput.trim() || null;
 			(profile as any).avatar_url = profileAvatarUrl || null;
 			(profile as any).cover_photo_url = profileCoverUrl || null;
+			(profile as any).discoverable = discoverableInput;
 			profile.home_address = selectedHomeAddress || homeAddressInput.trim() || null;
 
 			// Update profile using service adapter
@@ -762,6 +780,7 @@
 				username: (profile as any).username,
 				avatar_url: (profile as any).avatar_url,
 				cover_photo_url: (profile as any).cover_photo_url,
+				discoverable: discoverableInput,
 				email: profile.email || '',
 				home_address: profile.home_address
 			});
@@ -1618,6 +1637,25 @@
 				<p class="text-muted-foreground mt-1 text-xs">
 					Lowercase letters, numbers, and hyphens. 3–30 characters.
 				</p>
+				{#if !usernameInput.trim() && firstNameInput.trim()}
+					{@const suggested = firstNameInput
+						.trim()
+						.toLowerCase()
+						.replace(/[^a-z0-9-]/g, '')
+						.slice(0, 30)}
+					{#if suggested.length >= 3}
+						<button
+							type="button"
+							onclick={() => {
+								usernameInput = suggested;
+								onUsernameInput();
+							}}
+							class="text-primary mt-2 text-xs hover:underline"
+						>
+							Use "{suggested}" (from your name)
+						</button>
+					{/if}
+				{/if}
 				{#if usernameStatus === 'checking'}
 					<p class="text-muted-foreground mt-2 flex items-center gap-1 text-xs">
 						<Loader2 class="h-3 w-3 animate-spin" /> Checking availability...
@@ -1640,6 +1678,27 @@
 						🌐 {usernamePreview}
 					</p>
 				{/if}
+			</div>
+
+			<!-- Discoverability -->
+			<div class="mt-6">
+				<label for="discoverable" class="text-foreground mb-1.5 block text-sm font-medium">
+					{t('accountSettings.discoverable')}
+				</label>
+				<select
+					id="discoverable"
+					bind:value={discoverableInput}
+					class="focus:ring-primary border-border text-foreground w-full rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+				>
+					<option value="everyone">{t('accountSettings.discoverableEveryone')}</option>
+					<option value="friends_of_friends"
+						>{t('accountSettings.discoverableFriendsOfFriends')}</option
+					>
+					<option value="nobody">{t('accountSettings.discoverableNobody')}</option>
+				</select>
+				<p class="text-muted-foreground mt-1 text-xs">
+					{t('accountSettings.discoverableDescription')}
+				</p>
 			</div>
 
 			<!-- Cover photo -->

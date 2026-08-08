@@ -144,8 +144,8 @@ export class ServiceAdapter {
 		if (Object.keys(profileFields).length > 0) {
 			const { error: profileError } = await fluxbase
 				.from<Record<string, any>>('user_profiles')
-				.eq('id', userData.user.id)
-				.update(profileFields);
+				.update(profileFields)
+				.eq('id', userData.user.id);
 
 			if (profileError) {
 				throw new Error(`Failed to update profile: ${profileError.message}`);
@@ -164,18 +164,21 @@ export class ServiceAdapter {
 			throw new Error('User not authenticated');
 		}
 
-		// Get preferences from user_preferences table
+		// Get preferences from user_preferences table. Use maybeSingle so a
+		// missing row (new user with no preferences yet) returns null instead
+		// of throwing "No rows found" — which would abort loadUserData and
+		// leave the profile null, breaking the entire account-settings page.
 		const { data: preferences, error } = await fluxbase
 			.from<Record<string, any>>('user_preferences')
 			.select('*')
 			.eq('id', userData.user.id)
-			.single();
+			.maybeSingle();
 
 		if (error) {
 			throw new Error(error.message || 'Failed to fetch preferences');
 		}
 
-		return preferences;
+		return preferences ?? {};
 	}
 
 	async updatePreferences(preferences: Record<string, unknown>) {
@@ -190,11 +193,11 @@ export class ServiceAdapter {
 		// Update preferences in user_preferences table
 		const { error } = await fluxbase
 			.from<Record<string, any>>('user_preferences')
-			.eq('id', userData.user.id)
 			.update({
 				...preferences,
 				updated_at: new Date().toISOString()
-			});
+			})
+			.eq('id', userData.user.id);
 
 		if (error) {
 			throw new Error(error.message || 'Failed to update preferences');
@@ -1482,7 +1485,10 @@ export class ServiceAdapter {
 		const { fluxbase } = await import('$lib/fluxbase');
 
 		try {
-			const aiEnabled = await fluxbase.admin.settings.app.getSetting('app.ai.enabled');
+			// Batch read instead of per-key getSetting (which 404s when the key
+			// isn't set yet). getSettings returns {} for missing keys.
+			const settings = await fluxbase.admin.settings.app.getSettings(['app.ai.enabled']);
+			const aiEnabled = Boolean((settings as any)?.['app.ai.enabled'] ?? false);
 			if (!aiEnabled) {
 				return false;
 			}
@@ -1509,17 +1515,13 @@ export class ServiceAdapter {
 		// Get app settings via SDK
 		const appSettings = await fluxbase.admin.settings.app.get();
 
-		// Get custom Wayli settings using SDK's listSettings
-		const customSettings = await fluxbase.admin.settings.app.listSettings();
-		const wayliSettings = (customSettings || [])
-			.filter((s: any) => s.key.startsWith('wayli.'))
-			.reduce(
-				(acc: any, s: any) => ({
-					...acc,
-					[s.key]: s.value
-				}),
-				{}
-			);
+		// Get custom Wayli settings via the namespace prefix fetch — one request
+		// that returns every visible `wayli.*` key server-side (RLS- and
+		// tenant-filtered) instead of listSettings() returning ALL custom rows
+		// and filtering client-side. Requires Fluxbase SDK ≥ 2026.8.3.
+		const wayliSettings = await fluxbase.admin.settings.app.getSettings([], {
+			prefix: 'wayli.'
+		});
 
 		// Get AI providers from FluxbaseAdmin SDK first
 		let providers: any[] = [];
@@ -1534,18 +1536,19 @@ export class ServiceAdapter {
 			// AI providers not configured yet
 		}
 
-		// Get AI settings from FluxbaseAdmin SDK
-		// If providers exist and are enabled, consider AI enabled
+		// Get AI settings — batch both app.ai.* keys in one request instead of
+		// two individual system.get calls that 404 when the keys aren't set yet.
 		let aiEnabled = false;
 		let allowUserOverride = false;
 		try {
-			const enableAISetting = await fluxbase.admin.settings.system.get('app.ai.enabled');
-			aiEnabled = Boolean((enableAISetting?.value as any)?.value ?? false);
-
-			const userOverrideSetting = await fluxbase.admin.settings.system.get(
+			const aiSettings = await fluxbase.admin.settings.app.getSettings([
+				'app.ai.enabled',
 				'app.ai.allow_user_provider_override'
+			]);
+			aiEnabled = Boolean((aiSettings as any)?.['app.ai.enabled'] ?? false);
+			allowUserOverride = Boolean(
+				(aiSettings as any)?.['app.ai.allow_user_provider_override'] ?? false
 			);
-			allowUserOverride = Boolean((userOverrideSetting?.value as any)?.value ?? false);
 		} catch {
 			// Settings don't exist yet - use defaults
 		}
@@ -1571,15 +1574,17 @@ export class ServiceAdapter {
 			}
 		};
 
-		// Get system secrets metadata
+		// Get system secrets metadata via listSecretSettings (batch — no per-key
+		// 404 when a secret isn't set yet).
 		const secretsMetadata: any = {};
 		try {
-			const pexelsSecretMeta = await fluxbase.admin.settings.app.getSecretSetting('pexels_api_key');
-			if (pexelsSecretMeta) {
-				secretsMetadata.pexels_api_key = pexelsSecretMeta;
+			const allSecrets = await fluxbase.admin.settings.app.listSecretSettings();
+			const pexelsMeta = (allSecrets as any[])?.find((s) => s.key === 'pexels_api_key');
+			if (pexelsMeta) {
+				secretsMetadata.pexels_api_key = pexelsMeta;
 			}
 		} catch {
-			// Secret doesn't exist yet
+			// Secret listing not available
 		}
 
 		return {

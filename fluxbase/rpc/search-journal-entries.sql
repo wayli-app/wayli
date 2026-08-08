@@ -1,6 +1,6 @@
--- @fluxbase:description Search the user's trip journal entries (blog posts) by trip title, free text, or date range. Returns entry titles, dates, and full body. Use for questions about past experiences or written memories.
+-- @fluxbase:description Search the user's trip journal entries (blog posts) by trip id, trip title, free text, or date range. Returns entry titles, dates, and full body. Use for questions about past experiences or written memories. Prefer trip_id for a specific trip (exact match); use trip_title for fuzzy/keyword matching.
 -- @fluxbase:require-role authenticated
--- @fluxbase:input { "trip_title?": "text", "search_text?": "text", "date_range?": "text", "limit?": "integer" }
+-- @fluxbase:input { "trip_id?": "uuid", "trip_title?": "text", "search_text?": "text", "date_range?": "text", "limit?": "integer" }
 -- @fluxbase:allowed-tables my_trip_entries
 -- @fluxbase:max-execution-time 30s
 
@@ -20,6 +20,7 @@ SELECT
 FROM my_trip_entries
 WHERE body IS NOT NULL
   AND length(body) > 0
+  AND ($trip_id::uuid IS NULL OR trip_id = $trip_id::uuid)
   AND ($trip_title::text IS NULL OR trip_title ILIKE '%' || $trip_title::text || '%')
   AND ($search_text::text IS NULL OR title ILIKE '%' || $search_text::text || '%' OR body ILIKE '%' || $search_text::text || '%')
   AND (
