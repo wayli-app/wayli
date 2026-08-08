@@ -890,6 +890,20 @@
 		"uploadComplete": "Caricamento completato",
 		"uploadFailed": "Caricamento non riuscito"
 	},
+	"notifications": {
+		"title": "Notifiche",
+		"active": "Attivo",
+		"recent": "Recenti",
+		"empty": "Tutto aggiornato",
+		"loading": "Caricamento notifiche...",
+		"markAllRead": "Segna tutte come lette",
+		"markRead": "Segna come letta",
+		"delete": "Elimina",
+		"justNow": "Adesso",
+		"minutesAgo": "{minutes}m fa",
+		"hoursAgo": "{hours}h fa",
+		"daysAgo": "{days}g fa"
+	},
 	"accountSettings": {
 		"title": "Impostazioni dell'account",
 		"profile": "Profilo",

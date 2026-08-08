@@ -890,6 +890,20 @@
 		"uploadComplete": "Hochladen abgeschlossen",
 		"uploadFailed": "Der Upload ist fehlgeschlagen"
 	},
+	"notifications": {
+		"title": "Benachrichtigungen",
+		"active": "Aktiv",
+		"recent": "Neueste",
+		"empty": "Du bist auf dem neuesten Stand",
+		"loading": "Benachrichtigungen laden...",
+		"markAllRead": "Alle als gelesen markieren",
+		"markRead": "Als gelesen markieren",
+		"delete": "Löschen",
+		"justNow": "Gerade eben",
+		"minutesAgo": "vor {minutes}m",
+		"hoursAgo": "vor {hours}h",
+		"daysAgo": "vor {days}d"
+	},
 	"accountSettings": {
 		"title": "Kontoeinstellungen",
 		"profile": "Profil",

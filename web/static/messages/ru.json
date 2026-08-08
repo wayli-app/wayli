@@ -890,6 +890,20 @@
 		"uploadComplete": "Загрузка завершена",
 		"uploadFailed": "Загрузка не удалась"
 	},
+	"notifications": {
+		"title": "Уведомления",
+		"active": "Активно",
+		"recent": "Недавние",
+		"empty": "Всё просмотрено",
+		"loading": "Загрузка уведомлений...",
+		"markAllRead": "Отметить все как прочитанные",
+		"markRead": "Отметить как прочитанное",
+		"delete": "Удалить",
+		"justNow": "Только что",
+		"minutesAgo": "{minutes} мин назад",
+		"hoursAgo": "{hours} ч назад",
+		"daysAgo": "{days} д назад"
+	},
 	"accountSettings": {
 		"title": "Настройки учетной записи",
 		"profile": "Профиль",

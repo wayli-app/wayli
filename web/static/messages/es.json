@@ -890,6 +890,20 @@
 		"uploadComplete": "Subida completada",
 		"uploadFailed": "Error en la subida"
 	},
+	"notifications": {
+		"title": "Notificaciones",
+		"active": "Activo",
+		"recent": "Reciente",
+		"empty": "Estás al día",
+		"loading": "Cargando notificaciones...",
+		"markAllRead": "Marcar todo como leído",
+		"markRead": "Marcar como leído",
+		"delete": "Eliminar",
+		"justNow": "Ahora mismo",
+		"minutesAgo": "hace {minutes}m",
+		"hoursAgo": "hace {hours}h",
+		"daysAgo": "hace {days}d"
+	},
 	"accountSettings": {
 		"title": "Configuración de cuenta",
 		"profile": "Perfil",

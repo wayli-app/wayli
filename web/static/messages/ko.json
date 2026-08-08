@@ -890,6 +890,20 @@
 		"uploadComplete": "업로드 완료",
 		"uploadFailed": "업로드 실패"
 	},
+	"notifications": {
+		"title": "알림",
+		"active": "진행 중",
+		"recent": "최근",
+		"empty": "모두 확인했습니다",
+		"loading": "알림을 불러오는 중...",
+		"markAllRead": "모두 읽음으로 표시",
+		"markRead": "읽음으로 표시",
+		"delete": "삭제",
+		"justNow": "방금",
+		"minutesAgo": "{minutes}분 전",
+		"hoursAgo": "{hours}시간 전",
+		"daysAgo": "{days}일 전"
+	},
 	"accountSettings": {
 		"title": "계정 설정",
 		"profile": "윤곽",
