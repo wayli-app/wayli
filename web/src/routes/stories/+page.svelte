@@ -74,6 +74,24 @@
 		}
 	}
 
+	// Infinite scroll: observe a sentinel element at the bottom of the grid.
+	let scrollSentinel: HTMLElement;
+	let scrollObserver: IntersectionObserver | null = null;
+	$effect(() => {
+		if (!browser || !scrollSentinel) return;
+		scrollObserver?.disconnect();
+		scrollObserver = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting && hasMore && !isLoadingMore) {
+					loadMore();
+				}
+			},
+			{ rootMargin: '200px' }
+		);
+		scrollObserver.observe(scrollSentinel);
+		return () => scrollObserver?.disconnect();
+	});
+
 	function handleThemeChange(theme: 'light' | 'dark') {
 		setTheme(theme);
 		currentTheme = theme;
@@ -194,19 +212,11 @@
 			</div>
 
 			{#if hasMore}
-				<div class="mt-8 flex justify-center">
-					<button
-						onclick={loadMore}
-						disabled={isLoadingMore}
-						class="bg-card border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-full border px-6 py-2.5 text-sm font-medium transition-colors disabled:opacity-50"
-					>
-						{#if isLoadingMore}
-							<Loader2 class="h-4 w-4 animate-spin" />
-							{t('common.status.loading')}
-						{:else}
-							{t('storiesPage.loadMore')}
-						{/if}
-					</button>
+				<!-- Infinite scroll sentinel -->
+				<div bind:this={scrollSentinel} class="flex justify-center py-8">
+					{#if isLoadingMore}
+						<Loader2 class="text-muted-foreground h-6 w-6 animate-spin" />
+					{/if}
 				</div>
 			{/if}
 		{/if}
