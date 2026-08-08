@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import { flip } from 'svelte/animate';
 	import { fade, fly } from 'svelte/transition';
 	import {
@@ -40,8 +41,8 @@
 
 	// --- Panel open state + click-outside ---
 	let open = $state(false);
-	let panelEl: HTMLDivElement | null = null;
-	let buttonEl: HTMLButtonElement | null = null;
+	let panelEl = $state<HTMLDivElement | null>(null);
+	let buttonEl = $state<HTMLButtonElement | null>(null);
 
 	// --- Live job data (active jobs only) ---
 	let activeJobsMap = $state<Map<string, JobStoreJob>>(new Map());
@@ -105,6 +106,7 @@
 	});
 
 	onDestroy(() => {
+		if (!browser) return;
 		window.removeEventListener('resize', updateMobile);
 		unsubJobs?.();
 		document.removeEventListener('click', handleDocClick);
