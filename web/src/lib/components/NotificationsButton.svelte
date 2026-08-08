@@ -244,10 +244,11 @@
 			</div>
 		</div>
 	{:else}
-		<!-- Desktop: anchored popover -->
+		<!-- Desktop: popover fixed to the top-right of the viewport so it can't
+		     be clipped by any ancestor (sidebar/header) overflow. -->
 		<div
 			bind:this={panelEl}
-			class="bg-card border-border absolute top-full right-0 z-50 mt-2 w-96 origin-top-right rounded-xl border shadow-2xl"
+			class="bg-card border-border fixed top-16 right-4 z-50 w-96 origin-top-right rounded-xl border shadow-2xl"
 			transition:fly={{ y: -8, duration: 150 }}
 		>
 			<div class="flex items-center justify-between border-b p-3">

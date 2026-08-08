@@ -292,11 +292,6 @@
 				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={false} />
 			</div>
 
-			<!-- Notifications (bell + popover) replaces the always-visible job list -->
-			<div class="mb-3">
-				<NotificationsButton />
-			</div>
-
 			<!-- User Navigation -->
 			<div class="mb-4">
 				<div class="space-y-1">
@@ -365,23 +360,29 @@
 
 	<!-- Main Content -->
 	<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen ? '' : undefined}>
-		<!-- Top bar for mobile -->
-		<div class="border-border bg-card border-b p-4 md:hidden">
-			<div class="flex items-center justify-between">
-				<button
-					onclick={handleToggleSidebar}
-					class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1"
-				>
-					<Menu class="h-6 w-6" />
-				</button>
-				<a href="/" class="flex cursor-pointer items-center">
-					<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-6 w-6" />
-					<span class="text-foreground text-lg font-bold">Wayli</span>
-				</a>
-				<!-- Notifications bell on mobile -->
+		<!-- Top bar: hamburger + logo on mobile (hidden on desktop, where the
+		     sidebar is persistent), bell top-right on ALL breakpoints. -->
+		<header class="border-border bg-card sticky top-0 z-30 border-b">
+			<div class="flex h-14 items-center justify-between px-4">
+				<div class="flex items-center gap-2 md:hidden">
+					<button
+						onclick={handleToggleSidebar}
+						class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1"
+						aria-label={t('common.navigation.menu')}
+					>
+						<Menu class="h-6 w-6" />
+					</button>
+					<a href="/" class="flex cursor-pointer items-center">
+						<img src="/logo-icon.svg" alt="Wayli" class="mr-1 h-6 w-6" />
+						<span class="text-foreground text-lg font-bold">Wayli</span>
+					</a>
+				</div>
+				<!-- Spacer keeps the bell pinned right on desktop. -->
+				<div class="hidden md:block"></div>
+				<!-- Notifications bell — top-right on every screen size. -->
 				<NotificationsButton />
 			</div>
-		</div>
+		</header>
 
 		<!-- Content Area -->
 		<main class="flex-1 overflow-auto pb-24 md:pb-0">
