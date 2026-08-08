@@ -6,6 +6,7 @@ import { fluxbase } from '$lib/fluxbase';
 import { userStore, sessionStore } from '$lib/stores/auth';
 import { goto } from '$app/navigation';
 import { cleanup as cleanupJobStore, initializeJobStore } from '$lib/stores/job-store';
+import { initNotifications, teardownNotifications } from '$lib/stores/notifications';
 import { writable, get } from 'svelte/store';
 
 // LocalStorage keys
@@ -80,9 +81,12 @@ export class SessionManagerService {
 					await this.updateAuthStores(null);
 					this.stopBackgroundRefresh();
 					cleanupJobStore();
+					teardownNotifications();
 				} else if (session?.user?.id) {
 					// Initialize job store when user signs in
 					initializeJobStore(session.user.id);
+					// Seed + subscribe to the unread-notification count for the bell.
+					initNotifications(session.user.id);
 					// Start background refresh for new sessions
 					this.startBackgroundRefresh();
 				}
@@ -113,6 +117,7 @@ export class SessionManagerService {
 				await this.updateAuthStores(data.session);
 				if (data.session?.user?.id) {
 					initializeJobStore(data.session.user.id);
+					initNotifications(data.session.user.id);
 				}
 
 				// Start background refresh mechanisms
@@ -301,6 +306,7 @@ export class SessionManagerService {
 
 		// Cleanup realtime job monitoring
 		cleanupJobStore();
+		teardownNotifications();
 
 		// Only redirect to login from protected pages — not public pages
 		if (typeof window !== 'undefined') {
@@ -611,6 +617,7 @@ export class SessionManagerService {
 	destroy(): void {
 		this.stopBackgroundRefresh();
 		cleanupJobStore();
+		teardownNotifications();
 		this.isInitialized = false;
 	}
 

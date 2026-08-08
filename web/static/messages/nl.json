@@ -890,6 +890,20 @@
 		"uploadComplete": "Upload voltooid",
 		"uploadFailed": "Upload mislukt"
 	},
+	"notifications": {
+		"title": "Meldingen",
+		"active": "Actief",
+		"recent": "Recent",
+		"empty": "Je bent helemaal bij",
+		"loading": "Meldingen laden...",
+		"markAllRead": "Alles markeren als gelezen",
+		"markRead": "Markeren als gelezen",
+		"delete": "Verwijderen",
+		"justNow": "Zojuist",
+		"minutesAgo": "{minutes}m geleden",
+		"hoursAgo": "{hours}u geleden",
+		"daysAgo": "{days}d geleden"
+	},
 	"accountSettings": {
 		"title": "Gebruikersinstellingen",
 		"profile": "Profiel",

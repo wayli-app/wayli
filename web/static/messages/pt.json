@@ -890,6 +890,20 @@
 		"uploadComplete": "Carregamento concluído",
 		"uploadFailed": "Falha no upload"
 	},
+	"notifications": {
+		"title": "Notificações",
+		"active": "Ativo",
+		"recent": "Recentes",
+		"empty": "Tudo em dia",
+		"loading": "Carregando notificações...",
+		"markAllRead": "Marcar todas como lidas",
+		"markRead": "Marcar como lida",
+		"delete": "Excluir",
+		"justNow": "Agora mesmo",
+		"minutesAgo": "há {minutes}m",
+		"hoursAgo": "há {hours}h",
+		"daysAgo": "há {days}d"
+	},
 	"accountSettings": {
 		"title": "Configurações de Conta",
 		"profile": "Perfil",

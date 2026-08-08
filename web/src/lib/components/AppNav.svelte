@@ -28,7 +28,7 @@
 
 	import type { UserProfile } from '$lib/types/user.types';
 
-	import JobProgressIndicator from './JobProgressIndicator.svelte';
+	import NotificationsButton from './NotificationsButton.svelte';
 	import RealtimeConnectionStatus from './RealtimeConnectionStatus.svelte';
 
 	import { afterNavigate } from '$app/navigation';
@@ -276,8 +276,10 @@
 				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={false} />
 			</div>
 
-			<!-- Job Progress Indicator -->
-			<JobProgressIndicator />
+			<!-- Notifications (bell + popover) replaces the always-visible job list -->
+			<div class="mb-3">
+				<NotificationsButton />
+			</div>
 
 			<!-- User Navigation -->
 			<div class="mb-4">
@@ -360,7 +362,8 @@
 					<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-6 w-6" />
 					<span class="text-foreground text-lg font-bold">Wayli</span>
 				</a>
-				<div class="w-6"></div>
+				<!-- Notifications bell on mobile -->
+				<NotificationsButton />
 			</div>
 		</div>
 

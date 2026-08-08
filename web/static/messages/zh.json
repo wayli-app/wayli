@@ -890,6 +890,20 @@
 		"uploadComplete": "上传完成",
 		"uploadFailed": "上传失败"
 	},
+	"notifications": {
+		"title": "通知",
+		"active": "进行中",
+		"recent": "最近",
+		"empty": "全部已读",
+		"loading": "正在加载通知...",
+		"markAllRead": "全部标为已读",
+		"markRead": "标为已读",
+		"delete": "删除",
+		"justNow": "刚刚",
+		"minutesAgo": "{minutes}分钟前",
+		"hoursAgo": "{hours}小时前",
+		"daysAgo": "{days}天前"
+	},
 	"accountSettings": {
 		"title": "账户设置",
 		"profile": "轮廓",

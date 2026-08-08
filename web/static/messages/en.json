@@ -269,10 +269,9 @@
     "heroHeadline": "Your travels. Your data. Your server.",
     "heroSubtext": "Self-hosted location tracking and trip management, with privacy by design.",
     "goToDashboard": "Go to dashboard",
-    "privacyFirst": "Privacy first",
+    "privacyFirst": "Privacy First",
     "selfHosted": "Self-hosted",
     "autoTrips": "Automatic trips",
-    "privacyFirst": "Privacy First",
     "privacyFirstDescription": "Your data stays on your server. No third-party tracking or data sharing.",
     "automaticTripDetection": "Automatic Trip Detection",
     "automaticTripDescription": "Set your home location and let Wayli automatically detect when you travel.",
@@ -888,6 +887,20 @@
     "creatingJob": "Creating job...",
     "uploadComplete": "Upload complete",
     "uploadFailed": "Upload failed"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "active": "Active",
+    "recent": "Recent",
+    "empty": "You're all caught up",
+    "loading": "Loading notifications...",
+    "markAllRead": "Mark all read",
+    "markRead": "Mark as read",
+    "delete": "Delete",
+    "justNow": "Just now",
+    "minutesAgo": "{minutes}m ago",
+    "hoursAgo": "{hours}h ago",
+    "daysAgo": "{days}d ago"
   },
   "accountSettings": {
     "title": "Account settings",

@@ -890,6 +890,20 @@
 		"uploadComplete": "Téléchargement terminé",
 		"uploadFailed": "Échec du téléchargement"
 	},
+	"notifications": {
+		"title": "Notifications",
+		"active": "Actif",
+		"recent": "Récent",
+		"empty": "Vous êtes à jour",
+		"loading": "Chargement des notifications...",
+		"markAllRead": "Tout marquer comme lu",
+		"markRead": "Marquer comme lu",
+		"delete": "Supprimer",
+		"justNow": "À l'instant",
+		"minutesAgo": "il y a {minutes}m",
+		"hoursAgo": "il y a {hours}h",
+		"daysAgo": "il y a {days}j"
+	},
 	"accountSettings": {
 		"title": "Paramètres du compte",
 		"profile": "Profil",

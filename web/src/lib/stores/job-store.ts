@@ -7,6 +7,7 @@
 import { writable, get, derived } from 'svelte/store';
 import { fluxbase } from '$lib/fluxbase';
 import type { RealtimeChannel, ExecutionLogsChannel } from '@nimbleflux/fluxbase-sdk';
+import { createNotification } from '$lib/services/notifications.service';
 
 // RPC Execution type (mirrors SDK's RPCExecution interface)
 interface RPCExecution {
@@ -91,6 +92,75 @@ const rpcLogChannels = new Map<string, ExecutionLogsChannel>();
 export { connectionStatusStore };
 
 /**
+ * Map a job's display name + terminal status to a friendly notification
+ * title. Falls back to the raw job name / a generic status string.
+ *
+ * `displayKey` matches the existing jobProgress i18n keys so translations
+ * are reused; the title is resolved at notification-write time (EN default)
+ * — the popover re-localizes the *type* on render.
+ */
+function jobDisplayName(jobName: string): string {
+	const names: Record<string, string> = {
+		data_import: 'Data import',
+		data_import_geojson: 'Data import',
+		data_import_gpx: 'Data import',
+		data_import_owntracks: 'Data import',
+		data_export: 'Data export',
+		reverse_geocoding: 'Reverse geocoding',
+		reverse_geocoding_missing: 'Reverse geocoding',
+		trip_generation: 'Trip generation',
+		trip_detection: 'Trip detection',
+		detect_place_visits: 'Place visit detection',
+		detect_transport_mode: 'Transport mode detection',
+		refresh_daily_activity: 'Daily activity refresh',
+		polarsteps_import: 'Polarsteps import'
+	};
+	// Allow prefix matching (data-import-* variants use underscores in some
+	// places, hyphens in others).
+	const normalized = jobName.replace(/-/g, '_');
+	return names[normalized] ?? names[jobName] ?? jobName;
+}
+
+/**
+ * When a job transitions into a terminal state, persist a notification so the
+ * user sees the outcome even after the transient job-state window closes.
+ * Best-effort and fire-and-forget (see createNotification).
+ */
+function notifyTerminalJob(job: JobStoreJob): void {
+	const type =
+		job.status === 'completed'
+			? 'job_completed'
+			: job.status === 'failed'
+				? 'job_failed'
+				: job.status === 'cancelled'
+					? 'job_cancelled'
+					: null;
+	if (!type) return;
+
+	const name = jobDisplayName(job.job_name);
+	const title =
+		type === 'job_completed'
+			? `${name} completed`
+			: type === 'job_failed'
+				? `${name} failed`
+				: `${name} cancelled`;
+	const body = job.error_message || (type === 'job_completed' ? job.progress_message : '') || '';
+	// Data exports get a deep link so the user can re-download from the popover.
+	const link =
+		job.job_name === 'data_export' && job.status === 'completed'
+			? '/dashboard/import-export'
+			: null;
+
+	createNotification({
+		type: type as any,
+		title,
+		body: body ?? undefined,
+		link: link ?? undefined,
+		related_job_id: job.id
+	});
+}
+
+/**
  * Handle new job creation
  */
 function handleJobInsert(
@@ -125,12 +195,22 @@ function handleJobUpdate(
 	newJobs.set(job.id, updatedJob);
 
 	// Persist finished jobs to localStorage for refresh persistence
-	if (
+	const isTerminal =
 		updatedJob.status === 'completed' ||
 		updatedJob.status === 'failed' ||
-		updatedJob.status === 'cancelled'
-	) {
+		updatedJob.status === 'cancelled';
+	if (isTerminal) {
 		persistFinishedJobs(updatedJob);
+		// Only create a notification on an actual transition into the terminal
+		// state (not on every progress update of an already-finished job, and
+		// not when the job first appears as terminal from a backfill fetch).
+		const wasTerminal =
+			existing?.status === 'completed' ||
+			existing?.status === 'failed' ||
+			existing?.status === 'cancelled';
+		if (!wasTerminal) {
+			notifyTerminalJob(updatedJob);
+		}
 	}
 
 	return newJobs;

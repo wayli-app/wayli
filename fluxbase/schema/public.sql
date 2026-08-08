@@ -1672,7 +1672,79 @@ ALTER TABLE trip_likes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY trip_likes_delete_own ON trip_likes FOR DELETE TO authenticated USING (user_id = auth.uid());
 
 --
--- Name: trip_media; Type: TABLE; Schema: -; Owner: -
+-- Name: notifications; Type: TABLE; Schema: -; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id uuid DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    type text NOT NULL,
+    title text NOT NULL,
+    body text DEFAULT '',
+    icon text,
+    link text,
+    related_job_id uuid,
+    read_at timestamptz,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT notifications_pkey PRIMARY KEY (id),
+    -- One notification per (user, job) so the client-side write and the
+    -- jobs.queue trigger (migration 083) can't double-create.
+    CONSTRAINT notifications_user_job_unique UNIQUE (user_id, related_job_id)
+);
+
+
+COMMENT ON TABLE notifications IS 'Persistent in-app notifications for a user (e.g. job completed/failed, trip suggestions). Owner-private; no anon access. Fed by the client job-store on terminal job transitions, so notifications survive past the transient 60s job-state window.';
+
+
+COMMENT ON COLUMN notifications.type IS 'Notification category, e.g. job_completed, job_failed, job_cancelled, trip_suggestion.';
+
+
+COMMENT ON COLUMN notifications.related_job_id IS 'Optional jobs.queue id this notification originated from (for deep-linking).';
+
+--
+-- Name: idx_notifications_user_created; Type: INDEX; Schema: -; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at DESC);
+
+--
+-- Name: idx_notifications_user_unread; Type: INDEX; Schema: -; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications (user_id) WHERE read_at IS NULL;
+
+--
+-- Name: notifications; Type: RLS; Schema: -; Owner: -
+--
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: notifications_insert_own; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY notifications_insert_own ON notifications FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+
+--
+-- Name: notifications_select_own; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY notifications_select_own ON notifications FOR SELECT TO authenticated USING (user_id = auth.uid());
+
+--
+-- Name: notifications_update_own; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY notifications_update_own ON notifications FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+
+--
+-- Name: notifications_delete_own; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY notifications_delete_own ON notifications FOR DELETE TO authenticated USING (user_id = auth.uid());
+
+--
+-- Name: trip_media; Type: TABLE; Schema: -;
 --
 
 CREATE TABLE IF NOT EXISTS trip_media (
@@ -5831,6 +5903,13 @@ GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE place_visits_state TO authenticate
 --
 
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE poi_embeddings TO authenticated;
+
+--
+-- Name: notifications; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+-- notifications: owner-private, no anon access (fed by the client job-store).
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE notifications TO authenticated;
 
 --
 -- Name: tracker_daily_activity; Type: PRIVILEGE; Schema: privileges; Owner: -
