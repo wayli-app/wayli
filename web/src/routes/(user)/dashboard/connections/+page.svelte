@@ -173,7 +173,7 @@
 					>
 					{#if keyStatus === 'loading'}
 						<div
-							class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 dark:border-border dark:bg-muted/20"
+							class="border-border bg-muted/40 dark:border-border dark:bg-muted/20 flex items-center gap-2 rounded-md border px-3 py-2"
 						>
 							<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
 							<span class="text-muted-foreground text-sm font-medium">
