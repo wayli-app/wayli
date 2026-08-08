@@ -8,7 +8,6 @@
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
-	import { fetchTrackPoints } from '$lib/services/gps.service';
 	import {
 		ArrowLeft,
 		Calendar,
@@ -250,17 +249,40 @@
 			}
 
 			try {
-				// Fetch GPS track using the TRIP OWNER's ID, not the viewer's.
-				// RLS on tracker_data restricts access; the get_public_trip_track
-				// RPC (migration 036) respects gps_visible_to via SECURITY DEFINER.
+				// Fetch the GPS track via the get-public-trip-track RPC
+				// (wayli namespace). The RPC is gated server-side by
+				// can_see_gps(): owner always, otherwise gps_visible_to must
+				// permit the caller. It bypasses tracker_data RLS (SECURITY
+				// DEFINER), which has no anon/public SELECT policy.
 				if (trip?.user_id && trip.start_date) {
-					const { data: trackData, error: trackErr } = await fluxbase.rpc('get_public_trip_track', {
-						p_trip_id: tripId,
-						p_start_date: trip.start_date,
-						p_end_date: trip.end_date || trip.start_date
-					});
-					if (!trackErr && trackData && Array.isArray(trackData)) {
-						allGpsPoints = trackData as any[];
+					const { data: rpcData, error: trackErr } = await (fluxbase.rpc as any).invoke(
+						'get-public-trip-track',
+						{ trip_uuid: tripId },
+						{ namespace: 'wayli' }
+					);
+					// rpc.invoke result shape varies; unwrap robustly.
+					let rows: any[] = [];
+					const raw = rpcData as any;
+					if (Array.isArray(raw)) rows = raw;
+					else if (raw?.result)
+						rows = typeof raw.result === 'string' ? JSON.parse(raw.result) : raw.result;
+					else if (Array.isArray(raw?.data)) rows = raw.data;
+					else if (raw?.data?.result)
+						rows =
+							typeof raw.data.result === 'string' ? JSON.parse(raw.data.result) : raw.data.result;
+
+					if (!trackErr && rows.length > 0) {
+						allGpsPoints = rows
+							.filter((p) => p.lat != null && p.lng != null)
+							.map((p) => {
+								const dt = p.recorded_at ? new Date(p.recorded_at) : null;
+								return {
+									lat: p.lat,
+									lng: p.lng,
+									// Local date (not UTC) so it lines up with entry_date.
+									date: dt ? dt.toLocaleDateString('en-CA') : ''
+								};
+							});
 					}
 				}
 			} catch {

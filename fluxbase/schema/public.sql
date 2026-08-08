@@ -2329,7 +2329,7 @@ COMMENT ON FUNCTION get_embedding_stats(uuid) IS 'DEPRECATED: Statistics for dep
 CREATE OR REPLACE FUNCTION get_public_trip_track(
     trip_uuid uuid
 )
-RETURNS TABLE(lat double precision, lng double precision)
+RETURNS TABLE(lat double precision, lng double precision, recorded_at timestamptz)
 LANGUAGE plpgsql
 VOLATILE
 SECURITY DEFINER
@@ -2340,11 +2340,18 @@ DECLARE
     trip_start date;
     trip_end date;
 BEGIN
+    -- Gate access via can_see_gps(): owner, or gps_visible_to allows the
+    -- caller (public trip, explicit share, or accepted friend connection).
+    -- Can't short-circuit into the SELECT below because SECURITY DEFINER
+    -- makes that query bypass RLS regardless of who the caller is.
+    IF NOT can_see_gps(trip_uuid) THEN
+        RETURN;
+    END IF;
+
     SELECT user_id, start_date, end_date
     INTO trip_user_id, trip_start, trip_end
     FROM trips
-    WHERE id = trip_uuid
-    AND (visibility = 'public' OR user_id = auth.uid() OR share_token IS NOT NULL);
+    WHERE id = trip_uuid;
 
     IF NOT FOUND THEN
         RETURN;
@@ -2353,7 +2360,8 @@ BEGIN
     RETURN QUERY
     SELECT
         ST_Y(location::public.geometry)::double precision AS lat,
-        ST_X(location::public.geometry)::double precision AS lng
+        ST_X(location::public.geometry)::double precision AS lng,
+        tracker_data.recorded_at
     FROM tracker_data
     WHERE user_id = trip_user_id
         AND recorded_at >= trip_start::timestamptz
@@ -2366,7 +2374,7 @@ $$;
 -- Name: get_public_trip_track(uuid); Type: FUNCTION; Schema: -; Owner: -
 --
 
-COMMENT ON FUNCTION get_public_trip_track(uuid) IS 'Returns the raw GPS track for a trip. Accessible when the trip is public OR the caller is the owner. SECURITY DEFINER — bypasses tracker_data RLS.';
+COMMENT ON FUNCTION get_public_trip_track(uuid) IS 'Returns the raw GPS track for a trip. Gated by can_see_gps(trip_uuid) (owner, or gps_visible_to permits the caller). SECURITY DEFINER — bypasses tracker_data RLS, which has no anon/public SELECT policy.';
 
 --
 -- Name: get_shared_trip(text); Type: FUNCTION; Schema: -; Owner: -
