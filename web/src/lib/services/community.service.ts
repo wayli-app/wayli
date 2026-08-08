@@ -77,14 +77,22 @@ export async function loadTravelers(
 	const candidateProfiles = (profiles as any[]) ?? [];
 
 	// Filter by discoverability via the server-side function (falls back to a
-	// simple '!= nobody' client filter if the function isn't deployed).
+	// simple '!= nobody' client filter if the function isn't deployed or the
+	// RPC returns an error/null instead of a boolean).
 	let visible: any[];
 	try {
 		const checks = await Promise.all(
 			candidateProfiles.map((p) =>
 				fluxbase
 					.rpc('is_discoverable_to', { target_user: p.id })
-					.then((r: any) => ({ p, ok: !!r?.data }))
+					.then((r: any) => ({
+						p,
+						// Only count as "answered" when there's no error AND data is a
+						// boolean. If r.error exists or r.data is null (function errored
+						// or row missing), treat as "unanswered" (null) so the client-side
+						// fallback applies instead of filtering the user out.
+						ok: !r?.error && typeof r?.data === 'boolean' ? r.data : null
+					}))
 					.catch(() => ({ p, ok: null }))
 			)
 		);
@@ -163,16 +171,29 @@ export async function loadStories(
 			.from('public_profiles')
 			.select('id, username')
 			.in('id', [...new Set(allTripIds.map((id) => tripMap.get(id)!.user_id))]),
-		fluxbase.from('trip_media').select('id, storage_path, thumbnail_path').in('trip_id', allTripIds)
+		fluxbase
+			.from('trip_media')
+			.select('id, entry_id, storage_path, thumbnail_path')
+			.in('trip_id', allTripIds)
 	]);
 
 	if (entriesResult.error) console.warn('[community] entries query error:', entriesResult.error);
 
 	const profileMap = new Map<string, string>();
 	for (const p of (profilesResult.data as any[]) ?? []) profileMap.set(p.id, p.username);
+
+	// Build two maps from trip_media:
+	// 1. mediaMap: media id → image URL (for explicit cover_media_id lookup)
+	// 2. entryFirstMedia: entry_id → first media URL (fallback when no cover set)
 	const mediaMap = new Map<string, string>();
-	for (const m of (mediaResult.data as any[]) ?? [])
-		mediaMap.set(m.id, m.thumbnail_path ?? m.storage_path);
+	const entryFirstMedia = new Map<string, string>();
+	for (const m of (mediaResult.data as any[]) ?? []) {
+		const url = m.thumbnail_path ?? m.storage_path;
+		mediaMap.set(m.id, url);
+		if (m.entry_id && !entryFirstMedia.has(m.entry_id)) {
+			entryFirstMedia.set(m.entry_id, url);
+		}
+	}
 
 	const entriesList = ((entriesResult.data as any[]) ?? []).filter((e) => e.status === 'published');
 
@@ -190,7 +211,9 @@ export async function loadStories(
 	return {
 		stories: page.map((e) => {
 			const trip = tripMap.get(e.trip_id);
+			// Cover priority: explicit cover_media_id → entry's first photo → trip image
 			const entryCover = e.cover_media_id ? mediaMap.get(e.cover_media_id) : null;
+			const firstMedia = entryFirstMedia.get(e.id);
 			return {
 				id: e.id,
 				trip_id: e.trip_id,
@@ -198,7 +221,7 @@ export async function loadStories(
 				body: e.body,
 				entry_date: e.entry_date,
 				trip_title: trip?.title,
-				trip_image_url: entryCover ?? trip?.image_url,
+				trip_image_url: entryCover ?? firstMedia ?? trip?.image_url,
 				username: trip ? profileMap.get(trip.user_id) : undefined
 			};
 		}),

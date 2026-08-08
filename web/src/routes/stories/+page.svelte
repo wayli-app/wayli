@@ -85,19 +85,22 @@
 </svelte:head>
 
 <div class="bg-background min-h-screen">
-	<!-- Floating top bar -->
-	<div class="fixed top-4 right-4 z-40 flex items-center gap-3">
+	<!-- Floating top bar — matches landing page pill style -->
+	<div
+		class="bg-background/80 border-border fixed top-4 right-4 z-40 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
+	>
 		<a
 			href="/"
-			class="bg-background/80 text-foreground ring-border inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
+			class="text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
 		>
-			<ArrowLeft class="h-3.5 w-3.5" />
+			<ArrowLeft class="h-4 w-4" />
 			{t('profile.home')}
 		</a>
 		<button
 			onclick={() => handleThemeChange(currentTheme === 'light' ? 'dark' : 'light')}
-			class="bg-background/80 text-foreground ring-border inline-flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 backdrop-blur-md transition-all hover:scale-105"
-			aria-label="Toggle theme"
+			class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'light'
+				? 'bg-primary/10 text-primary'
+				: 'text-muted-foreground hover:bg-muted'}"
 		>
 			{#if currentTheme === 'light'}
 				<Moon class="h-4 w-4" />

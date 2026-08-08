@@ -539,13 +539,15 @@
 						<BookOpen class="h-4 w-4" />
 						{t('community.exploreStories')}
 					</a>
-					<a
-						href="/travelers"
-						class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
-					>
-						<Users class="h-4 w-4" />
-						{t('community.browseTravelers')}
-					</a>
+					{#if travelers.length > 1}
+						<a
+							href="/travelers"
+							class="inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white ring-1 ring-white/25 backdrop-blur-md transition-all hover:scale-105 hover:bg-white/25"
+						>
+							<Users class="h-4 w-4" />
+							{t('community.browseTravelers')}
+						</a>
+					{/if}
 					<!-- Primary contextual action -->
 					{#if $userStore}
 						<a
