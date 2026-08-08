@@ -32,9 +32,28 @@ database and applies the diff — reconciling drift automatically.
 3. Verify with `fluxbase schema validate --namespace wayli` (CI uses
    `--fail-on-drift`).
 
-For one-off data migrations that aren't expressible declaratively, add a small
-imperative migration alongside (e.g. via the Fluxbase migrations API) — but the
-*structure* always lives here.
+This schema is **purely declarative** — there is no `fluxbase/migrations/`
+directory. All structure (tables, views, functions, triggers, RLS, grants) lives
+in `public.sql` and is reconciled by `fluxbase schema sync`. Do not add
+imperative migration files; edit `public.sql` directly.
+
+### Changing a function's return type
+
+PostgreSQL forbids `CREATE OR REPLACE FUNCTION` from changing a function's
+**return type** (SQLSTATE 42P13). The declarative differ emits
+`CREATE OR REPLACE`, so a return-type change in `public.sql` will fail the sync
+on any environment that still has the old signature. To make such a change:
+
+1. Edit `public.sql` to the new signature.
+2. On each existing environment, run a one-time
+   `DROP FUNCTION <name>(<args>) CASCADE;` (e.g. via `kubectl exec` into the
+   Postgres pod) so the subsequent sync recreates it cleanly. Fresh installs
+   are unaffected (no pre-existing function to conflict).
+
+Cross-schema triggers (e.g. on `jobs.queue`) are **not** managed here —
+`public.sql` only manages the `public` schema, and `jobs`/`storage`/`auth` are
+Fluxbase-owned. Keep such trigger *functions* in `public.sql` if they're useful,
+but don't expect the declarative sync to attach triggers to platform tables.
 
 ## Regenerating the baseline
 

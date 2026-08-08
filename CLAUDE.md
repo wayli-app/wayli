@@ -37,7 +37,6 @@ fluxbase/
 ├── functions/             # Edge functions (health, owntracks, trips-suggest-image)
 ├── jobs/                  # Background jobs (Deno): import, geocoding, trip detection
 ├── mcp-tools/             # MCP tool definitions
-├── migrations/            # SQL migrations
 └── rpc/                   # Remote procedure calls
 deploy/                    # Docker Compose configs
 charts/                    # Helm charts for Kubernetes
@@ -54,7 +53,7 @@ bun run test          # Run all tests
 bun run test:coverage # Tests with coverage
 bun run lint          # Check formatting/linting
 bun run check         # TypeScript + Svelte checks
-bun run sync:all      # Sync all resources (functions, jobs, migrations, rpc, chatbots, mcp)
+bun run sync:all      # Sync all resources (schema, functions, jobs, rpc, chatbots, mcp)
 bun add <package>     # Install a dependency
 bun install           # Restore dependencies from bun.lock
 ```
