@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "キーを保存しました",
 		"userNotAuthenticated": "ユーザーが認証されていません",
 		"downloadAndroid": "Android 用に入手",
-		"downloadIOS": "iOS 用に入手"
+		"downloadIOS": "iOS 用に入手",
+		"checkingApiKey": "API キーの状態を確認中…",
+		"apiKeyCheckFailed": "API キーの状態を確認できませんでした",
+		"retry": "再試行"
 	},
 	"importExport": {
 		"title": "インポート/エクスポート",
@@ -1057,7 +1060,8 @@
 		"samplingSaveFailed": "サンプリング構成の保存に失敗しました",
 		"samplingSaved": "サンプリング構成が保存されました",
 		"samplingTitle": "自動データサンプリング",
-		"maxTripExclusionsReached": "最大 10 個の除外ゾーンに達しました。 1 つを削除して別のものを追加します。"
+		"maxTripExclusionsReached": "最大 10 個の除外ゾーンに達しました。 1 つを削除して別のものを追加します。",
+		"apiKeyCheckFailed": "API キーの状態を確認できませんでした。キーが設定されている場合、引き続き使用されています。"
 	},
 	"serverAdmin": {
 		"title": "サーバー管理設定",

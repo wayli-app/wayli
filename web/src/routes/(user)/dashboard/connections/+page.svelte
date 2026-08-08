@@ -5,7 +5,7 @@
 	import { translate } from '$lib/i18n';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { Database, Link, Copy, Check, RefreshCw, AlertTriangle, X } from 'lucide-svelte';
+	import { Database, Link, Copy, Check, RefreshCw, AlertTriangle, X, Loader2 } from 'lucide-svelte';
 
 	// Use the reactive translation function
 	let t = $derived($translate);
@@ -14,8 +14,11 @@
 
 	let copiedField = $state('');
 
-	// OwnTracks API key state
-	let owntracksApiKeyConfigured = $state(false);
+	// OwnTracks API key status. We distinguish a fetch failure from "no key set"
+	// so a transient error (network blip, auth race, or a wrapped API response)
+	// never renders as "No API key generated" when a key actually exists.
+	type KeyStatus = 'loading' | 'configured' | 'missing' | 'error';
+	let keyStatus = $state<KeyStatus>('loading');
 	let owntracksEndpoint = $state<string | null>(null);
 	let userId = $state<string | null>(null);
 
@@ -24,33 +27,41 @@
 	let newlyGeneratedApiKey = $state<string | null>(null);
 	let newlyGeneratedEndpoint = $state<string | null>(null);
 
+	// True only when we have positively confirmed a key exists.
+	let owntracksApiKeyConfigured = $derived(keyStatus === 'configured');
+
 	async function refreshApiKeyData() {
-		const { data, error } = await fluxbase.auth.getUser();
+		keyStatus = 'loading';
 
-		if (data?.user && !error) {
-			const user = data.user;
-			userId = user.id;
-
-			// Check if OwnTracks API key secret is configured (batch list, no 404).
-			try {
-				const allSecrets = await fluxbase.settings.listSecrets();
-				const owntracksMeta = (allSecrets as any[])?.find(
-					(s: any) => s.key === 'owntracks_api_key'
-				);
-				owntracksApiKeyConfigured = !!owntracksMeta;
-
-				// We can't show the actual endpoint URL since we don't have the key value
-				// The user will see the endpoint only when generating a new key
-				if (owntracksApiKeyConfigured) {
-					// Show placeholder indicating key is configured
-					owntracksEndpoint = null; // Will show "configured" message in UI
-				} else {
-					owntracksEndpoint = null;
-				}
-			} catch {
-				owntracksApiKeyConfigured = false;
-				owntracksEndpoint = null;
+		// Resolve the user id for endpoint construction, but do NOT gate the
+		// secret lookup on it — a transient auth.getUser() failure should not
+		// cause a false "no key" reading.
+		try {
+			const { data, error } = await fluxbase.auth.getUser();
+			if (data?.user && !error) {
+				userId = data.user.id;
 			}
+		} catch {
+			// Non-fatal: the secret lookup below is independent.
+		}
+
+		// Check if OwnTracks API key secret is configured (batch list, no 404).
+		try {
+			const result = await fluxbase.settings.listSecrets();
+			// The SDK declares SecretSettingMetadata[], but some Fluxbase responses
+			// arrive wrapped as { data: [...] }. Unwrap defensively before searching.
+			const allSecrets = ((result as any)?.data ?? result) as any[] | null;
+			const owntracksMeta = Array.isArray(allSecrets)
+				? allSecrets.find((s: any) => s.key === 'owntracks_api_key')
+				: undefined;
+			keyStatus = owntracksMeta ? 'configured' : 'missing';
+			// We can't show the actual endpoint URL since we don't have the key value.
+			// The user will see the endpoint only when generating a new key.
+			owntracksEndpoint = null;
+		} catch (error) {
+			console.error('[Connections] Failed to load API key status:', error);
+			keyStatus = 'error';
+			owntracksEndpoint = null;
 		}
 	}
 
@@ -86,7 +97,7 @@
 			// Store for modal display
 			newlyGeneratedApiKey = newApiKey;
 			newlyGeneratedEndpoint = url.toString();
-			owntracksApiKeyConfigured = true;
+			keyStatus = 'configured';
 
 			// Show the modal with the new key
 			showApiKeyModal = true;
@@ -160,7 +171,16 @@
 					<label class="text-foreground mb-1.5 block text-sm font-medium" for="owntracksApiKey"
 						>{t('connections.apiKey')}</label
 					>
-					{#if owntracksApiKeyConfigured}
+					{#if keyStatus === 'loading'}
+						<div
+							class="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 dark:border-border dark:bg-muted/20"
+						>
+							<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+							<span class="text-muted-foreground text-sm font-medium">
+								{t('connections.checkingApiKey')}
+							</span>
+						</div>
+					{:else if keyStatus === 'configured'}
 						<div
 							class="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 dark:border-green-800 dark:bg-green-900/20"
 						>
@@ -172,7 +192,24 @@
 						<p class="text-muted-foreground mt-1.5 text-xs">
 							{t('connections.apiKeyConfiguredDescription')}
 						</p>
+					{:else if keyStatus === 'error'}
+						<div
+							class="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 dark:border-red-800 dark:bg-red-900/20"
+						>
+							<AlertTriangle class="h-4 w-4 text-red-600 dark:text-red-400" />
+							<span class="text-sm font-medium text-red-700 dark:text-red-300">
+								{t('connections.apiKeyCheckFailed')}
+							</span>
+						</div>
+						<button
+							type="button"
+							onclick={refreshApiKeyData}
+							class="text-primary mt-1.5 cursor-pointer text-xs font-medium underline underline-offset-2"
+						>
+							{t('connections.retry')}
+						</button>
 					{:else}
+						<!-- keyStatus === 'missing' -->
 						<div
 							class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800 dark:bg-amber-900/20"
 						>

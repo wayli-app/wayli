@@ -194,6 +194,7 @@
 
 	let pexelsApiKeyConfigured = $state(false);
 	let pexelsApiKeyUpdatedAt = $state<string | null>(null);
+	let pexelsKeyError = $state(false);
 	let serverPexelsApiKeyAvailable = $state(false);
 	let pexelsRateLimitEnabled = $state(false);
 	let pexelsRateLimit = $state(200);
@@ -368,8 +369,13 @@
 
 			// Load user secret metadata via listSecrets (batch — no 404 per key).
 			try {
-				const allSecrets = await fluxbase.settings.listSecrets();
-				const pexelsMeta = (allSecrets as any[])?.find((s: any) => s.key === 'pexels_api_key');
+				const result = await fluxbase.settings.listSecrets();
+				// The SDK declares SecretSettingMetadata[], but some Fluxbase responses
+				// arrive wrapped as { data: [...] }. Unwrap defensively before searching.
+				const allSecrets = ((result as any)?.data ?? result) as any[] | null;
+				const pexelsMeta = Array.isArray(allSecrets)
+					? allSecrets.find((s: any) => s.key === 'pexels_api_key')
+					: undefined;
 				if (pexelsMeta) {
 					pexelsApiKeyConfigured = true;
 					pexelsApiKeyUpdatedAt = pexelsMeta.updated_at;
@@ -377,9 +383,12 @@
 					pexelsApiKeyConfigured = false;
 					pexelsApiKeyUpdatedAt = null;
 				}
-			} catch {
-				pexelsApiKeyConfigured = false;
-				pexelsApiKeyUpdatedAt = null;
+				pexelsKeyError = false;
+			} catch (error) {
+				// A fetch failure must not masquerade as "no key configured" — a key
+				// may actually exist. Surface the error distinctly instead.
+				console.error('[AccountSettings] Failed to load Pexels key status:', error);
+				pexelsKeyError = true;
 			}
 
 			// Check if server Pexels API key is available
@@ -831,6 +840,7 @@
 				});
 				pexelsApiKeyConfigured = true;
 				pexelsApiKeyUpdatedAt = new Date().toISOString();
+				pexelsKeyError = false;
 				pexelsApiKeyInput = ''; // Clear input after save
 			}
 
@@ -899,6 +909,7 @@
 			await fluxbase.settings.deleteSecret('pexels_api_key');
 			pexelsApiKeyConfigured = false;
 			pexelsApiKeyUpdatedAt = null;
+			pexelsKeyError = false;
 
 			// Auto-clear personal rate limit when API key is cleared (ignore 404 if it doesn't exist)
 			try {
@@ -2035,7 +2046,9 @@
 						/>
 					{/if}
 					<p class="text-muted-foreground mt-1.5 text-xs">
-						{#if pexelsApiKeyConfigured}
+						{#if pexelsKeyError}
+							❗ {t('accountSettings.apiKeyCheckFailed')}
+						{:else if pexelsApiKeyConfigured}
 							✅ {t('accountSettings.usingPersonalApiKey')}
 						{:else if serverPexelsApiKeyAvailable}
 							ℹ️ {t('accountSettings.usingServerApiKey')}

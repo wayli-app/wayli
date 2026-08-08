@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "我已保存密钥",
 		"userNotAuthenticated": "用户未认证",
 		"downloadAndroid": "获取 Android 版",
-		"downloadIOS": "获取 iOS 版"
+		"downloadIOS": "获取 iOS 版",
+		"checkingApiKey": "正在检查 API 密钥状态…",
+		"apiKeyCheckFailed": "无法检查 API 密钥状态",
+		"retry": "重试"
 	},
 	"importExport": {
 		"title": "导入/导出",
@@ -1057,7 +1060,8 @@
 		"samplingSaveFailed": "无法保存采样配置",
 		"samplingSaved": "采样配置已保存",
 		"samplingTitle": "自动数据采样",
-		"maxTripExclusionsReached": "已达到最多 10 个排除区域。删除一个以添加另一个。"
+		"maxTripExclusionsReached": "已达到最多 10 个排除区域。删除一个以添加另一个。",
+		"apiKeyCheckFailed": "无法验证 API 密钥状态。如果已配置密钥，它仍在使用中。"
 	},
 	"serverAdmin": {
 		"title": "服务器管理设置",

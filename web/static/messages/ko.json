@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "키를 저장했습니다",
 		"userNotAuthenticated": "사용자가 인증되지 않았습니다",
 		"downloadAndroid": "안드로이드용 받기",
-		"downloadIOS": "iOS용 받기"
+		"downloadIOS": "iOS용 받기",
+		"checkingApiKey": "API 키 상태를 확인하는 중…",
+		"apiKeyCheckFailed": "API 키 상태를 확인할 수 없습니다",
+		"retry": "재시도"
 	},
 	"importExport": {
 		"title": "가져오기/내보내기",
@@ -1057,7 +1060,8 @@
 		"samplingSaveFailed": "샘플링 구성을 저장하지 못했습니다.",
 		"samplingSaved": "샘플링 구성이 저장되었습니다.",
 		"samplingTitle": "자동 데이터 샘플링",
-		"maxTripExclusionsReached": "최대 10개의 제외 영역에 도달했습니다. 다른 하나를 추가하려면 하나를 제거하세요."
+		"maxTripExclusionsReached": "최대 10개의 제외 영역에 도달했습니다. 다른 하나를 추가하려면 하나를 제거하세요.",
+		"apiKeyCheckFailed": "API 키 상태를 확인할 수 없습니다. 키가 구성되어 있으면 여전히 사용 중입니다."
 	},
 	"serverAdmin": {
 		"title": "서버 관리자 설정",
