@@ -59,6 +59,9 @@
 	let isDrawing = $state(false);
 	let drawStart = $state<{ lat: number; lng: number } | null>(null);
 	let boxLayer: any = null;
+	// Thin polyline connecting consecutive points in time order, so it's
+	// clear how points follow each other up. Rebuilt on every drawPoints().
+	let connectionLayer: any = null;
 
 	let pointLayers = $state<Map<string, any>>(new Map());
 
@@ -234,6 +237,26 @@
 		// Clear existing
 		pointLayers.forEach((layer) => map.removeLayer(layer));
 		pointLayers = new Map();
+
+		// Draw thin connecting lines between consecutive (non-excluded)
+		// points so temporal ordering is visible. Points arrive sorted
+		// ascending by recorded_at, so array order == time order.
+		if (connectionLayer) {
+			map.removeLayer(connectionLayer);
+			connectionLayer = null;
+		}
+		const connectionLatLngs = allPoints.filter((p) => !p.excluded).map((p) => [p.lat, p.lng]) as [
+			number,
+			number
+		][];
+		if (connectionLatLngs.length > 1) {
+			connectionLayer = L.polyline(connectionLatLngs, {
+				weight: 1,
+				opacity: 0.4,
+				color: '#6b7280'
+			}).addTo(map);
+			connectionLayer.bringToBack();
+		}
 
 		const draggable = selectionMode === 'none';
 

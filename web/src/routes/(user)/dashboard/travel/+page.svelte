@@ -237,6 +237,18 @@
 			// not logged in
 		}
 
+		// Mark that the user has visited the Travel page so the dashboard
+		// sidebar can stop showing the suggested-trips count badge (they've
+		// now seen that suggestions exist).
+		try {
+			localStorage.setItem('wayli.travel_visited', '1');
+			// Notify other tabs/windows (e.g. an open dashboard) so the badge
+			// disappears without a reload.
+			window.dispatchEvent(new StorageEvent('storage', { key: 'wayli.travel_visited' }));
+		} catch {
+			// localStorage unavailable (private mode, etc.) — non-critical
+		}
+
 		await loadTrips();
 		await Promise.all([loadEntries(), loadGpsData(), loadPendingTrips(), loadPublicUrl()]);
 

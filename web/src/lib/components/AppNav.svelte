@@ -59,6 +59,10 @@
 	let currentTheme = $state<'light' | 'dark'>('light');
 	let isSidebarOpen = $state(false);
 
+	// Whether the user has already visited the Travel page. Once true, we stop
+	// showing the suggested-trips count badge on the sidebar — they've seen it.
+	let travelVisited = $state(false);
+
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
@@ -106,6 +110,18 @@
 				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 				currentTheme = prefersDark ? 'dark' : 'light';
 			}
+
+			// Read the "has visited Travel page" flag, and keep it in sync
+			// across tabs/windows via storage events (so the badge disappears
+			// from an open dashboard the moment the user opens Travel).
+			travelVisited = localStorage.getItem('wayli.travel_visited') === '1';
+			window.addEventListener('storage', (e: StorageEvent) => {
+				if (e.key === 'wayli.travel_visited') {
+					travelVisited = localStorage.getItem('wayli.travel_visited') === '1';
+				}
+			});
+			// AppNav is the persistent app shell, so this listener lives for the
+			// session; no teardown needed.
 		}
 
 		if ($userStore) {
@@ -226,7 +242,7 @@
 					>
 						<item.icon class="mr-3 h-5 w-5" />
 						{item.label}
-						{#if item.href === '/dashboard/travel' && $pendingTripCount > 0}
+						{#if item.href === '/dashboard/travel' && $pendingTripCount > 0 && !travelVisited}
 							<span
 								class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
 							>
@@ -296,7 +312,7 @@
 							<item.icon class="mr-3 h-5 w-5" />
 							<span class="flex items-center">
 								{item.label}
-								{#if item.href === '/dashboard/travel' && $pendingTripCount > 0}
+								{#if item.href === '/dashboard/travel' && $pendingTripCount > 0 && !travelVisited}
 									<span
 										class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
 									>
