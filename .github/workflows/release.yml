@@ -511,7 +511,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
-          name: v${{ env.VERSION }}"
+          name: v${{ env.VERSION }}
           prerelease: ${{ env.IS_RC == 'true' }}
           body: ${{ needs.generate-changelog.outputs.body }}
         env:
