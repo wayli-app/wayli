@@ -68,8 +68,11 @@ test.describe.serial('Documented setup happy path', () => {
 
 		// On a fresh stack is_setup_complete is absent → isFirstUser=true → the
 		// first-user welcome banner renders and registration is force-enabled.
-		// This is the precondition for step 3 (first user becomes admin).
-		await expect(page.getByText(/welcome|first|admin/i)).toBeVisible({ timeout: 15000 });
+		// This is the precondition for step 3 (first user becomes admin). Target the
+		// banner's 🎉 marker specifically — it only renders when isFirstUser &&
+		// !isLoadingSettings, so it's an unambiguous signal (unlike a text regex,
+		// which collides with the "First name" label).
+		await expect(page.getByText('🎉')).toBeVisible({ timeout: 15000 });
 	});
 
 	test('3. first-user signup succeeds', async ({ page }) => {
