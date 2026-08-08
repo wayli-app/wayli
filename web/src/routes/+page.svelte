@@ -21,6 +21,7 @@
 	import { userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { getTripsService } from '$lib/services/service-layer-adapter';
+	import { loadTravelers } from '$lib/services/community.service';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 
@@ -276,61 +277,10 @@
 					};
 				});
 
-			// Travelers directory — discoverable users who have at least one
-			// trip (any visibility the caller can see via RLS). Previously this
-			// only listed users with ≥1 PUBLIC trip, so a user with only private
-			// trips never appeared. Now we count any visible trip and respect
-			// each user's discoverability setting (discoverable !== 'nobody').
-			const userIds = [...new Set(tripsList.map((t) => t.user_id))];
-			// Count each user's visible trips (RLS-scoped; no visibility filter
-			// so private-trip users are included).
-			const { data: tripCounts } = await fluxbase
-				.from('trips')
-				.select('user_id')
-				.in('user_id', userIds);
-			const countMap = new Map<string, number>();
-			for (const tr of (tripCounts as any[]) ?? [])
-				countMap.set(tr.user_id, (countMap.get(tr.user_id) ?? 0) + 1);
-
-			const { data: profiles } = await fluxbase
-				.from('public_profiles')
-				.select('id, username, full_name, avatar_url, discoverable')
-				.in('id', userIds);
-
-			// Filter by each candidate's discoverability setting. The server-side
-			// is_discoverable_to(target_user) function handles all three values
-			// (everyone / friends_of_friends / nobody) using the friends graph,
-			// so friends-of-friends is actually enforced. Fall back to the simple
-			// '!== nobody' client filter if the function isn't deployed yet
-			// (older schema) or the rpc errors.
-			const candidateProfiles = (profiles as any[]) ?? [];
-			let visible: any[];
-			try {
-				const checks = await Promise.all(
-					candidateProfiles.map((p) =>
-						fluxbase
-							.rpc('is_discoverable_to', { target_user: p.id })
-							.then((r: any) => ({ p, ok: !!r?.data }))
-							.catch(() => ({ p, ok: null }))
-					)
-				);
-				const serverAnswered = checks.some((c) => c.ok !== null);
-				visible = checks
-					.filter((c) =>
-						serverAnswered ? c.ok === true : (c.p.discoverable ?? 'everyone') !== 'nobody'
-					)
-					.map((c) => c.p);
-			} catch {
-				visible = candidateProfiles.filter((p) => (p.discoverable ?? 'everyone') !== 'nobody');
-			}
-
-			travelers = visible
-				.map((p) => {
-					const { discoverable: _d, ...rest } = p as any;
-					return { ...rest, trip_count: countMap.get(p.id) ?? 0 };
-				})
-				.filter((p) => p.trip_count > 0)
-				.sort((a, b) => b.trip_count - a.trip_count);
+			// Travelers directory — use the shared community service so the
+			// discoverability filter (is-discoverable-to RPC with correct
+			// namespace) is consistent with the /travelers page.
+			travelers = await loadTravelers(sessionUserId, 12);
 		} catch (err) {
 			console.error('Failed to load community content:', err);
 		}
