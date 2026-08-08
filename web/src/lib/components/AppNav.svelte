@@ -4,8 +4,6 @@
 		Import,
 		Star,
 		Link,
-		Settings,
-		User,
 		Newspaper,
 		Users,
 		Database,
@@ -13,8 +11,6 @@
 		X,
 		Sun,
 		Moon,
-		Crown,
-		LogOut,
 		Menu
 	} from 'lucide-svelte';
 
@@ -26,9 +22,8 @@
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
 
-	import type { UserProfile } from '$lib/types/user.types';
-
 	import NotificationsButton from './NotificationsButton.svelte';
+	import UserMenu from './UserMenu.svelte';
 	import RealtimeConnectionStatus from './RealtimeConnectionStatus.svelte';
 
 	import { afterNavigate } from '$app/navigation';
@@ -52,9 +47,6 @@
 	// Use the reactive translation function
 	let t = $derived($translate);
 
-	// User profile for completion indicator
-	let userProfile = $state<UserProfile | null>(null);
-
 	// Local state for SSR compatibility
 	let currentTheme = $state<'light' | 'dark'>('light');
 	let isSidebarOpen = $state(false);
@@ -73,24 +65,6 @@
 		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
 		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
 		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: MapPin }
-	]);
-
-	// Dynamic user navigation based on admin status - reactive to language changes
-	let navUser = $derived([
-		{
-			href: '/dashboard/account-settings',
-			label: t('common.navigation.accountSettings'),
-			icon: User
-		},
-		...(isAdmin
-			? [
-					{
-						href: '/dashboard/server-admin-settings',
-						label: t('common.navigation.serverAdminSettings'),
-						icon: Settings
-					}
-				]
-			: [])
 	]);
 
 	// Force reactive update after navigation
@@ -125,14 +99,6 @@
 		}
 
 		if ($userStore) {
-			const { data } = await fluxbase
-				.from<Record<string, any>>('user_profiles')
-				.select('home_address, home_address_skipped, onboarding_dismissed')
-				.eq('id', $userStore.id)
-				.single();
-
-			userProfile = data as unknown as UserProfile;
-
 			// Fetch pending trip suggestions count
 			try {
 				const { count } = await fluxbase
@@ -158,15 +124,14 @@
 		}
 	});
 
-	function handleSignOut() {
-		if (onSignout) {
-			onSignout();
-		}
-	}
-
 	function handleThemeChange(theme: 'light' | 'dark') {
 		setTheme(theme);
 		currentTheme = theme;
+	}
+
+	// Single-button toggle for the header (replaces the two-button sidebar control).
+	function toggleTheme() {
+		handleThemeChange(currentTheme === 'dark' ? 'light' : 'dark');
 	}
 
 	function handleToggleSidebar() {
@@ -260,90 +225,6 @@
 				{/each}
 			</div>
 		</nav>
-
-		<!-- Fixed Footer - Always visible at bottom -->
-		<div class="border-border flex-shrink-0 border-t p-4">
-			<!-- Theme Toggle -->
-			<div class="mb-4 flex justify-start gap-2">
-				<button
-					onclick={() => handleThemeChange('light')}
-					class="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg p-2 font-medium transition-colors {currentTheme ===
-					'light'
-						? 'bg-primary/10 text-primary'
-						: 'text-muted-foreground hover:bg-muted'}"
-					title={t('common.navigation.lightMode')}
-				>
-					<Sun class="h-5 w-5" />
-				</button>
-				<button
-					onclick={() => handleThemeChange('dark')}
-					class="flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-lg p-2 font-medium transition-colors {currentTheme ===
-					'dark'
-						? 'bg-primary/10 text-primary'
-						: 'text-muted-foreground hover:bg-muted'}"
-					title={t('common.navigation.darkMode')}
-				>
-					<Moon class="h-5 w-5" />
-				</button>
-			</div>
-
-			<!-- Realtime Connection Status -->
-			<div class="mb-3">
-				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={false} />
-			</div>
-
-			<!-- User Navigation -->
-			<div class="mb-4">
-				<div class="space-y-1">
-					{#each navUser as item (item.href)}
-						<a
-							href={item.href}
-							class="relative flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
-								.url.pathname === item.href ||
-							(item.href === '/dashboard/travel' &&
-								$page.url.pathname.startsWith('/dashboard/travel'))
-								? 'bg-primary text-primary-foreground'
-								: 'text-muted-foreground hover:bg-muted'}"
-							onclick={handleCloseSidebar}
-						>
-							<item.icon class="mr-3 h-5 w-5" />
-							<span class="flex items-center">
-								{item.label}
-								{#if item.href === '/dashboard/travel' && $pendingTripCount > 0 && !travelVisited}
-									<span
-										class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
-									>
-										{$pendingTripCount}
-									</span>
-								{/if}
-								{#if item.href === '/dashboard/friends' && $pendingFriendRequestCount > 0}
-									<span
-										class="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
-									>
-										{$pendingFriendRequestCount}
-									</span>
-								{/if}
-								{#if isAdmin && item.href === '/dashboard/account-settings'}
-									<Crown class="ml-2 h-4 w-4 text-yellow-500" />
-								{/if}
-							</span>
-						</a>
-					{/each}
-				</div>
-			</div>
-
-			<!-- Sign Out Button -->
-			<button
-				onclick={() => {
-					handleSignOut();
-					handleCloseSidebar();
-				}}
-				class="text-destructive hover:bg-destructive/10 flex min-h-[44px] w-full cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors"
-			>
-				<LogOut class="mr-3 h-5 w-5" />
-				{t('common.navigation.signOut')}
-			</button>
-		</div>
 	</aside>
 
 	<!-- Mobile overlay -->
@@ -361,7 +242,8 @@
 	<!-- Main Content -->
 	<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen ? '' : undefined}>
 		<!-- Top bar: hamburger + logo on mobile (hidden on desktop, where the
-		     sidebar is persistent), bell top-right on ALL breakpoints. -->
+		     sidebar is persistent). Right cluster holds status + personal actions
+		     on every screen size. -->
 		<header class="border-border bg-card sticky top-0 z-30 border-b">
 			<div class="flex h-14 items-center justify-between px-4">
 				<div class="flex items-center gap-2 md:hidden">
@@ -377,10 +259,32 @@
 						<span class="text-foreground text-lg font-bold">Wayli</span>
 					</a>
 				</div>
-				<!-- Spacer keeps the bell pinned right on desktop. -->
+				<!-- Spacer pins the right cluster to the right on desktop. -->
 				<div class="hidden md:block"></div>
-				<!-- Notifications bell — top-right on every screen size. -->
-				<NotificationsButton />
+				<!-- Right cluster: realtime status, theme, notifications, account. -->
+				<div class="flex items-center gap-1">
+					<div class="px-1">
+						<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={true} />
+					</div>
+					<button
+						onclick={toggleTheme}
+						class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 transition-colors"
+						title={currentTheme === 'dark'
+							? t('common.navigation.lightMode')
+							: t('common.navigation.darkMode')}
+						aria-label={currentTheme === 'dark'
+							? t('common.navigation.lightMode')
+							: t('common.navigation.darkMode')}
+					>
+						{#if currentTheme === 'dark'}
+							<Sun class="h-5 w-5" />
+						{:else}
+							<Moon class="h-5 w-5" />
+						{/if}
+					</button>
+					<NotificationsButton />
+					<UserMenu {isAdmin} {onSignout} />
+				</div>
 			</div>
 		</header>
 
