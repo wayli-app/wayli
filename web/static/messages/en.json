@@ -1691,7 +1691,8 @@
     "title": "Stories",
     "subtitle": "Read travel stories from the community.",
     "empty": "No stories published yet.",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "allLoaded": "You've reached the end"
   },
   "plannerChat": {
     "title": "AI Assistant",

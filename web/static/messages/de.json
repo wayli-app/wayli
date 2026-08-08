@@ -1707,7 +1707,8 @@
     "title": "Geschichten",
     "subtitle": "Lies Reisegeschichten der Community.",
     "empty": "Noch keine Geschichten veröffentlicht.",
-    "loadMore": "Mehr laden"
+    "loadMore": "Mehr laden",
+    "allLoaded": "Du hast alles gesehen"
   },
 	"plannerChat": {
 		"addToDay": "Zum Tag {day} hinzufügen",

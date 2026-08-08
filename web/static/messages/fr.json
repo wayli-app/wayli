@@ -1710,7 +1710,8 @@
     "title": "Récits",
     "subtitle": "Lisez les récits de voyage de la communauté.",
     "empty": "Aucun récit publié pour le moment.",
-    "loadMore": "Charger plus"
+    "loadMore": "Charger plus",
+    "allLoaded": "Vous avez tout vu"
   },
 	"plannerChat": {
 		"addToDay": "Ajouter au jour {jour}",

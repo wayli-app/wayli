@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Sun, Moon, ArrowLeft, Users } from 'lucide-svelte';
+	import { Sun, Moon, ArrowLeft, Users, User } from 'lucide-svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
@@ -9,6 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { loadTravelers, type CommunityTraveler } from '$lib/services/community.service';
+	import { userStore } from '$lib/stores/auth';
 
 	let t = $derived($translate);
 	let currentTheme = $state<'light' | 'dark'>('light');
@@ -67,7 +68,7 @@
 </svelte:head>
 
 <div class="bg-background min-h-screen">
-	<!-- Floating top bar — matches landing page pill style -->
+	<!-- Floating top bar — matches landing page pill -->
 	<div
 		class="bg-background/80 border-border fixed top-4 right-4 z-40 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
 	>
@@ -78,19 +79,42 @@
 			<ArrowLeft class="h-4 w-4" />
 			{t('profile.home')}
 		</a>
-		<button
-			onclick={() => handleThemeChange(currentTheme === 'light' ? 'dark' : 'light')}
-			class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'light'
-				? 'bg-primary/10 text-primary'
-				: 'text-muted-foreground hover:bg-muted'}"
-		>
-			{#if currentTheme === 'light'}
-				<Moon class="h-4 w-4" />
-			{:else}
+		<div class="flex gap-1">
+			<button
+				onclick={() => handleThemeChange('light')}
+				class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'light'
+					? 'bg-primary/10 text-primary'
+					: 'text-muted-foreground hover:bg-muted'}"
+			>
 				<Sun class="h-4 w-4" />
-			{/if}
-		</button>
+			</button>
+			<button
+				onclick={() => handleThemeChange('dark')}
+				class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'dark'
+					? 'bg-primary/10 text-primary'
+					: 'text-muted-foreground hover:bg-muted'}"
+			>
+				<Moon class="h-4 w-4" />
+			</button>
+		</div>
 		<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-left" />
+		{#if $userStore}
+			<a
+				href="/dashboard/account-settings"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex max-w-[10rem] items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+			>
+				<User class="h-4 w-4 shrink-0" />
+				<span class="truncate">{t('common.navigation.accountSettings')}</span>
+			</a>
+		{:else}
+			<a
+				href="/auth/signin"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+			>
+				<User class="h-4 w-4" />
+				{t('auth.signIn')}
+			</a>
+		{/if}
 	</div>
 
 	<!-- Hero -->

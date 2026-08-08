@@ -1711,7 +1711,8 @@
     "title": "故事",
     "subtitle": "阅读社区的旅行故事。",
     "empty": "尚未发布故事。",
-    "loadMore": "加载更多"
+    "loadMore": "加载更多",
+    "allLoaded": "已显示全部"
   },
 	"plannerChat": {
 		"addToDay": "添加到第 {day} 天",

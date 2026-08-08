@@ -1711,7 +1711,8 @@
     "title": "ストーリー",
     "subtitle": "コミュニティの旅行ストーリーを読みましょう。",
     "empty": "まだストーリーが公開されていません。",
-    "loadMore": "もっと見る"
+    "loadMore": "もっと見る",
+    "allLoaded": "すべて表示しました"
   },
 	"plannerChat": {
 		"addToDay": "日に追加 {day}",

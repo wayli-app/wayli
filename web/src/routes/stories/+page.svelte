@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Sun, Moon, ArrowLeft, BookOpen, Calendar } from 'lucide-svelte';
+	import { Sun, Moon, ArrowLeft, BookOpen, Calendar, User, Loader2 } from 'lucide-svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
 	import { translate } from '$lib/i18n';
 	import { setTheme, initializeTheme } from '$lib/stores/app-state.svelte';
@@ -9,7 +9,7 @@
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { loadStories, type CommunityStory } from '$lib/services/community.service';
-	import { Loader2 } from 'lucide-svelte';
+	import { userStore } from '$lib/stores/auth';
 
 	let t = $derived($translate);
 	let currentTheme = $state<'light' | 'dark'>('light');
@@ -19,6 +19,10 @@
 	let hasMore = $state(false);
 	let currentUserId = $state<string | null>(null);
 	const PAGE_SIZE = 12;
+
+	// Infinite scroll sentinel
+	let scrollSentinel: HTMLDivElement | null = null;
+	let observer: IntersectionObserver | null = null;
 
 	onMount(() => {
 		initializeTheme();
@@ -52,13 +56,31 @@
 				const result = await loadStories(currentUserId, PAGE_SIZE, 0);
 				stories = result.stories;
 				hasMore = result.hasMore;
+				// Set up observer after initial data renders the sentinel.
+				setTimeout(() => setupObserver(), 100);
 			} catch (err) {
 				console.error('Failed to load stories:', err);
 			} finally {
 				isLoading = false;
 			}
 		})();
+
+		return () => observer?.disconnect();
 	});
+
+	function setupObserver() {
+		if (!browser || !scrollSentinel) return;
+		observer?.disconnect();
+		observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0]?.isIntersecting) {
+					loadMore();
+				}
+			},
+			{ rootMargin: '300px' }
+		);
+		observer.observe(scrollSentinel);
+	}
 
 	async function loadMore() {
 		if (isLoadingMore || !hasMore) return;
@@ -74,24 +96,6 @@
 		}
 	}
 
-	// Infinite scroll: observe a sentinel element at the bottom of the grid.
-	let scrollSentinel: HTMLElement;
-	let scrollObserver: IntersectionObserver | null = null;
-	$effect(() => {
-		if (!browser || !scrollSentinel) return;
-		scrollObserver?.disconnect();
-		scrollObserver = new IntersectionObserver(
-			(entries) => {
-				if (entries[0]?.isIntersecting && hasMore && !isLoadingMore) {
-					loadMore();
-				}
-			},
-			{ rootMargin: '200px' }
-		);
-		scrollObserver.observe(scrollSentinel);
-		return () => scrollObserver?.disconnect();
-	});
-
 	function handleThemeChange(theme: 'light' | 'dark') {
 		setTheme(theme);
 		currentTheme = theme;
@@ -103,7 +107,7 @@
 </svelte:head>
 
 <div class="bg-background min-h-screen">
-	<!-- Floating top bar — matches landing page pill style -->
+	<!-- Floating top bar — matches landing page pill -->
 	<div
 		class="bg-background/80 border-border fixed top-4 right-4 z-40 flex items-center gap-2 rounded-full border px-2 py-1 shadow-sm backdrop-blur-md"
 	>
@@ -114,19 +118,42 @@
 			<ArrowLeft class="h-4 w-4" />
 			{t('profile.home')}
 		</a>
-		<button
-			onclick={() => handleThemeChange(currentTheme === 'light' ? 'dark' : 'light')}
-			class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'light'
-				? 'bg-primary/10 text-primary'
-				: 'text-muted-foreground hover:bg-muted'}"
-		>
-			{#if currentTheme === 'light'}
-				<Moon class="h-4 w-4" />
-			{:else}
+		<div class="flex gap-1">
+			<button
+				onclick={() => handleThemeChange('light')}
+				class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'light'
+					? 'bg-primary/10 text-primary'
+					: 'text-muted-foreground hover:bg-muted'}"
+			>
 				<Sun class="h-4 w-4" />
-			{/if}
-		</button>
+			</button>
+			<button
+				onclick={() => handleThemeChange('dark')}
+				class="cursor-pointer rounded-lg p-2 transition-colors {currentTheme === 'dark'
+					? 'bg-primary/10 text-primary'
+					: 'text-muted-foreground hover:bg-muted'}"
+			>
+				<Moon class="h-4 w-4" />
+			</button>
+		</div>
 		<LanguageSelector variant="minimal" size="sm" showLabel={false} position="bottom-left" />
+		{#if $userStore}
+			<a
+				href="/dashboard/account-settings"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex max-w-[10rem] items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+			>
+				<User class="h-4 w-4 shrink-0" />
+				<span class="truncate">{t('common.navigation.accountSettings')}</span>
+			</a>
+		{:else}
+			<a
+				href="/auth/signin"
+				class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
+			>
+				<User class="h-4 w-4" />
+				{t('auth.signIn')}
+			</a>
+		{/if}
 	</div>
 
 	<!-- Hero -->
@@ -211,13 +238,17 @@
 				{/each}
 			</div>
 
+			<!-- Infinite scroll sentinel + status -->
 			{#if hasMore}
-				<!-- Infinite scroll sentinel -->
 				<div bind:this={scrollSentinel} class="flex justify-center py-8">
 					{#if isLoadingMore}
 						<Loader2 class="text-muted-foreground h-6 w-6 animate-spin" />
 					{/if}
 				</div>
+			{:else}
+				<p class="text-muted-foreground mt-8 text-center text-sm">
+					{t('storiesPage.allLoaded')}
+				</p>
 			{/if}
 		{/if}
 	</div>

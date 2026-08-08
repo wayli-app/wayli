@@ -1707,7 +1707,8 @@
     "title": "Verhalen",
     "subtitle": "Lees reisverhalen van de community.",
     "empty": "Nog geen verhalen gepubliceerd.",
-    "loadMore": "Meer laden"
+    "loadMore": "Meer laden",
+    "allLoaded": "Je hebt alles gezien"
   },
 	"plannerChat": {
 		"addToDay": "Toevoegen aan dag {dag}",
