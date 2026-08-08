@@ -8,6 +8,7 @@
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
+	import { fetchTrackPoints } from '$lib/services/gps.service';
 	import {
 		ArrowLeft,
 		Calendar,
@@ -257,40 +258,55 @@
 			}
 
 			try {
-				// Fetch the GPS track via the get-public-trip-track RPC
-				// (wayli namespace). The RPC is gated server-side by
-				// can_see_gps(): owner always, otherwise gps_visible_to must
-				// permit the caller. It bypasses tracker_data RLS (SECURITY
-				// DEFINER), which has no anon/public SELECT policy.
+				// Load the GPS track for the trip.
+				//
+				// OWNER path: query tracker_data directly via fetchTrackPoints.
+				// The owner's session grants RLS access, and — importantly —
+				// get_public_trip_track() is SECURITY DEFINER, so its internal
+				// can_see_gps()/auth.uid() check resolves the function owner
+				// rather than the caller, making the owner's own private trips
+				// invisible through the RPC (commit 473caa3b). The direct query
+				// avoids that.
+				//
+				// NON-OWNER path: fall back to the get-public-trip-track RPC
+				// (gated by can_see_gps: public trip / share / friend).
 				if (trip?.user_id && trip.start_date) {
-					const { data: rpcData, error: trackErr } = await (fluxbase.rpc as any).invoke(
-						'get-public-trip-track',
-						{ trip_uuid: tripId },
-						{ namespace: 'wayli' }
-					);
-					// rpc.invoke result shape varies; unwrap robustly.
-					let rows: any[] = [];
-					const raw = rpcData as any;
-					if (Array.isArray(raw)) rows = raw;
-					else if (raw?.result)
-						rows = typeof raw.result === 'string' ? JSON.parse(raw.result) : raw.result;
-					else if (Array.isArray(raw?.data)) rows = raw.data;
-					else if (raw?.data?.result)
-						rows =
-							typeof raw.data.result === 'string' ? JSON.parse(raw.data.result) : raw.data.result;
+					if (isOwnerViewer) {
+						allGpsPoints = await fetchTrackPoints(
+							trip.user_id,
+							trip.start_date,
+							trip.end_date || trip.start_date
+						);
+					} else {
+						const { data: rpcData, error: trackErr } = await (fluxbase.rpc as any).invoke(
+							'get-public-trip-track',
+							{ trip_uuid: tripId },
+							{ namespace: 'wayli' }
+						);
+						// rpc.invoke result shape varies; unwrap robustly.
+						let rows: any[] = [];
+						const raw = rpcData as any;
+						if (Array.isArray(raw)) rows = raw;
+						else if (raw?.result)
+							rows = typeof raw.result === 'string' ? JSON.parse(raw.result) : raw.result;
+						else if (Array.isArray(raw?.data)) rows = raw.data;
+						else if (raw?.data?.result)
+							rows =
+								typeof raw.data.result === 'string' ? JSON.parse(raw.data.result) : raw.data.result;
 
-					if (!trackErr && rows.length > 0) {
-						allGpsPoints = rows
-							.filter((p) => p.lat != null && p.lng != null)
-							.map((p) => {
-								const dt = p.recorded_at ? new Date(p.recorded_at) : null;
-								return {
-									lat: p.lat,
-									lng: p.lng,
-									// Local date (not UTC) so it lines up with entry_date.
-									date: dt ? dt.toLocaleDateString('en-CA') : ''
-								};
-							});
+						if (!trackErr && rows.length > 0) {
+							allGpsPoints = rows
+								.filter((p) => p.lat != null && p.lng != null)
+								.map((p) => {
+									const dt = p.recorded_at ? new Date(p.recorded_at) : null;
+									return {
+										lat: p.lat,
+										lng: p.lng,
+										// Local date (not UTC) so it lines up with entry_date.
+										date: dt ? dt.toLocaleDateString('en-CA') : ''
+									};
+								});
+						}
 					}
 				}
 			} catch {
