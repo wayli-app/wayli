@@ -336,7 +336,6 @@ fluxbase:
         - temp-files
         - uploads
         - public
-        allow_destructive: false
 
   # ## Existing secret for sensitive configuration
   # ## Should contain keys: jwt-secret, setup-token, db-password, smtp-password, etc.
