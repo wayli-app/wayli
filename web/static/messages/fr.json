@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "J'ai enregistré ma clé",
 		"userNotAuthenticated": "Utilisateur non authentifié",
 		"downloadAndroid": "Obtenez pour Android",
-		"downloadIOS": "Obtenir pour iOS"
+		"downloadIOS": "Obtenir pour iOS",
+		"checkingApiKey": "Vérification du statut de la clé API…",
+		"apiKeyCheckFailed": "Impossible de vérifier le statut de la clé API",
+		"retry": "Réessayer"
 	},
 	"importExport": {
 		"title": "Importer/Exporter",
@@ -1056,7 +1059,8 @@
 		"samplingSaveFailed": "Échec de l'enregistrement de la configuration d'échantillonnage",
 		"samplingSaved": "Configuration d'échantillonnage enregistrée",
 		"samplingTitle": "Échantillonnage automatique des données",
-		"maxTripExclusionsReached": "Maximum de 10 zones exclues atteint. Supprimez-en un pour en ajouter un autre."
+		"maxTripExclusionsReached": "Maximum de 10 zones exclues atteint. Supprimez-en un pour en ajouter un autre.",
+		"apiKeyCheckFailed": "Impossible de vérifier le statut de la clé API. Si une clé est configurée, elle est toujours utilisée."
 	},
 	"serverAdmin": {
 		"title": "Paramètres d'administration du serveur",

@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "Ich habe meinen Schlüssel gespeichert",
 		"userNotAuthenticated": "Benutzer nicht authentifiziert",
 		"downloadAndroid": "Holen Sie sich für Android",
-		"downloadIOS": "Holen Sie sich für iOS"
+		"downloadIOS": "Holen Sie sich für iOS",
+		"checkingApiKey": "API-Schlüssel-Status wird geprüft…",
+		"apiKeyCheckFailed": "API-Schlüssel-Status konnte nicht geprüft werden",
+		"retry": "Erneut versuchen"
 	},
 	"importExport": {
 		"title": "Import/Export",
@@ -1053,7 +1056,8 @@
 		"samplingSaveFailed": "Die Sampling-Konfiguration konnte nicht gespeichert werden",
 		"samplingSaved": "Sampling-Konfiguration gespeichert",
 		"samplingTitle": "Automatische Datenerfassung",
-		"maxTripExclusionsReached": "Maximal 10 ausgeschlossene Zonen erreicht. Entfernen Sie eines, um ein weiteres hinzuzufügen."
+		"maxTripExclusionsReached": "Maximal 10 ausgeschlossene Zonen erreicht. Entfernen Sie eines, um ein weiteres hinzuzufügen.",
+		"apiKeyCheckFailed": "API-Schlüssel-Status konnte nicht geprüft werden. Falls ein Schlüssel konfiguriert ist, wird er weiterhin verwendet."
 	},
 	"serverAdmin": {
 		"title": "Serveradministratoreinstellungen",

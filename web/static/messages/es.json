@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "He guardado mi clave",
 		"userNotAuthenticated": "Usuario no autenticado",
 		"downloadAndroid": "Obtener para Android",
-		"downloadIOS": "Obtener para iOS"
+		"downloadIOS": "Obtener para iOS",
+		"checkingApiKey": "Comprobando el estado de la clave de API…",
+		"apiKeyCheckFailed": "No se pudo comprobar el estado de la clave de API",
+		"retry": "Reintentar"
 	},
 	"importExport": {
 		"title": "Importar/Exportar",
@@ -1053,7 +1056,8 @@
 		"samplingSaveFailed": "No se pudo guardar la configuración de muestreo",
 		"samplingSaved": "Configuración de muestreo guardada",
 		"samplingTitle": "Muestreo automático de datos",
-		"maxTripExclusionsReached": "Se alcanzó el máximo de 10 zonas excluidas. Elimina uno para agregar otro."
+		"maxTripExclusionsReached": "Se alcanzó el máximo de 10 zonas excluidas. Elimina uno para agregar otro.",
+		"apiKeyCheckFailed": "No se pudo verificar el estado de la clave de API. Si hay una clave configurada, sigue en uso."
 	},
 	"serverAdmin": {
 		"title": "Configuración del administrador del servidor",

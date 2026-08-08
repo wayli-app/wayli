@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "Ik heb mijn sleutel opgeslagen",
 		"userNotAuthenticated": "Gebruiker niet geauthenticeerd",
 		"downloadAndroid": "Download voor Android",
-		"downloadIOS": "Verkrijg voor iOS"
+		"downloadIOS": "Verkrijg voor iOS",
+		"apiKeyCheckFailed": "Kan de status van de API-sleutel niet controleren",
+		"checkingApiKey": "Status van API-sleutel controleren…",
+		"retry": "Opnieuw proberen"
 	},
 	"importExport": {
 		"title": "Importeren/Exporteren",
@@ -1053,7 +1056,8 @@
 		"samplingSaveFailed": "Kan de bemonsteringsconfiguratie niet opslaan",
 		"samplingSaved": "Bemonsteringsconfiguratie opgeslagen",
 		"samplingTitle": "Automatische gegevensbemonstering",
-		"maxTripExclusionsReached": "Maximaal 10 uitgesloten zones bereikt. Verwijder er één om een ​​andere toe te voegen."
+		"maxTripExclusionsReached": "Maximaal 10 uitgesloten zones bereikt. Verwijder er één om een ​​andere toe te voegen.",
+		"apiKeyCheckFailed": "Kan de status van de API-sleutel niet verifiëren. Als een sleutel is geconfigureerd, is deze nog steeds in gebruik."
 	},
 	"serverAdmin": {
 		"title": "Server beheerder instellingen",

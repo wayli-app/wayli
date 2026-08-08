@@ -575,7 +575,10 @@
 		"iHaveSavedMyKey": "Я сохранил свой ключ",
 		"userNotAuthenticated": "Пользователь не аутентифицирован",
 		"downloadAndroid": "Получить для Android",
-		"downloadIOS": "Получить для iOS"
+		"downloadIOS": "Получить для iOS",
+		"checkingApiKey": "Проверка статуса ключа API…",
+		"apiKeyCheckFailed": "Не удалось проверить статус ключа API",
+		"retry": "Повторить"
 	},
 	"importExport": {
 		"title": "Импорт/Экспорт",
@@ -1057,7 +1060,8 @@
 		"samplingSaveFailed": "Не удалось сохранить конфигурацию выборки.",
 		"samplingSaved": "Конфигурация выборки сохранена.",
 		"samplingTitle": "Автоматическая выборка данных",
-		"maxTripExclusionsReached": "Достигнуто максимум 10 исключенных зон. Удалите один, чтобы добавить другой."
+		"maxTripExclusionsReached": "Достигнуто максимум 10 исключенных зон. Удалите один, чтобы добавить другой.",
+		"apiKeyCheckFailed": "Не удалось проверить статус ключа API. Если ключ настроен, он всё ещё используется."
 	},
 	"serverAdmin": {
 		"title": "Настройки администратора сервера",
