@@ -70,6 +70,59 @@ function publicStorageUrl(internalUrl: string): string {
   return internalUrl;
 }
 
+/**
+ * Upload a photo to the trip-images bucket AND verify the object actually
+ * registered (storage.objects row + bytes) before returning the public URL.
+ *
+ * Fluxbase storage can report a successful upload while the object isn't yet
+ * durable (transient platform hiccups). Without verification, we'd insert a
+ * trip_media row pointing at an object that 404s — an "orphan" that shows up
+ * as a broken image on the trip page. So we verify with a `list` by prefix
+ * and retry the whole upload a few times; only once the object is confirmed
+ * present do we return its URL. Returns null if it never lands.
+ */
+async function uploadPhotoWithVerify(
+  fluxbase: FluxbaseClient,
+  bucket: 'trip-images',
+  storagePath: string,
+  data: Blob | Uint8Array,
+  contentType: string,
+  upsert = false,
+  maxAttempts = 3
+): Promise<string | null> {
+  const blob = data instanceof Blob ? data : new Blob([data as BlobPart], { type: contentType });
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { error: uploadErr } = await fluxbase.storage
+      .from(bucket)
+      .upload(storagePath, blob, { contentType, upsert });
+
+    if (uploadErr) {
+      console.warn(`[polarsteps] upload attempt ${attempt}/${maxAttempts} failed for ${storagePath}:`, uploadErr);
+      // Brief backoff before retrying.
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+      continue;
+    }
+
+    // Verify the object actually registered before trusting it.
+    const { data: listed, error: listErr } = await fluxbase.storage
+      .from(bucket)
+      .list({ prefix: storagePath, limit: 1 });
+    const found = !listErr && Array.isArray(listed) && listed.some((f: any) => f?.name === storagePath);
+    if (found) {
+      const { data: urlData } = fluxbase.storage.from(bucket).getPublicUrl(storagePath);
+      return publicStorageUrl(urlData.publicUrl);
+    }
+
+    console.warn(
+      `[polarsteps] upload reported success but object not found on attempt ${attempt}/${maxAttempts} for ${storagePath}`
+    );
+    await new Promise((r) => setTimeout(r, 500 * attempt));
+  }
+
+  return null;
+}
+
 function unixToISO(ts: number): string {
   return new Date(ts * 1000).toISOString();
 }
@@ -382,19 +435,23 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
           }
 
           const storagePath = `${userId}/${tripId}/${photoName}`;
-          const blob = new Blob([photoFile.data], { type: 'image/jpeg' });
 
-          const { error: uploadErr } = await fluxbase.storage
-            .from('trip-images')
-            .upload(storagePath, blob, { contentType: 'image/jpeg', upsert: false });
+          // Verified upload: only proceed once the object is confirmed
+          // present in storage. This prevents orphaned trip_media rows that
+          // point at objects which 404 (silent upload failures).
+          const publicUrl = await uploadPhotoWithVerify(
+            fluxbase,
+            'trip-images',
+            storagePath,
+            photoFile.data,
+            'image/jpeg',
+            false
+          );
 
-          if (uploadErr) {
+          if (!publicUrl) {
             photosSkipped++;
             continue;
           }
-
-          const { data: urlData } = fluxbase.storage.from('trip-images').getPublicUrl(storagePath);
-          const publicUrl = publicStorageUrl(urlData.publicUrl);
 
           const { data: mediaData, error: mediaErr } = await fluxbase
             .from('trip_media')
@@ -412,6 +469,13 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
             .single();
 
           if (mediaErr || !mediaData) {
+            // Media row failed — clean up the now-orphaned storage object so
+            // we don't leave bytes with no metadata (the inverse orphan).
+            try {
+              await fluxbase.storage.from('trip-images').remove([storagePath]);
+            } catch {
+              // best-effort cleanup
+            }
             photosSkipped++;
             continue;
           }
@@ -550,19 +614,16 @@ async function downloadAndUploadPhoto(
 
     // upsert: true so re-imports don't silently fail on key collision (the
     // old upsert: false meant a second import of the same trip would skip the
-    // cover photo because the storage object already existed).
-    const { error } = await fluxbase.storage.from('trip-images').upload(path, blob, {
-      contentType: blob.type || 'image/jpeg',
-      upsert: true
-    });
-
-    if (error) {
-      console.warn(`[polarsteps] Storage upload failed for ${path}:`, error);
-      return null;
-    }
-
-    const { data } = fluxbase.storage.from('trip-images').getPublicUrl(path);
-    return publicStorageUrl(data.publicUrl);
+    // cover photo because the storage object already existed). Verified so a
+    // transient "successful" upload that didn't register is retried/caught.
+    return await uploadPhotoWithVerify(
+      fluxbase,
+      'trip-images',
+      path,
+      blob,
+      blob.type || 'image/jpeg',
+      true
+    );
   } catch (err) {
     console.warn(`[polarsteps] downloadAndUploadPhoto error for ${url}:`, err);
     return null;
