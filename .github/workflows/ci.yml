@@ -236,6 +236,11 @@ jobs:
           WAYLI_SETUP_PROJECT: '1'
           WAYLI_BASE_URL: http://localhost:4000
           FLUXBASE_PUBLIC_BASE_URL: http://localhost:8080
+          # The helpers (confirmEmailIfRequired, wipeUserData) read these from
+          # process.env; .env only serves the app, not the Playwright process.
+          FLUXBASE_ANON_KEY: ${{ steps.secrets.outputs.anon_key }}
+          PUBLIC_FLUXBASE_ANON_KEY: ${{ steps.secrets.outputs.anon_key }}
+          FLUXBASE_SERVICE_ROLE_KEY: ${{ steps.secrets.outputs.service_key }}
         run: bun run test:setup
 
       - name: Upload Playwright report

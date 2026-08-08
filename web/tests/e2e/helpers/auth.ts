@@ -190,9 +190,23 @@ export async function confirmEmailIfRequired({ email }: TestCreds): Promise<void
 	// Probe: can we sign in right now? If yes, the user is confirmed and we're done.
 	// If no and the error mentions verification, emit guidance — do NOT fail here,
 	// let the spec's own login attempt produce the canonical failure.
-	const anon = createClient(FLUXBASE_URL, ANON_KEY, {
-		auth: { autoRefresh: false, persist: false }
-	});
+	//
+	// Best-effort: if the anon key isn't wired into the test process env (e.g. a CI
+	// step forgot to pass it), skip the probe entirely rather than crash the whole
+	// smoke — the signup flow's own auto-confirm path still gets exercised.
+	if (!ANON_KEY) {
+		console.warn('  ⚠️ Skipping email-confirm probe: no FLUXBASE_ANON_KEY in env.');
+		return;
+	}
+	let anon;
+	try {
+		anon = createClient(FLUXBASE_URL, ANON_KEY, {
+			auth: { autoRefresh: false, persist: false }
+		});
+	} catch (err) {
+		console.warn('  ⚠️ Skipping email-confirm probe:', (err as Error)?.message);
+		return;
+	}
 	const { error } = await anon.auth.signInWithPassword({ email, password: testPassword() });
 	if (!error) return; // confirmed — nothing to do
 	const msg = (error as any)?.message ?? String(error);
