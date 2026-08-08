@@ -74,10 +74,15 @@ Screenshots are generated from synthetic data — see [`docs/REGENERATING-SCREEN
 **Docker Compose:**
 ```bash
 cd deploy/docker-compose
-./generate-secrets.sh
-# Edit .env with your configuration
-docker compose up -d
+./generate-keys.sh          # generates secrets + writes .env (prompts for URLs)
+docker compose up -d        # brings up web + Fluxbase + Postgres
+# Wayli:          http://localhost:4000
+# Fluxbase admin: http://localhost:8080/admin/setup (token from generate-keys.sh)
 ```
+
+The Wayli web image runs `sync:all` on startup, so `docker compose up` applies the
+declarative schema (`fluxbase/schema/public.sql`), RPC, jobs, and RLS policies
+automatically — no separate migration step.
 
 **Kubernetes (Helm):**
 ```bash
@@ -88,13 +93,39 @@ See the [Deployment Guide](deploy/README.md) for detailed instructions.
 
 ## Development
 
+Wayli uses [Bun](https://bun.sh) (not npm). Start a local Fluxbase + Postgres stack
+first (devcontainer or the docker-compose Quick Start above), then:
+
 ```bash
 cd web
-npm install
-npm run dev
+bun install
+bun run dev:all    # syncs Fluxbase resources (sync:all) then starts the app on :4000
 ```
 
-See [CLAUDE.md](CLAUDE.md) for development conventions and [web/README.md](web/README.md) for architecture details.
+The app runs on `http://localhost:4000`. See [CLAUDE.md](CLAUDE.md) for development
+conventions and [web/README.md](web/README.md) for architecture details.
+
+## Verifying a release
+
+Before tagging a release, verify the documented deployment path end-to-end:
+
+```bash
+# From web/ — builds the prod image, brings up an isolated stack, runs the smoke,
+# and tears everything down (containers, volumes, network):
+bun run verify:setup
+```
+
+This automates the same `docker compose up` path a self-hoster follows and asserts
+the happy path works: stack comes up healthy, schema + RLS apply automatically on
+container boot, the first user can sign up (becomes admin) and sign in, and the
+dashboard renders without server errors. The same smoke also runs in CI as the
+`Setup smoke (docker compose up)` job on every PR.
+
+To run just the Playwright smoke against a stack you've already started:
+
+```bash
+bun run test:setup
+```
 
 ## Privacy
 

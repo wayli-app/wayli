@@ -23,6 +23,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
+    "test:setup": "playwright test --project=setup",
+    "verify:setup": "bun run scripts/verify-setup.ts",
     "sync:functions": "fluxbase functions sync --namespace wayli --dir ../fluxbase/functions/",
     "sync:jobs": "fluxbase jobs sync --namespace wayli --dir ../fluxbase/jobs/",
     "sync:schema": "fluxbase extensions enable postgis && fluxbase extensions enable postgis_topology && fluxbase schema sync --namespace wayli --dir ../fluxbase/schema/",
