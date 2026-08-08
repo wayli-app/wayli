@@ -27,15 +27,40 @@ Privacy-first location tracking and trip analysis. Self-hosted, no third-party d
 
 ## Screenshots
 
-<div align="center">
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/images/screenshot-travel-overview.jpg" alt="Travel overview" />
+      <br/><sub><b>Travel overview</b> — the "Where I've Been" world map, trip cards, and sticky overview map.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/images/screenshot-statistics.jpg" alt="Statistics dashboard" />
+      <br/><sub><b>Statistics</b> — interactive maps, transport-mode segments, heatmaps, and activity calendar.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/images/screenshot-trip-plan.jpg" alt="Trip planner" />
+      <br/><sub><b>Trip planner</b> — day-by-day itineraries with a budget dashboard.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/images/screenshot-want-to-visit.jpg" alt="Want-to-visit wishlist" />
+      <br/><sub><b>Want-to-visit</b> — a map of places to explore with custom markers and ratings.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <img src="docs/images/screenshot-public-profile.jpg" alt="Public profile" />
+      <br/><sub><b>Public profile</b> — share your travels with stats, a world map, and a trip grid.</sub>
+    </td>
+    <td width="50%" align="center">
+      <img src="docs/images/screenshot-import-export.jpg" alt="Import / Export" />
+      <br/><sub><b>Import / Export</b> — bring in GPX, KML, GeoJSON, OwnTracks, and Polarsteps.</sub>
+    </td>
+  </tr>
+</table>
 
-![Trips Overview](docs/images/screenshot-trips.jpg)
-*Automatically detected trips with cover photos and transport modes*
-
-![Statistics Dashboard](docs/images/screenshot-statistics.jpg)
-*Distance traveled, transport modes, and interactive maps*
-
-</div>
+Screenshots are generated from synthetic data — see [`docs/REGENERATING-SCREENSHOTS.md`](docs/REGENERATING-SCREENSHOTS.md) to reproduce them.
 
 ## Tech Stack
 
