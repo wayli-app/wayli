@@ -8,7 +8,6 @@
 		Users,
 		Database,
 		MapPin,
-		X,
 		Sun,
 		Moon,
 		Menu
@@ -169,130 +168,117 @@
 	}}
 />
 
-<div class="bg-background flex h-screen">
-	<!-- Sidebar -->
-	<aside
-		use:focusTrap={isSidebarOpen}
-		class="border-border bg-card fixed inset-y-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r transition-transform duration-300 ease-in-out md:static md:translate-x-0 {isSidebarOpen
-			? 'translate-x-0'
-			: '-translate-x-full'}"
+<div class="bg-background flex h-screen flex-col">
+	<!-- Unified top bar: spans the full width on every screen size.
+	     Left: hamburger (mobile only) + logo; Right: status + personal actions. -->
+	<header
+		class="border-border bg-card z-30 flex h-14 flex-shrink-0 items-center justify-between border-b px-4"
 	>
-		<!-- Sidebar Header - Fixed at top -->
-		<div class="border-border flex flex-shrink-0 items-center justify-between border-b p-4">
-			<a href="/" class="border-border flex cursor-pointer items-center p-4">
-				<img src="/logo-icon.svg" alt="Wayli" class="mr-2 h-8 w-8" />
-				<span class="text-foreground text-xl font-bold">Wayli</span>
-			</a>
+		<div class="flex items-center gap-2">
 			<button
-				onclick={handleCloseSidebar}
+				onclick={handleToggleSidebar}
 				class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 md:hidden"
+				aria-label={t('common.navigation.menu')}
 			>
-				<X class="h-5 w-5" />
+				<Menu class="h-6 w-6" />
 			</button>
+			<a href="/" class="flex cursor-pointer items-center">
+				<img src="/logo-icon.svg" alt="Wayli" class="mr-1.5 h-7 w-7" />
+				<span class="text-foreground text-lg font-bold">Wayli</span>
+			</a>
 		</div>
-
-		<!-- Scrollable Navigation - Takes remaining space -->
-		<nav class="min-h-0 flex-1 overflow-y-auto">
-			<div class="space-y-1 p-4">
-				{#each navMain as item (item.href)}
-					<a
-						href={item.href}
-						class="flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
-							.url.pathname === item.href ||
-						(item.href === '/dashboard/travel' &&
-							$page.url.pathname.startsWith('/dashboard/travel'))
-							? 'bg-primary text-primary-foreground'
-							: 'text-muted-foreground hover:bg-muted'}"
-						onclick={handleCloseSidebar}
-					>
-						<item.icon class="mr-3 h-5 w-5" />
-						{item.label}
-						{#if item.href === '/dashboard/travel' && $pendingTripCount > 0 && !travelVisited}
-							<span
-								class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
-							>
-								{$pendingTripCount}
-							</span>
-						{/if}
-						{#if item.href === '/dashboard/friends' && $pendingFriendRequestCount > 0}
-							<span
-								class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
-							>
-								{$pendingFriendRequestCount}
-							</span>
-						{/if}
-					</a>
-				{/each}
+		<!-- Right cluster: realtime status, theme, notifications, account. -->
+		<div class="flex items-center gap-1">
+			<div class="px-1">
+				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={true} />
 			</div>
-		</nav>
-	</aside>
+			<button
+				onclick={toggleTheme}
+				class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 transition-colors"
+				title={currentTheme === 'dark'
+					? t('common.navigation.lightMode')
+					: t('common.navigation.darkMode')}
+				aria-label={currentTheme === 'dark'
+					? t('common.navigation.lightMode')
+					: t('common.navigation.darkMode')}
+			>
+				{#if currentTheme === 'dark'}
+					<Sun class="h-5 w-5" />
+				{:else}
+					<Moon class="h-5 w-5" />
+				{/if}
+			</button>
+			<NotificationsButton />
+			<UserMenu {isAdmin} {onSignout} />
+		</div>
+	</header>
 
-	<!-- Mobile overlay -->
-	{#if isSidebarOpen}
-		<div
-			transition:fade={{ duration: 150 }}
-			class="fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 md:hidden"
-			onclick={handleCloseSidebar}
-			role="presentation"
-			aria-roledescription="Mobile overlay"
-			aria-label="Mobile overlay"
-		></div>
-	{/if}
+	<!-- Body: sidebar + content side by side, below the top bar. -->
+	<div class="flex min-h-0 flex-1">
+		<!-- Mobile overlay -->
+		{#if isSidebarOpen}
+			<div
+				transition:fade={{ duration: 150 }}
+				class="fixed inset-0 top-14 z-40 bg-black/50 transition-opacity duration-300 md:hidden"
+				onclick={handleCloseSidebar}
+				role="presentation"
+				aria-roledescription="Mobile overlay"
+				aria-label="Mobile overlay"
+			></div>
+		{/if}
 
-	<!-- Main Content -->
-	<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen ? '' : undefined}>
-		<!-- Top bar: hamburger + logo on mobile (hidden on desktop, where the
-		     sidebar is persistent). Right cluster holds status + personal actions
-		     on every screen size. -->
-		<header class="border-border bg-card sticky top-0 z-30 border-b">
-			<div class="flex h-14 items-center justify-between px-4">
-				<div class="flex items-center gap-2 md:hidden">
-					<button
-						onclick={handleToggleSidebar}
-						class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1"
-						aria-label={t('common.navigation.menu')}
-					>
-						<Menu class="h-6 w-6" />
-					</button>
-					<a href="/" class="flex cursor-pointer items-center">
-						<img src="/logo-icon.svg" alt="Wayli" class="mr-1 h-6 w-6" />
-						<span class="text-foreground text-lg font-bold">Wayli</span>
-					</a>
+		<!-- Sidebar: navigation only (logo bar moved to the unified top bar). -->
+		<aside
+			use:focusTrap={isSidebarOpen}
+			class="border-border bg-card fixed top-14 bottom-0 left-0 z-50 flex w-64 flex-shrink-0 flex-col border-r transition-transform duration-300 ease-in-out md:static md:translate-x-0 {isSidebarOpen
+				? 'translate-x-0'
+				: '-translate-x-full'}"
+		>
+			<!-- Scrollable Navigation - Takes remaining space -->
+			<nav class="min-h-0 flex-1 overflow-y-auto">
+				<div class="space-y-1 p-4">
+					{#each navMain as item (item.href)}
+						<a
+							href={item.href}
+							class="flex min-h-[44px] cursor-pointer items-center rounded-md px-3 py-2.5 text-sm font-medium transition-colors {$page
+								.url.pathname === item.href ||
+							(item.href === '/dashboard/travel' &&
+								$page.url.pathname.startsWith('/dashboard/travel'))
+								? 'bg-primary text-primary-foreground'
+								: 'text-muted-foreground hover:bg-muted'}"
+							onclick={handleCloseSidebar}
+						>
+							<item.icon class="mr-3 h-5 w-5" />
+							{item.label}
+							{#if item.href === '/dashboard/travel' && $pendingTripCount > 0 && !travelVisited}
+								<span
+									class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+								>
+									{$pendingTripCount}
+								</span>
+							{/if}
+							{#if item.href === '/dashboard/friends' && $pendingFriendRequestCount > 0}
+								<span
+									class="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-xs font-bold text-white"
+								>
+									{$pendingFriendRequestCount}
+								</span>
+							{/if}
+						</a>
+					{/each}
 				</div>
-				<!-- Spacer pins the right cluster to the right on desktop. -->
-				<div class="hidden md:block"></div>
-				<!-- Right cluster: realtime status, theme, notifications, account. -->
-				<div class="flex items-center gap-1">
-					<div class="px-1">
-						<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={true} />
-					</div>
-					<button
-						onclick={toggleTheme}
-						class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 transition-colors"
-						title={currentTheme === 'dark'
-							? t('common.navigation.lightMode')
-							: t('common.navigation.darkMode')}
-						aria-label={currentTheme === 'dark'
-							? t('common.navigation.lightMode')
-							: t('common.navigation.darkMode')}
-					>
-						{#if currentTheme === 'dark'}
-							<Sun class="h-5 w-5" />
-						{:else}
-							<Moon class="h-5 w-5" />
-						{/if}
-					</button>
-					<NotificationsButton />
-					<UserMenu {isAdmin} {onSignout} />
-				</div>
-			</div>
-		</header>
+			</nav>
+		</aside>
 
-		<!-- Content Area -->
-		<main class="flex-1 overflow-auto pb-24 md:pb-0">
-			{#if children}
-				{@render children()}
-			{/if}
-		</main>
+		<!-- Main Content (inert while the mobile sidebar drawer is open, to
+		     keep focus trapped in the drawer) -->
+		<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen ? '' : undefined}>
+			<!-- Content Area -->
+			<main class="flex-1 overflow-auto pb-24 md:pb-0">
+				{#if children}
+					{@render children()}
+				{/if}
+			</main>
+		</div>
 	</div>
 </div>
