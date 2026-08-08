@@ -162,7 +162,7 @@ graph TB
    FLUXBASE_SERVICE_ROLE_KEY=your_service_role_key
    ```
 
-4. **Run database migrations**
+4. **Apply the database schema**
 
    ```bash
    npx fluxbase db reset

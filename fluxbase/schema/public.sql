@@ -1687,8 +1687,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     read_at timestamptz,
     created_at timestamptz DEFAULT now(),
     CONSTRAINT notifications_pkey PRIMARY KEY (id),
-    -- One notification per (user, job) so the client-side write and the
-    -- jobs.queue trigger (migration 083) can't double-create.
+    -- One notification per (user, job) so retries/realtime can't double-create.
     CONSTRAINT notifications_user_job_unique UNIQUE (user_id, related_job_id)
 );
 
@@ -3712,6 +3711,90 @@ $$;
 --
 
 COMMENT ON FUNCTION trigger_calculate_distance() IS 'Computes distance/time_spent/speed from the previous chronological point. Speed is only derived when the inter-point gap is >= 1s (sub-second gaps are untrusted) and is clamped to 1000 km/h.';
+
+--
+-- Name: notify_job_terminal(); Type: FUNCTION; Schema: -; Owner: -
+--
+-- Builds a persistent notification row from a terminal jobs.queue update
+-- (completed/failed/cancelled). Currently uncalled: the trigger that
+-- invoked it targeted the Fluxbase-owned jobs.queue table, which the
+-- declarative public-schema sync does not manage, so the trigger is not
+-- applied here. Notifications are instead written client-side by the job
+-- store (web/src/lib/stores/job-store.ts). This function is kept in-tree
+-- and deployed so a future managed-trigger mechanism can attach it without
+-- a schema change. SECURITY DEFINER so it can INSERT into public.notifications
+-- regardless of the caller role.
+CREATE OR REPLACE FUNCTION notify_job_terminal()
+RETURNS trigger
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_type text;
+    v_title text;
+    v_body text;
+    v_link text;
+BEGIN
+    -- Only act on a real transition INTO a terminal state.
+    IF NEW.status NOT IN ('completed', 'failed', 'cancelled') THEN
+        RETURN NEW;
+    END IF;
+    IF (OLD.status = NEW.status) THEN
+        RETURN NEW;
+    END IF;
+    -- Skip if there's no owning user (can't address a notification).
+    IF NEW.created_by IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    v_type := 'job_' || NEW.status;
+
+    -- Friendly job name (mirrors jobDisplayName in job-store.ts).
+    v_title := CASE
+        WHEN NEW.job_name LIKE 'data-import%' OR NEW.job_name LIKE 'data_import%' THEN 'Data import'
+        WHEN NEW.job_name = 'data-export' THEN 'Data export'
+        WHEN NEW.job_name IN ('reverse-geocoding', 'reverse-geocoding-missing') THEN 'Reverse geocoding'
+        WHEN NEW.job_name IN ('trip-generation', 'trip-detection') THEN 'Trip generation'
+        WHEN NEW.job_name LIKE 'detect-place-visits%' THEN 'Place visit detection'
+        WHEN NEW.job_name LIKE 'detect-transport-mode%' THEN 'Transport mode detection'
+        WHEN NEW.job_name LIKE 'refresh-daily-activity%' THEN 'Daily activity refresh'
+        WHEN NEW.job_name LIKE 'polarsteps-import%' THEN 'Polarsteps import'
+        WHEN NEW.job_name LIKE 'scheduled-trip-generation%' THEN 'Scheduled trip suggestions'
+        ELSE REPLACE(REPLACE(NEW.job_name, '-', ' '), '_', ' ')
+    END;
+
+    v_title := v_title || ' ' || CASE NEW.status
+        WHEN 'completed' THEN 'completed'
+        WHEN 'failed' THEN 'failed'
+        ELSE 'cancelled'
+    END;
+
+    v_body := COALESCE(NULLIF(NEW.error_message, ''), '');
+
+    -- Deep-link completed exports so the user can download.
+    v_link := CASE
+        WHEN NEW.job_name = 'data-export' AND NEW.status = 'completed'
+            THEN '/dashboard/import-export'
+        ELSE NULL
+    END;
+
+    -- Guard: notifications may not exist yet on a fresh bootstrap. Never let
+    -- that break the underlying job update.
+    BEGIN
+        INSERT INTO public.notifications
+            (user_id, type, title, body, link, related_job_id)
+        VALUES
+            (NEW.created_by, v_type, v_title, v_body, v_link, NEW.id)
+        ON CONFLICT (user_id, related_job_id) DO NOTHING;
+    EXCEPTION WHEN undefined_table THEN
+        NULL;
+    END;
+
+    RETURN NEW;
+END;
+$$;
 
 --
 -- Name: trigger_calculate_distance_enhanced(); Type: FUNCTION; Schema: -; Owner: -

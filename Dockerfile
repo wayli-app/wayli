@@ -4,7 +4,7 @@
 #
 # Container structure:
 #   /app/
-#   └── fluxbase/     (functions, migrations, jobs - synced at startup)
+#   └── fluxbase/     (schema, functions, jobs, rpc - synced at startup)
 #   /usr/share/nginx/html/  (static web files)
 
 FROM denoland/deno:bin-2.6.4 AS deno-bin
