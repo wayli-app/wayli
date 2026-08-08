@@ -888,6 +888,20 @@
 		"uploadComplete": "Upload complete",
 		"uploadFailed": "Upload failed"
 	},
+	"notifications": {
+		"title": "Notifications",
+		"active": "Active",
+		"recent": "Recent",
+		"empty": "You're all caught up",
+		"loading": "Loading notifications...",
+		"markAllRead": "Mark all read",
+		"markRead": "Mark as read",
+		"delete": "Delete",
+		"justNow": "Just now",
+		"minutesAgo": "{minutes}m ago",
+		"hoursAgo": "{hours}h ago",
+		"daysAgo": "{days}d ago"
+	},
 	"accountSettings": {
 		"title": "Account settings",
 		"profile": "Profile",
