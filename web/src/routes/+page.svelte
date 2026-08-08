@@ -232,7 +232,7 @@
 					.in('id', [...new Set(allTripIds.map((id) => tripMap.get(id)!.user_id))]),
 				fluxbase
 					.from('trip_media')
-					.select('id, storage_path, thumbnail_path')
+					.select('id, entry_id, storage_path, thumbnail_path')
 					.in('trip_id', allTripIds)
 			]);
 
@@ -253,8 +253,14 @@
 			// the entries were created, or the view hasn't propagated).
 			if (ownUsername && userId) profileMap.set(userId, ownUsername);
 			const mediaMap = new Map<string, string>();
+			// First media row per entry — used as the per-story image when no
+			// explicit cover is set, instead of falling back to the trip hero.
+			const entryFirstMedia = new Map<string, string>();
 			for (const m of (mediaResult.data as any[]) ?? []) {
 				mediaMap.set(m.id, m.thumbnail_path ?? m.storage_path);
+				if (m.entry_id && !entryFirstMedia.has(m.entry_id)) {
+					entryFirstMedia.set(m.entry_id, m.thumbnail_path ?? m.storage_path);
+				}
 			}
 
 			// De-dup entries by id, cap at 6 for the grid.
@@ -272,7 +278,7 @@
 					return {
 						...e,
 						trip_title: trip?.title,
-						trip_image_url: entryCover ?? trip?.image_url,
+						trip_image_url: entryCover ?? entryFirstMedia.get(e.id) ?? trip?.image_url,
 						username: trip ? profileMap.get(trip.user_id) : undefined
 					};
 				});

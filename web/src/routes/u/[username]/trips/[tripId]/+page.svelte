@@ -238,6 +238,14 @@
 				.order('sort_order', { ascending: true });
 			media = (mediaData as unknown as Media[]) ?? [];
 
+			// Hide imported entries that are truly empty — no title, no body,
+			// and no linked media. They otherwise render as blank cards
+			// (typically Polarsteps steps with no name/description/photos).
+			const entryIdsWithMedia = new Set(media.map((m) => m.entry_id).filter(Boolean));
+			entries = entries.filter(
+				(e) => !((e.title ?? '') === '' && (e.body ?? '') === '' && !entryIdsWithMedia.has(e.id))
+			);
+
 			// Load plan items if shared with viewer (RLS enforces actual visibility)
 			if (trip?.plan_visible_to && trip.plan_visible_to !== 'private') {
 				const { data: planData } = await fluxbase
