@@ -24,6 +24,9 @@
  * @fluxbase:none — standalone Node/Bun script, not a Fluxbase job.
  */
 
+/* oxlint-disable no-await-in-loop -- sequential capture is intentional: each
+   screenshot depends on the page state left by the previous step. */
+
 import { chromium, type Page, type Browser, type BrowserContext } from '@playwright/test';
 
 // Load web/.env so an existing demo username/email/password can be overridden.
@@ -400,7 +403,7 @@ async function main(): Promise<void> {
 			await page.waitForTimeout(shot.settleMs ?? 2500);
 
 			const target = shot.elementSelector
-				? (await page.locator(shot.elementSelector).elementHandle()) ?? page
+				? ((await page.locator(shot.elementSelector).elementHandle()) ?? page)
 				: page;
 			await (target as any).screenshot({
 				path: out,

@@ -23,6 +23,11 @@
  * @fluxbase:none — standalone Node/Bun script, not a Fluxbase job.
  */
 
+/* oxlint-disable no-await-in-loop -- sequential seeding is intentional: each
+   step depends on the rows created by the previous one (user → profile →
+   trips → tracker_data → entries…). */
+/* oxlint-disable consistent-function-scoping -- standalone helper utilities. */
+
 import { createClient } from '@nimbleflux/fluxbase-sdk';
 
 // Load web/.env manually (avoid a dotenv dependency in a standalone script).
@@ -47,7 +52,9 @@ try {
 // which isn't reachable when this script runs on the host. Remap the known
 // container host to localhost so the script works without manual overrides.
 const RAW_FLUXBASE_URL =
-	process.env.FLUXBASE_PUBLIC_BASE_URL || process.env.PUBLIC_FLUXBASE_URL || 'http://127.0.0.1:8080';
+	process.env.FLUXBASE_PUBLIC_BASE_URL ||
+	process.env.PUBLIC_FLUXBASE_URL ||
+	'http://127.0.0.1:8080';
 const FLUXBASE_URL = RAW_FLUXBASE_URL.replace('://fluxbase:', '://127.0.0.1:').replace(
 	'://fluxbase-',
 	'://127.0.0.1-'
@@ -271,9 +278,7 @@ async function wipeUserData(userId: string): Promise<void> {
 		'user_preferences'
 	];
 	for (const t of tables) {
-		await exists(
-			admin.from(t).delete().eq('user_id', userId) as any
-		);
+		await exists(admin.from(t).delete().eq('user_id', userId) as any);
 	}
 }
 
@@ -298,8 +303,7 @@ async function seedProfile(userId: string): Promise<void> {
 		discoverable: 'everyone',
 		home_address: homeAddress,
 		// Cover + avatar for a polished public-profile hero.
-		cover_photo_url:
-			'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1600&q=80',
+		cover_photo_url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1600&q=80',
 		cover_focal_x: 0.5,
 		cover_focal_y: 0.4,
 		avatar_url: 'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=400&q=80'
@@ -514,10 +518,7 @@ async function seedTrackerData(userId: string): Promise<void> {
 		for (let i = 0; i < points.length; i++) {
 			const p = points[i];
 			// Distance + time delta from previous point.
-			const dist =
-				prev && prev.mode === p.mode
-					? haversine(prev.lat, prev.lng, p.lat, p.lng)
-					: 0;
+			const dist = prev && prev.mode === p.mode ? haversine(prev.lat, prev.lng, p.lat, p.lng) : 0;
 			const timeSpent = prev ? Math.max(0, (p.t.getTime() - prev.t.getTime()) / 1000) : 0;
 			records.push({
 				user_id: userId,
@@ -561,18 +562,114 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
 }
 
 const WANT_TO_VISIT = [
-	{ title: 'Tsukiji Outer Market', type: 'restaurant', color: '#ef4444', rating: 5, lat: 35.6655, lng: 139.7707, fav: true },
-	{ title: 'Fushimi Inari Shrine', type: 'camera', color: '#f59e0b', rating: 5, lat: 34.9671, lng: 135.7723, fav: true },
-	{ title: 'Arashiyama Bamboo Grove', type: 'tree', color: '#10b981', rating: 4, lat: 35.0174, lng: 135.6716, fav: false },
-	{ title: 'Time Out Market Lisbon', type: 'restaurant', color: '#ef4444', rating: 4, lat: 38.7145, lng: -9.1457, fav: false },
-	{ title: 'Miradouro da Senhora do Monte', type: 'camera', color: '#f59e0b', rating: 5, lat: 38.7179, lng: -9.1326, fav: true },
-	{ title: 'Pastéis de Belém', type: 'coffee', color: '#a16207', rating: 5, lat: 38.6967, lng: -9.2031, fav: false },
-	{ title: 'Hotel Bairro Alto', type: 'hotel', color: '#3b82f6', rating: 4, lat: 38.7137, lng: -9.1446, fav: false },
-	{ title: 'Museum Island', type: 'building', color: '#8b5cf6', rating: 4, lat: 52.5163, lng: 13.4238, fav: false },
-	{ title: 'Brandenburg Gate', type: 'flag', color: '#0ea5e9', rating: 5, lat: 52.5163, lng: 13.3777, fav: false },
-	{ title: 'Tempelhof Field', type: 'tree', color: '#10b981', rating: 3, lat: 52.4713, lng: 13.4039, fav: false },
-	{ title: 'Mauerpark Flohmarkt', type: 'shopping', color: '#ec4899', rating: 4, lat: 52.5439, lng: 13.4023, fav: false },
-	{ title: 'East Side Gallery', type: 'camera', color: '#f59e0b', rating: 4, lat: 52.5051, lng: 13.4439, fav: false }
+	{
+		title: 'Tsukiji Outer Market',
+		type: 'restaurant',
+		color: '#ef4444',
+		rating: 5,
+		lat: 35.6655,
+		lng: 139.7707,
+		fav: true
+	},
+	{
+		title: 'Fushimi Inari Shrine',
+		type: 'camera',
+		color: '#f59e0b',
+		rating: 5,
+		lat: 34.9671,
+		lng: 135.7723,
+		fav: true
+	},
+	{
+		title: 'Arashiyama Bamboo Grove',
+		type: 'tree',
+		color: '#10b981',
+		rating: 4,
+		lat: 35.0174,
+		lng: 135.6716,
+		fav: false
+	},
+	{
+		title: 'Time Out Market Lisbon',
+		type: 'restaurant',
+		color: '#ef4444',
+		rating: 4,
+		lat: 38.7145,
+		lng: -9.1457,
+		fav: false
+	},
+	{
+		title: 'Miradouro da Senhora do Monte',
+		type: 'camera',
+		color: '#f59e0b',
+		rating: 5,
+		lat: 38.7179,
+		lng: -9.1326,
+		fav: true
+	},
+	{
+		title: 'Pastéis de Belém',
+		type: 'coffee',
+		color: '#a16207',
+		rating: 5,
+		lat: 38.6967,
+		lng: -9.2031,
+		fav: false
+	},
+	{
+		title: 'Hotel Bairro Alto',
+		type: 'hotel',
+		color: '#3b82f6',
+		rating: 4,
+		lat: 38.7137,
+		lng: -9.1446,
+		fav: false
+	},
+	{
+		title: 'Museum Island',
+		type: 'building',
+		color: '#8b5cf6',
+		rating: 4,
+		lat: 52.5163,
+		lng: 13.4238,
+		fav: false
+	},
+	{
+		title: 'Brandenburg Gate',
+		type: 'flag',
+		color: '#0ea5e9',
+		rating: 5,
+		lat: 52.5163,
+		lng: 13.3777,
+		fav: false
+	},
+	{
+		title: 'Tempelhof Field',
+		type: 'tree',
+		color: '#10b981',
+		rating: 3,
+		lat: 52.4713,
+		lng: 13.4039,
+		fav: false
+	},
+	{
+		title: 'Mauerpark Flohmarkt',
+		type: 'shopping',
+		color: '#ec4899',
+		rating: 4,
+		lat: 52.5439,
+		lng: 13.4023,
+		fav: false
+	},
+	{
+		title: 'East Side Gallery',
+		type: 'camera',
+		color: '#f59e0b',
+		rating: 4,
+		lat: 52.5051,
+		lng: 13.4439,
+		fav: false
+	}
 ];
 
 async function seedWantToVisit(userId: string): Promise<void> {
@@ -610,7 +707,7 @@ async function seedJournal(userId: string): Promise<void> {
 			trip_id: kyoto.id,
 			user_id: userId,
 			title: 'First light at Fushimi Inari',
-			body: "We arrived at the base of Mount Inari before sunrise to beat the crowds. The **thousand vermillion torii gates** wind up the mountainside in tunnels of orange and shadow.\n\nBy the time we reached the mid-mountain shrine the city was waking below us. Worth every early alarm.",
+			body: 'We arrived at the base of Mount Inari before sunrise to beat the crowds. The **thousand vermillion torii gates** wind up the mountainside in tunnels of orange and shadow.\n\nBy the time we reached the mid-mountain shrine the city was waking below us. Worth every early alarm.',
 			entry_date: start1.toISOString().slice(0, 10),
 			status: 'published'
 		},
@@ -618,7 +715,7 @@ async function seedJournal(userId: string): Promise<void> {
 			trip_id: kyoto.id,
 			user_id: userId,
 			title: 'Arashiyama and the bamboo grove',
-			body: "The bamboo at Arashiyama towers overhead, swaying with a sound like distant water. We wandered through **Tenryū-ji** temple gardens afterward and took the slow train back along the river.",
+			body: 'The bamboo at Arashiyama towers overhead, swaying with a sound like distant water. We wandered through **Tenryū-ji** temple gardens afterward and took the slow train back along the river.',
 			entry_date: new Date(start1.getTime() + 3 * 86400000).toISOString().slice(0, 10),
 			status: 'published'
 		},
@@ -626,7 +723,7 @@ async function seedJournal(userId: string): Promise<void> {
 			trip_id: lisbon.id,
 			user_id: userId,
 			title: 'Miradouros at golden hour',
-			body: "Lisbon is a city built for viewpoints. We climbed up to **Miradouro da Senhora do Monte** as the sun dipped and the terracotta roofs turned to honey. A guitar player nearby, a glass of vinho verde in hand.",
+			body: 'Lisbon is a city built for viewpoints. We climbed up to **Miradouro da Senhora do Monte** as the sun dipped and the terracotta roofs turned to honey. A guitar player nearby, a glass of vinho verde in hand.',
 			entry_date: start2.toISOString().slice(0, 10),
 			status: 'published'
 		},
@@ -634,7 +731,7 @@ async function seedJournal(userId: string): Promise<void> {
 			trip_id: morocco.id,
 			user_id: userId,
 			title: 'A night in the Erg Chebbi dunes',
-			body: "We rode camels into the Sahara as the heat broke, the dunes of Merzouga turning gold then rose then violet. Our Berber guide sang quietly around the campfire and the stars overhead were the densest I have ever seen.",
+			body: 'We rode camels into the Sahara as the heat broke, the dunes of Merzouga turning gold then rose then violet. Our Berber guide sang quietly around the campfire and the stars overhead were the densest I have ever seen.',
 			entry_date: start3.toISOString().slice(0, 10),
 			status: 'published'
 		},
@@ -642,7 +739,7 @@ async function seedJournal(userId: string): Promise<void> {
 			trip_id: puglia.id,
 			user_id: userId,
 			title: 'Ostuni, the white city',
-			body: "Ostuni glows on its hilltop like a pile of chalk. We spent the morning lost in its alleys and the afternoon at a masseria lunch under centuries-old olive trees — some of the oldest in Italy.",
+			body: 'Ostuni glows on its hilltop like a pile of chalk. We spent the morning lost in its alleys and the afternoon at a masseria lunch under centuries-old olive trees — some of the oldest in Italy.',
 			entry_date: start4.toISOString().slice(0, 10),
 			status: 'published'
 		},
@@ -650,7 +747,7 @@ async function seedJournal(userId: string): Promise<void> {
 			trip_id: lisbon.id,
 			user_id: userId,
 			title: 'Draft: pasteis notes',
-			body: "_Still organising thoughts from Belém._",
+			body: '_Still organising thoughts from Belém._',
 			entry_date: daysAgo(90).toISOString().slice(0, 10),
 			status: 'draft'
 		}
@@ -666,12 +763,78 @@ async function seedTripPlan(userId: string): Promise<void> {
 	const day1 = daysAgo(117).toISOString().slice(0, 10);
 	// Build a small itinerary for one day of the Kyoto trip.
 	const items = [
-		{ day: 1, sort: 0, title: 'Breakfast at Inoda Coffee', type: 'food', time: '08:30', cost: 18, currency: 'EUR', lat: 35.0088, lng: 135.7688, status: 'booked' },
-		{ day: 1, sort: 1, title: 'Nishiki Market walk', type: 'sightseeing', time: '10:00', cost: 0, currency: 'EUR', lat: 35.005, lng: 135.7649, status: 'not_booked' },
-		{ day: 1, sort: 2, title: 'Lunch — Ramen Sen-no-Kaze', type: 'food', time: '12:30', cost: 14, currency: 'EUR', lat: 35.013, lng: 135.7781, status: 'not_booked' },
-		{ day: 1, sort: 3, title: 'Gion afternoon stroll', type: 'sightseeing', time: '14:30', cost: 0, currency: 'EUR', lat: 35.0036, lng: 135.7788, status: 'not_booked' },
-		{ day: 1, sort: 4, title: 'Kaiseki dinner', type: 'food', time: '19:00', cost: 85, currency: 'EUR', lat: 35.008, lng: 135.7747, status: 'booked' },
-		{ day: 1, sort: 5, title: 'Ryokan stay', type: 'accommodation', time: '22:00', cost: 140, currency: 'EUR', lat: 35.01, lng: 135.772, status: 'booked' }
+		{
+			day: 1,
+			sort: 0,
+			title: 'Breakfast at Inoda Coffee',
+			type: 'food',
+			time: '08:30',
+			cost: 18,
+			currency: 'EUR',
+			lat: 35.0088,
+			lng: 135.7688,
+			status: 'booked'
+		},
+		{
+			day: 1,
+			sort: 1,
+			title: 'Nishiki Market walk',
+			type: 'sightseeing',
+			time: '10:00',
+			cost: 0,
+			currency: 'EUR',
+			lat: 35.005,
+			lng: 135.7649,
+			status: 'not_booked'
+		},
+		{
+			day: 1,
+			sort: 2,
+			title: 'Lunch — Ramen Sen-no-Kaze',
+			type: 'food',
+			time: '12:30',
+			cost: 14,
+			currency: 'EUR',
+			lat: 35.013,
+			lng: 135.7781,
+			status: 'not_booked'
+		},
+		{
+			day: 1,
+			sort: 3,
+			title: 'Gion afternoon stroll',
+			type: 'sightseeing',
+			time: '14:30',
+			cost: 0,
+			currency: 'EUR',
+			lat: 35.0036,
+			lng: 135.7788,
+			status: 'not_booked'
+		},
+		{
+			day: 1,
+			sort: 4,
+			title: 'Kaiseki dinner',
+			type: 'food',
+			time: '19:00',
+			cost: 85,
+			currency: 'EUR',
+			lat: 35.008,
+			lng: 135.7747,
+			status: 'booked'
+		},
+		{
+			day: 1,
+			sort: 5,
+			title: 'Ryokan stay',
+			type: 'accommodation',
+			time: '22:00',
+			cost: 140,
+			currency: 'EUR',
+			lat: 35.01,
+			lng: 135.772,
+			status: 'booked'
+		}
 	];
 	const rows = items.map((it) => ({
 		trip_id: kyoto.id,
@@ -725,7 +888,9 @@ async function refreshDailyActivity(userId: string): Promise<void> {
 	if (jobId) {
 		// Poll for completion (best-effort; the job is fast).
 		for (let i = 0; i < 20; i++) {
-			const { data: status } = await userClient.jobs.get(jobId, { namespace: 'wayli' } as any).catch(() => ({ data: null }));
+			const { data: status } = await userClient.jobs
+				.get(jobId, { namespace: 'wayli' } as any)
+				.catch(() => ({ data: null }));
 			const s = (status as any)?.status;
 			if (s === 'completed' || s === 'failed') break;
 			await new Promise((r) => setTimeout(r, 1000));
