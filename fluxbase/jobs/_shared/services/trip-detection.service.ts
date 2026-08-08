@@ -111,6 +111,9 @@ export class TripDetectionService {
 	private customHomeAddress: Location | null = null;
 	private jobId: string | null = null;
 	private progressCallback?: (progress: TripDetectionProgress) => void;
+	// Last language resolved for the processed user, so getOngoingTrip() can
+	// generate a correctly-localized title without re-loading preferences.
+	private lastLanguage: string = 'en';
 
 	constructor(fluxbaseClient: FluxbaseClient) {
 		this.fluxbase = fluxbaseClient;
@@ -251,6 +254,7 @@ export class TripDetectionService {
 
 			const excludedRanges = await this.getExcludedDateRanges(userId);
 			const { locations: homeLocations, language } = await this.getUserHomeLocations(userId);
+			this.lastLanguage = language;
 
 			console.log(`📅 Found ${excludedRanges.length} excluded date ranges`);
 			console.log(`🏠 Found ${homeLocations.length} home locations`);
@@ -533,6 +537,42 @@ export class TripDetectionService {
 		const current = new Date(currentTime);
 		const diffMs = current.getTime() - lastHome.getTime();
 		return diffMs / (1000 * 60 * 60);
+	}
+
+	/**
+	 * After `detectTrips()` has run, inspect the trailing home/away state.
+	 *
+	 * Normally, a trip is only emitted when the user RETURNS home (the away
+	 * span closes). If the data ends while the user is still away — i.e. they
+	 * are CURRENTLY on a trip — that open span is dropped. This accessor
+	 * surfaces it as a DetectedTrip (status 'pending') so the caller can decide
+	 * what to do (e.g. persist as 'active').
+	 *
+	 * Returns null if the user is currently home, hasn't been away long enough
+	 * (< 24h), or has no visited cities in the open span. Must be called after
+	 * detectTrips() for the same userId; requires a language hint for the title.
+	 */
+	async getOngoingTrip(language?: string): Promise<DetectedTrip | null> {
+		const lang = language ?? this.lastLanguage;
+		if (!this.userState || this.userState.currentState !== 'away') {
+			return null;
+		}
+		const nowIso = new Date().toISOString();
+		const awayDuration = this.calculateAwayDuration(
+			this.userState.lastHomeStateStartTime,
+			nowIso
+		);
+		// Same 24h minimum and city gate as a closed trip.
+		if (awayDuration < 24) return null;
+		return this.createTripFromAwayState(awayDuration, nowIso, lang);
+	}
+
+	/**
+	 * Whether the last-processed point placed the user away from home. Cheaper
+	 * than getOngoingTrip() if the caller only needs the boolean.
+	 */
+	isCurrentlyAway(): boolean {
+		return this.userState?.currentState === 'away';
 	}
 
 	private async createTripFromAwayState(
