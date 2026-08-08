@@ -129,9 +129,18 @@ graph TB
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or yarn
-- Fluxbase account and project
+- [Bun](https://bun.sh) (the package manager Wayli standardizes on; see `CLAUDE.md`)
+- A running Fluxbase + Postgres stack. The fastest path is the devcontainer, or the
+  Docker Compose Quick Start in the [root README](../README.md#quick-start):
+
+  ```bash
+  cd ../deploy/docker-compose
+  ./generate-keys.sh && docker compose up -d
+  ```
+
+  This brings up Fluxbase (`http://localhost:8080`) and Postgres. The Wayli web image
+  applies the declarative schema (`fluxbase/schema/public.sql`) automatically on
+  startup — there is no separate migration step.
 
 ### Installation
 
@@ -145,7 +154,7 @@ graph TB
 2. **Install dependencies**
 
    ```bash
-   npm install
+   bun install
    ```
 
 3. **Set up environment variables**
@@ -154,45 +163,52 @@ graph TB
    cp .env.example .env
    ```
 
-   Edit `.env` with your Fluxbase credentials:
+   Edit `.env` with your Fluxbase credentials (point at the stack from step 0):
 
    ```env
-   FLUXBASE_PUBLIC_BASE_URL=your_FLUXBASE_BASE_URL
+   FLUXBASE_PUBLIC_BASE_URL=http://localhost:8080
    PUBLIC_FLUXBASE_ANON_KEY=your_fluxbase_anon_key
    FLUXBASE_SERVICE_ROLE_KEY=your_service_role_key
    ```
 
-4. **Apply the database schema**
+4. **Sync Fluxbase resources and start the dev server**
 
    ```bash
-   npx fluxbase db reset
+   bun run dev:all
+   # ...or, if the schema is already applied: bun run dev
    ```
 
-5. **Start the development server**
+   `dev:all` runs `sync:all` (RPC, functions, jobs, schema, chatbots, MCP, KB) against
+   the running Fluxbase, then starts Vite. The schema is declarative — there is no
+   `fluxbase db reset` / imperative migration directory; it lives in
+   `fluxbase/schema/public.sql` and is reconciled by `fluxbase schema sync`.
 
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser**
-   Navigate to `http://localhost:5173`
+5. **Open your browser**
+   Navigate to `http://localhost:4000`
 
 ## 🧪 Testing
 
 Wayli has comprehensive test coverage across all layers:
 
 ```bash
-# Run all tests
-npm test
+# Run all unit tests
+bun run test
 
 # Run tests with coverage
-npm run test:coverage
+bun run test:coverage
 
 # Run specific test categories
-npm test -- tests/unit/          # Unit tests
-npm test -- tests/components/    # Component tests
-npm test -- tests/accessibility/ # Accessibility tests
-npm test -- tests/integration/   # Integration tests
+bun run test:unit                            # Unit tests (Vitest)
+bun run test:integration                     # Integration tests (Vitest)
+bun run test:accessibility                   # Accessibility tests (Vitest)
+
+# E2E tests (Playwright) — public/auth pages against `bun run dev`
+bun run test:e2e
+
+# Setup-verification smoke — the documented `docker compose up` path.
+# Builds the prod image, brings up an isolated stack, verifies the happy path,
+# and tears everything down. Run this before tagging a release.
+bun run verify:setup
 ```
 
 ### Test Coverage Goals

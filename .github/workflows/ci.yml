@@ -149,3 +149,118 @@ jobs:
           name: playwright-report
           path: web/playwright-report/
           retention-days: 14
+
+  # Setup-verification smoke: brings up the full stack via the documented
+  # `docker compose up` path (building the web image from the PR's own source),
+  # then runs Playwright's setup smoke against it. Verifies that a fresh stack
+  # comes up healthy, the prod image's startup.sh applies the declarative schema
+  # + RLS, first-user signup works, and the dashboard renders without errors.
+  # Kept separate from the fast `e2e` job so public-page tests still gate quickly.
+  e2e-setup:
+    name: Setup smoke (docker compose up)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+          cache: true
+          cache-cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+      # Build the prod web image from THIS branch's source (not the published
+      # ghcr image) so the test exercises the PR's own code.
+      - name: Build Wayli web image
+        run: docker build -t wayli-smoke:local -f Dockerfile .
+
+      # Generate secrets non-interactively (writes anon + service-role keys).
+      - name: Generate stack secrets
+        id: secrets
+        run: |
+          bash deploy/docker-compose/generate-keys.sh --stdout > deploy/docker-compose/.smoke.env
+          # Surface the keys to subsequent steps so Playwright + helpers agree.
+          echo "anon_key=$(grep '^FLUXBASE_ANON_KEY=' deploy/docker-compose/.smoke.env | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+          echo "service_key=$(grep '^FLUXBASE_SERVICE_ROLE_KEY=' deploy/docker-compose/.smoke.env | cut -d= -f2-)" >> "$GITHUB_OUTPUT"
+
+      - name: Bring up the stack
+        run: |
+          docker compose \
+            -f deploy/docker-compose/docker-compose.yml \
+            -f deploy/docker-compose/docker-compose.smoke.yml \
+            --env-file deploy/docker-compose/.smoke.env \
+            up -d --wait
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Prepare SvelteKit
+        working-directory: web
+        run: bunx svelte-kit sync
+
+      - name: Cache Playwright browsers
+        id: playwright-cache-setup
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('web/bun.lock') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache-setup.outputs.cache-hit != 'true'
+        working-directory: web
+        run: bunx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache-setup.outputs.cache-hit == 'true'
+        working-directory: web
+        run: bunx playwright install-deps chromium
+
+      - name: Write web/.env for the smoke
+        working-directory: web
+        env:
+          ANON_KEY: ${{ steps.secrets.outputs.anon_key }}
+          SERVICE_KEY: ${{ steps.secrets.outputs.service_key }}
+        run: |
+          {
+            echo "FLUXBASE_PUBLIC_BASE_URL=http://localhost:8080"
+            echo "PUBLIC_FLUXBASE_ANON_KEY=$ANON_KEY"
+            echo "FLUXBASE_ANON_KEY=$ANON_KEY"
+            echo "FLUXBASE_SERVICE_ROLE_KEY=$SERVICE_KEY"
+          } > .env
+
+      - name: Run setup smoke
+        working-directory: web
+        env:
+          WAYLI_SETUP_PROJECT: '1'
+          WAYLI_BASE_URL: http://localhost:4000
+          FLUXBASE_PUBLIC_BASE_URL: http://localhost:8080
+        run: bun run test:setup
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-setup-report
+          path: web/playwright-report/
+          retention-days: 14
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: |
+          docker compose \
+            -f deploy/docker-compose/docker-compose.yml \
+            -f deploy/docker-compose/docker-compose.smoke.yml \
+            --env-file deploy/docker-compose/.smoke.env \
+            logs --tail=200 || true
+
+      # ALWAYS tear down: destroy containers, volumes, and the isolated network.
+      - name: Tear down the stack
+        if: always()
+        run: |
+          docker compose \
+            -f deploy/docker-compose/docker-compose.yml \
+            -f deploy/docker-compose/docker-compose.smoke.yml \
+            --env-file deploy/docker-compose/.smoke.env \
+            down -v --remove-orphans || true

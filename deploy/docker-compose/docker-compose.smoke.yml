@@ -1,0 +1,40 @@
+# Smoke-test override for the Wayli + Fluxbase stack.
+#
+# Layered on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.smoke.yml up -d --wait
+#
+# What this changes vs. the production compose:
+#   1. Isolates the stack on its own project name + network (wayli-smoke), so it
+#      never touches a devcontainer's fluxbase-network or any other running stack.
+#   2. Uses a locally-built web image (wayli-smoke:local) instead of pulling the
+#      published ghcr image — so the test exercises the PR's own code, not a stale
+#      release. The CI job and scripts/verify-setup.ts build this tag before up.
+#   3. Pins deterministic host ports so Playwright's baseURL and the Fluxbase URL
+#      are stable across runs.
+#   4. Leaves SKIP_SYNC unset (default false) so the prod image's startup.sh runs
+#      sync:all — THIS IS THE CORE THING UNDER TEST: that a fresh stack gets the
+#      declarative schema + RPC + RLS applied automatically on container boot.
+#
+# Everything else (healthchecks, env wiring, declarative-schema flags, depends_on
+# ordering) is inherited from docker-compose.yml — we are testing that file, not a
+# parallel definition.
+
+name: wayli-smoke
+
+services:
+  wayli-web:
+    image: wayli-smoke:local
+    ports:
+      # Pin explicitly so a parallel run can't collide by changing the project name.
+      - '4000:80'
+    environment:
+      # Explicit: startup.sh MUST run sync:all (this is what the smoke verifies).
+      SKIP_SYNC: 'false'
+
+  fluxbase:
+    ports:
+      - '8080:8080'
+
+  postgres:
+    ports:
+      - '5432:5432'
