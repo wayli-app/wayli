@@ -28,7 +28,8 @@
 			"apply": "Aplicar",
 			"create": "Criar",
 			"saving": "Salvando...",
-			"uploading": "Carregando..."
+			"uploading": "Carregando...",
+			"send": "Enviar"
 		},
 		"status": {
 			"error": "Erro",
@@ -144,7 +145,12 @@
 		"undo": "Desfazer",
 		"unknown": "Desconhecido",
 		"unnamed": "Sem nome",
-		"uploading": "Carregando..."
+		"uploading": "Carregando...",
+		"badges": {
+			"new": "NOVO"
+		},
+		"traveler": "viajante",
+		"travelers": "viajantes"
 	},
 	"country": {
 		"NL": "Holanda",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "Perfeito para famílias ou pequenas equipes. Controles administrativos incluídos.",
 		"readyToStart": "Pronto para começar a monitorar suas viagens?",
 		"createAccountToday": "Crie uma conta e comece a documentar suas viagens hoje mesmo.",
-		"createAccount": "Criar uma conta"
+		"createAccount": "Criar uma conta",
+		"autoTrips": "Viagens automáticas",
+		"selfHosted": "Auto-hospedado"
 	},
 	"auth": {
 		"signIn": "Entrar",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "Falha ao dispensar a lista de verificação",
 		"checklistDismissed": "Lista de verificação dispensada",
 		"checklistProgress": "{concluído} de {total} concluído",
-		"checklistTitle": "Comece com Wayli"
+		"checklistTitle": "Comece com Wayli",
+		"tryAi": "Experimente o assistente de IA",
+		"tryAiDesc": "Pergunte sobre suas viagens, planeje um itinerário ou relembre lugares que você visitou"
 	},
 	"statistics": {
 		"loading": "Carregando...",
@@ -1573,7 +1583,7 @@
 		"itemUpdated": "\"{título}\" atualizado"
 	},
 	"profile": {
-		"home": "Página inicial",
+		"home": "Lar",
 		"myTravel": "Minha viagem",
 		"noTrips": "Nenhuma viagem ainda.",
 		"traveled": "viajou",
@@ -1698,18 +1708,18 @@
 		"title": "Amigos",
 		"yourFriends": "Seus amigos ({count})"
 	},
-  "travelersPage": {
-    "title": "Viajantes",
-    "subtitle": "Descubra pessoas que compartilham suas histórias de viagem.",
-    "empty": "Nenhum viajante descoberto ainda."
-  },
-  "storiesPage": {
-    "title": "Histórias",
-    "subtitle": "Leia histórias de viagem da comunidade.",
-    "empty": "Nenhuma história publicada ainda.",
-    "loadMore": "Carregar mais",
-    "allLoaded": "Você chegou ao fim"
-  },
+	"travelersPage": {
+		"title": "Viajantes",
+		"subtitle": "Descubra pessoas que compartilham suas histórias de viagem.",
+		"empty": "Nenhum viajante descoberto ainda."
+	},
+	"storiesPage": {
+		"title": "Histórias",
+		"subtitle": "Leia histórias de viagem da comunidade.",
+		"empty": "Nenhuma história publicada ainda.",
+		"loadMore": "Carregar mais",
+		"allLoaded": "Você chegou ao fim"
+	},
 	"plannerChat": {
 		"addToDay": "Adicionar ao dia {dia}",
 		"addTrip": "Adicionar à viagem",
@@ -1787,6 +1797,37 @@
 		"quotaExceeded": "Limite diário atingido",
 		"rateLimited": "Muitos pedidos. Diminua a velocidade e tente novamente em breve.",
 		"retry": "Tentar novamente",
-		"rowsReturned": "{count} linhas encontradas"
+		"rowsReturned": "{count} linhas encontradas",
+		"agents": {
+			"action": "Agindo",
+			"chat": "Assistente",
+			"kb": "Sua história",
+			"sql": "Seus dados",
+			"supervisor": "Coordenador",
+			"synthesizer": "Escrevendo resposta",
+			"verifier": "Verificando",
+			"web": "Pesquisa na web"
+		},
+		"approve": "Aprovar",
+		"configErrorDesc": "O assistente de IA não está configurado. Um administrador precisa adicionar um provedor nas configurações do servidor.",
+		"connected": "Conectado",
+		"connecting": "Conectando…",
+		"reject": "Rejeitar",
+		"route": "Passos",
+		"routeTooltip": "Etapas que o assistente realizou neste turno",
+		"steps": {
+			"planning": "Planejamento…",
+			"reading": "Lendo seu diário…",
+			"searching": "Pesquisando suas viagens…",
+			"thinking": "Pensamento…",
+			"web": "Pesquisando na web…",
+			"working": "Trabalhando…"
+		},
+		"stop": "Parar",
+		"stopFailed": "Não foi possível interromper a resposta.",
+		"stopped": "Parou",
+		"technicalDetails": "Detalhes técnicos",
+		"webNotSearched": "A pesquisa na Web foi planejada, mas não foi executada",
+		"webSearched": "Pesquisei na web"
 	}
 }

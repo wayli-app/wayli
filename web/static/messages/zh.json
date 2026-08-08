@@ -28,7 +28,8 @@
 			"apply": "申请",
 			"create": "创造",
 			"saving": "保存...",
-			"uploading": "正在上传..."
+			"uploading": "正在上传...",
+			"send": "发送"
 		},
 		"status": {
 			"error": "错误",
@@ -144,7 +145,12 @@
 		"undo": "撤消",
 		"unknown": "未知",
 		"unnamed": "未命名",
-		"uploading": "正在上传..."
+		"uploading": "正在上传...",
+		"badges": {
+			"new": "新的"
+		},
+		"traveler": "游客",
+		"travelers": "旅行者"
 	},
 	"country": {
 		"NL": "荷兰",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "非常适合家庭或小团队。包括管理控件。",
 		"readyToStart": "准备好开始追踪您的旅行了吗？",
 		"createAccountToday": "创建帐户并立即开始记录您的旅程。",
-		"createAccount": "创建账户"
+		"createAccount": "创建账户",
+		"autoTrips": "自动行程",
+		"selfHosted": "自托管"
 	},
 	"auth": {
 		"signIn": "登入",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "无法取消清单",
 		"checklistDismissed": "清单已被驳回",
 		"checklistProgress": "已完成 {completed} 个（共 {total} 个）",
-		"checklistTitle": "开始使用 Wayli"
+		"checklistTitle": "开始使用 Wayli",
+		"tryAi": "试试AI助手",
+		"tryAiDesc": "询问您的旅行、计划行程或回忆您去过的地方"
 	},
 	"statistics": {
 		"loading": "加载中...",
@@ -1577,7 +1587,7 @@
 		"itemUpdated": "更新了“{title}”"
 	},
 	"profile": {
-		"home": "Home",
+		"home": "家",
 		"myTravel": "我的旅行",
 		"noTrips": "No trips yet.",
 		"traveled": "旅行过",
@@ -1702,18 +1712,18 @@
 		"title": "朋友们",
 		"yourFriends": "您的朋友 ({count})"
 	},
-  "travelersPage": {
-    "title": "旅行者",
-    "subtitle": "发现分享旅行故事的人。",
-    "empty": "尚未发现旅行者。"
-  },
-  "storiesPage": {
-    "title": "故事",
-    "subtitle": "阅读社区的旅行故事。",
-    "empty": "尚未发布故事。",
-    "loadMore": "加载更多",
-    "allLoaded": "已显示全部"
-  },
+	"travelersPage": {
+		"title": "旅行者",
+		"subtitle": "发现分享旅行故事的人。",
+		"empty": "尚未发现旅行者。"
+	},
+	"storiesPage": {
+		"title": "故事",
+		"subtitle": "阅读社区的旅行故事。",
+		"empty": "尚未发布故事。",
+		"loadMore": "加载更多",
+		"allLoaded": "已显示全部"
+	},
 	"plannerChat": {
 		"addToDay": "添加到第 {day} 天",
 		"addTrip": "添加到行程",
@@ -1791,6 +1801,37 @@
 		"quotaExceeded": "已达每日限额",
 		"rateLimited": "请求太多。请放慢速度，稍后再试。",
 		"retry": "重试",
-		"rowsReturned": "找到 {count} 行"
+		"rowsReturned": "找到 {count} 行",
+		"agents": {
+			"action": "采取行动",
+			"chat": "助手",
+			"kb": "你的历史",
+			"sql": "您的数据",
+			"supervisor": "协调员",
+			"synthesizer": "写回复",
+			"verifier": "检查",
+			"web": "网页搜索"
+		},
+		"approve": "批准",
+		"configErrorDesc": "AI助手未配置。管理员需要在服务器设置中添加提供商。",
+		"connected": "已连接",
+		"connecting": "正在连接…",
+		"reject": "拒绝",
+		"route": "步骤",
+		"routeTooltip": "助理本轮采取的步骤",
+		"steps": {
+			"planning": "规划…",
+			"reading": "读你的日记…",
+			"searching": "正在搜索您的行程...",
+			"thinking": "思维…",
+			"web": "正在网上搜索...",
+			"working": "在职的…"
+		},
+		"stop": "停止",
+		"stopFailed": "无法停止响应。",
+		"stopped": "已停止",
+		"technicalDetails": "技术细节",
+		"webNotSearched": "计划进行网络搜索但未运行",
+		"webSearched": "网上搜了一下"
 	}
 }

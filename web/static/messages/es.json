@@ -28,7 +28,8 @@
 			"apply": "Aplicar",
 			"create": "Crear",
 			"saving": "Ahorro...",
-			"uploading": "Subiendo..."
+			"uploading": "Subiendo...",
+			"send": "Enviar"
 		},
 		"status": {
 			"error": "Error",
@@ -144,7 +145,12 @@
 		"undo": "Deshacer",
 		"unknown": "Desconocido",
 		"unnamed": "Sin nombre",
-		"uploading": "Subiendo..."
+		"uploading": "Subiendo...",
+		"badges": {
+			"new": "NUEVO"
+		},
+		"traveler": "viajero",
+		"travelers": "viajeros"
 	},
 	"country": {
 		"NL": "Países Bajos",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "Perfecto para familias o equipos pequeños. Controles de administrador incluidos.",
 		"readyToStart": "¿Listo para comenzar a rastrear tus viajes?",
 		"createAccountToday": "Crea una cuenta y comienza a documentar tus viajes hoy.",
-		"createAccount": "Crear Cuenta"
+		"createAccount": "Crear Cuenta",
+		"autoTrips": "Viajes automáticos",
+		"selfHosted": "Autohospedado"
 	},
 	"auth": {
 		"signIn": "Iniciar sesión",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "No se pudo descartar la lista de verificación",
 		"checklistDismissed": "Lista de verificación descartada",
 		"checklistProgress": "{completado} de {total} completado",
-		"checklistTitle": "Get Started with Wayli"
+		"checklistTitle": "Get Started with Wayli",
+		"tryAi": "Prueba el asistente de IA",
+		"tryAiDesc": "Pregunte sobre sus viajes, planifique un itinerario o recuerde lugares que visitó"
 	},
 	"statistics": {
 		"loading": "Cargando...",
@@ -1573,7 +1583,7 @@
 		"itemUpdated": "Actualizado \"{título}\""
 	},
 	"profile": {
-		"home": "Inicio",
+		"home": "Hogar",
 		"myTravel": "mi viaje",
 		"noTrips": "Aún no hay viajes.",
 		"traveled": "viajado",
@@ -1698,18 +1708,18 @@
 		"title": "Amigos",
 		"yourFriends": "Tus amigos ({count})"
 	},
-  "travelersPage": {
-    "title": "Viajeros",
-    "subtitle": "Descubre personas que comparten sus historias de viaje.",
-    "empty": "Aún no se han descubierto viajeros."
-  },
-  "storiesPage": {
-    "title": "Historias",
-    "subtitle": "Lee historias de viaje de la comunidad.",
-    "empty": "Aún no se han publicado historias.",
-    "loadMore": "Cargar más",
-    "allLoaded": "Has llegado al final"
-  },
+	"travelersPage": {
+		"title": "Viajeros",
+		"subtitle": "Descubre personas que comparten sus historias de viaje.",
+		"empty": "Aún no se han descubierto viajeros."
+	},
+	"storiesPage": {
+		"title": "Historias",
+		"subtitle": "Lee historias de viaje de la comunidad.",
+		"empty": "Aún no se han publicado historias.",
+		"loadMore": "Cargar más",
+		"allLoaded": "Has llegado al final"
+	},
 	"plannerChat": {
 		"addToDay": "Agregar al día {día}",
 		"addTrip": "Añadir al viaje",
@@ -1787,6 +1797,37 @@
 		"quotaExceeded": "Límite diario alcanzado",
 		"rateLimited": "Demasiadas solicitudes. Reduzca la velocidad y vuelva a intentarlo en breve.",
 		"retry": "Rever",
-		"rowsReturned": "{count} filas encontradas"
+		"rowsReturned": "{count} filas encontradas",
+		"agents": {
+			"action": "Tomar medidas",
+			"chat": "Asistente",
+			"kb": "tu historia",
+			"sql": "Tus datos",
+			"supervisor": "Coordinador",
+			"synthesizer": "Escribir respuesta",
+			"verifier": "De cheques",
+			"web": "búsqueda web"
+		},
+		"approve": "Aprobar",
+		"configErrorDesc": "El asistente de IA no está configurado. Un administrador necesita agregar un proveedor en la configuración del servidor.",
+		"connected": "Conectado",
+		"connecting": "Conectando…",
+		"reject": "Rechazar",
+		"route": "Pasos",
+		"routeTooltip": "Pasos que tomó el asistente en este turno",
+		"steps": {
+			"planning": "Planificación…",
+			"reading": "Leyendo tu diario...",
+			"searching": "Buscando tus viajes…",
+			"thinking": "Pensamiento…",
+			"web": "Buscando en la web…",
+			"working": "Laboral…"
+		},
+		"stop": "Detener",
+		"stopFailed": "No se pudo detener la respuesta.",
+		"stopped": "Interrumpido",
+		"technicalDetails": "Detalles técnicos",
+		"webNotSearched": "Se planeó una búsqueda web pero no se ejecutó",
+		"webSearched": "Busqué en la web"
 	}
 }

@@ -28,7 +28,8 @@
 			"apply": "Toepassen",
 			"create": "Creëren",
 			"saving": "Besparing...",
-			"uploading": "Uploaden..."
+			"uploading": "Uploaden...",
+			"send": "Versturen"
 		},
 		"status": {
 			"error": "Fout",
@@ -144,7 +145,12 @@
 		"undo": "Ongedaan maken",
 		"unknown": "Onbekend",
 		"unnamed": "Naamloos",
-		"uploading": "Uploaden..."
+		"uploading": "Uploaden...",
+		"badges": {
+			"new": "NIEUW"
+		},
+		"traveler": "reiziger",
+		"travelers": "reizigers"
 	},
 	"country": {
 		"NL": "Nederland",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "Perfect voor gezinnen of kleine teams. Admin controles inbegrepen.",
 		"readyToStart": "Klaar om je reizen te tracken?",
 		"createAccountToday": "Maak een account aan en begin vandaag met het documenteren van je reizen.",
-		"createAccount": "Account Aanmaken"
+		"createAccount": "Account Aanmaken",
+		"autoTrips": "Automatische ritten",
+		"selfHosted": "Zelf gehost"
 	},
 	"auth": {
 		"signIn": "Inloggen",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "Kan de checklist niet negeren",
 		"checklistDismissed": "Controlelijst afgewezen",
 		"checklistProgress": "{voltooid} van {totaal} voltooid",
-		"checklistTitle": "Ga aan de slag met Wayli"
+		"checklistTitle": "Ga aan de slag met Wayli",
+		"tryAi": "Probeer de AI-assistent",
+		"tryAiDesc": "Vraag naar uw reizen, plan een route of herinner plaatsen die u hebt bezocht"
 	},
 	"statistics": {
 		"loading": "Laden...",
@@ -1698,18 +1708,18 @@
 		"title": "Vrienden",
 		"yourFriends": "Je vrienden ({count})"
 	},
-  "travelersPage": {
-    "title": "Reizigers",
-    "subtitle": "Ontdek mensen die hun reisverhalen delen.",
-    "empty": "Nog geen reizigers gevonden."
-  },
-  "storiesPage": {
-    "title": "Verhalen",
-    "subtitle": "Lees reisverhalen van de community.",
-    "empty": "Nog geen verhalen gepubliceerd.",
-    "loadMore": "Meer laden",
-    "allLoaded": "Je hebt alles gezien"
-  },
+	"travelersPage": {
+		"title": "Reizigers",
+		"subtitle": "Ontdek mensen die hun reisverhalen delen.",
+		"empty": "Nog geen reizigers gevonden."
+	},
+	"storiesPage": {
+		"title": "Verhalen",
+		"subtitle": "Lees reisverhalen van de community.",
+		"empty": "Nog geen verhalen gepubliceerd.",
+		"loadMore": "Meer laden",
+		"allLoaded": "Je hebt alles gezien"
+	},
 	"plannerChat": {
 		"addToDay": "Toevoegen aan dag {dag}",
 		"addTrip": "Toevoegen aan reis",
@@ -1787,6 +1797,37 @@
 		"quotaExceeded": "Daglimiet bereikt",
 		"rateLimited": "Te veel verzoeken. Doe het rustiger aan en probeer het binnenkort opnieuw.",
 		"retry": "Opnieuw proberen",
-		"rowsReturned": "{count} rijen gevonden"
+		"rowsReturned": "{count} rijen gevonden",
+		"agents": {
+			"action": "Actie ondernemen",
+			"chat": "Assistent",
+			"kb": "Jouw geschiedenis",
+			"sql": "Jouw gegevens",
+			"supervisor": "Coördinator",
+			"synthesizer": "Antwoord schrijven",
+			"verifier": "Controleren",
+			"web": "Zoeken op internet"
+		},
+		"approve": "Goedkeuren",
+		"configErrorDesc": "De AI-assistent is niet geconfigureerd. Een beheerder moet een provider toevoegen in de serverinstellingen.",
+		"connected": "Aangesloten",
+		"connecting": "Verbinden…",
+		"reject": "Afwijzen",
+		"route": "Stappen",
+		"routeTooltip": "Stappen die de assistent deze beurt zette",
+		"steps": {
+			"planning": "Planning…",
+			"reading": "Je dagboek lezen...",
+			"searching": "Je reizen zoeken…",
+			"thinking": "Denken…",
+			"web": "Zoeken op internet…",
+			"working": "Werken…"
+		},
+		"stop": "Stop",
+		"stopFailed": "Kon de reactie niet tegenhouden.",
+		"stopped": "Gestopt",
+		"technicalDetails": "Technische details",
+		"webNotSearched": "Zoeken op internet was gepland, maar is niet uitgevoerd",
+		"webSearched": "Op internet gezocht"
 	}
 }

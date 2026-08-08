@@ -28,7 +28,8 @@
 			"apply": "適用する",
 			"create": "作成する",
 			"saving": "保存中...",
-			"uploading": "アップロード中..."
+			"uploading": "アップロード中...",
+			"send": "送信"
 		},
 		"status": {
 			"error": "エラー",
@@ -144,7 +145,12 @@
 		"undo": "元に戻す",
 		"unknown": "未知",
 		"unnamed": "無名",
-		"uploading": "アップロード中..."
+		"uploading": "アップロード中...",
+		"badges": {
+			"new": "新しい"
+		},
+		"traveler": "旅行者",
+		"travelers": "旅行者"
 	},
 	"country": {
 		"NL": "オランダ",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "家族や少人数のチームに最適です。管理者コントロールが含まれています。",
 		"readyToStart": "旅行の記録を始める準備はできましたか?",
 		"createAccountToday": "アカウントを作成して、今すぐ旅の記録を始めましょう。",
-		"createAccount": "アカウントを作成する"
+		"createAccount": "アカウントを作成する",
+		"autoTrips": "自動トリップ",
+		"selfHosted": "自己ホスト型"
 	},
 	"auth": {
 		"signIn": "サインイン",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "チェックリストを閉じることができませんでした",
 		"checklistDismissed": "チェックリストが却下されました",
 		"checklistProgress": "{合計} 件中 {完了} 件が完了しました",
-		"checklistTitle": "Wayli を始めましょう"
+		"checklistTitle": "Wayli を始めましょう",
+		"tryAi": "AIアシスタントを試してみる",
+		"tryAiDesc": "旅行について尋ねたり、旅程を計画したり、訪れた場所を思い出したりできます"
 	},
 	"statistics": {
 		"loading": "読み込み中...",
@@ -1577,7 +1587,7 @@
 		"itemUpdated": "「{title}」を更新しました"
 	},
 	"profile": {
-		"home": "ホーム",
+		"home": "家",
 		"myTravel": "私の旅行",
 		"noTrips": "まだ旅行はありません。",
 		"traveled": "旅行した",
@@ -1702,18 +1712,18 @@
 		"title": "友達",
 		"yourFriends": "あなたの友達 ({count})"
 	},
-  "travelersPage": {
-    "title": "トラベラー",
-    "subtitle": "旅行のストーリーをシェアする人々を見つけましょう。",
-    "empty": "まだトラベラーが見つかりません。"
-  },
-  "storiesPage": {
-    "title": "ストーリー",
-    "subtitle": "コミュニティの旅行ストーリーを読みましょう。",
-    "empty": "まだストーリーが公開されていません。",
-    "loadMore": "もっと見る",
-    "allLoaded": "すべて表示しました"
-  },
+	"travelersPage": {
+		"title": "トラベラー",
+		"subtitle": "旅行のストーリーをシェアする人々を見つけましょう。",
+		"empty": "まだトラベラーが見つかりません。"
+	},
+	"storiesPage": {
+		"title": "ストーリー",
+		"subtitle": "コミュニティの旅行ストーリーを読みましょう。",
+		"empty": "まだストーリーが公開されていません。",
+		"loadMore": "もっと見る",
+		"allLoaded": "すべて表示しました"
+	},
 	"plannerChat": {
 		"addToDay": "日に追加 {day}",
 		"addTrip": "旅行に追加",
@@ -1791,6 +1801,37 @@
 		"quotaExceeded": "1 日の制限に達しました",
 		"rateLimited": "リクエストが多すぎます。速度を落として、すぐにもう一度試してください。",
 		"retry": "リトライ",
-		"rowsReturned": "{count} 行が見つかりました"
+		"rowsReturned": "{count} 行が見つかりました",
+		"agents": {
+			"action": "行動を起こす",
+			"chat": "アシスタント",
+			"kb": "あなたの歴史",
+			"sql": "あなたのデータ",
+			"supervisor": "コーディネーター",
+			"synthesizer": "返信を書く",
+			"verifier": "チェック中",
+			"web": "ウェブ検索"
+		},
+		"approve": "承認する",
+		"configErrorDesc": "AI アシスタントが設定されていません。管理者はサーバー設定にプロバイダーを追加する必要があります。",
+		"connected": "接続済み",
+		"connecting": "接続中…",
+		"reject": "拒否する",
+		"route": "ステップ",
+		"routeTooltip": "アシスタントがこのターンに実行した手順",
+		"steps": {
+			"planning": "計画中…",
+			"reading": "日記を読んでいると…",
+			"searching": "旅行を検索中…",
+			"thinking": "考え…",
+			"web": "ウェブを検索中…",
+			"working": "働く…"
+		},
+		"stop": "停止",
+		"stopFailed": "応答を停止できませんでした。",
+		"stopped": "停止しました",
+		"technicalDetails": "技術的な詳細",
+		"webNotSearched": "Web 検索が計画されましたが、実行されませんでした",
+		"webSearched": "ウェブで検索した"
 	}
 }

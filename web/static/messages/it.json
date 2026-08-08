@@ -28,7 +28,8 @@
 			"apply": "Fare domanda a",
 			"create": "Creare",
 			"saving": "Risparmio...",
-			"uploading": "Caricamento..."
+			"uploading": "Caricamento...",
+			"send": "Inviare"
 		},
 		"status": {
 			"error": "Errore",
@@ -144,7 +145,12 @@
 		"undo": "Disfare",
 		"unknown": "Sconosciuto",
 		"unnamed": "Senza nome",
-		"uploading": "Caricamento..."
+		"uploading": "Caricamento...",
+		"badges": {
+			"new": "NUOVO"
+		},
+		"traveler": "viaggiatore",
+		"travelers": "viaggiatori"
 	},
 	"country": {
 		"NL": "Paesi Bassi",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "Perfetto per famiglie o piccoli gruppi. Controlli di amministrazione inclusi.",
 		"readyToStart": "Pronto per iniziare a monitorare i tuoi viaggi?",
 		"createAccountToday": "Crea un account e inizia a documentare i tuoi viaggi oggi stesso.",
-		"createAccount": "Creare un account"
+		"createAccount": "Creare un account",
+		"autoTrips": "Viaggi automatici",
+		"selfHosted": "Ospitato autonomamente"
 	},
 	"auth": {
 		"signIn": "Registrazione",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "Impossibile ignorare l'elenco di controllo",
 		"checklistDismissed": "Lista di controllo respinta",
 		"checklistProgress": "{completato} di {totale} completato",
-		"checklistTitle": "Inizia con Wayli"
+		"checklistTitle": "Inizia con Wayli",
+		"tryAi": "Prova l'assistente AI",
+		"tryAiDesc": "Chiedi informazioni sui tuoi viaggi, pianifica un itinerario o ricorda i luoghi che hai visitato"
 	},
 	"statistics": {
 		"loading": "Caricamento...",
@@ -1698,18 +1708,18 @@
 		"title": "Amici",
 		"yourFriends": "I tuoi amici ({count})"
 	},
-  "travelersPage": {
-    "title": "Viaggiatori",
-    "subtitle": "Scopri persone che condividono le loro storie di viaggio.",
-    "empty": "Nessun viaggiatore scoperto ancora."
-  },
-  "storiesPage": {
-    "title": "Storie",
-    "subtitle": "Leggi storie di viaggio della community.",
-    "empty": "Nessuna storia pubblicata ancora.",
-    "loadMore": "Carica altro",
-    "allLoaded": "Hai visto tutto"
-  },
+	"travelersPage": {
+		"title": "Viaggiatori",
+		"subtitle": "Scopri persone che condividono le loro storie di viaggio.",
+		"empty": "Nessun viaggiatore scoperto ancora."
+	},
+	"storiesPage": {
+		"title": "Storie",
+		"subtitle": "Leggi storie di viaggio della community.",
+		"empty": "Nessuna storia pubblicata ancora.",
+		"loadMore": "Carica altro",
+		"allLoaded": "Hai visto tutto"
+	},
 	"plannerChat": {
 		"addToDay": "Aggiungi al giorno {giorno}",
 		"addTrip": "Aggiungi al viaggio",
@@ -1787,6 +1797,37 @@
 		"quotaExceeded": "Limite giornaliero raggiunto",
 		"rateLimited": "Troppe richieste. Per favore rallenta e riprova a breve.",
 		"retry": "Riprova",
-		"rowsReturned": "{count} righe trovate"
+		"rowsReturned": "{count} righe trovate",
+		"agents": {
+			"action": "Agire",
+			"chat": "Assistente",
+			"kb": "La tua storia",
+			"sql": "I tuoi dati",
+			"supervisor": "Coordinatore",
+			"synthesizer": "Risposta scritta",
+			"verifier": "Controllo",
+			"web": "Ricerca sul Web"
+		},
+		"approve": "Approvare",
+		"configErrorDesc": "L'assistente AI non è configurato. Un amministratore deve aggiungere un provider nelle impostazioni del server.",
+		"connected": "Collegato",
+		"connecting": "Connessione…",
+		"reject": "Rifiutare",
+		"route": "Passi",
+		"routeTooltip": "Passi che l'assistente ha compiuto in questo turno",
+		"steps": {
+			"planning": "Pianificazione…",
+			"reading": "Leggendo il tuo diario…",
+			"searching": "Ricerca dei tuoi viaggi…",
+			"thinking": "Pensiero…",
+			"web": "Ricerca sul Web…",
+			"working": "Lavorando…"
+		},
+		"stop": "Fermare",
+		"stopFailed": "Impossibile interrompere la risposta.",
+		"stopped": "Fermato",
+		"technicalDetails": "Dettagli tecnici",
+		"webNotSearched": "La ricerca sul Web è stata pianificata ma non è stata eseguita",
+		"webSearched": "Ho cercato sul web"
 	}
 }

@@ -28,7 +28,8 @@
 			"apply": "Appliquer",
 			"create": "Créer",
 			"saving": "Économie...",
-			"uploading": "Téléchargement..."
+			"uploading": "Téléchargement...",
+			"send": "Envoyer"
 		},
 		"status": {
 			"error": "Erreur",
@@ -144,7 +145,12 @@
 		"undo": "Défaire",
 		"unknown": "Inconnu",
 		"unnamed": "Anonyme",
-		"uploading": "Téléchargement..."
+		"uploading": "Téléchargement...",
+		"badges": {
+			"new": "NOUVEAU"
+		},
+		"traveler": "voyageur",
+		"travelers": "voyageurs"
 	},
 	"country": {
 		"NL": "Pays-Bas",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "Parfait pour les familles ou les petites équipes. Contrôles d'administration inclus.",
 		"readyToStart": "Prêt à commencer à suivre vos voyages ?",
 		"createAccountToday": "Créez un compte et commencez à documenter vos voyages dès aujourd'hui.",
-		"createAccount": "Créer un compte"
+		"createAccount": "Créer un compte",
+		"autoTrips": "Déplacements automatiques",
+		"selfHosted": "Auto-hébergé"
 	},
 	"auth": {
 		"signIn": "Se connecter",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "Échec de la suppression de la liste de contrôle",
 		"checklistDismissed": "Liste de contrôle rejetée",
 		"checklistProgress": "{terminé} sur {total} terminé",
-		"checklistTitle": "Commencez avec Wayli"
+		"checklistTitle": "Commencez avec Wayli",
+		"tryAi": "Essayez l'assistant IA",
+		"tryAiDesc": "Renseignez-vous sur vos voyages, planifiez un itinéraire ou rappelez-vous les lieux que vous avez visités"
 	},
 	"statistics": {
 		"loading": "Chargement...",
@@ -1576,7 +1586,7 @@
 		"itemUpdated": "\"{title}\" mis à jour"
 	},
 	"profile": {
-		"home": "Accueil",
+		"home": "Maison",
 		"myTravel": "Mon voyage",
 		"noTrips": "Pas encore de voyages.",
 		"traveled": "voyagé",
@@ -1701,18 +1711,18 @@
 		"title": "Amis",
 		"yourFriends": "Vos amis ({count})"
 	},
-  "travelersPage": {
-    "title": "Voyageurs",
-    "subtitle": "Découvrez des gens qui partagent leurs récits de voyage.",
-    "empty": "Aucun voyageur découvert pour le moment."
-  },
-  "storiesPage": {
-    "title": "Récits",
-    "subtitle": "Lisez les récits de voyage de la communauté.",
-    "empty": "Aucun récit publié pour le moment.",
-    "loadMore": "Charger plus",
-    "allLoaded": "Vous avez tout vu"
-  },
+	"travelersPage": {
+		"title": "Voyageurs",
+		"subtitle": "Découvrez des gens qui partagent leurs récits de voyage.",
+		"empty": "Aucun voyageur découvert pour le moment."
+	},
+	"storiesPage": {
+		"title": "Récits",
+		"subtitle": "Lisez les récits de voyage de la communauté.",
+		"empty": "Aucun récit publié pour le moment.",
+		"loadMore": "Charger plus",
+		"allLoaded": "Vous avez tout vu"
+	},
 	"plannerChat": {
 		"addToDay": "Ajouter au jour {jour}",
 		"addTrip": "Ajouter au voyage",
@@ -1790,6 +1800,37 @@
 		"quotaExceeded": "Limite quotidienne atteinte",
 		"rateLimited": "Trop de demandes. Veuillez ralentir et réessayer sous peu.",
 		"retry": "Réessayer",
-		"rowsReturned": "{count} lignes trouvées"
+		"rowsReturned": "{count} lignes trouvées",
+		"agents": {
+			"action": "Passer à l'action",
+			"chat": "Assistant",
+			"kb": "Votre histoire",
+			"sql": "Vos données",
+			"supervisor": "Coordinateur",
+			"synthesizer": "Rédaction de la réponse",
+			"verifier": "Vérification",
+			"web": "Recherche sur le Web"
+		},
+		"approve": "Approuver",
+		"configErrorDesc": "L'assistant IA n'est pas configuré. Un administrateur doit ajouter un fournisseur dans les paramètres du serveur.",
+		"connected": "Connecté",
+		"connecting": "De liaison…",
+		"reject": "Rejeter",
+		"route": "Mesures",
+		"routeTooltip": "Étapes que l'assistant a prises à ce tour",
+		"steps": {
+			"planning": "Planification…",
+			"reading": "Lire votre journal…",
+			"searching": "Recherche de vos voyages…",
+			"thinking": "Pensée…",
+			"web": "Recherche sur le Web…",
+			"working": "Fonctionnement…"
+		},
+		"stop": "Arrêt",
+		"stopFailed": "Impossible d'arrêter la réponse.",
+		"stopped": "Arrêté",
+		"technicalDetails": "Détails techniques",
+		"webNotSearched": "Une recherche sur le Web était prévue mais n'a pas été exécutée",
+		"webSearched": "J'ai cherché sur le Web"
 	}
 }

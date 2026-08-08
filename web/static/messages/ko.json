@@ -28,7 +28,8 @@
 			"apply": "적용하다",
 			"create": "만들다",
 			"saving": "절약...",
-			"uploading": "업로드 중..."
+			"uploading": "업로드 중...",
+			"send": "보내다"
 		},
 		"status": {
 			"error": "오류",
@@ -144,7 +145,12 @@
 		"undo": "끄르다",
 		"unknown": "알려지지 않은",
 		"unnamed": "이름 없음",
-		"uploading": "업로드 중..."
+		"uploading": "업로드 중...",
+		"badges": {
+			"new": "새로운"
+		},
+		"traveler": "여행자",
+		"travelers": "여행자"
 	},
 	"country": {
 		"NL": "네덜란드",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "가족이나 소규모 팀에 적합합니다. 관리 제어 기능이 포함되어 있습니다.",
 		"readyToStart": "여행 추적을 시작할 준비가 되셨나요?",
 		"createAccountToday": "지금 계정을 만들고 여행을 기록해 보세요.",
-		"createAccount": "계정 만들기"
+		"createAccount": "계정 만들기",
+		"autoTrips": "자동 여행",
+		"selfHosted": "자체 호스팅"
 	},
 	"auth": {
 		"signIn": "로그인",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "체크리스트를 닫지 못했습니다.",
 		"checklistDismissed": "체크리스트가 닫혔습니다.",
 		"checklistProgress": "{total} 중 {completed} 완료됨",
-		"checklistTitle": "Wayli 시작하기"
+		"checklistTitle": "Wayli 시작하기",
+		"tryAi": "AI 어시스턴트를 사용해 보세요",
+		"tryAiDesc": "여행에 대해 물어보고, 여행 일정을 계획하고, 방문한 장소를 기억해 보세요."
 	},
 	"statistics": {
 		"loading": "로드 중...",
@@ -1577,7 +1587,7 @@
 		"itemUpdated": "\"{제목}\" 업데이트됨"
 	},
 	"profile": {
-		"home": "홈",
+		"home": "집",
 		"myTravel": "나의 여행",
 		"noTrips": "아직 여행이 없습니다.",
 		"traveled": "여행했다",
@@ -1702,18 +1712,18 @@
 		"title": "친구",
 		"yourFriends": "당신의 친구({count})"
 	},
-  "travelersPage": {
-    "title": "여행자",
-    "subtitle": "여행 이야기를 공유하는 사람들을 만나보세요.",
-    "empty": "아직 발견된 여행자가 없습니다."
-  },
-  "storiesPage": {
-    "title": "스토리",
-    "subtitle": "커뮤니티의 여행 이야기를 읽어보세요.",
-    "empty": "아직 게시된 스토리가 없습니다.",
-    "loadMore": "더 보기",
-    "allLoaded": "모두 확인했습니다"
-  },
+	"travelersPage": {
+		"title": "여행자",
+		"subtitle": "여행 이야기를 공유하는 사람들을 만나보세요.",
+		"empty": "아직 발견된 여행자가 없습니다."
+	},
+	"storiesPage": {
+		"title": "스토리",
+		"subtitle": "커뮤니티의 여행 이야기를 읽어보세요.",
+		"empty": "아직 게시된 스토리가 없습니다.",
+		"loadMore": "더 보기",
+		"allLoaded": "모두 확인했습니다"
+	},
 	"plannerChat": {
 		"addToDay": "{일}일에 추가",
 		"addTrip": "여행에 추가",
@@ -1791,6 +1801,37 @@
 		"quotaExceeded": "일일 한도 도달",
 		"rateLimited": "요청이 너무 많습니다. 속도를 늦춘 후 잠시 후 다시 시도해 주세요.",
 		"retry": "다시 해 보다",
-		"rowsReturned": "{count}개의 행을 찾았습니다."
+		"rowsReturned": "{count}개의 행을 찾았습니다.",
+		"agents": {
+			"action": "조치를 취하다",
+			"chat": "어시스턴트",
+			"kb": "당신의 역사",
+			"sql": "귀하의 데이터",
+			"supervisor": "조정자",
+			"synthesizer": "답글 쓰기",
+			"verifier": "확인 중",
+			"web": "웹 검색"
+		},
+		"approve": "승인하다",
+		"configErrorDesc": "AI 도우미가 구성되지 않았습니다. 관리자는 서버 설정에서 공급자를 추가해야 합니다.",
+		"connected": "연결됨",
+		"connecting": "연결 중…",
+		"reject": "거부하다",
+		"route": "단계",
+		"routeTooltip": "어시스턴트가 이번 차례에 수행한 단계",
+		"steps": {
+			"planning": "계획…",
+			"reading": "일기를 읽는 중…",
+			"searching": "여행 검색 중…",
+			"thinking": "생각…",
+			"web": "웹 검색 중…",
+			"working": "일하고 있는…"
+		},
+		"stop": "멈추다",
+		"stopFailed": "응답을 중지할 수 없습니다.",
+		"stopped": "중지됨",
+		"technicalDetails": "기술적인 세부사항",
+		"webNotSearched": "웹 검색이 계획되었지만 실행되지 않았습니다.",
+		"webSearched": "웹에서 검색함"
 	}
 }

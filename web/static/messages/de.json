@@ -28,7 +28,8 @@
 			"apply": "Anwenden",
 			"create": "Erstellen",
 			"saving": "Sparen...",
-			"uploading": "Hochladen..."
+			"uploading": "Hochladen...",
+			"send": "Schicken"
 		},
 		"status": {
 			"error": "Fehler",
@@ -144,7 +145,12 @@
 		"undo": "Rückgängig machen",
 		"unknown": "Unbekannt",
 		"unnamed": "Unbenannt",
-		"uploading": "Hochladen..."
+		"uploading": "Hochladen...",
+		"badges": {
+			"new": "NEU"
+		},
+		"traveler": "Reisender",
+		"travelers": "Reisende"
 	},
 	"country": {
 		"NL": "Niederlande",
@@ -275,7 +281,9 @@
 		"multiUserDescription": "Perfekt für Familien oder kleine Teams. Admin-Steuerelemente enthalten.",
 		"readyToStart": "Sind Sie bereit, Ihre Reisen zu verfolgen?",
 		"createAccountToday": "Erstellen Sie ein Konto und beginnen Sie noch heute mit der Dokumentation Ihrer Reisen.",
-		"createAccount": "Benutzerkonto erstellen"
+		"createAccount": "Benutzerkonto erstellen",
+		"autoTrips": "Automatische Fahrten",
+		"selfHosted": "Selbst gehostet"
 	},
 	"auth": {
 		"signIn": "anmelden",
@@ -451,7 +459,9 @@
 		"checklistDismissError": "Checkliste konnte nicht geschlossen werden",
 		"checklistDismissed": "Checkliste verworfen",
 		"checklistProgress": "{completed} von {total} abgeschlossen",
-		"checklistTitle": "Beginnen Sie mit Wayli"
+		"checklistTitle": "Beginnen Sie mit Wayli",
+		"tryAi": "Probieren Sie den KI-Assistenten aus",
+		"tryAiDesc": "Fragen Sie nach Ihren Reisen, planen Sie eine Reiseroute oder erinnern Sie sich an Orte, die Sie besucht haben"
 	},
 	"statistics": {
 		"loading": "Laden...",
@@ -1573,7 +1583,7 @@
 		"itemUpdated": "Aktualisiert „{title}“"
 	},
 	"profile": {
-		"home": "Startseite",
+		"home": "Heim",
 		"myTravel": "Meine Reise",
 		"noTrips": "Noch keine Reisen.",
 		"traveled": "gereist",
@@ -1698,18 +1708,18 @@
 		"title": "Freunde",
 		"yourFriends": "Deine Freunde ({count})"
 	},
-  "travelersPage": {
-    "title": "Reisende",
-    "subtitle": "Entdeck Leute, die ihre Reisegeschichten teilen.",
-    "empty": "Noch keine Reisenden entdeckt."
-  },
-  "storiesPage": {
-    "title": "Geschichten",
-    "subtitle": "Lies Reisegeschichten der Community.",
-    "empty": "Noch keine Geschichten veröffentlicht.",
-    "loadMore": "Mehr laden",
-    "allLoaded": "Du hast alles gesehen"
-  },
+	"travelersPage": {
+		"title": "Reisende",
+		"subtitle": "Entdeck Leute, die ihre Reisegeschichten teilen.",
+		"empty": "Noch keine Reisenden entdeckt."
+	},
+	"storiesPage": {
+		"title": "Geschichten",
+		"subtitle": "Lies Reisegeschichten der Community.",
+		"empty": "Noch keine Geschichten veröffentlicht.",
+		"loadMore": "Mehr laden",
+		"allLoaded": "Du hast alles gesehen"
+	},
 	"plannerChat": {
 		"addToDay": "Zum Tag {day} hinzufügen",
 		"addTrip": "Zur Reise hinzufügen",
@@ -1787,6 +1797,37 @@
 		"quotaExceeded": "Tageslimit erreicht",
 		"rateLimited": "Zu viele Anfragen. Bitte fahren Sie langsamer und versuchen Sie es in Kürze noch einmal.",
 		"retry": "Wiederholen",
-		"rowsReturned": "{count} Zeilen gefunden"
+		"rowsReturned": "{count} Zeilen gefunden",
+		"agents": {
+			"action": "Maßnahmen ergreifen",
+			"chat": "Assistent",
+			"kb": "Ihre Geschichte",
+			"sql": "Ihre Daten",
+			"supervisor": "Koordinator",
+			"synthesizer": "Antwort schreiben",
+			"verifier": "Überprüfung",
+			"web": "Websuche"
+		},
+		"approve": "Genehmigen",
+		"configErrorDesc": "Der KI-Assistent ist nicht konfiguriert. Ein Administrator muss in den Servereinstellungen einen Anbieter hinzufügen.",
+		"connected": "Verbunden",
+		"connecting": "Verbinden…",
+		"reject": "Ablehnen",
+		"route": "Schritte",
+		"routeTooltip": "Schritte, die der Assistent in dieser Runde unternommen hat",
+		"steps": {
+			"planning": "Planung…",
+			"reading": "Dein Tagebuch lesen…",
+			"searching": "Suche nach Ihren Reisen…",
+			"thinking": "Denken…",
+			"web": "Suche im Internet…",
+			"working": "Arbeiten…"
+		},
+		"stop": "Stoppen",
+		"stopFailed": "Die Antwort konnte nicht gestoppt werden.",
+		"stopped": "Angehalten",
+		"technicalDetails": "Technische Details",
+		"webNotSearched": "Die Websuche war geplant, wurde aber nicht ausgeführt",
+		"webSearched": "Habe das Internet durchsucht"
 	}
 }
