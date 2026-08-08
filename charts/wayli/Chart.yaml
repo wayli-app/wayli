@@ -29,7 +29,7 @@ keywords:
 
 dependencies:
   - name: fluxbase
-    version: '2026.8.3'
+    version: '2026.8.4'
     repository: 'oci://ghcr.io/nimbleflux/charts'
     condition: fluxbase.enabled
 
