@@ -304,6 +304,22 @@
 			}
 
 			if (entries.length > 0) activeEntryId = entries[0].id;
+
+			// Deep-link: if the URL has ?entry=<id>, scroll to + activate that
+			// specific entry (e.g. arriving from the feed "Read more").
+			const entryParam = page.url.searchParams.get('entry');
+			if (entryParam) {
+				const found = entries.find((e) => e.id === entryParam);
+				if (found) {
+					activeEntryId = found.id;
+					setTimeout(() => {
+						document
+							.querySelector(`[data-entry-id="${entryParam}"]`)
+							?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+					}, 200);
+				}
+			}
+
 			setTimeout(() => setupScrollObserver(), 100);
 		} catch {
 			notFound = true;

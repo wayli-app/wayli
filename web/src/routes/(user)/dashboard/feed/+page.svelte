@@ -178,13 +178,28 @@
 	{:else}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			{#each entries as entry (entry.id)}
-				<article class="bg-card border-border overflow-hidden rounded-2xl border">
+				{@const storyHref = entry.username
+					? `/u/${entry.username}/trips/${entry.trip_id}?entry=${entry.id}`
+					: null}
+				{@const Tag = storyHref ? 'a' : 'div'}
+				<svelte:element
+					this={Tag}
+					href={storyHref ?? undefined}
+					class="bg-card border-border hover:border-primary/40 flex flex-col overflow-hidden rounded-2xl border transition-colors {storyHref
+						? 'cursor-pointer'
+						: ''}"
+				>
 					{#if entry.trip_image_url}
 						<div class="h-40 overflow-hidden">
-							<img src={entry.trip_image_url} alt="" class="h-full w-full object-cover" />
+							<img
+								src={entry.trip_image_url}
+								alt=""
+								class="h-full w-full object-cover"
+								loading="lazy"
+							/>
 						</div>
 					{/if}
-					<div class="p-5">
+					<div class="flex flex-1 flex-col p-5">
 						<div class="text-muted-foreground mb-2 flex items-center gap-2 text-xs">
 							<Calendar class="h-3 w-3" />
 							{new Date(entry.entry_date).toLocaleDateString(undefined, {
@@ -206,16 +221,13 @@
 								{@html renderMarkdown(entry.body.slice(0, 500))}
 							</div>
 							{#if entry.body.length > 500}
-								<a
-									href={entry.username ? `/u/${entry.username}/trips/${entry.trip_id}` : '#'}
-									class="text-primary mt-2 inline-block text-sm font-medium hover:underline"
-								>
+								<span class="text-primary mt-2 inline-block text-sm font-medium">
 									Read more →
-								</a>
+								</span>
 							{/if}
 						{/if}
 					</div>
-				</article>
+				</svelte:element>
 			{/each}
 		</div>
 	{/if}
