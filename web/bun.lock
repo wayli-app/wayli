@@ -61,7 +61,7 @@
         "globals": "^17.7.0",
         "jsdom": "^29.1.1",
         "lightningcss": "^1.33.0",
-        "lucide-static": "^1.26.0",
+        "lucide-static": "^1.27.0",
         "oxlint": "^1.76.0",
         "prettier": "^3.9.6",
         "prettier-plugin-svelte": "^4.1.1",
@@ -1275,7 +1275,7 @@
 
     "lru-cache": ["lru-cache@11.5.1", "", {}, "sha512-RPimw/7aMdv2oqRrxKwvZXcPfwBrn/JZ2xYcY9Hus/6LaS3VOAKVWKWgNLCFSiOm1ESXinjsDlidVU7JlnCN2A=="],
 
-    "lucide-static": ["lucide-static@1.26.0", "", {}, "sha512-6yCpa2ONICjlE19BuneIi75ASd9cCZhqJlzhAlQBi+99m2aZd2cNzxFVbDgPu7JLBZR2uDYO/EpLYtnhGw5Niw=="],
+    "lucide-static": ["lucide-static@1.30.0", "", {}, "sha512-lgG5XTlCPG9OQABEVbhhvcG3N0T8SDFg8NFw34j71+VK8TSP6xMlfXLsuwXiHZvL+bDoA5J2gOebqRocl4WvTw=="],
 
     "lucide-svelte": ["lucide-svelte@1.0.1", "", { "peerDependencies": { "svelte": "^3 || ^4 || ^5.0.0-next.42" } }, "sha512-WvzZgk0pqzgda+AErLvgWxHkfg/+GgUwqKMRHvzt0IqyMdmyEDzDCk3Z+Wo/3y753oIgx8u9Q4eUbWkghFa8Jg=="],
 
