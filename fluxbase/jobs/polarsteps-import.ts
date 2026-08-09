@@ -342,17 +342,31 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       `[polarsteps] Trip "${tripJson.name}" has ${steps.length} steps, isNewTrip=${isNewTrip}`
     );
 
-    // Fetch existing photo filenames for dedup (merge case)
+    // Fetch existing photo filenames for dedup (merge case). Also verify each
+    // existing row's storage object is actually accessible — stale rows that
+    // point at missing files (orphans from a prior failed import) are deleted
+    // so the photo gets re-uploaded instead of silently skipped.
     const existingPhotoNames = new Set<string>();
     if (!isNewTrip) {
       try {
         const { data: existingMedia } = await fluxbase
           .from('trip_media')
-          .select('storage_path')
+          .select('id, storage_path')
           .eq('trip_id', tripId);
         for (const m of (existingMedia as any[]) ?? []) {
           const fn = (m.storage_path || '').split('/').pop();
-          if (fn) existingPhotoNames.add(fn);
+          if (!fn) continue;
+          // Verify the object exists; if not, remove the orphan row so the
+          // photo is re-uploaded rather than skipped.
+          const { error: headErr } = await fluxbase.storage
+            .from('trip-images')
+            .download((m.storage_path || '').replace(/^.*\/trip-images\//, ''));
+          if (headErr) {
+            console.log(`[polarsteps] Removing orphan trip_media row (file missing): ${fn}`);
+            await fluxbase.from('trip_media').delete().eq('id', m.id);
+            continue;
+          }
+          existingPhotoNames.add(fn);
         }
       } catch {
         // non-critical
