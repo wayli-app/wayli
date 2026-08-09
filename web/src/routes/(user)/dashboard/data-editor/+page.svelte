@@ -108,31 +108,43 @@
 		cleanupThemeWatcher?.();
 		cleanupThemeWatcher = null;
 		if (map && L) {
-			if (boxLayer) {
-				try {
-					map.removeLayer(boxLayer);
-				} catch {
-					/* already gone */
+			try {
+				// Remove ALL event listeners FIRST, before any DOM operations.
+				// The {#key} teardown may have already detached the container;
+				// map.off() prevents Leaflet from dispatching events into the
+				// detached tree (the source of the parentNode crash).
+				map.off();
+				// Clear marker event handlers too.
+				pointLayers.forEach((layer) => {
+					try {
+						layer.off();
+						map.removeLayer(layer);
+					} catch {
+						/* already gone */
+					}
+				});
+				if (boxLayer) {
+					try {
+						map.removeLayer(boxLayer);
+					} catch {
+						/* already gone */
+					}
+					boxLayer = null;
 				}
-				boxLayer = null;
+				if (connectionLayer) {
+					try {
+						map.removeLayer(connectionLayer);
+					} catch {
+						/* already gone */
+					}
+					connectionLayer = null;
+				}
+				map.remove();
+			} catch {
+				// Container may already be detached by Svelte's {#key} teardown;
+				// swallow so onDestroy doesn't throw.
 			}
-			if (connectionLayer) {
-				try {
-					map.removeLayer(connectionLayer);
-				} catch {
-					/* already gone */
-				}
-				connectionLayer = null;
-			}
-			pointLayers.forEach((layer) => {
-				try {
-					map.removeLayer(layer);
-				} catch {
-					/* already gone */
-				}
-			});
 			pointLayers = new Map();
-			map.remove();
 			map = null;
 		}
 	});
@@ -353,6 +365,7 @@
 			});
 
 			marker.on('dragend', async () => {
+				if (destroyed || !map) return;
 				const ll = marker.getLatLng();
 				const found = allPoints.find((ap) => ap.recorded_at === p.recorded_at);
 				if (!found) return;
