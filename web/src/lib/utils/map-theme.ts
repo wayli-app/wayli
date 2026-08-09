@@ -72,8 +72,19 @@ export function watchMapTheme(
 	buildTile: (theme: TileTheme) => L.TileLayer
 ): () => void {
 	let currentLayer: L.TileLayer | null = null;
+	// Captured so the returned cleanup can cancel it. The dashboard layout
+	// destroys the page DOM on navigation ({#key page.url.pathname}); an armed
+	// invalidateSize() firing against a detached map triggers Leaflet's
+	// unguarded parentNode loops → "can't access property parentNode".
+	let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+	let disposed = false;
 
 	const apply = () => {
+		// Guard: a theme-mutation (e.g. a Svelte transition toggling classes on
+		// <html>) can fire after the owning page has torn the map down. Bail
+		// before touching a detached container. `_loaded === false` is set by
+		// map.remove(); checking it covers the gap before cleanup runs.
+		if (disposed || !map || (map as any)._loaded === false) return;
 		const theme: TileTheme = isDarkMode() ? 'dark' : 'light';
 		const next = buildTile(theme);
 		// Only swap if the URL actually changed — prevents unnecessary
@@ -91,7 +102,9 @@ export function watchMapTheme(
 		// Invalidate size after swap so Leaflet recalculates the visible
 		// tile range. Without this, tiles sometimes don't render on maps
 		// inside {#key} blocks or collapsed sections.
-		setTimeout(() => {
+		if (invalidateTimer) clearTimeout(invalidateTimer);
+		invalidateTimer = setTimeout(() => {
+			invalidateTimer = null;
 			try {
 				map.invalidateSize();
 			} catch {
@@ -109,7 +122,12 @@ export function watchMapTheme(
 	});
 
 	return () => {
+		disposed = true;
 		observer.disconnect();
+		if (invalidateTimer) {
+			clearTimeout(invalidateTimer);
+			invalidateTimer = null;
+		}
 		if (currentLayer) {
 			map.removeLayer(currentLayer);
 			currentLayer = null;
