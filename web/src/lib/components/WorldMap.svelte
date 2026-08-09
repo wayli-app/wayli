@@ -235,11 +235,11 @@
 				const landGeo = feature(topoData, topoData.objects.land as any);
 				L.geoJSON(landGeo as any, {
 					style: () => ({
-						fillColor: '#e5e7eb',
+						fillColor: '#d5dbdd',
 						weight: 0,
 						opacity: 0,
 						color: '#d1d5db',
-						fillOpacity: 0.3
+						fillOpacity: 1
 					})
 				}).addTo(map);
 			}
@@ -258,7 +258,7 @@
 							weight: 0,
 							opacity: 0,
 							color: '#1d4ed8',
-							fillOpacity: 0.7
+							fillOpacity: 0.8
 						};
 					}
 					// Unvisited: render nothing — the merged land layer already
