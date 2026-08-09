@@ -151,7 +151,13 @@ function notifyTerminalJob(job: JobStoreJob): void {
 			? '/dashboard/import-export'
 			: null;
 
+	// notifications.user_id is NOT NULL; prefer the module-scoped currentUserId
+	// (set on init), fall back to the job's owning user for backfilled jobs.
+	const userId = currentUserId || job.created_by;
+	if (!userId) return;
+
 	createNotification({
+		userId,
 		type: type as any,
 		title,
 		body: body ?? undefined,

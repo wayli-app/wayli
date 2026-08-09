@@ -315,12 +315,20 @@ Init container for syncing Fluxbase resources using CLI
       echo "Syncing MCP tools..."
       fluxbase mcp tools sync --dir /app/fluxbase/mcp-tools --namespace wayli
       echo "Ensuring knowledge base exists..."
-      fluxbase kb create wayli-pois \
-        --namespace wayli \
-        --description "User POI visits with behavioral context for semantic search" \
-        --chunk-size 500 \
-        --embedding-model text-embedding-3-small 2>/dev/null || true
-      KB_ID=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+      # Check existence with jq (whitespace-insensitive) before creating; the
+      # kb create call is idempotent from the CLI's perspective (|| true), but
+      # a duplicate still logs an ERR server-side on every pod start.
+      KB_EXISTS=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r 'any(.[]; .name == "wayli-pois")' 2>/dev/null)
+      if [ "$KB_EXISTS" = "true" ]; then
+        echo "Knowledge base already exists"
+      else
+        fluxbase kb create wayli-pois \
+          --namespace wayli \
+          --description "User POI visits with behavioral context for semantic search" \
+          --chunk-size 500 \
+          --embedding-model text-embedding-3-small 2>/dev/null || true
+      fi
+      KB_ID=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r '.[] | select(.name == "wayli-pois") | .id' | head -1)
       if [ -n "$KB_ID" ]; then
         echo "Exporting tables to knowledge base..."
         fluxbase kb export-table "$KB_ID" --schema public --table place_visits --include-fks --sample-rows 3 2>/dev/null || true

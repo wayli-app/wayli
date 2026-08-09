@@ -118,11 +118,13 @@ ensure_knowledge_base() {
 
     echo "Ensuring knowledge base exists..."
 
-    # Create the wayli-pois knowledge base if it doesn't exist
-    # Check if KB exists first to avoid errors
-    KB_EXISTS=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"name":"wayli-pois"' | head -1)
+    # Create the wayli-pois knowledge base if it doesn't exist.
+    # Use jq (whitespace-insensitive) for the existence check — a grep on
+    # compact JSON silently misses pretty-printed output and falls through to a
+    # redundant `kb create`, which logs an ERR (duplicate-key) server-side.
+    KB_EXISTS=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r 'any(.[]; .name == "wayli-pois")' 2>/dev/null)
 
-    if [ -z "$KB_EXISTS" ]; then
+    if [ "$KB_EXISTS" != "true" ]; then
         echo "Creating knowledge base..."
         if fluxbase kb create wayli-pois \
             --namespace wayli \
@@ -138,8 +140,8 @@ ensure_knowledge_base() {
         echo "Knowledge base already exists"
     fi
 
-    # Get the KB ID for table exports
-    KB_ID=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+    # Get the KB ID for table exports (select by name, not first-in-list).
+    KB_ID=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r '.[] | select(.name == "wayli-pois") | .id' | head -1)
 
     if [ -z "$KB_ID" ]; then
         echo "Warning: Could not get KB ID for table exports"
