@@ -205,26 +205,19 @@
 		map = L.map(mapContainer, {
 			scrollWheelZoom: true,
 			zoomControl: false,
-			// Let the world repeat horizontally when panned (preferred look).
-			// No maxBounds: clamping would suppress the repetition.
 			worldCopyJump: false,
-			// Force integer zoom levels — fractional zoom causes raster tiles
-			// to be scaled, which makes adjacent tile-row color mismatches
-			// visible as horizontal seam lines. Integer zoom = 1:1 pixel ratio.
 			zoomSnap: 1,
-			zoomDelta: 1,
-			wheelPxPerZoomLevel: 120
+			zoomDelta: 1
 		});
-		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			// No-labels tiles: the `_all` CartoDB tiles bake cartographic
-			// graticule (latitude/longitude rules) into the raster at these low
-			// zooms, showing up as unwanted thin horizontal lines across the
-			// whole viewport. Country borders come from the GeoJSON overlay
-			// below, so we use the label-free variant here.
-			L.tileLayer(TILE_URLS_NOLABELS[theme].url, {
-				attribution: TILE_URLS_NOLABELS[theme].attribution,
-				maxZoom: 5
-			})
+		// Use a solid ocean-colored background instead of raster tiles. Raster
+		// tiles from CartoDB produce visible horizontal seam lines at tile
+		// boundaries (especially in dark mode) because adjacent tiles have
+		// slightly different edge colors. The GeoJSON overlay (land mass +
+		// visited countries) provides all the geographic detail — the tile
+		// layer was only adding seams.
+		cleanupThemeWatcher = watchMapTheme(map, (_theme) =>
+			// No tile layer — return a dummy layer that does nothing.
+			L.layerGroup()
 		);
 
 		try {
@@ -305,14 +298,12 @@
 <div bind:this={mapContainer} class="relative z-0 rounded-lg {className}"></div>
 
 <style>
-	/* Tiles only cover roughly ±85° latitude and the zoom-2 tile grid doesn't
-	   align to this small container, so a partial tile row sits at the top and
-	   bottom edges. Give the container an opaque background that matches the
-	   CartoDB basemap's own base color so partial tile edges composite in. */
+	/* Solid ocean-colored background (no raster tiles — they produce seam
+	   lines at tile boundaries). The GeoJSON overlay draws all land mass. */
 	:global(.leaflet-container) {
-		background: #d5dbdd;
+		background: #e4ecf0;
 	}
 	:global(.dark .leaflet-container) {
-		background: #0c1424;
+		background: #1a2333;
 	}
 </style>
