@@ -1,8 +1,14 @@
 name: CI
 
 on:
+  # Only run on direct pushes to main (post-merge verification). All PR
+  # activity — including pushes to PR branches — is covered by the
+  # `pull_request` trigger below. Triggering `push` on every branch too causes
+  # a duplicate run for every PR push (push event + PR synchronize event),
+  # which doubles CI load and, for the flaky docker-compose smoke job, doubles
+  # the chance of a spurious failure blocking the PR.
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
     branches: [main]
 
