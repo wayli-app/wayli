@@ -309,16 +309,4 @@
 	:global(.dark .leaflet-container) {
 		background: #0c1424;
 	}
-
-	/* Eliminate tile seam lines: adjacent raster tiles from CartoDB have
-	   slightly different colors at their edges. When rendered at fractional
-	   scale in the small container, the color mismatch at each tile-row
-	   boundary creates visible full-width horizontal lines. Overlapping each
-	   tile by 1px on all sides (via negative margin + enlarged size) covers
-	   the seam with the neighboring tile's edge. */
-	:global(.leaflet-tile) {
-		margin: -0.5px;
-		width: calc(100% + 1px) !important;
-		height: calc(100% + 1px) !important;
-	}
 </style>
