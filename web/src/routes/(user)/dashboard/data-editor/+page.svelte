@@ -89,10 +89,12 @@
 		startDate = weekAgo.toISOString().slice(0, 10);
 
 		L = (await import('leaflet')).default;
+		if (destroyed) return;
 		await loadData();
-		// Navigating away during loadData() sets `destroyed`; don't touch the map.
 		if (destroyed) return;
 		initMap();
+		// Re-run the date-range $effect hook if the component survived mount
+		// (the $effect below may have fired before allPoints was populated).
 	});
 
 	onDestroy(() => {
@@ -159,42 +161,41 @@
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
-			// Count first so the loader can show a real total + we can stream
-			// points in batches with progress, mirroring the Location Data page.
-			loadingStage = t('dataEditor.loadingPointsIndeterminate');
+			// Fetch everything into plain locals — NO $state mutations during awaits.
 			const [count, zones, home] = await Promise.all([
 				getPointCount(userId, startDate, endDate),
 				getExclusionZones(),
 				getHomeAddress()
 			]);
 			if (destroyed) return;
-			totalCount = count;
-			exclusionZones = zones;
-			homeAddress = home;
-			loadingProgress = 10;
 
-			// Stream points in batches, reporting progress as we go.
+			// Stream points in batches, reporting progress to non-reactive locals only.
+			let lastProgress = 10;
+			let lastStage = t('dataEditor.loadingPointsIndeterminate');
 			const points = await getPoints(userId, startDate, endDate, (loaded, total) => {
-				if (destroyed) return;
-				loadingProgress = total > 0 ? 10 + Math.round((loaded / total) * 85) : 10 + 40;
-				loadingStage = t('dataEditor.loadingPoints').replace('{count}', String(loaded));
+				lastProgress = total > 0 ? 10 + Math.round((loaded / total) * 85) : 10 + 40;
+				lastStage = t('dataEditor.loadingPoints').replace('{count}', String(loaded));
 			});
 			if (destroyed) return;
 
-			loadingProgress = 98;
-			loadingStage = t('dataEditor.loadingPoints').replace('{count}', String(points.length));
-
-			// Mark excluded points (inside exclusion zone)
+			// ALL $state mutations happen here, synchronously, behind a single guard.
+			// This prevents Svelte 5 reactivity from firing during {#key} teardown.
+			totalCount = count;
+			exclusionZones = zones;
+			homeAddress = home;
+			loadingProgress = lastProgress;
+			loadingStage = lastStage;
 			allPoints = points.map((p) => ({
 				...p,
 				selected: false,
 				excluded: isExcluded(p)
 			}));
-
 			selectedCount = 0;
 		} catch (err) {
-			console.error('Failed to load data:', err);
-			toast.error(t('dataEditor.loadFailed'));
+			if (!destroyed) {
+				console.error('Failed to load data:', err);
+				toast.error(t('dataEditor.loadFailed'));
+			}
 		} finally {
 			if (!destroyed) {
 				isLoading = false;
