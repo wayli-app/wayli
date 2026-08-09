@@ -256,8 +256,8 @@
 					if (isVisited) {
 						return {
 							fillColor: '#3b82f6',
-							weight: 1,
-							opacity: 1,
+							weight: 0,
+							opacity: 0,
 							color: '#1d4ed8',
 							fillOpacity: 0.7
 						};
