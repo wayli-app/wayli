@@ -3481,7 +3481,7 @@
 									<button
 										onclick={promptForceRegeocode}
 										disabled={isForceRegeocoding}
-										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw class={`h-3.5 w-3.5 ${isForceRegeocoding ? 'animate-spin' : ''}`} />
 										{isForceRegeocoding ? t('serverAdmin.running') : t('serverAdmin.run')}
@@ -3506,7 +3506,7 @@
 									<button
 										onclick={fillMissingCountryCodes}
 										disabled={isFillingCountryCodes}
-										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw
 											class={`h-3.5 w-3.5 ${isFillingCountryCodes ? 'animate-spin' : ''}`}
@@ -3533,7 +3533,7 @@
 									<button
 										onclick={detectTransportModesAllUsers}
 										disabled={isDetectingTransportModes}
-										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw
 											class={`h-3.5 w-3.5 ${isDetectingTransportModes ? 'animate-spin' : ''}`}
@@ -3560,7 +3560,7 @@
 									<button
 										onclick={refreshActivityAllUsers}
 										disabled={isRefreshingActivity}
-										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw
 											class={`h-3.5 w-3.5 ${isRefreshingActivity ? 'animate-spin' : ''}`}
@@ -3588,7 +3588,7 @@
 								<button
 									onclick={promptClearPlaceVisits}
 									disabled={isClearingPlaceVisits}
-									class="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+									class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
 								>
 									<Trash2 class={`h-3.5 w-3.5 ${isClearingPlaceVisits ? 'animate-spin' : ''}`} />
 									{isClearingPlaceVisits ? t('serverAdmin.running') : t('serverAdmin.run')}
