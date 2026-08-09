@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -78,7 +78,9 @@
 			console.error('❌ [Dashboard] Error checking admin role:', error);
 			isAdmin = false;
 		} finally {
-			isCheckingAdmin = false;
+			if (!layoutDestroyed) {
+				isCheckingAdmin = false;
+			}
 		}
 	}
 
@@ -158,6 +160,11 @@
 		}
 	});
 
+	let layoutDestroyed = false;
+	onDestroy(() => {
+		layoutDestroyed = true;
+	});
+
 	onMount(async () => {
 		// Read the persisted FAB-hint dismissal now that we're in the browser.
 		aiFabHintDismissed = localStorage.getItem('wayli.ai.fab_hint_dismissed') === '1';
@@ -165,6 +172,7 @@
 			// Session manager is already initialized in root layout
 			// Wait a bit for any pending auth state changes to settle
 			await new Promise((resolve) => setTimeout(resolve, 100));
+			if (layoutDestroyed) return;
 
 			// Check if user is authenticated using session manager
 			const isAuthenticated = await sessionManager.isAuthenticated();
@@ -176,15 +184,18 @@
 
 			// Load user preferences and apply language
 			await loadUserPreferences();
+			if (layoutDestroyed) return;
 
 			// Check if AI features are enabled
 			await checkAIEnabled();
+			if (layoutDestroyed) return;
 
 			// Check admin role with timeout
 			const adminCheckPromise = checkAdminRole();
 			const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second timeout
 
 			await Promise.race([adminCheckPromise, timeoutPromise]);
+			if (layoutDestroyed) return;
 
 			// If we hit the timeout, force completion
 			if (isCheckingAdmin) {
@@ -196,8 +207,10 @@
 			// Mark initialization as complete
 			isInitializing = false;
 		} catch (error) {
-			console.error('❌ [Dashboard] Error initializing dashboard:', error);
-			goto('/auth/signin');
+			if (!layoutDestroyed) {
+				console.error('❌ [Dashboard] Error initializing dashboard:', error);
+				goto('/auth/signin');
+			}
 		}
 	});
 
