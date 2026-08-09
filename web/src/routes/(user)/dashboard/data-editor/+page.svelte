@@ -36,6 +36,14 @@
 	let map: any = null;
 	let L: any = null;
 	let cleanupThemeWatcher: (() => void) | null = null;
+	// True once onDestroy has run. The dashboard layout wraps pages in
+	// {#key page.url.pathname} + in:fade, which destroys the DOM node on every
+	// navigation. Async work from onMount (loadData → initMap → drawPoints) and
+	// map.on(...) callbacks can still be in flight when that happens; Leaflet
+	// would then dereference a torn-down node ("can't access property
+	// parentNode"). This flag lets those paths bail out cleanly.
+	let destroyed = false;
+	let invalidateTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	let allPoints = $state<SelectedPoint[]>([]);
 	let totalCount = $state(0);
@@ -82,12 +90,51 @@
 
 		L = (await import('leaflet')).default;
 		await loadData();
+		// Navigating away during loadData() sets `destroyed`; don't touch the map.
+		if (destroyed) return;
 		initMap();
 	});
 
 	onDestroy(() => {
+		// Mirror the race-free teardown in statistics/+page.svelte. Clear timers
+		// and layers, then remove + null the map so any in-flight async path
+		// (drawPoints, map.on handlers, watchMapTheme swap) bails out via the
+		// `if (!map || !L) return` guard instead of hitting a detached node.
+		destroyed = true;
+		if (invalidateTimeout) {
+			clearTimeout(invalidateTimeout);
+			invalidateTimeout = null;
+		}
 		cleanupThemeWatcher?.();
-		map?.remove();
+		cleanupThemeWatcher = null;
+		if (map && L) {
+			if (boxLayer) {
+				try {
+					map.removeLayer(boxLayer);
+				} catch {
+					/* already gone */
+				}
+				boxLayer = null;
+			}
+			if (connectionLayer) {
+				try {
+					map.removeLayer(connectionLayer);
+				} catch {
+					/* already gone */
+				}
+				connectionLayer = null;
+			}
+			pointLayers.forEach((layer) => {
+				try {
+					map.removeLayer(layer);
+				} catch {
+					/* already gone */
+				}
+			});
+			pointLayers = new Map();
+			map.remove();
+			map = null;
+		}
 	});
 
 	async function loadData() {
@@ -148,7 +195,7 @@
 	}
 
 	function initMap() {
-		if (!mapContainer || !L) return;
+		if (!mapContainer || !L || destroyed) return;
 
 		map = L.map(mapContainer, { scrollWheelZoom: true });
 		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
@@ -228,7 +275,12 @@
 			map.setView([0, 0], 2);
 		}
 
-		setTimeout(() => map?.invalidateSize(), 200);
+		// Capture the timeout id so onDestroy can cancel it; avoids firing
+		// invalidateSize() against a removed map after navigation.
+		invalidateTimeout = setTimeout(() => {
+			invalidateTimeout = null;
+			map?.invalidateSize();
+		}, 200);
 	}
 
 	function drawPoints() {
