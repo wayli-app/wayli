@@ -16,7 +16,8 @@
 		Trash2,
 		X,
 		Loader2,
-		CircleAlert
+		CircleAlert,
+		ScrollText
 	} from 'lucide-svelte';
 
 	import { translate } from '$lib/i18n';
@@ -28,6 +29,7 @@
 		subscribe as subscribeJobs,
 		type JobStoreJob
 	} from '$lib/stores/job-store';
+	import { subscribe as subscribeUploads, type UploadProgress } from '$lib/stores/upload-store';
 	import { unreadCount, refreshUnread, notifRefresh } from '$lib/stores/notifications';
 	import {
 		listNotifications,
@@ -36,6 +38,7 @@
 		deleteNotification
 	} from '$lib/services/notifications.service';
 	import type { AppNotification } from '$lib/types/notification.types';
+	import JobDetailModal from '$lib/components/modals/JobDetailModal.svelte';
 
 	let t = $derived($translate);
 
@@ -78,8 +81,27 @@
 	let notifications = $state<AppNotification[]>([]);
 	let loadingNotifs = $state(false);
 
-	const activeCount = $derived(activeJobs.length + recentTerminalJobs.length);
+	// --- File-upload progress (pre-job phase) ---
+	// The uploadResumable byte-% is tracked in upload-store but had no UI
+	// consumer; surfacing it here shows the upload phase before the import job
+	// (which appears via the job-store once the upload finishes).
+	let activeUploadsMap = $state<Map<string, UploadProgress>>(new Map());
+	const activeUploads = $derived(
+		Array.from(activeUploadsMap.values())
+			.filter((u) => u.status === 'uploading' || u.status === 'processing')
+			.sort((a, b) => b.percentage - a.percentage)
+	);
+
+	// --- Job logs modal (opened inline from a card / notification row) ---
+	let logJob = $state<JobStoreJob | null>(null);
+
+	const activeCount = $derived(
+		activeJobs.length + recentTerminalJobs.length + activeUploads.length
+	);
 	const totalBadge = $derived(activeCount + ($unreadCount > 0 ? $unreadCount : 0));
+	// "Work happening right now" — drives a distinct bell indicator beyond the
+	// static unread badge (active jobs OR active uploads in progress).
+	const hasActiveWork = $derived(activeJobs.length > 0 || activeUploads.length > 0);
 
 	// Job-type icon config.
 	const jobTypeIcon: Record<string, any> = {
@@ -117,6 +139,7 @@
 
 	let unsubJobs: (() => void) | null = null;
 	let unsubNotifs: (() => void) | null = null;
+	let unsubUploads: (() => void) | null = null;
 
 	onMount(() => {
 		updateMobile();
@@ -126,6 +149,11 @@
 			const prev = activeJobsMap;
 			activeJobsMap = new Map(getActiveJobsMap());
 			scheduleLingerTimers(prev, activeJobsMap);
+		});
+		// Track file uploads (the pre-job uploadResumable phase) so an upload
+		// card appears with a byte-% bar before the import job takes over.
+		unsubUploads = subscribeUploads((map) => {
+			activeUploadsMap = new Map(map);
 		});
 		// Live-refresh the open panel's "Recent" list when a notification
 		// arrives over realtime (e.g. a job completing while open), mirroring
@@ -140,6 +168,7 @@
 		if (!browser) return;
 		window.removeEventListener('resize', updateMobile);
 		unsubJobs?.();
+		unsubUploads?.();
 		unsubNotifs?.();
 		hideTimers.forEach((timer) => clearTimeout(timer));
 		hideTimers.clear();
@@ -236,6 +265,27 @@
 		}
 	}
 
+	/** Open the job logs modal inline from a job card. */
+	function openJobLogs(job: JobStoreJob, e?: MouseEvent) {
+		e?.stopPropagation();
+		logJob = job;
+	}
+
+	/** Open logs from a persistent notification row. The job may no longer be in
+	 * the store, so synthesize a minimal JobStoreJob from the notification's
+	 * related_job_id; JobDetailModal fetches logs/history via the SDK. */
+	function openNotifLogs(n: AppNotification, e?: MouseEvent) {
+		e?.stopPropagation();
+		if (!n.related_job_id) return;
+		handleMarkRead(n);
+		logJob = {
+			id: n.related_job_id,
+			job_name: n.title.replace(/\s+(completed|failed|cancelled)$/i, ''),
+			status: 'completed',
+			created_at: n.created_at
+		} as JobStoreJob;
+	}
+
 	async function handleNotifClick(n: AppNotification) {
 		await handleMarkRead(n);
 		if (n.link) {
@@ -270,6 +320,19 @@
 		aria-label={t('notifications.title')}
 	>
 		<Bell class="h-5 w-5" />
+		<!-- Active-work indicator: a pulsing dot signals "something is happening
+		     right now" (upload/job running), distinct from the static unread
+		     count badge. -->
+		{#if hasActiveWork}
+			<span
+				class="absolute top-1.5 right-1.5 h-2.5 w-2.5 animate-ping rounded-full bg-emerald-500"
+				aria-hidden="true"
+			></span>
+			<span
+				class="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500"
+				aria-hidden="true"
+			></span>
+		{/if}
 		{#if totalBadge > 0}
 			<span
 				class="bg-primary text-primary-foreground absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold"
@@ -337,12 +400,46 @@
 {/if}
 
 {#snippet listContent()}
-	{#if activeJobs.length > 0 || recentTerminalJobs.length > 0}
+	{#if activeUploads.length > 0 || activeJobs.length > 0 || recentTerminalJobs.length > 0}
 		<div class="px-2 pt-2 pb-1">
 			<p class="text-muted-foreground px-1 text-xs font-semibold tracking-wide uppercase">
-				{t('notifications.active')} · {activeJobs.length + recentTerminalJobs.length}
+				{t('notifications.active')} · {activeUploads.length +
+					activeJobs.length +
+					recentTerminalJobs.length}
 			</p>
 		</div>
+
+		<!-- File uploads (pre-job uploadResumable phase): byte-% bar. Hands off
+		     to the import-job card below once the upload completes. -->
+		{#each activeUploads as upload (upload.id)}
+			<div
+				class="hover:bg-muted flex items-start gap-3 rounded-lg p-2"
+				role="status"
+				aria-live="polite"
+			>
+				<div class="text-primary mt-0.5">
+					<Loader2 class="h-4 w-4 animate-spin" />
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="text-foreground truncate text-sm font-medium">
+						<Upload class="text-muted-foreground mr-1 inline h-3.5 w-3.5" />
+						{upload.fileName}
+					</p>
+					<div class="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
+						<div
+							class="bg-primary h-full rounded-full transition-all duration-300"
+							style="width: {upload.percentage}%"
+						></div>
+					</div>
+					<p class="text-muted-foreground mt-1 text-xs">
+						{upload.status === 'processing'
+							? t('notifications.processingUpload')
+							: t('notifications.uploading', { percent: Math.round(upload.percentage) })}
+					</p>
+				</div>
+			</div>
+		{/each}
+
 		{#each activeJobs as job (job.id)}
 			{@const JobIcon = jobIcon(job.job_name)}
 			<div
@@ -359,16 +456,26 @@
 							<JobIcon class="text-muted-foreground mr-1 inline h-3.5 w-3.5" />
 							{job.job_name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
 						</p>
-						{#if job.status === 'running'}
+						<div class="flex shrink-0 items-center gap-0.5">
 							<button
-								onclick={(e) => handleCancelJob(job, e)}
-								class="text-muted-foreground shrink-0 hover:text-red-500"
-								title={t('jobProgress.cancelJob')}
-								aria-label={t('jobProgress.cancelJob')}
+								onclick={(e) => openJobLogs(job, e)}
+								class="text-muted-foreground hover:text-foreground rounded p-1"
+								title={t('notifications.viewLogs')}
+								aria-label={t('notifications.viewLogs')}
 							>
-								<X class="h-3.5 w-3.5" />
+								<ScrollText class="h-3.5 w-3.5" />
 							</button>
-						{/if}
+							{#if job.status === 'running'}
+								<button
+									onclick={(e) => handleCancelJob(job, e)}
+									class="text-muted-foreground hover:text-red-500"
+									title={t('jobProgress.cancelJob')}
+									aria-label={t('jobProgress.cancelJob')}
+								>
+									<X class="h-3.5 w-3.5" />
+								</button>
+							{/if}
+						</div>
 					</div>
 					<div class="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
 						<div
@@ -398,7 +505,7 @@
 						? 'text-red-500'
 						: 'text-muted-foreground'}
 			<div
-				class="hover:bg-muted flex items-start gap-3 rounded-lg p-2"
+				class="hover:bg-muted group flex items-start gap-3 rounded-lg p-2"
 				role="status"
 				aria-live="polite"
 				transition:fade={{ duration: 150 }}
@@ -419,6 +526,14 @@
 								: t('jobProgress.statusCancelled')}
 					</p>
 				</div>
+				<button
+					onclick={(e) => openJobLogs(job, e)}
+					class="text-muted-foreground hover:text-foreground shrink-0 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100"
+					title={t('notifications.viewLogs')}
+					aria-label={t('notifications.viewLogs')}
+				>
+					<ScrollText class="h-3.5 w-3.5" />
+				</button>
 			</div>
 		{/each}
 	{/if}
@@ -434,7 +549,7 @@
 			<Loader2 class="h-4 w-4 animate-spin" />
 			{t('notifications.loading')}
 		</div>
-	{:else if notifications.length === 0 && activeJobs.length === 0 && recentTerminalJobs.length === 0}
+	{:else if notifications.length === 0 && activeUploads.length === 0 && activeJobs.length === 0 && recentTerminalJobs.length === 0}
 		<div class="text-muted-foreground flex flex-col items-center gap-2 p-8 text-center">
 			<Bell class="h-8 w-8 opacity-40" />
 			<p class="text-sm">{t('notifications.empty')}</p>
@@ -476,6 +591,16 @@
 				<div
 					class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
 				>
+					{#if n.related_job_id}
+						<button
+							onclick={(e) => openNotifLogs(n, e)}
+							class="text-muted-foreground hover:text-foreground rounded p-1"
+							title={t('notifications.viewLogs')}
+							aria-label={t('notifications.viewLogs')}
+						>
+							<ScrollText class="h-3.5 w-3.5" />
+						</button>
+					{/if}
 					{#if !n.read_at}
 						<button
 							onclick={(e) => handleMarkRead(n, e)}
@@ -499,3 +624,7 @@
 		{/each}
 	{/if}
 {/snippet}
+
+<!-- Job logs modal: opened inline from a job card or notification row. The
+     modal teleports to document.body and fetches/streams logs via the SDK. -->
+<JobDetailModal open={!!logJob} job={logJob} onClose={() => (logJob = null)} />
