@@ -1385,7 +1385,7 @@
 											await recalculateDistance(trip);
 											const sd = (trip.start_date || '').slice(0, 10);
 											const ed = (trip.end_date || '').slice(0, 10);
-											goto(`/dashboard/statistics?trip=${trip.id}&start=${sd}&end=${ed}`);
+											goto(`/dashboard/location-data?trip=${trip.id}&start=${sd}&end=${ed}`);
 										}}
 										class="text-muted-foreground hover:text-foreground inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2 py-1 text-xs transition-colors"
 										title="View location data for this trip"

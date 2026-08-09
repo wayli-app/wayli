@@ -224,7 +224,20 @@ export class SessionManagerService {
 		sessionStore.set(session);
 
 		if (session?.user) {
-			userStore.set(session.user);
+			// Enrich with profile data (first_name, full_name, avatar_url) so the
+			// top bar can show the user's name. Falls back gracefully if the
+			// profile doesn't exist yet (e.g. mid-onboarding).
+			try {
+				const { data: profile } = await fluxbase
+					.from<Record<string, any>>('user_profiles')
+					.select('first_name, full_name, avatar_url, role')
+					.eq('id', session.user.id)
+					.single();
+				const enriched = Object.assign({}, session.user, profile || {});
+				userStore.set(enriched);
+			} catch {
+				userStore.set(session.user);
+			}
 
 			// Set admin token if user has admin role
 			await this.setAdminTokenIfNeeded(session);

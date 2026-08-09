@@ -366,7 +366,7 @@
 					<p class="text-foreground text-sm font-medium">{displayName}</p>
 				{/if}
 				<a
-					href="/dashboard/travel"
+					href="/dashboard/location-data"
 					class="bg-primary hover:bg-primary/90 text-primary-foreground mt-4 inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium transition-colors"
 				>
 					<BookOpen class="h-4 w-4" />
@@ -507,7 +507,7 @@
 					<!-- Primary contextual action -->
 					{#if $userStore}
 						<a
-							href="/dashboard/travel"
+							href="/dashboard/location-data"
 							class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors"
 						>
 							<BookOpen class="h-4 w-4" />

@@ -1,6 +1,17 @@
 <script lang="ts">
-	import { Import, FileDown, MapPin, Route } from 'lucide-svelte';
+	import {
+		Upload,
+		Download,
+		UploadCloud,
+		FileCheck,
+		ChevronDown,
+		Loader2,
+		MapPin,
+		Star,
+		Route
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 
 	import ExportJobs from '$lib/components/ExportJobs.svelte';
@@ -9,154 +20,156 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { jobCreationService } from '$lib/services/job-creation.service';
 	import { sessionStore } from '$lib/stores/auth';
-	import { state as appState } from '$lib/stores/app-state.svelte';
 
-	// Use the reactive translation function
 	let t = $derived($translate);
 
-	// Import state
-	let importFormat = $state<string | null>(null);
+	// ── Import state ──
 	let selectedFile = $state<File | null>(null);
-	let includeLocationData = $state(true);
-	let includeWantToVisit = $state(true);
-	let includeTrips = $state(true);
+	let importFormat = $state<string | null>(null);
 	let isImporting = $state(false);
+	let isDragOver = $state(false);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
-
-	// Last successful import date
 	let lastSuccessfulImport = $state<string | null>(null);
 
-	// Export state
+	// ── Export state ──
+	let exportExpanded = $state(true);
+	let isExporting = $state(false);
 	let exportFormat = $state('JSON');
 	let exportStartDate = $state<Date | undefined>(undefined);
 	let exportEndDate = $state<Date | undefined>(undefined);
-
-	// Add export state variables for export job creation
 	let includeLocationDataExport = $state(true);
 	let includeWantToVisitExport = $state(true);
 	let includeTripsExport = $state(true);
 
-	// No reload flag needed - ExportJobs component handles its own updates
+	// ── Format detection ──
+	const FORMAT_BADGES = [
+		{ ext: 'GeoJSON', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+		{ ext: 'GPX', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+		{
+			ext: 'KML',
+			color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+		},
+		{
+			ext: 'OwnTracks',
+			color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
+		},
+		{ ext: 'Polarsteps', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300' }
+	];
 
-	let importFormats = $derived([
-		{
-			value: 'GeoJSON',
-			label: 'GeoJSON',
-			icon: MapPin,
-			description: t('importExport.geoJsonDescription')
-		},
-		{
-			value: 'KML',
-			label: 'KML',
-			icon: MapPin,
-			description: t('importExport.kmlDescription')
-		},
-		{
-			value: 'GPX',
-			label: 'GPX',
-			icon: Route,
-			description: t('importExport.gpxDescription')
-		},
-		{
-			value: 'OwnTracks',
-			label: 'OwnTracks (.REC)',
-			icon: Route,
-			description: t('importExport.ownTracksDescription')
-		},
-		{
-			value: 'Polarsteps',
-			label: 'Polarsteps',
-			icon: Route,
-			description:
-				'Import trips, journal entries, GPS data and photos from a Polarsteps export (.zip)'
-		}
-	]);
-
-	function handleFileSelect(event: Event) {
-		const target = event.target as HTMLInputElement;
-		if (target.files && target.files.length > 0) {
-			selectedFile = target.files[0];
-			// Auto-detect format
-			detectImportFormat(selectedFile).then((detected) => {
-				importFormat = detected;
-			});
-		}
-	}
-
-	async function detectImportFormat(file: File): Promise<string> {
+	function detectImportFormat(file: File): string {
 		const name = file.name.toLowerCase();
 		if (name.endsWith('.geojson') || name.endsWith('.json')) return 'GeoJSON';
 		if (name.endsWith('.zip')) return 'Polarsteps';
 		if (name.endsWith('.kml')) return 'KML';
 		if (name.endsWith('.gpx')) return 'GPX';
 		if (name.endsWith('.rec')) return 'OwnTracks';
-		return 'GeoJSON'; // Default
+		return 'GeoJSON';
 	}
 
-	// Import functions
+	// ── File selection (click + drag-drop) ──
+	function openFilePicker() {
+		fileInputEl?.click();
+	}
+
+	function handleFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (target.files?.[0]) {
+			selectedFile = target.files[0];
+			importFormat = detectImportFormat(selectedFile);
+		}
+	}
+
+	function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		isDragOver = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (file) {
+			selectedFile = file;
+			importFormat = detectImportFormat(file);
+		}
+	}
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+		isDragOver = true;
+	}
+
+	function handleDragLeave() {
+		isDragOver = false;
+	}
+
+	function clearFile() {
+		selectedFile = null;
+		importFormat = null;
+		if (fileInputEl) fileInputEl.value = '';
+	}
+
+	// ── Import ──
 	async function handleImport() {
 		if (!selectedFile || !importFormat) {
 			toast.error(t('importExport.pleaseSelectFile'));
 			return;
 		}
-
 		try {
 			isImporting = true;
-
 			await jobCreationService.createImportJob(selectedFile, {
 				format: importFormat,
-				includeLocationData,
-				includeWantToVisit,
-				includeTrips
+				includeLocationData: true,
+				includeWantToVisit: true,
+				includeTrips: true
 			});
-
-			// Job will appear in sidebar automatically via Realtime subscription
-
-			// Reset form
-			selectedFile = null;
-			importFormat = null;
-			includeLocationData = true;
-			includeWantToVisit = true;
-			includeTrips = true;
-
-			// Clear file input
-			if (fileInputEl) {
-				fileInputEl.value = '';
-			}
-
-			// Show success message
 			toast.success(t('importExport.uploadSuccessful'));
+			clearFile();
 		} catch (error) {
 			console.error('Import error:', error);
-			// Show error message
-			toast.error(t('importExport.importFailed') || 'Import failed');
+			toast.error(t('importExport.importFailed'));
 		} finally {
 			isImporting = false;
 		}
 	}
 
-	// Fetch last successful import date
+	// ── Export ──
+	async function handleExport() {
+		try {
+			isExporting = true;
+			await jobCreationService.createExportJob({
+				format: exportFormat,
+				includeLocationData: includeLocationDataExport,
+				includeWantToVisit: includeWantToVisitExport,
+				includeTrips: includeTripsExport,
+				startDate: exportStartDate,
+				endDate: exportEndDate
+			});
+			toast.success(t('importExport.exportStarted'));
+			exportStartDate = undefined;
+			exportEndDate = undefined;
+		} catch (error) {
+			console.error('Export error:', error);
+			toast.error(t('importExport.exportStartFailed'));
+		} finally {
+			isExporting = false;
+		}
+	}
+
+	// ── Last import date ──
 	async function fetchLastSuccessfulImport() {
 		try {
 			const session = $sessionStore;
 			if (!session) return;
-
 			const serviceAdapter = new ServiceAdapter({ session });
 			const jobsResponse = (await serviceAdapter.getJobs({ type: 'data_import' })) as any;
 			const jobs = Array.isArray(jobsResponse) ? jobsResponse : jobsResponse?.data || [];
-
-			// Find the most recent completed import job
-			const lastCompletedImport = jobs
+			const lastCompleted = jobs
 				.filter((job: any) => job.status === 'completed')
 				.sort(
 					(a: any, b: any) =>
 						new Date(b.completed_at || b.updated_at).getTime() -
 						new Date(a.completed_at || a.updated_at).getTime()
 				)[0];
-
-			if (lastCompletedImport) {
-				const date = new Date(lastCompletedImport.completed_at || lastCompletedImport.updated_at);
-				lastSuccessfulImport = date.toLocaleString('en-US', {
+			if (lastCompleted) {
+				lastSuccessfulImport = new Date(
+					lastCompleted.completed_at || lastCompleted.updated_at
+				).toLocaleString('en-US', {
 					year: 'numeric',
 					month: 'short',
 					day: 'numeric',
@@ -169,73 +182,7 @@
 		}
 	}
 
-	// Fetch last successful import date on mount
-	onMount(async () => {
-		await fetchLastSuccessfulImport();
-	});
-
-	// Export functions
-	async function handleExport() {
-		// Dates are optional - no date range means "export all data"
-		try {
-			await jobCreationService.createExportJob({
-				format: exportFormat,
-				includeLocationData: includeLocationDataExport,
-				includeWantToVisit: includeWantToVisitExport,
-				includeTrips: includeTripsExport,
-				startDate: exportStartDate,
-				endDate: exportEndDate
-			});
-
-			toast.success('Export started — you will be notified when it is ready.');
-
-			// Reset date range only - preserve checkbox preferences
-			exportStartDate = undefined;
-			exportEndDate = undefined;
-			localExportStartDate = undefined;
-			localExportEndDate = undefined;
-		} catch (error) {
-			console.error('Export error:', error);
-			toast.error('Failed to start export. Please try again.');
-		}
-	}
-
-	let localExportStartDate = $state<Date | undefined>(undefined);
-	let localExportEndDate = $state<Date | undefined>(undefined);
-
-	// Initialize from app state if available
-	$effect(() => {
-		if (appState.filtersStartDate instanceof Date && !localExportStartDate) {
-			localExportStartDate = appState.filtersStartDate;
-		}
-		if (appState.filtersEndDate instanceof Date && !localExportEndDate) {
-			localExportEndDate = appState.filtersEndDate;
-		}
-	});
-
-	// Sync local dates to export dates
-	$effect(() => {
-		exportStartDate = localExportStartDate;
-		exportEndDate = localExportEndDate;
-	});
-
-	function handleExportDateRangeChange() {
-		// Ensure the dates are properly synced when the picker changes
-		if (localExportStartDate instanceof Date) {
-			exportStartDate = localExportStartDate;
-			appState.filtersStartDate = localExportStartDate;
-		} else {
-			exportStartDate = undefined;
-			appState.filtersStartDate = null;
-		}
-		if (localExportEndDate instanceof Date) {
-			exportEndDate = localExportEndDate;
-			appState.filtersEndDate = localExportEndDate;
-		} else {
-			exportEndDate = undefined;
-			appState.filtersEndDate = null;
-		}
-	}
+	onMount(fetchLastSuccessfulImport);
 </script>
 
 <svelte:head>
@@ -245,187 +192,253 @@
 <div>
 	<!-- Header -->
 	<div class="mb-8 flex items-center gap-3">
-		<Import class="text-primary h-6 w-6" />
+		<Upload class="text-primary h-6 w-6" />
 		<div>
 			<h1 class="text-foreground text-xl font-bold">{t('importExport.title')}</h1>
-			<p class="text-muted-foreground text-sm">Import or export your location data</p>
+			<p class="text-muted-foreground text-sm">{t('importExport.subtitle')}</p>
 		</div>
 	</div>
 
-	<div class="grid gap-8 md:grid-cols-2">
-		<!-- Import Section -->
-		<div class="bg-card border-border flex flex-col rounded-xl border p-6">
-			<div class="mb-6 flex items-center gap-3">
-				<FileDown class="text-muted-foreground h-5 w-5" />
-				<h2 class="text-foreground text-xl font-semibold">
-					{t('importExport.importData')}
-				</h2>
+	<div class="space-y-8">
+		<!-- ═══ Import card (hero) ═══ -->
+		<div class="bg-card border-border rounded-xl border p-6">
+			<div class="mb-4 flex items-center gap-3">
+				<Upload class="text-muted-foreground h-5 w-5" />
+				<h2 class="text-foreground text-lg font-semibold">{t('importExport.importData')}</h2>
 			</div>
-			<p class="text-muted-foreground mb-6 text-sm">
-				{t('importExport.importDescription')}
-			</p>
-			{#if lastSuccessfulImport}
-				<div class="text-muted-foreground mb-4 text-xs">
-					{t('importExport.lastSuccessfulImport', { date: lastSuccessfulImport })}
-				</div>
-			{/if}
 
-			<div class="flex-1 space-y-4">
-				<div>
-					<label for="fileInput" class="text-foreground mb-1.5 block text-sm font-medium"
-						>{t('importExport.selectFile')}</label
-					>
-					<div class="relative">
-						<label for="fileInput" class="absolute inset-0 z-10 cursor-pointer"></label>
-						<input
-							type="file"
-							id="fileInput"
-							bind:this={fileInputEl}
-							accept=".geojson,.json,.kml,.gpx,.rec,.zip"
-							class="file:bg-primary/5 file:text-primary hover:file:bg-primary/10 text-muted-foreground dark:border-border block w-full cursor-pointer rounded-md border border-gray-300 text-sm file:mr-4 file:border-0 file:px-4 file:py-2 file:text-sm file:font-medium dark:file:bg-gray-700 dark:file:text-gray-300 dark:hover:file:bg-gray-600"
-							onchange={handleFileSelect}
-						/>
+			<!-- Hidden file input -->
+			<input
+				type="file"
+				bind:this={fileInputEl}
+				accept=".geojson,.json,.kml,.gpx,.rec,.zip"
+				class="hidden"
+				onchange={handleFileSelect}
+			/>
+
+			<!-- Dropzone -->
+			{#if selectedFile}
+				<!-- File selected state -->
+				<div
+					class="border-border flex items-center gap-3 rounded-xl border-2 border-solid p-4"
+					role="button"
+					tabindex="0"
+					onclick={openFilePicker}
+					onkeydown={(e) => e.key === 'Enter' && openFilePicker()}
+				>
+					<div class="text-primary shrink-0">
+						<FileCheck class="h-8 w-8" />
 					</div>
-					{#if selectedFile}
-						<p class="text-muted-foreground mt-1 text-xs">
-							{t('importExport.selectedFile', { filename: selectedFile.name })}
-							{#if importFormat}
-								| {t('importExport.detectedFormat', { format: importFormat })}
-							{/if}
-						</p>
-					{/if}
+					<div class="min-w-0 flex-1">
+						<p class="text-foreground truncate text-sm font-medium">{selectedFile.name}</p>
+						<div class="mt-1 flex items-center gap-2">
+							<span
+								class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {FORMAT_BADGES.find(
+									(f) => f.ext === importFormat
+								)?.color ?? 'bg-muted text-muted-foreground'}"
+							>
+								{importFormat}
+							</span>
+							<span class="text-muted-foreground text-xs">
+								{(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+							</span>
+						</div>
+					</div>
+					<button
+						type="button"
+						onclick={(e) => {
+							e.stopPropagation();
+							clearFile();
+						}}
+						class="text-muted-foreground hover:text-foreground shrink-0 text-xs font-medium"
+					>
+						{t('common.actions.cancel')}
+					</button>
 				</div>
-
-				<div class="mt-6">
-					<h3 class="text-foreground mb-3 text-sm font-medium">
-						{t('importExport.supportedFormats')}
-					</h3>
-					<div class="text-muted-foreground space-y-2 text-sm">
-						{#each importFormats as format (format.label)}
-							<div class="flex items-center gap-2">
-								<format.icon class="h-4 w-4" />
-								<span>{format.label} - {format.description}</span>
-							</div>
+			{:else}
+				<!-- Empty dropzone -->
+				<div
+					class="hover:border-primary/50 flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-10 text-center transition-colors {isDragOver
+						? 'border-primary bg-primary/5'
+						: 'border-border'}"
+					role="button"
+					tabindex="0"
+					onclick={openFilePicker}
+					onkeydown={(e) => e.key === 'Enter' && openFilePicker()}
+					ondrop={handleDrop}
+					ondragover={handleDragOver}
+					ondragleave={handleDragLeave}
+				>
+					<UploadCloud class="text-muted-foreground h-10 w-10 {isDragOver ? 'text-primary' : ''}" />
+					<div>
+						<p class="text-foreground text-sm font-medium">
+							{t('importExport.selectFile')}
+						</p>
+						<p class="text-muted-foreground mt-0.5 text-xs">
+							{t('importExport.browse')}
+						</p>
+					</div>
+					<div class="mt-2 flex flex-wrap justify-center gap-1.5">
+						{#each FORMAT_BADGES as badge (badge.ext)}
+							<span
+								class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {badge.color}"
+							>
+								{badge.ext}
+							</span>
 						{/each}
 					</div>
 				</div>
+			{/if}
 
-				<!-- Import button only shown if no active job -->
+			<!-- Last import + button -->
+			<div class="mt-4 flex items-center justify-between gap-4">
+				{#if lastSuccessfulImport}
+					<p class="text-muted-foreground text-xs">
+						{t('importExport.lastSuccessfulImport', { date: lastSuccessfulImport })}
+					</p>
+				{:else}
+					<span></span>
+				{/if}
 				<button
 					type="button"
 					onclick={handleImport}
 					disabled={isImporting || !selectedFile}
-					class="bg-primary hover:bg-primary/90 mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+					class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{#if isImporting}
-						<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+						<Loader2 class="h-4 w-4 animate-spin" />
 						{t('importExport.importing')}
 					{:else}
-						<Import class="h-4 w-4" />
+						<Upload class="h-4 w-4" />
 						{t('importExport.importDataButton')}
 					{/if}
 				</button>
 			</div>
 		</div>
 
-		<!-- Export Section -->
-		<div class="bg-card border-border flex flex-col rounded-xl border p-6">
-			<div class="mb-6 flex items-center gap-3">
-				<FileDown class="text-muted-foreground h-5 w-5" />
-				<h2 class="text-foreground text-xl font-semibold">
-					{t('importExport.exportData')}
-				</h2>
-			</div>
-			<p class="text-muted-foreground mb-6 text-sm">
-				{t('importExport.exportDescription')}
-			</p>
-
-			<div class="flex-1 space-y-4">
-				<div>
-					<label class="text-foreground mb-1.5 block text-sm font-medium" for="includeLocationData"
-						>{t('importExport.include')}</label
-					>
-					<div class="space-y-2">
-						<label class="flex items-center gap-2">
-							<input
-								type="checkbox"
-								bind:checked={includeLocationDataExport}
-								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-							/>
-							<span class="text-muted-foreground text-sm">{t('importExport.locationData')}</span>
-						</label>
-						<label class="flex items-center gap-2">
-							<input
-								type="checkbox"
-								bind:checked={includeWantToVisitExport}
-								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-							/>
-							<span class="text-muted-foreground text-sm">{t('importExport.wantToVisit')}</span>
-						</label>
-						<label class="flex items-center gap-2">
-							<input
-								type="checkbox"
-								bind:checked={includeTripsExport}
-								class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-							/>
-							<span class="text-muted-foreground text-sm">{t('importExport.trips')}</span>
-						</label>
-					</div>
-				</div>
-
-				<!-- Format selector -->
-				<div class="mt-4">
-					<label class="text-muted-foreground mb-2 block text-sm font-medium" for="exportFormat">
-						Format
-					</label>
-					<select
-						id="exportFormat"
-						bind:value={exportFormat}
-						class="border-border focus:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
-					>
-						<option value="JSON">JSON</option>
-						<option value="GeoJSON">GeoJSON</option>
-						<option value="CSV">CSV</option>
-					</select>
-				</div>
-
-				<div class="mt-4">
-					<span class="text-muted-foreground mb-2 block text-sm font-medium"
-						>{t('importExport.dateRange')}</span
-					>
-					<div class="relative">
-						<DateRangePicker
-							bind:startDate={localExportStartDate}
-							bind:endDate={localExportEndDate}
-							pickLabel={t('importExport.pickDateRange')}
-							onChange={handleExportDateRangeChange}
-							showClear={true}
-						/>
-					</div>
-					{#if !localExportStartDate && !localExportEndDate}
-						<p class="text-muted-foreground mt-2 text-xs">
-							{t('importExport.exportAllDataHint')}
-						</p>
-					{/if}
-				</div>
-			</div>
-
+		<!-- ═══ Export card (collapsible) ═══ -->
+		<div class="bg-card border-border rounded-xl border p-6">
+			<!-- Collapse header -->
 			<button
-				onclick={handleExport}
-				class="bg-primary hover:bg-primary/90 mt-6 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white"
+				type="button"
+				onclick={() => (exportExpanded = !exportExpanded)}
+				class="flex w-full items-center justify-between"
 			>
-				<FileDown class="h-4 w-4" />
-				{t('importExport.exportDataButton')}
+				<div class="flex items-center gap-3">
+					<Download class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-lg font-semibold">{t('importExport.exportData')}</h2>
+				</div>
+				<ChevronDown
+					class="text-muted-foreground h-5 w-5 transition-transform {exportExpanded
+						? 'rotate-180'
+						: ''}"
+				/>
 			</button>
+
+			{#if exportExpanded}
+				<div transition:slide={{ duration: 200 }} class="mt-4 space-y-4">
+					<p class="text-muted-foreground text-sm">{t('importExport.exportDescription')}</p>
+
+					<!-- Include options as toggle pills -->
+					<div>
+						<span class="text-foreground mb-2 block text-sm font-medium">
+							{t('importExport.include')}
+						</span>
+						<div class="flex flex-wrap gap-2">
+							<button
+								type="button"
+								onclick={() => (includeLocationDataExport = !includeLocationDataExport)}
+								class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {includeLocationDataExport
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:border-muted-foreground/50'}"
+							>
+								<MapPin class="h-3.5 w-3.5" />
+								{t('importExport.locationData')}
+							</button>
+							<button
+								type="button"
+								onclick={() => (includeWantToVisitExport = !includeWantToVisitExport)}
+								class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {includeWantToVisitExport
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:border-muted-foreground/50'}"
+							>
+								<Star class="h-3.5 w-3.5" />
+								{t('importExport.wantToVisit')}
+							</button>
+							<button
+								type="button"
+								onclick={() => (includeTripsExport = !includeTripsExport)}
+								class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {includeTripsExport
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:border-muted-foreground/50'}"
+							>
+								<Route class="h-3.5 w-3.5" />
+								{t('importExport.trips')}
+							</button>
+						</div>
+					</div>
+
+					<!-- Format + Date range side by side -->
+					<div class="flex flex-wrap items-start gap-6">
+						<div>
+							<label
+								class="text-muted-foreground mb-1.5 block text-sm font-medium"
+								for="exportFormat"
+							>
+								{t('importExport.format')}
+							</label>
+							<select
+								id="exportFormat"
+								bind:value={exportFormat}
+								class="border-border focus:ring-primary rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
+							>
+								<option value="JSON">JSON</option>
+								<option value="GeoJSON">GeoJSON</option>
+								<option value="CSV">CSV</option>
+							</select>
+						</div>
+						<div class="min-w-[200px] flex-1">
+							<span class="text-muted-foreground mb-1.5 block text-sm font-medium">
+								{t('importExport.dateRange')}
+							</span>
+							<DateRangePicker
+								bind:startDate={exportStartDate}
+								bind:endDate={exportEndDate}
+								pickLabel={t('importExport.pickDateRange')}
+								showClear={true}
+							/>
+							{#if !exportStartDate && !exportEndDate}
+								<p class="text-muted-foreground mt-1.5 text-xs">
+									{t('importExport.exportAllDataHint')}
+								</p>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Export button -->
+					<div class="flex justify-end">
+						<button
+							type="button"
+							onclick={handleExport}
+							disabled={isExporting}
+							class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{#if isExporting}
+								<Loader2 class="h-4 w-4 animate-spin" />
+								{t('importExport.statusProcessing')}
+							{:else}
+								<Download class="h-4 w-4" />
+								{t('importExport.exportDataButton')}
+							{/if}
+						</button>
+					</div>
+				</div>
+			{/if}
+		</div>
+
+		<!-- ═══ Export history ═══ -->
+		<div class="bg-card border-border rounded-xl border p-6">
+			<ExportJobs />
 		</div>
 	</div>
-
-	<!-- Export Jobs Section -->
-	<div class="mt-8">
-		<ExportJobs />
-	</div>
 </div>
-
-<style>
-	/* Styles removed - were not being applied to scoped components */
-</style>

@@ -63,7 +63,7 @@ describe('extractNavLinks', () => {
 	it('parses a place link', () => {
 		const out = extractNavLinks('[place:52.5,13.4|Brandenburg Gate]');
 		expect(out).toHaveLength(1);
-		expect(out[0].href).toBe('/dashboard/statistics?lat=52.5&lng=13.4');
+		expect(out[0].href).toBe('/dashboard/location-data?lat=52.5&lng=13.4');
 	});
 
 	it('parses a trip-plan link', () => {

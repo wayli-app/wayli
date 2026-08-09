@@ -51,7 +51,7 @@
 
 			// User is now logged in, redirect to dashboard after a short delay
 			setTimeout(() => {
-				goto('/dashboard/statistics');
+				goto('/dashboard/location-data');
 			}, 2000);
 		} catch (error: any) {
 			console.error('Password reset error:', error);

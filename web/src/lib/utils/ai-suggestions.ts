@@ -53,7 +53,7 @@ export function extractNavLinks(content: string): ParsedSuggestion[] {
 		if (kind === 'trip') href = `/dashboard/travel?trip=${encodeURIComponent(ref)}`;
 		else if (kind === 'place') {
 			const [lat, lng] = ref.split(',').map((s) => s.trim());
-			href = `/dashboard/statistics?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
+			href = `/dashboard/location-data?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`;
 		} else if (kind === 'trip-plan') href = `/dashboard/travel/${encodeURIComponent(ref)}/plan`;
 		if (href) out.push({ target: 'navigate', action: 'create', day: 0, title: label, href });
 	}

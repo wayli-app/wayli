@@ -106,6 +106,9 @@
 	let isLoadingLogs = $state(false);
 	let showLevelDropdown = $state(false);
 	let lastLineNumber = $state(0);
+	// True once the historical backfill (getLogs) has completed, so the empty
+	// state can distinguish "still loading" from "no logs were ever recorded".
+	let hasBackfilled = $state(false);
 
 	// Filtered logs based on selected level
 	let filteredLogs = $derived(
@@ -226,18 +229,26 @@
 		return t('jobProgress.hoursRemaining', { hours: Math.ceil(seconds / 3600) });
 	}
 
-	// Fetch existing logs (backfill) using the Fluxbase SDK
-	async function fetchExistingLogs(jobId: string) {
+	// Fetch existing logs (backfill) using the Fluxbase SDK. Retries transient
+	// errors so a momentary hiccup doesn't leave the user with only realtime
+	// logs from this point forward. Historical logs are essential for jobs that
+	// already ran (e.g. opening logs from a completed notification).
+	async function fetchExistingLogs(jobId: string, attempts = 0) {
 		console.log('[JobDetailModal] Fetching existing logs for job:', jobId);
-		isLoadingLogs = true;
+		// Only show the loading state on the first attempt (not on retries).
+		if (attempts === 0) isLoadingLogs = true;
 		logsError = null;
 		try {
 			const { data, error } = await fluxbase.jobs.getLogs(jobId);
 
 			if (error) {
 				console.warn('[JobDetailModal] Could not fetch existing logs:', error);
-				// Show a small inline notice so the user knows the backfill failed
-				// (was silently swallowed, making it impossible to diagnose).
+				// Retry transient errors once before surfacing a notice.
+				if (attempts < 1) {
+					console.log('[JobDetailModal] Retrying backfill…');
+					await new Promise((r) => setTimeout(r, 800));
+					return fetchExistingLogs(jobId, attempts + 1);
+				}
 				logsError = `Could not load existing logs: ${(error as any)?.message || error}`;
 				return;
 			}
@@ -249,15 +260,23 @@
 			// Use line_number for deduplication
 			const existingLineNumbers = new Set(logs.map((l) => l.line_number));
 			const newLogs = entries.filter((e) => !existingLineNumbers.has(e.line_number));
-			logs = [...newLogs, ...logs].sort((a, b) => a.line_number - b.line_number);
+			if (newLogs.length > 0) {
+				logs = [...newLogs, ...logs].sort((a, b) => a.line_number - b.line_number);
+			}
 
-			// Update lastLineNumber to the highest we've seen
+			// Update lastLineNumber to the highest we've seen so realtime only
+			// appends genuinely new lines.
 			lastLineNumber = Math.max(...(logs.map((l) => l.line_number) ?? []), lastLineNumber);
 			console.log('[JobDetailModal] Last line number after backfill:', lastLineNumber);
 		} catch (err) {
 			console.error('[JobDetailModal] Exception fetching logs:', err);
+			if (attempts < 1) {
+				await new Promise((r) => setTimeout(r, 800));
+				return fetchExistingLogs(jobId, attempts + 1);
+			}
 		} finally {
 			isLoadingLogs = false;
+			hasBackfilled = true;
 		}
 	}
 
@@ -309,8 +328,13 @@
 		}
 	});
 
-	// Track which job we're currently subscribed to (not reactive to avoid loops)
-	let subscribedJobId: string | null = null;
+	// Track the currently-active log session: a composite of the job id and an
+	// open counter so reopening the SAME job (e.g. close → reopen from a
+	// notification) reliably re-subscribes and re-backfills. Without the
+	// counter, `jobId !== subscribedJobId` could short-circuit if the close
+	// reset raced with the reopen.
+	let activeSession: string | null = null;
+	let openCounter = 0;
 
 	// Use onMount for cleanup on destroy
 	onMount(() => {
@@ -323,37 +347,45 @@
 		};
 	});
 
-	// Setup and cleanup when modal opens/closes or job changes
+	// Setup and cleanup when modal opens/closes or job changes. Keys off both
+	// `open` and `job?.id` so every open reliably subscribes + backfills
+	// historical logs (not just realtime-from-now).
 	$effect(() => {
-		const shouldSubscribe = open && job;
+		const isOpen = open;
 		const jobId = job?.id ?? null;
 
-		// Only act if subscription state needs to change
-		if (shouldSubscribe && jobId && jobId !== subscribedJobId) {
-			// Cleanup previous subscription if any
-			if (logsChannel) {
-				logsChannel.unsubscribe();
-				logsChannel = null;
+		if (isOpen && jobId) {
+			const session = `${jobId}#${openCounter}`;
+			if (session !== activeSession) {
+				// Cleanup any previous subscription before starting a new one.
+				if (logsChannel) {
+					logsChannel.unsubscribe();
+					logsChannel = null;
+				}
 				logs = [];
+				lastLineNumber = 0;
+				userHasScrolled = false;
+				hasBackfilled = false;
+				activeSession = session;
+				// Subscribe to realtime FIRST (so logs emitted during the
+				// backfill fetch aren't missed), then backfill history.
+				subscribeToLogs(jobId);
+				fetchExistingLogs(jobId);
 			}
-			// Subscribe to new job
-			subscribedJobId = jobId;
-			lastLineNumber = 0;
-			// First subscribe to realtime updates, then fetch existing logs
-			// This ensures we don't miss any logs that arrive during the fetch
-			subscribeToLogs(jobId);
-			// Fetch existing logs (backfill) - must run after subscription is set up
-			fetchExistingLogs(jobId);
-		} else if (!shouldSubscribe && subscribedJobId) {
-			// Modal closed or job cleared - cleanup
-			if (logsChannel) {
-				logsChannel.unsubscribe();
-				logsChannel = null;
+		} else {
+			// Modal closed or job cleared — tear down and bump the counter so
+			// the next open is a fresh session even for the same job id.
+			if (activeSession !== null) {
+				if (logsChannel) {
+					logsChannel.unsubscribe();
+					logsChannel = null;
+				}
+				logs = [];
+				userHasScrolled = false;
+				activeSession = null;
+				lastLineNumber = 0;
+				openCounter++;
 			}
-			logs = [];
-			userHasScrolled = false;
-			subscribedJobId = null;
-			lastLineNumber = 0;
 		}
 	});
 
@@ -576,8 +608,17 @@
 							<span class="text-amber-500">{logsError}</span>
 						</div>
 					{:else if groupedLogs.length === 0}
-						<div class="text-muted-foreground flex h-full items-center justify-center">
-							No logs available
+						<div
+							class="text-muted-foreground flex h-full flex-col items-center justify-center gap-1 text-center text-sm"
+						>
+							{#if hasBackfilled}
+								<span>No historical logs were recorded for this job.</span>
+								<span class="text-xs opacity-70"
+									>Logs are only captured while the job is running.</span
+								>
+							{:else}
+								<span>No logs available</span>
+							{/if}
 						</div>
 					{:else}
 						{#each groupedLogs as log (log.id)}

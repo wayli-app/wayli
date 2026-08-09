@@ -57,7 +57,11 @@
 		open = false;
 	}
 
-	const displayName = $derived($userStore?.full_name || $userStore?.email || 'User');
+	// Prefer first_name for the menu header; fall back to full_name, then email
+	// local-part, so the open menu shows a name (not the raw email) when set.
+	const displayName = $derived(
+		$userStore?.first_name || $userStore?.full_name || $userStore?.email || 'User'
+	);
 	const displayEmail = $derived($userStore?.email || '');
 
 	function isActive(href: string): boolean {

@@ -15,7 +15,7 @@ import {
 	safeReportProgress,
 	processPointBatch,
 	mergeErrorSummaries,
-	formatTopErrors
+	logErrorSummary
 } from '../utils/import-helpers.ts';
 
 import type { FluxbaseClient, JobUtils } from '../../types.d.ts';
@@ -197,11 +197,10 @@ export async function parseStream(
 					`Progress: ${mbRead}/${mbTotal} MB (${progress}%) - Lines: ${lineIndex.toLocaleString()} - Rate: ${rate}/sec - Imported: ${importedCount.toLocaleString()} - Buffer: ${pointBuffer.length}`
 				);
 
-				const topErrors = formatTopErrors(errorSummary);
 				safeReportProgress(
 					job,
 					progress,
-					`Streaming OwnTracks... ${mbRead}/${mbTotal} MB - ${lineIndex.toLocaleString()} lines - ${rate}/sec${topErrors ? ` - Errors: ${topErrors}` : ''}`
+					`Streaming OwnTracks... ${mbRead}/${mbTotal} MB - ${lineIndex.toLocaleString()} lines - ${rate}/sec${errorCount > 0 ? ` - Errors: ${errorCount.toLocaleString()}` : ''}`
 				);
 
 				lastLogTime = currentTime;
@@ -229,6 +228,9 @@ export async function parseStream(
 	} finally {
 		reader.releaseLock();
 	}
+
+	// Log the detailed error breakdown so it's visible in the job logs panel.
+	logErrorSummary(errorSummary);
 
 	return { importedCount, skippedCount, errorCount, duplicatesCount, alreadyExistsCount };
 }

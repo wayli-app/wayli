@@ -140,7 +140,7 @@
 	async function loadData() {
 		isLoading = true;
 		loadingProgress = 0;
-		loadingStage = t('dataEditor.loadingPoints').replace('{count}', '…');
+		loadingStage = t('dataEditor.loadingPointsIndeterminate');
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
 			const userId = userData?.user?.id;
@@ -148,7 +148,7 @@
 
 			// Count first so the loader can show a real total + we can stream
 			// points in batches with progress, mirroring the Location Data page.
-			loadingStage = t('dataEditor.loadingPoints').replace('{count}', '…');
+			loadingStage = t('dataEditor.loadingPointsIndeterminate');
 			const [count, zones, home] = await Promise.all([
 				getPointCount(userId, startDate, endDate),
 				getExclusionZones(),
@@ -769,36 +769,40 @@
 			<h1 class="text-foreground text-lg font-bold">{t('dataEditor.heading')}</h1>
 		</div>
 
-		<div class="flex items-center gap-2">
-			<DateRangePicker
-				bind:startDate
-				bind:endDate
-				onChange={refreshData}
-				showClear={false}
-				pickLabel={t('dataEditor.heading')}
-			/>
-		</div>
+		<!-- Disable the date controls while a (re)load is in flight so the
+		     user gets clear feedback that a date-range change is processing. -->
+		<fieldset disabled={isLoading} class="flex flex-wrap items-center gap-3 disabled:opacity-60">
+			<div class="flex items-center gap-2">
+				<DateRangePicker
+					bind:startDate
+					bind:endDate
+					onChange={refreshData}
+					showClear={false}
+					pickLabel={t('dataEditor.heading')}
+				/>
+			</div>
 
-		<div class="flex items-center gap-1">
-			<button
-				type="button"
-				onclick={() => setPreset(7)}
-				class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
-				>7d</button
-			>
-			<button
-				type="button"
-				onclick={() => setPreset(30)}
-				class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
-				>30d</button
-			>
-			<button
-				type="button"
-				onclick={() => setPreset(90)}
-				class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
-				>90d</button
-			>
-		</div>
+			<div class="flex items-center gap-1">
+				<button
+					type="button"
+					onclick={() => setPreset(7)}
+					class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
+					>7d</button
+				>
+				<button
+					type="button"
+					onclick={() => setPreset(30)}
+					class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
+					>30d</button
+				>
+				<button
+					type="button"
+					onclick={() => setPreset(90)}
+					class="text-muted-foreground hover:text-foreground hover:bg-muted rounded px-2 py-1 text-xs"
+					>90d</button
+				>
+			</div>
+		</fieldset>
 
 		<div class="flex-1"></div>
 
@@ -863,7 +867,9 @@
 		<!-- Map -->
 		<div class="relative z-0 flex-1">
 			{#if isLoading}
-				<div class="bg-muted/50 absolute inset-0 flex items-center justify-center">
+				<div
+					class="bg-muted/80 absolute inset-0 z-[1000] flex items-center justify-center backdrop-blur-sm"
+				>
 					<div class="text-muted-foreground flex flex-col items-center gap-3">
 						<Loader2 class="h-8 w-8 animate-spin" />
 						<span class="text-sm">{loadingStage}</span>

@@ -16,7 +16,8 @@
 		Trash2,
 		X,
 		Loader2,
-		CircleAlert
+		CircleAlert,
+		ScrollText
 	} from 'lucide-svelte';
 
 	import { translate } from '$lib/i18n';
@@ -36,6 +37,7 @@
 		deleteNotification
 	} from '$lib/services/notifications.service';
 	import type { AppNotification } from '$lib/types/notification.types';
+	import JobDetailModal from '$lib/components/modals/JobDetailModal.svelte';
 
 	let t = $derived($translate);
 
@@ -77,6 +79,9 @@
 	// --- Persistent notifications ---
 	let notifications = $state<AppNotification[]>([]);
 	let loadingNotifs = $state(false);
+
+	// --- Job logs modal (opened inline from a card / notification row) ---
+	let logJob = $state<JobStoreJob | null>(null);
 
 	const activeCount = $derived(activeJobs.length + recentTerminalJobs.length);
 	const totalBadge = $derived(activeCount + ($unreadCount > 0 ? $unreadCount : 0));
@@ -236,6 +241,33 @@
 		}
 	}
 
+	/** Open the job logs modal inline from a job card. */
+	function openJobLogs(job: JobStoreJob, e?: MouseEvent) {
+		e?.stopPropagation();
+		logJob = job;
+	}
+
+	/** Open logs from a persistent notification row. The job may no longer be in
+	 * the store, so synthesize a minimal JobStoreJob from the notification's
+	 * related_job_id; JobDetailModal fetches logs/history via the SDK. */
+	function openNotifLogs(n: AppNotification, e?: MouseEvent) {
+		e?.stopPropagation();
+		if (!n.related_job_id) return;
+		handleMarkRead(n);
+		// Derive the terminal status from the notification type so the modal
+		// header is accurate (was hardcoded to 'completed').
+		const status: JobStoreJob['status'] =
+			n.type === 'job_failed' ? 'failed' : n.type === 'job_cancelled' ? 'cancelled' : 'completed';
+		logJob = {
+			id: n.related_job_id,
+			job_name: n.title.replace(/\s+(completed|failed|cancelled)$/i, ''),
+			status,
+			error: n.type === 'job_failed' ? n.body : undefined,
+			completed_at: n.created_at,
+			created_at: n.created_at
+		} as JobStoreJob;
+	}
+
 	async function handleNotifClick(n: AppNotification) {
 		await handleMarkRead(n);
 		if (n.link) {
@@ -343,6 +375,7 @@
 				{t('notifications.active')} · {activeJobs.length + recentTerminalJobs.length}
 			</p>
 		</div>
+
 		{#each activeJobs as job (job.id)}
 			{@const JobIcon = jobIcon(job.job_name)}
 			<div
@@ -359,16 +392,26 @@
 							<JobIcon class="text-muted-foreground mr-1 inline h-3.5 w-3.5" />
 							{job.job_name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
 						</p>
-						{#if job.status === 'running'}
+						<div class="flex shrink-0 items-center gap-0.5">
 							<button
-								onclick={(e) => handleCancelJob(job, e)}
-								class="text-muted-foreground shrink-0 hover:text-red-500"
-								title={t('jobProgress.cancelJob')}
-								aria-label={t('jobProgress.cancelJob')}
+								onclick={(e) => openJobLogs(job, e)}
+								class="text-muted-foreground hover:text-foreground rounded p-1"
+								title={t('notifications.viewLogs')}
+								aria-label={t('notifications.viewLogs')}
 							>
-								<X class="h-3.5 w-3.5" />
+								<ScrollText class="h-3.5 w-3.5" />
 							</button>
-						{/if}
+							{#if job.status === 'running'}
+								<button
+									onclick={(e) => handleCancelJob(job, e)}
+									class="text-muted-foreground hover:text-red-500"
+									title={t('jobProgress.cancelJob')}
+									aria-label={t('jobProgress.cancelJob')}
+								>
+									<X class="h-3.5 w-3.5" />
+								</button>
+							{/if}
+						</div>
 					</div>
 					<div class="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
 						<div
@@ -398,7 +441,7 @@
 						? 'text-red-500'
 						: 'text-muted-foreground'}
 			<div
-				class="hover:bg-muted flex items-start gap-3 rounded-lg p-2"
+				class="hover:bg-muted group flex items-start gap-3 rounded-lg p-2"
 				role="status"
 				aria-live="polite"
 				transition:fade={{ duration: 150 }}
@@ -419,6 +462,14 @@
 								: t('jobProgress.statusCancelled')}
 					</p>
 				</div>
+				<button
+					onclick={(e) => openJobLogs(job, e)}
+					class="text-muted-foreground hover:text-foreground shrink-0 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100"
+					title={t('notifications.viewLogs')}
+					aria-label={t('notifications.viewLogs')}
+				>
+					<ScrollText class="h-3.5 w-3.5" />
+				</button>
 			</div>
 		{/each}
 	{/if}
@@ -476,6 +527,16 @@
 				<div
 					class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100"
 				>
+					{#if n.related_job_id}
+						<button
+							onclick={(e) => openNotifLogs(n, e)}
+							class="text-muted-foreground hover:text-foreground rounded p-1"
+							title={t('notifications.viewLogs')}
+							aria-label={t('notifications.viewLogs')}
+						>
+							<ScrollText class="h-3.5 w-3.5" />
+						</button>
+					{/if}
 					{#if !n.read_at}
 						<button
 							onclick={(e) => handleMarkRead(n, e)}
@@ -499,3 +560,7 @@
 		{/each}
 	{/if}
 {/snippet}
+
+<!-- Job logs modal: opened inline from a job card or notification row. The
+     modal teleports to document.body and fetches/streams logs via the SDK. -->
+<JobDetailModal open={!!logJob} job={logJob} onClose={() => (logJob = null)} />

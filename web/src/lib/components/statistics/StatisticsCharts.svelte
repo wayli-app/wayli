@@ -105,13 +105,38 @@
 		return Math.max(1, dists[Math.min(idx, dists.length - 1)]);
 	});
 
+	// Track dark mode reactively so the calendar ramp adapts to the theme.
+	let isDark = $state(false);
+	$effect(() => {
+		const el = document.documentElement;
+		isDark = el.classList.contains('dark');
+		const observer = new MutationObserver(() => {
+			isDark = el.classList.contains('dark');
+		});
+		observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+		return () => observer.disconnect();
+	});
+
 	function calColor(distance: number): string {
-		if (distance <= 0) return 'rgba(148,163,184,0.12)'; // soft slate
+		if (distance <= 0) {
+			// Empty cell: faint slate in light mode, faint white in dark mode.
+			return isDark ? 'rgba(255,255,255,0.06)' : 'rgba(148,163,184,0.18)';
+		}
 		const t = Math.min(1, distance / p90Distance);
-		// Pastel teal ramp: light → medium
-		const r = Math.round(167 + (20 - 167) * t); // 167 → 20
-		const g = Math.round(211 + (184 - 211) * t); // 211 → 184
-		const b = Math.round(198 + (166 - 198) * t); // 198 → 166
+		// Wider ramps so intensity steps read distinctly. Light mode: pale →
+		// deep teal. Dark mode: deep slate → bright cyan (brightens with
+		// intensity, the opposite direction, so active days pop on dark bg).
+		if (isDark) {
+			// Dark: rgb(30,58,72) → rgb(45,212,191)
+			const r = Math.round(30 + (45 - 30) * t);
+			const g = Math.round(58 + (212 - 58) * t);
+			const b = Math.round(72 + (191 - 72) * t);
+			return `rgb(${r},${g},${b})`;
+		}
+		// Light: rgb(186,230,253) → rgb(13,148,136)
+		const r = Math.round(186 + (13 - 186) * t);
+		const g = Math.round(230 + (148 - 230) * t);
+		const b = Math.round(253 + (136 - 253) * t);
 		return `rgb(${r},${g},${b})`;
 	}
 
@@ -304,107 +329,110 @@
 	}
 </script>
 
-{#if points.length > 0}
-	<!-- Activity calendar (distance per day, trailing ~53 weeks ending today) -->
-	<section class="bg-card border-border relative mb-8 w-full rounded-lg border p-4">
-		<div class="mb-3 flex items-center gap-2">
-			<CalendarDays class="h-5 w-5 text-blue-500" />
-			<h3 class="text-foreground text-lg font-semibold">
-				{t('statistics.activity') || 'Activity'}
-			</h3>
+<!-- Activity calendar (distance per day, trailing ~53 weeks ending today).
+     Rendered independently of the date-range `points` — it draws from
+     `historyFor` (tracker_daily_activity), so it stays visible even when the
+     selected date range has no raw points. -->
+<section class="bg-card border-border relative mb-8 w-full rounded-lg border p-4">
+	<div class="mb-3 flex items-center gap-2">
+		<CalendarDays class="h-5 w-5 text-blue-500" />
+		<h3 class="text-foreground text-lg font-semibold">
+			{t('statistics.activity') || 'Activity'}
+		</h3>
+		{#if onRefreshCalendar}
+			<button
+				type="button"
+				onclick={onRefreshCalendar}
+				disabled={calendarRefreshing}
+				class="text-muted-foreground hover:text-foreground hover:bg-muted ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50"
+				title="Refresh activity data"
+			>
+				<RefreshCw class="h-3.5 w-3.5 {calendarRefreshing ? 'animate-spin' : ''}" />
+				{calendarRefreshing ? 'Refreshing…' : 'Refresh'}
+			</button>
+		{/if}
+	</div>
+	{#if calendarLoading && historyFor.length === 0}
+		<div class="text-muted-foreground flex h-32 items-center justify-center gap-2 text-sm">
+			<Loader2 class="h-4 w-4 animate-spin" />
+			{t('statistics.loadingActivity') || 'Loading activity…'}
+		</div>
+	{:else if historyFor.length === 0}
+		<div class="text-muted-foreground flex h-32 flex-col items-center justify-center gap-3 text-sm">
+			<p>No activity data yet. Run the refresh to build the calendar.</p>
 			{#if onRefreshCalendar}
 				<button
 					type="button"
 					onclick={onRefreshCalendar}
 					disabled={calendarRefreshing}
-					class="text-muted-foreground hover:text-foreground hover:bg-muted ml-auto inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50"
-					title="Refresh activity data"
+					class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
 				>
 					<RefreshCw class="h-3.5 w-3.5 {calendarRefreshing ? 'animate-spin' : ''}" />
-					{calendarRefreshing ? 'Refreshing…' : 'Refresh'}
+					{calendarRefreshing ? 'Building…' : 'Build activity data'}
 				</button>
 			{/if}
 		</div>
-		{#if calendarLoading && historyFor.length === 0}
-			<div class="text-muted-foreground flex h-32 items-center justify-center gap-2 text-sm">
-				<Loader2 class="h-4 w-4 animate-spin" />
-				{t('statistics.loadingActivity') || 'Loading activity…'}
-			</div>
-		{:else if historyFor.length === 0}
-			<div
-				class="text-muted-foreground flex h-32 flex-col items-center justify-center gap-3 text-sm"
+	{:else}
+		<div class="overflow-x-auto">
+			<svg
+				width={CAL_W}
+				height={CAL_H + 28}
+				role="img"
+				aria-label="Activity calendar (distance per day)"
 			>
-				<p>No activity data yet. Run the refresh to build the calendar.</p>
-				{#if onRefreshCalendar}
-					<button
-						type="button"
-						onclick={onRefreshCalendar}
-						disabled={calendarRefreshing}
-						class="bg-primary hover:bg-primary/90 text-primary-foreground inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50"
+				<!-- Month axis -->
+				{#each monthLabels as ml (ml.label + String(ml.x))}
+					<text x={ml.x} y={9} font-size="9" fill="currentColor" class="text-muted-foreground"
+						>{ml.label}</text
 					>
-						<RefreshCw class="h-3.5 w-3.5 {calendarRefreshing ? 'animate-spin' : ''}" />
-						{calendarRefreshing ? 'Building…' : 'Build activity data'}
-					</button>
-				{/if}
-			</div>
-		{:else}
-			<div class="overflow-x-auto">
-				<svg
-					width={CAL_W}
-					height={CAL_H + 28}
-					role="img"
-					aria-label="Activity calendar (distance per day)"
-				>
-					<!-- Month axis -->
-					{#each monthLabels as ml (ml.label + String(ml.x))}
-						<text x={ml.x} y={9} font-size="9" fill="currentColor" class="text-muted-foreground"
-							>{ml.label}</text
-						>
-					{/each}
-					<!-- Day cells (translate down to leave room for the month axis) -->
-					<g transform="translate(0, 14)">
-						{#each displayCal as day, i (day.date)}
-							{@const pos = cellPosition(i)}
-							<rect
-								x={pos.x}
-								y={pos.y}
-								width={CELL}
-								height={CELL}
-								rx="2"
-								fill={calColor(day.distance)}
-								onmouseenter={(e) =>
-									showTooltip('activity', day.date, fmtDistance(day.distance), e)}
-								onmousemove={moveTooltip}
-								onmouseleave={hideTooltip}
-								role="presentation"
-							></rect>
-						{/each}
-					</g>
-				</svg>
-			</div>
-			<div class="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
-				<span>{t('statistics.less') || 'Less'}</span>
-				{#each [0.15, 0.4, 0.7, 1] as t}
-					<span
-						class="inline-block h-2.5 w-2.5 rounded-sm"
-						style="background:{calColor(p90Distance * t)}"
-					></span>
 				{/each}
-				<span>{t('statistics.more') || 'More'}</span>
-				<span class="ml-2">{t('statistics.distancePerDay') || 'distance per day'}</span>
+				<!-- Day cells (translate down to leave room for the month axis) -->
+				<g transform="translate(0, 14)">
+					{#each displayCal as day, i (day.date)}
+						{@const pos = cellPosition(i)}
+						<rect
+							x={pos.x}
+							y={pos.y}
+							width={CELL}
+							height={CELL}
+							rx="2"
+							fill={calColor(day.distance)}
+							onmouseenter={(e) => showTooltip('activity', day.date, fmtDistance(day.distance), e)}
+							onmousemove={moveTooltip}
+							onmouseleave={hideTooltip}
+							role="presentation"
+						></rect>
+					{/each}
+				</g>
+			</svg>
+		</div>
+		<div class="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
+			<span>{t('statistics.less') || 'Less'}</span>
+			{#each [0.15, 0.4, 0.7, 1] as t}
+				<span
+					class="inline-block h-2.5 w-2.5 rounded-sm"
+					style="background:{calColor(p90Distance * t)}"
+				></span>
+			{/each}
+			<span>{t('statistics.more') || 'More'}</span>
+			<span class="ml-2">{t('statistics.distancePerDay') || 'distance per day'}</span>
+		</div>
+		{#if tooltip && tooltip.chart === 'activity'}
+			<div
+				class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
+				style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
+			>
+				{tooltip.label}
+				<span class="opacity-70">· {tooltip.sub}</span>
 			</div>
-			{#if tooltip && tooltip.chart === 'activity'}
-				<div
-					class="bg-foreground text-background pointer-events-none absolute rounded px-2 py-1 text-xs font-medium shadow-lg"
-					style="left:{tooltip.x}px; top:{tooltip.y}px; transform: translate(-50%, calc(-100% - 8px));"
-				>
-					{tooltip.label}
-					<span class="opacity-70">· {tooltip.sub}</span>
-				</div>
-			{/if}
 		{/if}
-	</section>
+	{/if}
+</section>
 
+<!-- The remaining charts (time-of-day, speed, mode donut, records) depend
+	     on the date-range-filtered points, so they only render when there are
+	     points in the selected range. -->
+{#if points.length > 0}
 	<div class="mb-8 flex w-full flex-col gap-4 md:flex-row">
 		<!-- Time-of-day radial -->
 		<section class="bg-card border-border relative flex-1 rounded-lg border p-4">

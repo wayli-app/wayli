@@ -83,7 +83,7 @@ test.describe('Authentication Pages', () => {
 test.describe('Protected Routes', () => {
 	// These routes live under the (user) group and are guarded client-side
 	// by dashboard/+layout.svelte, which redirects unauthenticated users to signin.
-	const protectedRoutes = ['/dashboard', '/dashboard/statistics', '/dashboard/travel'];
+	const protectedRoutes = ['/dashboard', '/dashboard/location-data', '/dashboard/travel'];
 
 	for (const route of protectedRoutes) {
 		test(`should redirect to signin when accessing ${route} without auth`, async ({ page }) => {

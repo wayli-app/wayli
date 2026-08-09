@@ -8,6 +8,7 @@ import { writable, get, derived } from 'svelte/store';
 import { fluxbase } from '$lib/fluxbase';
 import type { RealtimeChannel, ExecutionLogsChannel } from '@nimbleflux/fluxbase-sdk';
 import { createNotification } from '$lib/services/notifications.service';
+import { refreshUnread } from '$lib/stores/notifications';
 
 // RPC Execution type (mirrors SDK's RPCExecution interface)
 interface RPCExecution {
@@ -167,6 +168,10 @@ function notifyTerminalJob(job: JobStoreJob): void {
 		link: link ?? undefined,
 		related_job_id: job.id
 	});
+	// The notifications table isn't on realtime, so drive the badge count +
+	// open-panel live-refresh from here (the jobs.queue realtime channel IS
+	// enabled and is what surfaced this terminal transition).
+	refreshUnread();
 }
 
 /**

@@ -71,15 +71,14 @@ function publicStorageUrl(internalUrl: string): string {
 }
 
 /**
- * Upload a photo to the trip-images bucket AND verify the object actually
- * registered (storage.objects row + bytes) before returning the public URL.
+ * Upload a photo to the trip-images bucket and return its public URL. Retries
+ * on explicit upload error.
  *
- * Fluxbase storage can report a successful upload while the object isn't yet
- * durable (transient platform hiccups). Without verification, we'd insert a
- * trip_media row pointing at an object that 404s — an "orphan" that shows up
- * as a broken image on the trip page. So we verify with a `list` by prefix
- * and retry the whole upload a few times; only once the object is confirmed
- * present do we return its URL. Returns null if it never lands.
+ * Mirrors the working frontend upload path (trip-media.service.ts /
+ * image-upload.service.ts): trust the upload result and resolve the public URL.
+ * A previous version verified via storage.list(), but that was unreliable —
+ * list() returns basenames while storagePath is a full nested path, so the
+ * comparison was always false and every photo was silently skipped.
  */
 async function uploadPhotoWithVerify(
   fluxbase: FluxbaseClient,
@@ -104,20 +103,9 @@ async function uploadPhotoWithVerify(
       continue;
     }
 
-    // Verify the object actually registered before trusting it.
-    const { data: listed, error: listErr } = await fluxbase.storage
-      .from(bucket)
-      .list({ prefix: storagePath, limit: 1 });
-    const found = !listErr && Array.isArray(listed) && listed.some((f: any) => f?.name === storagePath);
-    if (found) {
-      const { data: urlData } = fluxbase.storage.from(bucket).getPublicUrl(storagePath);
-      return publicStorageUrl(urlData.publicUrl);
-    }
-
-    console.warn(
-      `[polarsteps] upload reported success but object not found on attempt ${attempt}/${maxAttempts} for ${storagePath}`
-    );
-    await new Promise((r) => setTimeout(r, 500 * attempt));
+    // Upload succeeded — resolve the public URL (same as the frontend upload).
+    const { data: urlData } = fluxbase.storage.from(bucket).getPublicUrl(storagePath);
+    return publicStorageUrl(urlData.publicUrl);
   }
 
   return null;
@@ -354,17 +342,31 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       `[polarsteps] Trip "${tripJson.name}" has ${steps.length} steps, isNewTrip=${isNewTrip}`
     );
 
-    // Fetch existing photo filenames for dedup (merge case)
+    // Fetch existing photo filenames for dedup (merge case). Also verify each
+    // existing row's storage object is actually accessible — stale rows that
+    // point at missing files (orphans from a prior failed import) are deleted
+    // so the photo gets re-uploaded instead of silently skipped.
     const existingPhotoNames = new Set<string>();
     if (!isNewTrip) {
       try {
         const { data: existingMedia } = await fluxbase
           .from('trip_media')
-          .select('storage_path')
+          .select('id, storage_path')
           .eq('trip_id', tripId);
         for (const m of (existingMedia as any[]) ?? []) {
           const fn = (m.storage_path || '').split('/').pop();
-          if (fn) existingPhotoNames.add(fn);
+          if (!fn) continue;
+          // Verify the object exists; if not, remove the orphan row so the
+          // photo is re-uploaded rather than skipped.
+          const { error: headErr } = await fluxbase.storage
+            .from('trip-images')
+            .download((m.storage_path || '').replace(/^.*\/trip-images\//, ''));
+          if (headErr) {
+            console.log(`[polarsteps] Removing orphan trip_media row (file missing): ${fn}`);
+            await fluxbase.from('trip_media').delete().eq('id', m.id);
+            continue;
+          }
+          existingPhotoNames.add(fn);
         }
       } catch {
         // non-critical
@@ -421,6 +423,12 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       const photoFiles = findZipFiles(
         new RegExp(`${tripDirPrefix}[^/]*${step.id}[^/]*/photos/.+\\.jpg`, 'i')
       );
+
+      if (photoFiles.length > 0) {
+        console.log(
+          `[polarsteps] Step "${step.name}" (${step.id}): found ${photoFiles.length} photo(s)`
+        );
+      }
 
       let firstPhotoMediaId: string | null = null;
 
@@ -551,6 +559,10 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       }
     }
   }
+
+  console.log(
+    `[polarsteps] Import complete: ${tripsImported} new, ${tripsMerged} merged, ${entriesCreated} entries, ${photosUploaded} photos uploaded, ${photosSkipped} photos skipped, ${gpsPointsImported} GPS points`
+  );
 
   safeReportProgress(job, 100, 'Import complete!');
 

@@ -797,6 +797,18 @@
 			});
 
 			toast.success('Profile updated successfully!');
+
+			// Keep the auth user store in sync so the top-bar name updates live.
+			userStore.update((u) =>
+				u
+					? {
+							...u,
+							first_name: profile.first_name || '',
+							full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
+							avatar_url: (profile as any).avatar_url ?? u.avatar_url
+						}
+					: u
+			);
 		} catch (error) {
 			console.error('❌ [AccountSettings] Error updating profile:', error);
 			const msg = error instanceof Error ? error.message : '';

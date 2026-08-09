@@ -5,16 +5,17 @@ import { fluxbase } from '$lib/fluxbase';
 import type { UserProfile } from '$lib/types/user.types';
 import type { AuthSession, User } from '@nimbleflux/fluxbase-sdk';
 
-type AuthStore = User & Partial<Pick<UserProfile, 'full_name' | 'avatar_url' | 'role'>>;
+type AuthStore = User &
+	Partial<Pick<UserProfile, 'first_name' | 'full_name' | 'avatar_url' | 'role'>>;
 
 function createAuthStore() {
-	const { subscribe, set } = writable<AuthStore | null>(null);
-
-	// Defer subscription until after sessionStore is declared
+	const store = writable<AuthStore | null>(null);
+	const { subscribe, set, update } = store;
 
 	return {
 		subscribe,
-		set
+		set,
+		update
 	};
 }
 

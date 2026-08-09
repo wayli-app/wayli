@@ -116,6 +116,8 @@
 	let selectedSegmentIdxs = $state<Set<number>>(new Set());
 	let segmentHighlight: any[] = [];
 	let isUpdatingMode = $state(false);
+	// Guard so the map 'click' (deselect) handler is registered once, not on every redraw.
+	let mapClickWired = false;
 	// Heat layer: shows where the user actually spends time (slow/stationary
 	// points), built from the same rawDataPoints the circle-marker map uses.
 	let heatLayer: any = null;
@@ -974,8 +976,16 @@
 						// Add click handler: select the whole segment this point
 						// belongs to (for relabelling). Shift-click toggles the
 						// segment into/out of the selection so several can be
-						// relabelled at once.
+						// relabelled at once. Clicking an already-selected point
+						// (or clicking empty map, handled below) deselects it.
 						marker.on('click', (e: any) => {
+							if (selectedPoint && selectedPoint.recorded_at === point.recorded_at) {
+								// Clicking the already-selected point deselects it.
+								selectedPoint = null;
+								selectedSegmentIdxs = new Set();
+								drawSegmentHighlight();
+								return;
+							}
 							selectedPoint = point;
 							const additive = !!e.originalEvent?.shiftKey;
 							selectSegmentForPoint(point._sortedIdx, additive);
@@ -997,6 +1007,18 @@
 
 		// Re-apply segment highlight if one is selected (after a redraw).
 		if (selectedSegmentIdxs.size > 0) drawSegmentHighlight();
+
+		// Clicking empty map area deselects the current point/segment.
+		if (!mapClickWired) {
+			map.on('click', () => {
+				selectedPoint = null;
+				if (selectedSegmentIdxs.size > 0) {
+					selectedSegmentIdxs = new Set();
+					drawSegmentHighlight();
+				}
+			});
+			mapClickWired = true;
+		}
 	}
 
 	// ─── Segment editor ──────────────────────────────────────────────────────
@@ -1932,7 +1954,7 @@
 	<!-- Extra visualizations: activity calendar, time-of-day, speed, mode donut, records -->
 	{#if statisticsData && !statisticsLoading && !statisticsError}
 		{@const rawDataPoints = (statisticsService as any)?.rawDataPoints ?? []}
-		{#if rawDataPoints.length > 0}
+		{#if rawDataPoints.length > 0 || historyPoints.length > 0}
 			<StatisticsCharts
 				points={rawDataPoints}
 				{historyPoints}

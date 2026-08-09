@@ -22,8 +22,8 @@
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
 
 	import NotificationsButton from './NotificationsButton.svelte';
+	import UploadProgressButton from './UploadProgressButton.svelte';
 	import UserMenu from './UserMenu.svelte';
-	import RealtimeConnectionStatus from './RealtimeConnectionStatus.svelte';
 
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -34,13 +34,11 @@
 	let {
 		isAdmin = false,
 		children,
-		onSignout,
-		realtimeConnectionStatus = 'disconnected'
+		onSignout
 	} = $props<{
 		isAdmin?: boolean;
 		children?: unknown;
 		onSignout?: () => void;
-		realtimeConnectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
 	}>();
 
 	// Use the reactive translation function
@@ -56,14 +54,14 @@
 
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
+		{ href: '/dashboard/location-data', label: t('common.navigation.statistics'), icon: MapPin },
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
 		{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
 		{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
 		{ href: '/dashboard/want-to-visit', label: t('common.navigation.wantToVisit'), icon: Star },
 		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
 		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
-		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
-		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: MapPin }
+		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database }
 	]);
 
 	// Force reactive update after navigation
@@ -187,11 +185,9 @@
 				<span class="text-foreground text-lg font-bold">Wayli</span>
 			</a>
 		</div>
-		<!-- Right cluster: realtime status, theme, notifications, account. -->
+		<!-- Right cluster: upload progress, theme, notifications, account. -->
 		<div class="flex items-center gap-1">
-			<div class="px-1">
-				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={true} />
-			</div>
+			<UploadProgressButton />
 			<button
 				onclick={toggleTheme}
 				class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 transition-colors"
