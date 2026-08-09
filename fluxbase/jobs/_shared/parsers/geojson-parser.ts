@@ -15,7 +15,7 @@ import {
 	safeReportProgress,
 	processPointBatch,
 	mergeErrorSummaries,
-	formatTopErrors,
+	logErrorSummary,
 	applyTimezoneCorrection,
 } from '../utils/import-helpers.ts';
 
@@ -136,11 +136,10 @@ export async function parseStream(
 					`Progress: ${mbRead}/${mbTotal} MB (${progress}%) - Features: ${featureIndex.toLocaleString()} - Rate: ${rate}/sec - Imported: ${importedCount.toLocaleString()} - Buffer: ${featureBuffer.length}`
 				);
 
-				const topErrors = formatTopErrors(errorSummary);
 				safeReportProgress(
 					job,
 					progress,
-					`Streaming GeoJSON... ${mbRead}/${mbTotal} MB - ${featureIndex.toLocaleString()} features - ${rate}/sec${topErrors ? ` - Errors: ${topErrors}` : ''}`
+					`Streaming GeoJSON... ${mbRead}/${mbTotal} MB - ${featureIndex.toLocaleString()} features - ${rate}/sec${errorCount > 0 ? ` - Errors: ${errorCount.toLocaleString()}` : ''}`
 				);
 
 				lastLogTime = currentTime;
@@ -157,6 +156,9 @@ export async function parseStream(
 	} finally {
 		reader.releaseLock();
 	}
+
+	// Log the detailed error breakdown so it's visible in the job logs panel.
+	logErrorSummary(errorSummary);
 
 	return { importedCount, skippedCount, errorCount, duplicatesCount, alreadyExistsCount };
 }

@@ -401,12 +401,23 @@ export function mergeErrorSummaries(target: ErrorSummary, source: ErrorSummary):
 }
 
 /**
- * Format top errors for progress message
+ * Log the detailed error breakdown (per-code counts + sample reasons) to the
+ * job logs. The live status line shows only an aggregate error COUNT; the
+ * detail (which DB code, sample rows) lives here so users can diagnose via the
+ * logs panel. Call once at the end of each parser.
  */
-export function formatTopErrors(errorSummary: ErrorSummary, limit: number = 3): string {
-	return Object.entries(errorSummary.counts)
+export function logErrorSummary(errorSummary: ErrorSummary): void {
+	const totalErrors = Object.values(errorSummary.counts).reduce((a, b) => a + b, 0);
+	if (totalErrors === 0) return;
+	const breakdown = Object.entries(errorSummary.counts)
 		.sort((a, b) => b[1] - a[1])
-		.slice(0, limit)
-		.map(([k, v]) => `${k}: ${v}`)
+		.map(([k, v]) => `${k}: ${v.toLocaleString()}`)
 		.join('; ');
+	console.log(`Error breakdown (${totalErrors.toLocaleString()} total): ${breakdown}`);
+	if (errorSummary.samples.length > 0) {
+		console.log('Error samples:');
+		for (const s of errorSummary.samples) {
+			console.log(`  #${s.idx}: ${s.reason}`);
+		}
+	}
 }
