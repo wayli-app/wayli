@@ -1,5 +1,15 @@
 <script lang="ts">
-	import { Upload, Download, UploadCloud, FileCheck, ChevronDown, Loader2 } from 'lucide-svelte';
+	import {
+		Upload,
+		Download,
+		UploadCloud,
+		FileCheck,
+		ChevronDown,
+		Loader2,
+		MapPin,
+		Star,
+		Route
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
@@ -22,7 +32,7 @@
 	let lastSuccessfulImport = $state<string | null>(null);
 
 	// ── Export state ──
-	let exportExpanded = $state(false);
+	let exportExpanded = $state(true);
 	let isExporting = $state(false);
 	let exportFormat = $state('JSON');
 	let exportStartDate = $state<Date | undefined>(undefined);
@@ -329,41 +339,47 @@
 				<div transition:slide={{ duration: 200 }} class="mt-4 space-y-4">
 					<p class="text-muted-foreground text-sm">{t('importExport.exportDescription')}</p>
 
-					<!-- Include checklist -->
+					<!-- Include options as toggle pills -->
 					<div>
 						<span class="text-foreground mb-2 block text-sm font-medium">
 							{t('importExport.include')}
 						</span>
-						<div class="flex flex-wrap gap-4">
-							<label class="flex cursor-pointer items-center gap-2">
-								<input
-									type="checkbox"
-									bind:checked={includeLocationDataExport}
-									class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-								/>
-								<span class="text-muted-foreground text-sm">{t('importExport.locationData')}</span>
-							</label>
-							<label class="flex cursor-pointer items-center gap-2">
-								<input
-									type="checkbox"
-									bind:checked={includeWantToVisitExport}
-									class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-								/>
-								<span class="text-muted-foreground text-sm">{t('importExport.wantToVisit')}</span>
-							</label>
-							<label class="flex cursor-pointer items-center gap-2">
-								<input
-									type="checkbox"
-									bind:checked={includeTripsExport}
-									class="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-								/>
-								<span class="text-muted-foreground text-sm">{t('importExport.trips')}</span>
-							</label>
+						<div class="flex flex-wrap gap-2">
+							<button
+								type="button"
+								onclick={() => (includeLocationDataExport = !includeLocationDataExport)}
+								class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {includeLocationDataExport
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:border-muted-foreground/50'}"
+							>
+								<MapPin class="h-3.5 w-3.5" />
+								{t('importExport.locationData')}
+							</button>
+							<button
+								type="button"
+								onclick={() => (includeWantToVisitExport = !includeWantToVisitExport)}
+								class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {includeWantToVisitExport
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:border-muted-foreground/50'}"
+							>
+								<Star class="h-3.5 w-3.5" />
+								{t('importExport.wantToVisit')}
+							</button>
+							<button
+								type="button"
+								onclick={() => (includeTripsExport = !includeTripsExport)}
+								class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {includeTripsExport
+									? 'border-primary bg-primary/10 text-primary'
+									: 'border-border text-muted-foreground hover:border-muted-foreground/50'}"
+							>
+								<Route class="h-3.5 w-3.5" />
+								{t('importExport.trips')}
+							</button>
 						</div>
 					</div>
 
 					<!-- Format + Date range side by side -->
-					<div class="flex flex-wrap items-end gap-6">
+					<div class="flex flex-wrap items-start gap-6">
 						<div>
 							<label
 								class="text-muted-foreground mb-1.5 block text-sm font-medium"
@@ -420,10 +436,6 @@
 
 		<!-- ═══ Export history ═══ -->
 		<div class="bg-card border-border rounded-xl border p-6">
-			<div class="mb-4 flex items-center gap-3">
-				<Download class="text-muted-foreground h-5 w-5" />
-				<h2 class="text-foreground text-lg font-semibold">{t('exportJobs.title')}</h2>
-			</div>
 			<ExportJobs />
 		</div>
 	</div>
