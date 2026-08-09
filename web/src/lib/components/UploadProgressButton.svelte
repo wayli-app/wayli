@@ -10,6 +10,7 @@
 
 	let uploadsMap = $state<Map<string, UploadProgress>>(new Map());
 	let unsub: (() => void) | null = null;
+	let destroyed = false;
 
 	const activeUploads = $derived(
 		Array.from(uploadsMap.values())
@@ -17,7 +18,6 @@
 			.sort((a, b) => b.percentage - a.percentage)
 	);
 
-	// For multiple concurrent uploads, show the average progress.
 	const overallPct = $derived(
 		activeUploads.length === 0
 			? 0
@@ -27,12 +27,14 @@
 
 	onMount(() => {
 		unsub = subscribe((map) => {
+			if (destroyed) return;
 			uploadsMap = new Map(map);
 		});
 	});
 
 	onDestroy(() => {
 		if (!browser) return;
+		destroyed = true;
 		unsub?.();
 	});
 </script>

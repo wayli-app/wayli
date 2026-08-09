@@ -122,27 +122,28 @@
 
 	let unsubJobs: (() => void) | null = null;
 	let unsubNotifs: (() => void) | null = null;
+	let destroyed = false;
 
 	onMount(() => {
 		updateMobile();
 		window.addEventListener('resize', updateMobile);
 		activeJobsMap = new Map(getActiveJobsMap());
 		unsubJobs = subscribeJobs(() => {
+			if (destroyed) return;
 			const prev = activeJobsMap;
 			activeJobsMap = new Map(getActiveJobsMap());
 			scheduleLingerTimers(prev, activeJobsMap);
 		});
-		// Live-refresh the open panel's "Recent" list when a notification
-		// arrives over realtime (e.g. a job completing while open), mirroring
-		// the job-store subscription above.
 		unsubNotifs = notifRefresh.subscribe(() => {
-			if (open) loadNotifs();
+			if (destroyed || !open) return;
+			loadNotifs();
 		});
 		document.addEventListener('click', handleDocClick);
 	});
 
 	onDestroy(() => {
 		if (!browser) return;
+		destroyed = true;
 		window.removeEventListener('resize', updateMobile);
 		unsubJobs?.();
 		unsubNotifs?.();
@@ -173,6 +174,7 @@
 					id,
 					setTimeout(() => {
 						hideTimers.delete(id);
+						if (destroyed) return;
 						// Reassign the Set (not mutate) so Svelte 5 reactivity fires.
 						const next = new Set(hiddenTerminalIds);
 						next.add(id);
