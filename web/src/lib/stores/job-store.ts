@@ -61,8 +61,11 @@ export interface JobStoreJob {
 	created_by: string;
 }
 
-// Store for active jobs
-const jobsStore = writable<Map<string, JobStoreJob>>(new Map());
+// Store for active jobs. Exported so pages can watch a specific job reach a
+// terminal state (e.g. statistics/+page.svelte refreshCalendar waits on a
+// submitted job via jobsStore.subscribe). The derived stores below and the
+// addJobToStore/removeJobFromStore mutation APIs consume it too.
+export const jobsStore = writable<Map<string, JobStoreJob>>(new Map());
 
 // Use globalThis to persist across HMR reloads
 let realtimeChannel: RealtimeChannel | null = (globalThis as any).__jobStoreChannel ?? null;

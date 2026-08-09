@@ -28,7 +28,7 @@
 		subscribe as subscribeJobs,
 		type JobStoreJob
 	} from '$lib/stores/job-store';
-	import { unreadCount, refreshUnread } from '$lib/stores/notifications';
+	import { unreadCount, refreshUnread, notifRefresh } from '$lib/stores/notifications';
 	import {
 		listNotifications,
 		markRead,
@@ -44,22 +44,44 @@
 	let panelEl = $state<HTMLDivElement | null>(null);
 	let buttonEl = $state<HTMLButtonElement | null>(null);
 
-	// --- Live job data (active jobs only) ---
+	// --- Live job data ---
+	// Active = pending/running. Terminal = just-completed/failed/cancelled jobs
+	// that are still in the job-store's 60s window — surfaced briefly as rich
+	// cards so the user sees the outcome immediately, then they collapse into
+	// the "Recent" notification list. `hiddenTerminalIds` locally suppresses a
+	// terminal card a few seconds after it appears.
 	let activeJobsMap = $state<Map<string, JobStoreJob>>(new Map());
+	let hiddenTerminalIds = $state<Set<string>>(new Set());
+	let hideTimers = new Map<string, ReturnType<typeof setTimeout>>();
+	const TERMINAL_LINGER_MS = 4000;
+
 	const activeJobs = $derived(
 		Array.from(activeJobsMap.values())
 			.filter((j) => j.status === 'pending' || j.status === 'running')
 			.sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
+	);
+	const recentTerminalJobs = $derived(
+		Array.from(activeJobsMap.values())
+			.filter(
+				(j) =>
+					(j.status === 'completed' || j.status === 'failed' || j.status === 'cancelled') &&
+					!hiddenTerminalIds.has(j.id)
+			)
+			.sort((a, b) => {
+				const ta = new Date(a.completed_at || a.updated_at || a.created_at).getTime();
+				const tb = new Date(b.completed_at || b.updated_at || b.created_at).getTime();
+				return tb - ta;
+			})
 	);
 
 	// --- Persistent notifications ---
 	let notifications = $state<AppNotification[]>([]);
 	let loadingNotifs = $state(false);
 
-	const activeCount = $derived(activeJobs.length);
+	const activeCount = $derived(activeJobs.length + recentTerminalJobs.length);
 	const totalBadge = $derived(activeCount + ($unreadCount > 0 ? $unreadCount : 0));
 
-	// Job-type icon config (mirrors JobProgressIndicator).
+	// Job-type icon config.
 	const jobTypeIcon: Record<string, any> = {
 		data_import: FileDown,
 		data_import_geojson: FileDown,
@@ -94,13 +116,22 @@
 	}
 
 	let unsubJobs: (() => void) | null = null;
+	let unsubNotifs: (() => void) | null = null;
 
 	onMount(() => {
 		updateMobile();
 		window.addEventListener('resize', updateMobile);
 		activeJobsMap = new Map(getActiveJobsMap());
 		unsubJobs = subscribeJobs(() => {
+			const prev = activeJobsMap;
 			activeJobsMap = new Map(getActiveJobsMap());
+			scheduleLingerTimers(prev, activeJobsMap);
+		});
+		// Live-refresh the open panel's "Recent" list when a notification
+		// arrives over realtime (e.g. a job completing while open), mirroring
+		// the job-store subscription above.
+		unsubNotifs = notifRefresh.subscribe(() => {
+			if (open) loadNotifs();
 		});
 		document.addEventListener('click', handleDocClick);
 	});
@@ -109,8 +140,43 @@
 		if (!browser) return;
 		window.removeEventListener('resize', updateMobile);
 		unsubJobs?.();
+		unsubNotifs?.();
+		hideTimers.forEach((timer) => clearTimeout(timer));
+		hideTimers.clear();
 		document.removeEventListener('click', handleDocClick);
 	});
+
+	/**
+	 * When a job transitions into a terminal state (completed/failed/cancelled),
+	 * start a short timer to collapse its rich card into the "Recent" list. The
+	 * card stays visible for TERMINAL_LINGER_MS so the user sees the outcome,
+	 * then is locally hidden (the underlying job is removed from the store
+	 * ~60s later by the job-store's own cleanup).
+	 */
+	function scheduleLingerTimers(prev: Map<string, JobStoreJob>, curr: Map<string, JobStoreJob>) {
+		for (const [id, job] of curr) {
+			const isTerminal =
+				job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled';
+			const wasTerminal = (() => {
+				const p = prev.get(id);
+				return (
+					!!p && (p.status === 'completed' || p.status === 'failed' || p.status === 'cancelled')
+				);
+			})();
+			if (isTerminal && !wasTerminal && !hideTimers.has(id) && !hiddenTerminalIds.has(id)) {
+				hideTimers.set(
+					id,
+					setTimeout(() => {
+						hideTimers.delete(id);
+						// Reassign the Set (not mutate) so Svelte 5 reactivity fires.
+						const next = new Set(hiddenTerminalIds);
+						next.add(id);
+						hiddenTerminalIds = next;
+					}, TERMINAL_LINGER_MS)
+				);
+			}
+		}
+	}
 
 	function handleDocClick(e: MouseEvent) {
 		if (!open) return;
@@ -271,10 +337,10 @@
 {/if}
 
 {#snippet listContent()}
-	{#if activeJobs.length > 0}
+	{#if activeJobs.length > 0 || recentTerminalJobs.length > 0}
 		<div class="px-2 pt-2 pb-1">
 			<p class="text-muted-foreground px-1 text-xs font-semibold tracking-wide uppercase">
-				{t('notifications.active')} · {activeJobs.length}
+				{t('notifications.active')} · {activeJobs.length + recentTerminalJobs.length}
 			</p>
 		</div>
 		{#each activeJobs as job (job.id)}
@@ -318,6 +384,43 @@
 				</div>
 			</div>
 		{/each}
+
+		<!-- Just-finished jobs: shown as rich cards briefly before collapsing
+		     into the "Recent" notification list below. -->
+		{#each recentTerminalJobs as job (job.id)}
+			{@const JobIcon = jobIcon(job.job_name)}
+			{@const termIcon =
+				job.status === 'completed' ? Check : job.status === 'failed' ? CircleAlert : X}
+			{@const termColor =
+				job.status === 'completed'
+					? 'text-green-500'
+					: job.status === 'failed'
+						? 'text-red-500'
+						: 'text-muted-foreground'}
+			<div
+				class="hover:bg-muted flex items-start gap-3 rounded-lg p-2"
+				role="status"
+				aria-live="polite"
+				transition:fade={{ duration: 150 }}
+			>
+				<div class="mt-0.5 {termColor}">
+					<termIcon class="h-4 w-4" />
+				</div>
+				<div class="min-w-0 flex-1">
+					<p class="text-foreground truncate text-sm font-medium">
+						<JobIcon class="text-muted-foreground mr-1 inline h-3.5 w-3.5" />
+						{job.job_name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+					</p>
+					<p class="text-muted-foreground mt-1 text-xs">
+						{job.status === 'completed'
+							? t('jobProgress.statusCompleted')
+							: job.status === 'failed'
+								? t('jobProgress.statusFailed')
+								: t('jobProgress.statusCancelled')}
+					</p>
+				</div>
+			</div>
+		{/each}
 	{/if}
 
 	<div class="px-2 pt-2 pb-1">
@@ -331,7 +434,7 @@
 			<Loader2 class="h-4 w-4 animate-spin" />
 			{t('notifications.loading')}
 		</div>
-	{:else if notifications.length === 0 && activeJobs.length === 0}
+	{:else if notifications.length === 0 && activeJobs.length === 0 && recentTerminalJobs.length === 0}
 		<div class="text-muted-foreground flex flex-col items-center gap-2 p-8 text-center">
 			<Bell class="h-8 w-8 opacity-40" />
 			<p class="text-sm">{t('notifications.empty')}</p>

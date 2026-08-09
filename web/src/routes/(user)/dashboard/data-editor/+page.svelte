@@ -932,7 +932,7 @@
 		></button>
 		<!-- Sheet -->
 		<div
-			transition:slide={{ duration: 250, axis: 'y' }}
+			in:slide={{ duration: 250, axis: 'y' }}
 			class="bg-card border-border fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t shadow-2xl md:hidden"
 		>
 			<!-- Drag handle / close affordance -->
