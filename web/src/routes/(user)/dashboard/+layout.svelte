@@ -268,19 +268,24 @@
 		<OnboardingChecklistBanner userId={$userStore.id} {isAdmin} {aiEnabled} />
 	{/if}
 
-	<!-- Main content area -->
-	<div class="bg-background min-h-screen {$userStore?.id && !isCheckingAdmin ? '' : 'p-6'}">
+	<!-- Main content area: always render children so the slot is never
+	     conditionally destroyed/recreated (which crashes Svelte's DOM
+	     reconciliation when a child page is mid-async-mount). The loading
+	     spinner overlays on top instead. -->
+	<div class="bg-background min-h-screen p-6">
+		<div>
+			{@render children()}
+		</div>
 		{#if isCheckingAdmin}
-			<div class="flex h-64 items-center justify-center">
+			<div
+				class="bg-background absolute inset-0 top-14 flex items-center justify-center"
+				style="z-index: 10;"
+			>
 				<div class="text-center">
 					<div
 						class="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2"
 					></div>
 				</div>
-			</div>
-		{:else}
-			<div class="p-6" in:fade={{ duration: 150, delay: 150 }}>
-				{@render children()}
 			</div>
 		{/if}
 	</div>
