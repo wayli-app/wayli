@@ -29,7 +29,6 @@
 		subscribe as subscribeJobs,
 		type JobStoreJob
 	} from '$lib/stores/job-store';
-	import { subscribe as subscribeUploads, type UploadProgress } from '$lib/stores/upload-store';
 	import { unreadCount, refreshUnread, notifRefresh } from '$lib/stores/notifications';
 	import {
 		listNotifications,
@@ -81,25 +80,11 @@
 	let notifications = $state<AppNotification[]>([]);
 	let loadingNotifs = $state(false);
 
-	// --- File-upload progress (pre-job phase) ---
-	// The uploadResumable byte-% is tracked in upload-store but had no UI
-	// consumer; surfacing it here shows the upload phase before the import job
-	// (which appears via the job-store once the upload finishes).
-	let activeUploadsMap = $state<Map<string, UploadProgress>>(new Map());
-	const activeUploads = $derived(
-		Array.from(activeUploadsMap.values())
-			.filter((u) => u.status === 'uploading' || u.status === 'processing')
-			.sort((a, b) => b.percentage - a.percentage)
-	);
-
 	// --- Job logs modal (opened inline from a card / notification row) ---
 	let logJob = $state<JobStoreJob | null>(null);
 
 	const activeCount = $derived(activeJobs.length + recentTerminalJobs.length);
 	const totalBadge = $derived(activeCount + ($unreadCount > 0 ? $unreadCount : 0));
-	// "Work happening right now" — drives the pulsing bell indicator. Only
-	// active jobs (not file uploads) trigger it; uploads show a card inside the
-	// panel but don't badge/clutter the bell.
 	const hasActiveWork = $derived(activeJobs.length > 0);
 
 	// Job-type icon config.
@@ -138,7 +123,6 @@
 
 	let unsubJobs: (() => void) | null = null;
 	let unsubNotifs: (() => void) | null = null;
-	let unsubUploads: (() => void) | null = null;
 
 	onMount(() => {
 		updateMobile();
@@ -148,11 +132,6 @@
 			const prev = activeJobsMap;
 			activeJobsMap = new Map(getActiveJobsMap());
 			scheduleLingerTimers(prev, activeJobsMap);
-		});
-		// Track file uploads (the pre-job uploadResumable phase) so an upload
-		// card appears with a byte-% bar before the import job takes over.
-		unsubUploads = subscribeUploads((map) => {
-			activeUploadsMap = new Map(map);
 		});
 		// Live-refresh the open panel's "Recent" list when a notification
 		// arrives over realtime (e.g. a job completing while open), mirroring
@@ -167,7 +146,6 @@
 		if (!browser) return;
 		window.removeEventListener('resize', updateMobile);
 		unsubJobs?.();
-		unsubUploads?.();
 		unsubNotifs?.();
 		hideTimers.forEach((timer) => clearTimeout(timer));
 		hideTimers.clear();
@@ -405,45 +383,12 @@
 {/if}
 
 {#snippet listContent()}
-	{#if activeUploads.length > 0 || activeJobs.length > 0 || recentTerminalJobs.length > 0}
+	{#if activeJobs.length > 0 || recentTerminalJobs.length > 0}
 		<div class="px-2 pt-2 pb-1">
 			<p class="text-muted-foreground px-1 text-xs font-semibold tracking-wide uppercase">
-				{t('notifications.active')} · {activeUploads.length +
-					activeJobs.length +
-					recentTerminalJobs.length}
+				{t('notifications.active')} · {activeJobs.length + recentTerminalJobs.length}
 			</p>
 		</div>
-
-		<!-- File uploads (pre-job uploadResumable phase): byte-% bar. Hands off
-		     to the import-job card below once the upload completes. -->
-		{#each activeUploads as upload (upload.id)}
-			<div
-				class="hover:bg-muted flex items-start gap-3 rounded-lg p-2"
-				role="status"
-				aria-live="polite"
-			>
-				<div class="text-primary mt-0.5">
-					<Loader2 class="h-4 w-4 animate-spin" />
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="text-foreground truncate text-sm font-medium">
-						<Upload class="text-muted-foreground mr-1 inline h-3.5 w-3.5" />
-						{upload.fileName}
-					</p>
-					<div class="bg-muted mt-1.5 h-1.5 w-full overflow-hidden rounded-full">
-						<div
-							class="bg-primary h-full rounded-full transition-all duration-300"
-							style="width: {upload.percentage}%"
-						></div>
-					</div>
-					<p class="text-muted-foreground mt-1 text-xs">
-						{upload.status === 'processing'
-							? t('notifications.processingUpload')
-							: t('notifications.uploading', { percent: Math.round(upload.percentage) })}
-					</p>
-				</div>
-			</div>
-		{/each}
 
 		{#each activeJobs as job (job.id)}
 			{@const JobIcon = jobIcon(job.job_name)}
@@ -554,7 +499,7 @@
 			<Loader2 class="h-4 w-4 animate-spin" />
 			{t('notifications.loading')}
 		</div>
-	{:else if notifications.length === 0 && activeUploads.length === 0 && activeJobs.length === 0 && recentTerminalJobs.length === 0}
+	{:else if notifications.length === 0 && activeJobs.length === 0 && recentTerminalJobs.length === 0}
 		<div class="text-muted-foreground flex flex-col items-center gap-2 p-8 text-center">
 			<Bell class="h-8 w-8 opacity-40" />
 			<p class="text-sm">{t('notifications.empty')}</p>

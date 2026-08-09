@@ -22,6 +22,7 @@
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
 
 	import NotificationsButton from './NotificationsButton.svelte';
+	import UploadProgressButton from './UploadProgressButton.svelte';
 	import UserMenu from './UserMenu.svelte';
 	import RealtimeConnectionStatus from './RealtimeConnectionStatus.svelte';
 
@@ -209,6 +210,7 @@
 				{/if}
 			</button>
 			<NotificationsButton />
+			<UploadProgressButton />
 			<UserMenu {isAdmin} {onSignout} />
 		</div>
 	</header>
