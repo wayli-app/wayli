@@ -410,6 +410,12 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
         new RegExp(`${tripDirPrefix}[^/]*${step.id}[^/]*/photos/.+\\.jpg`, 'i')
       );
 
+      if (photoFiles.length > 0) {
+        console.log(
+          `[polarsteps] Step "${step.name}" (${step.id}): found ${photoFiles.length} photo(s)`
+        );
+      }
+
       let firstPhotoMediaId: string | null = null;
 
       for (const photoFile of photoFiles) {
@@ -539,6 +545,10 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       }
     }
   }
+
+  console.log(
+    `[polarsteps] Import complete: ${tripsImported} new, ${tripsMerged} merged, ${entriesCreated} entries, ${photosUploaded} photos uploaded, ${photosSkipped} photos skipped, ${gpsPointsImported} GPS points`
+  );
 
   safeReportProgress(job, 100, 'Import complete!');
 
