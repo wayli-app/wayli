@@ -14,6 +14,14 @@ import { getUnreadCount } from '$lib/services/notifications.service';
  */
 export const unreadCount = writable(0);
 
+/**
+ * Bumped on every realtime notifications change (INSERT/UPDATE/DELETE).
+ * Components with the panel open subscribe to this to re-fetch the list so a
+ * newly-completed job's notification appears live without close/reopen.
+ * (Mirrors the job-store pattern the NotificationsButton already uses.)
+ */
+export const notifRefresh = writable(0);
+
 let channel: ReturnType<typeof fluxbase.realtime.channel> | null = null;
 let currentUserId: string | null = null;
 
@@ -47,6 +55,9 @@ export function initNotifications(userId: string): void {
 				// Recompute on any change — cheapest and always-correct option,
 				// and the volume is low (a handful of notifications per job run).
 				getUnreadCount().then((c) => unreadCount.set(c));
+				// Signal an open panel to re-fetch its list so new notifications
+				// appear live (e.g. a job completing while the panel is open).
+				notifRefresh.update((n) => n + 1);
 				// Suppress unused-var lint for payload.
 				void payload;
 			}
