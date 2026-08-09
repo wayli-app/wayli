@@ -196,8 +196,10 @@
 			console.error('Failed to load data:', err);
 			toast.error(t('dataEditor.loadFailed'));
 		} finally {
-			isLoading = false;
-			loadingProgress = 100;
+			if (!destroyed) {
+				isLoading = false;
+				loadingProgress = 100;
+			}
 		}
 	}
 
