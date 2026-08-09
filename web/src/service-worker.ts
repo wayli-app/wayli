@@ -5,7 +5,7 @@
 // Navigation requests and API calls always go to the network (no stale content).
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const CACHE_NAME = 'wayli-assets-v2';
+const CACHE_NAME = 'wayli-assets-v3';
 
 const sw = self as any;
 
