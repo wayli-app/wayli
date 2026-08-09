@@ -207,7 +207,13 @@
 			zoomControl: false,
 			// Let the world repeat horizontally when panned (preferred look).
 			// No maxBounds: clamping would suppress the repetition.
-			worldCopyJump: false
+			worldCopyJump: false,
+			// Force integer zoom levels — fractional zoom causes raster tiles
+			// to be scaled, which makes adjacent tile-row color mismatches
+			// visible as horizontal seam lines. Integer zoom = 1:1 pixel ratio.
+			zoomSnap: 1,
+			zoomDelta: 1,
+			wheelPxPerZoomLevel: 120
 		});
 		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
 			// No-labels tiles: the `_all` CartoDB tiles bake cartographic
