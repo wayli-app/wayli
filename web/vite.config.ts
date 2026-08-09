@@ -45,8 +45,10 @@ export default defineConfig(({ mode }) => {
 			}
 		},
 		build: {
-			// Enable source maps for debugging
-			sourcemap: env.NODE_ENV === 'development',
+			// Enable source maps for debugging (always on so production errors
+			// have readable stack traces; the .map files are not served unless
+			// explicitly configured, so this doesn't expose source to users).
+			sourcemap: true,
 
 			// ponytail: SvelteKit owns rollupOptions.output.{entry,chunk,asset}FileNames
 			// for its own chunking strategy (per-route splitting, hashed assets).
