@@ -155,6 +155,7 @@
 		loadingStage = t('dataEditor.loadingPointsIndeterminate');
 		try {
 			const { data: userData } = await fluxbase.auth.getUser();
+			if (destroyed) return;
 			const userId = userData?.user?.id;
 			if (!userId) return;
 
@@ -166,6 +167,7 @@
 				getExclusionZones(),
 				getHomeAddress()
 			]);
+			if (destroyed) return;
 			totalCount = count;
 			exclusionZones = zones;
 			homeAddress = home;
@@ -173,9 +175,11 @@
 
 			// Stream points in batches, reporting progress as we go.
 			const points = await getPoints(userId, startDate, endDate, (loaded, total) => {
+				if (destroyed) return;
 				loadingProgress = total > 0 ? 10 + Math.round((loaded / total) * 85) : 10 + 40;
 				loadingStage = t('dataEditor.loadingPoints').replace('{count}', String(loaded));
 			});
+			if (destroyed) return;
 
 			loadingProgress = 98;
 			loadingStage = t('dataEditor.loadingPoints').replace('{count}', String(points.length));
@@ -749,6 +753,7 @@
 
 	async function refreshData() {
 		await loadData();
+		if (destroyed) return;
 		drawPoints();
 		drawExclusionZones();
 		drawHomeAddress();
