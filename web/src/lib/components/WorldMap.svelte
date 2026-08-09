@@ -301,19 +301,24 @@
 <style>
 	/* Tiles only cover roughly ±85° latitude and the zoom-2 tile grid doesn't
 	   align to this small container, so a partial tile row sits at the top and
-	   bottom edges. Previously this used `background: transparent` to "blend the
-	   gap" into the surrounding card/page background — but that exposed the
-	   partial tiles' anti-aliased edge against a contrasting background, which
-	   rendered as a thin full-width horizontal gray line (the reported artifact).
-
-	   Fix: give the container an opaque background that matches the CartoDB
-	   basemap's own base color. Partial tile edges now composite into the
-	   container instead of standing out against the page, eliminating the seam
-	   (compositing, not covering). Values sampled from the *_nolabels tiles. */
+	   bottom edges. Give the container an opaque background that matches the
+	   CartoDB basemap's own base color so partial tile edges composite in. */
 	:global(.leaflet-container) {
 		background: #d5dbdd;
 	}
 	:global(.dark .leaflet-container) {
-		background: #0b1120;
+		background: #0c1424;
+	}
+
+	/* Eliminate tile seam lines: adjacent raster tiles from CartoDB have
+	   slightly different colors at their edges. When rendered at fractional
+	   scale in the small container, the color mismatch at each tile-row
+	   boundary creates visible full-width horizontal lines. Overlapping each
+	   tile by 1px on all sides (via negative margin + enlarged size) covers
+	   the seam with the neighboring tile's edge. */
+	:global(.leaflet-tile) {
+		margin: -0.5px;
+		width: calc(100% + 1px) !important;
+		height: calc(100% + 1px) !important;
 	}
 </style>
