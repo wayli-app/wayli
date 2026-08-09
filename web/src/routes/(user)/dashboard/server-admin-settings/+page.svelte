@@ -1542,7 +1542,9 @@
 		if (failed.length === 0) {
 			toast.success('All settings saved');
 		} else {
-			toast.error(`Saved with ${failed.length} block(s) failing: ${failed.map((s) => s.label).join(', ')}`);
+			toast.error(
+				`Saved with ${failed.length} block(s) failing: ${failed.map((s) => s.label).join(', ')}`
+			);
 		}
 		isSavingAll = false;
 	}
