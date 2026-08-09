@@ -57,10 +57,12 @@
 		open = false;
 	}
 
-	const displayName = $derived($userStore?.full_name || $userStore?.email || 'User');
+	// Prefer first_name for the menu header; fall back to full_name, then email
+	// local-part, so the open menu shows a name (not the raw email) when set.
+	const displayName = $derived(
+		$userStore?.first_name || $userStore?.full_name || $userStore?.email || 'User'
+	);
 	const displayEmail = $derived($userStore?.email || '');
-	// First name for the top bar (falls back to email local-part if no name set).
-	const firstName = $derived($userStore?.first_name || $userStore?.full_name?.split(' ')[0] || '');
 
 	function isActive(href: string): boolean {
 		return $page.url.pathname === href;
@@ -72,14 +74,11 @@
 	<button
 		bind:this={buttonEl}
 		onclick={togglePanel}
-		class="hover:bg-muted flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full py-1 pr-2 pl-1 transition-colors"
+		class="hover:bg-muted flex min-h-[44px] min-w-[44px] cursor-pointer items-center gap-1 rounded-full p-1 transition-colors"
 		title={displayName}
 		aria-label={t('common.navigation.accountSettings')}
 	>
 		<UserAvatar user={$userStore} size="sm" />
-		{#if firstName}
-			<span class="text-foreground max-w-[120px] truncate text-sm font-medium">{firstName}</span>
-		{/if}
 		<ChevronDown class="text-muted-foreground h-4 w-4 shrink-0" />
 	</button>
 </div>
