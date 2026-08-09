@@ -329,12 +329,13 @@ Init container for syncing Fluxbase resources using CLI
           --embedding-model text-embedding-3-small 2>/dev/null || true
         KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
       fi
-      KB_ID=$(printf '%s' "$KB_LIST_JSON" \
-        | grep -oE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"[^}]*"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
-        | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
-        | grep -oE '[0-9a-f-]{36}' | head -1)
+      KB_ID=""
+      KB_OBJ=$(printf '%s' "$KB_LIST_JSON" | grep -oE '\{[^{}]*"wayli-pois"[^{}]*\}' | head -1 || true)
+      if [ -n "$KB_OBJ" ]; then
+        KB_ID=$(printf '%s' "$KB_OBJ" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | grep -oE '[0-9a-f-]{36}' | head -1 || true)
+      fi
       if [ -z "$KB_ID" ]; then
-        KB_ID=$(printf '%s' "$KB_LIST_JSON" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -oE '[0-9a-f-]{36}')
+        KB_ID=$(printf '%s' "$KB_LIST_JSON" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | head -1 | grep -oE '[0-9a-f-]{36}' || true)
       fi
       if [ -n "$KB_ID" ]; then
         echo "Exporting tables to knowledge base..."
