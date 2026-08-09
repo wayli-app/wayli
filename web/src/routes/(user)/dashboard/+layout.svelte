@@ -13,7 +13,7 @@
 	import { sessionManager } from '$lib/services/session';
 	import { suppressDeprecationWarnings } from '$lib/utils/suppress-warnings';
 	import { userStore, sessionStore } from '$lib/stores/auth';
-	import { connectionStatusStore, reconnectedStore } from '$lib/stores/job-store';
+	import { reconnectedStore } from '$lib/stores/job-store';
 	import { fluxbase } from '$lib/fluxbase';
 
 	import { goto } from '$app/navigation';
@@ -38,8 +38,6 @@
 	let aiFabHintDismissed = $state(false);
 
 	let isInitializing = true;
-	// Get realtime connection status from job store
-	let realtimeConnectionStatus = $derived($connectionStatusStore);
 
 	async function handleSignout() {
 		try {
@@ -251,7 +249,7 @@
 	// Cleanup is handled by Fluxbase SDK
 </script>
 
-<AppNav {isAdmin} onSignout={handleSignout} {realtimeConnectionStatus}>
+<AppNav {isAdmin} onSignout={handleSignout}>
 	<!-- Onboarding Checklist Banner (above main content) -->
 	{#if $userStore?.id && !isCheckingAdmin}
 		<OnboardingChecklistBanner userId={$userStore.id} {isAdmin} {aiEnabled} />

@@ -24,7 +24,6 @@
 	import NotificationsButton from './NotificationsButton.svelte';
 	import UploadProgressButton from './UploadProgressButton.svelte';
 	import UserMenu from './UserMenu.svelte';
-	import RealtimeConnectionStatus from './RealtimeConnectionStatus.svelte';
 
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -35,13 +34,11 @@
 	let {
 		isAdmin = false,
 		children,
-		onSignout,
-		realtimeConnectionStatus = 'disconnected'
+		onSignout
 	} = $props<{
 		isAdmin?: boolean;
 		children?: unknown;
 		onSignout?: () => void;
-		realtimeConnectionStatus?: 'connecting' | 'connected' | 'disconnected' | 'error';
 	}>();
 
 	// Use the reactive translation function
@@ -188,11 +185,9 @@
 				<span class="text-foreground text-lg font-bold">Wayli</span>
 			</a>
 		</div>
-		<!-- Right cluster: realtime status, theme, notifications, account. -->
+		<!-- Right cluster: upload progress, theme, notifications, account. -->
 		<div class="flex items-center gap-1">
-			<div class="px-1">
-				<RealtimeConnectionStatus status={realtimeConnectionStatus} compact={true} />
-			</div>
+			<UploadProgressButton />
 			<button
 				onclick={toggleTheme}
 				class="text-muted-foreground hover:text-foreground flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 transition-colors"
@@ -210,7 +205,6 @@
 				{/if}
 			</button>
 			<NotificationsButton />
-			<UploadProgressButton />
 			<UserMenu {isAdmin} {onSignout} />
 		</div>
 	</header>
