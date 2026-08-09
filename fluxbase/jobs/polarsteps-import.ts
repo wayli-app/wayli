@@ -71,15 +71,14 @@ function publicStorageUrl(internalUrl: string): string {
 }
 
 /**
- * Upload a photo to the trip-images bucket AND verify the object actually
- * registered (storage.objects row + bytes) before returning the public URL.
+ * Upload a photo to the trip-images bucket and return its public URL. Retries
+ * on explicit upload error.
  *
- * Fluxbase storage can report a successful upload while the object isn't yet
- * durable (transient platform hiccups). Without verification, we'd insert a
- * trip_media row pointing at an object that 404s — an "orphan" that shows up
- * as a broken image on the trip page. So we verify with a `list` by prefix
- * and retry the whole upload a few times; only once the object is confirmed
- * present do we return its URL. Returns null if it never lands.
+ * Mirrors the working frontend upload path (trip-media.service.ts /
+ * image-upload.service.ts): trust the upload result and resolve the public URL.
+ * A previous version verified via storage.list(), but that was unreliable —
+ * list() returns basenames while storagePath is a full nested path, so the
+ * comparison was always false and every photo was silently skipped.
  */
 async function uploadPhotoWithVerify(
   fluxbase: FluxbaseClient,
@@ -104,20 +103,9 @@ async function uploadPhotoWithVerify(
       continue;
     }
 
-    // Verify the object actually registered before trusting it.
-    const { data: listed, error: listErr } = await fluxbase.storage
-      .from(bucket)
-      .list({ prefix: storagePath, limit: 1 });
-    const found = !listErr && Array.isArray(listed) && listed.some((f: any) => f?.name === storagePath);
-    if (found) {
-      const { data: urlData } = fluxbase.storage.from(bucket).getPublicUrl(storagePath);
-      return publicStorageUrl(urlData.publicUrl);
-    }
-
-    console.warn(
-      `[polarsteps] upload reported success but object not found on attempt ${attempt}/${maxAttempts} for ${storagePath}`
-    );
-    await new Promise((r) => setTimeout(r, 500 * attempt));
+    // Upload succeeded — resolve the public URL (same as the frontend upload).
+    const { data: urlData } = fluxbase.storage.from(bucket).getPublicUrl(storagePath);
+    return publicStorageUrl(urlData.publicUrl);
   }
 
   return null;
