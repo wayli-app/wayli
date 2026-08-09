@@ -224,7 +224,16 @@
 			})
 		);
 
-		drawPoints();
+		// Ensure the map container is sized before drawing layers —
+		// bringToBack() on layers crashes if the pane DOM isn't ready yet
+		// (which happens when the map is created on a container that Svelte
+		// hasn't fully rendered into the DOM).
+		map.whenReady(() => {
+			if (destroyed || !map) return;
+			drawPoints();
+			drawExclusionZones();
+			drawHomeAddress();
+		});
 		drawExclusionZones();
 		drawHomeAddress();
 
