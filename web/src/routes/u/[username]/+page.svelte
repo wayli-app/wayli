@@ -28,6 +28,7 @@
 	type Profile = {
 		id: string;
 		username: string;
+		first_name?: string | null;
 		full_name: string | null;
 		avatar_url: string | null;
 		cover_photo_url: string | null;
@@ -181,16 +182,20 @@
 			const { data: tripData } = await tripQuery;
 			trips = (tripData as unknown as PublicTrip[]) ?? [];
 
-			// Fetch journal entry counts per trip
+			// Fetch journal entry counts per trip. Use trip_entries directly
+			// instead of the public_trip_entries view, which can error on
+			// certain Fluxbase API queries due to auth.uid() in the view.
 			if (trips.length > 0) {
 				try {
-					const { data: entryCounts } = await fluxbase
-						.from('public_trip_entries')
+					const { data: entryCounts, error: entryErr } = await fluxbase
+						.from('trip_entries')
 						.select('trip_id')
+						.eq('status', 'published')
 						.in(
 							'trip_id',
 							trips.map((t) => t.id)
 						);
+					if (entryErr) throw entryErr;
 					if (entryCounts) {
 						const counts = new Map<string, number>();
 						for (const e of entryCounts as any[]) {
@@ -234,7 +239,7 @@
 </script>
 
 <svelte:head>
-	<title>{profile ? `${profile.full_name ?? '@' + profile.username} · Wayli` : 'Wayli'}</title>
+	<title>{profile ? `${profile.full_name || '@' + profile.username} · Wayli` : 'Wayli'}</title>
 </svelte:head>
 
 {#if isLoading}
@@ -333,20 +338,20 @@
 				{#if profile.avatar_url}
 					<img
 						src={profile.avatar_url}
-						alt={profile.full_name ?? profile.username}
+						alt={profile.full_name || profile.username}
 						class="h-28 w-28 rounded-3xl border-2 border-white/20 object-cover shadow-2xl"
 					/>
 				{:else}
 					<div
 						class="flex h-28 w-28 items-center justify-center rounded-3xl border-2 border-white/20 bg-white/10 text-4xl font-bold text-white shadow-2xl backdrop-blur-sm"
 					>
-						{(profile.full_name ?? profile.username)[0]?.toUpperCase()}
+						{(profile.full_name || profile.username)[0]?.toUpperCase()}
 					</div>
 				{/if}
 				<!-- Name + handle -->
 				<div class="pb-2">
 					<h1 class="text-3xl font-bold tracking-tight text-white drop-shadow-lg sm:text-4xl">
-						{profile.full_name ?? `@${profile.username}`}
+						{profile.first_name || profile.full_name || `@${profile.username}`}
 					</h1>
 					<p class="flex items-center gap-1.5 text-base text-white/70">
 						<Globe class="h-4 w-4" />

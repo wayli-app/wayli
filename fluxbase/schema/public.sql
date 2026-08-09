@@ -4919,6 +4919,7 @@ COMMENT ON VIEW my_pending_trips IS 'Secure view of the current user''s auto-det
 CREATE OR REPLACE VIEW public_profiles AS
  SELECT id,
     username,
+    first_name,
     full_name,
     avatar_url,
     cover_photo_url,

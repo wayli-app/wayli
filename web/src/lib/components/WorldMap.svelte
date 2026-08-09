@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { watchMapTheme, TILE_URLS_NOLABELS } from '$lib/utils/map-theme';
+	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
 	import { feature } from 'topojson-client';
 	import type { Topology } from 'topojson-specification';
 
@@ -15,7 +15,7 @@
 	let mapContainer: HTMLDivElement;
 	let map: any = null;
 	let L: any = null;
-	let cleanupThemeWatcher: (() => void) | null = null;
+	let cleanupThemeWatcher: (() => void) | null = $state(null);
 
 	// world-atlas uses ISO 3166-1 numeric codes as feature IDs
 	// Map ISO2 alpha codes → numeric codes
@@ -205,48 +205,29 @@
 		map = L.map(mapContainer, {
 			scrollWheelZoom: true,
 			zoomControl: false,
-			worldCopyJump: false,
-			zoomSnap: 1,
-			zoomDelta: 1
+			worldCopyJump: false
 		});
-		// Use a solid ocean-colored background instead of raster tiles. Raster
-		// tiles from CartoDB produce visible horizontal seam lines at tile
-		// boundaries (especially in dark mode) because adjacent tiles have
-		// slightly different edge colors. The GeoJSON overlay (land mass +
-		// visited countries) provides all the geographic detail — the tile
-		// layer was only adding seams.
-		cleanupThemeWatcher = watchMapTheme(map, (_theme) =>
-			// No tile layer — return a dummy layer that does nothing.
-			L.layerGroup()
+
+		// Use the same tile layer as the statistics/location-data page (TILE_URLS
+		// with _all tiles). This page previously used no-labels tiles + a GeoJSON
+		// overlay, but the SVG polygon edges produced visible horizontal lines at
+		// low zoom. The _all tiles render coastlines/borders cleanly without SVG
+		// anti-aliasing artifacts.
+		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
+			L.tileLayer(TILE_URLS[theme].url, {
+				attribution: TILE_URLS[theme].attribution,
+				maxZoom: 5
+			})
 		);
 
 		try {
 			const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
 			const topoData: Topology = await resp.json();
 
-			// Single merged landmass polygon (objects.land). Drawing the gray
-			// "unvisited" tint as ONE shape eliminates the SVG polygon-tiling
-			// seams that appeared as thin horizontal gray lines across the map:
-			// per-country fills at partial opacity anti-alias independently at
-			// every shared interior border, and those per-edge seams line up
-			// into visible lines across continents. One polygon = no interior
-			// edges = no seams.
-			if (topoData.objects.land) {
-				const landGeo = feature(topoData, topoData.objects.land as any);
-				L.geoJSON(landGeo as any, {
-					style: () => ({
-						fillColor: '#d5dbdd',
-						weight: 0,
-						opacity: 0,
-						color: '#d1d5db',
-						fillOpacity: 1
-					})
-				}).addTo(map);
-			}
-
-			// Overlay ONLY visited countries on top. Unvisited countries are no
-			// longer drawn individually (the land polygon above carries their
-			// tint), which removes ~180 individual fills and their seams.
+			// Overlay ONLY visited countries on top of the tile basemap.
+			// No land-mass polygon, no per-country fills — the tiles provide
+			// the geographic detail. Only visited countries get a colored
+			// overlay so the user can see where they've been.
 			const geojson = feature(topoData, topoData.objects.countries as any);
 			L.geoJSON(geojson as any, {
 				style: (f: any) => {
@@ -258,7 +239,7 @@
 							weight: 0,
 							opacity: 0,
 							color: '#1d4ed8',
-							fillOpacity: 0.8
+							fillOpacity: 0.5
 						};
 					}
 					// Unvisited: render nothing — the merged land layer already
@@ -298,12 +279,5 @@
 <div bind:this={mapContainer} class="relative z-0 rounded-lg {className}"></div>
 
 <style>
-	/* Solid ocean-colored background (no raster tiles — they produce seam
-	   lines at tile boundaries). The GeoJSON overlay draws all land mass. */
-	:global(.leaflet-container) {
-		background: #e4ecf0;
-	}
-	:global(.dark .leaflet-container) {
-		background: #1a2333;
-	}
+	/* Let the tile layer provide the background color. */
 </style>
