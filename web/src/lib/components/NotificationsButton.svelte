@@ -95,13 +95,12 @@
 	// --- Job logs modal (opened inline from a card / notification row) ---
 	let logJob = $state<JobStoreJob | null>(null);
 
-	const activeCount = $derived(
-		activeJobs.length + recentTerminalJobs.length + activeUploads.length
-	);
+	const activeCount = $derived(activeJobs.length + recentTerminalJobs.length);
 	const totalBadge = $derived(activeCount + ($unreadCount > 0 ? $unreadCount : 0));
-	// "Work happening right now" — drives a distinct bell indicator beyond the
-	// static unread badge (active jobs OR active uploads in progress).
-	const hasActiveWork = $derived(activeJobs.length > 0 || activeUploads.length > 0);
+	// "Work happening right now" — drives the pulsing bell indicator. Only
+	// active jobs (not file uploads) trigger it; uploads show a card inside the
+	// panel but don't badge/clutter the bell.
+	const hasActiveWork = $derived(activeJobs.length > 0);
 
 	// Job-type icon config.
 	const jobTypeIcon: Record<string, any> = {
