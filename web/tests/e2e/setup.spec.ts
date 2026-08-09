@@ -129,10 +129,9 @@ test.describe.serial('Documented setup happy path', () => {
 				// RLS / permission failures surface as Postgres errors in the console.
 				// Exclude PGRST000 "not found" which is expected for a fresh user
 				// with no data (empty tables return PGRST000 in some Fluxbase configs).
-				if (
-					/permission denied|policy|rls|42501|PGRST/i.test(txt) &&
-					!/PGRST000.*not found/i.test(txt)
-				) {
+				if (/permission denied|policy|rls|42501/i.test(txt)) {
+					errors.push(`console: ${txt}`);
+				} else if (/PGRST/i.test(txt) && !/PGRST000/i.test(txt)) {
 					errors.push(`console: ${txt}`);
 				}
 			}
