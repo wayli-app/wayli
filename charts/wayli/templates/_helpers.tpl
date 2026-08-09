@@ -315,12 +315,28 @@ Init container for syncing Fluxbase resources using CLI
       echo "Syncing MCP tools..."
       fluxbase mcp tools sync --dir /app/fluxbase/mcp-tools --namespace wayli
       echo "Ensuring knowledge base exists..."
-      fluxbase kb create wayli-pois \
-        --namespace wayli \
-        --description "User POI visits with behavioral context for semantic search" \
-        --chunk-size 500 \
-        --embedding-model text-embedding-3-small 2>/dev/null || true
-      KB_ID=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+      # Match the name field with optional whitespace around the colon so the
+      # check is robust to both compact and pretty-printed JSON, and only create
+      # when missing. (jq would be cleaner but is not installed in this image.)
+      KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
+      if printf '%s' "$KB_LIST_JSON" | grep -qE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"'; then
+        echo "Knowledge base already exists"
+      else
+        fluxbase kb create wayli-pois \
+          --namespace wayli \
+          --description "User POI visits with behavioral context for semantic search" \
+          --chunk-size 500 \
+          --embedding-model text-embedding-3-small 2>/dev/null || true
+        KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
+      fi
+      KB_ID=""
+      KB_OBJ=$(printf '%s' "$KB_LIST_JSON" | grep -oE '\{[^{}]*"wayli-pois"[^{}]*\}' | head -1 || true)
+      if [ -n "$KB_OBJ" ]; then
+        KB_ID=$(printf '%s' "$KB_OBJ" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | grep -oE '[0-9a-f-]{36}' | head -1 || true)
+      fi
+      if [ -z "$KB_ID" ]; then
+        KB_ID=$(printf '%s' "$KB_LIST_JSON" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | head -1 | grep -oE '[0-9a-f-]{36}' || true)
+      fi
       if [ -n "$KB_ID" ]; then
         echo "Exporting tables to knowledge base..."
         fluxbase kb export-table "$KB_ID" --schema public --table place_visits --include-fks --sample-rows 3 2>/dev/null || true

@@ -118,11 +118,14 @@ ensure_knowledge_base() {
 
     echo "Ensuring knowledge base exists..."
 
-    # Create the wayli-pois knowledge base if it doesn't exist
-    # Check if KB exists first to avoid errors
-    KB_EXISTS=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"name":"wayli-pois"' | head -1)
-
-    if [ -z "$KB_EXISTS" ]; then
+    # Create the wayli-pois knowledge base if it doesn't exist.
+    # Match the name field with optional whitespace around the colon so the
+    # check is robust to both compact and pretty-printed JSON. (jq would be
+    # cleaner but is not installed in the production web image.)
+    KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
+    if printf '%s' "$KB_LIST_JSON" | grep -qE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"'; then
+        echo "Knowledge base already exists"
+    else
         echo "Creating knowledge base..."
         if fluxbase kb create wayli-pois \
             --namespace wayli \
@@ -130,16 +133,27 @@ ensure_knowledge_base() {
             --chunk-size 500 \
             --embedding-model text-embedding-3-small 2>&1; then
             echo "Knowledge base created successfully"
+            # Re-list so the ID extraction below can find the just-created KB.
+            KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
         else
             echo "Warning: Failed to create knowledge base, skipping table exports"
             return 0
         fi
-    else
-        echo "Knowledge base already exists"
     fi
 
-    # Get the KB ID for table exports
-    KB_ID=$(fluxbase kb list --namespace wayli --json 2>/dev/null | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+    # Get the KB ID for table exports. Use the wayli-pois object's id when
+    # possible; fall back to the first id in the listing. All extraction uses
+    # `|| true` and `if [ -z ]` guards because `grep` returns a non-zero exit
+    # code on no-match, which would abort the script under `set -e`.
+    KB_ID=""
+    # Match the whole wayli-pois object ({...}) regardless of id/name order.
+    KB_OBJ=$(printf '%s' "$KB_LIST_JSON" | grep -oE '\{[^{}]*"wayli-pois"[^{}]*\}' | head -1 || true)
+    if [ -n "$KB_OBJ" ]; then
+        KB_ID=$(printf '%s' "$KB_OBJ" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | grep -oE '[0-9a-f-]{36}' | head -1 || true)
+    fi
+    if [ -z "$KB_ID" ]; then
+        KB_ID=$(printf '%s' "$KB_LIST_JSON" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | head -1 | grep -oE '[0-9a-f-]{36}' || true)
+    fi
 
     if [ -z "$KB_ID" ]; then
         echo "Warning: Could not get KB ID for table exports"

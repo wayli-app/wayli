@@ -286,11 +286,21 @@
 <div bind:this={mapContainer} class="relative z-0 rounded-lg {className}"></div>
 
 <style>
-	/* Tiles only cover roughly ±85° latitude; with horizontal wrap enabled
-	   (no maxBounds) the area above/below would otherwise show Leaflet's default
-	   grey background as full-width bands. Make the container transparent so the
-	   gap blends into the surrounding card/page background. */
+	/* Tiles only cover roughly ±85° latitude and the zoom-2 tile grid doesn't
+	   align to this small container, so a partial tile row sits at the top and
+	   bottom edges. Previously this used `background: transparent` to "blend the
+	   gap" into the surrounding card/page background — but that exposed the
+	   partial tiles' anti-aliased edge against a contrasting background, which
+	   rendered as a thin full-width horizontal gray line (the reported artifact).
+
+	   Fix: give the container an opaque background that matches the CartoDB
+	   basemap's own base color. Partial tile edges now composite into the
+	   container instead of standing out against the page, eliminating the seam
+	   (compositing, not covering). Values sampled from the *_nolabels tiles. */
 	:global(.leaflet-container) {
-		background: transparent;
+		background: #d5dbdd;
+	}
+	:global(.dark .leaflet-container) {
+		background: #0a0a0b;
 	}
 </style>

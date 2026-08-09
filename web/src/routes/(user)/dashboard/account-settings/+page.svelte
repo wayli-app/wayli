@@ -13,7 +13,8 @@
 		Database,
 		Loader2,
 		Check,
-		X
+		X,
+		Save
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import Input from '$lib/components/ui/input/index.svelte';
@@ -45,6 +46,7 @@
 	let isUpdatingPassword = $state(false);
 	let isUpdatingProfile = $state(false);
 	let isUpdatingPreferences = $state(false);
+	let isSavingAll = $state(false);
 	let profile = $state<UserProfile | null>(null);
 	let preferences = $state<UserPreferences | null>(null);
 	let firstNameInput = $state('');
@@ -927,6 +929,46 @@
 		}
 	}
 
+	/**
+	 * Persist all editable settings blocks in one action. Each handler already
+	 * validates + writes its own block and shows its own toast; this orchestrates
+	 * them and adds a single summary toast. Password is intentionally excluded
+	 * (kept as a separate, deliberate action).
+	 */
+	async function saveAll() {
+		if (isSavingAll) return;
+		isSavingAll = true;
+		const steps: { label: string; ok: boolean }[] = [
+			{ label: 'Profile', ok: false },
+			{ label: 'Preferences', ok: false },
+			{ label: 'Data sampling', ok: false }
+		];
+		// Wrap each handler so a thrown error is captured as a failed step.
+		// Note: the handlers catch most errors internally (and toast), but this
+		// guard ensures saveAll still resolves with an accurate summary.
+		const run = async (fn: () => Promise<void>, idx: number) => {
+			try {
+				await fn();
+				steps[idx].ok = true;
+			} catch {
+				steps[idx].ok = false;
+			}
+		};
+		await run(handleSaveProfile, 0);
+		await run(handleSavePreferences, 1);
+		await run(saveSamplingConfig, 2);
+
+		const failed = steps.filter((s) => !s.ok);
+		if (failed.length === 0) {
+			toast.success('All settings saved');
+		} else {
+			toast.error(
+				`Saved with ${failed.length} block(s) failing: ${failed.map((s) => s.label).join(', ')}`
+			);
+		}
+		isSavingAll = false;
+	}
+
 	async function handleUpdatePassword() {
 		// Validate inputs
 		if (!currentPassword) {
@@ -1312,12 +1354,28 @@
 
 <div>
 	<!-- Header -->
-	<div class="mb-8 flex items-center gap-3">
-		<User class="text-primary h-6 w-6" />
-		<div>
-			<h1 class="text-foreground text-xl font-bold">Account Settings</h1>
-			<p class="text-muted-foreground text-sm">Manage your profile and preferences</p>
+	<div class="mb-8 flex items-center justify-between gap-3">
+		<div class="flex items-center gap-3">
+			<User class="text-primary h-6 w-6" />
+			<div>
+				<h1 class="text-foreground text-xl font-bold">Account Settings</h1>
+				<p class="text-muted-foreground text-sm">Manage your profile and preferences</p>
+			</div>
 		</div>
+		<button
+			type="button"
+			onclick={saveAll}
+			disabled={isSavingAll}
+			class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			{#if isSavingAll}
+				<Loader2 class="h-4 w-4 animate-spin" />
+				Saving…
+			{:else}
+				<Save class="h-4 w-4" />
+				Save all
+			{/if}
+		</button>
 	</div>
 
 	{#if error}

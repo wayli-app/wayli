@@ -42,8 +42,12 @@ export async function getUnreadCount(): Promise<number> {
 /**
  * Create a notification for the current user. RLS requires user_id to match
  * auth.uid(). Best-effort: errors are swallowed (notifications are non-critical).
+ *
+ * `userId` is required — the `notifications.user_id` column is NOT NULL with no
+ * default, and the Fluxbase client does not auto-populate it from the session.
  */
 export async function createNotification(input: {
+	userId: string;
 	type: AppNotification['type'];
 	title: string;
 	body?: string;
@@ -51,11 +55,14 @@ export async function createNotification(input: {
 	link?: string;
 	related_job_id?: string;
 }): Promise<void> {
+	// Without a userId the insert always fails (NOT_NULL_VIOLATION), so skip it.
+	if (!input.userId) return;
 	try {
 		// The (user_id, related_job_id) UNIQUE constraint dedupes against the
-		// jobs.queue trigger (migration 083): if the trigger already created a
-		// notification for this job, this insert is a no-op error we swallow.
+		// jobs.queue trigger (notify_job_terminal): if the trigger already created
+		// a notification for this job, this insert is a no-op error we swallow.
 		const { error } = await fluxbase.from(TABLE).insert({
+			user_id: input.userId,
 			type: input.type,
 			title: input.title,
 			body: input.body ?? '',

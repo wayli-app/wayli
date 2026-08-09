@@ -20,7 +20,9 @@
 		ArrowRight,
 		RotateCcw,
 		Globe,
-		Gauge
+		Gauge,
+		Save,
+		Loader2
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -146,6 +148,7 @@
 	let isRefreshingPlaceVisits = $state(false);
 	let isDetectingTransportModes = $state(false);
 	let isReverseGeocodingAllUsers = $state(false);
+	let isRefreshingActivity = $state(false);
 	let isForceRegeocoding = $state(false);
 	let isFillingCountryCodes = $state(false);
 	let showForceRegeocodeConfirm = $state(false);
@@ -166,6 +169,10 @@
 	// Community features
 	let communityEnabled = $state(true);
 	let isSavingCommunity = $state(false);
+
+	// Aggregate "Save all" across the settings blocks (excludes OAuth-provider
+	// CRUD and the maintenance job-trigger buttons, which aren't settings saves).
+	let isSavingAll = $state(false);
 
 	// AI Settings - provider-based model
 	let aiEnabled = $state(false);
@@ -905,6 +912,38 @@
 		}
 	}
 
+	/**
+	 * Queue the scheduled (all-users) daily-activity refresh job. Rebuilds each
+	 * user's tracker_daily_activity cache from their watermark, which feeds the
+	 * activity calendar on the Location Data page. Same job the daily 05:00 UTC
+	 * cron runs; this is the manual/admin trigger.
+	 */
+	async function refreshActivityAllUsers() {
+		if (isRefreshingActivity) return;
+
+		isRefreshingActivity = true;
+		try {
+			const { error } = await fluxbase.jobs.submit(
+				'scheduled-refresh-daily-activity',
+				{},
+				{
+					namespace: 'wayli',
+					priority: 5
+				}
+			);
+			if (error) throw error;
+
+			toast.success(t('serverAdmin.refreshActivityQueued'));
+		} catch (error: any) {
+			console.error('Failed to refresh activity for all users:', error);
+			toast.error(t('serverAdmin.refreshActivityFailed'), {
+				description: error?.message
+			});
+		} finally {
+			isRefreshingActivity = false;
+		}
+	}
+
 	async function detectTransportModesAllUsers() {
 		if (isDetectingTransportModes) return;
 
@@ -1465,6 +1504,51 @@
 		}
 	}
 
+	/**
+	 * Persist all settings blocks in one action. Each block's own handler
+	 * validates + writes + toasts; this orchestrates them and adds a single
+	 * summary. OAuth provider CRUD and maintenance job-trigger buttons are
+	 * intentionally excluded (per-provider / not "settings").
+	 */
+	async function saveAll() {
+		if (isSavingAll) return;
+		isSavingAll = true;
+		const steps: { label: string; ok: boolean }[] = [
+			{ label: 'General', ok: false },
+			{ label: 'Web search', ok: false },
+			{ label: 'Authentication', ok: false },
+			{ label: 'Email', ok: false },
+			{ label: 'AI', ok: false },
+			{ label: 'Landing redirect', ok: false },
+			{ label: 'Community', ok: false }
+		];
+		const run = async (fn: () => Promise<void>, idx: number) => {
+			try {
+				await fn();
+				steps[idx].ok = true;
+			} catch {
+				steps[idx].ok = false;
+			}
+		};
+		await run(saveWayliSettings, 0);
+		await run(saveTavily, 1);
+		await run(saveAuthSettings, 2);
+		await run(saveEmailSettings, 3);
+		await run(saveAISettings, 4);
+		await run(saveLandingRedirect, 5);
+		await run(saveCommunitySettings, 6);
+
+		const failed = steps.filter((s) => !s.ok);
+		if (failed.length === 0) {
+			toast.success('All settings saved');
+		} else {
+			toast.error(
+				`Saved with ${failed.length} block(s) failing: ${failed.map((s) => s.label).join(', ')}`
+			);
+		}
+		isSavingAll = false;
+	}
+
 	// Add User Modal State
 	let newUserEmail = $state('');
 	let newUserFirstName = $state('');
@@ -1790,12 +1874,28 @@
 {#if isAdmin}
 	<div>
 		<!-- Header -->
-		<div class="mb-8 flex items-center gap-3">
-			<Settings class="text-primary h-6 w-6" />
-			<div>
-				<h1 class="text-foreground text-xl font-bold">{t('serverAdmin.title')}</h1>
-				<p class="text-muted-foreground text-sm">Server configuration and administration</p>
+		<div class="mb-8 flex items-center justify-between gap-3">
+			<div class="flex items-center gap-3">
+				<Settings class="text-primary h-6 w-6" />
+				<div>
+					<h1 class="text-foreground text-xl font-bold">{t('serverAdmin.title')}</h1>
+					<p class="text-muted-foreground text-sm">Server configuration and administration</p>
+				</div>
 			</div>
+			<button
+				type="button"
+				onclick={saveAll}
+				disabled={isSavingAll}
+				class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				{#if isSavingAll}
+					<Loader2 class="h-4 w-4 animate-spin" />
+					Saving…
+				{:else}
+					<Save class="h-4 w-4" />
+					Save all
+				{/if}
+			</button>
 		</div>
 
 		<!-- Tab Navigation -->
@@ -3427,6 +3527,30 @@
 											class={`h-3.5 w-3.5 ${isDetectingTransportModes ? 'animate-spin' : ''}`}
 										/>
 										{isDetectingTransportModes ? t('serverAdmin.running') : t('serverAdmin.run')}
+									</button>
+								</div>
+
+								<!-- Refresh Activity (all users) Card -->
+								<div
+									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+								>
+									<div class="min-w-0 flex-1">
+										<span class="text-muted-foreground text-sm font-medium">
+											{t('serverAdmin.refreshActivity')}
+										</span>
+										<p class="text-muted-foreground text-xs">
+											{t('serverAdmin.refreshActivityDescription')}
+										</p>
+									</div>
+									<button
+										onclick={refreshActivityAllUsers}
+										disabled={isRefreshingActivity}
+										class="bg-primary hover:bg-primary/90 ml-3 inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										<RefreshCw
+											class={`h-3.5 w-3.5 ${isRefreshingActivity ? 'animate-spin' : ''}`}
+										/>
+										{isRefreshingActivity ? t('serverAdmin.running') : t('serverAdmin.run')}
 									</button>
 								</div>
 
