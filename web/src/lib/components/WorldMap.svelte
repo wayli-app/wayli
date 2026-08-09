@@ -314,6 +314,6 @@
 		background: #d5dbdd;
 	}
 	:global(.dark .leaflet-container) {
-		background: #0a0a0b;
+		background: #0b1120;
 	}
 </style>
