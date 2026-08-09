@@ -9,13 +9,13 @@ type AuthStore = User &
 	Partial<Pick<UserProfile, 'first_name' | 'full_name' | 'avatar_url' | 'role'>>;
 
 function createAuthStore() {
-	const { subscribe, set } = writable<AuthStore | null>(null);
-
-	// Defer subscription until after sessionStore is declared
+	const store = writable<AuthStore | null>(null);
+	const { subscribe, set, update } = store;
 
 	return {
 		subscribe,
-		set
+		set,
+		update
 	};
 }
 
