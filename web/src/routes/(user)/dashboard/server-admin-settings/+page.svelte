@@ -22,7 +22,10 @@
 		Globe,
 		Gauge,
 		Save,
-		Loader2
+		Loader2,
+		MapPin,
+		Route,
+		CalendarDays
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -3451,7 +3454,7 @@
 						</div>
 
 						<!-- Standalone Operations -->
-						<div class="border-border rounded-lg border p-4">
+						<div class="border-border rounded-xl border p-4">
 							<h3 class="text-foreground mb-1 text-sm font-semibold">
 								{t('serverAdmin.standaloneTitle')}
 							</h3>
@@ -3459,45 +3462,51 @@
 								{t('serverAdmin.standaloneDescription')}
 							</p>
 
-							<div class="flex flex-wrap gap-3">
-								<!-- Force Re-geocode Card -->
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<!-- Force Re-geocode -->
 								<div
-									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+									class="dark:border-border dark:bg-card flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4"
 								>
+									<div class="text-muted-foreground shrink-0">
+										<Globe class="h-5 w-5" />
+									</div>
 									<div class="min-w-0 flex-1">
-										<span class="text-muted-foreground text-sm font-medium">
+										<span class="text-foreground text-sm font-medium">
 											{t('serverAdmin.forceRegeocode')}
 										</span>
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground mt-0.5 text-xs">
 											{t('serverAdmin.forceRegeocodeDescription')}
 										</p>
 									</div>
 									<button
 										onclick={promptForceRegeocode}
 										disabled={isForceRegeocoding}
-										class="bg-primary hover:bg-primary/90 ml-3 inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw class={`h-3.5 w-3.5 ${isForceRegeocoding ? 'animate-spin' : ''}`} />
 										{isForceRegeocoding ? t('serverAdmin.running') : t('serverAdmin.run')}
 									</button>
 								</div>
 
-								<!-- Fill Country Codes Card -->
+								<!-- Fill Country Codes -->
 								<div
-									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+									class="dark:border-border dark:bg-card flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4"
 								>
+									<div class="text-muted-foreground shrink-0">
+										<MapPin class="h-5 w-5" />
+									</div>
 									<div class="min-w-0 flex-1">
-										<span class="text-muted-foreground text-sm font-medium">
+										<span class="text-foreground text-sm font-medium">
 											{t('serverAdmin.fillCountryCodes')}
 										</span>
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground mt-0.5 text-xs">
 											{t('serverAdmin.fillCountryCodesDescription')}
 										</p>
 									</div>
 									<button
 										onclick={fillMissingCountryCodes}
 										disabled={isFillingCountryCodes}
-										class="bg-primary hover:bg-primary/90 ml-3 inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw
 											class={`h-3.5 w-3.5 ${isFillingCountryCodes ? 'animate-spin' : ''}`}
@@ -3506,22 +3515,25 @@
 									</button>
 								</div>
 
-								<!-- Re-detect Transport Modes Card -->
+								<!-- Re-detect Transport Modes -->
 								<div
-									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+									class="dark:border-border dark:bg-card flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4"
 								>
+									<div class="text-muted-foreground shrink-0">
+										<Route class="h-5 w-5" />
+									</div>
 									<div class="min-w-0 flex-1">
-										<span class="text-muted-foreground text-sm font-medium">
+										<span class="text-foreground text-sm font-medium">
 											{t('serverAdmin.detectTransportModes')}
 										</span>
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground mt-0.5 text-xs">
 											{t('serverAdmin.detectTransportModesDescription')}
 										</p>
 									</div>
 									<button
 										onclick={detectTransportModesAllUsers}
 										disabled={isDetectingTransportModes}
-										class="bg-primary hover:bg-primary/90 ml-3 inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw
 											class={`h-3.5 w-3.5 ${isDetectingTransportModes ? 'animate-spin' : ''}`}
@@ -3530,22 +3542,25 @@
 									</button>
 								</div>
 
-								<!-- Refresh Activity (all users) Card -->
+								<!-- Refresh Activity -->
 								<div
-									class="dark:border-border dark:bg-card flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3"
+									class="dark:border-border dark:bg-card flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4"
 								>
+									<div class="text-muted-foreground shrink-0">
+										<CalendarDays class="h-5 w-5" />
+									</div>
 									<div class="min-w-0 flex-1">
-										<span class="text-muted-foreground text-sm font-medium">
+										<span class="text-foreground text-sm font-medium">
 											{t('serverAdmin.refreshActivity')}
 										</span>
-										<p class="text-muted-foreground text-xs">
+										<p class="text-muted-foreground mt-0.5 text-xs">
 											{t('serverAdmin.refreshActivityDescription')}
 										</p>
 									</div>
 									<button
 										onclick={refreshActivityAllUsers}
 										disabled={isRefreshingActivity}
-										class="bg-primary hover:bg-primary/90 ml-3 inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+										class="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
 									>
 										<RefreshCw
 											class={`h-3.5 w-3.5 ${isRefreshingActivity ? 'animate-spin' : ''}`}
@@ -3553,28 +3568,31 @@
 										{isRefreshingActivity ? t('serverAdmin.running') : t('serverAdmin.run')}
 									</button>
 								</div>
+							</div>
 
-								<!-- Clear & Rebuild Place Visits Card -->
-								<div
-									class="flex min-w-[200px] flex-1 items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
-								>
-									<div class="min-w-0 flex-1">
-										<span class="text-muted-foreground text-sm font-medium">
-											{t('serverAdmin.clearPlaceVisits')}
-										</span>
-										<p class="text-muted-foreground text-xs">
-											{t('serverAdmin.clearPlaceVisitsDescription')}
-										</p>
-									</div>
-									<button
-										onclick={promptClearPlaceVisits}
-										disabled={isClearingPlaceVisits}
-										class="ml-3 inline-flex shrink-0 items-center gap-2 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-									>
-										<Trash2 class={`h-3.5 w-3.5 ${isClearingPlaceVisits ? 'animate-spin' : ''}`} />
-										{isClearingPlaceVisits ? t('serverAdmin.running') : t('serverAdmin.run')}
-									</button>
+							<!-- Clear & Rebuild Place Visits — full-width destructive action -->
+							<div
+								class="mt-3 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+							>
+								<div class="shrink-0 text-red-500">
+									<Trash2 class="h-5 w-5" />
 								</div>
+								<div class="min-w-0 flex-1">
+									<span class="text-foreground text-sm font-medium">
+										{t('serverAdmin.clearPlaceVisits')}
+									</span>
+									<p class="text-muted-foreground mt-0.5 text-xs">
+										{t('serverAdmin.clearPlaceVisitsDescription')}
+									</p>
+								</div>
+								<button
+									onclick={promptClearPlaceVisits}
+									disabled={isClearingPlaceVisits}
+									class="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+								>
+									<Trash2 class={`h-3.5 w-3.5 ${isClearingPlaceVisits ? 'animate-spin' : ''}`} />
+									{isClearingPlaceVisits ? t('serverAdmin.running') : t('serverAdmin.run')}
+								</button>
 							</div>
 						</div>
 					</div>
