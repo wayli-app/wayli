@@ -416,20 +416,22 @@
 					</div>
 
 					<!-- Export button -->
-					<button
-						type="button"
-						onclick={handleExport}
-						disabled={isExporting}
-						class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						{#if isExporting}
-							<Loader2 class="h-4 w-4 animate-spin" />
-							{t('importExport.statusProcessing')}
-						{:else}
-							<Download class="h-4 w-4" />
-							{t('importExport.exportDataButton')}
-						{/if}
-					</button>
+					<div class="flex justify-end">
+						<button
+							type="button"
+							onclick={handleExport}
+							disabled={isExporting}
+							class="bg-primary hover:bg-primary/90 inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{#if isExporting}
+								<Loader2 class="h-4 w-4 animate-spin" />
+								{t('importExport.statusProcessing')}
+							{:else}
+								<Download class="h-4 w-4" />
+								{t('importExport.exportDataButton')}
+							{/if}
+						</button>
+					</div>
 				</div>
 			{/if}
 		</div>
