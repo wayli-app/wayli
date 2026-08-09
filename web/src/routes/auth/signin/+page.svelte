@@ -34,7 +34,7 @@
 
 	function redirectToDashboard() {
 		if (hasRedirected) return;
-		const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+		const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 		hasRedirected = true;
 		goto(redirectTo, { replaceState: true });
 	}
@@ -91,7 +91,7 @@
 	async function signInWithOAuth(providerName: string) {
 		loading = true;
 		try {
-			const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+			const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 			const redirectUri = `${window.location.origin}/auth/callback`;
 
 			// Store redirectTo for post-login navigation (SDK doesn't handle this)
@@ -201,7 +201,7 @@
 				// Profile fetch/create failed - redirect to dashboard anyway
 				toast.success(t('auth.signedInSuccessfully'));
 				console.log('🔄 [SignIn] Profile ensure failed, redirecting to dashboard');
-				goto('/dashboard/statistics', { replaceState: true });
+				goto('/dashboard/location-data', { replaceState: true });
 				return;
 			}
 
@@ -232,7 +232,7 @@
 			setTimeout(() => {
 				// Check if we're still on the signin page
 				if ($page.url.pathname.startsWith('/auth/signin')) {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 					console.log('🔄 [SignIn] Redirecting after successful authentication to:', redirectTo);
 					goto(redirectTo, { replaceState: true });
 				}
@@ -271,7 +271,7 @@
 		sessionManager.recordLogin(rememberMe);
 
 		// Redirect to dashboard
-		const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+		const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 		toast.success(t('auth.signedInSuccessfully'));
 		goto(redirectTo, { replaceState: true });
 	}

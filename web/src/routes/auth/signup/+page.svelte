@@ -139,7 +139,7 @@
 
 			if (user) {
 				// User is already authenticated, redirect to intended destination or default
-				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+				const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 				console.log('🔄 [SIGNUP] REDIRECTING: User already authenticated, going to', redirectTo);
 				goto(redirectTo);
 				return;
@@ -170,7 +170,7 @@
 					console.log('🔄 [SIGNUP] First-time user, redirecting to onboarding');
 					goto('/dashboard/account-settings?onboarding=true');
 				} else {
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 					console.log('🔄 [SIGNUP] REDIRECTING: User authenticated, going to', redirectTo);
 					goto(redirectTo);
 				}
@@ -262,14 +262,15 @@
 						console.log('🔄 [SIGNUP] First-time user, redirecting to onboarding');
 						goto('/dashboard/account-settings?onboarding=true');
 					} else {
-						const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+						const redirectTo =
+							$page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 						console.log('🔄 [SIGNUP] User authenticated, redirecting to', redirectTo);
 						goto(redirectTo);
 					}
 				} catch (profileError) {
 					console.error('Error fetching profile after signup:', profileError);
 					// Fallback to default redirect
-					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+					const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 					goto(redirectTo);
 				}
 			}
@@ -291,7 +292,7 @@
 	async function signInWithOAuth(providerName: string) {
 		loading = true;
 		try {
-			const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/statistics';
+			const redirectTo = $page.url.searchParams.get('redirectTo') || '/dashboard/location-data';
 			const redirectUri = `${window.location.origin}/auth/callback`;
 
 			// Store redirectTo for post-login navigation (SDK doesn't handle this)

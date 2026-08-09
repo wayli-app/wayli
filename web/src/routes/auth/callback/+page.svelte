@@ -101,7 +101,9 @@
 					const storedRedirectTo = sessionStorage.getItem('oauth_redirect_to');
 					sessionStorage.removeItem('oauth_redirect_to');
 					const redirectTo =
-						$page.url.searchParams.get('redirectTo') || storedRedirectTo || '/dashboard/statistics';
+						$page.url.searchParams.get('redirectTo') ||
+						storedRedirectTo ||
+						'/dashboard/location-data';
 					toast.success(t('auth.authenticationSuccess'));
 					goto(redirectTo);
 				}

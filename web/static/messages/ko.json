@@ -1521,6 +1521,7 @@
 		"loadFailed": "데이터 포인트를 로드하지 못했습니다.",
 		"loadedOfTotal": "{loaded} 로드됨(총 {total}개 중)",
 		"loadingPoints": "{count}포인트 로드 중...",
+		"loadingPointsIndeterminate": "포인트 로드 중…",
 		"longitude": "경도",
 		"minDistance": "최소 거리(미터)",
 		"minDistanceTime": "최소 거리 / 시간",

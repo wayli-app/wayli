@@ -278,10 +278,16 @@
 		e?.stopPropagation();
 		if (!n.related_job_id) return;
 		handleMarkRead(n);
+		// Derive the terminal status from the notification type so the modal
+		// header is accurate (was hardcoded to 'completed').
+		const status: JobStoreJob['status'] =
+			n.type === 'job_failed' ? 'failed' : n.type === 'job_cancelled' ? 'cancelled' : 'completed';
 		logJob = {
 			id: n.related_job_id,
 			job_name: n.title.replace(/\s+(completed|failed|cancelled)$/i, ''),
-			status: 'completed',
+			status,
+			error: n.type === 'job_failed' ? n.body : undefined,
+			completed_at: n.created_at,
 			created_at: n.created_at
 		} as JobStoreJob;
 	}

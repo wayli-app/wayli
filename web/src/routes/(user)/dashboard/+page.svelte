@@ -9,8 +9,9 @@
 	let t = $derived($translate);
 
 	onMount(() => {
-		// Automatically redirect to trips page when visiting /dashboard
-		goto('/dashboard/travel', { replaceState: true });
+		// Land on Location Data when visiting /dashboard (also the post-login
+		// destination and the target of the landing-page Dashboard buttons).
+		goto('/dashboard/location-data', { replaceState: true });
 	});
 </script>
 

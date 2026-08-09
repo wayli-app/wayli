@@ -56,14 +56,14 @@
 
 	// Reactive navigation items that update with language changes and AI enabled state
 	let navMain = $derived([
+		{ href: '/dashboard/location-data', label: t('common.navigation.statistics'), icon: MapPin },
 		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
 		{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
 		{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
 		{ href: '/dashboard/want-to-visit', label: t('common.navigation.wantToVisit'), icon: Star },
 		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
 		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
-		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database },
-		{ href: '/dashboard/statistics', label: t('common.navigation.statistics'), icon: MapPin }
+		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database }
 	]);
 
 	// Force reactive update after navigation

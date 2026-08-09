@@ -1521,6 +1521,7 @@
 		"loadFailed": "无法加载数据点",
 		"loadedOfTotal": "已加载 {loaded}（共 {total} 个）",
 		"loadingPoints": "正在加载 {count} 点...",
+		"loadingPointsIndeterminate": "正在加载点…",
 		"longitude": "经度",
 		"minDistance": "最小距离（米）",
 		"minDistanceTime": "最短距离/时间",

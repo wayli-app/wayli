@@ -106,6 +106,9 @@
 	let isLoadingLogs = $state(false);
 	let showLevelDropdown = $state(false);
 	let lastLineNumber = $state(0);
+	// True once the historical backfill (getLogs) has completed, so the empty
+	// state can distinguish "still loading" from "no logs were ever recorded".
+	let hasBackfilled = $state(false);
 
 	// Filtered logs based on selected level
 	let filteredLogs = $derived(
@@ -273,6 +276,7 @@
 			}
 		} finally {
 			isLoadingLogs = false;
+			hasBackfilled = true;
 		}
 	}
 
@@ -361,6 +365,7 @@
 				logs = [];
 				lastLineNumber = 0;
 				userHasScrolled = false;
+				hasBackfilled = false;
 				activeSession = session;
 				// Subscribe to realtime FIRST (so logs emitted during the
 				// backfill fetch aren't missed), then backfill history.
@@ -603,8 +608,17 @@
 							<span class="text-amber-500">{logsError}</span>
 						</div>
 					{:else if groupedLogs.length === 0}
-						<div class="text-muted-foreground flex h-full items-center justify-center">
-							No logs available
+						<div
+							class="text-muted-foreground flex h-full flex-col items-center justify-center gap-1 text-center text-sm"
+						>
+							{#if hasBackfilled}
+								<span>No historical logs were recorded for this job.</span>
+								<span class="text-xs opacity-70"
+									>Logs are only captured while the job is running.</span
+								>
+							{:else}
+								<span>No logs available</span>
+							{/if}
 						</div>
 					{:else}
 						{#each groupedLogs as log (log.id)}

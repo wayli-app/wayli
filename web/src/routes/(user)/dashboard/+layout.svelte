@@ -128,7 +128,8 @@
 	// we only seed a page label for non-plan routes so the assistant knows what
 	// surface the user is on (statistics / trips / journal / …).
 	function pageLabelFromPath(pathname: string): AiPage {
-		if (pathname.endsWith('/statistics')) return 'statistics';
+		if (pathname.endsWith('/location-data') || pathname.endsWith('/statistics'))
+			return 'statistics';
 		if (/\/dashboard\/travel(\/|$|\?)/.test(pathname) && !pathname.includes('/plan'))
 			return 'trips';
 		if (pathname.includes('/want-to-visit')) return 'want-to-visit';

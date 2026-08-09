@@ -1521,6 +1521,7 @@
 		"loadFailed": "データポイントのロードに失敗しました",
 		"loadedOfTotal": "{loaded} 個がロードされました (合計 {total} 個中)",
 		"loadingPoints": "{count} ポイントを読み込み中...",
+		"loadingPointsIndeterminate": "ポイントを読み込み中…",
 		"longitude": "経度",
 		"minDistance": "最小距離 (メートル)",
 		"minDistanceTime": "最小距離/時間",

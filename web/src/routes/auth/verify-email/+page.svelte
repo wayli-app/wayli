@@ -28,7 +28,7 @@
 				// User is already verified, redirect to dashboard
 				console.log('🔄 [VERIFY-EMAIL] User already verified, redirecting to dashboard');
 				sessionStorage.removeItem('pending_verification_email');
-				goto('/dashboard/statistics');
+				goto('/dashboard/location-data');
 			} else if (user?.email) {
 				// Get email from user object if available
 				email = user.email;

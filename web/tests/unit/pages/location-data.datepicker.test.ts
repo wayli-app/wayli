@@ -1,7 +1,7 @@
 import { render } from '@testing-library/svelte';
 import { describe, it, expect, vi } from 'vitest';
 
-import StatisticsPage from '$routes/(user)/dashboard/statistics/+page.svelte?client';
+import StatisticsPage from '$routes/(user)/dashboard/location-data/+page.svelte?client';
 
 vi.mock('@svelte-plugins/datepicker', async () => {
 	const mod = await import('../../mocks/DatePickerMock.svelte');
@@ -13,9 +13,9 @@ vi.mock('$app/stores', async () => {
 	const { readable, writable } = await import('svelte/store');
 	return {
 		page: readable({
-			url: new URL('http://localhost/dashboard/statistics'),
+			url: new URL('http://localhost/dashboard/location-data'),
 			params: {},
-			route: { id: '/dashboard/statistics' },
+			route: { id: '/dashboard/location-data' },
 			status: 200,
 			error: null,
 			data: {},

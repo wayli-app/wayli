@@ -1517,6 +1517,7 @@
 		"loadFailed": "No se pudieron cargar los puntos de datos",
 		"loadedOfTotal": "{cargado} cargado (de {total} total)",
 		"loadingPoints": "Cargando {count} puntos...",
+		"loadingPointsIndeterminate": "Cargando puntos…",
 		"longitude": "Longitud",
 		"minDistance": "Distancia mínima (metros)",
 		"minDistanceTime": "Distancia mínima/tiempo",

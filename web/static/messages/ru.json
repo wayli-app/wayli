@@ -1521,6 +1521,7 @@
 		"loadFailed": "Не удалось загрузить точки данных.",
 		"loadedOfTotal": "{loaded} загружено (из всего {total})",
 		"loadingPoints": "Загрузка точек: {count}...",
+		"loadingPointsIndeterminate": "Загрузка точек…",
 		"longitude": "Долгота",
 		"minDistance": "Минимальное расстояние (метры)",
 		"minDistanceTime": "Минимальное расстояние/время",
