@@ -224,8 +224,31 @@
 		try {
 			const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
 			const topoData: Topology = await resp.json();
-			const geojson = feature(topoData, topoData.objects.countries as any);
 
+			// Single merged landmass polygon (objects.land). Drawing the gray
+			// "unvisited" tint as ONE shape eliminates the SVG polygon-tiling
+			// seams that appeared as thin horizontal gray lines across the map:
+			// per-country fills at partial opacity anti-alias independently at
+			// every shared interior border, and those per-edge seams line up
+			// into visible lines across continents. One polygon = no interior
+			// edges = no seams.
+			if (topoData.objects.land) {
+				const landGeo = feature(topoData, topoData.objects.land as any);
+				L.geoJSON(landGeo as any, {
+					style: () => ({
+						fillColor: '#e5e7eb',
+						weight: 0,
+						opacity: 0,
+						color: '#d1d5db',
+						fillOpacity: 0.3
+					})
+				}).addTo(map);
+			}
+
+			// Overlay ONLY visited countries on top. Unvisited countries are no
+			// longer drawn individually (the land polygon above carries their
+			// tint), which removes ~180 individual fills and their seams.
+			const geojson = feature(topoData, topoData.objects.countries as any);
 			L.geoJSON(geojson as any, {
 				style: (f: any) => {
 					const numId = String(f.id || '').padStart(3, '0');
@@ -239,19 +262,9 @@
 							fillOpacity: 0.7
 						};
 					}
-					// Unvisited countries: fill only, NO stroke. At 110m
-					// simplification some country borders follow parallels/straight
-					// lines (US-Canada 49th, African borders) and stroking every
-					// country at low zoom renders those as long horizontal lines
-					// across the viewport that look like graticule. Fill-only
-					// eliminates all vector lines except visited-country outlines.
-					return {
-						fillColor: '#e5e7eb',
-						weight: 0,
-						opacity: 0,
-						color: '#d1d5db',
-						fillOpacity: 0.3
-					};
+					// Unvisited: render nothing — the merged land layer already
+					// provides the gray tint. (fill/stroke false.)
+					return { fill: false, stroke: false };
 				},
 				onEachFeature: (f: any, layer: any) => {
 					const numId = String(f.id || '').padStart(3, '0');
