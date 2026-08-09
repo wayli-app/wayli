@@ -133,10 +133,10 @@ test.describe.serial('Documented setup happy path', () => {
 			}
 		});
 
-		// Statistics: drives queries that depend on schema + RLS being correct.
-		await page.goto('/dashboard/statistics', { waitUntil: 'domcontentloaded' });
+		// Location Data: drives queries that depend on schema + RLS being correct.
+		await page.goto('/dashboard/location-data', { waitUntil: 'domcontentloaded' });
 		await waitForDashboardReady(page, { readySelector: 'h1' });
-		expect(page.url(), 'statistics did not redirect to signin').not.toMatch(/\/auth\/signin/);
+		expect(page.url(), 'location-data did not redirect to signin').not.toMatch(/\/auth\/signin/);
 
 		// Travel: the trips list page.
 		await page.goto('/dashboard/travel', { waitUntil: 'domcontentloaded' });
