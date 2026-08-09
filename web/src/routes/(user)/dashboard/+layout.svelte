@@ -266,13 +266,9 @@
 				</div>
 			</div>
 		{:else}
-			{#key page.url.pathname}
-				<!-- in:fade (not transition:fade) so the outgoing page is removed instantly on
-				     route change; a concurrent outro+intro would stack the new page below the old one. -->
-				<div class="p-6" in:fade={{ duration: 150 }}>
-					{@render children()}
-				</div>
-			{/key}
+			<div class="p-6" in:fade={{ duration: 150, delay: 150 }}>
+				{@render children()}
+			</div>
 		{/if}
 	</div>
 
