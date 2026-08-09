@@ -85,7 +85,6 @@
 
 	const activeCount = $derived(activeJobs.length + recentTerminalJobs.length);
 	const totalBadge = $derived(activeCount + ($unreadCount > 0 ? $unreadCount : 0));
-	const hasActiveWork = $derived(activeJobs.length > 0);
 
 	// Job-type icon config.
 	const jobTypeIcon: Record<string, any> = {
@@ -303,19 +302,6 @@
 		aria-label={t('notifications.title')}
 	>
 		<Bell class="h-5 w-5" />
-		<!-- Active-work indicator: a pulsing dot signals "something is happening
-		     right now" (upload/job running), distinct from the static unread
-		     count badge. -->
-		{#if hasActiveWork}
-			<span
-				class="absolute top-1.5 right-1.5 h-2.5 w-2.5 animate-ping rounded-full bg-emerald-500"
-				aria-hidden="true"
-			></span>
-			<span
-				class="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500"
-				aria-hidden="true"
-			></span>
-		{/if}
 		{#if totalBadge > 0}
 			<span
 				class="bg-primary text-primary-foreground absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-none font-bold"
