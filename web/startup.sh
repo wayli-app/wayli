@@ -119,12 +119,13 @@ ensure_knowledge_base() {
     echo "Ensuring knowledge base exists..."
 
     # Create the wayli-pois knowledge base if it doesn't exist.
-    # Use jq (whitespace-insensitive) for the existence check — a grep on
-    # compact JSON silently misses pretty-printed output and falls through to a
-    # redundant `kb create`, which logs an ERR (duplicate-key) server-side.
-    KB_EXISTS=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r 'any(.[]; .name == "wayli-pois")' 2>/dev/null)
-
-    if [ "$KB_EXISTS" != "true" ]; then
+    # Match the name field with optional whitespace around the colon so the
+    # check is robust to both compact and pretty-printed JSON. (jq would be
+    # cleaner but is not installed in the production web image.)
+    KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
+    if printf '%s' "$KB_LIST_JSON" | grep -qE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"'; then
+        echo "Knowledge base already exists"
+    else
         echo "Creating knowledge base..."
         if fluxbase kb create wayli-pois \
             --namespace wayli \
@@ -132,16 +133,24 @@ ensure_knowledge_base() {
             --chunk-size 500 \
             --embedding-model text-embedding-3-small 2>&1; then
             echo "Knowledge base created successfully"
+            # Re-list so the ID extraction below can find the just-created KB.
+            KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
         else
             echo "Warning: Failed to create knowledge base, skipping table exports"
             return 0
         fi
-    else
-        echo "Knowledge base already exists"
     fi
 
     # Get the KB ID for table exports (select by name, not first-in-list).
-    KB_ID=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r '.[] | select(.name == "wayli-pois") | .id' | head -1)
+    # Extract the id that follows the wayli-pois object. Falls back to the first
+    # id if the per-object extraction can't locate it.
+    KB_ID=$(printf '%s' "$KB_LIST_JSON" \
+        | grep -oE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"[^}]*"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
+        | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
+        | grep -oE '[0-9a-f-]{36}' | head -1)
+    if [ -z "$KB_ID" ]; then
+        KB_ID=$(printf '%s' "$KB_LIST_JSON" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -oE '[0-9a-f-]{36}')
+    fi
 
     if [ -z "$KB_ID" ]; then
         echo "Warning: Could not get KB ID for table exports"

@@ -315,11 +315,11 @@ Init container for syncing Fluxbase resources using CLI
       echo "Syncing MCP tools..."
       fluxbase mcp tools sync --dir /app/fluxbase/mcp-tools --namespace wayli
       echo "Ensuring knowledge base exists..."
-      # Check existence with jq (whitespace-insensitive) before creating; the
-      # kb create call is idempotent from the CLI's perspective (|| true), but
-      # a duplicate still logs an ERR server-side on every pod start.
-      KB_EXISTS=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r 'any(.[]; .name == "wayli-pois")' 2>/dev/null)
-      if [ "$KB_EXISTS" = "true" ]; then
+      # Match the name field with optional whitespace around the colon so the
+      # check is robust to both compact and pretty-printed JSON, and only create
+      # when missing. (jq would be cleaner but is not installed in this image.)
+      KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
+      if printf '%s' "$KB_LIST_JSON" | grep -qE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"'; then
         echo "Knowledge base already exists"
       else
         fluxbase kb create wayli-pois \
@@ -327,8 +327,15 @@ Init container for syncing Fluxbase resources using CLI
           --description "User POI visits with behavioral context for semantic search" \
           --chunk-size 500 \
           --embedding-model text-embedding-3-small 2>/dev/null || true
+        KB_LIST_JSON=$(fluxbase kb list --namespace wayli -o json 2>/dev/null || true)
       fi
-      KB_ID=$(fluxbase kb list --namespace wayli -o json 2>/dev/null | jq -r '.[] | select(.name == "wayli-pois") | .id' | head -1)
+      KB_ID=$(printf '%s' "$KB_LIST_JSON" \
+        | grep -oE '"name"[[:space:]]*:[[:space:]]*"wayli-pois"[^}]*"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
+        | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' \
+        | grep -oE '[0-9a-f-]{36}' | head -1)
+      if [ -z "$KB_ID" ]; then
+        KB_ID=$(printf '%s' "$KB_LIST_JSON" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | grep -oE '[0-9a-f-]{36}')
+      fi
       if [ -n "$KB_ID" ]; then
         echo "Exporting tables to knowledge base..."
         fluxbase kb export-table "$KB_ID" --schema public --table place_visits --include-fks --sample-rows 3 2>/dev/null || true
