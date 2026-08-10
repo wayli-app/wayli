@@ -1,0 +1,36 @@
+# Detekt configuration for Wayli Android app.
+config:
+  validation: true
+  warningsAsErrors: false
+
+style:
+  WildcardImport:
+    active: false
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: false
+  ForbiddenComment:
+    active: false
+
+complexity:
+  LongMethod:
+    threshold: 80
+  LargeClass:
+    threshold: 600
+  TooManyFunctions:
+    active: false
+  LongParameterList:
+    active: false
+
+exceptions:
+  SwallowedException:
+    active: false
+  TooGenericExceptionCaught:
+    active: false
+
+naming:
+  FunctionMaxLength:
+    active: false
+  FunctionNaming:
+    active: false # Compose @Composable functions
