@@ -2,7 +2,7 @@
 // Tests for API validation schemas
 
 import { describe, it, expect } from 'vitest';
-import { MOCK_PASSWORD_OLD, MOCK_PASSWORD_NEW, MOCK_PASSWORD_WEAK } from '../../helpers/test-fixtures';
+import { MOCK_PASSWORD_OLD, MOCK_PASSWORD_NEW, MOCK_PASSWORD_WEAK } from '../helpers/test-fixtures';
 
 import {
 	paginationSchema,
