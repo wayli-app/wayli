@@ -12,6 +12,7 @@
 	} from '$lib/services/statistics/aggregate';
 	import { Loader2, CalendarDays, Clock, Gauge, PieChart, RefreshCw } from 'lucide-svelte';
 	import { translate } from '$lib/i18n';
+	import { UNKNOWN_MODE_COLOR } from '$lib/utils/colors';
 
 	let t = $derived($translate);
 
@@ -295,7 +296,7 @@
 	}
 
 	function modeColor(mode: string): string {
-		return transportModeColors[mode] ?? transportModeColors.unknown ?? '#6b7280';
+		return transportModeColors[mode] ?? transportModeColors.unknown ?? UNKNOWN_MODE_COLOR;
 	}
 
 	/** Soften a hex color toward pastel by blending with white (≈35% lighter).

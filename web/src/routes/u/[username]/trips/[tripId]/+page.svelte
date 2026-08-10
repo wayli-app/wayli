@@ -9,6 +9,7 @@
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
+	import { PLAN_CATEGORY_COLORS } from '$lib/utils/colors';
 	import {
 		ArrowLeft,
 		Calendar,
@@ -35,15 +36,8 @@
 		rest: '☕',
 		shopping: '🛍️'
 	};
-	const TYPE_COLORS: Record<string, string> = {
-		sightseeing: '#3b82f6',
-		food: '#f59e0b',
-		activity: '#22c55e',
-		transport: '#8b5cf6',
-		accommodation: '#ec4899',
-		rest: '#6b7280',
-		shopping: '#14b8a6'
-	};
+	// Plan item colors (shared palette from $lib/utils/colors.ts)
+	const TYPE_COLORS = PLAN_CATEGORY_COLORS;
 
 	type Trip = {
 		id: string;
