@@ -25,6 +25,7 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
+	import { TRANSPORT_MODE_COLORS } from '$lib/utils/colors';
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 
 	type SelectedPoint = DataPoint & { selected: boolean; excluded: boolean };
@@ -73,14 +74,8 @@
 
 	let pointLayers = $state<Map<string, any>>(new Map());
 
-	const COLOR_BY_MODE: Record<string, string> = {
-		walking: '#22c55e',
-		driving: '#3b82f6',
-		cycling: '#f59e0b',
-		flying: '#a855f7',
-		train: '#ec4899',
-		unknown: '#6b7280'
-	};
+	// Transport mode colors (unified palette — uses correct DB keys: car, not driving; airplane, not flying)
+	const COLOR_BY_MODE = TRANSPORT_MODE_COLORS;
 
 	onMount(async () => {
 		const now = new Date();
@@ -345,7 +340,7 @@
 				? '#ef4444'
 				: p.excluded
 					? '#9ca3af'
-					: COLOR_BY_MODE[p.activity_type || 'unknown'] || '#6b7280';
+					: COLOR_BY_MODE[p.activity_type || 'unknown'] || TRANSPORT_MODE_COLORS.unknown;
 			const radius = p.selected ? 6 : 4;
 
 			const icon = L.divIcon({

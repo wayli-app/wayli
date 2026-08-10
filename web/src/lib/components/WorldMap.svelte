@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { MAP_COLORS } from '$lib/utils/colors';
 	import { feature } from 'topojson-client';
 	import type { Topology } from 'topojson-specification';
 
@@ -235,10 +236,10 @@
 					const isVisited = visitedNumeric.has(numId);
 					if (isVisited) {
 						return {
-							fillColor: '#3b82f6',
+							fillColor: MAP_COLORS.visitedCountry,
 							weight: 0,
 							opacity: 0,
-							color: '#1d4ed8',
+							color: MAP_COLORS.border,
 							fillOpacity: 0.5
 						};
 					}
@@ -252,7 +253,7 @@
 					const isVisited = visitedNumeric.has(numId);
 					if (isVisited) {
 						layer.bindTooltip(
-							`${name}<br><span style="font-size:11px;color:#3b82f6">Visited</span>`,
+							`${name}<br><span style="font-size:11px;color:${MAP_COLORS.visitedCountry}">Visited</span>`,
 							{ sticky: true }
 						);
 					}

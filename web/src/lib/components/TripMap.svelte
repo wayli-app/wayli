@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { MAP_COLORS } from '$lib/utils/colors';
 	import type { Map as LeafletMap } from 'leaflet';
 
 	type Props = {
@@ -61,7 +62,7 @@
 
 			if (sampled.length > 1) {
 				const latlngs = sampled.map((p) => [p.lat, p.lng] as [number, number]);
-				mainPolyline = lib.polyline(latlngs, { color: '#3b82f6', weight: 4, opacity: 0.6 });
+				mainPolyline = lib.polyline(latlngs, { color: MAP_COLORS.trackLine, weight: 4, opacity: 0.6 });
 				mainPolyline.addTo(ml);
 			}
 
@@ -69,7 +70,7 @@
 				lib
 					.circleMarker([sampled[0].lat, sampled[0].lng], {
 						radius: 5,
-						fillColor: '#22c55e',
+						fillColor: MAP_COLORS.startMarker,
 						color: '#fff',
 						weight: 2,
 						fillOpacity: 1
@@ -81,7 +82,7 @@
 				lib
 					.circleMarker([last.lat, last.lng], {
 						radius: 5,
-						fillColor: '#ef4444',
+						fillColor: MAP_COLORS.endMarker,
 						color: '#fff',
 						weight: 2,
 						fillOpacity: 1
@@ -93,7 +94,7 @@
 				lib
 					.circleMarker([marker.lat, marker.lng], {
 						radius: 6,
-						fillColor: '#233869',
+						fillColor: MAP_COLORS.highlight,
 						color: '#fff',
 						weight: 2,
 						fillOpacity: 0.9
@@ -108,12 +109,12 @@
 
 		if (hp.length > 0) {
 			const hlatlngs = hp.map((p) => [p.lat, p.lng] as [number, number]);
-			lib.polyline(hlatlngs, { color: '#233869', weight: 6, opacity: 0.9 }).addTo(hl);
+			lib.polyline(hlatlngs, { color: MAP_COLORS.highlight, weight: 6, opacity: 0.9 }).addTo(hl);
 
 			lib
 				.circleMarker(hlatlngs[0], {
 					radius: 7,
-					fillColor: '#233869',
+					fillColor: MAP_COLORS.highlight,
 					color: '#fff',
 					weight: 2,
 					fillOpacity: 1
@@ -123,7 +124,7 @@
 				lib
 					.circleMarker(hlatlngs[hlatlngs.length - 1], {
 						radius: 7,
-						fillColor: '#233869',
+						fillColor: MAP_COLORS.highlight,
 						color: '#fff',
 						weight: 2,
 						fillOpacity: 1
