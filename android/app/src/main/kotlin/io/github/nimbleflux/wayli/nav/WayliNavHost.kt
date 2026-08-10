@@ -1,7 +1,5 @@
 package io.github.nimbleflux.wayli.nav
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
@@ -16,11 +14,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavType
@@ -35,11 +30,16 @@ import io.github.nimbleflux.wayli.auth.ForgotPasswordScreen
 import io.github.nimbleflux.wayli.auth.SignInScreen
 import io.github.nimbleflux.wayli.auth.SignUpScreen
 import io.github.nimbleflux.wayli.auth.TwoFactorScreen
+import io.github.nimbleflux.wayli.feature.discover.DiscoverScreen
+import io.github.nimbleflux.wayli.feature.settings.SettingsScreen
+import io.github.nimbleflux.wayli.feature.stats.StatsScreen
+import io.github.nimbleflux.wayli.feature.tracking.TrackingScreen
+import io.github.nimbleflux.wayli.feature.tracking.TrackingSettingsScreen
+import io.github.nimbleflux.wayli.feature.travel.TripsListScreen
+import io.github.nimbleflux.wayli.feature.wishlist.WishlistScreen
 import io.github.nimbleflux.wayli.onboarding.InstanceSetupScreen
 import io.github.nimbleflux.wayli.session.InstanceManager
 import javax.inject.Inject
-
-// ---- Routes ----
 
 object Routes {
     const val INSTANCE_SETUP = "instance_setup"
@@ -47,20 +47,15 @@ object Routes {
     const val SIGN_UP = "sign_up"
     const val TWO_FACTOR = "two_factor/{userId}"
     const val FORGOT_PASSWORD = "forgot_password"
-
-    // Tab routes
     const val MAP = "map"
     const val TRAVEL = "travel"
     const val DISCOVER = "discover"
     const val WISHLIST = "wishlist"
     const val SETTINGS = "settings"
+    const val TRACKING_SETTINGS = "tracking_settings"
 }
 
-data class TabItem(
-    val route: String,
-    val label: String,
-    val icon: ImageVector,
-)
+private data class TabItem(val route: String, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
     TabItem(Routes.MAP, "Map", Icons.Filled.Map),
@@ -89,13 +84,11 @@ fun WayliNavHost() {
     val viewModel: NavViewModel = hiltViewModel()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-
     val isTabRoute = currentRoute in tabs.map { it.route }
-    val showBottomBar = isTabRoute
 
     Scaffold(
         bottomBar = {
-            if (showBottomBar) {
+            if (isTabRoute) {
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(
@@ -120,7 +113,6 @@ fun WayliNavHost() {
             startDestination = viewModel.startRoute,
             modifier = Modifier.padding(innerPadding),
         ) {
-            // Onboarding
             composable(Routes.INSTANCE_SETUP) {
                 InstanceSetupScreen(
                     onConfigured = {
@@ -130,8 +122,6 @@ fun WayliNavHost() {
                     },
                 )
             }
-
-            // Auth
             composable(Routes.SIGN_IN) {
                 SignInScreen(
                     onSignedIn = {
@@ -139,9 +129,7 @@ fun WayliNavHost() {
                             popUpTo(Routes.SIGN_IN) { inclusive = true }
                         }
                     },
-                    onNeed2FA = { userId ->
-                        navController.navigate("two_factor/$userId")
-                    },
+                    onNeed2FA = { userId -> navController.navigate("two_factor/$userId") },
                     onSignUp = { navController.navigate(Routes.SIGN_UP) },
                     onForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 )
@@ -159,10 +147,9 @@ fun WayliNavHost() {
             composable(
                 route = Routes.TWO_FACTOR,
                 arguments = listOf(navArgument("userId") { type = NavType.StringType }),
-            ) { backStackEntry ->
-                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            ) { entry ->
                 TwoFactorScreen(
-                    userId = userId,
+                    userId = entry.arguments?.getString("userId") ?: "",
                     onVerified = {
                         navController.navigate(Routes.MAP) {
                             popUpTo(Routes.SIGN_IN) { inclusive = true }
@@ -174,22 +161,21 @@ fun WayliNavHost() {
                 ForgotPasswordScreen(onBack = { navController.popBackStack() })
             }
 
-            // Tab screens (placeholders for now)
-            composable(Routes.MAP) { PlaceholderScreen("Map") }
-            composable(Routes.TRAVEL) { PlaceholderScreen("Travel") }
-            composable(Routes.DISCOVER) { PlaceholderScreen("Discover") }
-            composable(Routes.WISHLIST) { PlaceholderScreen("Wishlist") }
-            composable(Routes.SETTINGS) { PlaceholderScreen("Settings") }
-        }
-    }
-}
+            // Tab screens
+            composable(Routes.MAP) {
+                TrackingScreen(onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) })
+            }
+            composable(Routes.TRAVEL) {
+                TripsListScreen(trips = emptyList(), onTripClick = {}, onNewTrip = {})
+            }
+            composable(Routes.DISCOVER) { DiscoverScreen() }
+            composable(Routes.WISHLIST) { WishlistScreen(places = emptyList()) }
+            composable(Routes.SETTINGS) { SettingsScreen() }
 
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Box(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(title, fontWeight = FontWeight.Bold)
+            // Non-tab screens
+            composable(Routes.TRACKING_SETTINGS) {
+                TrackingSettingsScreen(onBack = { navController.popBackStack() })
+            }
+        }
     }
 }
