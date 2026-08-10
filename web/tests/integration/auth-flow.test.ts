@@ -1,6 +1,14 @@
 // Integration tests for authentication flow
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import {
+	MOCK_TOKEN_A,
+	MOCK_PASSWORD_A,
+	MOCK_PASSWORD_NEW,
+	MOCK_USER_ID,
+	TEST_EMAIL,
+	NEW_USER_EMAIL
+} from '../helpers/test-fixtures';
 
 // Mock fluxbase client
 const mockFluxbase = {
@@ -35,8 +43,8 @@ describe('Authentication Flow Integration', () => {
 	describe('Sign In Flow', () => {
 		it('should successfully sign in with valid credentials', async () => {
 			const mockSession = {
-				user: { id: 'user-123', email: 'test@example.com' },
-				access_token: 'token-123'
+				user: { id: MOCK_USER_ID, email: TEST_EMAIL },
+				access_token: MOCK_TOKEN_A
 			};
 
 			mockFluxbase.auth.signInWithPassword.mockResolvedValue({
@@ -45,12 +53,12 @@ describe('Authentication Flow Integration', () => {
 			});
 
 			const result = await mockFluxbase.auth.signInWithPassword({
-				email: 'test@example.com',
-				password: 'password123'
+				email: TEST_EMAIL,
+				password: MOCK_PASSWORD_A
 			});
 
 			expect(result.error).toBeNull();
-			expect(result.data?.session?.user?.email).toBe('test@example.com');
+			expect(result.data?.session?.user?.email).toBe(TEST_EMAIL);
 		});
 
 		it('should handle invalid credentials', async () => {
@@ -61,7 +69,7 @@ describe('Authentication Flow Integration', () => {
 
 			const result = await mockFluxbase.auth.signInWithPassword({
 				email: 'wrong@example.com',
-				password: 'wrongpassword'
+				password: 'wrongmock'
 			});
 
 			expect(result.error).not.toBeNull();
@@ -72,14 +80,14 @@ describe('Authentication Flow Integration', () => {
 			mockFluxbase.auth.signInWithPassword.mockResolvedValue({
 				data: {
 					session: null,
-					user: { id: 'user-123', email: 'test@example.com' }
+					user: { id: MOCK_USER_ID, email: TEST_EMAIL }
 				},
 				error: { message: 'requires_2fa', status: 403 }
 			});
 
 			const result = await mockFluxbase.auth.signInWithPassword({
-				email: 'test@example.com',
-				password: 'password123'
+				email: TEST_EMAIL,
+				password: MOCK_PASSWORD_A
 			});
 
 			expect(result.error?.message).toContain('2fa');
@@ -89,8 +97,8 @@ describe('Authentication Flow Integration', () => {
 	describe('Sign Up Flow', () => {
 		it('should successfully create a new account', async () => {
 			const mockUser = {
-				id: 'new-user-123',
-				email: 'newuser@example.com',
+				id: MOCK_NEW_USER_ID,
+				email: NEW_USER_EMAIL,
 				email_confirmed_at: null
 			};
 
@@ -100,8 +108,8 @@ describe('Authentication Flow Integration', () => {
 			});
 
 			const result = await mockFluxbase.auth.signUp({
-				email: 'newuser@example.com',
-				password: 'securePassword123!',
+				email: NEW_USER_EMAIL,
+				password: MOCK_PASSWORD_A,
 				options: {
 					data: {
 						first_name: 'New',
@@ -111,7 +119,7 @@ describe('Authentication Flow Integration', () => {
 			});
 
 			expect(result.error).toBeNull();
-			expect(result.data?.user?.email).toBe('newuser@example.com');
+			expect(result.data?.user?.email).toBe(NEW_USER_EMAIL);
 		});
 
 		it('should reject weak passwords', async () => {
@@ -121,8 +129,8 @@ describe('Authentication Flow Integration', () => {
 			});
 
 			const result = await mockFluxbase.auth.signUp({
-				email: 'test@example.com',
-				password: '123' // Too weak
+				email: TEST_EMAIL,
+				password: MOCK_PASSWORD_WEAK
 			});
 
 			expect(result.error).not.toBeNull();
@@ -137,7 +145,7 @@ describe('Authentication Flow Integration', () => {
 
 			const result = await mockFluxbase.auth.signUp({
 				email: 'existing@example.com',
-				password: 'password123'
+				password: MOCK_PASSWORD_A
 			});
 
 			expect(result.error).not.toBeNull();
@@ -174,12 +182,12 @@ describe('Authentication Flow Integration', () => {
 
 		it('should update password with valid token', async () => {
 			mockFluxbase.auth.updateUser.mockResolvedValue({
-				data: { user: { id: 'user-123' } },
+				data: { user: { id: MOCK_USER_ID } },
 				error: null
 			});
 
 			const result = await mockFluxbase.auth.updateUser({
-				password: 'newSecurePassword123!'
+				password: MOCK_PASSWORD_NEW
 			});
 
 			expect(result.error).toBeNull();
@@ -201,8 +209,8 @@ describe('Authentication Flow Integration', () => {
 	describe('Session Management', () => {
 		it('should get current session', async () => {
 			const mockSession = {
-				user: { id: 'user-123', email: 'test@example.com' },
-				access_token: 'token-123',
+				user: { id: MOCK_USER_ID, email: TEST_EMAIL },
+				access_token: MOCK_TOKEN_A,
 				expires_at: Date.now() + 3600000
 			};
 
@@ -214,7 +222,7 @@ describe('Authentication Flow Integration', () => {
 			const result = await mockFluxbase.auth.getSession();
 
 			expect(result.data?.session).not.toBeNull();
-			expect(result.data?.session?.user?.email).toBe('test@example.com');
+			expect(result.data?.session?.user?.email).toBe(TEST_EMAIL);
 		});
 
 		it('should return null session when not authenticated', async () => {

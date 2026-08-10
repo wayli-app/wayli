@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ServiceAdapter, type ServiceAdapterConfig } from '$lib/services/api/service-adapter';
+import { MOCK_TOKEN_A, MOCK_TOKEN_B, MOCK_PASSWORD_NEW } from '../../../helpers/test-fixtures';
 
 // Mock the fluxbase module
 const mockFluxbase = {
@@ -341,10 +342,10 @@ describe('ServiceAdapter', () => {
 			it('should update password via auth', async () => {
 				mockFluxbase.auth.updateUser.mockResolvedValue({ error: null });
 
-				const result = await adapter.updatePassword('newpassword123');
+				const result = await adapter.updatePassword(MOCK_PASSWORD_NEW);
 
 				expect(mockFluxbase.auth.updateUser).toHaveBeenCalledWith({
-					password: 'newpassword123'
+					password: MOCK_PASSWORD_NEW
 				});
 				expect(result.message).toBe('Password updated successfully');
 			});
@@ -473,8 +474,8 @@ describe('ServiceAdapter', () => {
 			it('should verify 2FA code and return tokens', async () => {
 				mockFluxbase.auth.verify2FA.mockResolvedValue({
 					data: {
-						access_token: 'access-token',
-						refresh_token: 'refresh-token'
+						access_token: MOCK_TOKEN_A,
+						refresh_token: MOCK_TOKEN_B
 					},
 					error: null
 				});
