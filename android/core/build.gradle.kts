@@ -29,6 +29,7 @@ android {
 
 dependencies {
     api("androidx.core:core-ktx:1.15.0")
+    api("androidx.security:security-crypto:1.1.0-alpha06")
     api(libs.kotlinx.serialization.json)
     api(libs.kotlinx.datetime)
     api(libs.fluxbase.kotlin)
