@@ -166,7 +166,7 @@ fun WayliNavHost() {
                 TrackingScreen(onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) })
             }
             composable(Routes.TRAVEL) {
-                TripsListScreen(trips = emptyList(), onTripClick = {}, onNewTrip = {})
+                TripsListScreen(onTripClick = {}, onNewTrip = {})
             }
             composable(Routes.DISCOVER) { DiscoverScreen() }
             composable(Routes.WISHLIST) { WishlistScreen(places = emptyList()) }

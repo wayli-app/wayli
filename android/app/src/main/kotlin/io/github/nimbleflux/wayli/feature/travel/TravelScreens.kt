@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -30,6 +31,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,10 +52,14 @@ import io.github.nimbleflux.wayli.models.Trip
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripsListScreen(
-    trips: List<Trip>,
     onTripClick: (Trip) -> Unit,
     onNewTrip: () -> Unit,
+    viewModel: TripViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadTrips() }
+
     Scaffold(
         topBar = { TopAppBar(title = { Text("Travel") }) },
         floatingActionButton = {
@@ -63,32 +71,57 @@ fun TripsListScreen(
             )
         },
     ) { padding ->
-        if (trips.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🧳", style = MaterialTheme.typography.headlineLarge)
-                    Spacer(Modifier.height(8.dp))
-                    Text("No trips yet", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Tap 'New Trip' to create one",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        when (val state = uiState) {
+            is TripUiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) { CircularProgressIndicator() }
+            }
+            is TripUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("⚠️", style = MaterialTheme.typography.headlineLarge)
+                        Spacer(Modifier.height(8.dp))
+                        Text(state.message, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item { Spacer(Modifier.height(8.dp)) }
-                items(trips) { trip ->
-                    TripCard(trip = trip, onClick = { onTripClick(trip) })
+            is TripUiState.Success -> {
+                if (state.trips.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(padding),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🧳", style = MaterialTheme.typography.headlineLarge)
+                            Spacer(Modifier.height(8.dp))
+                            Text("No trips yet", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Tap 'New Trip' to create one",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        item { Spacer(Modifier.height(8.dp)) }
+                        items(state.trips) { trip ->
+                            TripCard(trip = trip, onClick = {
+                                viewModel.selectTrip(trip)
+                                onTripClick(trip)
+                            })
+                        }
+                        item { Spacer(Modifier.height(80.dp)) }
+                    }
                 }
-                item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }
