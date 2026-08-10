@@ -34,6 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,14 +60,24 @@ fun TripsListScreen(
     viewModel: TripViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showCreateDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadTrips() }
+
+    if (showCreateDialog) {
+        CreateTripDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreate = { title, start, end, desc ->
+                viewModel.createTrip(title, start, end, desc)
+            },
+        )
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Travel") }) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = onNewTrip,
+                onClick = { showCreateDialog = true },
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New Trip") },
                 containerColor = LightPrimary,
