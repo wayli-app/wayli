@@ -485,7 +485,7 @@ describe('ServiceAdapter', () => {
 					code: '123456'
 				});
 
-				expect(result.access_token).toBe('access-token');
+				expect(result.access_token).toBe(MOCK_TOKEN_A);
 			});
 		});
 	});

@@ -5,7 +5,9 @@ import {
 	MOCK_TOKEN_A,
 	MOCK_PASSWORD_A,
 	MOCK_PASSWORD_NEW,
+	MOCK_PASSWORD_WEAK,
 	MOCK_USER_ID,
+	MOCK_NEW_USER_ID,
 	TEST_EMAIL,
 	NEW_USER_EMAIL
 } from '../helpers/test-fixtures';
