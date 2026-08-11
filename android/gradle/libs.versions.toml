@@ -70,6 +70,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 
 # Image loading (Coil)
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version = "2.7.0" }
+coil-svg = { group = "io.coil-kt", name = "coil-svg", version = "2.7.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -61,11 +61,7 @@ private val fieldColors
 
 @Composable
 private fun WayliLogoSmall() {
-    Box(
-        modifier = Modifier.size(56.dp).clip(CircleShape)
-            .background(Brush.linearGradient(listOf(LightPrimary, Color(0xFF3B5BAA)))),
-        contentAlignment = Alignment.Center,
-    ) { Text("🧭", fontSize = 26.sp) }
+    io.github.nimbleflux.wayli.designsystem.WayliLogo(size = 56.dp)
 }
 
 @Composable
