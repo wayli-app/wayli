@@ -13,16 +13,16 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideTripRepository(client: dagger.Lazy<FluxbaseClient?>): TripRepository =
+    fun provideTripRepository(client: FluxbaseClient): TripRepository =
         TripRepository(client)
 
     @Provides
     @Singleton
-    fun provideWishlistRepository(client: dagger.Lazy<FluxbaseClient?>): WishlistRepository =
+    fun provideWishlistRepository(client: FluxbaseClient): WishlistRepository =
         WishlistRepository(client)
 
     @Provides
     @Singleton
-    fun provideStatsRepository(client: dagger.Lazy<FluxbaseClient?>): StatsRepository =
+    fun provideStatsRepository(client: FluxbaseClient): StatsRepository =
         StatsRepository(client)
 }

@@ -69,7 +69,7 @@ private val tabs = listOf(
 class NavViewModel @Inject constructor(
     private val instanceManager: InstanceManager,
     private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
-    private val fluxbaseClient: dagger.Lazy<FluxbaseClient?>,
+    private val fluxbaseClient: FluxbaseClient,
 ) : ViewModel() {
     val isDemoMode: Boolean = demoManager.isDemoMode
 
@@ -77,7 +77,7 @@ class NavViewModel @Inject constructor(
         demoManager.isDemoMode -> Routes.MAP
         !instanceManager.isConfigured -> Routes.INSTANCE_SETUP
         else -> {
-            val client = fluxbaseClient.get()
+            val client = fluxbaseClient
             if (client?.auth?.currentSession != null) Routes.MAP else Routes.SIGN_IN
         }
     }

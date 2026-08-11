@@ -87,13 +87,17 @@ fun WishlistScreen(
     ) { padding ->
         when (viewMode) {
             WishlistViewMode.MAP -> {
-                // Map view placeholder
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("🗺️ Map view", style = MaterialTheme.typography.titleMedium)
+                // Real MapLibre map with wishlist markers
+                val mapPoints = places.map { p ->
+                    val (lat, lng) = parsePostgisPoint(p.location)
+                    io.github.nimbleflux.wayli.designsystem.map.MapPoint(
+                        lat = lat, lng = lng, title = p.title, color = p.markerColor,
+                    )
                 }
+                io.github.nimbleflux.wayli.designsystem.map.WayliMap(
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    points = mapPoints,
+                )
             }
             WishlistViewMode.LIST -> {
                 if (places.isEmpty()) {
@@ -162,3 +166,12 @@ private fun PlaceCard(place: WantToVisit, onClick: () -> Unit) {
 }
 
 enum class WishlistViewMode { LIST, MAP }
+
+/** Parse a PostGIS POINT(lon lat) string to a (lat, lng) pair. */
+private fun parsePostgisPoint(pointStr: String): Pair<Double, Double> {
+    // Format: "POINT(lon lat)" or "SRID=4326;POINT(lon lat)"
+    val match = Regex("""POINT\((-?[\d.]+)\s+(-?[\d.]+)\)""").find(pointStr)
+    val lng = match?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+    val lat = match?.groupValues?.get(2)?.toDoubleOrNull() ?: 0.0
+    return lat to lng
+}

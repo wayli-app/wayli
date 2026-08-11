@@ -34,6 +34,9 @@ dependencies {
     api(libs.kotlinx.datetime)
     api(libs.fluxbase.kotlin)
 
+    // MapLibre (FOSS map rendering — no Google deps)
+    api(libs.maplibre.android)
+
     // Compose (design system composables)
     api(platform(libs.compose.bom))
     api(libs.compose.ui)

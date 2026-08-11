@@ -18,10 +18,8 @@ data class DailyActivity(
 
 @Singleton
 class StatsRepository @Inject constructor(
-    private val client: dagger.Lazy<FluxbaseClient?>,
+    private val client: FluxbaseClient,
 ) {
-    private fun flux() = client.get()
-        ?: throw IllegalStateException("FluxbaseClient not configured")
 
     /**
      * Fetch tracker points for a date range (for map rendering + stats).
@@ -32,7 +30,7 @@ class StatsRepository @Inject constructor(
         startDate: String,
         endDate: String,
     ): Result<List<TrackerPoint>> = runCatching {
-        val result = flux().from<TrackerPoint>("tracker_data")
+        val result = client.from<TrackerPoint>("tracker_data")
             .select()
             .eq("user_id", userId)
             .gte("recorded_at", startDate)
@@ -51,7 +49,7 @@ class StatsRepository @Inject constructor(
         startDate: String,
         endDate: String,
     ): Result<List<DailyActivity>> = runCatching {
-        val result = flux().from<DailyActivity>("tracker_daily_activity")
+        val result = client.from<DailyActivity>("tracker_daily_activity")
             .select()
             .eq("user_id", userId)
             .gte("day", startDate)
@@ -69,7 +67,7 @@ class StatsRepository @Inject constructor(
         startDate: String,
         endDate: String,
     ): Result< kotlinx.serialization.json.JsonElement> = runCatching {
-        val result = flux().rpc.invoke(
+        val result = client.rpc.invoke(
             "activity-calendar",
             mapOf(
                 "user_id" to userId,

@@ -115,6 +115,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.datetime)
 
+    // Image loading (Coil)
+    implementation(libs.coil.compose)
+
     // Testing
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)

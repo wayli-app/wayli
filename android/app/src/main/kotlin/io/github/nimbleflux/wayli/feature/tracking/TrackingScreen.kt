@@ -67,23 +67,12 @@ fun TrackingScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // Map placeholder — MapLibre will replace this
-            Column(
+            // Real MapLibre map
+            io.github.nimbleflux.wayli.designsystem.map.WayliMap(
                 modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    "🗺️",
-                    style = MaterialTheme.typography.headlineLarge,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    if (isTracking) "Tracking active" else "Map",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                center = org.maplibre.android.geometry.LatLng(52.0, 5.0), // Default center
+                zoom = 5.0,
+            )
 
             // Top-right settings button
             IconButton(
