@@ -36,11 +36,29 @@ android {
     buildTypes {
         debug { }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Signing: read keystore from env vars (CI) or gradle.properties (local).
+            // For local release builds, create a debug-compatible keystore or
+            // set WAYLI_KEYSTORE_FILE, WAYLI_KEYSTORE_PASSWORD, WAYLI_KEY_ALIAS,
+            // WAYLI_KEY_PASSWORD in ~/.gradle/gradle.properties.
+            val keystoreFile = providers.gradleProperty("wayli.keystore.file").orNull
+                ?: System.getenv("WAYLI_KEYSTORE_FILE")
+            if (keystoreFile != null) {
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = file(keystoreFile)
+                    storePassword = providers.gradleProperty("wayli.keystore.password").orNull
+                        ?: System.getenv("WAYLI_KEYSTORE_PASSWORD")
+                    keyAlias = providers.gradleProperty("wayli.key.alias").orNull
+                        ?: System.getenv("WAYLI_KEY_ALIAS")
+                    keyPassword = providers.gradleProperty("wayli.key.password").orNull
+                        ?: System.getenv("WAYLI_KEY_PASSWORD")
+                }
+            }
         }
     }
 
