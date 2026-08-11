@@ -77,8 +77,7 @@ class NavViewModel @Inject constructor(
         demoManager.isDemoMode -> Routes.MAP
         !instanceManager.isConfigured -> Routes.INSTANCE_SETUP
         else -> {
-            val client = fluxbaseClient
-            if (client?.auth?.currentSession != null) Routes.MAP else Routes.SIGN_IN
+            if (fluxbaseClient.auth.currentSession != null) Routes.MAP else Routes.SIGN_IN
         }
     }
 }
@@ -122,8 +121,14 @@ fun WayliNavHost() {
             composable(Routes.INSTANCE_SETUP) {
                 InstanceSetupScreen(
                     onConfigured = {
-                        navController.navigate(Routes.SIGN_IN) {
-                            popUpTo(Routes.INSTANCE_SETUP) { inclusive = true }
+                        if (isDemoMode) {
+                            navController.navigate(Routes.MAP) {
+                                popUpTo(Routes.INSTANCE_SETUP) { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate(Routes.SIGN_IN) {
+                                popUpTo(Routes.INSTANCE_SETUP) { inclusive = true }
+                            }
                         }
                     },
                 )
