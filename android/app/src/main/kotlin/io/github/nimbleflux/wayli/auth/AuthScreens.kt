@@ -172,7 +172,7 @@ fun TwoFactorScreen(userId: String, onVerified: () -> Unit, viewModel: AuthViewM
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 28.dp).imePadding().navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
-            Text("🔐", fontSize = 48.sp)
+            WayliLogoSmall()
             Spacer(Modifier.height(16.dp))
             Text("Two-Factor Auth", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = LightPrimary)
             Spacer(Modifier.height(8.dp))
@@ -209,7 +209,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit, viewModel: AuthViewModel = hiltView
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 28.dp).imePadding().navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
         ) {
-            Text("🔑", fontSize = 48.sp)
+            WayliLogoSmall()
             Spacer(Modifier.height(16.dp))
             Text("Reset Password", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = LightPrimary)
             Spacer(Modifier.height(32.dp))

@@ -18,15 +18,27 @@ import coil.request.ImageRequest
  *
  * Uses Coil's SVG decoder to render the vector logo at any resolution.
  */
+/**
+ * Shared SVG-capable ImageLoader — built once and remembered across recompositions
+ * to avoid GC churn. Coil caches decoded bitmaps, so the SVG is only parsed once.
+ */
+@Composable
+private fun rememberSvgImageLoader(): ImageLoader {
+    val context = LocalContext.current
+    return remember(context) {
+        ImageLoader.Builder(context)
+            .components { add(SvgDecoder.Factory()) }
+            .build()
+    }
+}
+
 @Composable
 fun WayliLogo(
     size: Dp = 64.dp,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val loader = ImageLoader.Builder(context)
-        .components { add(SvgDecoder.Factory()) }
-        .build()
+    val loader = rememberSvgImageLoader()
 
     AsyncImage(
         model = ImageRequest.Builder(context)
@@ -48,9 +60,7 @@ fun WayliLogoFull(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val loader = ImageLoader.Builder(context)
-        .components { add(SvgDecoder.Factory()) }
-        .build()
+    val loader = rememberSvgImageLoader()
 
     AsyncImage(
         model = ImageRequest.Builder(context)

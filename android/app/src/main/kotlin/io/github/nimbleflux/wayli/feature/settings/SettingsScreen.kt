@@ -112,7 +112,17 @@ fun SettingsScreen(
 
             // About
             SettingsCard(title = "About") {
-                Text("Wayli Android v1.0.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    io.github.nimbleflux.wayli.designsystem.WayliLogo(
+                        size = 40.dp,
+                    )
+                    Spacer(Modifier.size(12.dp))
+                    Column {
+                        Text("Wayli", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Android v1.0.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
                 Text("fluxbase-kotlin 2026.8.8-rc.1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
