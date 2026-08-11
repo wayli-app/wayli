@@ -71,13 +71,7 @@ fun InstanceSetupScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(LightPrimary, Color(0xFF3B5BAA)))),
-                contentAlignment = Alignment.Center,
-            ) { Text("🧭", fontSize = 40.sp) }
+            io.github.nimbleflux.wayli.designsystem.WayliLogo(size = 88.dp)
 
             Spacer(Modifier.height(24.dp))
             Text("Wayli", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, fontSize = 36.sp, color = LightPrimary)

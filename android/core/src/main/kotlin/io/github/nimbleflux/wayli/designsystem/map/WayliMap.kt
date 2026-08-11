@@ -3,7 +3,6 @@ package io.github.nimbleflux.wayli.designsystem.map
 import android.content.Context
 import android.os.Bundle
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -47,12 +46,8 @@ fun WayliMap(
     zoom: Double = 10.0,
     darkTheme: Boolean = false,
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-
-    DisposableEffect(Unit) {
-        MapLibre.getInstance(context)
-        onDispose { }
-    }
+    // MapLibre.getInstance() is called in WayliApplication.onCreate() — must
+    // happen before any MapView is created.
 
     AndroidView(
         factory = { ctx: Context ->

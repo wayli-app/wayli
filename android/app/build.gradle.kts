@@ -115,8 +115,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.datetime)
 
-    // Image loading (Coil)
+    // Image loading (Coil + SVG support for logo)
     implementation(libs.coil.compose)
+    implementation(libs.coil.svg)
+
+    // MapLibre (needed in :app for WayliApplication.onCreate initialization)
+    implementation(libs.maplibre.android)
 
     // Testing
     testImplementation(libs.kotlin.test)
