@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +46,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.wayli.designsystem.WayliLogo
+import io.github.nimbleflux.wayli.util.restartApp
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,10 +54,10 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun InstanceSetupScreen(
-    onInstanceConfigured: () -> Unit,
     onDemoEnabled: () -> Unit,
     viewModel: InstanceSetupViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
     var url by remember { mutableStateOf("") }
     var anonKey by remember { mutableStateOf("") }
     var showAdvanced by remember { mutableStateOf(false) }
@@ -94,15 +96,24 @@ fun InstanceSetupScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Wayli is the app; Fluxbase is the self-hosted backend it connects to.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Spacer(Modifier.height(48.dp))
 
             // Instance URL field
-            OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                label = { Text("Instance URL") },
-                placeholder = { Text("https://your-wayli.com") },
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Fluxbase backend URL") },
+                    placeholder = { Text("https://fluxbase.example.com") },
+                    supportingText = {
+                        Text("Address of the Fluxbase server that stores your Wayli data — not the Wayli web app.")
+                    },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Next,
@@ -172,7 +183,9 @@ fun InstanceSetupScreen(
                         }
                         error = null
                         viewModel.connect(url, anonKey) { success, msg ->
-                            if (success) onInstanceConfigured() else error = msg
+                            // Restart so the new instance config is picked up by the
+                            // FluxbaseClient singleton; on relaunch the user lands on sign-in.
+                            if (success) restartApp(context) else error = msg
                         }
                     },
                     modifier = Modifier

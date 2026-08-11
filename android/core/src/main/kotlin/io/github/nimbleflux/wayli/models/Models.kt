@@ -81,6 +81,7 @@ data class TrackerPoint(
 @Serializable
 data class UserProfile(
     val id: String,
+    val email: String? = null,
     @SerialName("first_name") val firstName: String? = null,
     @SerialName("last_name") val lastName: String? = null,
     @SerialName("full_name") val fullName: String? = null,
@@ -89,6 +90,63 @@ data class UserProfile(
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("home_address") val homeAddress: JsonElement? = null,
     val discoverable: String = "nobody",
+    @SerialName("cover_photo_url") val coverPhotoUrl: String? = null,
+    @SerialName("cover_focal_x") val coverFocalX: Double? = null,
+    @SerialName("cover_focal_y") val coverFocalY: Double? = null,
+    @SerialName("onboarding_completed") val onboardingCompleted: Boolean? = null,
+    @SerialName("created_at") val createdAt: String = "",
+)
+
+/**
+ * User preferences (mirrors the `user_preferences` table). `language`,
+ * `timezone`, `notifications_enabled` are columns; `units` lives inside the
+ * `preferences` JSONB; `trip_exclusions` is its own JSONB column.
+ */
+@Serializable
+data class UserPreferences(
+    @SerialName("user_id") val userId: String? = null,
+    val language: String? = null,
+    val timezone: String? = null,
+    @SerialName("notifications_enabled") val notificationsEnabled: Boolean? = null,
+    val preferences: JsonElement? = null,
+    @SerialName("trip_exclusions") val tripExclusions: JsonElement? = null,
+)
+
+/** Nightly data-sampling config (mirrors the `user_data_sampling` table). */
+@Serializable
+data class UserDataSampling(
+    @SerialName("user_id") val userId: String? = null,
+    val enabled: Boolean = false,
+    @SerialName("min_distance_m") val minDistanceM: Double? = null,
+    @SerialName("min_time_s") val minTimeS: Double? = null,
+    @SerialName("last_run_at") val lastRunAt: String? = null,
+    @SerialName("last_deleted") val lastDeleted: String? = null,
+)
+
+// ---- Trip exclusions (stored as the `user_preferences.trip_exclusions` JSONB array) ----
+
+/** A geographic zone excluded from trip detection (max 10 per user). */
+@Serializable
+data class TripExclusion(
+    val id: String,
+    val name: String,
+    val location: TripExclusionLocation = TripExclusionLocation(),
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null,
+)
+
+@Serializable
+data class TripExclusionLocation(
+    @SerialName("display_name") val displayName: String? = null,
+    val coordinates: TripExclusionCoords? = null,
+    val address: String? = null,
+    val layer: String? = null,
+)
+
+@Serializable
+data class TripExclusionCoords(
+    val lat: Double? = null,
+    val lng: Double? = null,
 )
 
 @Serializable

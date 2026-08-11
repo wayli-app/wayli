@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Wayli" parent="android:Theme.Material.Light.NoActionBar">
+    <!-- Dark variant so the launch/splash window matches dark mode before Compose inflates. -->
+    <style name="Theme.Wayli" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowBackground">@color/wayli_window_background</item>
     </style>
 </resources>

@@ -33,7 +33,9 @@ class TripViewModel @Inject constructor(
 
     fun loadTrips() {
         if (demoManager.isDemoMode) {
-            _uiState.value = TripUiState.Success(io.github.nimbleflux.wayli.demo.DemoData.trips)
+            _uiState.value = TripUiState.Success(
+                io.github.nimbleflux.wayli.demo.DemoData.trips.sortedByDescending { it.startDate },
+            )
             return
         }
         val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: run {

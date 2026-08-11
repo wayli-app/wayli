@@ -70,6 +70,23 @@ class TripRepository @Inject constructor(
     }
 
     /**
+     * Create a journal entry for a trip.
+     */
+    suspend fun createEntry(tripId: String, title: String, entryDate: String, body: String?): Result<TripEntry> =
+        runCatching {
+            val values = buildMap<String, Any> {
+                put("trip_id", tripId)
+                put("title", title)
+                put("entry_date", entryDate)
+                put("status", "published")
+                body?.takeIf { it.isNotBlank() }?.let { put("body", it) }
+            }
+            client.from<TripEntry>("trip_entries").insert(values)
+            // Re-query (PostgREST insert doesn't return the row by default).
+            listEntries(tripId).getOrThrow().first { it.title == title }
+        }
+
+    /**
      * List journal entries for a trip.
      */
     suspend fun listEntries(tripId: String): Result<List<TripEntry>> = runCatching {

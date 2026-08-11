@@ -1,11 +1,14 @@
 package io.github.nimbleflux.wayli.nav
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TravelExplore
@@ -15,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,18 +35,27 @@ import io.github.nimbleflux.wayli.auth.SignUpScreen
 import io.github.nimbleflux.wayli.auth.TwoFactorScreen
 import io.github.nimbleflux.wayli.designsystem.WayliBottomBar
 import io.github.nimbleflux.wayli.designsystem.WayliTab
-import io.github.nimbleflux.wayli.feature.discover.DiscoverScreen
+import io.github.nimbleflux.wayli.feature.journals.JournalsScreen
+import io.github.nimbleflux.wayli.feature.history.HistoryScreen
+import io.github.nimbleflux.wayli.feature.home.HomeScreen
+import io.github.nimbleflux.wayli.feature.settings.AdminMaintenanceScreen
+import io.github.nimbleflux.wayli.feature.settings.AdminUsersScreen
 import io.github.nimbleflux.wayli.feature.settings.ConnectionsScreen
 import io.github.nimbleflux.wayli.feature.settings.DataSamplingScreen
-import io.github.nimbleflux.wayli.feature.settings.LanguageScreen
-import io.github.nimbleflux.wayli.feature.settings.ProfileScreen
-import io.github.nimbleflux.wayli.feature.settings.SecurityScreen
+import io.github.nimbleflux.wayli.feature.settings.ImportExportScreen
+import io.github.nimbleflux.wayli.feature.settings.PreferencesScreen
+import io.github.nimbleflux.wayli.feature.settings.ProfileEditScreen
+import io.github.nimbleflux.wayli.feature.settings.SecuritySettingsScreen
 import io.github.nimbleflux.wayli.feature.settings.SettingsScreen
+import io.github.nimbleflux.wayli.feature.settings.TripExclusionsScreen
+import io.github.nimbleflux.wayli.feature.settings.TwoFactorSetupScreen
 import io.github.nimbleflux.wayli.feature.stats.StatsScreen
 import io.github.nimbleflux.wayli.feature.tracking.TrackingScreen
 import io.github.nimbleflux.wayli.feature.tracking.TrackingSettingsScreen
+import io.github.nimbleflux.wayli.feature.travel.TripDetailScreen
 import io.github.nimbleflux.wayli.feature.travel.TripsListScreen
 import io.github.nimbleflux.wayli.feature.wishlist.WishlistScreen
+import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.onboarding.InstanceSetupScreen
 import io.github.nimbleflux.wayli.session.InstanceManager
 import javax.inject.Inject
@@ -51,23 +66,36 @@ object Routes {
     const val SIGN_UP = "sign_up"
     const val TWO_FACTOR = "two_factor/{userId}"
     const val FORGOT_PASSWORD = "forgot_password"
-    const val MAP = "map"
+
+    // Tab routes
+    const val MAP = "map" // The first tab is the Home dashboard (route name kept for continuity)
     const val TRAVEL = "travel"
-    const val DISCOVER = "discover"
+    const val JOURNALS = "journals"
     const val WISHLIST = "wishlist"
     const val SETTINGS = "settings"
+
+    // Pushed screens
+    const val LIVE_TRACKING = "live_tracking"
+    const val TRIP_DETAIL = "trip_detail/{tripId}"
+    const val STATS = "stats"
+    const val HISTORY = "history"
     const val TRACKING_SETTINGS = "tracking_settings"
     const val PROFILE = "profile"
     const val SECURITY = "security"
-    const val LANGUAGE = "language"
+    const val PREFERENCES = "preferences"
     const val CONNECTIONS = "connections"
     const val DATA_SAMPLING = "data_sampling"
+    const val TWO_FACTOR_SETUP = "two_factor_setup"
+    const val TRIP_EXCLUSIONS = "trip_exclusions"
+    const val IMPORT_EXPORT = "import_export"
+    const val ADMIN_USERS = "admin_users"
+    const val ADMIN_MAINTENANCE = "admin_maintenance"
 }
 
 private val tabs = listOf(
-    WayliTab(Routes.MAP, "Map", Icons.Filled.Map),
+    WayliTab(Routes.MAP, "Home", Icons.Filled.Home),
     WayliTab(Routes.TRAVEL, "Travel", Icons.Filled.TravelExplore),
-    WayliTab(Routes.DISCOVER, "Discover", Icons.Filled.Explore),
+    WayliTab(Routes.JOURNALS, "Journals", Icons.Filled.AutoStories),
     WayliTab(Routes.WISHLIST, "Wishlist", Icons.Filled.Star),
     WayliTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
 )
@@ -87,6 +115,39 @@ class NavViewModel @Inject constructor(
             if (fluxbaseClient.auth.currentSession != null) Routes.MAP else Routes.SIGN_IN
         }
     }
+
+    /**
+     * Sign out of the current session. In demo mode this just clears the demo
+     * flag; in real mode it calls the Fluxbase auth signOut endpoint. The
+     * caller then navigates to INSTANCE_SETUP (demo) or SIGN_IN (real).
+     */
+    fun signOut() {
+        if (demoManager.isDemoMode) {
+            demoManager.disableDemoMode()
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { fluxbaseClient.auth.signOut() }
+        }
+    }
+
+    /** The currently configured server URL, if any (for display in Settings). */
+    val instanceUrl: String? get() = instanceManager.getConfig()?.url
+
+    /**
+     * Clear the stored instance config and sign out, so the user is returned to
+     * the instance-setup screen to connect to a different Wayli server.
+     */
+    fun reconfigureServer() {
+        instanceManager.clear()
+        if (demoManager.isDemoMode) {
+            demoManager.disableDemoMode()
+        } else {
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { fluxbaseClient.auth.signOut() }
+            }
+        }
+    }
 }
 
 @Composable
@@ -97,19 +158,27 @@ fun WayliNavHost() {
     val currentRoute = backStackEntry?.destination?.route
     val isTabRoute = currentRoute in tabs.map { it.route }
 
+    // Switching to a tab restores its saved state and pops back to Home.
+    val switchTab: (String) -> Unit = { route ->
+        navController.navigate(route) {
+            popUpTo(Routes.MAP) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
             startDestination = viewModel.startRoute,
             modifier = Modifier.fillMaxSize(),
+            enterTransition = { fadeIn(animationSpec = tween(220)) },
+            exitTransition = { fadeOut(animationSpec = tween(220)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(220)) },
+            popExitTransition = { fadeOut(animationSpec = tween(220)) },
         ) {
             composable(Routes.INSTANCE_SETUP) {
                 InstanceSetupScreen(
-                    onInstanceConfigured = {
-                        navController.navigate(Routes.SIGN_IN) {
-                            popUpTo(Routes.INSTANCE_SETUP) { inclusive = true }
-                        }
-                    },
                     onDemoEnabled = {
                         navController.navigate(Routes.MAP) {
                             popUpTo(Routes.INSTANCE_SETUP) { inclusive = true }
@@ -156,47 +225,121 @@ fun WayliNavHost() {
                 ForgotPasswordScreen(onBack = { navController.popBackStack() })
             }
 
-            // Tab screens
+            // ---- Tab screens ----
             composable(Routes.MAP) {
-                TrackingScreen(onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) })
+                HomeScreen(
+                    onStatsClick = { navController.navigate(Routes.STATS) },
+                    onStartTracking = { navController.navigate(Routes.LIVE_TRACKING) },
+                    onTripClick = { trip: Trip -> navController.navigate("trip_detail/${trip.id}") },
+                    onWishlistClick = { switchTab(Routes.WISHLIST) },
+                    onHistory = { navController.navigate(Routes.HISTORY) },
+                )
             }
             composable(Routes.TRAVEL) {
-                TripsListScreen(onTripClick = {}, onNewTrip = {})
+                TripsListScreen(
+                    onTripClick = { trip -> navController.navigate("trip_detail/${trip.id}") },
+                    onNewTrip = {},
+                )
             }
-            composable(Routes.DISCOVER) { DiscoverScreen() }
+            composable(Routes.JOURNALS) {
+                JournalsScreen(onOpenTrip = { tripId -> navController.navigate("trip_detail/$tripId") })
+            }
             composable(Routes.WISHLIST) {
-                WishlistScreen(places = if (viewModel.isDemoMode) io.github.nimbleflux.wayli.demo.DemoData.wishlist else emptyList())
+                WishlistScreen(
+                    places = if (viewModel.isDemoMode) {
+                        io.github.nimbleflux.wayli.demo.DemoData.wishlist
+                    } else {
+                        emptyList()
+                    },
+                )
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     demoMode = viewModel.isDemoMode,
+                    serverUrl = viewModel.instanceUrl,
                     onProfile = { navController.navigate(Routes.PROFILE) },
                     onSecurity = { navController.navigate(Routes.SECURITY) },
                     onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) },
                     onConnections = { navController.navigate(Routes.CONNECTIONS) },
                     onDataSampling = { navController.navigate(Routes.DATA_SAMPLING) },
-                    onLanguage = { navController.navigate(Routes.LANGUAGE) },
+                    onTripExclusions = { navController.navigate(Routes.TRIP_EXCLUSIONS) },
+                    onImportExport = { navController.navigate(Routes.IMPORT_EXPORT) },
+                    onPreferences = { navController.navigate(Routes.PREFERENCES) },
+                    onAdminUsers = { navController.navigate(Routes.ADMIN_USERS) },
+                    onAdminMaintenance = { navController.navigate(Routes.ADMIN_MAINTENANCE) },
+                    onStats = { navController.navigate(Routes.STATS) },
+                    onReconfigureServer = {
+                        viewModel.reconfigureServer()
+                        navController.navigate(Routes.INSTANCE_SETUP) {
+                            popUpTo(Routes.MAP) { inclusive = true }
+                        }
+                    },
+                    onSignOut = {
+                        val dest = if (viewModel.isDemoMode) Routes.INSTANCE_SETUP else Routes.SIGN_IN
+                        viewModel.signOut()
+                        navController.navigate(dest) {
+                            popUpTo(Routes.MAP) { inclusive = true }
+                        }
+                    },
                 )
             }
 
-            // Settings sub-screens
+            // ---- Pushed screens ----
+            composable(Routes.LIVE_TRACKING) {
+                TrackingScreen(onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) })
+            }
+            composable(
+                route = Routes.TRIP_DETAIL,
+                arguments = listOf(navArgument("tripId") { type = NavType.StringType }),
+            ) {
+                TripDetailScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.STATS) {
+                StatsScreen(
+                    demoMode = viewModel.isDemoMode,
+                    onBack = { navController.popBackStack() },
+                    onViewHistory = { navController.navigate(Routes.HISTORY) },
+                )
+            }
+            composable(Routes.HISTORY) {
+                HistoryScreen(onBack = { navController.popBackStack() })
+            }
             composable(Routes.TRACKING_SETTINGS) {
                 TrackingSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.PROFILE) {
-                ProfileScreen(onBack = { navController.popBackStack() })
+                ProfileEditScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.SECURITY) {
-                SecurityScreen(onBack = { navController.popBackStack() }, demoMode = viewModel.isDemoMode)
+                SecuritySettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    demoMode = viewModel.isDemoMode,
+                    onTwoFactor = { navController.navigate(Routes.TWO_FACTOR_SETUP) },
+                )
             }
-            composable(Routes.LANGUAGE) {
-                LanguageScreen(onBack = { navController.popBackStack() })
+            composable(Routes.PREFERENCES) {
+                PreferencesScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.CONNECTIONS) {
                 ConnectionsScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.DATA_SAMPLING) {
                 DataSamplingScreen(onBack = { navController.popBackStack() }, demoMode = viewModel.isDemoMode)
+            }
+            composable(Routes.TWO_FACTOR_SETUP) {
+                TwoFactorSetupScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.TRIP_EXCLUSIONS) {
+                TripExclusionsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.IMPORT_EXPORT) {
+                ImportExportScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.ADMIN_USERS) {
+                AdminUsersScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.ADMIN_MAINTENANCE) {
+                AdminMaintenanceScreen(onBack = { navController.popBackStack() })
             }
         }
 
@@ -205,13 +348,7 @@ fun WayliNavHost() {
             WayliBottomBar(
                 tabs = tabs,
                 currentRoute = currentRoute,
-                onTabSelected = { route ->
-                    navController.navigate(route) {
-                        popUpTo(Routes.MAP) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onTabSelected = switchTab,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }

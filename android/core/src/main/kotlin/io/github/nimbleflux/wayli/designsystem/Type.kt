@@ -55,4 +55,37 @@ val WayliTypography = Typography(
         fontSize = 14.sp,
         lineHeight = 20.sp,
     ),
+    // The styles below were previously undefined and silently fell back to M3
+    // defaults wherever screens referenced them (~40 call sites). Defining them
+    // keeps the whole type scale on the Wayli family/weights.
+    headlineSmall = TextStyle(
+        fontFamily = WayliFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+    ),
+    titleSmall = TextStyle(
+        fontFamily = WayliFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+    ),
+    bodySmall = TextStyle(
+        fontFamily = WayliFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    ),
+    labelMedium = TextStyle(
+        fontFamily = WayliFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    ),
+    labelSmall = TextStyle(
+        fontFamily = WayliFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+    ),
 )
