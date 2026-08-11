@@ -15,47 +15,56 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.wayli.designsystem.LightPrimary
+import io.github.nimbleflux.wayli.designsystem.ThemeManager
+import io.github.nimbleflux.wayli.designsystem.ThemeMode
+import javax.inject.Inject
 
 /**
- * Settings — mobile-native design:
- * - Grouped cards with icon + label rows
- * - Tappable rows with chevron indicators
- * - Switches for boolean settings
- * - Profile section at top
+ * Settings — mobile-native design with grouped cards, icon + label rows,
+ * and a functional theme selector. Every row navigates to a real screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     demoMode: Boolean = false,
+    onProfile: () -> Unit = {},
+    onSecurity: () -> Unit = {},
+    onTrackingSettings: () -> Unit = {},
+    onConnections: () -> Unit = {},
+    onDataSampling: () -> Unit = {},
+    onLanguage: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    var darkMode by remember { mutableStateOf(false) }
-    var notifications by remember { mutableStateOf(true) }
-
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
     ) { padding ->
@@ -74,12 +83,12 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                    colors = CardDefaults.cardColors(
                         containerColor = LightPrimary.copy(alpha = 0.1f),
                     ),
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("🎯 Demo Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LightPrimary)
+                        Text("Demo Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LightPrimary)
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "You're viewing sample data. Connect to a real Wayli instance to track your own travels.",
@@ -90,32 +99,51 @@ fun SettingsScreen(
                 }
             }
 
-            // Profile section
+            // Theme selector
+            SettingsCard(title = "Appearance") {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.Palette, contentDescription = null, tint = LightPrimary, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.size(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Theme", style = MaterialTheme.typography.bodyLarge)
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                            ThemeMode.entries.forEachIndexed { index, mode ->
+                                SegmentedButton(
+                                    selected = viewModel.themeMode == mode,
+                                    onClick = { viewModel.setThemeMode(mode) },
+                                    shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
+                                ) { Text(mode.label) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Account section
             SettingsCard(title = "Account") {
-                SettingsRow(icon = Icons.Filled.Person, label = "Profile") {}
-                SettingsRow(icon = Icons.Filled.Security, label = "Security & 2FA") {}
+                SettingsRow(icon = Icons.Filled.Person, label = "Profile", onClick = onProfile)
+                SettingsRow(icon = Icons.Filled.Lock, label = "Security & 2FA", onClick = onSecurity)
             }
 
             // Tracking
             SettingsCard(title = "Tracking") {
-                SettingsRow(icon = Icons.Filled.LocationOn, label = "Tracking Settings") {}
-                SettingsRow(icon = Icons.Filled.CloudUpload, label = "Connections & Devices") {}
-                SettingsRow(icon = Icons.Filled.BatteryFull, label = "Data Sampling") {}
+                SettingsRow(icon = Icons.Filled.LocationOn, label = "Tracking Settings", onClick = onTrackingSettings)
+                SettingsRow(icon = Icons.Filled.Devices, label = "Connections & Devices", onClick = onConnections)
+                SettingsRow(icon = Icons.Filled.BatteryFull, label = "Data Sampling", onClick = onDataSampling)
             }
 
             // Preferences
             SettingsCard(title = "Preferences") {
-                SwitchRow(label = "Dark Mode", checked = darkMode) { darkMode = it }
-                SwitchRow(label = "Notifications", checked = notifications) { notifications = it }
-                SettingsRow(icon = Icons.Filled.Person, label = "Language") {}
+                SettingsRow(icon = Icons.Filled.Translate, label = "Language", onClick = onLanguage)
             }
 
             // About
             SettingsCard(title = "About") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    io.github.nimbleflux.wayli.designsystem.WayliLogo(
-                        size = 40.dp,
-                    )
+                    io.github.nimbleflux.wayli.designsystem.WayliLogo(size = 40.dp)
                     Spacer(Modifier.size(12.dp))
                     Column {
                         Text("Wayli", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -128,6 +156,17 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val themeManager: ThemeManager,
+) : ViewModel() {
+    val themeMode: ThemeMode get() = themeManager.themeMode
+
+    fun setThemeMode(mode: ThemeMode) {
+        themeManager.setThemeMode(mode)
     }
 }
 
@@ -156,16 +195,5 @@ private fun SettingsRow(icon: ImageVector, label: String, onClick: () -> Unit) {
         Spacer(Modifier.size(16.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

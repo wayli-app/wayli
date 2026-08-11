@@ -35,6 +35,16 @@ object FluxbaseModule {
 
     @Provides
     @Singleton
+    fun provideThemeManager(@ApplicationContext context: Context): io.github.nimbleflux.wayli.designsystem.ThemeManager =
+        io.github.nimbleflux.wayli.designsystem.ThemeManager(context)
+
+    @Provides
+    @Singleton
+    fun provideTrackingConfigStore(@ApplicationContext context: Context): io.github.nimbleflux.wayli.gps.TrackingConfigStore =
+        io.github.nimbleflux.wayli.gps.TrackingConfigStore(context)
+
+    @Provides
+    @Singleton
     fun provideFluxbaseClient(
         @ApplicationContext context: Context,
         instanceManager: InstanceManager,

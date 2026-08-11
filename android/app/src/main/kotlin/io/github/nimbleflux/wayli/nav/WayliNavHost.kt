@@ -30,6 +30,11 @@ import io.github.nimbleflux.wayli.auth.TwoFactorScreen
 import io.github.nimbleflux.wayli.designsystem.WayliBottomBar
 import io.github.nimbleflux.wayli.designsystem.WayliTab
 import io.github.nimbleflux.wayli.feature.discover.DiscoverScreen
+import io.github.nimbleflux.wayli.feature.settings.ConnectionsScreen
+import io.github.nimbleflux.wayli.feature.settings.DataSamplingScreen
+import io.github.nimbleflux.wayli.feature.settings.LanguageScreen
+import io.github.nimbleflux.wayli.feature.settings.ProfileScreen
+import io.github.nimbleflux.wayli.feature.settings.SecurityScreen
 import io.github.nimbleflux.wayli.feature.settings.SettingsScreen
 import io.github.nimbleflux.wayli.feature.stats.StatsScreen
 import io.github.nimbleflux.wayli.feature.tracking.TrackingScreen
@@ -52,6 +57,11 @@ object Routes {
     const val WISHLIST = "wishlist"
     const val SETTINGS = "settings"
     const val TRACKING_SETTINGS = "tracking_settings"
+    const val PROFILE = "profile"
+    const val SECURITY = "security"
+    const val LANGUAGE = "language"
+    const val CONNECTIONS = "connections"
+    const val DATA_SAMPLING = "data_sampling"
 }
 
 private val tabs = listOf(
@@ -154,12 +164,39 @@ fun WayliNavHost() {
                 TripsListScreen(onTripClick = {}, onNewTrip = {})
             }
             composable(Routes.DISCOVER) { DiscoverScreen() }
-            composable(Routes.WISHLIST) { WishlistScreen(places = emptyList()) }
-            composable(Routes.SETTINGS) { SettingsScreen(demoMode = viewModel.isDemoMode) }
+            composable(Routes.WISHLIST) {
+                WishlistScreen(places = if (viewModel.isDemoMode) io.github.nimbleflux.wayli.demo.DemoData.wishlist else emptyList())
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    demoMode = viewModel.isDemoMode,
+                    onProfile = { navController.navigate(Routes.PROFILE) },
+                    onSecurity = { navController.navigate(Routes.SECURITY) },
+                    onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) },
+                    onConnections = { navController.navigate(Routes.CONNECTIONS) },
+                    onDataSampling = { navController.navigate(Routes.DATA_SAMPLING) },
+                    onLanguage = { navController.navigate(Routes.LANGUAGE) },
+                )
+            }
 
-            // Non-tab screens
+            // Settings sub-screens
             composable(Routes.TRACKING_SETTINGS) {
                 TrackingSettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.PROFILE) {
+                ProfileScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.SECURITY) {
+                SecurityScreen(onBack = { navController.popBackStack() }, demoMode = viewModel.isDemoMode)
+            }
+            composable(Routes.LANGUAGE) {
+                LanguageScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.CONNECTIONS) {
+                ConnectionsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.DATA_SAMPLING) {
+                DataSamplingScreen(onBack = { navController.popBackStack() }, demoMode = viewModel.isDemoMode)
             }
         }
 

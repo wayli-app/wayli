@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -35,35 +36,42 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.wayli.designsystem.LightPrimary
 import io.github.nimbleflux.wayli.gps.AccuracyProfile
 import io.github.nimbleflux.wayli.gps.TrackingConfig
+import io.github.nimbleflux.wayli.gps.TrackingConfigStore
 import io.github.nimbleflux.wayli.gps.TrackingMode
+import javax.inject.Inject
 
 /**
- * Tracking settings — mobile-native design with:
- * - Segmented buttons for mode selection (not a dropdown)
- * - Sliders for interval/distance (not text inputs)
- * - Switches for boolean toggles
- * - Grouped cards for related settings
+ * Tracking settings — mobile-native design with segmented buttons, sliders,
+ * switches, and text fields. All values persist to [TrackingConfigStore]
+ * immediately on change.
+ *
+ * Organized into cards:
+ * - Mode (Move/Places/Manual)
+ * - Update Frequency (interval + distance sliders)
+ * - Accuracy (radio buttons)
+ * - Battery Optimization (threshold, stationary pause/resume, charging)
+ * - Server (HTTP endpoint, auth token, publish topic — OwnTracks transport)
+ * - Locator (displacement, interval, ignore inaccurate — OwnTracks locator)
+ * - Data Payload (altitude, heading, speed, battery)
+ * - Identity (device ID)
+ * - System (start on boot)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackingSettingsScreen(
     onBack: () -> Unit,
+    viewModel: TrackingSettingsViewModel = hiltViewModel(),
 ) {
-    var mode by remember { mutableStateOf(TrackingMode.MOVE) }
-    var minInterval by remember { mutableFloatStateOf(30f) }
-    var minDistance by remember { mutableFloatStateOf(50f) }
-    var accuracy by remember { mutableStateOf(AccuracyProfile.BALANCED) }
-    var stationaryPause by remember { mutableFloatStateOf(5f) }
-    var batteryThreshold by remember { mutableFloatStateOf(15f) }
-    var onlyWhileCharging by remember { mutableStateOf(false) }
-    var payloadAltitude by remember { mutableStateOf(true) }
-    var payloadSpeed by remember { mutableStateOf(true) }
-    var payloadBattery by remember { mutableStateOf(true) }
-    var startOnBoot by remember { mutableStateOf(false) }
+    val config = viewModel.config
 
     Scaffold(
         topBar = {
@@ -86,54 +94,54 @@ fun TrackingSettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Tracking mode — segmented buttons
+            // Tracking mode
             SettingsCard(title = "Mode") {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     TrackingMode.entries.forEachIndexed { index, m ->
                         SegmentedButton(
-                            selected = mode == m,
-                            onClick = { mode = m },
+                            selected = config.mode == m,
+                            onClick = { viewModel.update(config.copy(mode = m)) },
                             shape = SegmentedButtonDefaults.itemShape(index, TrackingMode.entries.size),
-                        ) { Text(when (m) {
-                            TrackingMode.MOVE -> "Move"
-                            TrackingMode.SIGNIFICANT -> "Places"
-                            TrackingMode.MANUAL -> "Manual"
-                        }) }
+                        ) {
+                            Text(when (m) {
+                                TrackingMode.MOVE -> "Move"
+                                TrackingMode.SIGNIFICANT -> "Places"
+                                TrackingMode.MANUAL -> "Manual"
+                            })
+                        }
                     }
                 }
             }
 
-            // Frequency settings — sliders
+            // Frequency settings
             SettingsCard(title = "Update Frequency") {
                 SliderRow(
                     label = "Min interval",
-                    value = minInterval,
+                    value = config.minIntervalSec.toFloat(),
                     range = 1f..3600f,
-                    valueText = formatInterval(minInterval.toLong()),
-                ) { minInterval = it }
+                    valueText = formatInterval(config.minIntervalSec),
+                ) { viewModel.update(config.copy(minIntervalSec = it.toLong())) }
 
                 Spacer(Modifier.height(8.dp))
 
                 SliderRow(
                     label = "Min distance",
-                    value = minDistance,
+                    value = config.minDistanceM,
                     range = 0f..5000f,
-                    valueText = "${minDistance.toInt()} m",
-                ) { minDistance = it }
+                    valueText = "${config.minDistanceM.toInt()} m",
+                ) { viewModel.update(config.copy(minDistanceM = it)) }
             }
 
-            // Accuracy profile
+            // Accuracy
             SettingsCard(title = "Accuracy") {
                 AccuracyProfile.entries.forEach { profile ->
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         androidx.compose.material3.RadioButton(
-                            selected = accuracy == profile,
-                            onClick = { accuracy = profile },
+                            selected = config.accuracy == profile,
+                            onClick = { viewModel.update(config.copy(accuracy = profile)) },
                         )
                         Text(profile.label, style = MaterialTheme.typography.bodyMedium)
                     }
@@ -144,40 +152,133 @@ fun TrackingSettingsScreen(
             SettingsCard(title = "Battery Optimization") {
                 SliderRow(
                     label = "Pause below battery",
-                    value = batteryThreshold,
+                    value = config.batteryStopThreshold.toFloat(),
                     range = 0f..50f,
-                    valueText = "${batteryThreshold.toInt()}%",
-                ) { batteryThreshold = it }
+                    valueText = "${config.batteryStopThreshold}%",
+                ) { viewModel.update(config.copy(batteryStopThreshold = it.toInt())) }
 
                 Spacer(Modifier.height(8.dp))
 
                 SliderRow(
                     label = "Stationary pause",
-                    value = stationaryPause,
+                    value = config.stationaryPauseMin.toFloat(),
                     range = 0f..60f,
-                    valueText = if (stationaryPause == 0f) "Off" else "${stationaryPause.toInt()} min",
-                ) { stationaryPause = it }
+                    valueText = if (config.stationaryPauseMin == 0L) "Off" else "${config.stationaryPauseMin} min",
+                ) { viewModel.update(config.copy(stationaryPauseMin = it.toLong())) }
+
+                Spacer(Modifier.height(8.dp))
+
+                SliderRow(
+                    label = "Resume radius",
+                    value = config.stationaryResumeRadiusM,
+                    range = 10f..1000f,
+                    valueText = "${config.stationaryResumeRadiusM.toInt()} m",
+                ) { viewModel.update(config.copy(stationaryResumeRadiusM = it)) }
 
                 SwitchRow(
                     label = "Only while charging",
-                    checked = onlyWhileCharging,
-                ) { onlyWhileCharging = it }
+                    checked = config.onlyWhileCharging,
+                ) { viewModel.update(config.copy(onlyWhileCharging = it)) }
+            }
+
+            // Server endpoint (OwnTracks transport)
+            SettingsCard(title = "Server") {
+                OutlinedTextField(
+                    value = config.endpointUrl,
+                    onValueChange = { viewModel.update(config.copy(endpointUrl = it)) },
+                    label = { Text("HTTP Endpoint URL") },
+                    placeholder = { Text("https://wayli.example.com/api/v1/locations") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = config.authToken,
+                    onValueChange = { viewModel.update(config.copy(authToken = it)) },
+                    label = { Text("Auth Token") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = config.publishTopic,
+                    onValueChange = { viewModel.update(config.copy(publishTopic = it)) },
+                    label = { Text("Publish Topic") },
+                    placeholder = { Text("wayli/userId/deviceId") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                )
+            }
+
+            // Locator (OwnTracks locator settings)
+            SettingsCard(title = "Locator") {
+                SliderRow(
+                    label = "Locator displacement",
+                    value = config.locatorDisplacementM,
+                    range = 0f..5000f,
+                    valueText = if (config.locatorDisplacementM == 0f) "Off" else "${config.locatorDisplacementM.toInt()} m",
+                ) { viewModel.update(config.copy(locatorDisplacementM = it)) }
+
+                Spacer(Modifier.height(8.dp))
+
+                SliderRow(
+                    label = "Locator interval",
+                    value = config.locatorIntervalSec.toFloat(),
+                    range = 0f..3600f,
+                    valueText = if (config.locatorIntervalSec == 0L) "Off" else formatInterval(config.locatorIntervalSec),
+                ) { viewModel.update(config.copy(locatorIntervalSec = it.toLong())) }
+
+                SwitchRow(
+                    label = "Ignore inaccurate readings (>100m)",
+                    checked = config.ignoreInaccurate,
+                ) { viewModel.update(config.copy(ignoreInaccurate = it)) }
             }
 
             // Data payload
             SettingsCard(title = "Data Payload") {
-                SwitchRow(label = "Altitude", checked = payloadAltitude) { payloadAltitude = it }
-                SwitchRow(label = "Speed", checked = payloadSpeed) { payloadSpeed = it }
-                SwitchRow(label = "Battery level", checked = payloadBattery) { payloadBattery = it }
+                SwitchRow(label = "Altitude", checked = config.payloadAltitude) { viewModel.update(config.copy(payloadAltitude = it)) }
+                SwitchRow(label = "Heading", checked = config.payloadHeading) { viewModel.update(config.copy(payloadHeading = it)) }
+                SwitchRow(label = "Speed", checked = config.payloadSpeed) { viewModel.update(config.copy(payloadSpeed = it)) }
+                SwitchRow(label = "Battery level", checked = config.payloadBattery) { viewModel.update(config.copy(payloadBattery = it)) }
+            }
+
+            // Identity
+            SettingsCard(title = "Identity") {
+                OutlinedTextField(
+                    value = config.deviceId,
+                    onValueChange = { viewModel.update(config.copy(deviceId = it)) },
+                    label = { Text("Device ID") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                )
             }
 
             // System
             SettingsCard(title = "System") {
-                SwitchRow(label = "Start on boot", checked = startOnBoot) { startOnBoot = it }
+                SwitchRow(label = "Start on boot", checked = config.startOnBoot) { viewModel.update(config.copy(startOnBoot = it)) }
             }
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@HiltViewModel
+class TrackingSettingsViewModel @Inject constructor(
+    private val store: TrackingConfigStore,
+) : ViewModel() {
+    var config by mutableStateOf(store.get())
+        private set
+
+    fun update(newConfig: TrackingConfig) {
+        config = newConfig
+        store.set(newConfig)
     }
 }
 
@@ -189,12 +290,7 @@ private fun SettingsCard(title: String, content: @Composable () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = LightPrimary,
-            )
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LightPrimary)
             Spacer(Modifier.height(12.dp))
             content()
         }
@@ -210,18 +306,11 @@ private fun SliderRow(
     onValueChange: (Float) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
             Text(valueText, style = MaterialTheme.typography.bodyMedium, color = LightPrimary, fontWeight = FontWeight.Medium)
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = range,
-        )
+        Slider(value = value, onValueChange = onValueChange, valueRange = range)
     }
 }
 
