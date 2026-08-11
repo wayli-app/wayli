@@ -42,7 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
-import io.github.nimbleflux.wayli.designsystem.LightPrimary
+import io.github.nimbleflux.wayli.designsystem.SliderRow
+import io.github.nimbleflux.wayli.designsystem.SwitchRow
+import io.github.nimbleflux.wayli.designsystem.WayliSectionCard
 import io.github.nimbleflux.wayli.gps.AccuracyProfile
 import io.github.nimbleflux.wayli.gps.TrackingConfig
 import io.github.nimbleflux.wayli.gps.TrackingConfigStore
@@ -95,7 +97,7 @@ fun TrackingSettingsScreen(
             Spacer(Modifier.height(8.dp))
 
             // Tracking mode
-            SettingsCard(title = "Mode") {
+            WayliSectionCard(title = "Mode") {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     TrackingMode.entries.forEachIndexed { index, m ->
                         SegmentedButton(
@@ -114,7 +116,7 @@ fun TrackingSettingsScreen(
             }
 
             // Frequency settings
-            SettingsCard(title = "Update Frequency") {
+            WayliSectionCard(title = "Update Frequency") {
                 SliderRow(
                     label = "Min interval",
                     value = config.minIntervalSec.toFloat(),
@@ -133,7 +135,7 @@ fun TrackingSettingsScreen(
             }
 
             // Accuracy
-            SettingsCard(title = "Accuracy") {
+            WayliSectionCard(title = "Accuracy") {
                 AccuracyProfile.entries.forEach { profile ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -149,7 +151,7 @@ fun TrackingSettingsScreen(
             }
 
             // Battery optimization
-            SettingsCard(title = "Battery Optimization") {
+            WayliSectionCard(title = "Battery Optimization") {
                 SliderRow(
                     label = "Pause below battery",
                     value = config.batteryStopThreshold.toFloat(),
@@ -182,7 +184,7 @@ fun TrackingSettingsScreen(
             }
 
             // Server endpoint (OwnTracks transport)
-            SettingsCard(title = "Server") {
+            WayliSectionCard(title = "Server") {
                 OutlinedTextField(
                     value = config.endpointUrl,
                     onValueChange = { viewModel.update(config.copy(endpointUrl = it)) },
@@ -216,7 +218,7 @@ fun TrackingSettingsScreen(
             }
 
             // Locator (OwnTracks locator settings)
-            SettingsCard(title = "Locator") {
+            WayliSectionCard(title = "Locator") {
                 SliderRow(
                     label = "Locator displacement",
                     value = config.locatorDisplacementM,
@@ -240,7 +242,7 @@ fun TrackingSettingsScreen(
             }
 
             // Data payload
-            SettingsCard(title = "Data Payload") {
+            WayliSectionCard(title = "Data Payload") {
                 SwitchRow(label = "Altitude", checked = config.payloadAltitude) { viewModel.update(config.copy(payloadAltitude = it)) }
                 SwitchRow(label = "Heading", checked = config.payloadHeading) { viewModel.update(config.copy(payloadHeading = it)) }
                 SwitchRow(label = "Speed", checked = config.payloadSpeed) { viewModel.update(config.copy(payloadSpeed = it)) }
@@ -248,7 +250,7 @@ fun TrackingSettingsScreen(
             }
 
             // Identity
-            SettingsCard(title = "Identity") {
+            WayliSectionCard(title = "Identity") {
                 OutlinedTextField(
                     value = config.deviceId,
                     onValueChange = { viewModel.update(config.copy(deviceId = it)) },
@@ -260,7 +262,7 @@ fun TrackingSettingsScreen(
             }
 
             // System
-            SettingsCard(title = "System") {
+            WayliSectionCard(title = "System") {
                 SwitchRow(label = "Start on boot", checked = config.startOnBoot) { viewModel.update(config.copy(startOnBoot = it)) }
             }
 
@@ -279,50 +281,6 @@ class TrackingSettingsViewModel @Inject constructor(
     fun update(newConfig: TrackingConfig) {
         config = newConfig
         store.set(newConfig)
-    }
-}
-
-@Composable
-private fun SettingsCard(title: String, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LightPrimary)
-            Spacer(Modifier.height(12.dp))
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SliderRow(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    valueText: String,
-    onValueChange: (Float) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(valueText, style = MaterialTheme.typography.bodyMedium, color = LightPrimary, fontWeight = FontWeight.Medium)
-        }
-        Slider(value = value, onValueChange = onValueChange, valueRange = range)
-    }
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium)
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

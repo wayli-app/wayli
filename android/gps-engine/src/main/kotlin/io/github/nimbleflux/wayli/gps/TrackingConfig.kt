@@ -108,7 +108,7 @@ class TrackingConfigStore(context: Context) {
     }
 
     var isTracking: Boolean
-        get() = prefs.getBoolean(KEY_IS_TRACKING, false)
+        get() = prefs.getBoolean(KEY_IS_TRACKING, true)
         set(value) = prefs.edit { putBoolean(KEY_IS_TRACKING, value) }
 
     companion object {

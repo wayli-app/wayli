@@ -55,6 +55,24 @@ class MediaUploader @Inject constructor(
         result.data?.signedUrl ?: throw Exception("Failed to get signed URL")
     }
 
+    /**
+     * Upload an avatar for [userId] (256px JPEG, matching the web app) and
+     * return a long-lived signed URL suitable for storing on `avatar_url`.
+     */
+    suspend fun uploadAvatar(context: Context, uri: Uri, userId: String): Result<String> = runCatching {
+        val bitmap = decodeAndCompress(context, uri, maxEdge = 256)
+        val bytes = bitmapToJpeg(bitmap, quality = 85)
+        val path = "$userId/avatar-${UUID.randomUUID()}.jpg"
+        client.storage.from("trip-images").upload(
+            path = path,
+            data = bytes,
+            contentType = "image/jpeg",
+            upsert = false,
+        )
+        val signed = client.storage.from("trip-images").createSignedUrl(path, 31_536_000)
+        signed.data?.signedUrl ?: throw Exception("Failed to get signed URL")
+    }
+
     private fun decodeAndCompress(context: Context, uri: Uri, maxEdge: Int): Bitmap {
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: throw Exception("Cannot open image")

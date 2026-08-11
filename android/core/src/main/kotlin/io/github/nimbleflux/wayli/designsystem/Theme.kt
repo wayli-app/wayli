@@ -90,6 +90,7 @@ fun WayliTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = WayliTypography,
+        shapes = WayliShapes,
         content = content,
     )
 }

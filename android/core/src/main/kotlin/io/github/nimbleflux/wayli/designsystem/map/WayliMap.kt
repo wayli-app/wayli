@@ -2,22 +2,40 @@ package io.github.nimbleflux.wayli.designsystem.map
 
 import android.content.Context
 import android.os.Bundle
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
-import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.OnMapReadyCallback
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
-import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import java.util.concurrent.atomic.AtomicInteger
 
 data class MapPoint(
     val lat: Double,
@@ -35,6 +53,13 @@ data class MapTrack(
 /**
  * Reusable MapLibre composable. Renders a vector map with CartoDB tiles
  * (same as the web app). No Google dependency — works in both flavors.
+ *
+ * Lifecycle: forwards the host's create/start/resume/pause/stop/destroy to the
+ * underlying [MapView] (via [DefaultLifecycleObserver]) so it doesn't leak GPU
+ * memory or crash on backgrounding. [darkTheme] defaults to the system theme so
+ * the map switches to the dark CartoDB style automatically. Per-point [MapPoint]
+ * colors are honored, GeoJSON is built with kotlinx.serialization (no string
+ * injection), and points/tracks re-render when the arguments change.
  */
 @Composable
 fun WayliMap(
@@ -43,83 +68,189 @@ fun WayliMap(
     tracks: List<MapTrack> = emptyList(),
     center: LatLng? = null,
     zoom: Double = 10.0,
-    darkTheme: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
 ) {
     // MapLibre.getInstance() is called in WayliApplication.onCreate() — must
     // happen before any MapView is created.
+    val context: Context = LocalContext.current
+    val mapView = remember { MapView(context) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
+    var styleRef by remember { mutableStateOf<Style?>(null) }
+    // Track layers/sources we add so we can clean them up before re-rendering.
+    val addedLayerIds = remember { mutableStateListOf<String>() }
+    val addedSourceIds = remember { mutableStateListOf<String>() }
+
+    // Forward the host lifecycle to MapView (the previous version only called
+    // onCreate, which leaked the map and could crash when backgrounded).
+    DisposableEffect(lifecycleOwner) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onCreate(owner: LifecycleOwner) = mapView.onCreate(Bundle())
+            override fun onStart(owner: LifecycleOwner) = mapView.onStart()
+            override fun onResume(owner: LifecycleOwner) = mapView.onResume()
+            override fun onPause(owner: LifecycleOwner) = mapView.onPause()
+            override fun onStop(owner: LifecycleOwner) = mapView.onStop()
+            override fun onDestroy(owner: LifecycleOwner) = mapView.onDestroy()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            mapView.onDestroy()
+        }
+    }
+
+    val styleUrl = if (darkTheme) {
+        "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+    } else {
+        "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+    }
 
     AndroidView(
-        factory = { ctx: Context ->
-            val mapView = MapView(ctx)
-            mapView.onCreate(Bundle())
-            mapView.getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
-                val styleUrl = if (darkTheme) {
-                    "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-                } else {
-                    "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-                }
-                map.setStyle(Style.Builder().fromUri(styleUrl)) { style: Style ->
-                    // Style loaded callback
-                    center?.let { c ->
-                        map.cameraPosition = CameraPosition.Builder()
-                            .target(c)
-                            .zoom(zoom)
-                            .build()
+        factory = {
+            mapView.apply {
+                getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
+                    mapRef = map
+                    map.setStyle(Style.Builder().fromUri(styleUrl)) { style: Style ->
+                        styleRef = style
                     }
-                    addPointsToMap(style, points)
-                    addTracksToMap(style, tracks)
-                    if (center == null) {
-                        val allLatLngs = points.map { LatLng(it.lat, it.lng) } +
-                            tracks.flatMap { it.points }
-                        if (allLatLngs.isNotEmpty()) {
-                            val bounds = LatLngBounds.Builder()
-                                .includes(allLatLngs)
-                                .build()
-                            map.animateCamera(
-                                CameraUpdateFactory.newLatLngBounds(bounds, 100),
-                            )
-                        }
-                    }
-                }
-            })
-            mapView
+                })
+            }
         },
         modifier = modifier,
     )
-}
 
-private var layerCounter = 0
+    // Render points/tracks whenever the style is ready or the data changes.
+    LaunchedEffect(styleRef, points, tracks) {
+        val style = styleRef ?: return@LaunchedEffect
+        val map = mapRef ?: return@LaunchedEffect
 
-private fun addPointsToMap(style: Style, points: List<MapPoint>) {
-    if (points.isEmpty()) return
-    val id = "wayli-points-${layerCounter++}"
-    val geoJson = points.joinToString(",") { pt ->
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.lng},${pt.lat}]},"properties":{"color":"${pt.color}","title":"${pt.title ?: ""}"}}"""
+        // Remove previously added layers/sources.
+        addedLayerIds.toList().forEach { runCatching { style.removeLayer(it) } }
+        addedSourceIds.toList().forEach { runCatching { style.removeSource(it) } }
+        addedLayerIds.clear()
+        addedSourceIds.clear()
+
+        addPointsToMap(style, points) { layerId, sourceId ->
+            addedLayerIds += layerId
+            addedSourceIds += sourceId
+        }
+        addTracksToMap(style, tracks) { layerId, sourceId ->
+            addedLayerIds += layerId
+            addedSourceIds += sourceId
+        }
+
+        // If no explicit center was supplied, frame all the geometry.
+        if (center == null) {
+            val all = points.map { LatLng(it.lat, it.lng) } + tracks.flatMap { it.points }
+            if (all.isNotEmpty()) {
+                runCatching {
+                    val bounds = LatLngBounds.Builder().includes(all).build()
+                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+                }
+            }
+        }
     }
-    style.addSource(GeoJsonSource("$id-src", """{"type":"FeatureCollection","features":[$geoJson]}"""))
-    style.addLayer(
-        CircleLayer(id, "$id-src").withProperties(
-            PropertyFactory.circleRadius(6f),
-            PropertyFactory.circleColor("#233869"),
-            PropertyFactory.circleStrokeWidth(2f),
-            PropertyFactory.circleStrokeColor("#ffffff"),
-        ),
-    )
+
+    // Apply the explicit camera position when a center is supplied.
+    LaunchedEffect(styleRef, center, zoom) {
+        val map = mapRef ?: return@LaunchedEffect
+        center?.let { c ->
+            map.cameraPosition = CameraPosition.Builder().target(c).zoom(zoom).build()
+        }
+    }
 }
 
-private fun addTracksToMap(style: Style, tracks: List<MapTrack>) {
+// ---- GeoJSON builders (safe — uses kotlinx.serialization, no string concat) ----
+
+private fun pointFeatureGeoJson(point: MapPoint) = buildJsonObject {
+    put("type", "Feature")
+    putJsonObject("geometry") {
+        put("type", "Point")
+        putJsonArray("coordinates") {
+            add(point.lng)
+            add(point.lat)
+        }
+    }
+    putJsonObject("properties") {
+        put("color", point.color)
+        point.title?.let { put("title", it) }
+    }
+}.toString()
+
+private fun trackFeatureGeoJson(track: MapTrack) = buildJsonObject {
+    put("type", "Feature")
+    putJsonObject("geometry") {
+        put("type", "LineString")
+        putJsonArray("coordinates") {
+            track.points.forEach { p ->
+                add(buildJsonArray { add(p.longitude); add(p.latitude) })
+            }
+        }
+    }
+    putJsonObject("properties") {
+        put("color", track.color)
+    }
+}.toString()
+
+private fun featureCollection(features: List<String>): String = buildJsonObject {
+    put("type", "FeatureCollection")
+    putJsonArray("features") {
+        features.forEach { add(it) }
+    }
+}.toString()
+
+// ---- Layer management ----
+
+private val layerIdCounter = AtomicInteger(0)
+
+private fun nextId() = layerIdCounter.incrementAndGet()
+
+/**
+ * Adds one circle layer per distinct color (each backed by its own source
+ * filtered to that color). Avoids data-driven color expressions while still
+ * honoring each [MapPoint.color]. [register] records the created ids for cleanup.
+ */
+private fun addPointsToMap(
+    style: Style,
+    points: List<MapPoint>,
+    register: (layerId: String, sourceId: String) -> Unit,
+) {
+    if (points.isEmpty()) return
+    points.groupBy { it.color }.forEach { (color, colored) ->
+        val id = "wayli-points-${nextId()}-${color.removePrefix("#")}"
+        val sourceId = "$id-src"
+        style.addSource(GeoJsonSource(sourceId, featureCollection(colored.map(::pointFeatureGeoJson))))
+        style.addLayer(
+            CircleLayer(id, sourceId).withProperties(
+                PropertyFactory.circleRadius(7f),
+                PropertyFactory.circleColor(color),
+                PropertyFactory.circleStrokeWidth(2f),
+                PropertyFactory.circleStrokeColor("#ffffff"),
+            ),
+        )
+        register(id, sourceId)
+    }
+}
+
+private fun addTracksToMap(
+    style: Style,
+    tracks: List<MapTrack>,
+    register: (layerId: String, sourceId: String) -> Unit,
+) {
     if (tracks.isEmpty()) return
     tracks.forEachIndexed { index, track ->
         if (track.points.size < 2) return@forEachIndexed
-        val id = "wayli-track-$index-${layerCounter++}"
-        val coords = track.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
-        style.addSource(GeoJsonSource("$id-src", """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]}}"""))
+        val id = "wayli-track-$index-${nextId()}"
+        val sourceId = "$id-src"
+        style.addSource(GeoJsonSource(sourceId, trackFeatureGeoJson(track)))
         style.addLayer(
-            LineLayer(id, "$id-src").withProperties(
+            LineLayer(id, sourceId).withProperties(
                 PropertyFactory.lineColor(track.color),
                 PropertyFactory.lineWidth(track.width),
                 PropertyFactory.lineOpacity(0.7f),
             ),
         )
+        register(id, sourceId)
     }
 }

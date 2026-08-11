@@ -43,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.nimbleflux.wayli.designsystem.LightPrimary
 
 /**
  * Map / live tracking screen — the home tab.
@@ -73,7 +72,7 @@ fun TrackingScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { isTracking = !isTracking },
-                containerColor = if (isTracking) MaterialTheme.colorScheme.error else LightPrimary,
+                containerColor = if (isTracking) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 contentColor = Color.White,
                 shape = CircleShape,
             ) {
@@ -180,14 +179,14 @@ private fun TodayStatsCard(
                 if (isTracking) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = LightPrimary.copy(alpha = 0.12f),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                     ) {
                         Text(
                             "Live",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = LightPrimary,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }

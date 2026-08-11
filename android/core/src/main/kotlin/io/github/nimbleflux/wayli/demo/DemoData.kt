@@ -1,5 +1,6 @@
 package io.github.nimbleflux.wayli.demo
 
+import io.github.nimbleflux.wayli.designsystem.map.MapPoint
 import io.github.nimbleflux.wayli.models.Notification
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.models.TripEntry
@@ -16,8 +17,6 @@ import io.github.nimbleflux.wayli.models.WantToVisit
  * entering "demo" as the instance URL.
  */
 object DemoData {
-
-    val isDemo = false // Set to true by DemoManager when demo mode is active
 
     val profile = UserProfile(
         id = "demo-user",
@@ -244,6 +243,28 @@ object DemoData {
     val dataPoints = 89_341
     val totalSteps = 1_204_553
 
+    /**
+     * Synthesized daily distance (km) for the last ~12 weeks, keyed by ISO date.
+     * Drives the activity heatmap on Statistics in demo mode. Deterministic for a
+     * given day so the heatmap looks stable.
+     */
+    val dailyActivity: Map<String, Double> by lazy {
+        val today = java.time.LocalDate.now()
+        val out = LinkedHashMap<String, Double>()
+        for (i in 83 downTo 0) {
+            val day = today.minusDays(i.toLong())
+            val seed = day.toEpochDay()
+            val r = ((seed * 1103515245L + 12345L) and 0x7fffffffL).toDouble() / 2147483647.0
+            val km = when {
+                r < 0.25 -> 0.0
+                day.dayOfWeek.value >= 6 -> 12.0 + r * 20.0
+                else -> 3.0 + r * 14.0
+            }
+            out[day.toString()] = (km * 10).toLong().toDouble() / 10.0
+        }
+        out
+    }
+
     val transportModeBreakdown = mapOf(
         "car" to 0.42,
         "walking" to 0.24,
@@ -257,5 +278,58 @@ object DemoData {
         "Italy", "United Kingdom", "United States", "Canada", "Mexico",
         "Brazil", "Argentina", "Thailand", "Vietnam", "Cambodia", "Australia",
         "New Zealand", "Iceland", "Morocco", "Greece", "Turkey", "Norway",
+    )
+
+    // ---- Map data for the Home dashboard and Trip detail ----
+
+    /** Recent points shown on the Home map (around the demo home base in NL). */
+    val homePoints: List<MapPoint> = listOf(
+        MapPoint(lat = 52.3676, lng = 4.9041, title = "Amsterdam", color = "#233869"),
+        MapPoint(lat = 52.0907, lng = 5.1214, title = "Utrecht", color = "#3b82f6"),
+        MapPoint(lat = 51.9244, lng = 4.4777, title = "Rotterdam", color = "#10B981"),
+        MapPoint(lat = 52.5122, lng = 6.0959, title = "Hengelo", color = "#8B5CF6"),
+        MapPoint(lat = 50.8514, lng = 5.6905, title = "Maastricht", color = "#EA580C"),
+    )
+
+    /**
+     * Recent activity track on the Home map, as (lat, lng) pairs — kept free of
+     * MapLibre types so [DemoData] doesn't depend on the map SDK.
+     */
+    val homeTrack: List<Pair<Double, Double>> = listOf(
+        52.3676 to 4.9041, // Amsterdam
+        52.0907 to 5.1214, // Utrecht
+        51.9244 to 4.4777, // Rotterdam
+        51.5719 to 4.7683, // Breda
+        52.5122 to 6.0959, // Hengelo
+        53.2012 to 5.7999, // Leeuwarden
+        52.3676 to 4.9041, // back to Amsterdam
+    )
+
+    /** Representative (lat, lng) tracks for trips, so Trip detail's map is meaningful. */
+    val tripTracks: Map<String, List<Pair<Double, Double>>> = mapOf(
+        "demo-trip-1" to listOf( // Japanese Alps Adventure
+            35.6762 to 139.6503, // Tokyo
+            36.06 to 137.85, // Hakuba
+            36.56 to 136.65, // Kanazawa
+            35.6762 to 139.6503, // Tokyo
+        ),
+        "demo-trip-2" to listOf( // Portuguese Coast Road Trip
+            38.7167 to -9.1393, // Lisbon
+            38.6979 to -9.4215, // Cascais
+            38.78 to -9.50, // Cabo da Roca
+            37.02 to -8.0, // Algarve
+        ),
+        "demo-trip-3" to listOf( // Weekend in Amsterdam
+            52.3676 to 4.9041,
+            52.37 to 4.89,
+        ),
+    )
+
+    /** Map center (lat, lng) per trip id. */
+    val tripCenters: Map<String, Pair<Double, Double>> = mapOf(
+        "demo-trip-1" to (36.2 to 138.0),
+        "demo-trip-2" to (38.2 to -8.8),
+        "demo-trip-3" to (52.37 to 4.90),
+        "demo-trip-4" to (13.0 to 105.0),
     )
 }
