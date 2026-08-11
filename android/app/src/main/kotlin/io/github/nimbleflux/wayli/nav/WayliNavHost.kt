@@ -68,13 +68,18 @@ private val tabs = listOf(
 @HiltViewModel
 class NavViewModel @Inject constructor(
     private val instanceManager: InstanceManager,
+    private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
     private val fluxbaseClient: dagger.Lazy<FluxbaseClient?>,
 ) : ViewModel() {
-    val startRoute: String = if (!instanceManager.isConfigured) {
-        Routes.INSTANCE_SETUP
-    } else {
-        val client = fluxbaseClient.get()
-        if (client?.auth?.currentSession != null) Routes.MAP else Routes.SIGN_IN
+    val isDemoMode: Boolean = demoManager.isDemoMode
+
+    val startRoute: String = when {
+        demoManager.isDemoMode -> Routes.MAP
+        !instanceManager.isConfigured -> Routes.INSTANCE_SETUP
+        else -> {
+            val client = fluxbaseClient.get()
+            if (client?.auth?.currentSession != null) Routes.MAP else Routes.SIGN_IN
+        }
     }
 }
 
@@ -82,6 +87,7 @@ class NavViewModel @Inject constructor(
 fun WayliNavHost() {
     val navController = rememberNavController()
     val viewModel: NavViewModel = hiltViewModel()
+    val isDemoMode = viewModel.isDemoMode
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isTabRoute = currentRoute in tabs.map { it.route }
@@ -170,7 +176,7 @@ fun WayliNavHost() {
             }
             composable(Routes.DISCOVER) { DiscoverScreen() }
             composable(Routes.WISHLIST) { WishlistScreen(places = emptyList()) }
-            composable(Routes.SETTINGS) { SettingsScreen() }
+            composable(Routes.SETTINGS) { SettingsScreen(demoMode = isDemoMode) }
 
             // Non-tab screens
             composable(Routes.TRACKING_SETTINGS) {
