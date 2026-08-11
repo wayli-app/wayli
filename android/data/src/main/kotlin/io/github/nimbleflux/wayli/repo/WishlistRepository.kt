@@ -8,13 +8,11 @@ import javax.inject.Singleton
 
 @Singleton
 class WishlistRepository @Inject constructor(
-    private val client: dagger.Lazy<FluxbaseClient?>,
+    private val client: FluxbaseClient,
 ) {
-    private fun flux() = client.get()
-        ?: throw IllegalStateException("FluxbaseClient not configured")
 
     suspend fun listPlaces(userId: String): Result<List<WantToVisit>> = runCatching {
-        val result = flux().from<WantToVisit>("want_to_visit_places")
+        val result = client.from<WantToVisit>("want_to_visit_places")
             .select()
             .eq("user_id", userId)
             .order("created_at", ascending = false)
@@ -23,6 +21,6 @@ class WishlistRepository @Inject constructor(
     }
 
     suspend fun deletePlace(placeId: String): Result<Unit> = runCatching {
-        flux().from<WantToVisit>("want_to_visit_places").eq("id", placeId).delete()
+        client.from<WantToVisit>("want_to_visit_places").eq("id", placeId).delete()
     }
 }

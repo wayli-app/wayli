@@ -38,8 +38,16 @@ object FluxbaseModule {
     fun provideFluxbaseClient(
         @ApplicationContext context: Context,
         instanceManager: InstanceManager,
-    ): FluxbaseClient? {
-        val config = instanceManager.getConfig() ?: return null
+    ): FluxbaseClient {
+        val config = instanceManager.getConfig()
+            ?: return FluxbaseClient.create(
+                url = "http://localhost:0",
+                key = "unconfigured",
+                options = FluxbaseClientOptions(
+                    storage = EncryptedStorageAdapter(context),
+                    autoRefresh = false,
+                ),
+            )
         return FluxbaseClient.create(
             url = config.url,
             key = config.anonKey,

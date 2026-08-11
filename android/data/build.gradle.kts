@@ -26,6 +26,7 @@ android {
 
 dependencies {
     api(project(":core"))
+    api(libs.fluxbase.kotlin)
 
     // Room
     api(libs.room.runtime)

@@ -253,15 +253,17 @@ fun TripDetailScreen(
                 }
             }
 
-            // Map preview placeholder
+            // Trip map
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
                     shape = RoundedCornerShape(16.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                        Text("🗺️ Trip Map", style = MaterialTheme.typography.titleMedium)
-                    }
+                    io.github.nimbleflux.wayli.designsystem.map.WayliMap(
+                        modifier = Modifier.fillMaxSize(),
+                        center = org.maplibre.android.geometry.LatLng(48.8, 2.3),
+                        zoom = 3.0,
+                    )
                 }
             }
 

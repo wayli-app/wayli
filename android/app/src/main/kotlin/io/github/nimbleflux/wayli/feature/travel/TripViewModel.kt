@@ -21,7 +21,7 @@ sealed interface TripUiState {
 @HiltViewModel
 class TripViewModel @Inject constructor(
     private val tripRepo: TripRepository,
-    private val fluxbaseClient: dagger.Lazy<FluxbaseClient?>,
+    private val fluxbaseClient: FluxbaseClient,
     private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
 ) : ViewModel() {
 
@@ -36,7 +36,7 @@ class TripViewModel @Inject constructor(
             _uiState.value = TripUiState.Success(io.github.nimbleflux.wayli.demo.DemoData.trips)
             return
         }
-        val userId = fluxbaseClient.get()?.auth?.currentSession?.user?.id ?: run {
+        val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: run {
             _uiState.value = TripUiState.Error("Not authenticated")
             return
         }
@@ -53,7 +53,7 @@ class TripViewModel @Inject constructor(
     }
 
     fun createTrip(title: String, startDate: String, endDate: String?, description: String?) {
-        val userId = fluxbaseClient.get()?.auth?.currentSession?.user?.id ?: return
+        val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: return
         viewModelScope.launch {
             tripRepo.createTrip(userId, title, startDate, endDate, description)
                 .onSuccess { loadTrips() }

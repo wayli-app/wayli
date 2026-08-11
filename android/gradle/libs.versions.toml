@@ -68,6 +68,9 @@ room-testing = { group = "androidx.room", name = "room-testing", version.ref = "
 # gplay flavor
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version = "21.3.0" }
 
+# Image loading (Coil)
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version = "2.7.0" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
