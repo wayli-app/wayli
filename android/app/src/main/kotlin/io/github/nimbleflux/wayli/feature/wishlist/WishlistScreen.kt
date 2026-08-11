@@ -1,5 +1,6 @@
 package io.github.nimbleflux.wayli.feature.wishlist
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,8 +40,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import io.github.nimbleflux.wayli.designsystem.LightPrimary
 import io.github.nimbleflux.wayli.models.WantToVisit
 
@@ -136,12 +140,26 @@ private fun PlaceCard(place: WantToVisit, onClick: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Marker icon
-            Box(
-                modifier = Modifier.size(40.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = LightPrimary)
+            // Thumbnail image (or marker icon fallback)
+            place.imageUrl?.let { url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = place.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                )
+            } ?: run {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = LightPrimary)
+                }
             }
             Spacer(Modifier.size(12.dp))
 

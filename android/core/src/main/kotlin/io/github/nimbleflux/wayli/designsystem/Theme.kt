@@ -54,14 +54,22 @@ private val DarkColorScheme = darkColorScheme(
 
 /**
  * Wayli theme — M3 with brand tokens (navy #233869 / #60a5fa).
- * Set [dynamicColor] to true for Material You (wallpaper-based colors).
+ *
+ * [themeMode] controls Light/Dark/System. When SYSTEM, follows
+ * [isSystemInDarkTheme]. Set [dynamicColor] to true for Material You.
  */
 @Composable
 fun WayliTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

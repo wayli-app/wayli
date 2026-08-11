@@ -41,6 +41,7 @@ object DemoData {
             status = "completed",
             visibility = "public",
             labels = listOf("skiing", "japan", "mountains"),
+            imageUrl = "https://images.unsplash.com/photo-1542640244-7e672d6cef4e?w=800&h=500&fit=crop",
             createdAt = "2024-02-10T08:00:00Z",
             updatedAt = "2024-02-24T20:00:00Z",
         ),
@@ -54,6 +55,7 @@ object DemoData {
             status = "completed",
             visibility = "public",
             labels = listOf("road-trip", "beaches", "portugal"),
+            imageUrl = "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=500&fit=crop",
             createdAt = "2024-05-14T18:00:00Z",
             updatedAt = "2024-05-22T16:00:00Z",
         ),
@@ -67,6 +69,7 @@ object DemoData {
             status = "completed",
             visibility = "private",
             labels = listOf("city", "cycling", "museums"),
+            imageUrl = "https://images.unsplash.com/photo-1534351590666-13e3e96c5017?w=800&h=500&fit=crop",
             createdAt = "2024-09-19T12:00:00Z",
             updatedAt = "2024-09-22T22:00:00Z",
         ),
@@ -80,6 +83,7 @@ object DemoData {
             status = "planned",
             visibility = "public",
             labels = listOf("backpacking", "asia", "planning"),
+            imageUrl = "https://images.unsplash.com/photo-1528127269322-539801943592?w=800&h=500&fit=crop",
             createdAt = "2024-11-01T10:00:00Z",
             updatedAt = "2024-12-15T14:00:00Z",
         ),
@@ -149,6 +153,7 @@ object DemoData {
             markerColor = "#3B82F6",
             rating = 5,
             favorite = true,
+            imageUrl = "https://images.unsplash.com/photo-1531176175280-33e81d6a5d56?w=600&h=400&fit=crop",
         ),
         WantToVisit(
             id = "wish-2",
@@ -160,6 +165,7 @@ object DemoData {
             markerType = "building",
             markerColor = "#EA580C",
             rating = 4,
+            imageUrl = "https://images.unsplash.com/photo-1597211833712-5e41faa202ea?w=600&h=400&fit=crop",
         ),
         WantToVisit(
             id = "wish-3",
@@ -172,6 +178,7 @@ object DemoData {
             markerColor = "#10B981",
             rating = 5,
             favorite = true,
+            imageUrl = "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=600&h=400&fit=crop",
         ),
         WantToVisit(
             id = "wish-4",
@@ -183,6 +190,7 @@ object DemoData {
             markerType = "building",
             markerColor = "#8B5CF6",
             rating = 5,
+            imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&h=400&fit=crop",
         ),
         WantToVisit(
             id = "wish-5",
@@ -194,6 +202,7 @@ object DemoData {
             markerType = "home",
             markerColor = "#06B6D4",
             rating = 4,
+            imageUrl = "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=600&h=400&fit=crop",
         ),
     )
 

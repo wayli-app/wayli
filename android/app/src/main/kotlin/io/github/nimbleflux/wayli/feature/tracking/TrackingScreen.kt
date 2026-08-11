@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -40,9 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,14 +50,17 @@ import io.github.nimbleflux.wayli.designsystem.LightPrimary
  *
  * Modern mobile design:
  * - Full-screen MapLibre map
- * - Floating glass-morphic stats card anchored to bottom
- * - Pill-shaped FAB that expands to show "Stop" when tracking
- * - Top bar with settings + live indicator
+ * - Floating glass-morphic stats card anchored above the bottom dock
+ * - Pill FAB for start/stop tracking
+ * - Live tracking indicator badge
+ *
+ * Note: Tracking settings are accessed from Settings → Tracking Settings,
+ * not from this screen.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackingScreen(
-    onTrackingSettings: () -> Unit,
+    onTrackingSettings: () -> Unit = {},
 ) {
     var isTracking by remember { mutableStateOf(false) }
     val pulseAlpha by animateFloatAsState(
@@ -96,16 +96,15 @@ fun TrackingScreen(
                 zoom = 5.0,
             )
 
-            // Top bar — settings + live indicator
+            // Top bar — live indicator (settings moved to Settings menu)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Live tracking badge
                 AnimatedVisibility(
                     visible = isTracking,
                     enter = fadeIn() + scaleIn(),
@@ -135,28 +134,15 @@ fun TrackingScreen(
                         }
                     }
                 }
-
-                // Settings button
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                    onClick = onTrackingSettings,
-                ) {
-                    Icon(
-                        Icons.Filled.Settings,
-                        contentDescription = "Tracking settings",
-                        modifier = Modifier.padding(10.dp),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
             }
 
-            // Bottom stats card — glass-morphic floating card
+            // Bottom stats card — glass-morphic floating card, positioned above dock
             TodayStatsCard(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 100.dp), // Clear the floating dock
                 isTracking = isTracking,
             )
         }
@@ -208,7 +194,6 @@ private fun TodayStatsCard(
             }
             Spacer(Modifier.height(16.dp))
 
-            // Stats row — compact horizontal layout
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,

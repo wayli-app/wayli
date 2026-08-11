@@ -1,6 +1,7 @@
 package io.github.nimbleflux.wayli.feature.travel
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,8 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import io.github.nimbleflux.wayli.designsystem.LightPrimary
 import io.github.nimbleflux.wayli.models.Trip
 
@@ -153,15 +156,37 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         Column {
-            // Cover image area (placeholder — will load from storage)
+            // Cover image — loads from URL via Coil, with gradient overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(140.dp)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("📍", style = MaterialTheme.typography.headlineLarge)
+                trip.imageUrl?.let { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = trip.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } ?: run {
+                    // Gradient placeholder when no image
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        )
+                    }
+                }
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
