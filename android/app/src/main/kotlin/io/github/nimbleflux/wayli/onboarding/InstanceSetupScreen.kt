@@ -120,6 +120,11 @@ fun InstanceSetupScreen(
                 Spacer(Modifier.height(12.dp))
                 Text(it, color = MaterialTheme.colorScheme.error)
             }
+
+            Spacer(Modifier.height(32.dp))
+            androidx.compose.material3.TextButton(
+                onClick = { viewModel.enableDemo { onConfigured() } },
+            ) { Text("Try Demo (no server needed)") }
         }
     }
 }
@@ -127,10 +132,16 @@ fun InstanceSetupScreen(
 @HiltViewModel
 class InstanceSetupViewModel @Inject constructor(
     private val instanceManager: io.github.nimbleflux.wayli.session.InstanceManager,
+    private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
 ) : ViewModel() {
 
     var loading by mutableStateOf(false)
         private set
+
+    fun enableDemo(onDone: () -> Unit) {
+        demoManager.enableDemoMode()
+        onDone()
+    }
 
     fun connect(url: String, anonKey: String, onResult: (Boolean, String) -> Unit) {
         loading = true

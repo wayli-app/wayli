@@ -50,7 +50,9 @@ import io.github.nimbleflux.wayli.designsystem.LightPrimary
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(
+    demoMode: Boolean = false,
+) {
     var darkMode by remember { mutableStateOf(false) }
     var notifications by remember { mutableStateOf(true) }
 
@@ -66,6 +68,27 @@ fun SettingsScreen() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Spacer(Modifier.height(8.dp))
+
+            // Demo mode banner
+            if (demoMode) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = LightPrimary.copy(alpha = 0.1f),
+                    ),
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("🎯 Demo Mode", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LightPrimary)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "You're viewing sample data. Connect to a real Wayli instance to track your own travels.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
 
             // Profile section
             SettingsCard(title = "Account") {

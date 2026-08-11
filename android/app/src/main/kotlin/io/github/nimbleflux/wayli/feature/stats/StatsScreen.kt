@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.nimbleflux.wayli.designsystem.LightPrimary
 import io.github.nimbleflux.wayli.designsystem.TransportModeColors
+import io.github.nimbleflux.wayli.demo.DemoData
 
 /**
  * Stats / Where-I've-Been screen — mobile-native design:
@@ -41,7 +42,15 @@ import io.github.nimbleflux.wayli.designsystem.TransportModeColors
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StatsScreen() {
+fun StatsScreen(
+    demoMode: Boolean = false,
+) {
+    val distance = if (demoMode) DemoData.totalDistanceKm.toString() else "—"
+    val countries = if (demoMode) DemoData.countriesVisited.toString() else "—"
+    val timeMoving = if (demoMode) DemoData.timeMovingHours.toString() else "—"
+    val points = if (demoMode) DemoData.dataPoints.toString() else "—"
+    val modes = if (demoMode) DemoData.transportModeBreakdown else emptyMap()
+
     Scaffold(
         topBar = { TopAppBar(title = { Text("Statistics") }) },
     ) { padding ->
@@ -59,15 +68,15 @@ fun StatsScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                StatCard(modifier = Modifier.weight(1f), label = "Total Distance", value = "—", unit = "km")
-                StatCard(modifier = Modifier.weight(1f), label = "Countries", value = "—", unit = "")
+                StatCard(modifier = Modifier.weight(1f), label = "Total Distance", value = distance, unit = "km")
+                StatCard(modifier = Modifier.weight(1f), label = "Countries", value = countries, unit = "")
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                StatCard(modifier = Modifier.weight(1f), label = "Time Moving", value = "—", unit = "h")
-                StatCard(modifier = Modifier.weight(1f), label = "Data Points", value = "—", unit = "")
+                StatCard(modifier = Modifier.weight(1f), label = "Time Moving", value = timeMoving, unit = "h")
+                StatCard(modifier = Modifier.weight(1f), label = "Data Points", value = points, unit = "")
             }
 
             Card(
@@ -78,11 +87,11 @@ fun StatsScreen() {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Transport Modes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LightPrimary)
                     Spacer(Modifier.height(12.dp))
-                    ModeBar("Car", 0.45f, TransportModeColors.car)
-                    ModeBar("Walking", 0.25f, TransportModeColors.walking)
-                    ModeBar("Train", 0.15f, TransportModeColors.train)
-                    ModeBar("Cycling", 0.10f, TransportModeColors.cycling)
-                    ModeBar("Airplane", 0.05f, TransportModeColors.airplane)
+                    ModeBar("Car", (modes["car"] ?: 0.0).toFloat(), TransportModeColors.car)
+                    ModeBar("Walking", (modes["walking"] ?: 0.0).toFloat(), TransportModeColors.walking)
+                    ModeBar("Train", (modes["train"] ?: 0.0).toFloat(), TransportModeColors.train)
+                    ModeBar("Cycling", (modes["cycling"] ?: 0.0).toFloat(), TransportModeColors.cycling)
+                    ModeBar("Airplane", (modes["airplane"] ?: 0.0).toFloat(), TransportModeColors.airplane)
                 }
             }
 

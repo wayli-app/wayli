@@ -30,6 +30,11 @@ object FluxbaseModule {
 
     @Provides
     @Singleton
+    fun provideDemoManager(@ApplicationContext context: Context): io.github.nimbleflux.wayli.demo.DemoManager =
+        io.github.nimbleflux.wayli.demo.DemoManager(context)
+
+    @Provides
+    @Singleton
     fun provideFluxbaseClient(
         @ApplicationContext context: Context,
         instanceManager: InstanceManager,
