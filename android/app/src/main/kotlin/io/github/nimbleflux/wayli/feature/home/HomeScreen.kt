@@ -114,6 +114,24 @@ private fun HomeContent(
 ) {
     val recordingVm: RecordingViewModel = hiltViewModel()
     val isRecording by recordingVm.isRecording.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Location permission gate — the foreground service can't run without it.
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) recordingVm.resume() else recordingVm.pause()
+    }
+    val resumeWithPermission: () -> Unit = {
+        if (recordingVm.isDemo || androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            recordingVm.resume()
+        } else {
+            permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -131,7 +149,7 @@ private fun HomeContent(
             RecordingControl(
                 isRecording = isRecording,
                 onPause = recordingVm::pause,
-                onResume = recordingVm::resume,
+                onResume = resumeWithPermission,
             )
         }
 

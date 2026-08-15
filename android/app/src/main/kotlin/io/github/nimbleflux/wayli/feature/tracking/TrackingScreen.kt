@@ -33,6 +33,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,8 +61,16 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun TrackingScreen(
     onTrackingSettings: () -> Unit = {},
+    recordingVm: io.github.nimbleflux.wayli.feature.home.RecordingViewModel =
+        androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
-    var isTracking by remember { mutableStateOf(false) }
+    val isTracking by recordingVm.isRecording.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) recordingVm.resume() else recordingVm.pause()
+    }
     val pulseAlpha by animateFloatAsState(
         targetValue = if (isTracking) 1f else 0f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
@@ -71,7 +80,18 @@ fun TrackingScreen(
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { isTracking = !isTracking },
+                onClick = {
+                    if (isTracking) {
+                        recordingVm.pause()
+                    } else if (recordingVm.isDemo || androidx.core.content.ContextCompat.checkSelfPermission(
+                            context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    ) {
+                        recordingVm.resume()
+                    } else {
+                        permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                },
                 containerColor = if (isTracking) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 contentColor = Color.White,
                 shape = CircleShape,

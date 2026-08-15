@@ -8,8 +8,7 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 
 /**
- * Placeholder entity so Room has at least one table. Real entities (Trip, TripEntry,
- * TrackerPoint, etc.) will be added in B3-B6 as features are implemented.
+ * Generic key-value metadata (misc local state).
  */
 @Entity(tableName = "metadata")
 data class MetadataEntity(
@@ -19,15 +18,17 @@ data class MetadataEntity(
 
 /**
  * Room database for offline-first access. Mirrors the subset of Wayli tables
- * the app reads/writes, plus sync metadata (sync_state column on each entity).
+ * the app reads/writes, plus the pending-point upload queue.
  */
 @Database(
-    entities = [MetadataEntity::class],
-    version = 1,
+    entities = [MetadataEntity::class, PendingPointEntity::class],
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(WayliConverters::class)
-abstract class WayliDatabase : RoomDatabase()
+abstract class WayliDatabase : RoomDatabase() {
+    abstract fun pendingPointDao(): PendingPointDao
+}
 
 class WayliConverters {
     @TypeConverter
@@ -38,3 +39,4 @@ class WayliConverters {
     fun toStringList(list: List<String>?): String? =
         list?.joinToString(",")
 }
+

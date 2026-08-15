@@ -45,6 +45,11 @@ object FluxbaseModule {
 
     @Provides
     @Singleton
+    fun provideDeviceTokenStore(@ApplicationContext context: Context): io.github.nimbleflux.wayli.session.DeviceTokenStore =
+        io.github.nimbleflux.wayli.session.DeviceTokenStore(context)
+
+    @Provides
+    @Singleton
     fun provideFluxbaseClient(
         @ApplicationContext context: Context,
         instanceManager: InstanceManager,
