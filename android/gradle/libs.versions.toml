@@ -8,13 +8,14 @@ hilt-navigation = "1.2.0"
 navigation = "2.8.5"
 room = "2.6.1"
 workmanager = "2.10.0"
-fluxbase-kotlin = "2026.8.8-rc.1"
+fluxbase-kotlin = "2026.8.8-rc.2"
 detekt = "1.23.7"
 maplibre = "11.8.0"
 kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.9.0"
 kotlinx-datetime = "0.6.1"
 ktor = "3.0.3"
+robolectric = "4.14.1"
 
 [libraries]
 # Compose
@@ -64,6 +65,8 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 mockk = { group = "io.mockk", name = "mockk", version = "1.13.13" }
 turbine = { group = "app.cash.turbine", name = "turbine", version = "1.2.0" }
 room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version = "1.6.1" }
 
 # gplay flavor
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version = "21.3.0" }

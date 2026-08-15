@@ -1,5 +1,27 @@
 # Releasing the Wayli Android App
 
+## Release pipeline (automated)
+
+The `Release` workflow (`.github/workflows/release.yml`) has a **Publish Android
+APKs** toggle (`publish_android`, on by default). When enabled, every release
+(RC or stable):
+
+1. Builds signed `gplay` + `foss` release APKs at the release tag
+2. Stamps `versionName` from the release version and `versionCode` from the date
+3. Attaches `wayli-<version>-gplay.apk` / `wayli-<version>-foss.apk` to the GitHub release
+
+Without the keystore secrets (below) the job still runs and attaches **unsigned**
+APKs — set up signing before announcing a release.
+
+### CI signing secrets
+- `WAYLI_KEYSTORE_BASE64` — `base64 -w0 wayli-release.jks` output
+- `WAYLI_KEYSTORE_PASSWORD`
+- `WAYLI_KEY_ALIAS`
+- `WAYLI_KEY_PASSWORD`
+
+The app resolves `fluxbase-kotlin` from GitHub Packages using the workflow's
+`GITHUB_TOKEN` (needs `packages: read`, granted by the job).
+
 ## Signing
 
 ### Generate a release keystore

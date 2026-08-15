@@ -26,10 +26,10 @@ object OwnTracksPayloadMapper {
         put("lon", lon)
         put("tst", recordedAtSec)
         put("tid", deviceId)
-        altitude?.let { put("alt", it) } ?: put("alt", JsonNull)
-        accuracy?.let { put("acc", it) } ?: put("acc", JsonNull)
-        speed?.let { put("vel", it) } ?: put("vel", JsonNull)
-        heading?.let { put("cog", ((it % 360f) + 360f) % 360f) } ?: put("cog", JsonNull)
-        battery?.let { put("batt", it) } ?: put("batt", JsonNull)
+        if (altitude != null) put("alt", altitude) else put("alt", JsonNull)
+        if (accuracy != null) put("acc", accuracy) else put("acc", JsonNull)
+        if (speed != null) put("vel", speed) else put("vel", JsonNull)
+        if (heading != null) put("cog", ((heading % 360f) + 360f) % 360f) else put("cog", JsonNull)
+        if (battery != null) put("batt", battery) else put("batt", JsonNull)
     }
 }
