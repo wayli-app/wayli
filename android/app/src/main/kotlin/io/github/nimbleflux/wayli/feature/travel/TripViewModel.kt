@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.wayli.models.Trip
+import io.github.nimbleflux.wayli.repo.AdminRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class TripViewModel @Inject constructor(
     private val tripRepo: TripRepository,
     private val fluxbaseClient: FluxbaseClient,
     private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
+    private val adminRepo: AdminRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TripUiState>(TripUiState.Loading)
@@ -68,4 +70,41 @@ class TripViewModel @Inject constructor(
                 .onSuccess { loadTrips() }
         }
     }
+
+    // ---- Trip auto-detection (web-parity "Auto-detect Trips") ----
+
+    private val _detectMessage = MutableStateFlow<String?>(null)
+    val detectMessage: StateFlow<String?> = _detectMessage.asStateFlow()
+
+    private val _detectRunning = MutableStateFlow(false)
+    val detectRunning: StateFlow<Boolean> = _detectRunning.asStateFlow()
+
+    val isDemoMode: Boolean get() = demoManager.isDemoMode
+
+    /**
+     * Submit the `trip-generation` job (the same job the web's travel
+     * dashboard submits). Optional [startDate]/[endDate] bound the scan;
+     * blank values scan the full history. Detected trips appear after the
+     * job finishes — reload to pick them up.
+     */
+    fun submitTripGeneration(startDate: String?, endDate: String?) {
+        if (demoManager.isDemoMode || _detectRunning.value) return
+        viewModelScope.launch {
+            _detectRunning.value = true
+            _detectMessage.value = null
+            adminRepo.runTripGeneration(
+                startDate = startDate?.trim()?.takeIf { it.isNotBlank() },
+                endDate = endDate?.trim()?.takeIf { it.isNotBlank() },
+            ).fold(
+                onSuccess = {
+                    _detectMessage.value = "Trip detection queued — detected trips appear in a few minutes."
+                    loadTrips()
+                },
+                onFailure = { _detectMessage.value = it.message ?: "Failed to submit trip detection" },
+            )
+            _detectRunning.value = false
+        }
+    }
+
+    fun clearDetectMessage() { _detectMessage.value = null }
 }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
@@ -34,9 +35,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -75,9 +79,20 @@ fun TripsListScreen(
     viewModel: TripViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val detectMessage by viewModel.detectMessage.collectAsState()
+    val detectRunning by viewModel.detectRunning.collectAsState()
     var showCreateDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showDetectSheet by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.loadTrips() }
+
+    LaunchedEffect(detectMessage) {
+        detectMessage?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearDetectMessage()
+        }
+    }
 
     if (showCreateDialog) {
         CreateTripDialog(
@@ -88,8 +103,33 @@ fun TripsListScreen(
         )
     }
 
+    if (showDetectSheet) {
+        TripDetectSheet(
+            isDemo = viewModel.isDemoMode,
+            running = detectRunning,
+            onDismiss = { showDetectSheet = false },
+            onSubmit = { start, end ->
+                viewModel.submitTripGeneration(start, end)
+                showDetectSheet = false
+            },
+        )
+    }
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Travel") }) },
+        snackbarHost = { SnackbarHost(snackbar) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Travel") },
+                actions = {
+                    IconButton(onClick = { showDetectSheet = true }) {
+                        Icon(
+                            Icons.Filled.AutoAwesome,
+                            contentDescription = "Auto-detect trips",
+                        )
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showCreateDialog = true },
@@ -266,9 +306,19 @@ fun TripDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val entries by viewModel.entries.collectAsState()
+    val entryError by viewModel.entryError.collectAsState()
     var showAdd by remember { mutableStateOf(false) }
+    val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
+
+    LaunchedEffect(entryError) {
+        entryError?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearEntryError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {
@@ -450,6 +500,65 @@ private fun JournalEntryCard(entry: TripEntry) {
             entry.body?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
+}
+
+/**
+ * "Auto-detect trips" bottom sheet — submits the trip-generation job with an
+ * optional date range (web travel-dashboard parity). Disabled in demo mode.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TripDetectSheet(
+    isDemo: Boolean,
+    running: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (startDate: String?, endDate: String?) -> Unit,
+) {
+    var startDate by remember { androidx.compose.runtime.mutableStateOf("") }
+    var endDate by remember { androidx.compose.runtime.mutableStateOf("") }
+
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+        ) {
+            Text("Auto-detect trips", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Scan your location history and create trips from detected movement. Runs in the background — detected trips appear here when done.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            androidx.compose.material3.OutlinedTextField(
+                value = startDate,
+                onValueChange = { startDate = it },
+                label = { Text("From (YYYY-MM-DD, optional)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = endDate,
+                onValueChange = { endDate = it },
+                label = { Text("To (YYYY-MM-DD, optional)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(16.dp))
+
+            androidx.compose.material3.Button(
+                onClick = { onSubmit(startDate, endDate) },
+                enabled = !isDemo && !running,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) {
+                Text(if (running) "Submitting…" else if (isDemo) "Demo mode" else "Detect trips")
             }
         }
     }
