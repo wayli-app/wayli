@@ -305,7 +305,10 @@ fun TripDetailScreen(
                 ) {
                     item { Spacer(Modifier.height(4.dp)) }
                     item { TripHeaderCard(data.trip) }
-                    item { TripMapCard(tripId = viewModel.tripId, isDemo = viewModel.isDemoMode) }
+                    item {
+                        val track by viewModel.track.collectAsState()
+                        if (track.isNotEmpty()) TripMapCard(track = track)
+                    }
                     item {
                         Text(
                             "Journal",
@@ -413,19 +416,9 @@ private fun TripHeaderCard(trip: Trip) {
 }
 
 @Composable
-private fun TripMapCard(tripId: String, isDemo: Boolean) {
-    val center = if (isDemo) {
-        io.github.nimbleflux.wayli.demo.DemoData.tripCenters[tripId]?.let { LatLng(it.first, it.second) }
-    } else {
-        null
-    }
-    val tracks = if (isDemo) {
-        io.github.nimbleflux.wayli.demo.DemoData.tripTracks[tripId]?.let { coords ->
-            listOf(MapTrack(coords.map { p -> LatLng(p.first, p.second) }, color = "#3b82f6", width = 5f))
-        }.orEmpty()
-    } else {
-        emptyList()
-    }
+private fun TripMapCard(track: List<Pair<Double, Double>>) {
+    val center = track.firstOrNull()?.let { LatLng(it.first, it.second) }
+    val tracks = listOf(MapTrack(track.map { p -> LatLng(p.first, p.second) }, color = "#3b82f6", width = 5f))
     Card(
         modifier = Modifier.fillMaxWidth().height(200.dp),
         shape = MaterialTheme.shapes.medium,
@@ -434,7 +427,7 @@ private fun TripMapCard(tripId: String, isDemo: Boolean) {
             modifier = Modifier.fillMaxSize(),
             tracks = tracks,
             center = center,
-            zoom = 5.0,
+            zoom = 10.0,
         )
     }
 }

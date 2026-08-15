@@ -10,9 +10,14 @@ import io.github.nimbleflux.wayli.models.Notification
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.models.UserProfile
 import io.github.nimbleflux.wayli.models.WantToVisit
+import io.github.nimbleflux.wayli.repo.StatsAggregator
+import io.github.nimbleflux.wayli.repo.StatsRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
+import io.github.nimbleflux.wayli.repo.UserRepository
 import io.github.nimbleflux.wayli.repo.WishlistRepository
+import java.time.LocalDate
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,6 +59,8 @@ class HomeViewModel @Inject constructor(
     private val fluxbaseClient: FluxbaseClient,
     private val tripRepo: TripRepository,
     private val wishlistRepo: WishlistRepository,
+    private val statsRepo: StatsRepository,
+    private val userRepo: UserRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -89,21 +96,32 @@ class HomeViewModel @Inject constructor(
             _uiState.value = HomeUiState.Error("Not authenticated")
             return
         }
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = HomeUiState.Loading
             val tripsResult = tripRepo.listTrips(userId)
             val wishlistResult = wishlistRepo.listPlaces(userId)
             if (tripsResult.isSuccess) {
                 val trips = tripsResult.getOrDefault(emptyList())
                 val wishlist = wishlistResult.getOrDefault(emptyList())
+
+                // Headline stats: aggregate daily activity + points over 90 days.
+                val today = LocalDate.now()
+                val start = today.minusDays(90)
+                val daily = statsRepo.fetchDailyActivity(userId, start.toString(), today.toString())
+                    .getOrDefault(emptyList())
+                val pointRows = statsRepo.fetchPoints(userId, start.toString(), today.toString())
+                    .getOrDefault(emptyList())
+                val totals = StatsAggregator.totalsFromDailyActivity(daily)
+                val profile = userRepo.getProfile(userId).getOrNull()
+
                 _uiState.value = HomeUiState.Success(
                     HomeData(
-                        profile = null,
-                        initials = "W",
+                        profile = profile,
+                        initials = initials(profile),
                         stats = HomeStats(
-                            distanceKm = "—",
-                            countries = "—",
-                            timeMovingHours = "—",
+                            distanceKm = "%.0f".format(totals.totalDistanceKm),
+                            countries = StatsAggregator.countries(pointRows).toString(),
+                            timeMovingHours = "%.0f".format(totals.timeMovingHours),
                             trips = trips.size.toString(),
                         ),
                         trips = trips,

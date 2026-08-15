@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,14 +53,22 @@ import io.github.nimbleflux.wayli.models.WantToVisit
 
 /**
  * Wishlist — toggle between Map and List views of places you want to visit.
- * The "Add Place" FAB opens a bottom sheet that prepends a new place to the
- * list (kept in-memory for now; persisting to the backend is a follow-up).
+ * Real mode loads places from the WishlistRepository; demo mode serves
+ * DemoData. The "Add Place" FAB opens a bottom sheet that prepends a new
+ * place to the list (kept in-memory for now).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WishlistScreen(places: List<WantToVisit>) {
+fun WishlistScreen(
+    places: List<WantToVisit> = emptyList(),
+    viewModel: WishlistViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+) {
+    val loadedPlaces by viewModel.places.collectAsState()
+    // Demo/explicit places take precedence; otherwise use the loaded repo data.
+    val effectivePlaces = if (places.isNotEmpty()) places else loadedPlaces
+
     var viewMode by remember { mutableStateOf(WishlistViewMode.LIST) }
-    var placeState by remember(places) { mutableStateOf(places) }
+    var placeState by remember(effectivePlaces) { mutableStateOf(effectivePlaces) }
     var showAdd by remember { mutableStateOf(false) }
 
     Scaffold(

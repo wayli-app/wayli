@@ -1,0 +1,108 @@
+package io.github.nimbleflux.wayli.feature.stats
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.nimbleflux.fluxbase.FluxbaseClient
+import io.github.nimbleflux.wayli.demo.DemoData
+import io.github.nimbleflux.wayli.demo.DemoManager
+import io.github.nimbleflux.wayli.repo.StatsAggregator
+import io.github.nimbleflux.wayli.repo.StatsRepository
+import java.time.LocalDate
+import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/** Everything the Stats screen renders. */
+data class StatsData(
+    val distanceKm: String,
+    val countries: String,
+    val timeMovingHours: String,
+    val dataPoints: String,
+    val modes: Map<String, Double>,
+    val dailyActivity: Map<String, Double>,
+    /** Ordered (lat, lon) track for the activity map; null → hide the map card. */
+    val track: List<Pair<Double, Double>>?,
+)
+
+sealed interface StatsUiState {
+    data object Loading : StatsUiState
+    data class Error(val message: String) : StatsUiState
+    data class Success(val data: StatsData) : StatsUiState
+}
+
+/**
+ * Feeds the Stats screen. Demo mode serves [DemoData]; real mode aggregates
+ * `tracker_daily_activity` (totals + heatmap) and `tracker_data` (countries,
+ * transport modes, map track) over the last 90 days.
+ */
+@HiltViewModel
+class StatsViewModel @Inject constructor(
+    private val demoManager: DemoManager,
+    private val client: FluxbaseClient,
+    private val statsRepo: StatsRepository,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow<StatsUiState>(StatsUiState.Loading)
+    val state: StateFlow<StatsUiState> = _state.asStateFlow()
+
+    init { load() }
+
+    fun load() {
+        if (demoManager.isDemoMode) {
+            _state.value = StatsUiState.Success(
+                StatsData(
+                    distanceKm = formatNumber(DemoData.totalDistanceKm),
+                    countries = DemoData.countriesVisited.toString(),
+                    timeMovingHours = DemoData.timeMovingHours.toString(),
+                    dataPoints = formatNumber(DemoData.dataPoints),
+                    modes = DemoData.transportModeBreakdown,
+                    dailyActivity = DemoData.dailyActivity,
+                    track = DemoData.homeTrack,
+                ),
+            )
+            return
+        }
+        val userId = client.auth.currentSession?.user?.id ?: run {
+            _state.value = StatsUiState.Error("Not authenticated")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.value = StatsUiState.Loading
+            val today = LocalDate.now()
+            val start = today.minusDays(90)
+
+            val daily = statsRepo.fetchDailyActivity(userId, start.toString(), today.toString())
+                .getOrDefault(emptyList())
+            val points = statsRepo.fetchPoints(userId, start.toString(), today.toString())
+                .getOrDefault(emptyList())
+
+            if (daily.isEmpty() && points.isEmpty()) {
+                _state.value = StatsUiState.Success(
+                    StatsData("0", "0", "0", "0", emptyMap(), emptyMap(), emptyList()),
+                )
+                return@launch
+            }
+
+            val totals = StatsAggregator.totalsFromDailyActivity(daily)
+            _state.value = StatsUiState.Success(
+                StatsData(
+                    distanceKm = "%.0f".format(totals.totalDistanceKm),
+                    countries = StatsAggregator.countries(points).toString(),
+                    timeMovingHours = "%.0f".format(totals.timeMovingHours),
+                    dataPoints = formatNumber(
+                        if (totals.points > 0) totals.points else points.size,
+                    ),
+                    modes = StatsAggregator.transportModeFractions(points),
+                    dailyActivity = StatsAggregator.dailyDistance(daily),
+                    track = StatsAggregator.track(points).takeIf { it.size >= 2 },
+                ),
+            )
+        }
+    }
+
+    private fun formatNumber(n: Int): String = "%,d".format(n)
+}
