@@ -102,6 +102,11 @@ class TripDetailViewModel @Inject constructor(
     }
 
     /** Add a journal entry. Demo keeps it in-memory; real mode inserts via the repo. */
+    private val _entryError = MutableStateFlow<String?>(null)
+    val entryError: StateFlow<String?> = _entryError.asStateFlow()
+
+    fun clearEntryError() { _entryError.value = null }
+
     fun addEntry(title: String, entryDate: String, body: String?) {
         if (demoManager.isDemoMode) {
             _entries.value = listOf(localEntry(title, entryDate, body)) + _entries.value
@@ -110,6 +115,7 @@ class TripDetailViewModel @Inject constructor(
         viewModelScope.launch {
             tripRepo.createEntry(tripId, title, entryDate, body)
                 .onSuccess { created -> _entries.value = listOf(created) + _entries.value }
+                .onFailure { _entryError.value = it.message ?: "Failed to add entry" }
         }
     }
 

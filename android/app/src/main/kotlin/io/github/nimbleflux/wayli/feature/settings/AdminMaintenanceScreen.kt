@@ -49,6 +49,7 @@ val maintenanceActions = listOf(
     MaintenanceAction("place_visits", "Detect place visits", "Re-run place-visit detection for all users."),
     MaintenanceAction("daily_activity", "Refresh daily activity", "Rebuild the daily-activity cache for all users."),
     MaintenanceAction("transport", "Detect transport modes", "Re-classify transport modes for all users."),
+    MaintenanceAction("trip_detection", "Trip detection", "Run the alternative-heuristics trip detection scan."),
     MaintenanceAction("geocode", "Reverse geocode", "Reverse-geocode points for all users."),
     MaintenanceAction("geocode_force", "Force re-geocode", "Re-geocode every point, ignoring cached results.", destructive = true),
     MaintenanceAction("country_codes", "Fill country codes", "Reverse-geocode only points missing a country code."),
@@ -77,6 +78,7 @@ class AdminMaintenanceViewModel @Inject constructor(
                 "place_visits" -> repo.refreshPlaceVisits()
                 "daily_activity" -> repo.refreshDailyActivity()
                 "transport" -> repo.detectTransportModes()
+                "trip_detection" -> repo.runTripDetection()
                 "geocode" -> repo.reverseGeocodeAll(force = false)
                 "geocode_force" -> repo.reverseGeocodeAll(force = true)
                 "country_codes" -> repo.fillCountryCodes()

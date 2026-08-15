@@ -113,9 +113,24 @@ class AdminRepository @Inject constructor(
     suspend fun clearAndRebuildPlaceVisits(userId: String? = null): Result<Unit> =
         submit("clear-and-rebuild-place-visits", if (userId != null) mapOf("user_id" to userId) else emptyMap())
 
+    /**
+     * The alternative-heuristics trip detection job (all-user scan in this
+     * context; user-facing detection lives in [runTripGeneration]).
+     */
+    suspend fun runTripDetection(startDate: String? = null, endDate: String? = null): Result<Unit> =
+        submit("trip-detection", mapOf("startDate" to startDate, "endDate" to endDate))
+
+    /**
+     * The user-facing trip-generation job (same one the web's "Auto-detect
+     * Trips" submits): scans the caller's tracker data and inserts suggested
+     * trips. Payload mirrors the web: `{startDate?, endDate?, useCustomHomeAddress?}`.
+     */
+    suspend fun runTripGeneration(startDate: String? = null, endDate: String? = null): Result<Unit> =
+        submit("trip-generation", mapOf("startDate" to startDate, "endDate" to endDate))
+
     private suspend fun submit(jobName: String, payload: Map<String, Any?>): Result<Unit> = runCatching {
         val filtered = payload.filterValues { it != null }
-        client.jobs.submit(jobName, filtered, SubmitJobOptions(namespace = "wayli"))
+        client.jobs.submit(jobName, filtered, SubmitJobOptions(namespace = "wayli", priority = 5))
         Unit
     }
 }
