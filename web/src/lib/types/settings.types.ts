@@ -128,6 +128,10 @@ export interface WayliCustomSettings {
 		value: string;
 		description?: string;
 	};
+	'wayli.valhalla_endpoint'?: {
+		value: string;
+		description?: string;
+	};
 	'wayli.ai.daily_request_limit'?: {
 		value: number; // AI daily question limit, 0 = unlimited
 		description?: string;

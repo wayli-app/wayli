@@ -33,6 +33,7 @@ const PUBLIC_KEYS = [
 	'wayli.server_name',
 	'wayli.pexels_rate_limit',
 	'wayli.pelias_endpoint',
+	'wayli.valhalla_endpoint',
 	'wayli.ai.daily_request_limit',
 	'wayli.ai.daily_token_budget'
 ];

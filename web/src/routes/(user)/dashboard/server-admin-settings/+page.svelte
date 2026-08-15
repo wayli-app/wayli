@@ -66,6 +66,7 @@
 	let pexelsRateLimitEnabled = $state(true); // Toggle for enabling rate limit
 	let pexelsRateLimit = $state(200); // Default: 200 requests/hour
 	let peliasEndpoint = $state('https://pelias.wayli.app');
+	let valhallaEndpoint = $state('https://valhalla.wayli.app');
 
 	// Tavily web-search integration (Fluxbase ai.tool_integrations)
 	let tavilyIntegration = $state<any | null>(null);
@@ -375,6 +376,13 @@
 				'wayli.pelias_endpoint',
 				peliasEndpoint,
 				'Pelias geocoding service endpoint URL'
+			);
+
+			// Save Valhalla endpoint
+			await serviceAdapter.updateCustomSetting(
+				'wayli.valhalla_endpoint',
+				valhallaEndpoint,
+				'Valhalla routing service endpoint URL'
 			);
 
 			// Use encrypted secret storage for Pexels API key
@@ -1397,6 +1405,9 @@
 		// Load Pelias endpoint
 		peliasEndpoint = custom['wayli.pelias_endpoint']?.value || 'https://pelias.wayli.app';
 
+		// Load Valhalla endpoint
+		valhallaEndpoint = custom['wayli.valhalla_endpoint']?.value || 'https://valhalla.wayli.app';
+
 		// Load Pexels API key secret metadata (value is not returned)
 		if (result.secrets?.pexels_api_key) {
 			pexelsApiKeyConfigured = true;
@@ -2260,24 +2271,42 @@
 						</div>
 
 						<div>
-							<label for="peliasEndpoint" class="text-muted-foreground block text-sm font-medium">
-								Pelias Geocoding Endpoint
-							</label>
-							<Input
-								type="url"
-								id="peliasEndpoint"
-								bind:value={peliasEndpoint}
-								class="w-full"
-								placeholder={t('serverAdmin.peliasEndpointPlaceholder')}
-								pattern="https?://.+"
-								required
-							/>
-							<p class="text-muted-foreground mt-1 text-xs">
-								Geocoding service URL for address lookups and reverse geocoding
-							</p>
-						</div>
+								<label for="peliasEndpoint" class="text-muted-foreground block text-sm font-medium">
+									Pelias Geocoding Endpoint
+								</label>
+								<Input
+									type="url"
+									id="peliasEndpoint"
+									bind:value={peliasEndpoint}
+									class="w-full"
+									placeholder={t('serverAdmin.peliasEndpointPlaceholder')}
+									pattern="https?://.+"
+									required
+								/>
+								<p class="text-muted-foreground mt-1 text-xs">
+									Geocoding service URL for address lookups and reverse geocoding
+								</p>
+							</div>
 
-						<div class="flex justify-end">
+							<div>
+								<label for="valhallaEndpoint" class="text-muted-foreground block text-sm font-medium">
+									Valhalla Routing Endpoint
+								</label>
+								<Input
+									type="url"
+									id="valhallaEndpoint"
+									bind:value={valhallaEndpoint}
+									class="w-full"
+									placeholder="https://valhalla.wayli.app"
+									pattern="https?://.+"
+								/>
+								<p class="text-muted-foreground mt-1 text-xs">
+									Routing service URL for map-matching transport detection (used when a user
+									enables it in their preferences)
+								</p>
+							</div>
+
+							<div class="flex justify-end">
 							<button
 								onclick={saveWayliSettings}
 								class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-white"

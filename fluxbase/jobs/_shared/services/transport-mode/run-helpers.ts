@@ -44,6 +44,29 @@ export async function decodeAndPersist(
 		? new Date(new Date(lastProcessedAt).getTime() - LOOKBACK_MS)
 		: new Date(now.getTime() - MAX_FIRST_RUN_HOURS * 60 * 60 * 1000);
 
+	// Stage 2 (Valhalla map-matching): per-user opt-in, default off. Read the
+	// user's preference once — when off, Stage-2 is skipped entirely and the
+	// behaviour is identical to the pre-Valhalla pipeline.
+	let valhallaClient: import('../external/valhalla.service').ValhallaClient | null = null;
+	try {
+		const { data: pref } = await db
+			.from('user_preferences')
+			.select('preferences')
+			.eq('id', userId)
+			.maybeSingle();
+		const useValhalla = (pref as any)?.preferences?.use_valhalla_transport === true;
+		if (useValhalla) {
+			const { traceAttributes } = await import('../external/valhalla.service');
+			valhallaClient = {
+				traceAttributes: (points, costing) => traceAttributes(points, costing, db as any)
+			};
+			console.log(`[valhalla] User ${userId} opted in — Stage-2 map matching enabled`);
+		}
+	} catch (err) {
+		// Preference read failure is non-fatal — Stage-2 stays off.
+		console.warn('[valhalla] Could not read user preference, Stage-2 disabled:', err);
+	}
+
 	// Stream tracker_data in batches and decode+persist INCREMENTALLY.
 	//
 	// Why per-batch instead of accumulating all rows? On a first run the window
@@ -91,8 +114,20 @@ export async function decodeAndPersist(
 
 		// Decode with the previous batch's tail as context, then keep this
 		// batch's tail for the next iteration.
-		const decisions = _detector(observations, { prevObs });
+		let decisions = _detector(observations, { prevObs });
 		prevObs = observations.slice(-TAIL);
+
+		// Stage 2: confirm ambiguous segments via Valhalla map matching (when
+		// the user opted in). Failures are swallowed inside — Stage-1 always
+		// survives as the fallback.
+		if (valhallaClient) {
+			try {
+				const { confirmWithValhalla } = await import('./valhalla-confirm');
+				decisions = await confirmWithValhalla(observations, decisions, valhallaClient);
+			} catch (err) {
+				console.warn('[valhalla] Stage-2 confirmation failed (keeping Stage-1):', err);
+			}
+		}
 
 		updated += await persistDecisions(db, userId, decisions);
 

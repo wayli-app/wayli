@@ -106,6 +106,7 @@
 	let preferredUnit = $state('metric');
 	let preferredTimezone = $state('');
 	let notificationsEnabled = $state(false);
+	let valhallaEnabled = $state(false);
 	let profileAvatarUrl = $state('');
 	let avatarFileInput: HTMLInputElement | undefined = $state();
 	let profileCoverUrl = $state('');
@@ -367,6 +368,7 @@
 				preferredTimezone = preferences.timezone || '';
 				preferredUnit = (preferences as any).preferences?.units || 'metric';
 				notificationsEnabled = preferences.notifications_enabled ?? false;
+				valhallaEnabled = (preferences as any).preferences?.use_valhalla_transport === true;
 			}
 
 			// Load user secret metadata via listSecrets (batch — no 404 per key).
@@ -843,7 +845,8 @@
 				notifications_enabled: notificationsEnabled,
 				preferences: {
 					...(preferences.preferences || {}),
-					units: preferredUnit
+					units: preferredUnit,
+					use_valhalla_transport: valhallaEnabled
 				}
 			});
 
@@ -2008,6 +2011,24 @@
 							class="border-border h-4 w-4 rounded"
 						/>
 						<span class="text-muted-foreground text-sm">Enable in-app notifications</span>
+					</label>
+				</div>
+
+				<!-- Transport detection (Valhalla map matching) -->
+				<div>
+					<span class="text-foreground mb-1.5 block text-sm font-medium">
+						Transport Detection
+					</span>
+					<label class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							bind:checked={valhallaEnabled}
+							class="border-border h-4 w-4 rounded"
+						/>
+						<span class="text-muted-foreground text-sm">
+							Improve transport mode detection with map matching (sends movement segments
+							to the routing server)
+						</span>
 					</label>
 				</div>
 			</div>
