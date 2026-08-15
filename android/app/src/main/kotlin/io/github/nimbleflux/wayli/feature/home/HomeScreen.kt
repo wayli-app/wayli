@@ -117,17 +117,43 @@ private fun HomeContent(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     // Location permission gate — the foreground service can't run without it.
+    // On the gplay flavor we then also request activity recognition (adaptive
+    // tracking); denial is non-fatal — tracking falls back to fixed intervals.
+    val activityPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { recordingVm.resume() }
+
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) recordingVm.resume() else recordingVm.pause()
+        if (!granted) {
+            recordingVm.pause()
+            return@rememberLauncherForActivityResult
+        }
+        if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.ACTIVITY_RECOGNITION,
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            activityPermissionLauncher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
+        } else {
+            recordingVm.resume()
+        }
     }
     val resumeWithPermission: () -> Unit = {
         if (recordingVm.isDemo || androidx.core.content.ContextCompat.checkSelfPermission(
                 context, android.Manifest.permission.ACCESS_FINE_LOCATION,
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            recordingVm.resume()
+            if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.ACTIVITY_RECOGNITION,
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                activityPermissionLauncher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
+            } else {
+                recordingVm.resume()
+            }
         } else {
             permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         }

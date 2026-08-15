@@ -22,10 +22,11 @@ class OwnTracksPayloadMapperTest {
         cog: Float? = 350f,
         batt: Int? = 88,
         deviceId: String = "pixel",
+        act: String? = "in_vehicle",
     ) = PendingPointEntity(
         id = id, lat = lat, lon = lon, recordedAtSec = tst,
         altitude = alt, accuracy = acc, speed = vel, heading = cog,
-        battery = batt, deviceId = deviceId,
+        battery = batt, deviceId = deviceId, activityType = act,
     )
 
     @Test
@@ -57,13 +58,19 @@ class OwnTracksPayloadMapperTest {
     @Test
     fun `null fields serialize as JSON nulls`() {
         val payload = OwnTracksPayloadMapper.toPayload(
-            listOf(point(alt = null, acc = null, vel = null, cog = null, batt = null)),
+            listOf(point(alt = null, acc = null, vel = null, cog = null, batt = null, act = null)),
         ).jsonObject
         val row = payload["points"]!!.jsonArray[0].jsonObject
         // Fields are present but explicitly null (OwnTracks readers skip nulls).
-        listOf("alt", "acc", "vel", "cog", "batt").forEach { field ->
+        listOf("alt", "acc", "vel", "cog", "batt", "act").forEach { field ->
             assertTrue(row[field] is kotlinx.serialization.json.JsonNull, "$field should be JSON null")
         }
+    }
+
+    @Test
+    fun `activity hint is emitted as act`() {
+        val payload = OwnTracksPayloadMapper.toPayload(listOf(point(act = "on_bike"))).jsonObject
+        assertEquals("on_bike", payload["points"]!!.jsonArray[0].jsonObject["act"]!!.jsonPrimitive.content)
     }
 
     @Test
