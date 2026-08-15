@@ -27,6 +27,8 @@ data class PendingPointEntity(
     /** 0-100 */
     val battery: Int? = null,
     val deviceId: String = "android",
+    /** Activity-recognition hint: still/on_foot/in_vehicle/on_bike, or null. */
+    val activityType: String? = null,
     /** Failed upload attempts — used to drop poison points after many retries. */
     val attempts: Int = 0,
     @androidx.room.ColumnInfo(name = "created_at_ms") val createdAtMs: Long = System.currentTimeMillis(),

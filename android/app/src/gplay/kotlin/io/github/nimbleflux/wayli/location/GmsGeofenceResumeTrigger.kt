@@ -1,0 +1,88 @@
+package io.github.nimbleflux.wayli.location
+
+import android.annotation.SuppressLint
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofencingClient
+import com.google.android.gms.location.GeofencingEvent
+import com.google.android.gms.location.GeofencingRequest
+import com.google.android.gms.location.LocationServices
+import dagger.hilt.android.qualifiers.ApplicationContext
+import io.github.nimbleflux.wayli.gps.CapturedPoint
+import io.github.nimbleflux.wayli.gps.StationaryResumeTrigger
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * gplay stationary resume: when tracking pauses after a stationary stretch,
+ * a geofence (radius = resume radius) is armed around the last fix. EXIT
+ * fires [onResume] so the controller can resume active tracking.
+ */
+@Singleton
+class GmsGeofenceResumeTrigger @Inject constructor(
+    @ApplicationContext private val context: Context,
+) : StationaryResumeTrigger {
+
+    private val client: GeofencingClient = LocationServices.getGeofencingClient(context)
+    private var receiver: BroadcastReceiver? = null
+    private var pendingIntent: PendingIntent? = null
+    private var onResumeCallback: (() -> Unit)? = null
+
+    @SuppressLint("MissingPermission") // location permission is a precondition of tracking itself
+    override fun arm(point: CapturedPoint, radiusM: Float, onResume: () -> Unit) {
+        disarm()
+        onResumeCallback = onResume
+
+        val geofence = Geofence.Builder()
+            .setRequestId(GEOFENCE_ID)
+            .setCircularRegion(point.lat, point.lon, radiusM)
+            .setExpirationDuration(Geofence.NEVER_EXPIRE)
+            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT)
+            .build()
+        val request = GeofencingRequest.Builder()
+            .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_EXIT)
+            .addGeofence(geofence)
+            .build()
+
+        val intent = Intent(ACTION)
+        val pi = PendingIntent.getBroadcast(
+            context,
+            REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+        )
+        val br = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, received: Intent) {
+                val event = GeofencingEvent.fromIntent(received) ?: return
+                if (event.hasError()) return
+                if (event.geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
+                    onResumeCallback?.invoke()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(context, br, IntentFilter(ACTION), ContextCompat.RECEIVER_NOT_EXPORTED)
+        receiver = br
+        pendingIntent = pi
+
+        client.addGeofences(request, pi)
+    }
+
+    override fun disarm() {
+        pendingIntent?.let { runCatching { client.removeGeofences(it) } }
+        receiver?.let { runCatching { context.unregisterReceiver(it) } }
+        receiver = null
+        pendingIntent = null
+        onResumeCallback = null
+    }
+
+    companion object {
+        private const val ACTION = "io.github.nimbleflux.wayli.GEOFENCE_EVENT"
+        private const val REQUEST_CODE = 4202
+        private const val GEOFENCE_ID = "wayli-stationary-resume"
+    }
+}

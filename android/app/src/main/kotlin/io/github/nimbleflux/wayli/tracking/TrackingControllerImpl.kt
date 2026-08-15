@@ -13,8 +13,11 @@ import androidx.work.WorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.nimbleflux.wayli.db.PendingPointDao
 import io.github.nimbleflux.wayli.db.PendingPointEntity
+import io.github.nimbleflux.wayli.gps.ActivityRecognitionDriver
 import io.github.nimbleflux.wayli.gps.CapturedPoint
 import io.github.nimbleflux.wayli.gps.LocationProvider
+import io.github.nimbleflux.wayli.gps.StationaryResumeTrigger
+import io.github.nimbleflux.wayli.gps.StationaryTracker
 import io.github.nimbleflux.wayli.gps.TrackingConfig
 import io.github.nimbleflux.wayli.gps.TrackingConfigStore
 import io.github.nimbleflux.wayli.gps.TrackingController
@@ -32,7 +35,11 @@ import kotlinx.coroutines.launch
  * [LocationProvider], apply the battery rules from the tracking config,
  * queue points in Room, and schedule [GpsUploadWorker] to drain the queue.
  *
- * Started/stopped by the foreground [io.github.nimbleflux.wayli.gps.TrackingService].
+ * Enhancers (flavor-bound): the [ActivityRecognitionDriver] feeds activity
+ * hints (stamped onto points, adaptive intervals in the gplay provider);
+ * after a stationary stretch the [StationaryTracker] pauses active updates
+ * and the [StationaryResumeTrigger] (geofence on gplay) wakes tracking when
+ * the user moves again.
  */
 @Singleton
 class TrackingControllerImpl @Inject constructor(
@@ -40,19 +47,25 @@ class TrackingControllerImpl @Inject constructor(
     private val provider: LocationProvider,
     private val dao: PendingPointDao,
     private val configStore: TrackingConfigStore,
+    private val activityDriver: ActivityRecognitionDriver,
+    private val resumeTrigger: StationaryResumeTrigger,
 ) : TrackingController {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
+    private val stationaryTracker = StationaryTracker()
 
     override fun onServiceStarted() {
+        activityDriver.start()
         if (job?.isActive == true) return // already collecting (service restart)
+        stationaryTracker.reset()
         val config = configStore.get()
         job = scope.launch {
             provider.startUpdates(config).collect { point ->
                 if (passesBatteryRules(config)) {
                     dao.insert(point.toEntity(config))
                     scheduleUpload()
+                    maybePauseWhenStationary(point, config)
                 }
             }
         }
@@ -62,6 +75,25 @@ class TrackingControllerImpl @Inject constructor(
         job?.cancel()
         job = null
         provider.stopUpdates()
+        resumeTrigger.disarm()
+        activityDriver.stop()
+    }
+
+    /**
+     * After [TrackingConfig.stationaryPauseMin] within the resume radius:
+     * stop active collection and arm the resume trigger (geofence on gplay).
+     */
+    private fun maybePauseWhenStationary(point: CapturedPoint, config: TrackingConfig) {
+        val decision = stationaryTracker.onPoint(point, config)
+        if (decision == StationaryTracker.Decision.PAUSE) {
+            job?.cancel()
+            job = null
+            provider.stopUpdates()
+            resumeTrigger.arm(point, config.stationaryResumeRadiusM) {
+                // Movement detected — resume the full pipeline.
+                onServiceStarted()
+            }
+        }
     }
 
     /** True when the current battery state allows recording. */
@@ -85,6 +117,7 @@ class TrackingControllerImpl @Inject constructor(
             heading = heading.takeIf { config.payloadHeading },
             battery = (battery ?: level).takeIf { config.payloadBattery },
             deviceId = deviceId,
+            activityType = activityType,
         )
     }
 

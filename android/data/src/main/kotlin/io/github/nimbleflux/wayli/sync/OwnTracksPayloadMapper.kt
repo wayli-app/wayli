@@ -31,5 +31,7 @@ object OwnTracksPayloadMapper {
         if (speed != null) put("vel", speed) else put("vel", JsonNull)
         if (heading != null) put("cog", ((heading % 360f) + 360f) % 360f) else put("cog", JsonNull)
         if (battery != null) put("batt", battery) else put("batt", JsonNull)
+        // Activity-recognition hint (Wayli extension; ignored by real OwnTracks).
+        if (activityType != null) put("act", activityType) else put("act", JsonNull)
     }
 }

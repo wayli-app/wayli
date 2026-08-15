@@ -20,7 +20,12 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): WayliDatabase =
-        Room.databaseBuilder(context, WayliDatabase::class.java, "wayli.db").build()
+        Room.databaseBuilder(context, WayliDatabase::class.java, "wayli.db")
+            // Pre-release: the local schema is still churning (upload queue),
+            // so rebuild instead of maintaining dev-only migrations. The
+            // pending-point queue is transient — losing it on upgrade is fine.
+            .fallbackToDestructiveMigration()
+            .build()
 
     @Provides
     @Singleton
