@@ -9,7 +9,8 @@ import android.content.SharedPreferences
  * first-run exploration.
  *
  * Enable: tap "Try Demo" on the instance setup screen.
- * Disable: sign out from settings (clears demo flag + instance config).
+ * Disable: "Exit demo" in Settings (clears the demo flag only — instance
+ * config and any real session are untouched by demo mode).
  */
 class DemoManager(context: Context) {
     private val prefs: SharedPreferences =

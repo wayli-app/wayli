@@ -104,7 +104,8 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            // Demo mode banner
+            // Demo mode banner — with a direct exit action so it's discoverable
+            // without scrolling to the bottom-of-screen sign-out button.
             if (demoMode) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -121,6 +122,11 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Spacer(Modifier.height(12.dp))
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = onSignOut,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Exit demo") }
                     }
                 }
             }

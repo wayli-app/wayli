@@ -50,8 +50,13 @@ object FluxbaseModule {
 
     @Provides
     @Singleton
+    fun provideEncryptedStorageAdapter(@ApplicationContext context: Context): EncryptedStorageAdapter =
+        EncryptedStorageAdapter(context)
+
+    @Provides
+    @Singleton
     fun provideFluxbaseClient(
-        @ApplicationContext context: Context,
+        storage: EncryptedStorageAdapter,
         instanceManager: InstanceManager,
     ): FluxbaseClient {
         val config = instanceManager.getConfig()
@@ -59,7 +64,7 @@ object FluxbaseModule {
                 url = "http://localhost:0",
                 key = "unconfigured",
                 options = FluxbaseClientOptions(
-                    storage = EncryptedStorageAdapter(context),
+                    storage = storage,
                     autoRefresh = false,
                 ),
             )
@@ -67,7 +72,7 @@ object FluxbaseModule {
             url = config.url,
             key = config.anonKey,
             options = FluxbaseClientOptions(
-                storage = EncryptedStorageAdapter(context),
+                storage = storage,
                 autoRefresh = true,
             ),
         )
