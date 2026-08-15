@@ -6412,3 +6412,82 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE visible_plan_items TO tenant_service;
 
 
+
+
+--
+-- Name: device_tokens; Type: TABLE; Schema: public
+--
+
+CREATE TABLE IF NOT EXISTS device_tokens (
+    id uuid DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    label text NOT NULL DEFAULT 'Android',
+    token_hash text NOT NULL,
+    scopes text[] DEFAULT ARRAY['gps:write']::text[],
+    last_used_at timestamptz,
+    expires_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT device_tokens_pkey PRIMARY KEY (id),
+    CONSTRAINT device_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
+);
+
+
+COMMENT ON TABLE device_tokens IS 'Scoped device tokens for GPS tracker authentication. The Wayli app authenticates point submissions with wayli_dt_ tokens (SHA-256 hash stored, plaintext shown once at creation).';
+
+COMMENT ON COLUMN device_tokens.token_hash IS 'SHA-256 hex digest of the wayli_dt_ token. The plaintext is never stored server-side.';
+
+COMMENT ON COLUMN device_tokens.scopes IS 'Token permission scopes. gps:write allows posting location points only.';
+
+
+--
+-- Name: idx_device_tokens_user_id; Type: INDEX
+--
+
+CREATE INDEX IF NOT EXISTS idx_device_tokens_user_id ON device_tokens (user_id);
+
+
+--
+-- Name: idx_device_tokens_token_hash; Type: INDEX
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_device_tokens_token_hash ON device_tokens (token_hash);
+
+
+--
+-- Row Level Security for device_tokens
+--
+
+ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Admin users full access to device_tokens" ON device_tokens TO authenticated USING ((auth.jwt() ->> 'role') = 'admin') WITH CHECK ((auth.jwt() ->> 'role') = 'admin');
+
+
+CREATE POLICY "Service role full access to device_tokens" ON device_tokens TO service_role USING (true) WITH CHECK (true);
+
+
+CREATE POLICY "Tenant service full access to device_tokens" ON device_tokens TO tenant_service USING (true) WITH CHECK (true);
+
+
+CREATE POLICY "Users can view own device_tokens" ON device_tokens FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can create own device_tokens" ON device_tokens FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can update own device_tokens" ON device_tokens FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+
+--
+-- Privileges for device_tokens
+--
+
+
+GRANT SELECT ON TABLE device_tokens TO authenticated;
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE device_tokens TO service_role;
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE device_tokens TO tenant_migration_role;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE device_tokens TO tenant_service;
