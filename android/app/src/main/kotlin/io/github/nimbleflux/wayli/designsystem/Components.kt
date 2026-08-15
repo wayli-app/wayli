@@ -214,7 +214,7 @@ fun SkeletonBox(modifier: Modifier = Modifier) {
     )
 }
 
-/** Centered emoji + title + optional subtitle + optional action. */
+/** Centered emoji in a tinted circle + title + optional subtitle + action. */
 @Composable
 fun EmptyState(
     emoji: String,
@@ -228,8 +228,16 @@ fun EmptyState(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(emoji, style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(emoji, style = MaterialTheme.typography.headlineMedium)
+            }
+            Spacer(Modifier.height(16.dp))
             Text(title, style = MaterialTheme.typography.titleMedium)
             subtitle?.let {
                 Spacer(Modifier.height(4.dp))
@@ -260,8 +268,16 @@ fun ErrorState(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(emoji, style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(emoji, style = MaterialTheme.typography.headlineMedium)
+            }
+            Spacer(Modifier.height(16.dp))
             Text(message, style = MaterialTheme.typography.bodyMedium)
             onRetry?.let {
                 Spacer(Modifier.height(16.dp))

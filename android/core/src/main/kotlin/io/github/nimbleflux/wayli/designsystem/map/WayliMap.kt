@@ -100,10 +100,12 @@ fun WayliMap(
         }
     }
 
+    // Bundled style descriptors (asset://) — no network round-trip on first
+    // paint; tiles/sprites/glyphs still stream from CartoDB as usual.
     val styleUrl = if (darkTheme) {
-        "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+        "asset://map-styles/dark-matter.json"
     } else {
-        "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+        "asset://map-styles/positron.json"
     }
 
     AndroidView(
