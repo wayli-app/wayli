@@ -20,6 +20,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -105,8 +108,12 @@ class NavViewModel @Inject constructor(
     private val instanceManager: InstanceManager,
     private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
     private val fluxbaseClient: FluxbaseClient,
+    private val encryptedStorage: io.github.nimbleflux.wayli.session.EncryptedStorageAdapter,
+    private val deviceTokenStore: io.github.nimbleflux.wayli.session.DeviceTokenStore,
+    private val deviceTokenRepo: io.github.nimbleflux.wayli.repo.DeviceTokenRepository,
 ) : ViewModel() {
-    val isDemoMode: Boolean = demoManager.isDemoMode
+    /** Live read — demo mode can flip mid-session (Try Demo / Exit demo). */
+    val isDemoMode: Boolean get() = demoManager.isDemoMode
 
     val startRoute: String = when {
         demoManager.isDemoMode -> Routes.MAP
@@ -117,9 +124,23 @@ class NavViewModel @Inject constructor(
     }
 
     /**
+     * Session state as a flow — emits on sign-in/out/refresh. [WayliNavHost]
+     * collects this to re-route when a session ends (e.g. revoked or expired
+     * server-side), not just on the manual Settings sign-out.
+     */
+    val authEvents: Flow<io.github.nimbleflux.fluxbase.auth.AuthState> = callbackFlow {
+        val unsubscribe = fluxbaseClient.auth.onAuthStateChange { state -> trySend(state) }
+        awaitClose { unsubscribe() }
+    }
+
+    /**
      * Sign out of the current session. In demo mode this just clears the demo
      * flag; in real mode it calls the Fluxbase auth signOut endpoint. The
      * caller then navigates to INSTANCE_SETUP (demo) or SIGN_IN (real).
+     *
+     * Hardened: the persisted session is removed locally even when the network
+     * call fails (the SDK only clears its storage after a successful POST),
+     * and the device's GPS token is revoked + cleared.
      */
     fun signOut() {
         if (demoManager.isDemoMode) {
@@ -127,7 +148,12 @@ class NavViewModel @Inject constructor(
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
+            // Best-effort server-side sign-out and token revocation — local
+            // state must be cleared regardless of network outcome.
             runCatching { fluxbaseClient.auth.signOut() }
+            deviceTokenStore.tokenId?.let { id -> runCatching { deviceTokenRepo.revoke(id) } }
+            deviceTokenStore.clear()
+            encryptedStorage.removeItem(SESSION_STORAGE_KEY)
         }
     }
 
@@ -145,8 +171,16 @@ class NavViewModel @Inject constructor(
         } else {
             viewModelScope.launch(Dispatchers.IO) {
                 runCatching { fluxbaseClient.auth.signOut() }
+                deviceTokenStore.tokenId?.let { id -> runCatching { deviceTokenRepo.revoke(id) } }
+                deviceTokenStore.clear()
+                encryptedStorage.removeItem(SESSION_STORAGE_KEY)
             }
         }
+    }
+
+    companion object {
+        /** Storage key the SDK persists its session under. */
+        private const val SESSION_STORAGE_KEY = "fluxbase.auth.session"
     }
 }
 
@@ -157,6 +191,22 @@ fun WayliNavHost() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isTabRoute = currentRoute in tabs.map { it.route }
+
+    // Re-route when the session ends outside the manual sign-out flow —
+    // e.g. revoked/expired server-side. The manual Settings sign-out already
+    // navigates; the launchSingleTop guard makes the duplicate event a no-op.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.authEvents.collect { state ->
+            val route = navController.currentBackStackEntry?.destination?.route
+            val onTabs = route in tabs.map { it.route }
+            if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_OUT && onTabs) {
+                navController.navigate(Routes.SIGN_IN) {
+                    popUpTo(Routes.MAP) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
 
     // Switching to a tab restores its saved state and pops back to Home.
     val switchTab: (String) -> Unit = { route ->
