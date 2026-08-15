@@ -7,36 +7,35 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
 
 /**
- * Foreground service that continuously captures GPS points and queues them
- * for upload. Runs with a persistent notification (required by Android for
- * background location). The service survives Doze and background restrictions.
- *
- * This is the core of the OwnTracks replacement: start this service, and the
- * phone becomes a tracking device that uploads points to Wayli.
+ * Foreground service that keeps the process alive while the tracking
+ * pipeline captures GPS points. The actual capture/queue/upload work lives
+ * in [TrackingController] (implemented in the `:app` module); this service
+ * is the foreground shell Android requires for background location.
  *
  * Usage:
  * ```
- * val intent = Intent(context, TrackingService::class.java)
- * ContextCompat.startForegroundService(context, intent) // start
- * context.stopService(intent) // stop
+ * TrackingService.start(context) // begin tracking
+ * TrackingService.stop(context)  // stop
  * ```
  */
+@AndroidEntryPoint
 class TrackingService : Service() {
 
+    @Inject lateinit var controller: TrackingController
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var trackingJob: Job? = null
     private lateinit var configStore: TrackingConfigStore
 
     override fun onCreate() {
@@ -46,21 +45,20 @@ class TrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildNotification("Wayli tracking active"))
+        val notification = buildNotification("Wayli tracking active")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
         configStore.isTracking = true
-
-        // The location provider is injected via Hilt in the :app module.
-        // For now, this service reads the config and the provider is started
-        // by the app's DI graph. B3 completion will wire the provider here.
-        // The actual location collection + queueing happens via WorkManager
-        // (GpsUploadWorker) which drains the local tracker_data queue.
-
-        return START_STICKY // Restart if killed (for startOnBoot)
+        controller.onServiceStarted()
+        return START_STICKY // Restart if killed
     }
 
     override fun onDestroy() {
+        controller.onServiceStopped()
         configStore.isTracking = false
-        trackingJob?.cancel()
         scope.cancel()
         super.onDestroy()
     }
@@ -83,12 +81,17 @@ class TrackingService : Service() {
     }
 
     private fun buildNotification(text: String): Notification {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val contentIntent = launchIntent?.let {
+            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Wayli")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(contentIntent)
             .build()
     }
 
