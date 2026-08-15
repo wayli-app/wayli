@@ -3,6 +3,7 @@ package io.github.nimbleflux.wayli.feature.media
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -62,6 +65,17 @@ fun PhotoPicker(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val uploadState by viewModel.uploadState.collectAsState()
+    val uploadedPaths by viewModel.uploadedPathsFlow.collectAsState()
+
+    // Signed URLs for thumbnails — fetched as paths arrive.
+    var signedUrls by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    LaunchedEffect(uploadedPaths) {
+        val missing = uploadedPaths.filter { it !in signedUrls }
+        missing.forEach { path ->
+            viewModel.signedUrlFor(path)
+                .onSuccess { url -> signedUrls = signedUrls + (path to url) }
+        }
+    }
 
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -84,21 +98,37 @@ fun PhotoPicker(
             Text("Photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
 
-            // Uploaded thumbnails
-            if (viewModel.uploadedPaths.isNotEmpty()) {
+            // Uploaded thumbnails — real images via signed URLs
+            if (uploadedPaths.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    viewModel.uploadedPaths.take(4).forEach { path ->
-                        // In demo mode or without a signed URL, show a placeholder
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text("📷", style = MaterialTheme.typography.titleMedium)
+                    uploadedPaths.take(4).forEach { path ->
+                        val url = signedUrls[path]
+                        if (url != null) {
+                            coil.compose.AsyncImage(
+                                model = url,
+                                contentDescription = "Uploaded photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Filled.AddPhotoAlternate,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -158,14 +188,16 @@ class MediaViewModel @Inject constructor(
 ) : ViewModel() {
 
     val uploadState = MutableStateFlow<MediaUploadState>(MediaUploadState.Idle)
-    val uploadedPaths = mutableListOf<String>()
+
+    private val _uploadedPaths = MutableStateFlow<List<String>>(emptyList())
+    val uploadedPathsFlow: StateFlow<List<String>> = _uploadedPaths.asStateFlow()
 
     fun uploadPhoto(context: android.content.Context, uri: Uri, onDone: (String) -> Unit) {
         uploadState.value = MediaUploadState.Uploading
         viewModelScope.launch {
             mediaUploader.uploadPhoto(context, uri)
                 .onSuccess { path ->
-                    uploadedPaths.add(path)
+                    _uploadedPaths.value = _uploadedPaths.value + path
                     uploadState.value = MediaUploadState.Idle
                     onDone(path)
                 }
@@ -174,4 +206,8 @@ class MediaViewModel @Inject constructor(
                 }
         }
     }
+
+    /** Signed URL for rendering an uploaded photo. */
+    suspend fun signedUrlFor(path: String): Result<String> =
+        mediaUploader.getSignedUrl(path = path)
 }

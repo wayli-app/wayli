@@ -30,6 +30,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,12 +58,9 @@ fun StatsScreen(
     demoMode: Boolean = false,
     onBack: () -> Unit = {},
     onViewHistory: () -> Unit = {},
+    viewModel: StatsViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
-    val distance = if (demoMode) formatNumber(DemoData.totalDistanceKm) else "—"
-    val countries = if (demoMode) DemoData.countriesVisited.toString() else "—"
-    val timeMoving = if (demoMode) DemoData.timeMovingHours.toString() else "—"
-    val points = if (demoMode) formatNumber(DemoData.dataPoints) else "—"
-    val modes = if (demoMode) DemoData.transportModeBreakdown else emptyMap()
+    val uiState by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
@@ -75,14 +74,41 @@ fun StatsScreen(
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
+        when (val s = uiState) {
+            is StatsUiState.Loading -> Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { androidx.compose.material3.CircularProgressIndicator() }
+            is StatsUiState.Error -> Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { Text(s.message, color = MaterialTheme.colorScheme.error) }
+            is StatsUiState.Success -> StatsContent(s.data, onBack, onViewHistory, padding)
+        }
+    }
+}
+
+@Composable
+private fun StatsContent(
+    data: StatsData,
+    onBack: () -> Unit,
+    onViewHistory: () -> Unit,
+    padding: androidx.compose.foundation.layout.PaddingValues,
+) {
+    val distance = data.distanceKm
+    val countries = data.countries
+    val timeMoving = data.timeMovingHours
+    val points = data.dataPoints
+    val modes = data.modes
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .padding(horizontal = 16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
             Spacer(Modifier.height(8.dp))
 
             Row(
@@ -135,7 +161,7 @@ fun StatsScreen(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(Modifier.height(12.dp))
-                    ActivityHeatmap(activity = if (demoMode) DemoData.dailyActivity else emptyMap())
+                    ActivityHeatmap(activity = data.dailyActivity)
                     Spacer(Modifier.height(10.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -156,32 +182,30 @@ fun StatsScreen(
                 }
             }
 
-            // Activity map (replaces the former "🌍 World Map" placeholder)
-            val mapPoints = remember(demoMode) { if (demoMode) DemoData.homePoints else emptyList() }
-            val mapTracks = remember(demoMode) {
-                if (demoMode) {
+            // Activity map — real track when available
+            val mapTracks = remember(data.track) {
+                data.track?.takeIf { it.isNotEmpty() }?.let { track ->
                     listOf(
                         MapTrack(
-                            points = DemoData.homeTrack.map { LatLng(it.first, it.second) },
+                            points = track.map { LatLng(it.first, it.second) },
                             color = "#3b82f6",
                             width = 4f,
                         ),
                     )
-                } else {
-                    emptyList()
-                }
+                }.orEmpty()
             }
-            Card(
-                modifier = Modifier.fillMaxWidth().height(240.dp),
-                shape = MaterialTheme.shapes.medium,
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    WayliMap(
-                        modifier = Modifier.fillMaxSize(),
-                        points = mapPoints,
-                        tracks = mapTracks,
-                    )
+            if (mapTracks.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().height(240.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        WayliMap(
+                            modifier = Modifier.fillMaxSize(),
+                            tracks = mapTracks,
+                        )
+                    }
                 }
             }
 
@@ -197,7 +221,6 @@ fun StatsScreen(
 
             Spacer(Modifier.height(32.dp))
         }
-    }
 }
 
 private fun formatNumber(n: Int): String = "%,d".format(n)
