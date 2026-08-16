@@ -18,20 +18,23 @@ class InstanceManager(context: Context) {
     data class InstanceConfig(
         val url: String,
         val anonKey: String,
+        /** User opted to skip TLS validation for this instance (self-signed cert). */
+        val insecureTls: Boolean = false,
     )
 
     fun getConfig(): InstanceConfig? {
         val url = prefs.getString(KEY_URL, null) ?: return null
         val anonKey = prefs.getString(KEY_ANON_KEY, null) ?: return null
-        return InstanceConfig(url, anonKey)
+        return InstanceConfig(url, anonKey, prefs.getBoolean(KEY_INSECURE_TLS, false))
     }
 
-    fun setConfig(url: String, anonKey: String) {
+    fun setConfig(url: String, anonKey: String, insecureTls: Boolean = false) {
         // commit() (synchronous): onboarding restarts the process right
         // after this — apply()'s async write can be lost to the kill.
         prefs.edit()
             .putString(KEY_URL, url.trimEnd('/'))
             .putString(KEY_ANON_KEY, anonKey)
+            .putBoolean(KEY_INSECURE_TLS, insecureTls)
             .commit()
     }
 
@@ -44,5 +47,6 @@ class InstanceManager(context: Context) {
     companion object {
         private const val KEY_URL = "instance_url"
         private const val KEY_ANON_KEY = "instance_anon_key"
+        private const val KEY_INSECURE_TLS = "instance_insecure_tls"
     }
 }
