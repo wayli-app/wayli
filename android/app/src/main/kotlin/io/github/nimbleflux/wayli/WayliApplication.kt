@@ -27,6 +27,8 @@ class WayliApplication : Application(), ImageLoaderFactory, Configuration.Provid
         // MapLibre MUST be initialized before any MapView is created.
         // Doing it here guarantees it's ready before Compose renders the map.
         MapLibre.getInstance(this)
+        // Publish any journal-entry drafts that were saved offline earlier.
+        io.github.nimbleflux.wayli.tracking.EntrySyncWorker.schedule(this)
     }
 
     /** WorkManager on-demand init with the Hilt worker factory (GpsUploadWorker). */

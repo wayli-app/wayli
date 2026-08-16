@@ -9,6 +9,7 @@ import io.github.nimbleflux.wayli.demo.DemoData
 import io.github.nimbleflux.wayli.demo.DemoManager
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.models.TripEntry
+import io.github.nimbleflux.wayli.repo.DraftRepository
 import io.github.nimbleflux.wayli.repo.StatsAggregator
 import io.github.nimbleflux.wayli.repo.StatsRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
@@ -45,6 +46,7 @@ class TripDetailViewModel @Inject constructor(
     private val tripRepo: TripRepository,
     private val statsRepo: StatsRepository,
     private val client: FluxbaseClient,
+    private val draftRepo: DraftRepository,
 ) : ViewModel() {
 
     val tripId: String = savedStateHandle.get<String>("tripId") ?: ""
@@ -101,35 +103,36 @@ class TripDetailViewModel @Inject constructor(
         _track.value = StatsAggregator.track(points)
     }
 
-    /** Add a journal entry. Demo keeps it in-memory; real mode inserts via the repo. */
-    private val _entryError = MutableStateFlow<String?>(null)
-    val entryError: StateFlow<String?> = _entryError.asStateFlow()
+    // ---- Editor integration ----
 
-    fun clearEntryError() { _entryError.value = null }
+    private val _drafts = MutableStateFlow<List<io.github.nimbleflux.wayli.repo.EntryDraft>>(emptyList())
+    val drafts: StateFlow<List<io.github.nimbleflux.wayli.repo.EntryDraft>> = _drafts.asStateFlow()
 
-    fun addEntry(title: String, entryDate: String, body: String?) {
-        if (demoManager.isDemoMode) {
-            _entries.value = listOf(localEntry(title, entryDate, body)) + _entries.value
-            return
-        }
-        viewModelScope.launch {
-            tripRepo.createEntry(tripId, title, entryDate, body)
-                .onSuccess { created -> _entries.value = listOf(created) + _entries.value }
-                .onFailure { _entryError.value = it.message ?: "Failed to add entry" }
+    init {
+        refreshDrafts()
+    }
+
+    /** Reload the trip's local drafts (cards with title + edit button). */
+    fun refreshDrafts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _drafts.value = draftRepo.listForTrip(tripId)
         }
     }
 
-    private fun localEntry(title: String, entryDate: String, body: String?): TripEntry {
-        val now = java.time.Instant.now().toString()
-        return TripEntry(
-            id = "local-${System.currentTimeMillis()}",
-            tripId = tripId,
-            entryDate = entryDate,
-            body = body?.takeIf { it.isNotBlank() },
-            title = title,
-            status = "published",
-            createdAt = now,
-            updatedAt = now,
-        )
+    /**
+     * Called when returning from the editor. In real mode (or when no
+     * in-memory entry was handed back) the entries reload; demo entries are
+     * upserted into the in-memory list.
+     */
+    fun applyEditorResult(entry: TripEntry?) {
+        if (entry != null && (demoManager.isDemoMode || entry.id.startsWith("local-"))) {
+            _entries.value = listOf(entry) + _entries.value.filter { it.id != entry.id }
+        } else if (!demoManager.isDemoMode) {
+            viewModelScope.launch(Dispatchers.IO) {
+                tripRepo.listEntries(tripId)
+                    .onSuccess { _entries.value = it }
+            }
+        }
+        refreshDrafts()
     }
 }

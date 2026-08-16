@@ -34,6 +34,16 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideDraftEntryDao(db: WayliDatabase): io.github.nimbleflux.wayli.db.DraftEntryDao =
+        db.draftEntryDao()
+
+    @Provides
+    @Singleton
+    fun provideDraftRepository(dao: io.github.nimbleflux.wayli.db.DraftEntryDao): DraftRepository =
+        DraftRepository(dao)
+
+    @Provides
+    @Singleton
     fun provideTripRepository(client: FluxbaseClient): TripRepository =
         TripRepository(client)
 

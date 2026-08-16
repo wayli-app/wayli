@@ -99,6 +99,55 @@ class TripRepository @Inject constructor(
     }
 
     /**
+     * Update an existing journal entry (owner-only via RLS).
+     */
+    suspend fun updateEntry(
+        entryId: String,
+        title: String,
+        entryDate: String,
+        body: String?,
+    ): Result<Unit> = runCatching {
+        val values = buildMap<String, Any> {
+            put("title", title)
+            put("entry_date", entryDate)
+            body?.takeIf { it.isNotBlank() }?.let { put("body", it) }
+        }
+        client.from<TripEntry>("trip_entries").eq("id", entryId).update(values)
+    }
+
+    /**
+     * Attach an uploaded photo to a trip/entry (`trip_media` row).
+     */
+    suspend fun createMedia(
+        tripId: String,
+        entryId: String?,
+        storagePath: String,
+        sortOrder: Int = 0,
+    ): Result<Unit> = runCatching {
+        val values = buildMap<String, Any> {
+            put("trip_id", tripId)
+            entryId?.let { put("entry_id", it) }
+            put("storage_path", storagePath)
+            put("media_type", "image")
+            put("sort_order", sortOrder)
+        }
+        client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media").insert(values)
+    }
+
+    /**
+     * List media attached to a trip (optionally filtered to one entry).
+     */
+    suspend fun listMedia(tripId: String, entryId: String? = null): Result<List<io.github.nimbleflux.wayli.models.TripMedia>> =
+        runCatching {
+            var query = client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+                .select()
+                .eq("trip_id", tripId)
+                .order("sort_order")
+            entryId?.let { query = query.eq("entry_id", it) }
+            query.execute().data ?: emptyList()
+        }
+
+    /**
      * Delete a trip.
      */
     suspend fun deleteTrip(tripId: String): Result<Unit> = runCatching {
