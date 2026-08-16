@@ -6,7 +6,7 @@
       "name": "web",
       "dependencies": {
         "@fontsource-variable/inter": "^5.3.0",
-        "@nimbleflux/fluxbase-sdk": "2026.8.7",
+        "@nimbleflux/fluxbase-sdk": "2026.8.8-rc.3",
         "@svelte-plugins/datepicker": "^1.0.11",
         "@turf/turf": "^7.3.5",
         "clsx": "^2.1.1",
@@ -227,7 +227,7 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.6", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg=="],
 
-    "@nimbleflux/fluxbase-sdk": ["@nimbleflux/fluxbase-sdk@2026.8.7", "", { "dependencies": { "cross-fetch": "^4.1.0" }, "optionalDependencies": { "@rollup/rollup-darwin-arm64": "^4.62.2" }, "peerDependencies": { "esbuild": ">=0.28.1" }, "optionalPeers": ["esbuild"] }, "sha512-VivzHsr9OxoSAeXNYD43EoKXhsTuGoaS1eVZ/Cx6Tpk5QorW0CvPhiTqXKIBN8KVId6UUacCk9p+K/1kpo7kTA=="],
+    "@nimbleflux/fluxbase-sdk": ["@nimbleflux/fluxbase-sdk@2026.8.8-rc.3", "", { "dependencies": { "cross-fetch": "^4.1.0" }, "optionalDependencies": { "@rollup/rollup-darwin-arm64": "^4.62.2" }, "peerDependencies": { "esbuild": ">=0.28.1" }, "optionalPeers": ["esbuild"] }, "sha512-wxlk9llUtz1GRTzZTeRFILgc0HAZ4osCoA7XdYk4cmOzqxh9llEiVTqnrdc2qGaG15SSYjJhnVqTuNRq7AJSew=="],
 
     "@nodable/entities": ["@nodable/entities@3.0.0", "", {}, "sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw=="],
 
