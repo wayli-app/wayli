@@ -79,6 +79,9 @@ class GpsUploadWorker @AssistedInject constructor(
         var connection: HttpURLConnection? = null
         return try {
             connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                if (instanceManager.getConfig()?.insecureTls == true) {
+                    io.github.nimbleflux.wayli.session.InsecureTls.applyTo(this)
+                }
                 requestMethod = "POST"
                 connectTimeout = 15_000
                 readTimeout = 30_000

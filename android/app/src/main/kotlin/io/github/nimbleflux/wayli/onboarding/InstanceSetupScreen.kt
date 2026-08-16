@@ -59,6 +59,7 @@ fun InstanceSetupScreen(
 ) {
     val context = LocalContext.current
     var url by remember { mutableStateOf("") }
+    var selfSigned by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     Box(
@@ -119,6 +120,24 @@ fun InstanceSetupScreen(
                 ),
             )
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                androidx.compose.material3.Checkbox(
+                    checked = selfSigned,
+                    onCheckedChange = { selfSigned = it },
+                )
+                Text(
+                    "Server uses a self-signed certificate",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+
             Spacer(Modifier.height(24.dp))
 
             // Connect button
@@ -136,7 +155,7 @@ fun InstanceSetupScreen(
                             return@Button
                         }
                         error = null
-                        viewModel.connect(url) { success, msg ->
+                        viewModel.connect(url, allowInsecureTls = selfSigned) { success, msg ->
                             // Restart so the new instance config is picked up by the
                             // FluxbaseClient singleton; on relaunch the user lands on sign-in.
                             if (success) restartApp(context) else error = msg
@@ -243,7 +262,7 @@ class InstanceSetupViewModel @Inject constructor(
      * 2. `{wayliUrl}/api/v1/auth/config` (API proxied under the web origin)
      * 3. The input is itself a Fluxbase URL (health check confirms)
      */
-    fun connect(wayliUrl: String, onResult: (Boolean, String) -> Unit) {
+    fun connect(wayliUrl: String, allowInsecureTls: Boolean = false, onResult: (Boolean, String) -> Unit) {
         val normalized = ServerDiscovery.normalizeUrl(wayliUrl)
             ?: run {
                 onResult(false, "Please enter a valid URL")
@@ -258,7 +277,7 @@ class InstanceSetupViewModel @Inject constructor(
                 }
             }
             try {
-                val discovered = discoverFrom(normalized)
+                val discovered = discoverFrom(normalized, allowInsecureTls)
 
                 if (discovered == null) {
                     finish(false, "Couldn't find a Fluxbase backend at $normalized — check the address.")
@@ -266,7 +285,7 @@ class InstanceSetupViewModel @Inject constructor(
                 }
 
                 // Verify the backend is actually alive before storing anything.
-                if (!healthCheck(discovered.fluxbaseUrl)) {
+                if (!healthCheck(discovered.fluxbaseUrl, allowInsecureTls)) {
                     finish(false, "Found backend ${discovered.fluxbaseUrl} but it didn't respond to a health check.")
                     return@launch
                 }
@@ -275,7 +294,7 @@ class InstanceSetupViewModel @Inject constructor(
                     return@launch
                 }
 
-                instanceManager.setConfig(discovered.fluxbaseUrl, discovered.anonKey)
+                instanceManager.setConfig(discovered.fluxbaseUrl, discovered.anonKey, allowInsecureTls)
                 finish(true, "")
             } catch (e: Exception) {
                 finish(false, "Could not reach: ${e.message}")
@@ -283,28 +302,29 @@ class InstanceSetupViewModel @Inject constructor(
         }
     }
 
-    private suspend fun discoverFrom(url: String): ServerDiscovery.Discovered? {
+    private suspend fun discoverFrom(url: String, allowInsecureTls: Boolean = false): ServerDiscovery.Discovered? {
         // 1. Instance manifest served by the Wayli web app.
-        httpGet("$url/wayli-app.json")?.let { body ->
+        httpGet("$url/wayli-app.json", allowInsecureTls)?.let { body ->
             ServerDiscovery.parseAppManifest(body)?.let { return it }
         }
         // 2. Fluxbase API proxied under the web origin.
-        httpGet("$url/api/v1/auth/config")?.let { body ->
+        httpGet("$url/api/v1/auth/config", allowInsecureTls)?.let { body ->
             ServerDiscovery.parseAnonKeyFromAuthConfig(body)?.let { key ->
                 return ServerDiscovery.Discovered(url, key)
             }
         }
         // 3. The input itself is a Fluxbase server.
-        if (healthCheck(url)) {
-            val key = httpGet("$url/api/v1/auth/config")
+        if (healthCheck(url, allowInsecureTls)) {
+            val key = httpGet("$url/api/v1/auth/config", allowInsecureTls)
                 ?.let(ServerDiscovery::parseAnonKeyFromAuthConfig)
             return ServerDiscovery.Discovered(url, key)
         }
         return null
     }
 
-    private fun healthCheck(baseUrl: String): Boolean = runCatching {
+    private fun healthCheck(baseUrl: String, allowInsecureTls: Boolean = false): Boolean = runCatching {
         val conn = java.net.URL("$baseUrl/health").openConnection() as java.net.HttpURLConnection
+        if (allowInsecureTls) io.github.nimbleflux.wayli.session.InsecureTls.applyTo(conn)
         conn.connectTimeout = 5_000
         conn.readTimeout = 5_000
         try {
@@ -315,8 +335,9 @@ class InstanceSetupViewModel @Inject constructor(
     }.getOrDefault(false)
 
     /** GET returning the body only on HTTP 2xx; null otherwise. */
-    private fun httpGet(url: String): String? = runCatching {
+    private fun httpGet(url: String, allowInsecureTls: Boolean = false): String? = runCatching {
         val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        if (allowInsecureTls) io.github.nimbleflux.wayli.session.InsecureTls.applyTo(conn)
         conn.connectTimeout = 5_000
         conn.readTimeout = 5_000
         try {

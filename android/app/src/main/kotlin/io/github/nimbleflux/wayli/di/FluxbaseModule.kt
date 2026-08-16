@@ -68,6 +68,14 @@ object FluxbaseModule {
                     autoRefresh = false,
                 ),
             )
+        // Self-signed instance: relax TLS before any engine (SDK OkHttp,
+        // Coil) builds its connection factory. Hostname verification stays
+        // strict for every other host.
+        if (config.insecureTls) {
+            io.github.nimbleflux.wayli.session.InsecureTls.hostOf(config.url)?.let {
+                io.github.nimbleflux.wayli.session.InsecureTls.installGlobalFor(it)
+            }
+        }
         return FluxbaseClient.create(
             url = config.url,
             key = config.anonKey,
