@@ -40,7 +40,6 @@ import io.github.nimbleflux.wayli.auth.SignUpScreen
 import io.github.nimbleflux.wayli.auth.TwoFactorScreen
 import io.github.nimbleflux.wayli.designsystem.WayliBottomBar
 import io.github.nimbleflux.wayli.designsystem.WayliTab
-import io.github.nimbleflux.wayli.feature.history.HistoryScreen
 import io.github.nimbleflux.wayli.feature.home.HomeScreen
 import io.github.nimbleflux.wayli.feature.settings.AdminMaintenanceScreen
 import io.github.nimbleflux.wayli.feature.settings.AdminUsersScreen
@@ -54,7 +53,6 @@ import io.github.nimbleflux.wayli.feature.settings.SettingsScreen
 import io.github.nimbleflux.wayli.feature.settings.TripExclusionsScreen
 import io.github.nimbleflux.wayli.feature.settings.TwoFactorSetupScreen
 import io.github.nimbleflux.wayli.feature.stats.StatsScreen
-import io.github.nimbleflux.wayli.feature.tracking.TrackingScreen
 import io.github.nimbleflux.wayli.feature.tracking.TrackingSettingsScreen
 import io.github.nimbleflux.wayli.feature.travel.TripDetailScreen
 import io.github.nimbleflux.wayli.feature.travel.TripsListScreen
@@ -78,11 +76,9 @@ object Routes {
     const val SETTINGS = "settings"
 
     // Pushed screens
-    const val LIVE_TRACKING = "live_tracking"
     const val TRIP_DETAIL = "trip_detail/{tripId}"
     const val ENTRY_EDITOR = "entry_editor/{tripId}?entryId={entryId}&draftId={draftId}"
     const val STATS = "stats"
-    const val HISTORY = "history"
     const val TRACKING_SETTINGS = "tracking_settings"
     const val PROFILE = "profile"
     const val SECURITY = "security"
@@ -286,10 +282,8 @@ fun WayliNavHost() {
             composable(Routes.MAP) {
                 HomeScreen(
                     onStatsClick = { navController.navigate(Routes.STATS) },
-                    onStartTracking = { navController.navigate(Routes.LIVE_TRACKING) },
                     onTripClick = { trip: Trip -> navController.navigate("trip_detail/${trip.id}") },
                     onWishlistClick = { switchTab(Routes.WISHLIST) },
-                    onHistory = { navController.navigate(Routes.HISTORY) },
                 )
             }
             composable(Routes.TRAVEL) {
@@ -339,9 +333,6 @@ fun WayliNavHost() {
             }
 
             // ---- Pushed screens ----
-            composable(Routes.LIVE_TRACKING) {
-                TrackingScreen(onTrackingSettings = { navController.navigate(Routes.TRACKING_SETTINGS) })
-            }
             composable(
                 route = Routes.TRIP_DETAIL,
                 arguments = listOf(navArgument("tripId") { type = NavType.StringType }),
@@ -410,11 +401,7 @@ fun WayliNavHost() {
                 StatsScreen(
                     demoMode = viewModel.isDemoMode,
                     onBack = { navController.popBackStack() },
-                    onViewHistory = { navController.navigate(Routes.HISTORY) },
                 )
-            }
-            composable(Routes.HISTORY) {
-                HistoryScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.TRACKING_SETTINGS) {
                 TrackingSettingsScreen(onBack = { navController.popBackStack() })

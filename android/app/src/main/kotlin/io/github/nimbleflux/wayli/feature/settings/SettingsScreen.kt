@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Block
@@ -158,6 +159,11 @@ fun SettingsScreen(
             WayliSectionCard(title = "Account") {
                 SettingRow(icon = Icons.Filled.Person, label = "Profile", onClick = onProfile)
                 SettingRow(icon = Icons.Filled.Lock, label = "Security & 2FA", onClick = onSecurity)
+                SettingRow(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    label = if (demoMode) "Exit demo" else "Sign out",
+                    onClick = onSignOut,
+                )
             }
 
             // Connection (real instances only — demo has no server)

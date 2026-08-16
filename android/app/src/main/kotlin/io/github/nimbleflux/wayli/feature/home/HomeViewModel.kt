@@ -14,6 +14,9 @@ import io.github.nimbleflux.wayli.repo.StatsAggregator
 import io.github.nimbleflux.wayli.repo.StatsRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
 import io.github.nimbleflux.wayli.repo.UserRepository
+import io.github.nimbleflux.wayli.designsystem.DateRange
+import io.github.nimbleflux.wayli.designsystem.dateRangePresets
+import io.github.nimbleflux.wayli.designsystem.toDates
 import io.github.nimbleflux.wayli.repo.WishlistRepository
 import java.time.LocalDate
 import javax.inject.Inject
@@ -68,12 +71,27 @@ class HomeViewModel @Inject constructor(
 
     val isDemoMode: Boolean = demoManager.isDemoMode
 
+    /** Selected stats period — stats and the map track react to it. */
+    private val _selectedRange = MutableStateFlow<DateRange>(dateRangePresets[1]) // 30d
+    val selectedRange: StateFlow<DateRange> = _selectedRange.asStateFlow()
+
+    /** Ordered (lat, lon) coordinates for the map card over the selected range. */
+    private val _track = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
+    val track: StateFlow<List<Pair<Double, Double>>> = _track.asStateFlow()
+
     init {
         load()
     }
 
+    fun setRange(range: DateRange) {
+        if (_selectedRange.value == range) return
+        _selectedRange.value = range
+        loadWindow()
+    }
+
     fun load() {
         if (demoManager.isDemoMode) {
+            _track.value = DemoData.homeTrack
             val d = DemoData
             _uiState.value = HomeUiState.Success(
                 HomeData(
@@ -103,36 +121,50 @@ class HomeViewModel @Inject constructor(
             if (tripsResult.isSuccess) {
                 val trips = tripsResult.getOrDefault(emptyList())
                 val wishlist = wishlistResult.getOrDefault(emptyList())
-
-                // Headline stats: aggregate daily activity + points over 90 days.
-                val today = LocalDate.now()
-                val start = today.minusDays(90)
-                val daily = statsRepo.fetchDailyActivity(userId, start.toString(), today.toString())
-                    .getOrDefault(emptyList())
-                val pointRows = statsRepo.fetchPoints(userId, start.toString(), today.toString())
-                    .getOrDefault(emptyList())
-                val totals = StatsAggregator.totalsFromDailyActivity(daily)
                 val profile = userRepo.getProfile(userId).getOrNull()
 
                 _uiState.value = HomeUiState.Success(
                     HomeData(
                         profile = profile,
                         initials = initials(profile),
-                        stats = HomeStats(
-                            distanceKm = "%.0f".format(totals.totalDistanceKm),
-                            countries = StatsAggregator.countries(pointRows).toString(),
-                            timeMovingHours = "%.0f".format(totals.timeMovingHours),
-                            trips = trips.size.toString(),
-                        ),
+                        stats = HomeStats("", "", "", trips.size.toString()),
                         trips = trips,
                         wishlist = wishlist,
                         activity = emptyList(),
                     ),
                 )
+                loadWindow()
             } else {
                 _uiState.value =
                     HomeUiState.Error(tripsResult.exceptionOrNull()?.message ?: "Failed to load")
             }
+        }
+    }
+
+    /** Reload stats + map track for the selected range (real mode). */
+    private fun loadWindow() {
+        if (demoManager.isDemoMode) return
+        val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: return
+        val current = _uiState.value as? HomeUiState.Success ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val (start, end) = _selectedRange.value.toDates()
+            val daily = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
+                .getOrDefault(emptyList())
+            val pointRows = statsRepo.fetchPoints(userId, start.toString(), end.toString())
+                .getOrDefault(emptyList())
+            val totals = StatsAggregator.totalsFromDailyActivity(daily)
+
+            _track.value = StatsAggregator.track(pointRows)
+            _uiState.value = current.copy(
+                data = current.data.copy(
+                    stats = HomeStats(
+                        distanceKm = "%.0f".format(totals.totalDistanceKm),
+                        countries = StatsAggregator.countries(pointRows).toString(),
+                        timeMovingHours = "%.0f".format(totals.timeMovingHours),
+                        trips = current.data.stats.trips,
+                    ),
+                ),
+            )
         }
     }
 

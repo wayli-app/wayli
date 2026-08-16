@@ -44,4 +44,7 @@ dependencies {
     api(libs.compose.ui.tooling.preview)
     api(libs.compose.material3)
     api(libs.compose.material.icons)
+
+    // Testing
+    testImplementation(libs.kotlin.test)
 }

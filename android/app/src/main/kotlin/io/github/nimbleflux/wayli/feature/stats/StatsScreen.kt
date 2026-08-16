@@ -57,7 +57,6 @@ import org.maplibre.android.geometry.LatLng
 fun StatsScreen(
     demoMode: Boolean = false,
     onBack: () -> Unit = {},
-    onViewHistory: () -> Unit = {},
     viewModel: StatsViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.state.collectAsState()
@@ -83,7 +82,7 @@ fun StatsScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { Text(s.message, color = MaterialTheme.colorScheme.error) }
-            is StatsUiState.Success -> StatsContent(s.data, onBack, onViewHistory, padding)
+            is StatsUiState.Success -> StatsContent(s.data, onBack, padding)
         }
     }
 }
@@ -92,7 +91,6 @@ fun StatsScreen(
 private fun StatsContent(
     data: StatsData,
     onBack: () -> Unit,
-    onViewHistory: () -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     val distance = data.distanceKm
@@ -209,15 +207,6 @@ private fun StatsContent(
                 }
             }
 
-            OutlinedButton(
-                onClick = onViewHistory,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Icon(Icons.Filled.History, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("View history on map")
-            }
 
             Spacer(Modifier.height(32.dp))
         }
