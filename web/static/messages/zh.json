@@ -1384,6 +1384,7 @@
 		"tavilyKeyMasked": "配置（屏蔽）",
 		"tavilyKeyPlaceholder": "tvly-...",
 		"tavilySaveFailed": "无法保存 Tavilly 配置",
+		"tavilyLoadFailed": "无法检查现有的 Tavily 集成",
 		"tavilySaved": "已保存配置",
 		"tavilySaving": "保存...",
 		"tavilyTest": "测试连接",

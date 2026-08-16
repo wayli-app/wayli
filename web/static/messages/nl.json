@@ -1380,6 +1380,7 @@
 		"tavilyKeyMasked": "Geconfigureerd (gemaskeerd)",
 		"tavilyKeyPlaceholder": "tvly-...",
 		"tavilySaveFailed": "Kan de Tavily-configuratie niet opslaan",
+		"tavilyLoadFailed": "Kon de bestaande Tavily-integratie niet controleren",
 		"tavilySaved": "Tavily-configuratie opgeslagen",
 		"tavilySaving": "Besparing...",
 		"tavilyTest": "Verbinding testen",

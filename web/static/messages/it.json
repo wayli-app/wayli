@@ -1380,6 +1380,7 @@
 		"tavilyKeyMasked": "Configurato (mascherato)",
 		"tavilyKeyPlaceholder": "tvly-...",
 		"tavilySaveFailed": "Impossibile salvare la configurazione di Tavily",
+		"tavilyLoadFailed": "Impossibile verificare l'integrazione Tavily esistente",
 		"tavilySaved": "Configurazione Tavily salvata",
 		"tavilySaving": "Risparmio...",
 		"tavilyTest": "Testare la connessione",

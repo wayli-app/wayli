@@ -113,34 +113,13 @@ export interface AppSettings {
 }
 
 /**
- * Custom Wayli settings stored in system settings
+ * Custom Wayli settings as returned by the bulk prefix fetch
+ * (`admin.settings.app.getSettings([], { prefix: 'wayli.' })`): a raw
+ * key → value map. The server unwraps the stored `{ value: ... }` object.
+ * Read values with `customValue()` (lib/utils/custom-settings), which also
+ * tolerates the legacy wrapped `{ value }` / `{ data: { value } }` shapes.
  */
-export interface WayliCustomSettings {
-	'wayli.server_name'?: {
-		value: string;
-		description?: string;
-	};
-	'wayli.pexels_rate_limit'?: {
-		value: number; // Requests per hour, 0 = unlimited
-		description?: string;
-	};
-	'wayli.pelias_endpoint'?: {
-		value: string;
-		description?: string;
-	};
-	'wayli.valhalla_endpoint'?: {
-		value: string;
-		description?: string;
-	};
-	'wayli.ai.daily_request_limit'?: {
-		value: number; // AI daily question limit, 0 = unlimited
-		description?: string;
-	};
-	'wayli.ai.daily_token_budget'?: {
-		value: number; // AI daily token budget, 0 = unlimited
-		description?: string;
-	};
-}
+export type WayliCustomSettings = Record<string, unknown>;
 
 /**
  * Metadata for an encrypted secret (value is never returned)

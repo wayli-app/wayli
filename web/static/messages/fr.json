@@ -1383,6 +1383,7 @@
 		"tavilyKeyMasked": "Configuré (masqué)",
 		"tavilyKeyPlaceholder": "télé-...",
 		"tavilySaveFailed": "Échec de l'enregistrement de la configuration Tavily",
+		"tavilyLoadFailed": "Impossible de vérifier l'intégration Tavily existante",
 		"tavilySaved": "Configuration Tavily enregistrée",
 		"tavilySaving": "Économie...",
 		"tavilyTest": "Tester la connexion",

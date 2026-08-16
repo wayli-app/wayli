@@ -1384,6 +1384,7 @@
 		"tavilyKeyMasked": "Настроен (замаскирован)",
 		"tavilyKeyPlaceholder": "твли-...",
 		"tavilySaveFailed": "Не удалось сохранить конфигурацию Тавили.",
+		"tavilyLoadFailed": "Не удалось проверить существующую интеграцию Tavily.",
 		"tavilySaved": "Конфигурация Тавили сохранена.",
 		"tavilySaving": "Сохранение...",
 		"tavilyTest": "Тестовое соединение",
