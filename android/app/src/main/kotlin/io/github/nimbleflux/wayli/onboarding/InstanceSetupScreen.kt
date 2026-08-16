@@ -280,7 +280,7 @@ class InstanceSetupViewModel @Inject constructor(
                 val discovered = discoverFrom(normalized, allowInsecureTls)
 
                 if (discovered == null) {
-                    finish(false, "Couldn't find a Fluxbase backend at $normalized — check the address.")
+                    finish(false, "Couldn't find a Fluxbase backend at $normalized — try your Fluxbase server address (e.g. https://flux.example.com).")
                     return@launch
                 }
 
@@ -307,17 +307,14 @@ class InstanceSetupViewModel @Inject constructor(
         httpGet("$url/wayli-app.json", allowInsecureTls)?.let { body ->
             ServerDiscovery.parseAppManifest(body)?.let { return it }
         }
-        // 2. Fluxbase API proxied under the web origin.
+        // 2+3. A Fluxbase API on this origin — either proxied under the web
+        // app or the URL IS the backend. Identified by a JSON response from
+        // /auth/config: the Wayli web app's SPA fallback answers 200 + HTML
+        // for every path (including /health), but never JSON here.
         httpGet("$url/api/v1/auth/config", allowInsecureTls)?.let { body ->
-            ServerDiscovery.parseAnonKeyFromAuthConfig(body)?.let { key ->
-                return ServerDiscovery.Discovered(url, key)
+            if (ServerDiscovery.isJsonObject(body)) {
+                return ServerDiscovery.Discovered(url, ServerDiscovery.parseAnonKeyFromAuthConfig(body))
             }
-        }
-        // 3. The input itself is a Fluxbase server.
-        if (healthCheck(url, allowInsecureTls)) {
-            val key = httpGet("$url/api/v1/auth/config", allowInsecureTls)
-                ?.let(ServerDiscovery::parseAnonKeyFromAuthConfig)
-            return ServerDiscovery.Discovered(url, key)
         }
         return null
     }

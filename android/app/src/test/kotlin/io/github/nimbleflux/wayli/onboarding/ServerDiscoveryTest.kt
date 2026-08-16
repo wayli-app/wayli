@@ -79,6 +79,16 @@ class ServerDiscoveryTest {
     }
 
     @Test
+    fun `json object detection separates Fluxbase from SPA fallbacks`() {
+        assertTrue(ServerDiscovery.isJsonObject("""{"signup_enabled":true}"""))
+        // The Wayli web app serves HTML with 200 for every unknown path.
+        assertTrue(!ServerDiscovery.isJsonObject("<!doctype html><html>...</html>"))
+        assertTrue(!ServerDiscovery.isJsonObject(""))
+        assertTrue(!ServerDiscovery.isJsonObject("[]"))
+        assertTrue(!ServerDiscovery.isJsonObject("{broken"))
+    }
+
+    @Test
     fun `placeholder detection`() {
         assertTrue(ServerDiscovery.isPlaceholder("{{FLUXBASE_ANON_KEY}}"))
         assertTrue(ServerDiscovery.isPlaceholder(""))
