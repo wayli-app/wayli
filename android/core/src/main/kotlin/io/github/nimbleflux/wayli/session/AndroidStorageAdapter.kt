@@ -29,10 +29,13 @@ class EncryptedStorageAdapter(context: Context) : StorageAdapter {
     override fun getItem(key: String): String? = prefs.getString(key, null)
 
     override fun setItem(key: String, value: String) {
-        prefs.edit().putString(key, value).apply()
+        // commit() (synchronous): OAuth sign-in restarts the process right
+        // after persisting the session — apply()'s async write is lost to
+        // the kill. The file is tiny and writes are infrequent.
+        prefs.edit().putString(key, value).commit()
     }
 
     override fun removeItem(key: String) {
-        prefs.edit().remove(key).apply()
+        prefs.edit().remove(key).commit()
     }
 }
