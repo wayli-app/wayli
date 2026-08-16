@@ -59,8 +59,6 @@ fun InstanceSetupScreen(
 ) {
     val context = LocalContext.current
     var url by remember { mutableStateOf("") }
-    var anonKey by remember { mutableStateOf("") }
-    var showAdvanced by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     Box(
@@ -96,23 +94,16 @@ fun InstanceSetupScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Wayli is the app; Fluxbase is the self-hosted backend it connects to.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
             Spacer(Modifier.height(48.dp))
 
-            // Instance URL field
+            // Wayli URL field — the address users already know from the browser
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("Fluxbase backend URL") },
-                    placeholder = { Text("https://fluxbase.example.com") },
+                    label = { Text("Wayli URL") },
+                    placeholder = { Text("https://wayli.example.com") },
                     supportingText = {
-                        Text("Address of the Fluxbase server that stores your Wayli data — not the Wayli web app.")
+                        Text("The address you use in your browser — we'll find the backend and key automatically.")
                     },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
@@ -128,38 +119,6 @@ fun InstanceSetupScreen(
                 ),
             )
 
-            // Anon key (collapsible)
-            if (showAdvanced) {
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = anonKey,
-                    onValueChange = { anonKey = it },
-                    label = { Text("Anon Key") },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    ),
-                )
-            } else {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Need an anon key? Tap here",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .clickable { showAdvanced = true }
-                        .padding(4.dp),
-                )
-            }
-
             Spacer(Modifier.height(24.dp))
 
             // Connect button
@@ -173,16 +132,11 @@ fun InstanceSetupScreen(
                 Button(
                     onClick = {
                         if (url.isBlank()) {
-                            error = "Please enter an instance URL"
-                            return@Button
-                        }
-                        if (anonKey.isBlank()) {
-                            error = "An anon key is required."
-                            showAdvanced = true
+                            error = "Please enter your Wayli URL"
                             return@Button
                         }
                         error = null
-                        viewModel.connect(url, anonKey) { success, msg ->
+                        viewModel.connect(url) { success, msg ->
                             // Restart so the new instance config is picked up by the
                             // FluxbaseClient singleton; on relaunch the user lands on sign-in.
                             if (success) restartApp(context) else error = msg
@@ -283,33 +237,94 @@ class InstanceSetupViewModel @Inject constructor(
         onDone()
     }
 
-    fun connect(url: String, anonKey: String, onResult: (Boolean, String) -> Unit) {
+    /**
+     * Connect from a Wayli URL: discover the Fluxbase backend automatically.
+     * 1. `{wayliUrl}/wayli-app.json` (instance manifest — best)
+     * 2. `{wayliUrl}/api/v1/auth/config` (API proxied under the web origin)
+     * 3. The input is itself a Fluxbase URL (health check confirms)
+     */
+    fun connect(wayliUrl: String, onResult: (Boolean, String) -> Unit) {
+        val normalized = ServerDiscovery.normalizeUrl(wayliUrl)
+            ?: run {
+                onResult(false, "Please enter a valid URL")
+                return
+            }
         loading = true
         viewModelScope.launch(Dispatchers.IO) {
+            val finish: suspend (Boolean, String) -> Unit = { success, message ->
+                withContext(Dispatchers.Main) {
+                    loading = false
+                    onResult(success, message)
+                }
+            }
             try {
-                val normalizedUrl = url.trimEnd('/')
-                val conn = java.net.URL("$normalizedUrl/health").openConnection()
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 10_000
-                val code = (conn as java.net.HttpURLConnection).responseCode
-                if (code != 200) {
-                    withContext(Dispatchers.Main) {
-                        loading = false
-                        onResult(false, "HTTP $code")
-                    }
+                val discovered = discoverFrom(normalized)
+
+                if (discovered == null) {
+                    finish(false, "Couldn't find a Fluxbase backend at $normalized — check the address.")
                     return@launch
                 }
-                instanceManager.setConfig(normalizedUrl, anonKey)
-                withContext(Dispatchers.Main) {
-                    loading = false
-                    onResult(true, "")
+
+                // Verify the backend is actually alive before storing anything.
+                if (!healthCheck(discovered.fluxbaseUrl)) {
+                    finish(false, "Found backend ${discovered.fluxbaseUrl} but it didn't respond to a health check.")
+                    return@launch
                 }
+                if (discovered.anonKey == null) {
+                    finish(false, "This server doesn't publish an anon key yet — update your Wayli deployment and try again.")
+                    return@launch
+                }
+
+                instanceManager.setConfig(discovered.fluxbaseUrl, discovered.anonKey)
+                finish(true, "")
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    loading = false
-                    onResult(false, "Could not reach: ${e.message}")
-                }
+                finish(false, "Could not reach: ${e.message}")
             }
         }
     }
+
+    private suspend fun discoverFrom(url: String): ServerDiscovery.Discovered? {
+        // 1. Instance manifest served by the Wayli web app.
+        httpGet("$url/wayli-app.json")?.let { body ->
+            ServerDiscovery.parseAppManifest(body)?.let { return it }
+        }
+        // 2. Fluxbase API proxied under the web origin.
+        httpGet("$url/api/v1/auth/config")?.let { body ->
+            ServerDiscovery.parseAnonKeyFromAuthConfig(body)?.let { key ->
+                return ServerDiscovery.Discovered(url, key)
+            }
+        }
+        // 3. The input itself is a Fluxbase server.
+        if (healthCheck(url)) {
+            val key = httpGet("$url/api/v1/auth/config")
+                ?.let(ServerDiscovery::parseAnonKeyFromAuthConfig)
+            return ServerDiscovery.Discovered(url, key)
+        }
+        return null
+    }
+
+    private fun healthCheck(baseUrl: String): Boolean = runCatching {
+        val conn = java.net.URL("$baseUrl/health").openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 5_000
+        conn.readTimeout = 5_000
+        try {
+            conn.responseCode in 200..299
+        } finally {
+            conn.disconnect()
+        }
+    }.getOrDefault(false)
+
+    /** GET returning the body only on HTTP 2xx; null otherwise. */
+    private fun httpGet(url: String): String? = runCatching {
+        val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 5_000
+        conn.readTimeout = 5_000
+        try {
+            if (conn.responseCode !in 200..299) return null
+            conn.inputStream.bufferedReader().use { it.readText() }
+        } finally {
+            conn.disconnect()
+        }
+    }.getOrNull()
+
 }
