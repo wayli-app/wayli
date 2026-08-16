@@ -28,13 +28,17 @@ export async function handler(
 
 	const db = fluxbaseService;
 
-	// Distinct users from tracker_data.
+	// Distinct users from tracker_data. Order by the composite PK so the row
+	// order is deterministic — unordered offset pagination can skip users when
+	// the underlying order shifts between page fetches.
 	const userIds = new Set<string>();
 	let offset = 0;
 	while (true) {
 		const { data, error } = await db
 			.from('tracker_data')
 			.select('user_id')
+			.order('user_id', { ascending: true })
+			.order('recorded_at', { ascending: true })
 			.range(offset, offset + USERS_RANGE - 1);
 		if (error) {
 			console.error('❌ Enumerate users failed:', error);
@@ -110,6 +114,7 @@ async function refreshUser(db: FluxbaseClient, userId: string, now: Date): Promi
 			.from('tracker_data')
 			.select(baseSelect)
 			.eq('user_id', userId)
+			.not('location', 'is', null) // Same filter as refresh-daily-activity-sql RPC
 			.order('recorded_at', { ascending: true })
 			.range(offset, offset + BATCH - 1);
 		if (since) query = query.gte('recorded_at', since);
