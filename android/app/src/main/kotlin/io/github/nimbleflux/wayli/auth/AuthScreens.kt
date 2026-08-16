@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -45,6 +47,7 @@ import io.github.nimbleflux.fluxbase.auth.AuthResult
 import io.github.nimbleflux.wayli.designsystem.WayliLogo
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -60,6 +63,9 @@ private fun fieldColors() = OutlinedTextFieldDefaults.colors(
 
 @Composable
 private fun WayliLogoSmall() = WayliLogo(size = 64.dp)
+
+private fun io.github.nimbleflux.fluxbase.auth.OAuthProviderInfo.display(): String =
+    displayName.ifBlank { provider.replaceFirstChar { it.uppercase() } }
 
 @Composable
 private fun AuthScreenContainer(content: @Composable () -> Unit) {
@@ -94,6 +100,21 @@ fun SignInScreen(
     var email by mutableStateOf("")
     var password by mutableStateOf("")
     var error by mutableStateOf<String?>(null)
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val providers by viewModel.oauth.collectAsState()
+    val passwordEnabled by viewModel.passwordEnabled.collectAsState()
+    viewModel.loadOAuth()
+
+    // Complete the flow when the browser deep link arrives (wayli://oauth/callback?…).
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        OAuthDeepLinkBus.uri.collect { uri ->
+            if (uri != null) {
+                OAuthDeepLinkBus.uri.value = null
+                viewModel.completeOAuth(uri, context)
+            }
+        }
+    }
 
     AuthScreenContainer {
         WayliLogoSmall()
@@ -112,6 +133,44 @@ fun SignInScreen(
         )
         Spacer(Modifier.height(40.dp))
 
+        // OAuth providers configured on the instance (allow_app_login=true)
+        providers.forEach { provider ->
+            androidx.compose.material3.OutlinedButton(
+                onClick = { viewModel.startOAuth(provider.provider, context) },
+                enabled = !viewModel.oauthBusy,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = fieldShape,
+            ) {
+                Text(
+                    if (viewModel.oauthBusy) "Opening ${provider.display()}…" else "Continue with ${provider.display()}",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+        viewModel.oauthError?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (providers.isNotEmpty() && passwordEnabled) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(1f).height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                Text(
+                    "or",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+                Box(Modifier.weight(1f).height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+
+        if (passwordEnabled) {
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -175,6 +234,7 @@ fun SignInScreen(
         error?.let {
             Spacer(Modifier.height(12.dp))
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -452,6 +512,7 @@ fun ForgotPasswordScreen(
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val fluxbaseClient: FluxbaseClient,
+    private val oauthClient: AppOAuthClient,
 ) : ViewModel() {
     var loading by mutableStateOf(false)
         private set
@@ -509,6 +570,63 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
+    // ---- OAuth (app-login-enabled providers) ----
+
+    val oauth = MutableStateFlow<List<io.github.nimbleflux.fluxbase.auth.OAuthProviderInfo>>(emptyList())
+    val passwordEnabled = MutableStateFlow(true)
+    var oauthBusy by mutableStateOf(false)
+        private set
+    var oauthError by mutableStateOf<String?>(null)
+        private set
+
+    fun loadOAuth() {
+        if (oauthLoaded) return
+        oauthLoaded = true
+        viewModelScope.launch(Dispatchers.IO) {
+            oauth.value = oauthClient.providers()
+            passwordEnabled.value = oauthClient.passwordLoginEnabled()
+        }
+    }
+
+    fun startOAuth(provider: String, context: android.content.Context) {
+        if (oauthBusy) return
+        oauthBusy = true
+        oauthError = null
+        viewModelScope.launch(Dispatchers.IO) {
+            val url = oauthClient.beginOAuth(provider)
+            oauthBusy = false
+            if (url != null) {
+                // System browser / Custom Tab — never an in-app WebView (IdPs block them).
+                runCatching {
+                    context.startActivity(
+                        android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
+                    )
+                }
+            } else {
+                oauthError = "Could not start $provider sign-in"
+            }
+        }
+    }
+
+    /** Exchange the deep-link code; restarts into the app on success. */
+    fun completeOAuth(uri: android.net.Uri, context: android.content.Context) {
+        val code = uri.getQueryParameter("code")
+        if (code == null) {
+            oauthError = "Malformed sign-in callback"
+            return
+        }
+        val state = uri.getQueryParameter("state")
+        viewModelScope.launch(Dispatchers.IO) {
+            if (oauthClient.completeOAuth(code, state)) {
+                io.github.nimbleflux.wayli.util.restartApp(context)
+            } else {
+                oauthError = "Sign-in failed — try again"
+            }
+        }
+    }
+
+    private var oauthLoaded = false
 
     fun sendPasswordReset(email: String, onResult: (Boolean, String?) -> Unit) {
         loading = true

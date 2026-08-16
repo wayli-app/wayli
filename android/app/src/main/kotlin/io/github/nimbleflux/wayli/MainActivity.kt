@@ -17,9 +17,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var themeManager: ThemeManager
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        io.github.nimbleflux.wayli.auth.OAuthDeepLinkBus.deliver(intent.data)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        io.github.nimbleflux.wayli.auth.OAuthDeepLinkBus.deliver(intent?.data)
         setContent {
             // themeModeState is a MutableState — recomposes on theme change
             WayliTheme(themeMode = themeManager.themeModeState.value) {
