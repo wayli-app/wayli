@@ -21,13 +21,14 @@ data class MetadataEntity(
  * the app reads/writes, plus the pending-point upload queue.
  */
 @Database(
-    entities = [MetadataEntity::class, PendingPointEntity::class],
-    version = 3,
+    entities = [MetadataEntity::class, PendingPointEntity::class, DraftEntryEntity::class],
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(WayliConverters::class)
 abstract class WayliDatabase : RoomDatabase() {
     abstract fun pendingPointDao(): PendingPointDao
+    abstract fun draftEntryDao(): DraftEntryDao
 }
 
 class WayliConverters {

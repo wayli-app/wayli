@@ -19,6 +19,13 @@ sealed interface TripUiState {
     data class Error(val message: String) : TripUiState
 }
 
+/** Journal summary shown on the merged Travel list cards. */
+data class JournalPreview(
+    val entryCount: Int,
+    val latestTitle: String? = null,
+    val latestDate: String? = null,
+)
+
 @HiltViewModel
 class TripViewModel @Inject constructor(
     private val tripRepo: TripRepository,
@@ -33,11 +40,22 @@ class TripViewModel @Inject constructor(
     private val _selectedTrip = MutableStateFlow<Trip?>(null)
     val selectedTrip: StateFlow<Trip?> = _selectedTrip.asStateFlow()
 
+    /** Trip id → journal summary (merges the old Journals tab into Travel). */
+    private val _journalPreviews = MutableStateFlow<Map<String, JournalPreview>>(emptyMap())
+    val journalPreviews: StateFlow<Map<String, JournalPreview>> = _journalPreviews.asStateFlow()
+
     fun loadTrips() {
         if (demoManager.isDemoMode) {
-            _uiState.value = TripUiState.Success(
-                io.github.nimbleflux.wayli.demo.DemoData.trips.sortedByDescending { it.startDate },
-            )
+            val trips = io.github.nimbleflux.wayli.demo.DemoData.trips.sortedByDescending { it.startDate }
+            _uiState.value = TripUiState.Success(trips)
+            _journalPreviews.value = trips.associate { trip ->
+                val entries = io.github.nimbleflux.wayli.demo.DemoData.entries[trip.id].orEmpty()
+                trip.id to JournalPreview(
+                    entryCount = entries.size,
+                    latestTitle = entries.lastOrNull()?.title,
+                    latestDate = entries.lastOrNull()?.entryDate,
+                )
+            }
             return
         }
         val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: run {
@@ -47,8 +65,31 @@ class TripViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = TripUiState.Loading
             tripRepo.listTrips(userId)
-                .onSuccess { _uiState.value = TripUiState.Success(it) }
+                .onSuccess { trips ->
+                    _uiState.value = TripUiState.Success(trips)
+                    loadJournalPreviews(trips)
+                }
                 .onFailure { _uiState.value = TripUiState.Error(it.message ?: "Failed to load trips") }
+        }
+    }
+
+    /** Concurrently fetch per-trip journal summaries (small selects). */
+    private fun loadJournalPreviews(trips: List<Trip>) {
+        viewModelScope.launch {
+            kotlinx.coroutines.coroutineScope {
+                trips.forEach { trip ->
+                    launch {
+                        val entries = tripRepo.listEntries(trip.id).getOrNull().orEmpty()
+                        _journalPreviews.value = _journalPreviews.value + (
+                            trip.id to JournalPreview(
+                                entryCount = entries.size,
+                                latestTitle = entries.lastOrNull()?.title,
+                                latestDate = entries.lastOrNull()?.entryDate,
+                            )
+                            )
+                    }
+                }
+            }
         }
     }
 

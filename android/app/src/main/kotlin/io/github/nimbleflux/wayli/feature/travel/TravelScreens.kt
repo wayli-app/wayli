@@ -21,7 +21,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -176,10 +178,15 @@ fun TripsListScreen(
                         ) {
                             item { Spacer(Modifier.height(8.dp)) }
                             items(state.trips, key = { it.id }) { trip ->
-                                TripCard(trip = trip, onClick = {
-                                    viewModel.selectTrip(trip)
-                                    onTripClick(trip)
-                                })
+                                val preview by viewModel.journalPreviews.collectAsState()
+                                TripCard(
+                                    trip = trip,
+                                    journalPreview = preview[trip.id],
+                                    onClick = {
+                                        viewModel.selectTrip(trip)
+                                        onTripClick(trip)
+                                    },
+                                )
                             }
                             item { Spacer(Modifier.height(80.dp)) }
                         }
@@ -213,7 +220,7 @@ private fun TripCardSkeleton() {
  * Trip card — compact, tappable card showing the trip's key info.
  */
 @Composable
-private fun TripCard(trip: Trip, onClick: () -> Unit) {
+private fun TripCard(trip: Trip, journalPreview: JournalPreview? = null, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -279,6 +286,38 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
                     )
                 }
 
+                // Journal summary — merges the old Journals tab into Travel.
+                journalPreview?.let { preview ->
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.AutoStories,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        if (preview.entryCount > 0 && preview.latestTitle != null) {
+                            Text(
+                                "${preview.latestTitle} · ${preview.entryCount} " +
+                                    if (preview.entryCount == 1) "entry" else "entries",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                        } else {
+                            Text(
+                                "No entries yet",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
                 trip.description?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -302,20 +341,18 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
 @Composable
 fun TripDetailScreen(
     onBack: () -> Unit,
+    onOpenEditor: (entry: TripEntry?) -> Unit,
+    onOpenDraft: (draft: io.github.nimbleflux.wayli.repo.EntryDraft) -> Unit,
     viewModel: TripDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
     val entries by viewModel.entries.collectAsState()
-    val entryError by viewModel.entryError.collectAsState()
-    var showAdd by remember { mutableStateOf(false) }
+    val drafts by viewModel.drafts.collectAsState()
     val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
 
-    LaunchedEffect(entryError) {
-        entryError?.let {
-            snackbar.showSnackbar(it)
-            viewModel.clearEntryError()
-        }
-    }
+    // Re-check drafts whenever the screen (re)appears — the editor may have
+    // auto-saved one while we were away.
+    LaunchedEffect(Unit) { viewModel.refreshDrafts() }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -336,7 +373,7 @@ fun TripDetailScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showAdd = true },
+                onClick = { onOpenEditor(null) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
@@ -367,7 +404,16 @@ fun TripDetailScreen(
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     }
-                    if (entries.isEmpty()) {
+                    drafts.forEach { draft ->
+                        item(key = "draft-${draft.id}") {
+                            DraftCard(
+                                title = draft.title.ifBlank { "Untitled draft" },
+                                pendingSync = draft.pendingSync,
+                                onEdit = { onOpenDraft(draft) },
+                            )
+                        }
+                    }
+                    if (entries.isEmpty() && drafts.isEmpty()) {
                         item {
                             Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
                                 Text(
@@ -378,68 +424,72 @@ fun TripDetailScreen(
                             }
                         }
                     } else {
-                        items(entries, key = { it.id }) { entry -> JournalEntryCard(entry) }
+                        items(entries, key = { it.id }) { entry ->
+                            JournalEntryCard(entry = entry, onClick = { onOpenEditor(entry) })
+                        }
                     }
                     item { Spacer(Modifier.height(24.dp)) }
                 }
             }
         }
     }
-
-    if (showAdd) {
-        AddEntrySheet(
-            onDismiss = { showAdd = false },
-            onAdd = { title, date, body ->
-                viewModel.addEntry(title, date, body)
-                showAdd = false
-            },
-        )
-    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddEntrySheet(
-    onDismiss: () -> Unit,
-    onAdd: (title: String, entryDate: String, body: String?) -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState()
-    var title by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf(java.time.LocalDate.now().toString()) }
-    var body by remember { mutableStateOf("") }
+private fun AssistChipDraft(label: String, onClick: () -> Unit) {
+    androidx.compose.material3.AssistChip(
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+    )
+}
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+/** A locally saved draft: title + "Draft" label + edit button. */
+@Composable
+private fun DraftCard(
+    title: String,
+    pendingSync: Boolean,
+    onEdit: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("New journal entry", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = date,
-                onValueChange = { date = it },
-                label = { Text("Date (YYYY-MM-DD)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = body,
-                onValueChange = { body = it },
-                label = { Text("Entry") },
-                modifier = Modifier.fillMaxWidth().height(120.dp),
-            )
-            Button(
-                onClick = { if (title.isNotBlank()) onAdd(title.trim(), date.trim(), body.ifBlank { null }) },
-                enabled = title.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Add entry") }
-            Spacer(Modifier.height(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.size(8.dp))
+                    androidx.compose.material3.Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    ) {
+                        Text(
+                            if (pendingSync) "Draft · online pending" else "Draft",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+            androidx.compose.material3.IconButton(onClick = onEdit) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit draft", tint = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }
@@ -483,9 +533,9 @@ private fun TripMapCard(track: List<Pair<Double, Double>>) {
 }
 
 @Composable
-private fun JournalEntryCard(entry: TripEntry) {
+private fun JournalEntryCard(entry: TripEntry, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {

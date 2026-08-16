@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +40,6 @@ import io.github.nimbleflux.wayli.auth.SignUpScreen
 import io.github.nimbleflux.wayli.auth.TwoFactorScreen
 import io.github.nimbleflux.wayli.designsystem.WayliBottomBar
 import io.github.nimbleflux.wayli.designsystem.WayliTab
-import io.github.nimbleflux.wayli.feature.journals.JournalsScreen
 import io.github.nimbleflux.wayli.feature.history.HistoryScreen
 import io.github.nimbleflux.wayli.feature.home.HomeScreen
 import io.github.nimbleflux.wayli.feature.settings.AdminMaintenanceScreen
@@ -73,13 +74,13 @@ object Routes {
     // Tab routes
     const val MAP = "map" // The first tab is the Home dashboard (route name kept for continuity)
     const val TRAVEL = "travel"
-    const val JOURNALS = "journals"
     const val WISHLIST = "wishlist"
     const val SETTINGS = "settings"
 
     // Pushed screens
     const val LIVE_TRACKING = "live_tracking"
     const val TRIP_DETAIL = "trip_detail/{tripId}"
+    const val ENTRY_EDITOR = "entry_editor/{tripId}?entryId={entryId}&draftId={draftId}"
     const val STATS = "stats"
     const val HISTORY = "history"
     const val TRACKING_SETTINGS = "tracking_settings"
@@ -98,7 +99,6 @@ object Routes {
 private val tabs = listOf(
     WayliTab(Routes.MAP, "Home", Icons.Filled.Home),
     WayliTab(Routes.TRAVEL, "Travel", Icons.Filled.TravelExplore),
-    WayliTab(Routes.JOURNALS, "Journals", Icons.Filled.AutoStories),
     WayliTab(Routes.WISHLIST, "Wishlist", Icons.Filled.Star),
     WayliTab(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
 )
@@ -291,9 +291,6 @@ fun WayliNavHost() {
                     onNewTrip = {},
                 )
             }
-            composable(Routes.JOURNALS) {
-                JournalsScreen(onOpenTrip = { tripId -> navController.navigate("trip_detail/$tripId") })
-            }
             composable(Routes.WISHLIST) {
                 WishlistScreen(
                     places = if (viewModel.isDemoMode) {
@@ -341,8 +338,66 @@ fun WayliNavHost() {
             composable(
                 route = Routes.TRIP_DETAIL,
                 arguments = listOf(navArgument("tripId") { type = NavType.StringType }),
+            ) { entry ->
+                val detailVm: io.github.nimbleflux.wayli.feature.travel.TripDetailViewModel =
+                    androidx.hilt.navigation.compose.hiltViewModel(entry)
+
+                // Apply the editor's save result when we come back to this entry.
+                val entrySaved by entry.savedStateHandle
+                    .getStateFlow("entry_saved", false)
+                    .collectAsState()
+                LaunchedEffect(entrySaved) {
+                    if (entrySaved) {
+                        entry.savedStateHandle["entry_saved"] = false
+                        val saved = io.github.nimbleflux.wayli.feature.travel.EntryEditorResultCache.entry
+                        io.github.nimbleflux.wayli.feature.travel.EntryEditorResultCache.entry = null
+                        detailVm.applyEditorResult(saved)
+                    }
+                }
+
+                TripDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenDraft = { draft ->
+                        navController.navigate("entry_editor/${detailVm.tripId}?draftId=${draft.id}")
+                    },
+                    onOpenEditor = { journalEntry ->
+                        journalEntry?.let {
+                            io.github.nimbleflux.wayli.feature.travel.EntryEditorInputCache.entry = it
+                        }
+                        val target = journalEntry?.id
+                        navController.navigate(
+                            if (target != null) {
+                                "entry_editor/${detailVm.tripId}?entryId=$target"
+                            } else {
+                                "entry_editor/${detailVm.tripId}"
+                            },
+                        )
+                    },
+                    viewModel = detailVm,
+                )
+            }
+            composable(
+                route = Routes.ENTRY_EDITOR,
+                arguments = listOf(
+                    navArgument("tripId") { type = NavType.StringType },
+                    navArgument("entryId") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("draftId") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
             ) {
-                TripDetailScreen(onBack = { navController.popBackStack() })
+                io.github.nimbleflux.wayli.feature.travel.EntryEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle?.set("entry_saved", true)
+                        navController.popBackStack()
+                    },
+                )
             }
             composable(Routes.STATS) {
                 StatsScreen(
