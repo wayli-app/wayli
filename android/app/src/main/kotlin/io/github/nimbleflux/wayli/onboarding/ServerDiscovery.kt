@@ -39,6 +39,15 @@ object ServerDiscovery {
             value.startsWith("127.") ||
             Regex("^\\d{1,3}(\\.\\d{1,3}){3}(:\\d+)?").matches(value)
 
+    /**
+     * True when the body is a JSON object. Used to tell a real Fluxbase API
+     * apart from a Wayli web origin: the SPA fallback answers 200 + HTML for
+     * every path (including /health), but never JSON for /api/v1/auth/config.
+     */
+    fun isJsonObject(body: String): Boolean = runCatching {
+        kotlinx.serialization.json.Json.parseToJsonElement(body) is kotlinx.serialization.json.JsonObject
+    }.getOrDefault(false)
+
     /** True for unsubstituted runtime placeholders ("{{FLUXBASE_...}}"). */
     fun isPlaceholder(value: String): Boolean = value.startsWith("{{") || value.isBlank()
 
