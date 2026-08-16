@@ -245,6 +245,13 @@ fun WayliNavHost() {
                     },
                     onNeed2FA = { userId -> navController.navigate("two_factor/$userId") },
                     onSignUp = { navController.navigate(Routes.SIGN_UP) },
+                    serverUrl = viewModel.instanceUrl,
+                    onChangeServer = {
+                        viewModel.reconfigureServer()
+                        navController.navigate(Routes.INSTANCE_SETUP) {
+                            popUpTo(Routes.MAP) { inclusive = true }
+                        }
+                    },
                     onForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 )
             }
