@@ -48,7 +48,7 @@ val gprToken = providers.gradleProperty("gpr.key").orNull
 
 if (
     providers.gradleProperty("useLocalSdk").isPresent ||
-    (gprUser == null || gprToken == null)
+    ((gprUser == null || gprToken == null) && file("../../fluxbase/sdk-kotlin").exists())
 ) {
     println(
         "wayli: using LOCAL fluxbase-kotlin source (../../fluxbase/sdk-kotlin). " +
