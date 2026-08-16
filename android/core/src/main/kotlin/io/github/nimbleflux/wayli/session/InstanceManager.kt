@@ -27,14 +27,16 @@ class InstanceManager(context: Context) {
     }
 
     fun setConfig(url: String, anonKey: String) {
+        // commit() (synchronous): onboarding restarts the process right
+        // after this — apply()'s async write can be lost to the kill.
         prefs.edit()
             .putString(KEY_URL, url.trimEnd('/'))
             .putString(KEY_ANON_KEY, anonKey)
-            .apply()
+            .commit()
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit().clear().commit()
     }
 
     val isConfigured: Boolean get() = getConfig() != null
