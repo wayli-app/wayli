@@ -963,14 +963,17 @@
 					const lon = parseFloat(point.lon);
 
 					if (!isNaN(lat) && !isNaN(lon)) {
-						// Create circle marker
+						// Create circle marker. bubblingMouseEvents: false keeps the
+						// click from also firing the map's click handler, which
+						// would immediately deselect the point again.
 						const marker = L.circleMarker([lat, lon], {
 							radius: 4,
 							fillColor: color,
 							color: color,
 							weight: 1,
 							opacity: 0.8,
-							fillOpacity: 0.6
+							fillOpacity: 0.6,
+							bubblingMouseEvents: false
 						});
 
 						// Add click handler: select the whole segment this point
