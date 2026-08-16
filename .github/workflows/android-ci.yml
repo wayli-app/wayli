@@ -56,11 +56,12 @@ jobs:
       needs.changes.outputs.source == 'true' ||
       needs.changes.outputs.ci-config == 'true'
     runs-on: ubuntu-latest
+    env:
+      # fluxbase-kotlin resolves from GitHub Packages; settings.gradle.kts
+      # reads GITHUB_ACTOR/GITHUB_TOKEN from the environment.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Fetch the fluxbase repo too for the composite build
-          submodules: false
 
       - name: Setup JDK 21
         uses: actions/setup-java@v4
