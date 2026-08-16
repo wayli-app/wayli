@@ -1,4 +1,4 @@
 {
-	"fluxbaseUrl": "{{FLUXBASE_PUBLIC_BASE_URL}}",
-	"anonKey": "{{FLUXBASE_ANON_KEY}}"
+  "fluxbaseUrl": "{{FLUXBASE_PUBLIC_BASE_URL}}",
+  "anonKey": "{{FLUXBASE_ANON_KEY}}"
 }

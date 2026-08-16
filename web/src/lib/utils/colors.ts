@@ -26,7 +26,7 @@ export const TRANSPORT_MODE_COLORS: Record<string, string> = {
 	cycling: '#ea580c', // orange — warm, distinct from walking's green
 	walking: '#16a34a', // green — matches --success token
 	stationary: '#6b7280', // grey — low activity, muted
-	unknown: '#6b7280', // grey — fallback (same as stationary)
+	unknown: '#6b7280' // grey — fallback (same as stationary)
 } as const;
 
 /**
@@ -42,7 +42,7 @@ export const PLAN_CATEGORY_COLORS: Record<string, string> = {
 	transport: '#8b5cf6',
 	accommodation: '#ec4899',
 	rest: '#6b7280',
-	shopping: '#14b8a6',
+	shopping: '#14b8a6'
 } as const;
 
 /**
@@ -59,7 +59,7 @@ export const MAP_COLORS = {
 	highlight: '#233869', // Wayli navy — highlight overlay
 	homeMarker: '#3b82f6', // home address marker
 	visitedCountry: '#3b82f6', // WorldMap visited country fill
-	border: '#1d4ed8', // WorldMap border
+	border: '#1d4ed8' // WorldMap border
 } as const;
 
 /**
