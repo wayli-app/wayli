@@ -1384,6 +1384,7 @@
 		"tavilyKeyMasked": "구성됨(마스크됨)",
 		"tavilyKeyPlaceholder": "티비리-...",
 		"tavilySaveFailed": "Tavily 구성을 저장하지 못했습니다.",
+		"tavilyLoadFailed": "기존 Tavily 통합을 확인하지 못했습니다.",
 		"tavilySaved": "Tavily 구성이 저장되었습니다.",
 		"tavilySaving": "절약...",
 		"tavilyTest": "연결 테스트",

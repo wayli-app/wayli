@@ -37,6 +37,7 @@
 	import UserEditModal from '$lib/components/UserEditModal.svelte';
 	import { ensureStorageBuckets } from '$lib/services/bucket-ensure.service';
 	import { translate } from '$lib/i18n';
+	import { customValue } from '$lib/utils/custom-settings';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { sessionStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
@@ -430,7 +431,33 @@
 	// ponytail: Tavily config stored in Fluxbase's ai.tool_integrations table
 	// (not app.settings secret) because the supervisor's web agent reads the
 	// key from there — app.settings secrets aren't visible to the supervisor.
-	async function saveTavily() {
+
+	// Resolve the existing Tavily web_search integration, if any. Throws on
+	// transport/server errors so callers can surface them.
+	async function findTavilyIntegration(): Promise<any | null> {
+		const { data: integrations, error } = await fluxbase.admin.ai.listIntegrations({
+			integration_type: 'web_search' as any
+		});
+		if (error) throw error;
+		return (integrations ?? []).find((i: any) => i.provider === 'tavily') ?? null;
+	}
+
+	function isDuplicateIntegrationError(error: any): boolean {
+		const msg = String(error?.message ?? error ?? '');
+		return (
+			msg.includes('23505') ||
+			msg.includes('duplicate key') ||
+			msg.includes('tool_integrations_name_key')
+		);
+	}
+
+	async function updateTavilyIntegration(id: string, config: Record<string, string>) {
+		const { data, error } = await fluxbase.admin.ai.updateIntegration(id, { config });
+		if (error) throw error;
+		if (data) tavilyIntegration = data;
+	}
+
+	async function saveTavily(): Promise<boolean> {
 		tavilySaving = true;
 		tavilyTestResult = null;
 		try {
@@ -444,12 +471,20 @@
 				config.api_key = tavilyApiKey.trim();
 			}
 
+			// The page load may not have finished (or its lookup failed) when
+			// the user saves. Resolve the integration fresh so an existing row
+			// is updated instead of re-created — create would hit the global
+			// unique-name constraint on ai.tool_integrations.
+			if (!tavilyIntegration?.id) {
+				try {
+					tavilyIntegration = await findTavilyIntegration();
+				} catch (e) {
+					console.warn('Failed to look up existing Tavily integration before save:', e);
+				}
+			}
+
 			if (tavilyIntegration?.id) {
-				const { data, error } = await fluxbase.admin.ai.updateIntegration(tavilyIntegration.id, {
-					config
-				});
-				if (error) throw error;
-				if (data) tavilyIntegration = data;
+				await updateTavilyIntegration(tavilyIntegration.id, config);
 			} else {
 				if (!config.api_key) {
 					throw new Error('API key is required when creating the integration');
@@ -460,23 +495,41 @@
 				// the SDK type doesn't expose the field — cast to any.
 				const { data: userData } = await fluxbase.auth.getUser();
 				const userId = userData?.user?.id;
-				const { data, error } = await fluxbase.admin.ai.createIntegration({
-					name: 'Tavily',
-					integration_type: 'web_search' as any,
-					provider: 'tavily' as any,
-					config,
-					enabled: true,
-					is_default: true,
-					...(userId ? { created_by: userId } : {})
-				} as any);
-				if (error) throw error;
-				if (data) tavilyIntegration = data;
+				try {
+					const { data, error } = await fluxbase.admin.ai.createIntegration({
+						name: 'Tavily',
+						integration_type: 'web_search' as any,
+						provider: 'tavily' as any,
+						config,
+						enabled: true,
+						is_default: true,
+						...(userId ? { created_by: userId } : {})
+					} as any);
+					if (error) throw error;
+					if (data) tavilyIntegration = data;
+				} catch (createError: any) {
+					// The row exists but wasn't visible to the earlier lookup
+					// (e.g. it was created moments ago). Resolve and update it
+					// instead of failing the save.
+					if (isDuplicateIntegrationError(createError)) {
+						const existing = await findTavilyIntegration();
+						if (existing?.id) {
+							await updateTavilyIntegration(existing.id, config);
+							tavilyApiKey = '';
+							toast.success(t('serverAdmin.tavilySaved'));
+							return true;
+						}
+					}
+					throw createError;
+				}
 			}
 			tavilyApiKey = '';
 			toast.success(t('serverAdmin.tavilySaved'));
+			return true;
 		} catch (error: any) {
 			console.error('Failed to save Tavily config:', error);
 			toast.error(t('serverAdmin.tavilySaveFailed'), { description: error?.message });
+			return false;
 		} finally {
 			tavilySaving = false;
 		}
@@ -1431,14 +1484,16 @@
 			}
 		}
 
-		// Custom Wayli settings
-		serverName = custom['wayli.server_name']?.value || '';
+		// Custom Wayli settings — `custom` is a raw key → value map (see
+		// WayliCustomSettings); customValue() also tolerates legacy wrapped
+		// shapes in case an older endpoint ever serves them again.
+		serverName = customValue<string>(custom, 'wayli.server_name', '') || '';
 
 		// Note: Auth settings (enableSignup, requireEmailVerification, disablePasswordLogin)
 		// are loaded above from fluxbase.admin.oauth.authSettings.get()
 
 		// Load Pexels rate limit (0 = unlimited)
-		const loadedRateLimit = custom['wayli.pexels_rate_limit']?.value ?? 200;
+		const loadedRateLimit = customValue<number>(custom, 'wayli.pexels_rate_limit', 200) ?? 200;
 		if (loadedRateLimit === 0) {
 			pexelsRateLimitEnabled = false;
 			pexelsRateLimit = 200; // Default value for when re-enabled
@@ -1448,10 +1503,14 @@
 		}
 
 		// Load Pelias endpoint
-		peliasEndpoint = custom['wayli.pelias_endpoint']?.value || 'https://pelias.wayli.app';
+		peliasEndpoint =
+			customValue<string>(custom, 'wayli.pelias_endpoint', 'https://pelias.wayli.app') ||
+			'https://pelias.wayli.app';
 
 		// Load Valhalla endpoint
-		valhallaEndpoint = custom['wayli.valhalla_endpoint']?.value || 'https://valhalla.wayli.app';
+		valhallaEndpoint =
+			customValue<string>(custom, 'wayli.valhalla_endpoint', 'https://valhalla.wayli.app') ||
+			'https://valhalla.wayli.app';
 
 		// Load Pexels API key secret metadata (value is not returned)
 		if (result.secrets?.pexels_api_key) {
@@ -1464,19 +1523,17 @@
 
 		// Load Tavily integration (Fluxbase ai.tool_integrations)
 		try {
-			const { data: integrations, error: ie } = await fluxbase.admin.ai.listIntegrations({
-				integration_type: 'web_search' as any
-			});
-			if (!ie && integrations) {
-				const existing = integrations.find((i: any) => i.provider === 'tavily') ?? null;
-				tavilyIntegration = existing;
-				if (existing) {
-					tavilyBaseURL = existing.config?.base_url || 'https://api.tavily.com';
-					tavilyDepth = (existing.config?.default_depth as 'basic' | 'advanced') || 'basic';
-				}
+			const existing = await findTavilyIntegration();
+			tavilyIntegration = existing;
+			if (existing) {
+				tavilyBaseURL = existing.config?.base_url || 'https://api.tavily.com';
+				tavilyDepth = (existing.config?.default_depth as 'basic' | 'advanced') || 'basic';
 			}
-		} catch (err) {
+		} catch (err: any) {
+			// Surface this: a silently failed lookup makes saving fall back to
+			// "create", which then fails on the unique-name constraint.
 			console.warn('Failed to load Tavily integration:', err);
+			toast.warning(t('serverAdmin.tavilyLoadFailed'), { description: err?.message });
 		}
 
 		console.log('✅ Settings loaded successfully');
@@ -1486,19 +1543,13 @@
 
 		// Load landing redirect + community settings from the already-fetched
 		// `custom` map (getAllSettings above) instead of two extra per-key
-		// requests that 404 on a fresh install. Values are stored as
-		// { value: <v> }; tolerate both the wrapped and raw shapes.
-		const redirectEntry = custom['wayli.landing_redirect_username'] as any;
-		const redirectUser =
-			typeof redirectEntry === 'string'
-				? redirectEntry
-				: (redirectEntry?.value ?? redirectEntry?.data?.value ?? null);
+		// requests that 404 on a fresh install.
+		const redirectUser = customValue<string>(custom, 'wayli.landing_redirect_username');
 		if (redirectUser && typeof redirectUser === 'string' && redirectUser.trim()) {
 			landingRedirectUsername = redirectUser.trim();
 		}
 
-		const commEntry = custom['wayli.community_enabled'] as any;
-		const commVal = typeof commEntry === 'object' && commEntry ? commEntry.value : commEntry;
+		const commVal = customValue(custom, 'wayli.community_enabled');
 		communityEnabled = !(commVal === false || commVal === 'false');
 
 		// Load users independently (not blocked by settings errors)
@@ -1581,10 +1632,10 @@
 			{ label: 'Landing redirect', ok: false },
 			{ label: 'Community', ok: false }
 		];
-		const run = async (fn: () => Promise<void>, idx: number) => {
+		const run = async (fn: () => Promise<boolean | void>, idx: number) => {
 			try {
-				await fn();
-				steps[idx].ok = true;
+				const ok = await fn();
+				steps[idx].ok = ok !== false;
 			} catch {
 				steps[idx].ok = false;
 			}

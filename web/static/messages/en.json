@@ -1387,6 +1387,7 @@
     "tavilyTestFail": "Tavily test failed",
     "tavilySaved": "Tavily configuration saved",
     "tavilySaveFailed": "Failed to save Tavily configuration",
+    "tavilyLoadFailed": "Could not check the existing Tavily integration",
     "tavilyKeyCleared": "API key cleared",
     "tavilyClearKey": "Clear API key",
     "tavilyClearing": "Clearing...",

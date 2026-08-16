@@ -1384,6 +1384,7 @@
 		"tavilyKeyMasked": "設定済み (マスク済み)",
 		"tavilyKeyPlaceholder": "テレビで...",
 		"tavilySaveFailed": "Tavily 構成の保存に失敗しました",
+		"tavilyLoadFailed": "既存のTavily統合を確認できませんでした",
 		"tavilySaved": "Tavily 設定が保存されました",
 		"tavilySaving": "保存中...",
 		"tavilyTest": "テスト接続",
