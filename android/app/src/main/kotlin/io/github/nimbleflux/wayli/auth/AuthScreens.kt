@@ -87,6 +87,8 @@ fun SignInScreen(
     onNeed2FA: (String) -> Unit,
     onSignUp: () -> Unit,
     onForgotPassword: () -> Unit,
+    serverUrl: String? = null,
+    onChangeServer: () -> Unit = {},
     viewModel: AuthViewModel = hiltViewModel(),
 ) {
     var email by mutableStateOf("")
@@ -182,6 +184,19 @@ fun SignInScreen(
         Spacer(Modifier.height(4.dp))
         TextButton(onClick = onSignUp) {
             Text("Create account", style = MaterialTheme.typography.labelLarge)
+        }
+
+        // Which server am I signing in to + escape hatch back to setup.
+        if (serverUrl != null) {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                "Server: " + (runCatching { java.net.URI(serverUrl).host }.getOrNull() ?: serverUrl),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TextButton(onClick = onChangeServer) {
+                Text("Change server", style = MaterialTheme.typography.labelMedium)
+            }
         }
     }
 }
