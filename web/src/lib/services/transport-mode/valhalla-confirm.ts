@@ -12,7 +12,11 @@
 import { segmentByGaps, SEGMENT_GAP_MS } from './segmentation';
 import type { ModeObservation, PointModeDecision } from './types';
 import type { TransportMode } from './states';
-import type { ValhallaCosting, ValhallaTracePoint, ValhallaTraceResult } from '../external/valhalla.service';
+import type {
+	ValhallaCosting,
+	ValhallaTracePoint,
+	ValhallaTraceResult
+} from '../external/valhalla.service';
 import { modeFromEdges } from './valhalla-mapping';
 
 /** Injectable Valhalla client (for tests). */
@@ -73,8 +77,7 @@ export async function confirmWithValhalla(
 	for (const idxs of segmentIdxGroups) {
 		if (idxs.length < 3) continue; // too short to match meaningfully
 		const first = decisions[idxs[0]];
-		const needsConfirm =
-			AMBIGUOUS_MODES.has(first.mode) || first.confidence < CONFIDENCE_THRESHOLD;
+		const needsConfirm = AMBIGUOUS_MODES.has(first.mode) || first.confidence < CONFIDENCE_THRESHOLD;
 		if (needsConfirm) toConfirm.push(idxs);
 	}
 
@@ -100,6 +103,7 @@ export async function confirmWithValhalla(
 				lon: o.lng,
 				timestamp: o.timestamp
 			}));
+			// oxlint-disable-next-line no-await-in-loop -- sequential per-segment API calls avoid request bursts
 			const trace = await valhalla.traceAttributes(points, costing);
 
 			if (!trace.matched || trace.edges.length === 0) continue; // no match — keep Stage-1

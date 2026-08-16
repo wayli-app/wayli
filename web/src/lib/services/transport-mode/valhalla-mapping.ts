@@ -37,12 +37,14 @@ const HIGH_SPEED_CLASSES = new Set(['motorway', 'trunk']);
  * 4. high-speed road class + speed > 60 km/h majority → car
  * 5. otherwise → null (inconclusive, keep Stage-1)
  */
+// Weight by edge length (km); fall back to 1.0 when length is missing so
+// every edge counts equally.
+const weightOf = (e: ValhallaEdge): number =>
+	typeof e.length === 'number' && e.length > 0 ? e.length : 1;
+
 export function modeFromEdges(edges: ValhallaEdge[]): ValhallaModeVerdict | null {
 	if (edges.length === 0) return null;
 
-	// Weight by edge length (km); fall back to 1.0 when length is missing so
-	// every edge counts equally.
-	const weightOf = (e: ValhallaEdge): number => (typeof e.length === 'number' && e.length > 0 ? e.length : 1);
 	const totalWeight = edges.reduce((sum, e) => sum + weightOf(e), 0);
 
 	const weightedCount = (predicate: (e: ValhallaEdge) => boolean): number =>
@@ -107,18 +109,17 @@ export function matchedDistanceMeters(edges: ValhallaEdge[]): number {
 }
 
 /** Collect the most frequent non-empty names from edges matching the predicate. */
-function dominantNames(edges: ValhallaEdge[], predicate: (e: ValhallaEdge) => boolean): string[] | undefined {
+function dominantNames(
+	edges: ValhallaEdge[],
+	predicate: (e: ValhallaEdge) => boolean
+): string[] | undefined {
 	const counts = new Map<string, number>();
 	for (const e of edges) {
 		if (!predicate(e)) continue;
 		for (const n of e.names ?? []) {
-			if (n) counts.set(n, (counts.get(n) ?? 0) + weightOfSafe(e));
+			if (n) counts.set(n, (counts.get(n) ?? 0) + weightOf(e));
 		}
 	}
-	const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+	const sorted = Array.from(counts.entries()).toSorted((a, b) => b[1] - a[1]);
 	return sorted.length > 0 ? sorted.slice(0, 2).map(([n]) => n) : undefined;
-}
-
-function weightOfSafe(e: ValhallaEdge): number {
-	return typeof e.length === 'number' && e.length > 0 ? e.length : 1;
 }

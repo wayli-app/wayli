@@ -201,6 +201,8 @@ export async function traceAttributes(
 		};
 
 		let lastError: Error | null = null;
+		/* oxlint-disable no-await-in-loop -- endpoint failover is inherently sequential:
+		   try each endpoint in turn until one succeeds. */
 		for (const ep of endpoints) {
 			try {
 				const response = await fetch(`${ep}/trace_attributes`, {
@@ -227,9 +229,10 @@ export async function traceAttributes(
 					length: e.length,
 					names: e.names
 				}));
-				const shape: Array<{ lat: number; lon: number }> = (json?.shape ?? []).map(
-					(s: any) => ({ lat: s.lat, lon: s.lon })
-				);
+				const shape: Array<{ lat: number; lon: number }> = (json?.shape ?? []).map((s: any) => ({
+					lat: s.lat,
+					lon: s.lon
+				}));
 
 				allEdges.push(...edges);
 				allShape.push(...shape);
@@ -241,6 +244,7 @@ export async function traceAttributes(
 				continue; // try next endpoint
 			}
 		}
+		/* oxlint-enable no-await-in-loop */
 		if (lastError) throw lastError;
 	}
 
@@ -248,6 +252,7 @@ export async function traceAttributes(
 }
 
 /** Test-only: reset the endpoint cache (for unit tests). */
+// oxlint-disable-next-line no-underscore-dangle -- underscore marks this export as test-only
 export function _resetEndpointCache(): void {
 	cachedEndpoint = null;
 }

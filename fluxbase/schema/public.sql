@@ -369,6 +369,12 @@ CREATE POLICY "Admin users have full access to daily activity" ON tracker_daily_
 CREATE POLICY "Service role has full access to daily activity" ON tracker_daily_activity TO service_role USING (true) WITH CHECK (true);
 
 --
+-- Name: Tenant service full access to daily activity; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Tenant service full access to daily activity" ON tracker_daily_activity TO tenant_service USING (true) WITH CHECK (true);
+
+--
 -- Name: Users can read own daily activity; Type: POLICY; Schema: -; Owner: -
 --
 
@@ -419,6 +425,12 @@ ALTER TABLE tracker_daily_activity_state ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY "Service role has full access to daily activity state" ON tracker_daily_activity_state TO service_role USING (true) WITH CHECK (true);
+
+--
+-- Name: Tenant service full access to daily activity state; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Tenant service full access to daily activity state" ON tracker_daily_activity_state TO tenant_service USING (true) WITH CHECK (true);
 
 --
 -- Name: Users can read own daily activity state; Type: POLICY; Schema: -; Owner: -
