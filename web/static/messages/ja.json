@@ -1390,7 +1390,14 @@
 		"tavilyTestFail": "タビリーのテストは失敗しました",
 		"tavilyTestOk": "Tavily 接続成功",
 		"tavilyTesting": "テスト中...",
-		"tavilyTitle": "ウェブ検索 (Tavily)"
+		"tavilyTitle": "ウェブ検索 (Tavily)",
+		"oauthRedirectUriAriaLabel": "リダイレクト URI {インデックス}",
+		"oauthRedirectUriPlaceholder": "https://your-domain.com/auth/callback または wayli://oauth/callback",
+		"oauthRedirectUriRemove": "リダイレクト URI {index} を削除します",
+		"oauthRedirectUrisAdd": "リダイレクトURIの追加",
+		"oauthRedirectUrisHint": "許可される OAuth コールバック URL。最初の URI はデフォルトであり、それぞれの URI もプロバイダーに登録する必要があります。モバイル サインイン用に、wayli://oauth/callback のようなアプリのディープ リンクを含めます。",
+		"oauthRedirectUrisLabel": "リダイレクト URI",
+		"oauthRedirectUrisRequired": "少なくとも 1 つのリダイレクト URI が必要です"
 	},
 	"wantToVisit": {
 		"addNewPlace": "新しい場所を追加",
@@ -1520,7 +1527,7 @@
 		"latitude": "緯度",
 		"loadFailed": "データポイントのロードに失敗しました",
 		"loadedOfTotal": "{loaded} 個がロードされました (合計 {total} 個中)",
-		"loadingPoints": "{count} ポイントを読み込み中...",
+		"loadingPoints": "{count} ポイントを読み込み中",
 		"loadingPointsIndeterminate": "ポイントを読み込み中…",
 		"longitude": "経度",
 		"minDistance": "最小距離 (メートル)",

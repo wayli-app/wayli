@@ -1386,7 +1386,14 @@
 		"tavilyTestFail": "Tavily-test mislukt",
 		"tavilyTestOk": "Tavily-verbinding succesvol",
 		"tavilyTesting": "Testen...",
-		"tavilyTitle": "Zoeken op internet (Tavily)"
+		"tavilyTitle": "Zoeken op internet (Tavily)",
+		"oauthRedirectUriAriaLabel": "Omleidings-URI {index}",
+		"oauthRedirectUriPlaceholder": "https://uw-domein.com/auth/callback of wayli://oauth/callback",
+		"oauthRedirectUriRemove": "Omleidings-URI {index} verwijderen",
+		"oauthRedirectUrisAdd": "Voeg omleidings-URI toe",
+		"oauthRedirectUrisHint": "Toegestane OAuth-callback-URL's. De eerste URI is de standaard en elke URI moet ook bij de provider worden geregistreerd. Voeg deep links voor apps toe, zoals wayli://oauth/callback voor mobiel inloggen.",
+		"oauthRedirectUrisLabel": "Omleidings-URI's",
+		"oauthRedirectUrisRequired": "Er is minimaal één omleidings-URI vereist"
 	},
 	"wantToVisit": {
 		"addNewPlace": "Nieuwe plaats toevoegen",
@@ -1516,7 +1523,7 @@
 		"latitude": "Breedte",
 		"loadFailed": "Kan gegevenspunten niet laden",
 		"loadedOfTotal": "{geladen} geladen (van {totaal} totaal)",
-		"loadingPoints": "{count} punten laden...",
+		"loadingPoints": "{count} punten laden",
 		"loadingPointsIndeterminate": "Punten laden…",
 		"longitude": "Lengte",
 		"minDistance": "Minimale afstand (meter)",

@@ -1386,7 +1386,14 @@
 		"tavilyTestFail": "La prueba de Tavily falló",
 		"tavilyTestOk": "Conexión Tavily exitosa",
 		"tavilyTesting": "Pruebas...",
-		"tavilyTitle": "Búsqueda web (Tavily)"
+		"tavilyTitle": "Búsqueda web (Tavily)",
+		"oauthRedirectUriAriaLabel": "URI de redireccionamiento {índice}",
+		"oauthRedirectUriPlaceholder": "https://tu-dominio.com/auth/callback o wayli://oauth/callback",
+		"oauthRedirectUriRemove": "Eliminar URI de redireccionamiento {índice}",
+		"oauthRedirectUrisAdd": "Agregar URI de redireccionamiento",
+		"oauthRedirectUrisHint": "URL de devolución de llamada de OAuth permitidas. El primer URI es el predeterminado y cada uno también debe registrarse con el proveedor. Incluya enlaces profundos de aplicaciones como wayli://oauth/callback para el inicio de sesión móvil.",
+		"oauthRedirectUrisLabel": "Redireccionar URI",
+		"oauthRedirectUrisRequired": "Se requiere al menos un URI de redireccionamiento"
 	},
 	"wantToVisit": {
 		"addNewPlace": "Agregar nuevo lugar",
@@ -1516,7 +1523,7 @@
 		"latitude": "Latitud",
 		"loadFailed": "No se pudieron cargar los puntos de datos",
 		"loadedOfTotal": "{cargado} cargado (de {total} total)",
-		"loadingPoints": "Cargando {count} puntos...",
+		"loadingPoints": "Cargando {count} puntos",
 		"loadingPointsIndeterminate": "Cargando puntos…",
 		"longitude": "Longitud",
 		"minDistance": "Distancia mínima (metros)",

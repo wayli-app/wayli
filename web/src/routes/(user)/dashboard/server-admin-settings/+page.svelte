@@ -113,6 +113,7 @@
 		enabled: boolean;
 		client_id: string;
 		redirect_url: string;
+		redirect_urls: string[];
 		scopes: string[];
 		is_custom: boolean;
 		authorization_url?: string;
@@ -130,6 +131,8 @@
 	let oauthFormEnabled = $state(true);
 	let oauthEditingId = $state<string | null>(null);
 	let showOAuthForm = $state(false);
+	// Allowed redirect URIs (web callback + app deep links); first entry is the default
+	let oauthFormRedirectUrls = $state<string[]>([]);
 	// Custom OAuth provider fields
 	let oauthFormCustomName = $state('');
 	let oauthFormDiscoveryUrl = $state('');
@@ -608,11 +611,18 @@
 			}
 		}
 
+		// Clean the redirect URI allowlist: trim, drop empties, dedupe (first entry = default)
+		const redirectUrls = oauthFormRedirectUrls
+			.map((url) => url.trim())
+			.filter((url) => url !== '')
+			.filter((url, index, all) => all.indexOf(url) === index);
+		if (redirectUrls.length === 0) {
+			toast.error(t('serverAdmin.oauthRedirectUrisRequired'));
+			return;
+		}
+
 		isSavingOAuth = true;
 		try {
-			const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-			const redirectUrl = `${baseUrl}/auth/callback`;
-
 			// Get scopes - use custom scopes for custom provider, defaults otherwise
 			const scopes = isCustomProvider
 				? oauthFormScopes.split(/[\s,]+/).filter(Boolean)
@@ -629,7 +639,7 @@
 					display_name: displayName,
 					client_id: oauthFormClientId,
 					client_secret: oauthFormClientSecret,
-					redirect_url: redirectUrl,
+					redirect_urls: redirectUrls,
 					scopes,
 					enabled: oauthFormEnabled
 				};
@@ -650,7 +660,7 @@
 					display_name: displayName,
 					client_id: oauthFormClientId,
 					client_secret: oauthFormClientSecret,
-					redirect_url: redirectUrl,
+					redirect_urls: redirectUrls,
 					scopes,
 					enabled: oauthFormEnabled,
 					is_custom: isCustomProvider,
@@ -714,6 +724,20 @@
 		oauthFormClientSecret = ''; // Never pre-fill secrets
 		oauthFormEnabled = provider.enabled;
 
+		// Load the stored redirect URI allowlist; ensure the web callback and
+		// the mobile deep link stay available even if they were removed earlier
+		const storedUrls =
+			provider.redirect_urls?.length > 0
+				? [...provider.redirect_urls]
+				: provider.redirect_url
+					? [provider.redirect_url]
+					: [];
+		const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+		const webCallback = `${baseUrl}/auth/callback`;
+		if (!storedUrls.includes(webCallback)) storedUrls.push(webCallback);
+		if (!storedUrls.includes('wayli://oauth/callback')) storedUrls.push('wayli://oauth/callback');
+		oauthFormRedirectUrls = storedUrls;
+
 		// Handle custom providers
 		if (provider.is_custom) {
 			oauthFormProvider = 'custom';
@@ -735,6 +759,26 @@
 		showOAuthForm = true;
 	}
 
+	// Default allowlist for new providers: the web callback plus the mobile deep link
+	function defaultOAuthRedirectUrls(): string[] {
+		const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+		return [`${baseUrl}/auth/callback`, 'wayli://oauth/callback'];
+	}
+
+	function openOAuthForm() {
+		resetOAuthForm();
+		showOAuthForm = true;
+	}
+
+	function addOAuthRedirectUrl() {
+		oauthFormRedirectUrls = [...oauthFormRedirectUrls, ''];
+	}
+
+	function removeOAuthRedirectUrl(index: number) {
+		if (oauthFormRedirectUrls.length <= 1) return;
+		oauthFormRedirectUrls = oauthFormRedirectUrls.filter((_, i) => i !== index);
+	}
+
 	function resetOAuthForm() {
 		oauthEditingId = null;
 		oauthFormProvider = 'google';
@@ -742,6 +786,7 @@
 		oauthFormClientId = '';
 		oauthFormClientSecret = '';
 		oauthFormEnabled = true;
+		oauthFormRedirectUrls = defaultOAuthRedirectUrls();
 		// Reset custom provider fields
 		oauthFormCustomName = '';
 		oauthFormDiscoveryUrl = '';
@@ -2841,6 +2886,51 @@
 									/>
 								</div>
 
+								<!-- Redirect URIs -->
+								<div>
+									<label
+										for="oauthRedirectUrl0"
+										class="text-muted-foreground block text-sm font-medium"
+									>
+										{t('serverAdmin.oauthRedirectUrisLabel')}
+									</label>
+									<div class="space-y-2">
+										{#each oauthFormRedirectUrls as url, index (index)}
+											<div class="flex items-center gap-2">
+												<Input
+													id="oauthRedirectUrl{index}"
+													type="text"
+													bind:value={oauthFormRedirectUrls[index]}
+													class="w-full font-mono text-xs"
+													placeholder={t('serverAdmin.oauthRedirectUriPlaceholder')}
+													aria-label={t('serverAdmin.oauthRedirectUriAriaLabel', {
+														index: index + 1
+													})}
+												/>
+												<button
+													type="button"
+													onclick={() => removeOAuthRedirectUrl(index)}
+													disabled={oauthFormRedirectUrls.length <= 1}
+													class="text-muted-foreground hover:text-foreground shrink-0 rounded-md p-2 disabled:cursor-not-allowed disabled:opacity-40"
+													aria-label={t('serverAdmin.oauthRedirectUriRemove', { index: index + 1 })}
+												>
+													<X class="h-4 w-4" />
+												</button>
+											</div>
+										{/each}
+										<button
+											type="button"
+											onclick={addOAuthRedirectUrl}
+											class="hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground w-full rounded-md border border-dashed border-gray-300 py-2 text-sm font-medium text-gray-600"
+										>
+											+ {t('serverAdmin.oauthRedirectUrisAdd')}
+										</button>
+									</div>
+									<p class="text-muted-foreground mt-1 text-xs">
+										{t('serverAdmin.oauthRedirectUrisHint')}
+									</p>
+								</div>
+
 								<div class="flex items-center justify-between">
 									<span class="text-muted-foreground text-sm">
 										{t('serverAdmin.oauthEnabled')}
@@ -2871,7 +2961,7 @@
 							</div>
 						{:else}
 							<button
-								onclick={() => (showOAuthForm = true)}
+								onclick={openOAuthForm}
 								class="hover:border-border dark:border-border dark:text-muted-foreground dark:hover:border-border hover:text-muted-foreground w-full rounded-md border border-dashed border-gray-300 py-3 text-sm font-medium text-gray-600"
 							>
 								+ {t('serverAdmin.addOAuthProvider')}
