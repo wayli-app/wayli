@@ -62,7 +62,11 @@
 
 			if (sampled.length > 1) {
 				const latlngs = sampled.map((p) => [p.lat, p.lng] as [number, number]);
-				mainPolyline = lib.polyline(latlngs, { color: MAP_COLORS.trackLine, weight: 4, opacity: 0.6 });
+				mainPolyline = lib.polyline(latlngs, {
+					color: MAP_COLORS.trackLine,
+					weight: 4,
+					opacity: 0.6
+				});
 				mainPolyline.addTo(ml);
 			}
 
