@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import io.github.nimbleflux.wayli.designsystem.DateRange
 import io.github.nimbleflux.wayli.designsystem.ErrorState
 import io.github.nimbleflux.wayli.designsystem.LoadingState
 import io.github.nimbleflux.wayli.designsystem.SectionHeader
@@ -75,13 +76,13 @@ import org.maplibre.android.geometry.LatLng
 @Composable
 fun HomeScreen(
     onStatsClick: () -> Unit,
-    onStartTracking: () -> Unit,
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
-    onHistory: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val track by viewModel.track.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
 
     Scaffold { padding ->
         when (val state = uiState) {
@@ -90,11 +91,12 @@ fun HomeScreen(
             is HomeUiState.Success -> HomeContent(
                 data = state.data,
                 isDemo = viewModel.isDemoMode,
+                track = track,
+                selectedRange = selectedRange,
+                onRangeSelected = viewModel::setRange,
                 onStatsClick = onStatsClick,
-                onStartTracking = onStartTracking,
                 onTripClick = onTripClick,
                 onWishlistClick = onWishlistClick,
-                onHistory = onHistory,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -105,11 +107,12 @@ fun HomeScreen(
 private fun HomeContent(
     data: HomeData,
     isDemo: Boolean,
+    track: List<Pair<Double, Double>>,
+    selectedRange: DateRange,
+    onRangeSelected: (DateRange) -> Unit,
     onStatsClick: () -> Unit,
-    onStartTracking: () -> Unit,
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
-    onHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recordingVm: RecordingViewModel = hiltViewModel()
@@ -169,6 +172,14 @@ private fun HomeContent(
     ) {
         item { HomeHeader(data) }
 
+        if (!isDemo) {
+            item {
+                io.github.nimbleflux.wayli.designsystem.DateRangeSelector(
+                    selected = selectedRange,
+                    onSelect = onRangeSelected,
+                )
+            }
+        }
         item { StatsCard(data.stats, isDemo = isDemo, onClick = onStatsClick) }
 
         item {
@@ -179,7 +190,7 @@ private fun HomeContent(
             )
         }
 
-        item { MapHeroCard(data = data, isDemo = isDemo, onStartTracking = onStartTracking, onHistory = onHistory) }
+        item { MapHeroCard(data = data, isDemo = isDemo, track = track) }
 
         item {
             SectionHeader(
@@ -305,11 +316,24 @@ private fun RecordingControl(isRecording: Boolean, onPause: () -> Unit, onResume
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val pulseAlpha by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (isRecording) 1f else 0f,
+                animationSpec = androidx.compose.animation.core.spring(
+                    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+                ),
+                label = "recordingPulse",
+            )
             Box(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline),
+                    .background(
+                        if (isRecording) {
+                            MaterialTheme.colorScheme.error.copy(alpha = pulseAlpha)
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                    ),
             )
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -334,7 +358,7 @@ private fun RecordingControl(isRecording: Boolean, onPause: () -> Unit, onResume
 }
 
 @Composable
-private fun MapHeroCard(data: HomeData, isDemo: Boolean, onStartTracking: () -> Unit, onHistory: () -> Unit) {
+private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double, Double>>) {
     val points = remember(isDemo, data.wishlist) {
         if (isDemo) {
             io.github.nimbleflux.wayli.demo.DemoData.homePoints
@@ -346,15 +370,9 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, onStartTracking: () -> 
             }
         }
     }
-    val tracks = remember(isDemo) {
-        if (isDemo) {
-            listOf(
-                MapTrack(
-                    points = io.github.nimbleflux.wayli.demo.DemoData.homeTrack.map { LatLng(it.first, it.second) },
-                    color = "#3b82f6",
-                    width = 5f,
-                ),
-            )
+    val tracks = remember(isDemo, track) {
+        if (track.size >= 2) {
+            listOf(MapTrack(points = track.map { LatLng(it.first, it.second) }, color = "#3b82f6", width = 5f))
         } else {
             emptyList()
         }
@@ -373,7 +391,7 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, onStartTracking: () -> 
             ) {
                 Text("Your journeys", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(
-                    if (isDemo) "Sample data" else "Live map",
+                    if (isDemo) "Sample data" else if (tracks.isEmpty()) "No trips yet" else "Your track",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -390,19 +408,6 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, onStartTracking: () -> 
                     points = points,
                     tracks = tracks,
                 )
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onStartTracking, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.Map, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Live map")
-                }
-                OutlinedButton(onClick = onHistory, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.History, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("History")
-                }
             }
         }
     }
