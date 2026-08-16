@@ -35,7 +35,7 @@ services:
   #     - fluxbase
   # ============================================================================
   fluxbase:
-    image: ghcr.io/nimbleflux/fluxbase:${FLUXBASE_VERSION:-2026.8.8-rc.6}
+    image: ghcr.io/nimbleflux/fluxbase:${FLUXBASE_VERSION:-2026.8.8-rc.7}
     container_name: fluxbase
     depends_on:
       postgres:
