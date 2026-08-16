@@ -2271,42 +2271,42 @@
 						</div>
 
 						<div>
-								<label for="peliasEndpoint" class="text-muted-foreground block text-sm font-medium">
-									Pelias Geocoding Endpoint
-								</label>
-								<Input
-									type="url"
-									id="peliasEndpoint"
-									bind:value={peliasEndpoint}
-									class="w-full"
-									placeholder={t('serverAdmin.peliasEndpointPlaceholder')}
-									pattern="https?://.+"
-									required
-								/>
-								<p class="text-muted-foreground mt-1 text-xs">
-									Geocoding service URL for address lookups and reverse geocoding
-								</p>
-							</div>
+							<label for="peliasEndpoint" class="text-muted-foreground block text-sm font-medium">
+								Pelias Geocoding Endpoint
+							</label>
+							<Input
+								type="url"
+								id="peliasEndpoint"
+								bind:value={peliasEndpoint}
+								class="w-full"
+								placeholder={t('serverAdmin.peliasEndpointPlaceholder')}
+								pattern="https?://.+"
+								required
+							/>
+							<p class="text-muted-foreground mt-1 text-xs">
+								Geocoding service URL for address lookups and reverse geocoding
+							</p>
+						</div>
 
-							<div>
-								<label for="valhallaEndpoint" class="text-muted-foreground block text-sm font-medium">
-									Valhalla Routing Endpoint
-								</label>
-								<Input
-									type="url"
-									id="valhallaEndpoint"
-									bind:value={valhallaEndpoint}
-									class="w-full"
-									placeholder="https://valhalla.wayli.app"
-									pattern="https?://.+"
-								/>
-								<p class="text-muted-foreground mt-1 text-xs">
-									Routing service URL for map-matching transport detection (used when a user
-									enables it in their preferences)
-								</p>
-							</div>
+						<div>
+							<label for="valhallaEndpoint" class="text-muted-foreground block text-sm font-medium">
+								Valhalla Routing Endpoint
+							</label>
+							<Input
+								type="url"
+								id="valhallaEndpoint"
+								bind:value={valhallaEndpoint}
+								class="w-full"
+								placeholder="https://valhalla.wayli.app"
+								pattern="https?://.+"
+							/>
+							<p class="text-muted-foreground mt-1 text-xs">
+								Routing service URL for map-matching transport detection (used when a user enables
+								it in their preferences)
+							</p>
+						</div>
 
-							<div class="flex justify-end">
+						<div class="flex justify-end">
 							<button
 								onclick={saveWayliSettings}
 								class="bg-primary hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium text-white"

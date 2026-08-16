@@ -2026,8 +2026,8 @@
 							class="border-border h-4 w-4 rounded"
 						/>
 						<span class="text-muted-foreground text-sm">
-							Improve transport mode detection with map matching (sends movement segments
-							to the routing server)
+							Improve transport mode detection with map matching (sends movement segments to the
+							routing server)
 						</span>
 					</label>
 				</div>

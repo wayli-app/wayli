@@ -101,7 +101,11 @@ describe('modeFromEdges', () => {
 
 describe('matchedDistanceMeters', () => {
 	test('sums edge lengths (km → meters)', () => {
-		const edges = [edge({ length: 2.5 }), edge({ length: 1.5 }), edge({ length: undefined as any })];
+		const edges = [
+			edge({ length: 2.5 }),
+			edge({ length: 1.5 }),
+			edge({ length: undefined as any })
+		];
 		expect(matchedDistanceMeters(edges)).toBe(4000);
 	});
 

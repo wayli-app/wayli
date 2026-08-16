@@ -129,15 +129,18 @@ describe('confirmWithValhalla', () => {
 		const decisions = [...seg1.decisions, ...seg2dec];
 
 		const mockClient: ValhallaClient = {
-			traceAttributes: vi.fn().mockResolvedValueOnce({
-				edges: [{ road_class: 'motorway', use: 'road', rail: false, speed: 110, length: 5 }],
-				shape: [],
-				matched: true
-			} satisfies ValhallaTraceResult).mockResolvedValueOnce({
-				edges: [{ road_class: 'primary', use: 'road', rail: true, length: 5 }],
-				shape: [],
-				matched: true
-			} satisfies ValhallaTraceResult)
+			traceAttributes: vi
+				.fn()
+				.mockResolvedValueOnce({
+					edges: [{ road_class: 'motorway', use: 'road', rail: false, speed: 110, length: 5 }],
+					shape: [],
+					matched: true
+				} satisfies ValhallaTraceResult)
+				.mockResolvedValueOnce({
+					edges: [{ road_class: 'primary', use: 'road', rail: true, length: 5 }],
+					shape: [],
+					matched: true
+				} satisfies ValhallaTraceResult)
 		};
 
 		const result = await confirmWithValhalla(observations, decisions, mockClient);
