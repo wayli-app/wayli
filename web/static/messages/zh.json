@@ -1390,7 +1390,14 @@
 		"tavilyTestFail": "塔维利测试失败",
 		"tavilyTestOk": "泰利连接成功",
 		"tavilyTesting": "测试...",
-		"tavilyTitle": "网络搜索（泰维利）"
+		"tavilyTitle": "网络搜索（泰维利）",
+		"oauthRedirectUriAriaLabel": "重定向 URI {索引}",
+		"oauthRedirectUriPlaceholder": "https://your-domain.com/auth/callback 或 wayli://oauth/callback",
+		"oauthRedirectUriRemove": "删除重定向 URI {index}",
+		"oauthRedirectUrisAdd": "添加重定向 URI",
+		"oauthRedirectUrisHint": "允许的 OAuth 回调 URL。第一个 URI 是默认的，每个 URI 都必须向提供者注册。包括用于移动登录的应用程序深层链接，例如 wayli://oauth/callback。",
+		"oauthRedirectUrisLabel": "重定向 URI",
+		"oauthRedirectUrisRequired": "至少需要一个重定向 URI"
 	},
 	"wantToVisit": {
 		"addNewPlace": "添加新地点",
@@ -1520,7 +1527,7 @@
 		"latitude": "纬度",
 		"loadFailed": "无法加载数据点",
 		"loadedOfTotal": "已加载 {loaded}（共 {total} 个）",
-		"loadingPoints": "正在加载 {count} 点...",
+		"loadingPoints": "正在加载 {count} 点",
 		"loadingPointsIndeterminate": "正在加载点…",
 		"longitude": "经度",
 		"minDistance": "最小距离（米）",

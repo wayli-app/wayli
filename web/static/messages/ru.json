@@ -1390,7 +1390,14 @@
 		"tavilyTestFail": "Тест Тавили не пройден",
 		"tavilyTestOk": "Соединение с Тавили выполнено успешно",
 		"tavilyTesting": "Тестирование...",
-		"tavilyTitle": "Веб-поиск (Тавили)"
+		"tavilyTitle": "Веб-поиск (Тавили)",
+		"oauthRedirectUriAriaLabel": "URI перенаправления {index}",
+		"oauthRedirectUriPlaceholder": "https://your-domain.com/auth/callback или wayli://oauth/callback",
+		"oauthRedirectUriRemove": "Удалить URI перенаправления {index}",
+		"oauthRedirectUrisAdd": "Добавить URI перенаправления",
+		"oauthRedirectUrisHint": "Разрешенные URL-адреса обратного вызова OAuth. Первый URI используется по умолчанию, и каждый из них также должен быть зарегистрирован у поставщика. Включите глубокие ссылки на приложение, например wayli://oauth/callback, для входа в систему с мобильных устройств.",
+		"oauthRedirectUrisLabel": "URI перенаправления",
+		"oauthRedirectUrisRequired": "Требуется хотя бы один URI перенаправления."
 	},
 	"wantToVisit": {
 		"addNewPlace": "Добавить новое место",
@@ -1520,7 +1527,7 @@
 		"latitude": "Широта",
 		"loadFailed": "Не удалось загрузить точки данных.",
 		"loadedOfTotal": "{loaded} загружено (из всего {total})",
-		"loadingPoints": "Загрузка точек: {count}...",
+		"loadingPoints": "Загрузка точек: {count}",
 		"loadingPointsIndeterminate": "Загрузка точек…",
 		"longitude": "Долгота",
 		"minDistance": "Минимальное расстояние (метры)",

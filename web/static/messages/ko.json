@@ -1390,7 +1390,14 @@
 		"tavilyTestFail": "Tavily 테스트 실패",
 		"tavilyTestOk": "Tavily 연결 성공",
 		"tavilyTesting": "테스트 중...",
-		"tavilyTitle": "웹 검색(Tavily)"
+		"tavilyTitle": "웹 검색(Tavily)",
+		"oauthRedirectUriAriaLabel": "리디렉션 URI {색인}",
+		"oauthRedirectUriPlaceholder": "https://your-domain.com/auth/callback 또는 wayli://oauth/callback",
+		"oauthRedirectUriRemove": "리디렉션 URI {index} 삭제",
+		"oauthRedirectUrisAdd": "리디렉션 URI 추가",
+		"oauthRedirectUrisHint": "OAuth 콜백 URL이 허용됩니다. 첫 번째 URI는 기본값이며 각 URI도 공급자에 등록해야 합니다. 모바일 로그인을 위해 wayli://oauth/callback과 같은 앱 딥 링크를 포함하세요.",
+		"oauthRedirectUrisLabel": "리디렉션 URI",
+		"oauthRedirectUrisRequired": "리디렉션 URI가 하나 이상 필요합니다."
 	},
 	"wantToVisit": {
 		"addNewPlace": "새 장소 추가",
@@ -1520,7 +1527,7 @@
 		"latitude": "위도",
 		"loadFailed": "데이터 포인트를 로드하지 못했습니다.",
 		"loadedOfTotal": "{loaded} 로드됨(총 {total}개 중)",
-		"loadingPoints": "{count}포인트 로드 중...",
+		"loadingPoints": "{count}포인트 로드 중",
 		"loadingPointsIndeterminate": "포인트 로드 중…",
 		"longitude": "경도",
 		"minDistance": "최소 거리(미터)",
