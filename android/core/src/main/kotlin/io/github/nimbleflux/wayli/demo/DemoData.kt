@@ -1,5 +1,6 @@
 package io.github.nimbleflux.wayli.demo
 
+import kotlinx.serialization.json.JsonPrimitive
 import io.github.nimbleflux.wayli.designsystem.map.MapPoint
 import io.github.nimbleflux.wayli.models.Notification
 import io.github.nimbleflux.wayli.models.Trip
@@ -145,7 +146,7 @@ object DemoData {
             id = "wish-1",
             userId = "demo-user",
             title = "Patagonia, Argentina",
-            location = "POINT(-72.8 -50.3)",
+            location = JsonPrimitive("POINT(-72.8 -50.3)"),
             address = "Patagonia, Argentina",
             countryCode = "AR",
             markerType = "mountain",
@@ -158,7 +159,7 @@ object DemoData {
             id = "wish-2",
             userId = "demo-user",
             title = "Marrakech, Morocco",
-            location = "POINT(-8.0 31.6)",
+            location = JsonPrimitive("POINT(-8.0 31.6)"),
             address = "Marrakech, Morocco",
             countryCode = "MA",
             markerType = "building",
@@ -170,7 +171,7 @@ object DemoData {
             id = "wish-3",
             userId = "demo-user",
             title = "Northern Lights, Iceland",
-            location = "POINT(-19.0 64.9)",
+            location = JsonPrimitive("POINT(-19.0 64.9)"),
             address = "Iceland",
             countryCode = "IS",
             markerType = "tree",
@@ -183,7 +184,7 @@ object DemoData {
             id = "wish-4",
             userId = "demo-user",
             title = "Kyoto Temples, Japan",
-            location = "POINT(135.8 35.0)",
+            location = JsonPrimitive("POINT(135.8 35.0)"),
             address = "Kyoto, Japan",
             countryCode = "JP",
             markerType = "building",
@@ -195,7 +196,7 @@ object DemoData {
             id = "wish-5",
             userId = "demo-user",
             title = "Santorini, Greece",
-            location = "POINT(25.5 36.4)",
+            location = JsonPrimitive("POINT(25.5 36.4)"),
             address = "Santorini, Greece",
             countryCode = "GR",
             markerType = "home",

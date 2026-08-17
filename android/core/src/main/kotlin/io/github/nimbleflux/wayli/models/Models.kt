@@ -155,7 +155,7 @@ data class WantToVisit(
     val id: String,
     @SerialName("user_id") val userId: String,
     val title: String,
-    val location: String, // PostGIS POINT
+    val location: JsonElement? = null, // GeoJSON Point object; WKT string in demo data
     val address: String? = null,
     @SerialName("country_code") val countryCode: String? = null,
     @SerialName("marker_type") val markerType: String = "default",
