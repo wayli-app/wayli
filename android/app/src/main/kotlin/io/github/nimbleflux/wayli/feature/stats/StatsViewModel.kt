@@ -27,6 +27,8 @@ data class StatsData(
     val dailyActivity: Map<String, Double>,
     /** Ordered (lat, lon) track for the activity map; null → hide the map card. */
     val track: List<Pair<Double, Double>>?,
+    /** True when the heatmap was derived from raw points, not the server cache. */
+    val dailyCacheEmpty: Boolean = false,
 )
 
 sealed interface StatsUiState {
@@ -101,13 +103,18 @@ class StatsViewModel @Inject constructor(
                 return@launch
             }
 
-            // Prefer the daily-activity cache; fall back to client-side totals
-            // from raw points when the cache hasn't been built yet (fresh
-            // instances — the web offers a "Build activity data" button there).
+            // Prefer the daily-activity cache; fall back to client-side
+            // aggregation from raw points when the cache hasn't been built
+            // yet (fresh instances) — for both totals and the heatmap.
             val totals = if (daily.isNotEmpty()) {
                 StatsAggregator.totalsFromDailyActivity(daily)
             } else {
                 StatsAggregator.totalsFromPoints(points)
+            }
+            val heatmap = if (daily.isNotEmpty()) {
+                StatsAggregator.dailyDistance(daily)
+            } else {
+                StatsAggregator.dailyDistanceFromPoints(points)
             }
             _state.value = StatsUiState.Success(
                 StatsData(
@@ -115,11 +122,47 @@ class StatsViewModel @Inject constructor(
                     countries = StatsAggregator.countries(points).toString(),
                     timeMovingHours = "%.0f".format(totals.timeMovingHours),
                     dataPoints = formatNumber(points.size.coerceAtLeast(totals.points)),
-                    modes = StatsAggregator.transportModeFractions(points),
-                    dailyActivity = StatsAggregator.dailyDistance(daily),
+                    modes = StatsAggregator.transportModeShares(points),
+                    dailyActivity = heatmap,
                     track = StatsAggregator.track(points).takeIf { it.size >= 2 },
+                    dailyCacheEmpty = daily.isEmpty(),
                 ),
             )
+        }
+    }
+
+    /** One-shot messages surfaced by the screen as snackbars. */
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
+
+    fun consumeMessage() {
+        _message.value = null
+    }
+
+    /**
+     * Queue the server-side daily-activity rebuild (web parity for its
+     * "Build activity data" button) — the job upserts tracker_daily_activity
+     * from tracker_data; refresh afterwards to see it.
+     */
+    fun buildActivityData() {
+        if (demoManager.isDemoMode) {
+            _message.value = "Demo data is already complete"
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _message.value = "Building activity data — this can take a minute"
+            val res = runCatching {
+                client.jobs.submit(
+                    "refresh-daily-activity",
+                    emptyMap<String, Any>(),
+                    io.github.nimbleflux.fluxbase.jobs.SubmitJobOptions(namespace = "wayli"),
+                )
+            }
+            _message.value = when {
+                res.isFailure -> "Couldn't queue the rebuild: ${res.exceptionOrNull()?.message ?: "network error"}"
+                res.getOrNull()?.data != null -> "Activity rebuild queued — tap refresh in a minute"
+                else -> "Couldn't queue the rebuild: ${res.getOrNull()?.error?.message ?: "unknown error"}"
+            }
         }
     }
 

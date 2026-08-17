@@ -47,6 +47,17 @@ object StatsAggregator {
     fun dailyDistance(rows: List<DailyActivity>): Map<String, Double> =
         rows.associate { it.day to (it.distance ?: 0.0) / 1000.0 }
 
+    /**
+     * day → km computed straight from raw points — the heatmap fallback when
+     * the `tracker_daily_activity` cache is empty. Day = local calendar day
+     * of `recorded_at`.
+     */
+    fun dailyDistanceFromPoints(points: List<TrackerPoint>): Map<String, Double> =
+        points
+            .groupBy { it.recordedAt.take(10) }
+            .mapValues { (_, dayPoints) -> dayPoints.sumOf { it.distance ?: 0.0 } / 1000.0 }
+            .filterValues { it > 0.0 }
+
     /** Distinct non-null country codes across points. */
     fun countries(points: List<TrackerPoint>): Int =
         points.mapNotNull { it.countryCode?.uppercase() }.distinct().size
@@ -61,6 +72,45 @@ object StatsAggregator {
             .groupingBy { it.transportMode?.lowercase() ?: "unknown" }
             .eachCount()
             .mapValues { (_, count) -> count.toDouble() / points.size }
+    }
+
+    /**
+     * Distance-weighted transport-mode shares (0..1), web parity: stationary
+     * points aren't movement and are excluded (unknown is kept), and each
+     * mode's share is its share of the moving distance, not of point counts.
+     * Empty when there is no moving distance.
+     */
+    fun transportModeShares(points: List<TrackerPoint>): Map<String, Double> {
+        val totals = points
+            .groupBy { it.transportMode?.lowercase() ?: "unknown" }
+            .mapValues { (_, modePoints) -> modePoints.sumOf { it.distance ?: 0.0 } }
+            .filterKeys { it != "stationary" }
+        val movingDistance = totals.values.sum()
+        if (movingDistance <= 0.0) return emptyMap()
+        return totals.mapValues { (_, meters) -> meters / movingDistance }
+    }
+
+    /**
+     * Whole-number percentages that sum to exactly 100 (largest-remainder
+     * rounding), from fractions in 0..1.
+     */
+    fun percentagesSummingTo100(fractions: Map<String, Double>): Map<String, Int> {
+        if (fractions.isEmpty()) return emptyMap()
+        val floored = LinkedHashMap<String, Int>()
+        fractions.forEach { (key, f) -> floored[key] = (f * 100).toInt() }
+        var remainder = 100 - floored.values.sum()
+        // Hand the lost percentage points to the largest fractional parts.
+        if (remainder > 0) {
+            fractions.entries
+                .sortedByDescending { (_, f) -> f * 100 - (f * 100).toInt() }
+                .forEach { (key, _) ->
+                    if (remainder > 0) {
+                        floored[key] = floored.getValue(key) + 1
+                        remainder--
+                    }
+                }
+        }
+        return floored
     }
 
     /** Ordered (lat, lon) track from points; invalid locations skipped. */
