@@ -87,15 +87,20 @@ class StatsViewModel @Inject constructor(
                 return@launch
             }
 
-            val totals = StatsAggregator.totalsFromDailyActivity(daily)
+            // Prefer the daily-activity cache; fall back to client-side totals
+            // from raw points when the cache hasn't been built yet (fresh
+            // instances — the web offers a "Build activity data" button there).
+            val totals = if (daily.isNotEmpty()) {
+                StatsAggregator.totalsFromDailyActivity(daily)
+            } else {
+                StatsAggregator.totalsFromPoints(points)
+            }
             _state.value = StatsUiState.Success(
                 StatsData(
                     distanceKm = "%.0f".format(totals.totalDistanceKm),
                     countries = StatsAggregator.countries(points).toString(),
                     timeMovingHours = "%.0f".format(totals.timeMovingHours),
-                    dataPoints = formatNumber(
-                        if (totals.points > 0) totals.points else points.size,
-                    ),
+                    dataPoints = formatNumber(points.size.coerceAtLeast(totals.points)),
                     modes = StatsAggregator.transportModeFractions(points),
                     dailyActivity = StatsAggregator.dailyDistance(daily),
                     track = StatsAggregator.track(points).takeIf { it.size >= 2 },

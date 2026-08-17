@@ -152,7 +152,11 @@ class HomeViewModel @Inject constructor(
                 .getOrDefault(emptyList())
             val pointRows = statsRepo.fetchPoints(userId, start.toString(), end.toString())
                 .getOrDefault(emptyList())
-            val totals = StatsAggregator.totalsFromDailyActivity(daily)
+            val totals = if (daily.isNotEmpty()) {
+                StatsAggregator.totalsFromDailyActivity(daily)
+            } else {
+                StatsAggregator.totalsFromPoints(pointRows)
+            }
 
             _track.value = StatsAggregator.track(pointRows)
             _uiState.value = current.copy(

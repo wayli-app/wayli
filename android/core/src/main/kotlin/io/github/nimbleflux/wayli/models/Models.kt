@@ -62,7 +62,8 @@ data class TripMedia(
 data class TrackerPoint(
     @SerialName("user_id") val userId: String,
     @SerialName("recorded_at") val recordedAt: String,
-    val location: String, // PostGIS POINT(lon lat) — serialized as "SRID=4326;POINT(lon lat)" or GeoJSON
+    /** GeoJSON Point object from the tables API, or a WKT/GeoJSON string. */
+    val location: kotlinx.serialization.json.JsonElement? = null,
     @SerialName("country_code") val countryCode: String? = null,
     val altitude: Double? = null,
     val accuracy: Double? = null,
