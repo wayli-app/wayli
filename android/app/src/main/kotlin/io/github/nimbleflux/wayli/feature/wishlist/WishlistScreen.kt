@@ -70,6 +70,7 @@ fun WishlistScreen(
     viewModel: WishlistViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val loadedPlaces by viewModel.places.collectAsState()
+    val online by viewModel.online.collectAsState()
     // Demo/explicit places take precedence; places added through the ViewModel
     // (demo in-memory adds, or the reload after the RPC insert) join them on top.
     val effectivePlaces = remember(places, loadedPlaces) {
@@ -115,37 +116,39 @@ fun WishlistScreen(
             )
         },
     ) { padding ->
-        when (viewMode) {
-            WishlistViewMode.MAP -> {
-                val mapPoints = remember(placeState) {
-                    placeState.mapNotNull { p ->
-                        io.github.nimbleflux.wayli.repo.StatsAggregator.parseLocation(p.location)?.let { (lat, lng) ->
-                            io.github.nimbleflux.wayli.designsystem.map.MapPoint(
-                                lat = lat, lng = lng, title = p.title, color = p.markerColor,
-                            )
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
+            when (viewMode) {
+                WishlistViewMode.MAP -> {
+                    val mapPoints = remember(placeState) {
+                        placeState.mapNotNull { p ->
+                            io.github.nimbleflux.wayli.repo.StatsAggregator.parseLocation(p.location)?.let { (lat, lng) ->
+                                io.github.nimbleflux.wayli.designsystem.map.MapPoint(
+                                    lat = lat, lng = lng, title = p.title, color = p.markerColor,
+                                )
+                            }
                         }
                     }
-                }
-                io.github.nimbleflux.wayli.designsystem.map.WayliMap(
-                    modifier = Modifier.fillMaxSize().padding(padding),
-                    points = mapPoints,
-                )
-            }
-            WishlistViewMode.LIST -> {
-                if (placeState.isEmpty()) {
-                    EmptyState(
-                        emoji = "📍",
-                        title = "No places yet",
-                        subtitle = "Tap 'Add Place' to save somewhere you'd like to go",
-                        modifier = Modifier.padding(padding),
+                    io.github.nimbleflux.wayli.designsystem.map.WayliMap(
+                        modifier = Modifier.fillMaxSize(),
+                        points = mapPoints,
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(placeState, key = { it.id }) { place -> PlaceCard(place = place) {} }
-                        item { Spacer(Modifier.height(100.dp)) }
+                }
+                WishlistViewMode.LIST -> {
+                    if (placeState.isEmpty()) {
+                        EmptyState(
+                            emoji = "📍",
+                            title = "No places yet",
+                            subtitle = "Tap 'Add Place' to save somewhere you'd like to go",
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            items(placeState, key = { it.id }) { place -> PlaceCard(place = place) {} }
+                            item { Spacer(Modifier.height(100.dp)) }
+                        }
                     }
                 }
             }

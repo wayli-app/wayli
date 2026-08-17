@@ -9,39 +9,44 @@ import javax.inject.Singleton
 
 /**
  * Repository for trips and journal entries. Calls the Fluxbase SDK's PostgREST
- * query builder to fetch/create/update data.
- *
- * In B7 this will be backed by Room for offline-first access. For now, it goes
- * straight to the network via the SDK.
+ * query builder to fetch/create/update data. Reads are cached (write-through,
+ * serve-stale offline) via [CacheStore].
  */
 @Singleton
 class TripRepository @Inject constructor(
     private val client: FluxbaseClient,
+    private val cache: CacheStore,
 ) {
 
     /**
      * List the current user's trips, newest first.
      * Mirrors: client.from<Trip>("trips").select().order("created_at", ascending=false).execute()
      */
-    suspend fun listTrips(userId: String): Result<List<Trip>> = runCatching {
-        val result = client.from<Trip>("trips")
-            .select()
-            .eq("user_id", userId)
-            .order("created_at", ascending = false)
-            .execute()
-        result.data ?: emptyList()
-    }
+    suspend fun listTrips(userId: String): Result<List<Trip>> =
+        cache.withCacheList("trips:$userId", Trip.serializer()) {
+            runCatching {
+                val result = client.from<Trip>("trips")
+                    .select()
+                    .eq("user_id", userId)
+                    .order("created_at", ascending = false)
+                    .execute()
+                result.data ?: emptyList()
+            }
+        }
 
     /**
      * Get a single trip by ID.
      */
-    suspend fun getTrip(tripId: String): Result<Trip> = runCatching {
-        val result = client.from<Trip>("trips")
-            .select()
-            .eq("id", tripId)
-            .single()
-        result.data ?: throw Exception("Trip not found")
-    }
+    suspend fun getTrip(tripId: String): Result<Trip> =
+        cache.withCache("trip:$tripId", Trip.serializer()) {
+            runCatching {
+                val result = client.from<Trip>("trips")
+                    .select()
+                    .eq("id", tripId)
+                    .single()
+                result.data ?: throw Exception("Trip not found")
+            }
+        }
 
     /**
      * Create a new trip.
@@ -89,14 +94,17 @@ class TripRepository @Inject constructor(
     /**
      * List journal entries for a trip.
      */
-    suspend fun listEntries(tripId: String): Result<List<TripEntry>> = runCatching {
-        val result = client.from<TripEntry>("trip_entries")
-            .select()
-            .eq("trip_id", tripId)
-            .order("entry_date")
-            .execute()
-        result.data ?: emptyList()
-    }
+    suspend fun listEntries(tripId: String): Result<List<TripEntry>> =
+        cache.withCacheList("entries:$tripId", TripEntry.serializer()) {
+            runCatching {
+                val result = client.from<TripEntry>("trip_entries")
+                    .select()
+                    .eq("trip_id", tripId)
+                    .order("entry_date")
+                    .execute()
+                result.data ?: emptyList()
+            }
+        }
 
     /**
      * Update an existing journal entry (owner-only via RLS).
@@ -138,13 +146,15 @@ class TripRepository @Inject constructor(
      * List media attached to a trip (optionally filtered to one entry).
      */
     suspend fun listMedia(tripId: String, entryId: String? = null): Result<List<io.github.nimbleflux.wayli.models.TripMedia>> =
-        runCatching {
-            var query = client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
-                .select()
-                .eq("trip_id", tripId)
-                .order("sort_order")
-            entryId?.let { query = query.eq("entry_id", it) }
-            query.execute().data ?: emptyList()
+        cache.withCacheList("media:$tripId${entryId?.let { ":$it" } ?: ""}", io.github.nimbleflux.wayli.models.TripMedia.serializer()) {
+            runCatching {
+                var query = client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+                    .select()
+                    .eq("trip_id", tripId)
+                    .order("sort_order")
+                entryId?.let { query = query.eq("entry_id", it) }
+                query.execute().data ?: emptyList()
+            }
         }
 
     /**

@@ -64,12 +64,16 @@ class HomeViewModel @Inject constructor(
     private val statsRepo: StatsRepository,
     private val userRepo: UserRepository,
     private val rangeStore: io.github.nimbleflux.wayli.feature.stats.StatsRangeStore,
+    onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     val isDemoMode: Boolean = demoManager.isDemoMode
+
+    /** Live connectivity — drives the offline banner (cached data served). */
+    val online: StateFlow<Boolean> = onlineMonitor.online
 
     /** Selected stats period — shared with Statistics; stats and the map track react to it. */
     private val _selectedRange = MutableStateFlow(rangeStore.range.value)

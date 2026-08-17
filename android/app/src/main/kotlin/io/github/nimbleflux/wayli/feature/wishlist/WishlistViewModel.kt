@@ -27,7 +27,11 @@ class WishlistViewModel @Inject constructor(
     private val client: FluxbaseClient,
     private val repo: WishlistRepository,
     private val geocoder: GeocodingService,
+    onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
+
+    /** Live connectivity — drives the offline banner (cached data served). */
+    val online: StateFlow<Boolean> = onlineMonitor.online
 
     private val _places = MutableStateFlow<List<WantToVisit>>(emptyList())
     val places: StateFlow<List<WantToVisit>> = _places.asStateFlow()
