@@ -10,11 +10,12 @@ import io.github.nimbleflux.wayli.demo.DemoManager
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.models.TripEntry
 import io.github.nimbleflux.wayli.repo.DraftRepository
-import io.github.nimbleflux.wayli.repo.StatsAggregator
 import io.github.nimbleflux.wayli.repo.StatsRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,38 +107,46 @@ class TripDetailViewModel @Inject constructor(
         }
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = TripDetailUiState.Loading
-            val tripResult = tripRepo.getTrip(tripId)
-            val entriesResult = tripRepo.listEntries(tripId)
-            tripResult
-                .onSuccess { trip ->
-                    _state.value = TripDetailUiState.Success(TripDetailData(trip))
-                    _entries.value = entriesResult.getOrDefault(emptyList())
-                    loadTrack(trip)
-                    loadMedia()
-                }
-                .onFailure {
-                    _state.value = TripDetailUiState.Error(it.message ?: "Failed to load trip")
-                }
+            // Trip, entries, and media don't depend on each other — fetch them
+            // concurrently so the screen isn't a serial chain of round trips.
+            coroutineScope {
+                val tripDeferred = async { tripRepo.getTrip(tripId) }
+                val entriesDeferred = async { tripRepo.listEntries(tripId) }
+                val mediaDeferred = async { loadMedia() }
+
+                tripDeferred.await()
+                    .onSuccess { trip ->
+                        _state.value = TripDetailUiState.Success(TripDetailData(trip))
+                        _entries.value = entriesDeferred.await().getOrDefault(emptyList())
+                        loadTrack(trip)
+                    }
+                    .onFailure {
+                        _state.value = TripDetailUiState.Error(it.message ?: "Failed to load trip")
+                    }
+                mediaDeferred.await()
+            }
         }
     }
 
-    /** Fetch the trip's media rows and sign their display URLs. */
+    /** Fetch the trip's media rows and sign their display URLs in parallel. */
     private suspend fun loadMedia() {
         val rows = tripRepo.listMedia(tripId).getOrDefault(emptyList())
         _media.value = rows
-        val urls = mutableMapOf<String, String>()
-        for (m in rows) {
-            mediaUploader.getSignedUrl(path = m.storagePath).getOrNull()?.let { urls[m.id] = it }
+        val urls = coroutineScope {
+            rows.map { m ->
+                async {
+                    mediaUploader.getSignedUrl(path = m.storagePath).getOrNull()?.let { m.id to it }
+                }
+            }.map { it.await() }.filterNotNull().toMap()
         }
         _mediaUrls.value = urls
     }
 
-    /** Fetch tracker points for the trip's date range and build the polyline. */
+    /** Fetch the track polyline for the trip's date range. */
     private suspend fun loadTrack(trip: Trip) {
         val userId = client.auth.currentSession?.user?.id ?: return
         val end = trip.endDate ?: java.time.LocalDate.now().toString()
-        val points = statsRepo.fetchPoints(userId, trip.startDate, end).getOrDefault(emptyList())
-        _track.value = StatsAggregator.track(points)
+        _track.value = statsRepo.fetchTrack(userId, trip.startDate, end).getOrDefault(emptyList())
     }
 
     // ---- Editor integration ----

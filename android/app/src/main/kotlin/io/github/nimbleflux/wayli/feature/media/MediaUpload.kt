@@ -18,6 +18,16 @@ import javax.inject.Singleton
 class MediaUploader @Inject constructor(
     private val client: FluxbaseClient,
 ) {
+
+    private class CachedUrl(val url: String, val expiresAt: Long)
+
+    /**
+     * Session-scoped signed-URL cache — signing is one HTTP round trip per
+     * image, so re-signing on every screen load dominates trip load times.
+     * Entries are kept until 10 min before their expiry.
+     */
+    private val signedUrlCache = java.util.concurrent.ConcurrentHashMap<String, CachedUrl>()
+
     /**
      * Upload a photo from a content [Uri]. Compresses to JPEG (quality 85,
      * max edge 1920px) before uploading to the `trip-images` bucket.
@@ -44,15 +54,26 @@ class MediaUploader @Inject constructor(
     }
 
     /**
-     * Create a signed URL for displaying a stored image.
+     * Create a signed URL for displaying a stored image. Cached for (nearly)
+     * the whole validity window, so repeat views cost zero round trips.
      */
     suspend fun getSignedUrl(
         bucket: String = "trip-images",
         path: String,
         expiresIn: Int = 3600,
-    ): Result<String> = runCatching {
-        val result = client.storage.from(bucket).createSignedUrl(path, expiresIn)
-        result.data?.signedUrl ?: throw Exception("Failed to get signed URL")
+    ): Result<String> {
+        val key = "$bucket/$path"
+        val now = System.currentTimeMillis()
+        signedUrlCache[key]?.let { cached ->
+            if (cached.expiresAt > now) return Result.success(cached.url)
+        }
+        return runCatching {
+            val result = client.storage.from(bucket).createSignedUrl(path, expiresIn)
+            val url = result.data?.signedUrl ?: throw Exception("Failed to get signed URL")
+            // Keep a 10-minute safety margin before the server-side expiry.
+            signedUrlCache[key] = CachedUrl(url, now + expiresIn * 1000L - 600_000L)
+            url
+        }
     }
 
     /**

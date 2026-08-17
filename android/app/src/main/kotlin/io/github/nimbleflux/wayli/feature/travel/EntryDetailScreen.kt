@@ -44,6 +44,8 @@ import io.github.nimbleflux.wayli.models.TripEntry
 import io.github.nimbleflux.wayli.repo.TripRepository
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -192,9 +194,13 @@ class EntryDetailViewModel @Inject constructor(
         _entry.value = entry ?: return
 
         val media = tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
-        val urls = media.mapNotNull { m ->
-            mediaUploader.getSignedUrl(path = m.storagePath).getOrNull()?.let { m.id to it }
-        }.toMap()
+        val urls = coroutineScope {
+            media.map { m ->
+                async {
+                    mediaUploader.getSignedUrl(path = m.storagePath).getOrNull()?.let { m.id to it }
+                }
+            }.map { it.await() }
+        }.filterNotNull().toMap()
         val ordered = media.mapNotNull { urls[it.id] }
 
         // Cover rule: cover_media_id → first by sort_order.
