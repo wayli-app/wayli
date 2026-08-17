@@ -23,4 +23,31 @@ class WishlistRepository @Inject constructor(
     suspend fun deletePlace(placeId: String): Result<Unit> = runCatching {
         client.from<WantToVisit>("want_to_visit_places").eq("id", placeId).delete()
     }
+
+    /**
+     * Add a place via the `add-want-to-visit` RPC (namespace `wayli`) — the
+     * server builds the PostGIS point from lat/lng and pins user_id from the
+     * session (owner-only RLS).
+     */
+    suspend fun addPlace(
+        title: String,
+        lat: Double,
+        lng: Double,
+        address: String? = null,
+        countryCode: String? = null,
+    ): Result<Unit> = runCatching {
+        val payload = buildMap<String, Any?> {
+            put("title", title)
+            put("lat", lat)
+            put("lng", lng)
+            address?.takeIf { it.isNotBlank() }?.let { put("address", it) }
+            countryCode?.takeIf { it.isNotBlank() }?.let { put("country_code", it) }
+        }
+        client.rpc.invoke(
+            "add-want-to-visit",
+            payload,
+            io.github.nimbleflux.fluxbase.rpc.RpcInvokeOptions(namespace = "wayli"),
+        )
+        Unit
+    }
 }
