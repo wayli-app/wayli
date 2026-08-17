@@ -6,9 +6,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.wayli.demo.DemoData
 import io.github.nimbleflux.wayli.demo.DemoManager
+import io.github.nimbleflux.wayli.designsystem.DateRange
+import io.github.nimbleflux.wayli.designsystem.dateRangePresets
+import io.github.nimbleflux.wayli.designsystem.toDates
 import io.github.nimbleflux.wayli.repo.StatsAggregator
 import io.github.nimbleflux.wayli.repo.StatsRepository
-import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +39,7 @@ sealed interface StatsUiState {
 /**
  * Feeds the Stats screen. Demo mode serves [DemoData]; real mode aggregates
  * `tracker_daily_activity` (totals + heatmap) and `tracker_data` (countries,
- * transport modes, map track) over the last 90 days.
+ * transport modes, map track) over the selected [DateRange].
  */
 @HiltViewModel
 class StatsViewModel @Inject constructor(
@@ -49,7 +51,19 @@ class StatsViewModel @Inject constructor(
     private val _state = MutableStateFlow<StatsUiState>(StatsUiState.Loading)
     val state: StateFlow<StatsUiState> = _state.asStateFlow()
 
+    val isDemoMode: Boolean = demoManager.isDemoMode
+
+    /** Selected stats period — everything on the screen reacts to it. */
+    private val _selectedRange = MutableStateFlow<DateRange>(dateRangePresets[1]) // 30d
+    val selectedRange: StateFlow<DateRange> = _selectedRange.asStateFlow()
+
     init { load() }
+
+    fun setRange(range: DateRange) {
+        if (_selectedRange.value == range) return
+        _selectedRange.value = range
+        load()
+    }
 
     fun load() {
         if (demoManager.isDemoMode) {
@@ -72,12 +86,11 @@ class StatsViewModel @Inject constructor(
         }
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = StatsUiState.Loading
-            val today = LocalDate.now()
-            val start = today.minusDays(90)
+            val (start, end) = _selectedRange.value.toDates()
 
-            val daily = statsRepo.fetchDailyActivity(userId, start.toString(), today.toString())
+            val daily = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
                 .getOrDefault(emptyList())
-            val points = statsRepo.fetchPoints(userId, start.toString(), today.toString())
+            val points = statsRepo.fetchPoints(userId, start.toString(), end.toString())
                 .getOrDefault(emptyList())
 
             if (daily.isEmpty() && points.isEmpty()) {

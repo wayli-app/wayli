@@ -28,4 +28,25 @@ class DateRangeTest {
         val custom = DateRange.Custom(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31))
         assertEquals("2026-01-01 → 2026-01-31", custom.label)
     }
+
+    @Test
+    fun `displayLabel renders presets in full words`() {
+        assertEquals("Last 7 days", DateRange.LastDays(7, "7d").displayLabel())
+        assertEquals("Last 30 days", DateRange.LastDays(30, "30d").displayLabel())
+        assertEquals("Last 3 months", DateRange.LastDays(90, "3m").displayLabel())
+        assertEquals("Last year", DateRange.LastDays(365, "1y").displayLabel())
+        assertEquals("Last 14 days", DateRange.LastDays(14, "14d").displayLabel())
+    }
+
+    @Test
+    fun `displayLabel collapses the year for same-year custom ranges`() {
+        val custom = DateRange.Custom(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 17))
+        assertEquals("Aug 1 – Aug 17, 2026", custom.displayLabel())
+    }
+
+    @Test
+    fun `displayLabel keeps both years when a custom range spans years`() {
+        val custom = DateRange.Custom(LocalDate.of(2025, 12, 28), LocalDate.of(2026, 1, 4))
+        assertEquals("Dec 28, 2025 – Jan 4, 2026", custom.displayLabel())
+    }
 }

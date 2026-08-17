@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.nimbleflux.wayli.designsystem.TransportModeColors
+import io.github.nimbleflux.wayli.designsystem.displayLabel
 import io.github.nimbleflux.wayli.designsystem.map.MapTrack
 import io.github.nimbleflux.wayli.designsystem.map.WayliMap
 import io.github.nimbleflux.wayli.demo.DemoData
@@ -60,6 +61,8 @@ fun StatsScreen(
     viewModel: StatsViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.state.collectAsState()
+    val selectedRange by viewModel.selectedRange.collectAsState()
+    val isDemo = viewModel.isDemoMode
 
     Scaffold(
         topBar = {
@@ -82,7 +85,14 @@ fun StatsScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) { Text(s.message, color = MaterialTheme.colorScheme.error) }
-            is StatsUiState.Success -> StatsContent(s.data, onBack, padding)
+            is StatsUiState.Success -> StatsContent(
+                data = s.data,
+                rangeLabel = if (isDemo) "Sample data · all time" else selectedRange.displayLabel(),
+                showSelector = !isDemo,
+                selectedRange = selectedRange,
+                onRangeSelected = viewModel::setRange,
+                padding = padding,
+            )
         }
     }
 }
@@ -90,7 +100,10 @@ fun StatsScreen(
 @Composable
 private fun StatsContent(
     data: StatsData,
-    onBack: () -> Unit,
+    rangeLabel: String,
+    showSelector: Boolean,
+    selectedRange: io.github.nimbleflux.wayli.designsystem.DateRange,
+    onRangeSelected: (io.github.nimbleflux.wayli.designsystem.DateRange) -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     val distance = data.distanceKm
@@ -108,6 +121,18 @@ private fun StatsContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
             Spacer(Modifier.height(8.dp))
+
+            if (showSelector) {
+                io.github.nimbleflux.wayli.designsystem.DateRangeSelector(
+                    selected = selectedRange,
+                    onSelect = onRangeSelected,
+                )
+            }
+            Text(
+                rangeLabel,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
