@@ -65,8 +65,16 @@ fun WishlistScreen(
     viewModel: WishlistViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val loadedPlaces by viewModel.places.collectAsState()
-    // Demo/explicit places take precedence; otherwise use the loaded repo data.
-    val effectivePlaces = if (places.isNotEmpty()) places else loadedPlaces
+    // Demo/explicit places take precedence; places added through the ViewModel
+    // (demo in-memory adds, or the reload after the RPC insert) join them on top.
+    val effectivePlaces = remember(places, loadedPlaces) {
+        if (places.isEmpty()) {
+            loadedPlaces
+        } else {
+            val ids = places.map { it.id }.toSet()
+            loadedPlaces.filter { it.id !in ids } + places
+        }
+    }
 
     var viewMode by remember { mutableStateOf(WishlistViewMode.LIST) }
     var placeState by remember(effectivePlaces) { mutableStateOf(effectivePlaces) }
@@ -94,6 +102,7 @@ fun WishlistScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAdd = true },
+                modifier = Modifier.padding(bottom = 110.dp), // clear the floating dock
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("Add Place") },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -141,8 +150,8 @@ fun WishlistScreen(
     if (showAdd) {
         AddPlaceSheet(
             onDismiss = { showAdd = false },
-            onAdd = { place ->
-                placeState = listOf(place) + placeState
+            onAdd = { title, lat, lng, address ->
+                viewModel.addPlace(title, lat, lng, address)
                 showAdd = false
             },
         )
@@ -151,11 +160,15 @@ fun WishlistScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddPlaceSheet(onDismiss: () -> Unit, onAdd: (WantToVisit) -> Unit) {
+private fun AddPlaceSheet(onDismiss: () -> Unit, onAdd: (title: String, lat: Double, lng: Double, address: String?) -> Unit) {
     val sheetState = rememberModalBottomSheetState()
     var title by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var rating by remember { mutableStateOf(5) }
+    var lat by remember { mutableStateOf("") }
+    var lng by remember { mutableStateOf("") }
+
+    fun latValid(): Boolean = lat.toDoubleOrNull()?.let { it in -90.0..90.0 } == true
+    fun lngValid(): Boolean = lng.toDoubleOrNull()?.let { it in -180.0..180.0 } == true
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -177,41 +190,34 @@ private fun AddPlaceSheet(onDismiss: () -> Unit, onAdd: (WantToVisit) -> Unit) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Rating", style = MaterialTheme.typography.bodyLarge)
-                Row {
-                    (1..5).forEach { star ->
-                        IconButton(onClick = { rating = star }) {
-                            Icon(
-                                if (star <= rating) Icons.Filled.Star else Icons.Filled.StarBorder,
-                                contentDescription = "$star star${if (star > 1) "s" else ""}",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = lat,
+                    onValueChange = { lat = it },
+                    label = { Text("Latitude") },
+                    isError = lat.isNotBlank() && !latValid(),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = lng,
+                    onValueChange = { lng = it },
+                    label = { Text("Longitude") },
+                    isError = lng.isNotBlank() && !lngValid(),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
             }
+            Text(
+                "Coordinates place the pin — address geocoding is coming later.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Button(
                 onClick = {
-                    if (title.isNotBlank()) {
-                        onAdd(
-                            WantToVisit(
-                                id = "local-${System.currentTimeMillis()}",
-                                userId = "local",
-                                title = title.trim(),
-                                location = "POINT(5.0 52.0)", // default; geocoding the address is a follow-up
-                                address = address.ifBlank { null },
-                                rating = rating,
-                                markerColor = "#3B82F6",
-                            ),
-                        )
-                    }
+                    onAdd(title.trim(), lat.toDoubleOrNull() ?: 0.0, lng.toDoubleOrNull() ?: 0.0, address.ifBlank { null })
                 },
-                enabled = title.isNotBlank(),
+                enabled = title.isNotBlank() && latValid() && lngValid(),
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Add") }
             Spacer(Modifier.size(8.dp))

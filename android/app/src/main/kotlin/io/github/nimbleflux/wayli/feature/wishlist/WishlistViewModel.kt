@@ -41,4 +41,31 @@ class WishlistViewModel @Inject constructor(
                 .onSuccess { _places.value = it }
         }
     }
+
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
+    /** Persist via the add-want-to-visit RPC (real) / prepend in memory (demo). */
+    fun addPlace(title: String, lat: Double, lng: Double, address: String?) {
+        if (_busy.value) return
+        if (demoManager.isDemoMode) {
+            _places.value = listOf(
+                WantToVisit(
+                    id = "local-${System.currentTimeMillis()}",
+                    userId = "local",
+                    title = title,
+                    location = "POINT($lng $lat)",
+                    address = address,
+                    markerColor = "#3B82F6",
+                ),
+            ) + _places.value
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _busy.value = true
+            repo.addPlace(title, lat, lng, address)
+            load()
+            _busy.value = false
+        }
+    }
 }
