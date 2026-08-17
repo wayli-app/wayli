@@ -80,4 +80,14 @@ object ServerDiscovery {
             ?.content
             ?.takeUnless { isPlaceholder(it) }
     }.getOrNull()
+
+    /**
+     * Treat [baseUrl] as an explicitly given Fluxbase backend: its
+     * /api/v1/auth/config body must be a JSON object (a Wayli web origin's
+     * SPA fallback answers HTML here). The anon key comes from the same body.
+     */
+    fun fromBackendConfig(baseUrl: String, configBody: String): Discovered? {
+        if (!isJsonObject(configBody)) return null
+        return Discovered(baseUrl.trimEnd('/'), parseAnonKeyFromAuthConfig(configBody))
+    }
 }
