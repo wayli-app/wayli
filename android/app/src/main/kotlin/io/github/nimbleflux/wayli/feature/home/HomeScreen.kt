@@ -84,22 +84,25 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val track by viewModel.track.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
+    val online by viewModel.online.collectAsState()
 
     Scaffold { padding ->
         when (val state = uiState) {
             is HomeUiState.Loading -> LoadingState(Modifier.padding(padding))
             is HomeUiState.Error -> ErrorState(state.message, modifier = Modifier.padding(padding))
-            is HomeUiState.Success -> HomeContent(
-                data = state.data,
-                isDemo = viewModel.isDemoMode,
-                track = track,
-                selectedRange = selectedRange,
-                onRangeSelected = viewModel::setRange,
-                onStatsClick = onStatsClick,
-                onTripClick = onTripClick,
-                onWishlistClick = onWishlistClick,
-                modifier = Modifier.padding(padding),
-            )
+            is HomeUiState.Success -> Column(Modifier.fillMaxSize().padding(padding)) {
+                io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
+                HomeContent(
+                    data = state.data,
+                    isDemo = viewModel.isDemoMode,
+                    track = track,
+                    selectedRange = selectedRange,
+                    onRangeSelected = viewModel::setRange,
+                    onStatsClick = onStatsClick,
+                    onTripClick = onTripClick,
+                    onWishlistClick = onWishlistClick,
+                )
+            }
         }
     }
 }

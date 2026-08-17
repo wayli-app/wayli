@@ -91,6 +91,7 @@ fun TripsListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val previews by viewModel.journalPreviews.collectAsState()
+    val online by viewModel.online.collectAsState()
     val detectMessage by viewModel.detectMessage.collectAsState()
     val detectRunning by viewModel.detectRunning.collectAsState()
     var showCreateDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -172,11 +173,14 @@ fun TripsListScreen(
             )
         },
     ) { padding ->
-        Crossfade(
-            targetState = uiState,
-            label = "tripsState",
-            animationSpec = tween(300),
-        ) { state ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
+            Crossfade(
+                targetState = uiState,
+                label = "tripsState",
+                animationSpec = tween(300),
+                modifier = Modifier.weight(1f),
+            ) { state ->
             when (state) {
                 is TripUiState.Loading -> {
                     LazyColumn(
@@ -253,6 +257,7 @@ fun TripsListScreen(
                     }
                 }
             }
+        }
         }
     }
 }

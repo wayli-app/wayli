@@ -39,23 +39,28 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideCacheDao(db: WayliDatabase): io.github.nimbleflux.wayli.db.CacheDao =
+        db.cacheDao()
+
+    @Provides
+    @Singleton
     fun provideDraftRepository(dao: io.github.nimbleflux.wayli.db.DraftEntryDao): DraftRepository =
         DraftRepository(dao)
 
     @Provides
     @Singleton
-    fun provideTripRepository(client: FluxbaseClient): TripRepository =
-        TripRepository(client)
+    fun provideTripRepository(client: FluxbaseClient, cache: CacheStore): TripRepository =
+        TripRepository(client, cache)
 
     @Provides
     @Singleton
-    fun provideWishlistRepository(client: FluxbaseClient): WishlistRepository =
-        WishlistRepository(client)
+    fun provideWishlistRepository(client: FluxbaseClient, cache: CacheStore): WishlistRepository =
+        WishlistRepository(client, cache)
 
     @Provides
     @Singleton
-    fun provideStatsRepository(client: FluxbaseClient): StatsRepository =
-        StatsRepository(client)
+    fun provideStatsRepository(client: FluxbaseClient, cache: CacheStore): StatsRepository =
+        StatsRepository(client, cache)
 
     @Provides
     @Singleton

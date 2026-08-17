@@ -70,6 +70,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version = "1.2.0" }
 room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-test-core = { group = "androidx.test", name = "core", version = "1.6.1" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version = "1.2.1" }
 
 # gplay flavor
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version = "21.3.0" }

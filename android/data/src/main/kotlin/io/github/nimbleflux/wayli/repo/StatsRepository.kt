@@ -5,6 +5,9 @@ import io.github.nimbleflux.fluxbase.from
 import io.github.nimbleflux.wayli.models.TrackerPoint
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.PairSerializer
+import kotlinx.serialization.builtins.serializer
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,6 +29,7 @@ data class TrackPoint(val location: kotlinx.serialization.json.JsonElement? = nu
 @Singleton
 class StatsRepository @Inject constructor(
     private val client: FluxbaseClient,
+    private val cache: CacheStore,
 ) {
 
     /**
@@ -33,6 +37,15 @@ class StatsRepository @Inject constructor(
      * Mirrors the web's tracker_data service with 1000-row pagination.
      */
     suspend fun fetchPoints(
+        userId: String,
+        startDate: String,
+        endDate: String,
+    ): Result<List<TrackerPoint>> =
+        cache.withCacheList("points:$userId:$startDate:$endDate", TrackerPoint.serializer()) {
+            fetchPointsLive(userId, startDate, endDate)
+        }
+
+    private suspend fun fetchPointsLive(
         userId: String,
         startDate: String,
         endDate: String,
@@ -57,17 +70,20 @@ class StatsRepository @Inject constructor(
         userId: String,
         startDate: String,
         endDate: String,
-    ): Result<List<Pair<Double, Double>>> = runCatching {
-        val result = client.from<TrackPoint>("tracker_data")
-            .select("location")
-            .eq("user_id", userId)
-            .gte("recorded_at", "${startDate}T00:00:00Z")
-            .lte("recorded_at", "${endDate}T23:59:59Z")
-            .order("recorded_at")
-            .limit(5000)
-            .execute()
-        (result.data ?: emptyList()).mapNotNull { StatsAggregator.parseLocation(it.location) }
-    }
+    ): Result<List<Pair<Double, Double>>> =
+        cache.withCache("track:$userId:$startDate:$endDate", ListSerializer(PairSerializer(Double.serializer(), Double.serializer()))) {
+            runCatching {
+                val result = client.from<TrackPoint>("tracker_data")
+                    .select("location")
+                    .eq("user_id", userId)
+                    .gte("recorded_at", "${startDate}T00:00:00Z")
+                    .lte("recorded_at", "${endDate}T23:59:59Z")
+                    .order("recorded_at")
+                    .limit(5000)
+                    .execute()
+                (result.data ?: emptyList()).mapNotNull { StatsAggregator.parseLocation(it.location) }
+            }
+        }
 
     /**
      * Fetch daily activity summary for the activity calendar.
@@ -76,16 +92,19 @@ class StatsRepository @Inject constructor(
         userId: String,
         startDate: String,
         endDate: String,
-    ): Result<List<DailyActivity>> = runCatching {
-        val result = client.from<DailyActivity>("tracker_daily_activity")
-            .select()
-            .eq("user_id", userId)
-            .gte("day", startDate)
-            .lte("day", endDate)
-            .order("day")
-            .execute()
-        result.data ?: emptyList()
-    }
+    ): Result<List<DailyActivity>> =
+        cache.withCacheList("daily:$userId:$startDate:$endDate", DailyActivity.serializer()) {
+            runCatching {
+                val result = client.from<DailyActivity>("tracker_daily_activity")
+                    .select()
+                    .eq("user_id", userId)
+                    .gte("day", startDate)
+                    .lte("day", endDate)
+                    .order("day")
+                    .execute()
+                result.data ?: emptyList()
+            }
+        }
 
     /**
      * Get the activity-calendar data via RPC (server-side aggregation).

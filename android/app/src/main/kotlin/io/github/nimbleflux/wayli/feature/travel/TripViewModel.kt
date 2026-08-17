@@ -32,6 +32,7 @@ class TripViewModel @Inject constructor(
     private val fluxbaseClient: FluxbaseClient,
     private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
     private val adminRepo: AdminRepository,
+    onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<TripUiState>(TripUiState.Loading)
@@ -43,6 +44,9 @@ class TripViewModel @Inject constructor(
     /** Trip id → journal summary (merges the old Journals tab into Travel). */
     private val _journalPreviews = MutableStateFlow<Map<String, JournalPreview>>(emptyMap())
     val journalPreviews: StateFlow<Map<String, JournalPreview>> = _journalPreviews.asStateFlow()
+
+    /** Live connectivity — drives the offline banner (cached data served). */
+    val online: StateFlow<Boolean> = onlineMonitor.online
 
     fun loadTrips() {
         if (demoManager.isDemoMode) {
