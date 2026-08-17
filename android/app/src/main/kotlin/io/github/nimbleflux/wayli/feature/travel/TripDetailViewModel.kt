@@ -70,7 +70,6 @@ class TripDetailViewModel @Inject constructor(
     private val _media = MutableStateFlow<List<io.github.nimbleflux.wayli.models.TripMedia>>(emptyList())
     val media: StateFlow<List<io.github.nimbleflux.wayli.models.TripMedia>> = _media.asStateFlow()
 
-    /** Resolve an entry's hero URL (cover_media_id → first by sort_order). */
     /**
      * The entry's hero photo URL (cover_media_id → first by sort_order —
      * the web's cover-resolution rule), or null when the entry has no media.
@@ -82,6 +81,10 @@ class TripDetailViewModel @Inject constructor(
         val chosen = cover ?: rows.first()
         return _mediaUrls.value[chosen.id]
     }
+
+    /** The trip's cover for the hero header: image_url → first trip media. */
+    fun tripCoverFor(trip: Trip): String? =
+        trip.imageUrl ?: _media.value.firstOrNull()?.let { _mediaUrls.value[it.id] }
 
     val isDemoMode: Boolean = demoManager.isDemoMode
 

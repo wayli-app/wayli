@@ -3,11 +3,13 @@ package io.github.nimbleflux.wayli.feature.travel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,9 +27,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -35,6 +37,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.nimbleflux.wayli.designsystem.DateBadge
 import io.github.nimbleflux.wayli.demo.DemoManager
 import io.github.nimbleflux.wayli.feature.media.MediaUploader
 import io.github.nimbleflux.wayli.models.TripEntry
@@ -99,33 +102,43 @@ fun EntryDetailScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            Text(
-                e.title ?: "Entry",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                e.entryDate,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                DateBadge(isoDate = e.entryDate)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        e.title ?: "Entry",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        formatFriendlyDate(e.entryDate),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             e.body?.takeIf { it.isNotBlank() }?.let { body ->
-                Spacer(Modifier.height(16.dp))
-                Text(body, style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(20.dp))
+                // Render blank-line-separated paragraphs with breathing room.
+                body.split(Regex("\n\\s*\n")).forEach { paragraph ->
+                    if (paragraph.isNotBlank()) {
+                        Text(paragraph.trim(), style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
             }
 
             // Photo gallery (hero excluded — it's shown above)
             if (gallery.size > 1) {
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(8.dp))
                 Text("Photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(gallery.size) { i ->
-                        coil.compose.AsyncImage(
+                        io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
                             model = gallery[i],
                             contentDescription = "Photo ${i + 1}",
-                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth(0.45f)
                                 .height(140.dp)
