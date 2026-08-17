@@ -2,8 +2,8 @@ package io.github.nimbleflux.wayli.feature.travel
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,24 +27,21 @@ import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
-
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,14 +51,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.github.nimbleflux.wayli.designsystem.CoverFallback
+import io.github.nimbleflux.wayli.designsystem.DateBadge
 import io.github.nimbleflux.wayli.designsystem.EmptyState
 import io.github.nimbleflux.wayli.designsystem.ErrorState
+import io.github.nimbleflux.wayli.designsystem.GlassIconButton
+import io.github.nimbleflux.wayli.designsystem.GlassPill
 import io.github.nimbleflux.wayli.designsystem.LoadingState
 import io.github.nimbleflux.wayli.designsystem.SkeletonBox
 import io.github.nimbleflux.wayli.designsystem.WayliAsyncImage
+import io.github.nimbleflux.wayli.designsystem.bottomScrim
+import io.github.nimbleflux.wayli.designsystem.fadeInUp
 import io.github.nimbleflux.wayli.designsystem.map.MapTrack
 import io.github.nimbleflux.wayli.designsystem.map.WayliMap
 import io.github.nimbleflux.wayli.models.Trip
@@ -67,9 +74,9 @@ import io.github.nimbleflux.wayli.models.TripEntry
 import org.maplibre.android.geometry.LatLng
 
 /**
- * Trips list — mobile-optimized with:
- * - LazyColumn of trip cards (not a grid)
- * - Each card: title, date range, cover image, entry count
+ * Trips list — immersive cover style (web public-trip-page parity):
+ * - LazyColumn of full-bleed cover cards with scrim, title, and date range on the photo
+ * - Glass "Ongoing" pill, staggered card entrances
  * - FAB to create a new trip
  * - Tap a card → navigate to detail
  */
@@ -81,6 +88,7 @@ fun TripsListScreen(
     viewModel: TripViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val previews by viewModel.journalPreviews.collectAsState()
     val detectMessage by viewModel.detectMessage.collectAsState()
     val detectRunning by viewModel.detectRunning.collectAsState()
     var showCreateDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -117,11 +125,24 @@ fun TripsListScreen(
         )
     }
 
+    val trips = (uiState as? TripUiState.Success)?.trips.orEmpty()
+    val totalEntries = previews.values.sumOf { it.entryCount }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Travel") },
+                title = {
+                    Column {
+                        Text("Travel")
+                        Text(
+                            "${trips.size} ${if (trips.size == 1) "trip" else "trips"} · $totalEntries " +
+                                if (totalEntries == 1) "entry" else "entries",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
                 actions = {
                     IconButton(onClick = { showDetectSheet = true }) {
                         Icon(
@@ -175,14 +196,14 @@ fun TripsListScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             item { Spacer(Modifier.height(8.dp)) }
-                            items(state.trips, key = { it.id }) { trip ->
-                                val preview by viewModel.journalPreviews.collectAsState()
+                            itemsIndexed(state.trips, key = { _, trip -> trip.id }) { index, trip ->
                                 TripCard(
                                     trip = trip,
-                                    journalPreview = preview[trip.id],
+                                    journalPreview = previews[trip.id],
+                                    index = index,
                                     onClick = {
                                         viewModel.selectTrip(trip)
                                         onTripClick(trip)
@@ -203,11 +224,12 @@ fun TripsListScreen(
 private fun TripCardSkeleton() {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column {
-            SkeletonBox(Modifier.fillMaxWidth().height(140.dp))
+            SkeletonBox(Modifier.fillMaxWidth().height(200.dp))
             Column(modifier = Modifier.padding(16.dp)) {
                 SkeletonBox(Modifier.fillMaxWidth(0.6f).height(20.dp))
                 Spacer(Modifier.height(8.dp))
@@ -218,114 +240,103 @@ private fun TripCardSkeleton() {
 }
 
 /**
- * Trip card — compact, tappable card showing the trip's key info.
+ * Trip card — full-bleed cover photo with a bottom scrim carrying the title
+ * and date range; journal summary and description sit below the photo.
  */
 @Composable
-private fun TripCard(trip: Trip, journalPreview: JournalPreview? = null, onClick: () -> Unit) {
+private fun TripCard(
+    trip: Trip,
+    journalPreview: JournalPreview? = null,
+    index: Int = 0,
+    onClick: () -> Unit,
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .fadeInUp(index)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column {
-            // Cover image — loads from URL via Coil, with gradient overlay
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
-                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth().height(200.dp),
             ) {
-                trip.imageUrl?.let { url ->
+                if (trip.imageUrl != null) {
                     WayliAsyncImage(
-                        model = url,
+                        model = trip.imageUrl,
                         contentDescription = trip.title,
                         modifier = Modifier.fillMaxSize(),
                     )
-                } ?: run {
-                    // Gradient placeholder when no image
+                } else {
+                    CoverFallback(modifier = Modifier.fillMaxSize())
+                }
+                Box(Modifier.matchParentSize().bottomScrim())
+                if (trip.endDate == null) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            Icons.Filled.LocationOn,
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        )
-                    }
+                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                    ) { GlassPill("Ongoing") }
+                }
+                Column(
+                    modifier = Modifier.align(Alignment.BottomStart).padding(16.dp),
+                ) {
+                    Text(
+                        trip.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        formatDateRange(trip.startDate, trip.endDate),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                    )
                 }
             }
 
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    trip.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(4.dp))
-
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                // Journal summary — merges the old Journals tab into Travel.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(
-                        Icons.Filled.DateRange,
+                        Icons.Filled.AutoStories,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MaterialTheme.colorScheme.primary,
                     )
-                    Text(
-                        "${trip.startDate.take(7)} • ${trip.endDate?.take(7) ?: "ongoing"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                // Journal summary — merges the old Journals tab into Travel.
-                journalPreview?.let { preview ->
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.AutoStories,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                    val preview = journalPreview
+                    if (preview != null && preview.entryCount > 0 && preview.latestTitle != null) {
+                        Text(
+                            "${preview.latestTitle} · ${preview.entryCount} " +
+                                if (preview.entryCount == 1) "entry" else "entries",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                        if (preview.entryCount > 0 && preview.latestTitle != null) {
-                            Text(
-                                "${preview.latestTitle} · ${preview.entryCount} " +
-                                    if (preview.entryCount == 1) "entry" else "entries",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            )
-                        } else {
-                            Text(
-                                "No entries yet",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                    } else {
+                        Text(
+                            if (preview != null && preview.entryCount > 0) "${preview.entryCount} entries" else "No entries yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 
                 trip.description?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        it.take(100),
+                        it.take(120),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -334,9 +345,10 @@ private fun TripCard(trip: Trip, journalPreview: JournalPreview? = null, onClick
 }
 
 /**
- * Trip detail — trip header, a map of the route, and the journal entries.
- * Loads its data by trip id (from the nav route) via [TripDetailViewModel], so
- * in demo mode it shows the seeded entries and a representative route.
+ * Trip detail — immersive hero header (cover, scrim, overlaid title), route
+ * map, and the journal timeline with date-badge entry cards. Loads its data
+ * by trip id (from the nav route) via [TripDetailViewModel], so in demo mode
+ * it shows the seeded entries and a representative route.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -350,28 +362,29 @@ fun TripDetailScreen(
     val state by viewModel.state.collectAsState()
     val entries by viewModel.entries.collectAsState()
     val drafts by viewModel.drafts.collectAsState()
+    val media by viewModel.media.collectAsState()
     val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
 
     // Re-check drafts whenever the screen (re)appears — the editor may have
     // auto-saved one while we were away.
     LaunchedEffect(Unit) { viewModel.refreshDrafts() }
 
+    // The hero replaces the top bar on Success; other states keep the plain one.
+    val isSuccess = state is TripDetailUiState.Success
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        (state as? TripDetailUiState.Success)?.data?.trip?.title ?: "Trip",
-                        maxLines = 1,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
+            if (!isSuccess) {
+                TopAppBar(
+                    title = { Text("Trip") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -389,22 +402,38 @@ fun TripDetailScreen(
             is TripDetailUiState.Success -> {
                 val data = s.data
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item { Spacer(Modifier.height(4.dp)) }
-                    item { TripHeaderCard(data.trip) }
-                    item {
+                    item(key = "hero") {
+                        TripHero(
+                            trip = data.trip,
+                            coverUrl = viewModel.tripCoverFor(data.trip),
+                            onBack = onBack,
+                        )
+                    }
+                    item(key = "meta") { TripMetaRow(trip = data.trip, entryCount = entries.size) }
+                    item(key = "map") {
                         val track by viewModel.track.collectAsState()
                         if (track.isNotEmpty()) TripMapCard(track = track)
                     }
-                    item {
-                        Text(
-                            "Journal",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
+                    item(key = "journal-header") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Journal",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                "${entries.size} ${if (entries.size == 1) "entry" else "entries"}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     drafts.forEach { draft ->
                         item(key = "draft-${draft.id}") {
@@ -412,15 +441,20 @@ fun TripDetailScreen(
                                 title = draft.title.ifBlank { "Untitled draft" },
                                 pendingSync = draft.pendingSync,
                                 onEdit = { onOpenDraft(draft) },
+                                modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
                     }
                     if (entries.isEmpty() && drafts.isEmpty()) {
-                        item {
-                            Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
+                        item(key = "empty") {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                shape = MaterialTheme.shapes.medium,
+                            ) {
                                 Text(
-                                    "No journal entries yet",
+                                    "No journal entries yet — tap + to write your first story.",
                                     style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(16.dp),
                                 )
                             }
@@ -432,44 +466,131 @@ fun TripDetailScreen(
                             } else {
                                 viewModel.heroFor(entry)
                             }
-                            JournalEntryCard(entry = entry, heroUrl = hero, onClick = { onOpenEntry(entry) })
+                            val photoCount = media.count { it.entryId == entry.id }
+                            JournalEntryCard(
+                                entry = entry,
+                                heroUrl = hero,
+                                photoCount = photoCount,
+                                onClick = { onOpenEntry(entry) },
+                                modifier = Modifier.padding(horizontal = 16.dp).fadeInUp(),
+                            )
                         }
                     }
-                    item { Spacer(Modifier.height(24.dp)) }
+                    item(key = "bottom") { Spacer(Modifier.height(96.dp)) }
                 }
             }
         }
     }
 }
 
+/** Full-bleed trip hero: cover with scrim, back button, and overlaid title. */
 @Composable
-private fun AssistChipDraft(label: String, onClick: () -> Unit) {
-    androidx.compose.material3.AssistChip(
-        onClick = onClick,
-        label = { Text(label) },
-        leadingIcon = {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
+private fun TripHero(trip: Trip, coverUrl: String?, onBack: () -> Unit) {
+    Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
+        if (coverUrl != null) {
+            WayliAsyncImage(
+                model = coverUrl,
+                contentDescription = trip.title,
+                modifier = Modifier.fillMaxSize(),
             )
-        },
-    )
+        } else {
+            CoverFallback(modifier = Modifier.fillMaxSize(), icon = Icons.Filled.Map)
+        }
+        Box(Modifier.matchParentSize().bottomScrim())
+        GlassIconButton(
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            onClick = onBack,
+            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp),
+        )
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart).padding(20.dp),
+        ) {
+            Text(
+                trip.title,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                formatDateRange(trip.startDate, trip.endDate),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.85f),
+            )
+        }
+    }
 }
 
-/** A locally saved draft: title + "Draft" label + edit button. */
+/** Icon chips under the hero: trip length and journal size. */
+@Composable
+private fun TripMetaRow(trip: Trip, entryCount: Int) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            MetaChip(icon = Icons.Filled.DateRange, text = "${tripDays(trip.startDate, trip.endDate)} days")
+            MetaChip(
+                icon = Icons.Filled.AutoStories,
+                text = "$entryCount ${if (entryCount == 1) "entry" else "entries"}",
+            )
+        }
+        trip.description?.takeIf { it.isNotBlank() }?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetaChip(icon: ImageVector, text: String) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** A locally saved draft: title + amber "Draft" label + edit button. */
 @Composable
 private fun DraftCard(
     title: String,
     pendingSync: Boolean,
     onEdit: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         ),
     ) {
         Row(
@@ -480,15 +601,15 @@ private fun DraftCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.size(8.dp))
-                    androidx.compose.material3.Surface(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFD97706).copy(alpha = 0.15f), // web's amber draft badge
                     ) {
                         Text(
                             if (pendingSync) "Draft · online pending" else "Draft",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = Color(0xFFB45309),
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -501,59 +622,69 @@ private fun DraftCard(
     }
 }
 
+/** Route map card with a header strip; auto-framed over the whole track. */
 @Composable
-private fun TripHeaderCard(trip: Trip) {
-    Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(trip.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+private fun TripMapCard(track: List<Pair<Double, Double>>) {
+    val tracks = listOf(MapTrack(track.map { p -> LatLng(p.first, p.second) }, color = "#3b82f6", width = 5f))
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(220.dp),
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
                 Text(
-                    "  ${trip.startDate} → ${trip.endDate ?: "ongoing"}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "Route",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "${track.size} pts",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            trip.description?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, style = MaterialTheme.typography.bodyMedium)
+            Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+                WayliMap(
+                    modifier = Modifier.fillMaxSize(),
+                    tracks = tracks,
+                )
             }
         }
     }
 }
 
+/** Journal entry card — hero photo over a date badge + title row. */
 @Composable
-private fun TripMapCard(track: List<Pair<Double, Double>>) {
-    val center = track.firstOrNull()?.let { LatLng(it.first, it.second) }
-    val tracks = listOf(MapTrack(track.map { p -> LatLng(p.first, p.second) }, color = "#3b82f6", width = 5f))
+private fun JournalEntryCard(
+    entry: TripEntry,
+    heroUrl: String? = null,
+    photoCount: Int = 0,
+    onClick: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(200.dp),
-        shape = MaterialTheme.shapes.medium,
-    ) {
-        WayliMap(
-            modifier = Modifier.fillMaxSize(),
-            tracks = tracks,
-            center = center,
-            zoom = 10.0,
-        )
-    }
-}
-
-@Composable
-private fun JournalEntryCard(entry: TripEntry, heroUrl: String? = null, onClick: () -> Unit = {}) {
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column {
             heroUrl?.let { url ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
                     WayliAsyncImage(
                         model = url,
                         contentDescription = entry.title ?: "Entry",
@@ -561,17 +692,36 @@ private fun JournalEntryCard(entry: TripEntry, heroUrl: String? = null, onClick:
                     )
                 }
             }
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(entry.title ?: "Entry", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(entry.entryDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                entry.body?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                DateBadge(isoDate = entry.entryDate)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        entry.title ?: "Entry",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (photoCount > 0) {
+                        Text(
+                            "$photoCount ${if (photoCount == 1) "photo" else "photos"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    entry.body?.let {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
