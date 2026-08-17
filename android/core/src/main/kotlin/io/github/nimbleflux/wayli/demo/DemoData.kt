@@ -1,6 +1,8 @@
 package io.github.nimbleflux.wayli.demo
 
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import io.github.nimbleflux.wayli.designsystem.map.MapPoint
 import io.github.nimbleflux.wayli.models.Notification
 import io.github.nimbleflux.wayli.models.Trip
@@ -41,6 +43,7 @@ object DemoData {
             status = "completed",
             visibility = "public",
             labels = listOf("skiing", "japan", "mountains"),
+            metadata = buildJsonObject { put("distanceTraveled", 1240000.0) },
             imageUrl = "https://images.unsplash.com/photo-1542640244-7e672d6cef4e?w=800&h=500&fit=crop",
             createdAt = "2024-02-10T08:00:00Z",
             updatedAt = "2024-02-24T20:00:00Z",
@@ -55,6 +58,7 @@ object DemoData {
             status = "completed",
             visibility = "public",
             labels = listOf("road-trip", "beaches", "portugal"),
+            metadata = buildJsonObject { put("distanceTraveled", 843000.0) },
             imageUrl = "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=500&fit=crop",
             createdAt = "2024-05-14T18:00:00Z",
             updatedAt = "2024-05-22T16:00:00Z",
@@ -69,6 +73,7 @@ object DemoData {
             status = "completed",
             visibility = "private",
             labels = listOf("city", "cycling", "museums"),
+            metadata = buildJsonObject { put("distanceTraveled", 96000.0) },
             imageUrl = "https://images.unsplash.com/photo-1534351590666-13e3e96c5017?w=800&h=500&fit=crop",
             createdAt = "2024-09-19T12:00:00Z",
             updatedAt = "2024-09-22T22:00:00Z",
@@ -83,6 +88,7 @@ object DemoData {
             status = "planned",
             visibility = "public",
             labels = listOf("backpacking", "asia", "planning"),
+            metadata = buildJsonObject { put("distanceTraveled", 3260000.0) },
             imageUrl = "https://images.unsplash.com/photo-1528127269322-539801943592?w=800&h=500&fit=crop",
             createdAt = "2024-11-01T10:00:00Z",
             updatedAt = "2024-12-15T14:00:00Z",

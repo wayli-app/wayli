@@ -3,6 +3,7 @@ package io.github.nimbleflux.wayli.feature.travel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
 
 /** Friendly date rendering for trips and entries (web parity: "Aug 12 – Aug 19, 2026"). */
 
@@ -26,3 +27,7 @@ internal fun tripDays(startIso: String, endIso: String?): Long {
 
 private fun format(date: LocalDate, pattern: String): String =
     DateTimeFormatter.ofPattern(pattern).format(date)
+
+/** Meters → "830 m" / "42 km" (web's trip-card formatting). */
+internal fun formatDistance(meters: Double): String =
+    if (meters < 1000) "${meters.roundToInt()} m" else "${(meters / 1000.0).roundToInt()} km"
