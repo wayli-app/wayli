@@ -3,6 +3,9 @@ package io.github.nimbleflux.wayli.models
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
 // ---- Sync state ----
 
@@ -31,6 +34,17 @@ data class Trip(
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
 )
+
+/**
+ * Precomputed trip distance in meters (`metadata.distanceTraveled`) — written
+ * by the web app and trip jobs on create/update; absent on fresh/ongoing
+ * trips that haven't been recalculated.
+ */
+val Trip.distanceMeters: Double?
+    get() = (metadata as? JsonObject)
+        ?.get("distanceTraveled")
+        ?.let { it as? JsonPrimitive }
+        ?.doubleOrNull
 
 @Serializable
 data class TripEntry(

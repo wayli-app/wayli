@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +72,7 @@ import io.github.nimbleflux.wayli.designsystem.map.MapTrack
 import io.github.nimbleflux.wayli.designsystem.map.WayliMap
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.models.TripEntry
+import io.github.nimbleflux.wayli.models.distanceMeters
 import org.maplibre.android.geometry.LatLng
 
 /**
@@ -127,6 +129,10 @@ fun TripsListScreen(
 
     val trips = (uiState as? TripUiState.Success)?.trips.orEmpty()
     val totalEntries = previews.values.sumOf { it.entryCount }
+    val totalKm = trips.sumOf { it.distanceMeters ?: 0.0 } / 1000.0
+
+    // Entry filter (web parity: "With journal" lives as a filter chip there).
+    var entryFilter by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -136,8 +142,11 @@ fun TripsListScreen(
                     Column {
                         Text("Travel")
                         Text(
-                            "${trips.size} ${if (trips.size == 1) "trip" else "trips"} · $totalEntries " +
-                                if (totalEntries == 1) "entry" else "entries",
+                            buildString {
+                                append("${trips.size} ${if (trips.size == 1) "trip" else "trips"} · $totalEntries ")
+                                append(if (totalEntries == 1) "entry" else "entries")
+                                if (totalKm >= 1) append(" · ${formatDistance(totalKm * 1000)}")
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -194,12 +203,41 @@ fun TripsListScreen(
                             modifier = Modifier.padding(padding),
                         )
                     } else {
+                        val visibleTrips = if (entryFilter) {
+                            trips.filter { (previews[it.id]?.entryCount ?: 0) > 0 }
+                        } else {
+                            trips
+                        }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            item { Spacer(Modifier.height(8.dp)) }
-                            itemsIndexed(state.trips, key = { _, trip -> trip.id }) { index, trip ->
+                            item(key = "filter") {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    androidx.compose.material3.FilterChip(
+                                        selected = !entryFilter,
+                                        onClick = { entryFilter = false },
+                                        label = { Text("All") },
+                                    )
+                                    androidx.compose.material3.FilterChip(
+                                        selected = entryFilter,
+                                        onClick = { entryFilter = true },
+                                        label = { Text("With entries") },
+                                    )
+                                }
+                            }
+                            if (visibleTrips.isEmpty()) {
+                                item(key = "filter-empty") {
+                                    Text(
+                                        "No trips with entries yet",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(vertical = 24.dp),
+                                    )
+                                }
+                            }
+                            item { Spacer(Modifier.height(4.dp)) }
+                            itemsIndexed(visibleTrips, key = { _, trip -> trip.id }) { index, trip ->
                                 TripCard(
                                     trip = trip,
                                     journalPreview = previews[trip.id],
@@ -299,33 +337,57 @@ private fun TripCard(
             }
 
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                // Journal summary — merges the old Journals tab into Travel.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.AutoStories,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    val preview = journalPreview
-                    if (preview != null && preview.entryCount > 0 && preview.latestTitle != null) {
-                        Text(
-                            "${preview.latestTitle} · ${preview.entryCount} " +
-                                if (preview.entryCount == 1) "entry" else "entries",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Journal summary — merges the old Journals tab into Travel.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(
+                            Icons.Filled.AutoStories,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
                         )
-                    } else {
-                        Text(
-                            if (preview != null && preview.entryCount > 0) "${preview.entryCount} entries" else "No entries yet",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        val preview = journalPreview
+                        if (preview != null && preview.entryCount > 0 && preview.latestTitle != null) {
+                            Text(
+                                "${preview.latestTitle} · ${preview.entryCount} " +
+                                    if (preview.entryCount == 1) "entry" else "entries",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        } else {
+                            Text(
+                                if (preview != null && preview.entryCount > 0) "${preview.entryCount} entries" else "No entries yet",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    // Precomputed distance from metadata (hidden when absent —
+                    // fresh/ongoing trips may not have it yet), web parity.
+                    trip.distanceMeters?.let { meters ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(start = 12.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Route,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                formatDistance(meters),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
 
@@ -537,6 +599,9 @@ private fun TripMetaRow(trip: Trip, entryCount: Int) {
                 icon = Icons.Filled.AutoStories,
                 text = "$entryCount ${if (entryCount == 1) "entry" else "entries"}",
             )
+            trip.distanceMeters?.let { meters ->
+                MetaChip(icon = Icons.Filled.Route, text = formatDistance(meters))
+            }
         }
         trip.description?.takeIf { it.isNotBlank() }?.let {
             Spacer(Modifier.height(8.dp))
