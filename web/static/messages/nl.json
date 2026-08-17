@@ -531,8 +531,10 @@
 		"segmentSingular": "segment",
 		"segmentPlural": "segmenten",
 		"pointsLabel": "punten",
-		"editModeHelp": "Klik op een punt om zijn bewegingssegment te selecteren. Shift-klik op meer punten om segmenten toe te voegen en kies daarna een modus om ze allemaal te herlabelen.",
+		"editModeHelp": "Shift-klik op punten of shift-sleep op de kaart om segmenten aan de selectie toe te voegen. Esc wist de selectie.",
 		"resetToAuto": "Auto",
+		"resetToAutoHint": "Terugzetten naar automatische detectie",
+		"manualBadge": "Handmatig",
 		"resetToAutoDone": "Segment teruggezet naar automatische detectie",
 		"modeUpdated": "Segment ingesteld op {mode}",
 		"modeUpdateFailed": "Vervoersmodus bijwerken mislukt",
@@ -1461,9 +1463,6 @@
 		"disconnected": "Niet verbonden",
 		"error": "Verbindingsfout",
 		"reconnected": "Realtime verbinding hersteld"
-	},
-	"storageNotice": {
-		"message": "Deze site gebruikt browseropslag om uw voorkeuren te onthouden en essentiële functionaliteit te bieden. Er worden geen tracking-cookies gebruikt."
 	},
 	"ask": {
 		"title": "Vraag Over Je Reizen",

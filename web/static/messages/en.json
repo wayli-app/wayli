@@ -529,8 +529,10 @@
     "segmentSingular": "segment",
     "segmentPlural": "segments",
     "pointsLabel": "points",
-    "editModeHelp": "Click a point to select its movement segment. Shift-click more points to add segments, then choose a mode to relabel them all.",
+    "editModeHelp": "Shift-click points or shift-drag on the map to add segments to the selection. Esc clears it.",
     "resetToAuto": "Auto",
+    "resetToAutoHint": "Reset to automatic detection",
+    "manualBadge": "Manual",
     "resetToAutoDone": "Segment reset to automatic detection",
     "modeUpdated": "Segment set to {mode}",
     "modeUpdateFailed": "Failed to update transport mode",
@@ -1459,9 +1461,6 @@
     "disconnected": "Disconnected",
     "error": "Connection error",
     "reconnected": "Realtime connection re-established"
-  },
-  "storageNotice": {
-    "message": "This site uses browser storage to remember your preferences and provide essential functionality. No tracking cookies are used."
   },
   "ask": {
     "title": "Ask About Your Travels",

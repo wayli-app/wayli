@@ -531,8 +531,10 @@
 		"segmentSingular": "セグメント",
 		"segmentPlural": "セグメント",
 		"pointsLabel": "ポイント",
-		"editModeHelp": "ポイントをクリックして移動セグメントを選択します。シフトキーを押しながら複数のポイントをクリックしてセグメントを追加し、モードを選んですべて再ラベル付けします。",
+		"editModeHelp": "シフトキーを押しながらポイントをクリック、または地図上をシフトドラッグすると、選択にセグメントを追加できます。Esc で選択を解除します。",
 		"resetToAuto": "自動",
+		"resetToAutoHint": "自動検出に戻す",
+		"manualBadge": "手動",
 		"resetToAutoDone": "セグメントを自動検出にリセットしました",
 		"modeUpdated": "セグメントを {mode} に設定しました",
 		"modeUpdateFailed": "交通モードの更新に失敗しました",
@@ -1465,9 +1467,6 @@
 		"disconnected": "切断されました",
 		"error": "接続エラー",
 		"reconnected": "リアルタイム接続が再確立されました"
-	},
-	"storageNotice": {
-		"message": "このサイトは、設定を記憶し、基本的な機能を提供するためにブラウザストレージを使用しています。トラッキングクッキーは使用されていません。"
 	},
 	"ask": {
 		"title": "旅行について尋ねる",

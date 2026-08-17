@@ -1459,9 +1459,6 @@
 		"error": "Connection error",
 		"reconnected": "Realtime connection re-established"
 	},
-	"storageNotice": {
-		"message": "This site uses browser storage to remember your preferences and provide essential functionality. No tracking cookies are used."
-	},
 	"ask": {
 		"title": "Ask About Your Travels",
 		"subtitle": "Use natural language to explore your travel history",

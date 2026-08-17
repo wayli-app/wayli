@@ -531,8 +531,10 @@
 		"segmentSingular": "segment",
 		"segmentPlural": "segments",
 		"pointsLabel": "points",
-		"editModeHelp": "Cliquez sur un point pour sélectionner son segment de déplacement. Shift-clic sur d'autres points pour ajouter des segments, puis choisissez un mode pour tous les réétiqueter.",
+		"editModeHelp": "Shift-clic sur des points ou shift-glisser sur la carte pour ajouter des segments à la sélection. Échap l'efface.",
 		"resetToAuto": "Auto",
+		"resetToAutoHint": "Rétablir la détection automatique",
+		"manualBadge": "Manuel",
 		"resetToAutoDone": "Segment réinitialisé à la détection automatique",
 		"modeUpdated": "Segment défini sur {mode}",
 		"modeUpdateFailed": "Échec de la mise à jour du mode de transport",
@@ -1464,9 +1466,6 @@
 		"disconnected": "Déconnecté",
 		"error": "Erreur de connexion",
 		"reconnected": "Connexion en temps réel rétablie"
-	},
-	"storageNotice": {
-		"message": "Ce site utilise le stockage du navigateur pour mémoriser vos préférences et fournir des fonctionnalités essentielles. Aucun cookie de suivi n'est utilisé."
 	},
 	"ask": {
 		"title": "Renseignez-vous sur vos voyages",
