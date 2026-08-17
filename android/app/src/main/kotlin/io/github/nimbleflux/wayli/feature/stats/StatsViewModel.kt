@@ -7,7 +7,6 @@ import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.wayli.demo.DemoData
 import io.github.nimbleflux.wayli.demo.DemoManager
 import io.github.nimbleflux.wayli.designsystem.DateRange
-import io.github.nimbleflux.wayli.designsystem.dateRangePresets
 import io.github.nimbleflux.wayli.designsystem.toDates
 import io.github.nimbleflux.wayli.repo.StatsAggregator
 import io.github.nimbleflux.wayli.repo.StatsRepository
@@ -46,6 +45,7 @@ class StatsViewModel @Inject constructor(
     private val demoManager: DemoManager,
     private val client: FluxbaseClient,
     private val statsRepo: StatsRepository,
+    private val rangeStore: StatsRangeStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<StatsUiState>(StatsUiState.Loading)
@@ -53,8 +53,8 @@ class StatsViewModel @Inject constructor(
 
     val isDemoMode: Boolean = demoManager.isDemoMode
 
-    /** Selected stats period — everything on the screen reacts to it. */
-    private val _selectedRange = MutableStateFlow<DateRange>(dateRangePresets[1]) // 30d
+    /** Selected stats period — shared with Home, everything on screen reacts to it. */
+    private val _selectedRange = MutableStateFlow(rangeStore.range.value)
     val selectedRange: StateFlow<DateRange> = _selectedRange.asStateFlow()
 
     init { load() }
@@ -62,6 +62,7 @@ class StatsViewModel @Inject constructor(
     fun setRange(range: DateRange) {
         if (_selectedRange.value == range) return
         _selectedRange.value = range
+        rangeStore.set(range)
         load()
     }
 

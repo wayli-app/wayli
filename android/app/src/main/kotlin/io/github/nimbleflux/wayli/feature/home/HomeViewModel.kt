@@ -15,7 +15,6 @@ import io.github.nimbleflux.wayli.repo.StatsRepository
 import io.github.nimbleflux.wayli.repo.TripRepository
 import io.github.nimbleflux.wayli.repo.UserRepository
 import io.github.nimbleflux.wayli.designsystem.DateRange
-import io.github.nimbleflux.wayli.designsystem.dateRangePresets
 import io.github.nimbleflux.wayli.designsystem.toDates
 import io.github.nimbleflux.wayli.repo.WishlistRepository
 import java.time.LocalDate
@@ -64,6 +63,7 @@ class HomeViewModel @Inject constructor(
     private val wishlistRepo: WishlistRepository,
     private val statsRepo: StatsRepository,
     private val userRepo: UserRepository,
+    private val rangeStore: io.github.nimbleflux.wayli.feature.stats.StatsRangeStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -71,8 +71,8 @@ class HomeViewModel @Inject constructor(
 
     val isDemoMode: Boolean = demoManager.isDemoMode
 
-    /** Selected stats period — stats and the map track react to it. */
-    private val _selectedRange = MutableStateFlow<DateRange>(dateRangePresets[1]) // 30d
+    /** Selected stats period — shared with Statistics; stats and the map track react to it. */
+    private val _selectedRange = MutableStateFlow(rangeStore.range.value)
     val selectedRange: StateFlow<DateRange> = _selectedRange.asStateFlow()
 
     /** Ordered (lat, lon) coordinates for the map card over the selected range. */
@@ -86,6 +86,7 @@ class HomeViewModel @Inject constructor(
     fun setRange(range: DateRange) {
         if (_selectedRange.value == range) return
         _selectedRange.value = range
+        rangeStore.set(range)
         loadWindow()
     }
 
