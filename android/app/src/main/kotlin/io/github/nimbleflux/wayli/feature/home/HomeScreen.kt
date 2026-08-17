@@ -55,6 +55,7 @@ import io.github.nimbleflux.wayli.designsystem.LoadingState
 import io.github.nimbleflux.wayli.designsystem.SectionHeader
 import io.github.nimbleflux.wayli.designsystem.WayliAsyncImage
 import io.github.nimbleflux.wayli.designsystem.WayliLogo
+import io.github.nimbleflux.wayli.designsystem.displayLabel
 import io.github.nimbleflux.wayli.designsystem.map.MapPoint
 import io.github.nimbleflux.wayli.designsystem.map.MapTrack
 import io.github.nimbleflux.wayli.designsystem.map.WayliMap
@@ -180,7 +181,13 @@ private fun HomeContent(
                 )
             }
         }
-        item { StatsCard(data.stats, isDemo = isDemo, onClick = onStatsClick) }
+        item {
+            StatsCard(
+                stats = data.stats,
+                rangeLabel = if (isDemo) "Sample data · all time" else selectedRange.displayLabel(),
+                onClick = onStatsClick,
+            )
+        }
 
         item {
             RecordingControl(
@@ -255,7 +262,7 @@ private fun HomeHeader(data: HomeData) {
 }
 
 @Composable
-private fun StatsCard(stats: HomeStats, isDemo: Boolean, onClick: () -> Unit) {
+private fun StatsCard(stats: HomeStats, rangeLabel: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
@@ -267,7 +274,14 @@ private fun StatsCard(stats: HomeStats, isDemo: Boolean, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("At a glance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Column {
+                    Text("At a glance", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(
+                        rangeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "View statistics",
