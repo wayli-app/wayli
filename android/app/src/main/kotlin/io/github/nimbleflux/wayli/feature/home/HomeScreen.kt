@@ -364,7 +364,7 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double
             io.github.nimbleflux.wayli.demo.DemoData.homePoints
         } else {
             data.wishlist.mapNotNull { p ->
-                io.github.nimbleflux.wayli.repo.StatsAggregator.parsePostgisPoint(p.location)?.let { (lat, lng) ->
+                io.github.nimbleflux.wayli.repo.StatsAggregator.parseLocation(p.location)?.let { (lat, lng) ->
                     MapPoint(lat = lat, lng = lng, title = p.title, color = p.markerColor)
                 }
             }

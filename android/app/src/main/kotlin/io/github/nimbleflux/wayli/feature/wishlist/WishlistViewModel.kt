@@ -54,7 +54,7 @@ class WishlistViewModel @Inject constructor(
                     id = "local-${System.currentTimeMillis()}",
                     userId = "local",
                     title = title,
-                    location = "POINT($lng $lat)",
+                    location = kotlinx.serialization.json.JsonPrimitive("POINT($lng $lat)"),
                     address = address,
                     markerColor = "#3B82F6",
                 ),
