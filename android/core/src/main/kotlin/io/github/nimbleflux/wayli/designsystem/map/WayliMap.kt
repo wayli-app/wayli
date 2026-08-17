@@ -165,7 +165,7 @@ fun WayliMap(
 
 // ---- GeoJSON builders (safe — uses kotlinx.serialization, no string concat) ----
 
-private fun pointFeatureGeoJson(point: MapPoint) = buildJsonObject {
+private fun pointFeatureGeoJson(point: MapPoint): kotlinx.serialization.json.JsonObject = buildJsonObject {
     put("type", "Feature")
     putJsonObject("geometry") {
         put("type", "Point")
@@ -178,9 +178,9 @@ private fun pointFeatureGeoJson(point: MapPoint) = buildJsonObject {
         put("color", point.color)
         point.title?.let { put("title", it) }
     }
-}.toString()
+}
 
-private fun trackFeatureGeoJson(track: MapTrack) = buildJsonObject {
+private fun trackFeatureGeoJson(track: MapTrack): kotlinx.serialization.json.JsonObject = buildJsonObject {
     put("type", "Feature")
     putJsonObject("geometry") {
         put("type", "LineString")
@@ -193,11 +193,13 @@ private fun trackFeatureGeoJson(track: MapTrack) = buildJsonObject {
     putJsonObject("properties") {
         put("color", track.color)
     }
-}.toString()
+}
 
-private fun featureCollection(features: List<String>): String = buildJsonObject {
+private fun featureCollection(features: List<kotlinx.serialization.json.JsonObject>): String = buildJsonObject {
     put("type", "FeatureCollection")
     putJsonArray("features") {
+        // add(JsonObject) keeps features nested — stringifying them first
+        // would wrap every feature in quotes and MapLibre would drop them.
         features.forEach { add(it) }
     }
 }.toString()
@@ -245,7 +247,7 @@ private fun addTracksToMap(
         if (track.points.size < 2) return@forEachIndexed
         val id = "wayli-track-$index-${nextId()}"
         val sourceId = "$id-src"
-        style.addSource(GeoJsonSource(sourceId, trackFeatureGeoJson(track)))
+        style.addSource(GeoJsonSource(sourceId, trackFeatureGeoJson(track).toString()))
         style.addLayer(
             LineLayer(id, sourceId).withProperties(
                 PropertyFactory.lineColor(track.color),
