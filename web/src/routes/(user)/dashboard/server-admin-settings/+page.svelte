@@ -645,7 +645,9 @@
 	}
 
 	async function saveOAuthProvider() {
-		if (!oauthFormClientId || !oauthFormClientSecret) {
+		// Client secret is only required when creating a provider; on edit an
+		// empty secret keeps the stored one (see oauthClientSecretPlaceholderEdit).
+		if (!oauthFormClientId || (!oauthEditingId && !oauthFormClientSecret)) {
 			toast.error(t('serverAdmin.oauthClientIdSecretRequired'));
 			return;
 		}
@@ -691,11 +693,16 @@
 				const updatePayload: Record<string, unknown> = {
 					display_name: displayName,
 					client_id: oauthFormClientId,
-					client_secret: oauthFormClientSecret,
 					redirect_urls: redirectUrls,
 					scopes,
 					enabled: oauthFormEnabled
 				};
+
+				// Only send the secret when a new one was typed; the backend
+				// keeps the stored secret when the field is omitted.
+				if (oauthFormClientSecret.trim()) {
+					updatePayload.client_secret = oauthFormClientSecret.trim();
+				}
 
 				// Include custom provider fields if editing a custom provider
 				if (isCustomProvider) {
