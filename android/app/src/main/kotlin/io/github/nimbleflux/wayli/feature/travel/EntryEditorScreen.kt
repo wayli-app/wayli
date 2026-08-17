@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -89,6 +90,8 @@ data class EditorState(
     val saving: Boolean = false,
     val pendingSyncNotice: Boolean = false,
     val loaded: Boolean = false,
+    /** Preview (read-only render) vs Edit. Preview is default when content exists. */
+    val previewMode: Boolean = false,
 )
 
 /**
@@ -193,9 +196,12 @@ class EntryEditorViewModel @Inject constructor(
             existingMediaUrls = existingMedia,
             pendingSyncNotice = draft?.pendingSync == true,
             loaded = true,
+            previewMode = title.isNotBlank() || body.isNotBlank(),
         )
         lastSaved = draft
     }
+
+    fun togglePreview() = update { it.copy(previewMode = !it.previewMode) }
 
     // ---- Field updates (auto-save via persist()) ----
 
@@ -424,6 +430,18 @@ fun EntryEditorScreen(
                 .padding(horizontal = 20.dp)
                 .imePadding(),
         ) {
+            if (state.previewMode) {
+                // ---- Preview pane: read-only render (also used for drafts) ----
+                EntryPreviewPane(
+                    title = state.title,
+                    body = state.body,
+                    entryDate = state.entryDate,
+                    photos = state.existingMediaUrls +
+                        state.localPhotos.map { java.io.File(it) },
+                )
+                return@Column
+            }
+
             if (state.pendingSyncNotice) {
                 androidx.compose.material3.Surface(
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
@@ -604,3 +622,72 @@ internal fun millisToIsoDate(millis: Long): String =
         .atZone(java.time.ZoneOffset.UTC)
         .toLocalDate()
         .toString()
+
+/**
+ * Read-only render of the story — the preview mode of the editor. Reuses
+ * the same visual language as [EntryDetailScreen].
+ */
+@Composable
+private fun EntryPreviewPane(
+    title: String,
+    body: String,
+    entryDate: String,
+    photos: List<Any>,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (photos.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+            ) {
+                coil.compose.AsyncImage(
+                    model = photos.first(),
+                    contentDescription = "Hero photo",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        Text(
+            title.ifBlank { "Untitled" },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            formatFriendlyDate(entryDate),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (body.isNotBlank()) {
+            Spacer(Modifier.height(16.dp))
+            Text(body, style = MaterialTheme.typography.bodyLarge)
+        }
+
+        if (photos.size > 1) {
+            Spacer(Modifier.height(20.dp))
+            Text("Photos", style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(photos.size - 1) { i ->
+                    coil.compose.AsyncImage(
+                        model = photos[i + 1],
+                        contentDescription = "Photo",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth(0.45f)
+                            .height(140.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+    }
+}

@@ -78,6 +78,7 @@ object Routes {
     // Pushed screens
     const val TRIP_DETAIL = "trip_detail/{tripId}"
     const val ENTRY_EDITOR = "entry_editor/{tripId}?entryId={entryId}&draftId={draftId}"
+    const val ENTRY_DETAIL = "entry_detail/{tripId}/{entryId}"
     const val STATS = "stats"
     const val TRACKING_SETTINGS = "tracking_settings"
     const val PROFILE = "profile"
@@ -358,20 +359,30 @@ fun WayliNavHost() {
                     onOpenDraft = { draft ->
                         navController.navigate("entry_editor/${detailVm.tripId}?draftId=${draft.id}")
                     },
-                    onOpenEditor = { journalEntry ->
-                        journalEntry?.let {
-                            io.github.nimbleflux.wayli.feature.travel.EntryEditorInputCache.entry = it
-                        }
-                        val target = journalEntry?.id
-                        navController.navigate(
-                            if (target != null) {
-                                "entry_editor/${detailVm.tripId}?entryId=$target"
-                            } else {
-                                "entry_editor/${detailVm.tripId}"
-                            },
-                        )
+                    onOpenEntry = { journalEntry ->
+                        // Entries open in the read view; Edit lives in its top bar.
+                        navController.navigate("entry_detail/${detailVm.tripId}/${journalEntry.id}")
+                    },
+                    onNewEntry = {
+                        navController.navigate("entry_editor/${detailVm.tripId}")
                     },
                     viewModel = detailVm,
+                )
+            }
+            composable(
+                route = Routes.ENTRY_DETAIL,
+                arguments = listOf(
+                    navArgument("tripId") { type = NavType.StringType },
+                    navArgument("entryId") { type = NavType.StringType },
+                ),
+            ) {
+                io.github.nimbleflux.wayli.feature.travel.EntryDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onEdit = { entry ->
+                        // Stash for instant prefill (demo in-memory entries have no server copy).
+                        io.github.nimbleflux.wayli.feature.travel.EntryEditorInputCache.entry = entry
+                        navController.navigate("entry_editor/${entry.tripId}?entryId=${entry.id}")
+                    },
                 )
             }
             composable(
