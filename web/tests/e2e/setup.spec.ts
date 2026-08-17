@@ -40,7 +40,7 @@ test.describe.serial('Documented setup happy path', () => {
 		process.env.WAYLI_SMOKE_TEST_EMAIL = email;
 	});
 
-	// Seed storage defaults on every page so the storage-notice banner / locale
+	// Seed storage defaults on every page so the locale / AI fab hint
 	// never interfere with assertions.
 	test.beforeEach(async ({ context }) => {
 		installStorageDefaults(context);

@@ -11,9 +11,6 @@ export const state = $state({
 	// User preferences
 	showUserMenu: false,
 
-	// Storage notice banner visibility (for layout adjustments)
-	storageBannerVisible: false,
-
 	// Filter states for different pages
 	filtersStartDate: null as Date | null,
 	filtersEndDate: null as Date | null,

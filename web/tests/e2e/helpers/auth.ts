@@ -79,14 +79,13 @@ function adminClient() {
 // ── Browser-context seeding ─────────────────────────────────────────────────
 
 /**
- * Pre-seed localStorage so the storage-notice banner never renders and the locale
- * loads deterministically. Applied to every page in the context via initScript.
+ * Pre-seed localStorage so the locale loads deterministically and the AI fab
+ * hint doesn't render. Applied to every page in the context via initScript.
  * Lifted from capture-screenshots.ts.
  */
 export function installStorageDefaults(ctx: BrowserContext): void {
 	ctx.addInitScript(() => {
 		try {
-			localStorage.setItem('wayli-storage-notice-dismissed', 'true');
 			localStorage.setItem('wayli-locale', 'en');
 			localStorage.setItem('wayli.ai.fab_hint_dismissed', '1');
 		} catch {
