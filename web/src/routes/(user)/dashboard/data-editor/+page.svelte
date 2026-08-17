@@ -88,7 +88,7 @@
 		endDate = now.toISOString().slice(0, 10);
 		startDate = weekAgo.toISOString().slice(0, 10);
 
-		L = (await import('leaflet')).default;
+		L = await import('leaflet');
 		if (destroyed) return;
 		await loadData();
 		if (destroyed) return;

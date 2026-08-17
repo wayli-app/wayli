@@ -22,7 +22,7 @@
 </script>
 
 <svelte:boundary
-	onerror={(e) => {
+	onerror={(e: unknown) => {
 		error = e as Error;
 	}}
 >

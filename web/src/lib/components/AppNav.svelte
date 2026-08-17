@@ -268,7 +268,7 @@
 
 		<!-- Main Content (inert while the mobile sidebar drawer is open, to
 		     keep focus trapped in the drawer) -->
-		<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen ? '' : undefined}>
+		<div class="flex flex-1 flex-col overflow-hidden" inert={isSidebarOpen || undefined}>
 			<!-- Content Area -->
 			<main class="flex-1 overflow-auto pb-24 md:pb-0">
 				{#if children}

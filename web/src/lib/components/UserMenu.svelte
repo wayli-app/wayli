@@ -90,7 +90,7 @@
 			class="fixed inset-0 z-40 bg-black/50 md:hidden"
 			aria-label="Close menu"
 			onclick={close}
-			transition={fade}
+			transition:fade
 		></button>
 
 		<div

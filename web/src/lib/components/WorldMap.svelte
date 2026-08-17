@@ -200,7 +200,7 @@
 	);
 
 	onMount(async () => {
-		L = (await import('leaflet')).default;
+		L = await import('leaflet');
 
 		map = L.map(mapContainer, {
 			scrollWheelZoom: true,

@@ -286,7 +286,7 @@
 			// Travelers directory — use the shared community service so the
 			// discoverability filter (is-discoverable-to RPC with correct
 			// namespace) is consistent with the /travelers page.
-			travelers = await loadTravelers(sessionUserId, 12);
+			travelers = await loadTravelers(userId, 12);
 		} catch (err) {
 			console.error('Failed to load community content:', err);
 		}
