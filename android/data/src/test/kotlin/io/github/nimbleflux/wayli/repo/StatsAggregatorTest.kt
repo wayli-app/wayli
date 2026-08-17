@@ -132,4 +132,67 @@ class StatsAggregatorTest {
         assertEquals(0.5, fractions["car"])
         assertEquals(1.0, fractions.values.sum(), 1e-9)
     }
+
+    // ---- Distance-weighted mode shares (web parity) ----
+
+    @Test
+    fun `mode shares weight by distance and exclude stationary`() {
+        val points = listOf(
+            tp(mode = "car", distance = 6000.0),
+            tp(mode = "car", distance = 2000.0),
+            tp(mode = "train", distance = 2000.0),
+            tp(mode = "stationary", distance = 90000.0), // not movement
+        )
+        val shares = StatsAggregator.transportModeShares(points)
+        assertEquals(setOf("car", "train"), shares.keys)
+        assertEquals(0.8, shares["car"]!!, 1e-9)
+        assertEquals(0.2, shares["train"]!!, 1e-9)
+        assertEquals(1.0, shares.values.sum(), 1e-9)
+    }
+
+    @Test
+    fun `mode shares include unknown and are empty without moving distance`() {
+        val shares = StatsAggregator.transportModeShares(
+            listOf(tp(mode = null, distance = 100.0), tp(mode = null, distance = 300.0)),
+        )
+        assertEquals(1.0, shares["unknown"]!!, 1e-9)
+
+        val noDistance = StatsAggregator.transportModeShares(
+            listOf(tp(mode = "car", distance = null), tp(mode = "car")),
+        )
+        assertTrue(noDistance.isEmpty())
+    }
+
+    @Test
+    fun `percentages sum to exactly one hundred via largest remainder`() {
+        val fractions = mapOf("car" to 0.335, "train" to 0.335, "cycling" to 0.33)
+        val pct = StatsAggregator.percentagesSummingTo100(fractions)
+        assertEquals(100, pct.values.sum())
+        // Floored: 33+33+33 = 99 — the single lost point goes to the largest
+        // fractional part (car and train tie at .5; stable order picks car).
+        assertEquals(34, pct["car"])
+        assertEquals(33, pct["train"])
+        assertEquals(33, pct.getValue("cycling"))
+    }
+
+    @Test
+    fun `percentages handle a single dominant mode`() {
+        val pct = StatsAggregator.percentagesSummingTo100(mapOf("car" to 1.0))
+        assertEquals(mapOf("car" to 100), pct)
+    }
+
+    // ---- Heatmap fallback from raw points ----
+
+    @Test
+    fun `daily distance from points buckets by recorded_at day`() {
+        val points = listOf(
+            tp(recordedAt = "2026-08-01T08:00:00Z", distance = 1500.0),
+            tp(recordedAt = "2026-08-01T09:00:00Z", distance = 500.0),
+            tp(recordedAt = "2026-08-02T10:00:00Z", distance = 2000.0),
+            tp(recordedAt = "2026-08-02T11:00:00Z", distance = null),
+        )
+        val daily = StatsAggregator.dailyDistanceFromPoints(points)
+        assertEquals(2.0, daily["2026-08-01"]!!, 1e-9)
+        assertEquals(2.0, daily["2026-08-02"]!!, 1e-9)
+    }
 }

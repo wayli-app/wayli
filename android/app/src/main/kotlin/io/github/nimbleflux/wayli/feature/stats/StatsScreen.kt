@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,14 +64,29 @@ fun StatsScreen(
     val uiState by viewModel.state.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val isDemo = viewModel.isDemoMode
+    val message by viewModel.message.collectAsState()
+    val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
+
+    androidx.compose.runtime.LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.consumeMessage()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("Statistics") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.load() }) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                     }
                 },
             )
@@ -91,6 +107,7 @@ fun StatsScreen(
                 showSelector = !isDemo,
                 selectedRange = selectedRange,
                 onRangeSelected = viewModel::setRange,
+                onBuildActivity = viewModel::buildActivityData,
                 padding = padding,
             )
         }
@@ -104,6 +121,7 @@ private fun StatsContent(
     showSelector: Boolean,
     selectedRange: io.github.nimbleflux.wayli.designsystem.DateRange,
     onRangeSelected: (io.github.nimbleflux.wayli.designsystem.DateRange) -> Unit,
+    onBuildActivity: () -> Unit,
     padding: androidx.compose.foundation.layout.PaddingValues,
 ) {
     val distance = data.distanceKm
@@ -161,12 +179,37 @@ private fun StatsContent(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                     )
+                    Text(
+                        "Share of moving distance",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Spacer(Modifier.height(12.dp))
-                    ModeBar("Car", (modes["car"] ?: 0.0).toFloat(), TransportModeColors.car)
-                    ModeBar("Walking", (modes["walking"] ?: 0.0).toFloat(), TransportModeColors.walking)
-                    ModeBar("Train", (modes["train"] ?: 0.0).toFloat(), TransportModeColors.train)
-                    ModeBar("Cycling", (modes["cycling"] ?: 0.0).toFloat(), TransportModeColors.cycling)
-                    ModeBar("Airplane", (modes["airplane"] ?: 0.0).toFloat(), TransportModeColors.airplane)
+                    // Dynamic bars over the modes present in the data
+                    // (stationary isn't movement and is excluded by the
+                    // aggregator); percentages round to sum exactly 100.
+                    val percentages = remember(modes) {
+                        io.github.nimbleflux.wayli.repo.StatsAggregator.percentagesSummingTo100(modes)
+                    }
+                    val orderedModes = remember(modes) {
+                        modes.entries.sortedByDescending { it.value }.map { it.key }
+                    }
+                    if (orderedModes.isEmpty()) {
+                        Text(
+                            "No moving data in this period",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        orderedModes.take(6).forEach { mode ->
+                            ModeBar(
+                                label = mode.replaceFirstChar { it.uppercase() },
+                                fraction = modes.getValue(mode).toFloat(),
+                                percentText = "${percentages.getValue(mode)}%",
+                                color = modeColor(mode),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -201,6 +244,18 @@ private fun StatsContent(
                             )
                         }
                         Text("More", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (data.dailyCacheEmpty) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "Derived from raw points — the server's activity cache is empty.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = onBuildActivity, modifier = Modifier.fillMaxWidth()) {
+                            Text("Build activity data on the server")
+                        }
                     }
                 }
             }
@@ -239,6 +294,16 @@ private fun StatsContent(
 
 private fun formatNumber(n: Int): String = "%,d".format(n)
 
+/** Web mode palette; anything unknown falls back to the muted gray. */
+private fun modeColor(mode: String): Color = when (mode) {
+    "car" -> TransportModeColors.car
+    "walking" -> TransportModeColors.walking
+    "train" -> TransportModeColors.train
+    "cycling" -> TransportModeColors.cycling
+    "airplane" -> TransportModeColors.airplane
+    else -> TransportModeColors.stationary
+}
+
 @Composable
 private fun StatCard(modifier: Modifier, label: String, value: String, unit: String) {
     Card(
@@ -255,13 +320,13 @@ private fun StatCard(modifier: Modifier, label: String, value: String, unit: Str
 }
 
 @Composable
-private fun ColumnScope.ModeBar(label: String, fraction: Float, color: Color) {
+private fun ColumnScope.ModeBar(label: String, fraction: Float, percentText: String, color: Color) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(80.dp))
         Box(modifier = Modifier.weight(1f).height(12.dp).clip(RoundedCornerShape(6.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Box(modifier = Modifier.fillMaxWidth(fraction).height(12.dp).clip(RoundedCornerShape(6.dp)).background(color))
         }
-        Text("${(fraction * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 8.dp))
+        Text(percentText, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
