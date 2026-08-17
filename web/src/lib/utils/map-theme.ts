@@ -15,7 +15,7 @@
  * owns its tileLayer; we just notify it when the theme changes.
  */
 
-import L from 'leaflet';
+import type * as L from 'leaflet';
 
 export function isDarkMode(): boolean {
 	if (typeof document === 'undefined') return false;

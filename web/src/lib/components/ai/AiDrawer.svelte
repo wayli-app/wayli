@@ -74,7 +74,7 @@
 	// Structured error kind for branching the UI (rate-limited / quota /
 	// config / network). Reset on a successful send.
 	let errorKind = $state<'rate_limited' | 'quota' | 'config' | 'network' | null>(null);
-	let inputEl: HTMLInputElement | null = $state(null);
+	let inputEl: HTMLTextAreaElement | null = $state(null);
 	let scrollContainer: HTMLElement | null = $state(null);
 	// Track which messages have their reasoning panel expanded (keyed by message index).
 	// ponytail: Svelte's scoped CSS doesn't see classes inside {#each} loops across
@@ -1075,10 +1075,13 @@
 	></button>
 
 	<!-- Drawer: bottom-sheet on mobile (md:hidden layout), right-side panel on
-	     desktop. The grabber handle (mobile only) drives drag-to-dismiss. -->
-	<aside
+	     desktop. The grabber handle (mobile only) drives drag-to-dismiss.
+	     Plain div + role=dialog — an <aside> would trip the a11y lint because
+	     role=dialog is interactive while <aside> is not. -->
+	<div
 		use:focusTrap={true}
 		role="dialog"
+		tabindex="-1"
 		aria-modal="true"
 		aria-label={t('ai.title')}
 		onpointerdown={onSheetPointerDown}
@@ -1711,7 +1714,7 @@
 				</button>
 			{/if}
 		</div>
-	</aside>
+	</div>
 {/if}
 
 {#if shareOpen}

@@ -49,7 +49,8 @@
 		Star,
 		Save,
 		ImagePlus,
-		Upload
+		Upload,
+		Users
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
@@ -227,61 +228,65 @@
 		return [...codes];
 	});
 
-	onMount(async () => {
-		try {
-			const session = await fluxbase.auth.getSession();
-			if (session.data?.session) {
-				serviceAdapter = new ServiceAdapter({ session: session.data.session });
+	onMount(() => {
+		// Svelte never runs a cleanup returned from an async onMount — wrap the
+		// async body so the handler reset in the real cleanup below fires.
+		(async () => {
+			try {
+				const session = await fluxbase.auth.getSession();
+				if (session.data?.session) {
+					serviceAdapter = new ServiceAdapter({ session: session.data.session });
+				}
+			} catch {
+				// not logged in
 			}
-		} catch {
-			// not logged in
-		}
 
-		// Mark that the user has visited the Travel page so the dashboard
-		// sidebar can stop showing the suggested-trips count badge (they've
-		// now seen that suggestions exist).
-		try {
-			localStorage.setItem('wayli.travel_visited', '1');
-			// Notify other tabs/windows (e.g. an open dashboard) so the badge
-			// disappears without a reload.
-			window.dispatchEvent(new StorageEvent('storage', { key: 'wayli.travel_visited' }));
-		} catch {
-			// localStorage unavailable (private mode, etc.) — non-critical
-		}
-
-		await loadTrips();
-		await Promise.all([loadEntries(), loadGpsData(), loadPendingTrips(), loadPublicUrl()]);
-
-		// Check URL for deep-link ?trip={id}
-		const urlTripId = page.url.searchParams.get('trip');
-		if (urlTripId) {
-			expandedTrips = new Set([...expandedTrips, urlTripId]);
-			activeTripId = urlTripId;
-			// Deep-linked straight to a trip — fetch its track so the map shows.
-			loadTripGps(urlTripId);
-			setTimeout(() => {
-				document
-					.querySelector(`[data-trip-id="${urlTripId}"]`)
-					?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-			}, 200);
-
-			// Auto-open edit modal if requested
-			if (page.url.searchParams.get('edit') === '1') {
-				const trip = trips.find((t) => t.id === urlTripId);
-				if (trip) openEditTripModal(trip);
-				// Clean URL
-				history.replaceState({}, '', '/dashboard/travel?trip=' + urlTripId);
+			// Mark that the user has visited the Travel page so the dashboard
+			// sidebar can stop showing the suggested-trips count badge (they've
+			// now seen that suggestions exist).
+			try {
+				localStorage.setItem('wayli.travel_visited', '1');
+				// Notify other tabs/windows (e.g. an open dashboard) so the badge
+				// disappears without a reload.
+				window.dispatchEvent(new StorageEvent('storage', { key: 'wayli.travel_visited' }));
+			} catch {
+				// localStorage unavailable (private mode, etc.) — non-critical
 			}
-		}
 
-		isLoading = false;
-		setupObserver();
+			await loadTrips();
+			await Promise.all([loadEntries(), loadGpsData(), loadPendingTrips(), loadPublicUrl()]);
 
-		// ponytail: register this page with the AI assistant as the 'trips'
-		// surface so trip-composition suggestions route here. The dashboard
-		// layout already sets page context 'trips' for this route; we register
-		// the accept handler and reset it on navigation.
-		aiDrawer.setAcceptHandler('trip', handleTripSuggestion);
+			// Check URL for deep-link ?trip={id}
+			const urlTripId = page.url.searchParams.get('trip');
+			if (urlTripId) {
+				expandedTrips = new Set([...expandedTrips, urlTripId]);
+				activeTripId = urlTripId;
+				// Deep-linked straight to a trip — fetch its track so the map shows.
+				loadTripGps(urlTripId);
+				setTimeout(() => {
+					document
+						.querySelector(`[data-trip-id="${urlTripId}"]`)
+						?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				}, 200);
+
+				// Auto-open edit modal if requested
+				if (page.url.searchParams.get('edit') === '1') {
+					const trip = trips.find((t) => t.id === urlTripId);
+					if (trip) openEditTripModal(trip);
+					// Clean URL
+					history.replaceState({}, '', '/dashboard/travel?trip=' + urlTripId);
+				}
+			}
+
+			isLoading = false;
+			setupObserver();
+
+			// ponytail: register this page with the AI assistant as the 'trips'
+			// surface so trip-composition suggestions route here. The dashboard
+			// layout already sets page context 'trips' for this route; we register
+			// the accept handler and reset it on navigation.
+			aiDrawer.setAcceptHandler('trip', handleTripSuggestion);
+		})();
 
 		return () => {
 			aiDrawer.setAcceptHandler('trip', null);
@@ -947,14 +952,15 @@
 		// 1. Try the daily aggregate cache.
 		try {
 			const { data, error } = await fluxbase
-				.from('tracker_daily_activity')
+				.from<Record<string, any>>('tracker_daily_activity')
 				.select('distance')
 				.eq('user_id', userId)
 				.gte('day', sd)
 				.lte('day', ed);
 			if (!error && data && data.length > 0) {
 				return data.reduce(
-					(sum, row) => sum + (typeof row.distance === 'number' ? row.distance : 0),
+					(sum: number, row: Record<string, any>) =>
+						sum + (typeof row.distance === 'number' ? row.distance : 0),
 					0
 				);
 			}

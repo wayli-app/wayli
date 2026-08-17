@@ -10,25 +10,7 @@ interface ImportMeta {
 }
 
 // leaflet.heat ships no types. It's a side-effect import that attaches
-// L.heatLayer to the leaflet namespace. Declare the module so the dynamic
-// import type-checks, and augment Leaflet with the heatLayer signature.
+// L.heatLayer to the leaflet namespace; declare the module so the dynamic
+// import type-checks. The heatLayer signature itself is declared as a proper
+// module augmentation in src/leaflet-heat.d.ts.
 declare module 'leaflet.heat';
-
-declare module 'leaflet' {
-	interface Map {
-		// leaflet.heat layers are plain L.Layer instances; no extra API needed.
-	}
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	interface LeafletHeatmapOptions {
-		minOpacity?: number;
-		maxZoom?: number;
-		max?: number;
-		radius?: number;
-		blur?: number;
-		gradient?: { [stop: number]: string };
-	}
-	function heatLayer(
-		latlngs: Array<[number, number, number?]>,
-		options?: LeafletHeatmapOptions
-	): Layer;
-}

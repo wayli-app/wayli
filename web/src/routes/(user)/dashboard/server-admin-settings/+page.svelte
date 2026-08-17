@@ -1477,7 +1477,10 @@
 			// These are enforced by Fluxbase server-side; 0 = unlimited.
 			try {
 				const { data: chatbots } = await fluxbase.admin.ai.listChatbots('wayli');
-				const chatbot = (chatbots ?? []).find((c: any) => c.name === 'wayli-assistant');
+				// The SDK's AIChatbotSummary type doesn't (yet) include the usage
+				// limit fields the API returns; widen the found record with them.
+				const chatbot = (chatbots ?? []).find((c: any) => c.name === 'wayli-assistant') as
+					{ daily_request_limit?: number | null; daily_token_budget?: number | null } | undefined;
 				if (chatbot) {
 					const q = chatbot.daily_request_limit ?? 0;
 					aiQuestionLimitEnabled = q > 0;

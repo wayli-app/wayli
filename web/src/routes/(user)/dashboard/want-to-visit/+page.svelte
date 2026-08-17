@@ -491,116 +491,120 @@
 		});
 	}
 
-	onMount(async () => {
-		// Load user profile to check for home address
-		await loadUserProfile();
+	onMount(() => {
+		// Svelte never runs a cleanup returned from an async onMount — wrap the
+		// async body so the reset in the real cleanup below fires.
+		(async () => {
+			// Load user profile to check for home address
+			await loadUserProfile();
 
-		L = (await import('leaflet')).default;
-		// Import markercluster plugin
-		await import('leaflet.markercluster');
-		if (map) return;
+			L = await import('leaflet');
+			// Import markercluster plugin
+			await import('leaflet.markercluster');
+			if (map) return;
 
-		map = L.map(mapContainer, {
-			center: [20, 0],
-			zoom: 2,
-			minZoom: 1,
-			maxZoom: 18,
-			zoomControl: true,
-			attributionControl: true,
-			doubleClickZoom: true,
-			tapTolerance: 15,
-			touchZoom: true,
-			bounceAtZoomLimits: false,
-			scrollWheelZoom: true,
-			keyboard: true,
-			dragging: true,
-			inertia: true,
-			inertiaDeceleration: 3000,
-			inertiaMaxSpeed: 3000,
-			worldCopyJump: false,
-			maxBounds: undefined,
-			maxBoundsViscosity: 0.0
-		});
+			map = L.map(mapContainer, {
+				center: [20, 0],
+				zoom: 2,
+				minZoom: 1,
+				maxZoom: 18,
+				zoomControl: true,
+				attributionControl: true,
+				doubleClickZoom: true,
+				tapTolerance: 15,
+				touchZoom: true,
+				bounceAtZoomLimits: false,
+				scrollWheelZoom: true,
+				keyboard: true,
+				dragging: true,
+				inertia: true,
+				inertiaDeceleration: 3000,
+				inertiaMaxSpeed: 3000,
+				worldCopyJump: false,
+				maxBounds: undefined,
+				maxBoundsViscosity: 0.0
+			});
 
-		// Initialize marker cluster group
-		markerClusterGroup = L.markerClusterGroup({
-			chunkedLoading: true,
-			spiderfyOnMaxZoom: true,
-			showCoverageOnHover: false,
-			zoomToBoundsOnClick: true,
-			disableClusteringAtZoom: 16, // Disable clustering when zoomed in close
-			maxClusterRadius: 50, // Maximum radius for clustering
-			iconCreateFunction: function (cluster: any) {
-				const count = cluster.getChildCount();
-				let className = 'marker-cluster-';
+			// Initialize marker cluster group
+			markerClusterGroup = L.markerClusterGroup({
+				chunkedLoading: true,
+				spiderfyOnMaxZoom: true,
+				showCoverageOnHover: false,
+				zoomToBoundsOnClick: true,
+				disableClusteringAtZoom: 16, // Disable clustering when zoomed in close
+				maxClusterRadius: 50, // Maximum radius for clustering
+				iconCreateFunction: function (cluster: any) {
+					const count = cluster.getChildCount();
+					let className = 'marker-cluster-';
 
-				if (count < 5) {
-					className += 'small';
-				} else if (count < 10) {
-					className += 'medium';
-				} else {
-					className += 'large';
+					if (count < 5) {
+						className += 'small';
+					} else if (count < 10) {
+						className += 'medium';
+					} else {
+						className += 'large';
+					}
+
+					return L.divIcon({
+						html: `<div><span>${count}</span></div>`,
+						className: className,
+						iconSize: L.point(40, 40)
+					});
+				}
+			});
+
+			// Add cluster group to map
+			map.addLayer(markerClusterGroup);
+
+			// Theme-aware tile layer via shared utility — consistent with all other maps
+			cleanupThemeWatcher = watchMapTheme(map, (theme) =>
+				L.tileLayer(TILE_URLS[theme].url, { attribution: TILE_URLS[theme].attribution })
+			);
+
+			// Load places from database
+			loadPlaces();
+
+			// Add double-click handler to map
+			map.on('dblclick', async (e: L.LeafletMouseEvent) => {
+				const { lat, lng } = e.latlng;
+
+				// Remove previous temporary marker
+				if (tempMarker) {
+					tempMarker.remove();
 				}
 
-				return L.divIcon({
-					html: `<div><span>${count}</span></div>`,
-					className: className,
-					iconSize: L.point(40, 40)
-				});
-			}
-		});
+				// Add new temporary marker
+				tempMarker = L.marker([lat, lng], {
+					icon: getMarkerIcon(selectedMarkerType, selectedMarkerColor)
+				}).addTo(map);
 
-		// Add cluster group to map
-		map.addLayer(markerClusterGroup);
+				// Update form coordinates
+				latitude = lat.toFixed(6);
+				longitude = lng.toFixed(6);
 
-		// Theme-aware tile layer via shared utility — consistent with all other maps
-		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, { attribution: TILE_URLS[theme].attribution })
-		);
+				// Perform reverse geocoding
+				await performReverseGeocoding(lat, lng);
 
-		// Load places from database
-		loadPlaces();
+				// Show the add form
+				showAddForm = true;
+			});
 
-		// Add double-click handler to map
-		map.on('dblclick', async (e: L.LeafletMouseEvent) => {
-			const { lat, lng } = e.latlng;
+			// Theme changes are handled by watchMapTheme (above).
+			// Also update marker icons when theme changes.
+			const markerObserver = new MutationObserver(() => {
+				updateMarkers();
+			});
+			markerObserver.observe(document.documentElement, {
+				attributes: true,
+				attributeFilter: ['class']
+			});
 
-			// Remove previous temporary marker
-			if (tempMarker) {
-				tempMarker.remove();
-			}
-
-			// Add new temporary marker
-			tempMarker = L.marker([lat, lng], {
-				icon: getMarkerIcon(selectedMarkerType, selectedMarkerColor)
-			}).addTo(map);
-
-			// Update form coordinates
-			latitude = lat.toFixed(6);
-			longitude = lng.toFixed(6);
-
-			// Perform reverse geocoding
-			await performReverseGeocoding(lat, lng);
-
-			// Show the add form
-			showAddForm = true;
-		});
-
-		// Theme changes are handled by watchMapTheme (above).
-		// Also update marker icons when theme changes.
-		const markerObserver = new MutationObserver(() => {
-			updateMarkers();
-		});
-		markerObserver.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ['class']
-		});
-
-		// ponytail: register this page with the AI assistant as the
-		// 'want-to-visit' surface so wishlist suggestions route here, and reset
-		// to default + unregister when the user navigates away.
-		aiDrawer.setContext({ page: 'want-to-visit' });
-		aiDrawer.setAcceptHandler('want_to_visit', handleAcceptSuggestion);
+			// ponytail: register this page with the AI assistant as the
+			// 'want-to-visit' surface so wishlist suggestions route here, and reset
+			// to default + unregister when the user navigates away.
+			aiDrawer.setContext({ page: 'want-to-visit' });
+			aiDrawer.setAcceptHandler('want_to_visit', handleAcceptSuggestion);
+		})();
 
 		return () => {
 			aiDrawer.setAcceptHandler('want_to_visit', null);

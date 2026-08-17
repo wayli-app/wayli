@@ -44,7 +44,6 @@ vi.mock('$lib/stores/app-state.svelte', () => ({
 		theme: 'light',
 		isSidebarOpen: true,
 		showUserMenu: false,
-		storageBannerVisible: false,
 		filtersStartDate: null,
 		filtersEndDate: null,
 		filtersIsDatePickerOpen: false,

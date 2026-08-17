@@ -55,6 +55,7 @@ export interface JobStoreJob {
 	payload?: unknown;
 	result?: unknown;
 	error?: string;
+	error_message?: string | null;
 	created_at: string;
 	updated_at?: string;
 	started_at?: string;

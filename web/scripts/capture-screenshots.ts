@@ -195,13 +195,12 @@ async function setTheme(page: Page, theme: 'light' | 'dark'): Promise<void> {
 }
 
 /**
- * Pre-seed localStorage so the storage-notice banner never renders, and set the
- * locale so i18n loads deterministically. Applied to every page in the context.
+ * Pre-seed localStorage so the locale loads deterministically and the AI fab
+ * hint doesn't render. Applied to every page in the context.
  */
 function installStorageDefaults(ctx: BrowserContext): void {
 	ctx.addInitScript(() => {
 		try {
-			localStorage.setItem('wayli-storage-notice-dismissed', 'true');
 			localStorage.setItem('wayli-locale', 'en');
 			localStorage.setItem('wayli.ai.fab_hint_dismissed', '1');
 		} catch {

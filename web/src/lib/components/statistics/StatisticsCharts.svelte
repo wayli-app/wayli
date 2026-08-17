@@ -58,7 +58,9 @@
 	);
 
 	function showTooltip(chart: string, label: string, sub: string, e: MouseEvent) {
-		const rect = (e.currentTarget.closest('section') as HTMLElement)?.getBoundingClientRect();
+		const rect = (e.currentTarget as HTMLElement | null)
+			?.closest('section')
+			?.getBoundingClientRect();
 		tooltip = {
 			chart,
 			label,
@@ -69,7 +71,9 @@
 	}
 	function moveTooltip(e: MouseEvent) {
 		if (!tooltip) return;
-		const rect = (e.currentTarget.closest('section') as HTMLElement)?.getBoundingClientRect();
+		const rect = (e.currentTarget as HTMLElement | null)
+			?.closest('section')
+			?.getBoundingClientRect();
 		tooltip = {
 			...tooltip,
 			x: e.clientX - (rect?.left ?? 0),

@@ -16,7 +16,8 @@
 		AlertTriangle,
 		ChevronRight,
 		X,
-		Flame
+		Flame,
+		Sparkles
 	} from 'lucide-svelte';
 	import { onMount, onDestroy } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -29,6 +30,12 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { ClientStatisticsService } from '$lib/services/client-statistics.service';
 	import { segmentByGaps } from '$lib/services/transport-mode';
+	import {
+		TRANSPORT_MODE_COLORS,
+		TRANSPORT_MODE_PICKER_ORDER,
+		transportModeIcon,
+		transportModeColor
+	} from '$lib/services/transport-mode/visuals';
 	import { HomeAddressAdapter } from '$lib/services/api/adapters/home-address-adapter';
 	import { TripExclusionsApiService } from '$lib/services/api/trip-exclusions-api.service';
 	import {
@@ -116,6 +123,10 @@
 	let selectedSegmentIdxs = $state<Set<number>>(new Set());
 	let segmentHighlight: any[] = [];
 	let isUpdatingMode = $state(false);
+	// Shift-drag box selection: while active a dashed rectangle is drawn and,
+	// on release, every segment with a point inside it joins the selection.
+	let boxSelectStart: { lat: number; lng: number } | null = null;
+	let boxSelectLayer: any = null;
 	// Guard so the map 'click' (deselect) handler is registered once, not on every redraw.
 	let mapClickWired = false;
 	// Heat layer: shows where the user actually spends time (slow/stationary
@@ -583,21 +594,7 @@
 		return String.fromCodePoint(...codePoints);
 	}
 
-	// Transport mode colors
-	const transportModeColors: Record<string, string> = {
-		car: '#dc2626', // Red
-		train: '#7c3aed', // Purple
-		airplane: '#000000', // Black
-		cycling: '#ea580c', // Orange
-		walking: '#16a34a', // Green
-		unknown: '#6b7280' // Grey
-	};
-
-	// Get color for transport mode
-	function getTransportModeColor(mode: string): string {
-		const cleanMode = mode.replace('transport.', '');
-		return transportModeColors[cleanMode] || transportModeColors.unknown;
-	}
+	// Transport mode colors + icons come from the shared visuals module.
 
 	/**
 	 * Normalize home address data to handle both formats:
@@ -892,8 +889,10 @@
 		}
 	}
 
-	// Draw data points on map
-	function drawDataPointsOnMap(dataPoints: any[]) {
+	// Draw data points on map. `fit: false` redraws in place (used after a
+	// transport-mode save) so the viewport doesn't jump back out to the full
+	// date-range extent; only the initial load / date change fits the map.
+	function drawDataPointsOnMap(dataPoints: any[], opts: { fit?: boolean } = {}) {
 		if (!map || !L || !dataPoints.length) return;
 
 		// Clear existing markers
@@ -919,7 +918,7 @@
 					// Use the transport mode of the NEXT point for the line color
 					// The detection at nextPoint tells us what mode was used to REACH that point
 					const mode = nextPoint.transport_mode || 'unknown';
-					const color = getTransportModeColor(mode);
+					const color = transportModeColor(mode);
 
 					// Create polyline between consecutive points
 					const polyline = L.polyline(
@@ -955,7 +954,7 @@
 
 		// Draw markers for each transport mode
 		Object.entries(pointsByMode).forEach(([mode, points]) => {
-			const color = getTransportModeColor(mode);
+			const color = transportModeColor(mode);
 
 			points.forEach((point) => {
 				if (point.lat && point.lon) {
@@ -1003,7 +1002,7 @@
 		});
 
 		// Fit map to show all points
-		if (mapMarkers.length > 0) {
+		if (opts.fit !== false && mapMarkers.length > 0) {
 			const group = (L as any).featureGroup(mapMarkers);
 			map.fitBounds(group.getBounds().pad(0.1));
 		}
@@ -1013,13 +1012,7 @@
 
 		// Clicking empty map area deselects the current point/segment.
 		if (!mapClickWired) {
-			map.on('click', () => {
-				selectedPoint = null;
-				if (selectedSegmentIdxs.size > 0) {
-					selectedSegmentIdxs = new Set();
-					drawSegmentHighlight();
-				}
-			});
+			map.on('click', () => clearSelection());
 			mapClickWired = true;
 		}
 	}
@@ -1042,6 +1035,12 @@
 		(segmentGroups as any)._sorted = sorted;
 		selectedSegmentIdxs = new Set();
 		clearSegmentHighlight();
+	}
+
+	/** The points sorted by recorded_at that back `segmentGroups` (parallel ref
+	 *  maintained by recomputeSegments; empty before data loads). */
+	function sortedSegmentPoints(): any[] {
+		return (segmentGroups as any)._sorted ?? [];
 	}
 
 	/**
@@ -1068,10 +1067,18 @@
 		segmentHighlight = [];
 	}
 
-	/** Close the Point Details popup. Leaves the segment selection intact so
-	 *  the relabel toolbar stays available after dismissing the popup. */
-	function closePointDetails() {
+	/** Clear the whole selection (panel ✕, empty-map click, Escape). */
+	function clearSelection() {
 		selectedPoint = null;
+		if (selectedSegmentIdxs.size > 0) {
+			selectedSegmentIdxs = new Set();
+			clearSegmentHighlight();
+		}
+	}
+
+	/** Escape clears the selection, mirroring an empty-map click. */
+	function handleSelectionKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && selectedSegmentIdxs.size > 0) clearSelection();
 	}
 
 	/** Speed comes from a Postgres numeric column, which PostgREST returns as a
@@ -1098,7 +1105,7 @@
 	function drawSegmentHighlight() {
 		clearSegmentHighlight();
 		if (!map || !L || selectedSegmentIdxs.size === 0) return;
-		const sorted: any[] = (segmentGroups as any)._sorted ?? [];
+		const sorted = sortedSegmentPoints();
 		for (const segIdx of selectedSegmentIdxs) {
 			const seg = segmentGroups[segIdx];
 			if (!seg) continue;
@@ -1124,7 +1131,7 @@
 	/** All points across every selected segment (empty if none). */
 	const selectedSegmentPoints = $derived.by(() => {
 		if (selectedSegmentIdxs.size === 0) return [];
-		const sorted: any[] = (segmentGroups as any)._sorted ?? [];
+		const sorted = sortedSegmentPoints();
 		const out: any[] = [];
 		for (const segIdx of selectedSegmentIdxs) {
 			const seg = segmentGroups[segIdx];
@@ -1135,6 +1142,46 @@
 		}
 		return out;
 	});
+
+	/** The point the selection panel describes: the clicked point, or the first
+	 *  point of the selection (box select can pick segments without a click). */
+	const panelPoint = $derived.by(() => {
+		if (selectedSegmentIdxs.size === 0) return null;
+		return selectedPoint ?? selectedSegmentPoints[0] ?? null;
+	});
+
+	/** The selection's current mode when every selected point shares one, else
+	 *  null (mixed) — highlights the matching button in the mode picker. */
+	const selectionCurrentMode = $derived.by(() => {
+		const points = selectedSegmentPoints;
+		if (points.length === 0) return null;
+		const first = points[0].transport_mode || 'unknown';
+		return points.every((p) => (p.transport_mode || 'unknown') === first) ? first : null;
+	});
+
+	/** Time span + total distance across the selection (multi-select summary). */
+	const selectionSpan = $derived.by(() => {
+		const points = selectedSegmentPoints;
+		if (points.length < 2) return null;
+		let min = Infinity;
+		let max = -Infinity;
+		let distance = 0;
+		for (const p of points) {
+			const time = new Date(p.recorded_at).getTime();
+			if (time < min) min = time;
+			if (time > max) max = time;
+			const d = Number(p.distance);
+			if (isFinite(d) && d > 0) distance += d;
+		}
+		return { hours: (max - min) / 3_600_000, distance };
+	});
+
+	// Panel display values live in the script as $deriveds so they refresh
+	// after a save — {#if}-level {@const} snapshots in the markup don't
+	// reliably re-evaluate when the underlying selection state is reassigned.
+	const panelIsSingle = $derived(selectedSegmentIdxs.size === 1);
+	const panelModeIcon = $derived(transportModeIcon(panelPoint?.transport_mode || 'unknown'));
+	const panelModeColor = $derived(transportModeColor(panelPoint?.transport_mode || 'unknown'));
 
 	/**
 	 * Relabel the selected segment's transport mode in the DB and update the
@@ -1151,6 +1198,7 @@
 			if (!userId) throw new Error('Not authenticated');
 
 			const ts = points.map((p) => p.recorded_at);
+			const tsSet = new Set(ts);
 			const payload =
 				mode === null
 					? { transport_mode_manual: false }
@@ -1161,22 +1209,30 @@
 							transport_mode_manual: true
 						};
 
-			// Batch the UPDATE in 500s (URL-length safety, mirrors deletePoints).
-			const batchSize = 500;
-			for (let i = 0; i < ts.length; i += batchSize) {
-				const batch = ts.slice(i, i + batchSize);
+			// Segments are gap-bounded contiguous time ranges, so each selected
+			// segment is exactly the points between its first and last
+			// recorded_at. One range-filtered UPDATE per segment keeps the
+			// request URL tiny — the previous batched `.in('recorded_at', […])`
+			// built multi-KB URLs that the gateway rejects with 431 for long
+			// segments.
+			const sorted = sortedSegmentPoints();
+			for (const segIdx of selectedSegmentIdxs) {
+				const seg = segmentGroups[segIdx];
+				const first = seg?.length ? sorted[seg[0]] : null;
+				const last = seg?.length ? sorted[seg[seg.length - 1]] : null;
+				if (!first || !last) continue;
 				const { error } = await fluxbase
 					.from('tracker_data')
 					.update(payload)
 					.eq('user_id', userId)
-					.in('recorded_at', batch);
+					.gte('recorded_at', first.recorded_at)
+					.lte('recorded_at', last.recorded_at);
 				if (error) throw new Error(error.message);
 			}
 
 			// Optimistic in-memory update so the map re-colors immediately.
 			const rawDataPoints = (statisticsService as any).rawDataPoints as any[];
 			if (mode !== null) {
-				const tsSet = new Set(ts);
 				for (const p of rawDataPoints) {
 					if (tsSet.has(p.recorded_at)) {
 						p.transport_mode = mode;
@@ -1184,7 +1240,26 @@
 					}
 				}
 			}
-			drawDataPointsOnMap(rawDataPoints);
+			// The raw points array isn't $state, so the mutations above don't
+			// re-render the panel on their own. Reassign the selection state so
+			// the current-mode ring, MODE field and Manual badge refresh — and
+			// apply the override to the selected point explicitly, because after
+			// a previous save it is a detached clone the loop above can't reach.
+			if (mode !== null && selectedPoint && tsSet.has(selectedPoint.recorded_at)) {
+				selectedPoint = {
+					...selectedPoint,
+					transport_mode: mode,
+					detection_reason: 'user_override'
+				};
+			} else if (mode === null && selectedPoint && tsSet.has(selectedPoint.recorded_at)) {
+				// Reset to auto: the override marker goes away immediately; the
+				// mode itself is re-decided by the background detector.
+				selectedPoint = { ...selectedPoint, detection_reason: undefined };
+			} else {
+				selectedPoint = selectedPoint ? { ...selectedPoint } : null;
+			}
+			selectedSegmentIdxs = new Set(selectedSegmentIdxs);
+			drawDataPointsOnMap(rawDataPoints, { fit: false });
 
 			toast.success(
 				mode === null
@@ -1419,7 +1494,7 @@
 		if (!browser || !mapContainer) return;
 
 		try {
-			L = (await import('leaflet')).default;
+			L = await import('leaflet');
 			if (map) return;
 
 			// Small delay to ensure container is ready
@@ -1446,6 +1521,54 @@
 				})
 			);
 
+			// Shift-drag box selection: adds every segment with a point inside
+			// the drawn rectangle to the selection. Shift-clicking a marker still
+			// toggles a single segment — markers don't bubble mouse events to the
+			// map, so they never start a box.
+			map.on('mousedown', (e: any) => {
+				if (!e.originalEvent?.shiftKey || boxSelectStart) return;
+				boxSelectStart = { lat: e.latlng.lat, lng: e.latlng.lng };
+				map.dragging.disable();
+			});
+			map.on('mousemove', (e: any) => {
+				if (!boxSelectStart) return;
+				if (boxSelectLayer) map.removeLayer(boxSelectLayer);
+				boxSelectLayer = L.rectangle(
+					[
+						[boxSelectStart.lat, boxSelectStart.lng],
+						[e.latlng.lat, e.latlng.lng]
+					],
+					{ color: '#2563eb', weight: 2, fillOpacity: 0.1, dashArray: '4 4' }
+				).addTo(map);
+			});
+			map.on('mouseup', (e: any) => {
+				if (!boxSelectStart) return;
+				const bounds = L.latLngBounds(
+					[boxSelectStart.lat, boxSelectStart.lng],
+					[e.latlng.lat, e.latlng.lng]
+				);
+				boxSelectStart = null;
+				map.dragging.enable();
+				if (boxSelectLayer) {
+					map.removeLayer(boxSelectLayer);
+					boxSelectLayer = null;
+				}
+				const sorted = sortedSegmentPoints();
+				const next = new Set(selectedSegmentIdxs);
+				segmentGroups.forEach((seg, segIdx) => {
+					if (next.has(segIdx)) return;
+					const hit = seg.some((idx) => {
+						const p = sorted[idx];
+						if (!p?.lat || !p?.lon) return false;
+						return bounds.contains(L.latLng(parseFloat(p.lat), parseFloat(p.lon)));
+					});
+					if (hit) next.add(segIdx);
+				});
+				if (next.size === selectedSegmentIdxs.size) return;
+				selectedSegmentIdxs = next;
+				drawSegmentHighlight();
+			});
+
 			// Load exclusion zones after map is ready
 			await loadExclusionZones();
 		} catch (error) {
@@ -1453,6 +1576,8 @@
 		}
 	}
 </script>
+
+<svelte:window onkeydown={handleSelectionKeydown} />
 
 <svelte:head>
 	<title>{t('common.navigation.statistics')} · Wayli</title>
@@ -1626,9 +1751,15 @@
 				{t('statistics.modeColors')}
 			</h4>
 			<div class="space-y-1">
-				{#each Object.entries(transportModeColors) as [mode, color] (mode)}
+				{#each [...TRANSPORT_MODE_PICKER_ORDER, 'unknown'] as mode (mode)}
+					{@const ModeIcon = transportModeIcon(mode)}
 					<div class="flex items-center space-x-2">
-						<div class="h-3 w-3 rounded-full" style="background-color: {color}"></div>
+						<span
+							class="flex h-4 w-4 shrink-0 items-center justify-center"
+							style="color: {transportModeColor(mode)}"
+						>
+							<ModeIcon class="h-3.5 w-3.5" />
+						</span>
 						<span class="text-muted-foreground text-xs">{translateTransportMode(mode)}</span>
 					</div>
 				{/each}
@@ -1653,137 +1784,137 @@
 			</div>
 		</div>
 
-		<!-- Segment editor: appears when a segment is selected by clicking a point. -->
+		<!-- Selection panel: point details + segment relabel in one compact box. -->
 		{#if selectedSegmentIdxs.size > 0}
 			<div
-				class="border-border bg-card absolute top-4 left-1/2 z-[1002] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg border p-3 shadow-lg"
+				class="border-border bg-card absolute bottom-4 left-1/2 z-[1001] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-lg border p-3 shadow-lg"
 			>
-				<div class="mb-2 flex items-center justify-between">
-					<h4 class="text-foreground text-sm font-semibold">
-						{selectedSegmentIdxs.size}
-						{selectedSegmentIdxs.size === 1
-							? t('statistics.segmentSingular')
-							: t('statistics.segmentPlural')}
-						· {selectedSegmentPoints.length}
-						{t('statistics.pointsLabel')}
-					</h4>
-					<button
-						type="button"
-						onclick={() => {
-							selectedSegmentIdxs = new Set();
-							clearSegmentHighlight();
-						}}
-						class="text-muted-foreground hover:text-foreground"
-						title={t('common.actions.close') || 'Close'}
-					>
-						<X class="h-4 w-4" />
-					</button>
+				<!-- Header: current mode + point time (single) or selection summary (multi) -->
+				<div class="flex items-center justify-between gap-2">
+					<div class="flex min-w-0 items-center gap-2">
+						{#if panelPoint}
+							<span
+								class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
+								style="background-color: {panelModeColor}"
+							>
+								<panelModeIcon class="h-3.5 w-3.5 text-white"></panelModeIcon>
+							</span>
+						{/if}
+						<span class="text-foreground truncate text-xs font-semibold">
+							{#if panelIsSingle && panelPoint}
+								{formatDateWithTimezoneSync(panelPoint.recorded_at, panelPoint.tz_diff)}
+							{:else}
+								{selectedSegmentIdxs.size}
+								{panelIsSingle ? t('statistics.segmentSingular') : t('statistics.segmentPlural')}
+								· {selectedSegmentPoints.length}
+								{t('statistics.pointsLabel')}
+								{#if selectionSpan}
+									· {formatSegmentDuration(selectionSpan.hours)} · {formatDistance(
+										selectionSpan.distance
+									)}
+								{/if}
+							{/if}
+						</span>
+						{#if panelIsSingle && panelPoint?.detection_reason === 'user_override'}
+							<span
+								class="border-border bg-muted text-muted-foreground shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium"
+							>
+								{t('statistics.manualBadge') || 'Manual'}
+							</span>
+						{/if}
+					</div>
+					{#if isUpdatingMode}
+						<Loader2 class="text-muted-foreground h-4 w-4 shrink-0 animate-spin" />
+					{:else}
+						<button
+							type="button"
+							onclick={clearSelection}
+							class="text-muted-foreground hover:text-foreground shrink-0"
+							title={t('common.actions.close') || 'Close'}
+						>
+							<X class="h-4 w-4" />
+						</button>
+					{/if}
 				</div>
-				<p class="text-muted-foreground mb-2 text-xs">
-					{t('statistics.editModeHelp')}
-				</p>
-				<div class="flex flex-wrap gap-1.5">
-					{#each ['walking', 'cycling', 'car', 'train', 'airplane', 'stationary'] as mode (mode)}
+
+				<!-- Mode picker: icon buttons, current mode ringed, Auto resets override -->
+				<div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+					{#each TRANSPORT_MODE_PICKER_ORDER as mode (mode)}
+						{@const ModeIcon = transportModeIcon(mode)}
+						{@const isCurrent = selectionCurrentMode === mode}
 						<button
 							type="button"
 							disabled={isUpdatingMode}
 							onclick={() => applyModeToSegment(mode)}
-							class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-white shadow-sm disabled:opacity-50"
-							style="background-color: {getTransportModeColor(mode)}"
+							title={translateTransportMode(mode)}
+							aria-label={translateTransportMode(mode)}
+							class="flex h-8 w-8 items-center justify-center rounded-md shadow-sm transition-transform hover:scale-110 disabled:opacity-50 disabled:hover:scale-100"
+							style="background-color: {transportModeColor(mode)};{isCurrent
+								? ` box-shadow: 0 0 0 2px #fff, 0 0 0 4px ${transportModeColor(mode)};`
+								: ''}"
 						>
-							{translateTransportMode(mode)}
+							<ModeIcon class="h-4 w-4 text-white" />
 						</button>
 					{/each}
 					<button
 						type="button"
 						disabled={isUpdatingMode}
 						onclick={() => applyModeToSegment(null)}
-						class="border-border text-muted-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium shadow-sm disabled:opacity-50"
-						title={t('statistics.resetToAuto') || 'Reset to auto'}
+						title={t('statistics.resetToAutoHint') || 'Reset to automatic detection'}
+						class="border-border text-muted-foreground hover:bg-muted ml-1 inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium shadow-sm disabled:opacity-50"
 					>
+						<Sparkles class="h-3.5 w-3.5" />
 						{t('statistics.resetToAuto') || 'Auto'}
 					</button>
 				</div>
-			</div>
-		{/if}
 
-		<!-- Point Details Popup -->
-		{#if selectedPoint}
-			<div
-				class="bg-card absolute top-4 right-4 left-4 z-[1001] max-w-sm rounded-lg p-4 shadow-lg sm:left-auto sm:w-80"
-			>
-				<div class="mb-3 flex items-start justify-between">
-					<h4 class="text-muted-foreground text-sm font-semibold">
-						{t('statistics.pointDetails')}
-					</h4>
-					<button
-						onclick={closePointDetails}
-						class="text-muted-foreground hover:text-muted-foreground"
+				<!-- Point details (single selection) -->
+				{#if panelIsSingle && panelPoint}
+					<div
+						class="text-muted-foreground mt-2.5 grid grid-cols-3 gap-x-3 gap-y-1.5 text-[11px] leading-tight"
 					>
-						<X class="h-4 w-4" />
-					</button>
-				</div>
-
-				<div class="space-y-2 text-xs">
-					<div class="grid grid-cols-2 gap-2">
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.date')}:</span>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{formatDateWithTimezoneSync(selectedPoint.recorded_at, selectedPoint.tz_diff)}
-							</div>
+						<div class="min-w-0">
+							<span class="block font-medium">{t('statistics.mode')}</span>
+							<span class="text-foreground truncate">
+								{translateTransportMode(panelPoint.transport_mode || 'unknown')}
+							</span>
 						</div>
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.mode')}:</span>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{translateTransportMode(selectedPoint.transport_mode || 'unknown')}
-							</div>
+						<div class="min-w-0">
+							<span class="block font-medium">{t('statistics.coordinates')}</span>
+							<span class="text-foreground truncate">{panelPoint.lat}, {panelPoint.lon}</span>
 						</div>
-					</div>
-
-					<div class="grid grid-cols-2 gap-2">
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.coordinates')}:</span>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{selectedPoint.lat}, {selectedPoint.lon}
-							</div>
+						<div class="min-w-0">
+							<span class="block font-medium">{t('statistics.popupSpeed')}</span>
+							<span class="text-foreground">{formatPointSpeed(panelPoint)}</span>
 						</div>
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.popupSpeed')}:</span>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{formatPointSpeed(selectedPoint)}
-							</div>
+						<div class="min-w-0">
+							<span class="block font-medium">{t('statistics.popupDistance')}</span>
+							<span class="text-foreground">{formatPointDistance(panelPoint)}</span>
 						</div>
-					</div>
-
-					<div class="grid grid-cols-2 gap-2">
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.popupDistance')}:</span
-							>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{formatPointDistance(selectedPoint)}
-							</div>
+						<div class="min-w-0">
+							<span class="block font-medium">{t('statistics.country')}</span>
+							<span class="text-foreground truncate">
+								{panelPoint.country_code
+									? `${getFlagEmoji(panelPoint.country_code)} ${panelPoint.country_code}`
+									: 'N/A'}
+							</span>
 						</div>
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.country')}:</span>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{selectedPoint.country_code || 'N/A'}
-							</div>
-						</div>
-					</div>
-
-					<div class="grid grid-cols-2 gap-2">
-						<div>
-							<span class="text-muted-foreground font-medium">{t('statistics.popupReason')}</span>
-							<div class="dark:text-muted-foreground text-gray-800">
-								{selectedPoint.detection_reason
+						<div class="min-w-0">
+							<span class="block font-medium">{t('statistics.popupReason')}</span>
+							<span class="text-foreground truncate">
+								{panelPoint.detection_reason
 									? getTransportDetectionReasonLabel(
-											selectedPoint.detection_reason as TransportDetectionReason
+											panelPoint.detection_reason as TransportDetectionReason
 										)
 									: 'N/A'}
-							</div>
+							</span>
 						</div>
 					</div>
-				</div>
+				{/if}
+
+				<p class="text-muted-foreground mt-2.5 text-[11px] leading-tight">
+					{t('statistics.editModeHelp')}
+				</p>
 			</div>
 		{/if}
 
@@ -1964,7 +2095,7 @@
 				{calendarLoading}
 				{calendarRefreshing}
 				onRefreshCalendar={refreshCalendar}
-				{transportModeColors}
+				transportModeColors={TRANSPORT_MODE_COLORS}
 			/>
 		{/if}
 	{/if}

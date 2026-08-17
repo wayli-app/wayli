@@ -531,8 +531,10 @@
 		"segmentSingular": "Segment",
 		"segmentPlural": "Segmente",
 		"pointsLabel": "Punkte",
-		"editModeHelp": "Klicke auf einen Punkt, um sein Bewegungssegment auszuwählen. Shift-Klick auf weitere Punkte fügt Segmente hinzu; wähle dann einen Modus, um alle neu zuzuweisen.",
+		"editModeHelp": "Shift-Klicke auf Punkte oder Shift-Ziehen auf der Karte fügt Segmente zur Auswahl hinzu. Esc löscht die Auswahl.",
 		"resetToAuto": "Auto",
+		"resetToAutoHint": "Auf automatische Erkennung zurücksetzen",
+		"manualBadge": "Manuell",
 		"resetToAutoDone": "Segment auf automatische Erkennung zurückgesetzt",
 		"modeUpdated": "Segment auf {mode} gesetzt",
 		"modeUpdateFailed": "Verkehrsmodus konnte nicht aktualisiert werden",
@@ -1461,9 +1463,6 @@
 		"disconnected": "Getrennt",
 		"error": "Verbindungsfehler",
 		"reconnected": "Echtzeitverbindung wiederhergestellt"
-	},
-	"storageNotice": {
-		"message": "Diese Website verwendet Browserspeicher, um Ihre Einstellungen zu speichern und wesentliche Funktionen bereitzustellen. Es werden keine Tracking-Cookies verwendet."
 	},
 	"ask": {
 		"title": "Fragen Sie nach Ihren Reisen",

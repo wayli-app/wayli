@@ -321,7 +321,7 @@
 			class="fixed inset-0 z-40 bg-black/50 md:hidden"
 			aria-label="Close notifications"
 			onclick={() => (open = false)}
-			transition={fade}
+			transition:fade
 		></button>
 
 		<div
@@ -449,7 +449,7 @@
 				transition:fade={{ duration: 150 }}
 			>
 				<div class="mt-0.5 {termColor}">
-					<termIcon class="h-4 w-4" />
+					<termIcon class="h-4 w-4"></termIcon>
 				</div>
 				<div class="min-w-0 flex-1">
 					<p class="text-foreground truncate text-sm font-medium">
@@ -499,8 +499,8 @@
 				class="hover:bg-muted group flex items-start gap-3 rounded-lg p-2 {!n.read_at
 					? 'bg-primary/5'
 					: ''}"
-				role={n.link ? 'button' : 'listitem'}
-				tabindex={n.link ? 0 : undefined}
+				role="button"
+				tabindex={0}
 				onclick={() => handleNotifClick(n)}
 				onkeydown={(e) => e.key === 'Enter' && handleNotifClick(n)}
 				animate:flip={{ duration: 150 }}

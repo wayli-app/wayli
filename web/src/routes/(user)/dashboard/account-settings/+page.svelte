@@ -801,13 +801,18 @@
 			toast.success('Profile updated successfully!');
 
 			// Keep the auth user store in sync so the top-bar name updates live.
+			// Capture the narrowed profile into a const — the narrowing doesn't
+			// survive into the update callback for a mutable outer variable.
+			const currentProfile = profile;
 			userStore.update((u) =>
 				u
 					? {
 							...u,
-							first_name: profile.first_name || '',
-							full_name: [profile.first_name, profile.last_name].filter(Boolean).join(' '),
-							avatar_url: (profile as any).avatar_url ?? u.avatar_url
+							first_name: currentProfile.first_name || '',
+							full_name: [currentProfile.first_name, currentProfile.last_name]
+								.filter(Boolean)
+								.join(' '),
+							avatar_url: (currentProfile as any).avatar_url ?? u.avatar_url
 						}
 					: u
 			);

@@ -531,8 +531,10 @@
 		"segmentSingular": "segmento",
 		"segmentPlural": "segmentos",
 		"pointsLabel": "pontos",
-		"editModeHelp": "Clique num ponto para selecionar o seu segmento de movimento. Shift-clique em mais pontos para adicionar segmentos e escolha um modo para os reetiquetar todos.",
+		"editModeHelp": "Shift-clique em pontos ou shift-arraste no mapa para adicionar segmentos à seleção. Esc limpa a seleção.",
 		"resetToAuto": "Auto",
+		"resetToAutoHint": "Restaurar deteção automática",
+		"manualBadge": "Manual",
 		"resetToAutoDone": "Segmento redefinido para detecção automática",
 		"modeUpdated": "Segmento definido como {mode}",
 		"modeUpdateFailed": "Falha ao atualizar o modo de transporte",
@@ -1461,9 +1463,6 @@
 		"disconnected": "Desconectado",
 		"error": "Erro de conexão",
 		"reconnected": "Conexão em tempo real restabelecida"
-	},
-	"storageNotice": {
-		"message": "Este site usa armazenamento do navegador para lembrar suas preferências e fornecer funcionalidades essenciais. Nenhum cookie de rastreamento é usado."
 	},
 	"ask": {
 		"title": "Pergunte sobre suas viagens",

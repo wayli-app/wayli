@@ -20,7 +20,7 @@
 	let cleanupThemeWatcher: (() => void) | null = null;
 
 	onMount(async () => {
-		L = (await import('leaflet')).default;
+		L = await import('leaflet');
 
 		const mapInstance = L.map(mapContainer, { scrollWheelZoom: true });
 		map = mapInstance;

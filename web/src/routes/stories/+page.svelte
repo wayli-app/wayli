@@ -21,7 +21,7 @@
 	const PAGE_SIZE = 12;
 
 	// Infinite scroll sentinel
-	let scrollSentinel: HTMLDivElement | null = null;
+	let scrollSentinel = $state<HTMLDivElement | null>(null);
 	let observer: IntersectionObserver | null = null;
 
 	onMount(() => {
