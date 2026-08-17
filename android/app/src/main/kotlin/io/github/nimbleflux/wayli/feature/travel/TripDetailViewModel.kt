@@ -47,6 +47,7 @@ class TripDetailViewModel @Inject constructor(
     private val statsRepo: StatsRepository,
     private val client: FluxbaseClient,
     private val draftRepo: DraftRepository,
+    private val mediaUploader: io.github.nimbleflux.wayli.feature.media.MediaUploader,
 ) : ViewModel() {
 
     val tripId: String = savedStateHandle.get<String>("tripId") ?: ""
@@ -60,6 +61,27 @@ class TripDetailViewModel @Inject constructor(
     /** Ordered (lat, lon) coordinates for the trip map; empty = no track. */
     private val _track = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
     val track: StateFlow<List<Pair<Double, Double>>> = _track.asStateFlow()
+
+    /** Signed URLs per media id (all media of the trip). */
+    private val _mediaUrls = MutableStateFlow<Map<String, String>>(emptyMap())
+    val mediaUrls: StateFlow<Map<String, String>> = _mediaUrls.asStateFlow()
+
+    /** Raw media rows (id, entryId, cover resolution order preserved). */
+    private val _media = MutableStateFlow<List<io.github.nimbleflux.wayli.models.TripMedia>>(emptyList())
+    val media: StateFlow<List<io.github.nimbleflux.wayli.models.TripMedia>> = _media.asStateFlow()
+
+    /** Resolve an entry's hero URL (cover_media_id → first by sort_order). */
+    /**
+     * The entry's hero photo URL (cover_media_id → first by sort_order —
+     * the web's cover-resolution rule), or null when the entry has no media.
+     */
+    fun heroFor(entry: TripEntry): String? {
+        val rows = _media.value.filter { it.entryId == entry.id }
+        if (rows.isEmpty()) return null
+        val cover = entry.coverMediaId?.let { id -> rows.firstOrNull { it.id == id } }
+        val chosen = cover ?: rows.first()
+        return _mediaUrls.value[chosen.id]
+    }
 
     val isDemoMode: Boolean = demoManager.isDemoMode
 
@@ -88,11 +110,23 @@ class TripDetailViewModel @Inject constructor(
                     _state.value = TripDetailUiState.Success(TripDetailData(trip))
                     _entries.value = entriesResult.getOrDefault(emptyList())
                     loadTrack(trip)
+                    loadMedia()
                 }
                 .onFailure {
                     _state.value = TripDetailUiState.Error(it.message ?: "Failed to load trip")
                 }
         }
+    }
+
+    /** Fetch the trip's media rows and sign their display URLs. */
+    private suspend fun loadMedia() {
+        val rows = tripRepo.listMedia(tripId).getOrDefault(emptyList())
+        _media.value = rows
+        val urls = mutableMapOf<String, String>()
+        for (m in rows) {
+            mediaUploader.getSignedUrl(path = m.storagePath).getOrNull()?.let { urls[m.id] = it }
+        }
+        _mediaUrls.value = urls
     }
 
     /** Fetch tracker points for the trip's date range and build the polyline. */

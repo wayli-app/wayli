@@ -205,6 +205,15 @@ object DemoData {
         ),
     )
 
+    /** Hero photos per demo entry (entryId → URL) — used by the trip journal overview. */
+    val entryHeroes = mapOf(
+        "entry-1" to "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=450&fit=crop", // Tokyo night
+        "entry-2" to "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=450&fit=crop",   // ski slopes
+        "entry-3" to "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=450&fit=crop", // onsen
+        "entry-4" to "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=450&fit=crop",    // coast road
+        "entry-5" to "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=450&fit=crop", // sea cave beach
+    )
+
     val notifications = listOf(
         Notification(
             id = "notif-1",

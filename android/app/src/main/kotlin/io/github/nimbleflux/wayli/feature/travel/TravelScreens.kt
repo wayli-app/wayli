@@ -135,6 +135,7 @@ fun TripsListScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showCreateDialog = true },
+                modifier = Modifier.padding(bottom = 110.dp), // clear the floating dock
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New Trip") },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -341,7 +342,8 @@ private fun TripCard(trip: Trip, journalPreview: JournalPreview? = null, onClick
 @Composable
 fun TripDetailScreen(
     onBack: () -> Unit,
-    onOpenEditor: (entry: TripEntry?) -> Unit,
+    onOpenEntry: (entry: TripEntry) -> Unit,
+    onNewEntry: () -> Unit,
     onOpenDraft: (draft: io.github.nimbleflux.wayli.repo.EntryDraft) -> Unit,
     viewModel: TripDetailViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
@@ -373,7 +375,7 @@ fun TripDetailScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onOpenEditor(null) },
+                onClick = onNewEntry,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
@@ -425,7 +427,12 @@ fun TripDetailScreen(
                         }
                     } else {
                         items(entries, key = { it.id }) { entry ->
-                            JournalEntryCard(entry = entry, onClick = { onOpenEditor(entry) })
+                            val hero = if (viewModel.isDemoMode) {
+                                io.github.nimbleflux.wayli.demo.DemoData.entryHeroes[entry.id]
+                            } else {
+                                viewModel.heroFor(entry)
+                            }
+                            JournalEntryCard(entry = entry, heroUrl = hero, onClick = { onOpenEntry(entry) })
                         }
                     }
                     item { Spacer(Modifier.height(24.dp)) }
@@ -533,23 +540,39 @@ private fun TripMapCard(track: List<Pair<Double, Double>>) {
 }
 
 @Composable
-private fun JournalEntryCard(entry: TripEntry, onClick: () -> Unit = {}) {
+private fun JournalEntryCard(entry: TripEntry, heroUrl: String? = null, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(entry.title ?: "Entry", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(entry.entryDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column {
+            heroUrl?.let { url ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                ) {
+                    WayliAsyncImage(
+                        model = url,
+                        contentDescription = entry.title ?: "Entry",
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
-            entry.body?.let {
-                Spacer(Modifier.height(8.dp))
-                Text(it, style = MaterialTheme.typography.bodyMedium)
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(entry.title ?: "Entry", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(entry.entryDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                entry.body?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
+                }
             }
         }
     }
