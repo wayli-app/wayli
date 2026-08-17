@@ -94,4 +94,38 @@ class ServerDiscoveryTest {
         assertTrue(ServerDiscovery.isPlaceholder(""))
         assertTrue(!ServerDiscovery.isPlaceholder("pk_live_real"))
     }
+
+    // ---- Explicit backend fallback ----
+
+    @Test
+    fun `explicit backend is accepted when auth config is JSON`() {
+        val discovered = ServerDiscovery.fromBackendConfig(
+            "https://flux.example.com",
+            """{"signup_enabled":true,"anon_key":"pk_live_real"}""",
+        )
+        assertNotNull(discovered)
+        assertEquals("https://flux.example.com", discovered.fluxbaseUrl)
+        assertEquals("pk_live_real", discovered.anonKey)
+    }
+
+    @Test
+    fun `explicit backend is rejected when the body is SPA HTML`() {
+        assertNull(
+            ServerDiscovery.fromBackendConfig(
+                "https://track.example.com",
+                "<!doctype html><html><body>Wayli</body></html>",
+            ),
+        )
+        assertNull(ServerDiscovery.fromBackendConfig("https://flux.example.com", ""))
+    }
+
+    @Test
+    fun `explicit backend without a published anon key yields a null key`() {
+        val discovered = ServerDiscovery.fromBackendConfig(
+            "https://flux.example.com",
+            """{"signup_enabled":true}""",
+        )
+        assertNotNull(discovered)
+        assertNull(discovered.anonKey)
+    }
 }

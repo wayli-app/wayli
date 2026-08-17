@@ -59,6 +59,8 @@ fun InstanceSetupScreen(
 ) {
     val context = LocalContext.current
     var url by remember { mutableStateOf("") }
+    var backendUrl by remember { mutableStateOf("") }
+    var showBackendField by remember { mutableStateOf(false) }
     var selfSigned by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -120,6 +122,34 @@ fun InstanceSetupScreen(
                 ),
             )
 
+            // Shown when auto-discovery fails (or on demand) — one field only;
+            // the anon key is still fetched automatically from the backend.
+            if (showBackendField || viewModel.offerBackendField) {
+                showBackendField = true
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = backendUrl,
+                    onValueChange = { backendUrl = it },
+                    label = { Text("Fluxbase server URL") },
+                    placeholder = { Text("https://flux.example.com") },
+                    supportingText = {
+                        Text("Only needed when the Wayli address can't be auto-discovered — we'll fetch the anon key from it.")
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Done,
+                    ),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                    ),
+                )
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -155,7 +185,11 @@ fun InstanceSetupScreen(
                             return@Button
                         }
                         error = null
-                        viewModel.connect(url, allowInsecureTls = selfSigned) { success, msg ->
+                        viewModel.connect(
+                            wayliUrl = url,
+                            backendUrl = backendUrl.takeIf { showBackendField && it.isNotBlank() },
+                            allowInsecureTls = selfSigned,
+                        ) { success, msg ->
                             // Restart so the new instance config is picked up by the
                             // FluxbaseClient singleton; on relaunch the user lands on sign-in.
                             if (success) restartApp(context) else error = msg
@@ -184,6 +218,15 @@ fun InstanceSetupScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
+            }
+
+            if (!showBackendField && !viewModel.offerBackendField) {
+                androidx.compose.material3.TextButton(onClick = { showBackendField = true }) {
+                    Text(
+                        "Trouble connecting? Enter the Fluxbase server manually",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
             }
 
             Spacer(Modifier.height(40.dp))
@@ -261,13 +304,30 @@ class InstanceSetupViewModel @Inject constructor(
      * 1. `{wayliUrl}/wayli-app.json` (instance manifest — best)
      * 2. `{wayliUrl}/api/v1/auth/config` (API proxied under the web origin)
      * 3. The input is itself a Fluxbase URL (health check confirms)
+     * 4. An explicitly provided [backendUrl] (shown in the UI when 1–3 fail) —
+     *    verified against its /api/v1/auth/config, which also yields the anon key.
      */
-    fun connect(wayliUrl: String, allowInsecureTls: Boolean = false, onResult: (Boolean, String) -> Unit) {
+    fun connect(
+        wayliUrl: String,
+        backendUrl: String? = null,
+        allowInsecureTls: Boolean = false,
+        onResult: (Boolean, String) -> Unit,
+    ) {
         val normalized = ServerDiscovery.normalizeUrl(wayliUrl)
             ?: run {
                 onResult(false, "Please enter a valid URL")
                 return
             }
+        val normalizedBackend = backendUrl?.trim()?.takeIf { it.isNotBlank() }?.let {
+            ServerDiscovery.normalizeUrl(it)
+        } ?: run {
+            if (backendUrl != null && backendUrl.isNotBlank()) {
+                onResult(false, "Please enter a valid backend URL")
+                return
+            }
+            null
+        }
+        offerBackendField = false
         loading = true
         viewModelScope.launch(Dispatchers.IO) {
             val finish: suspend (Boolean, String) -> Unit = { success, message ->
@@ -278,9 +338,21 @@ class InstanceSetupViewModel @Inject constructor(
             }
             try {
                 val discovered = discoverFrom(normalized, allowInsecureTls)
+                    ?: normalizedBackend?.let { backend ->
+                        httpGet("$backend/api/v1/auth/config", allowInsecureTls)
+                            ?.let { ServerDiscovery.fromBackendConfig(backend, it) }
+                    }
 
                 if (discovered == null) {
-                    finish(false, "Couldn't find a Fluxbase backend at $normalized — try your Fluxbase server address (e.g. https://flux.example.com).")
+                    offerBackendField = true
+                    finish(
+                        false,
+                        if (normalizedBackend == null) {
+                            "Couldn't find the Wayli backend at $normalized. Check the address, or fill in your Fluxbase server URL below."
+                        } else {
+                            "$normalizedBackend doesn't look like a Fluxbase backend — check the address."
+                        },
+                    )
                     return@launch
                 }
 
@@ -301,6 +373,10 @@ class InstanceSetupViewModel @Inject constructor(
             }
         }
     }
+
+    /** Set when Wayli-URL discovery failed and the backend field should show. */
+    var offerBackendField by mutableStateOf(false)
+        private set
 
     private suspend fun discoverFrom(url: String, allowInsecureTls: Boolean = false): ServerDiscovery.Discovered? {
         // 1. Instance manifest served by the Wayli web app.
