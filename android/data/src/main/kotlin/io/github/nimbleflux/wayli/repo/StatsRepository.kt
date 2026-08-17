@@ -19,6 +19,10 @@ data class DailyActivity(
     val points: Int? = null,
 )
 
+/** Slim tracker_data row for polyline rendering — only the location column. */
+@Serializable
+data class TrackPoint(val location: kotlinx.serialization.json.JsonElement? = null)
+
 @Singleton
 class StatsRepository @Inject constructor(
     private val client: FluxbaseClient,
@@ -42,6 +46,27 @@ class StatsRepository @Inject constructor(
             .limit(5000) // Match web's client-side cap
             .execute()
         result.data ?: emptyList()
+    }
+
+    /**
+     * Fetch just the track coordinates for a date range — a fraction of the
+     * payload of [fetchPoints] (18 columns → 1), used for map polylines.
+     * Returns ordered (lat, lng) pairs.
+     */
+    suspend fun fetchTrack(
+        userId: String,
+        startDate: String,
+        endDate: String,
+    ): Result<List<Pair<Double, Double>>> = runCatching {
+        val result = client.from<TrackPoint>("tracker_data")
+            .select("location")
+            .eq("user_id", userId)
+            .gte("recorded_at", "${startDate}T00:00:00Z")
+            .lte("recorded_at", "${endDate}T23:59:59Z")
+            .order("recorded_at")
+            .limit(5000)
+            .execute()
+        (result.data ?: emptyList()).mapNotNull { StatsAggregator.parseLocation(it.location) }
     }
 
     /**
