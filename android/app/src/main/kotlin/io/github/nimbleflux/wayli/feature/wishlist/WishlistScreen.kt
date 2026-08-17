@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Button
@@ -29,11 +32,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -149,6 +154,7 @@ fun WishlistScreen(
 
     if (showAdd) {
         AddPlaceSheet(
+            viewModel = viewModel,
             onDismiss = { showAdd = false },
             onAdd = { title, lat, lng, address ->
                 viewModel.addPlace(title, lat, lng, address)
@@ -160,22 +166,150 @@ fun WishlistScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddPlaceSheet(onDismiss: () -> Unit, onAdd: (title: String, lat: Double, lng: Double, address: String?) -> Unit) {
+private fun AddPlaceSheet(
+    viewModel: WishlistViewModel,
+    onDismiss: () -> Unit,
+    onAdd: (title: String, lat: Double, lng: Double, address: String?) -> Unit,
+) {
     val sheetState = rememberModalBottomSheetState()
+    val suggestions by viewModel.suggestions.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    var query by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var lat by remember { mutableStateOf("") }
     var lng by remember { mutableStateOf("") }
+    var locating by remember { mutableStateOf(false) }
 
     fun latValid(): Boolean = lat.toDoubleOrNull()?.let { it in -90.0..90.0 } == true
     fun lngValid(): Boolean = lng.toDoubleOrNull()?.let { it in -180.0..180.0 } == true
 
+    fun fillFrom(suggestion: io.github.nimbleflux.wayli.repo.PlaceSuggestion) {
+        if (title.isBlank()) title = suggestion.name
+        if (address.isBlank()) address = suggestion.secondary.orEmpty()
+        lat = "%.6f".format(suggestion.lat)
+        lng = "%.6f".format(suggestion.lng)
+        query = ""
+        viewModel.clearSuggestions()
+    }
+
+    fun applyLocation(coords: Pair<Double, Double>) {
+        lat = "%.6f".format(coords.first)
+        lng = "%.6f".format(coords.second)
+        locating = true
+        viewModel.reverseLookup(coords.first, coords.second) { hit ->
+            locating = false
+            if (title.isBlank()) title = hit?.name ?: "Location at ${"%.2f".format(coords.first)}, ${"%.2f".format(coords.second)}"
+            if (address.isBlank()) address = hit?.secondary.orEmpty()
+        }
+    }
+
+    fun useCurrentLocation() {
+        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE)
+            as? android.location.LocationManager ?: return
+        val best = listOf(
+            android.location.LocationManager.GPS_PROVIDER,
+            android.location.LocationManager.NETWORK_PROVIDER,
+            android.location.LocationManager.PASSIVE_PROVIDER,
+        ).mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
+            .maxByOrNull { it.time }
+        if (best != null) {
+            applyLocation(best.latitude to best.longitude)
+        } else {
+            locating = false
+        }
+    }
+
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) useCurrentLocation() else locating = false
+    }
+
+    fun onUseMyLocation() {
+        locating = true
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            useCurrentLocation()
+        } else {
+            permissionLauncher.launch(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Add a place", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            // ---- Search helper (Pelias autocomplete, web parity) ----
+            OutlinedTextField(
+                value = query,
+                onValueChange = {
+                    query = it
+                    viewModel.search(it)
+                },
+                label = { Text("Search for a place") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (suggestions.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                ) {
+                    Column {
+                        suggestions.forEach { suggestion ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { fillFrom(suggestion) }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                            ) {
+                                Text(suggestion.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                suggestion.secondary?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ---- Current location helper ----
+            OutlinedButton(
+                onClick = { onUseMyLocation() },
+                enabled = !locating,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (locating) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(Icons.Filled.LocationOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                }
+                Spacer(Modifier.size(8.dp))
+                Text(if (locating) "Locating…" else "Use my location")
+            }
+
+            // ---- Manual fields ----
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -209,7 +343,7 @@ private fun AddPlaceSheet(onDismiss: () -> Unit, onAdd: (title: String, lat: Dou
                 )
             }
             Text(
-                "Coordinates place the pin — address geocoding is coming later.",
+                "Search or use your location — coordinates are filled for you.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

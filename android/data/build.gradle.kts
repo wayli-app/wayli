@@ -27,6 +27,7 @@ android {
 dependencies {
     api(project(":core"))
     api(libs.fluxbase.kotlin)
+    api(libs.ktor.client.core)
 
     // Room
     api(libs.room.runtime)

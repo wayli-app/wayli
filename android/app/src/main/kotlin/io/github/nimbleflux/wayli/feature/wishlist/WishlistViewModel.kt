@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.wayli.demo.DemoManager
 import io.github.nimbleflux.wayli.models.WantToVisit
+import io.github.nimbleflux.wayli.repo.GeocodingService
+import io.github.nimbleflux.wayli.repo.PlaceSuggestion
 import io.github.nimbleflux.wayli.repo.WishlistRepository
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
@@ -24,10 +26,45 @@ class WishlistViewModel @Inject constructor(
     private val demoManager: DemoManager,
     private val client: FluxbaseClient,
     private val repo: WishlistRepository,
+    private val geocoder: GeocodingService,
 ) : ViewModel() {
 
     private val _places = MutableStateFlow<List<WantToVisit>>(emptyList())
     val places: StateFlow<List<WantToVisit>> = _places.asStateFlow()
+
+    /** Autocomplete hits for the add-place search field (debounced). */
+    private val _suggestions = MutableStateFlow<List<PlaceSuggestion>>(emptyList())
+    val suggestions: StateFlow<List<PlaceSuggestion>> = _suggestions.asStateFlow()
+
+    private var searchJob: kotlinx.coroutines.Job? = null
+
+    /** Debounced place search — ≥3 characters, 300ms after the last keystroke. */
+    fun search(query: String) {
+        searchJob?.cancel()
+        val q = query.trim()
+        if (q.length < 3) {
+            _suggestions.value = emptyList()
+            return
+        }
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(300)
+            geocoder.autocomplete(q)
+                .onSuccess { _suggestions.value = it }
+                .onFailure { _suggestions.value = emptyList() }
+        }
+    }
+
+    fun clearSuggestions() {
+        searchJob?.cancel()
+        _suggestions.value = emptyList()
+    }
+
+    /** Reverse-geocode picked coordinates into a title/address prefill. */
+    fun reverseLookup(lat: Double, lng: Double, onResult: (PlaceSuggestion?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            onResult(geocoder.reverse(lat, lng).getOrNull())
+        }
+    }
 
     init {
         if (!demoManager.isDemoMode) load()
