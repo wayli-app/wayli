@@ -266,7 +266,7 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(100.dp)) // clear the floating dock
         }
     }
 }

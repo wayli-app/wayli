@@ -154,7 +154,7 @@ fun TripsListScreen(
                     ) {
                         item { Spacer(Modifier.height(8.dp)) }
                         items(3) { TripCardSkeleton() }
-                        item { Spacer(Modifier.height(80.dp)) }
+                        item { Spacer(Modifier.height(100.dp)) }
                     }
                 }
                 is TripUiState.Error -> {
@@ -188,7 +188,7 @@ fun TripsListScreen(
                                     },
                                 )
                             }
-                            item { Spacer(Modifier.height(80.dp)) }
+                            item { Spacer(Modifier.height(100.dp)) }
                         }
                     }
                 }

@@ -215,7 +215,7 @@ private fun HomeContent(
         }
         item { ActivitySection(activity = data.activity) }
 
-        item { Spacer(Modifier.height(80.dp)) } // clear the floating dock
+        item { Spacer(Modifier.height(100.dp)) } // clear the floating dock
     }
 }
 
