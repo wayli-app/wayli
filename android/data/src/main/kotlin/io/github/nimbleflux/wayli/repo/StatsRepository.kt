@@ -3,16 +3,19 @@ package io.github.nimbleflux.wayli.repo
 import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.fluxbase.from
 import io.github.nimbleflux.wayli.models.TrackerPoint
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Serializable
 data class DailyActivity(
-    val userId: String,
+    @SerialName("user_id") val userId: String = "",
     val day: String,
+    /** Meters. */
     val distance: Double? = null,
-    val timeSpent: Double? = null,
+    /** Seconds. */
+    @SerialName("time_spent") val timeSpent: Double? = null,
     val points: Int? = null,
 )
 
@@ -33,8 +36,8 @@ class StatsRepository @Inject constructor(
         val result = client.from<TrackerPoint>("tracker_data")
             .select()
             .eq("user_id", userId)
-            .gte("recorded_at", startDate)
-            .lte("recorded_at", endDate)
+            .gte("recorded_at", "${startDate}T00:00:00Z")
+            .lte("recorded_at", "${endDate}T23:59:59Z")
             .order("recorded_at")
             .limit(5000) // Match web's client-side cap
             .execute()

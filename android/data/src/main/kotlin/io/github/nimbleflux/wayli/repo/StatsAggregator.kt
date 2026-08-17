@@ -1,10 +1,20 @@
 package io.github.nimbleflux.wayli.repo
 
 import io.github.nimbleflux.wayli.models.TrackerPoint
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Client-side aggregation over tracker data for the stats screens.
  * Pure functions — unit-testable without Android.
+ *
+ * Units (schema-verified): `tracker_daily_activity.distance` is meters,
+ * `time_spent` is seconds, `tracker_data.distance` is meters — converted
+ * here to the km/hours the UI labels.
  */
 object StatsAggregator {
 
@@ -14,16 +24,28 @@ object StatsAggregator {
         val points: Int,
     )
 
-    /** Totals from the `tracker_daily_activity` table. */
+    /** Totals from the `tracker_daily_activity` cache table (meters/seconds → km/hours). */
     fun totalsFromDailyActivity(rows: List<DailyActivity>): Totals = Totals(
-        totalDistanceKm = rows.sumOf { it.distance ?: 0.0 },
-        timeMovingHours = rows.sumOf { it.timeSpent ?: 0.0 },
+        totalDistanceKm = rows.sumOf { it.distance ?: 0.0 } / 1000.0,
+        timeMovingHours = rows.sumOf { it.timeSpent ?: 0.0 } / 3600.0,
         points = rows.sumOf { it.points ?: 0 },
+    )
+
+    /**
+     * Totals computed directly from `tracker_data` points — the fallback when
+     * the `tracker_daily_activity` job-populated cache is empty (fresh
+     * instances). Distance sums the per-point segment meters; time sums the
+     * per-point `time_spent` seconds where present.
+     */
+    fun totalsFromPoints(points: List<TrackerPoint>): Totals = Totals(
+        totalDistanceKm = points.sumOf { it.distance ?: 0.0 } / 1000.0,
+        timeMovingHours = points.sumOf { it.timeSpent ?: 0.0 } / 3600.0,
+        points = points.size,
     )
 
     /** day → km for the activity heatmap. */
     fun dailyDistance(rows: List<DailyActivity>): Map<String, Double> =
-        rows.associate { it.day to (it.distance ?: 0.0) }
+        rows.associate { it.day to (it.distance ?: 0.0) / 1000.0 }
 
     /** Distinct non-null country codes across points. */
     fun countries(points: List<TrackerPoint>): Int =
@@ -43,11 +65,32 @@ object StatsAggregator {
 
     /** Ordered (lat, lon) track from points; invalid locations skipped. */
     fun track(points: List<TrackerPoint>): List<Pair<Double, Double>> =
-        points.mapNotNull { parsePostgisPoint(it.location) }
+        points.mapNotNull { parseLocation(it.location) }
+
+    /**
+     * Parse a point location into (lat, lon). The tables API returns a
+     * GeoJSON Point **object** `{"type":"Point","coordinates":[lon,lat]}`
+     * (the web types it the same); WKT strings ("POINT(lon lat)" with
+     * optional SRID prefix) and GeoJSON strings are handled as fallbacks.
+     */
+    fun parseLocation(value: JsonElement?): Pair<Double, Double>? {
+        if (value == null) return null
+        when (value) {
+            is JsonObject -> {
+                val coords = value["coordinates"] as? JsonArray ?: return null
+                if (coords.size < 2) return null
+                val lon = (coords[0] as? JsonPrimitive)?.doubleOrNull ?: return null
+                val lat = (coords[1] as? JsonPrimitive)?.doubleOrNull ?: return null
+                return lat to lon
+            }
+            is JsonPrimitive -> return parsePostgisPoint(value.jsonPrimitive.content)
+            else -> return null
+        }
+    }
 
     /**
      * Parse a PostGIS POINT string ("POINT(lon lat)" with optional
-     * SRID prefix) or GeoJSON Point ({"coordinates":[lon,lat]}) to (lat, lon).
+     * SRID prefix) or a GeoJSON Point string to (lat, lon).
      */
     fun parsePostgisPoint(value: String): Pair<Double, Double>? {
         Regex("""POINT\((-?[\d.]+)\s+(-?[\d.]+)\)""").find(value)?.let { m ->

@@ -364,7 +364,7 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double
             io.github.nimbleflux.wayli.demo.DemoData.homePoints
         } else {
             data.wishlist.mapNotNull { p ->
-                parsePostgisPoint(p.location)?.let { (lat, lng) ->
+                io.github.nimbleflux.wayli.repo.StatsAggregator.parsePostgisPoint(p.location)?.let { (lat, lng) ->
                     MapPoint(lat = lat, lng = lng, title = p.title, color = p.markerColor)
                 }
             }
@@ -591,9 +591,3 @@ private fun iconForNotification(type: String): ImageVector = when (type) {
 }
 
 /** Parse "POINT(lng lat)" → (lat, lng), or null if unparseable. */
-private fun parsePostgisPoint(pointStr: String): Pair<Double, Double>? {
-    val match = Regex("""POINT\((-?[\d.]+)\s+(-?[\d.]+)\)""").find(pointStr) ?: return null
-    val lng = match.groupValues[1].toDoubleOrNull() ?: return null
-    val lat = match.groupValues[2].toDoubleOrNull() ?: return null
-    return lat to lng
-}
