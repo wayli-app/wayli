@@ -364,5 +364,15 @@ Init container for syncing Fluxbase resources using CLI
         - {{ . }}
         {{- end }}
   {{- end }}
+  # `fluxbase functions sync` bundles edge functions with deno, which downloads
+  # the esbuild npm binary into DENO_DIR (default /tmp/deno) at runtime. Without
+  # a volume at /tmp those writes land on the container's writable layer, so
+  # executing the binary trips Falco's "Drop and execute new binary in
+  # container" (proc.is_exe_upper_layer) on every pod start. Mount the pod's
+  # tmp-dir emptyDir (already declared in deployment-web.yaml) like the main
+  # container does.
+  volumeMounts:
+    - name: tmp-dir
+      mountPath: /tmp
 {{- end }}
 {{- end -}}
