@@ -62,6 +62,37 @@ function safeReportProgress(job: JobUtils, percent: number, message: string): vo
 	}
 }
 
+// Platform roles at or above admin in the Fluxbase hierarchy
+// (service_role/instance_admin > admin > authenticated > anon)
+const PLATFORM_ADMIN_ROLES = new Set(['admin', 'service_role', 'instance_admin', 'tenant_service']);
+
+async function resolveIsAdmin(
+	fluxbaseService: FluxbaseClient,
+	userRole: string | undefined,
+	userId: string | undefined
+): Promise<boolean> {
+	if (userRole && PLATFORM_ADMIN_ROLES.has(userRole)) {
+		return true;
+	}
+	if (!userId) {
+		return false;
+	}
+	// App admins are defined by user_profiles.role. The JWT role claim mirrors
+	// auth.users.role, which is only kept in sync when user_profiles.role
+	// changes (trigger_sync_user_role) — admins promoted before that trigger
+	// existed carry role='authenticated' in their token.
+	const { data: profile, error } = await fluxbaseService
+		.from('user_profiles')
+		.select('role')
+		.eq('id', userId)
+		.maybeSingle();
+	if (error) {
+		console.warn(`⚠️ Could not look up user profile for admin check: ${error.message}`);
+		return false;
+	}
+	return profile?.role === 'admin';
+}
+
 export async function handler(
 	req: Request,
 	fluxbase: FluxbaseClient,
@@ -74,7 +105,7 @@ export async function handler(
 
 	const authenticatedUserId = context.user?.id;
 	const userRole = context.user?.role;
-	const isAdmin = userRole === 'admin' || userRole === 'dashboard_admin';
+	const isAdmin = await resolveIsAdmin(fluxbaseService, userRole, authenticatedUserId);
 
 	// Check if processing all users (admin only)
 	const processAllUsers = payload?.all_users === true;
