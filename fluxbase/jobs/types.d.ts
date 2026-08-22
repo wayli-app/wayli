@@ -348,7 +348,7 @@ interface JobContext {
 		/** User email address */
 		email: string;
 
-		/** User role (admin, dashboard_admin, authenticated, anon) */
+		/** User role (service_role, instance_admin, admin, authenticated, anon) */
 		role: string;
 	} | null;
 }
