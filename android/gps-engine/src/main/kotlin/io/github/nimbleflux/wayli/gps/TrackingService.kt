@@ -46,10 +46,19 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification("Wayli tracking active")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        // A START_STICKY restart can land while the app is backgrounded, where
+        // Android 12+/15 denies the foreground promotion (while-in-use rules).
+        // Crashing there loop-kills the app — stop gracefully instead; the
+        // user (or boot receiver / notification toggle) restarts tracking.
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (_: Exception) {
+            stopSelf()
+            return START_NOT_STICKY
         }
         configStore.isTracking = true
         controller.onServiceStarted()
