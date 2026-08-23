@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
@@ -239,88 +240,53 @@ fun TripsListScreen(
                     )
                 }
                 is TripUiState.Success -> {
-                    if (state.trips.isEmpty()) {
-                        EmptyState(
-                            emoji = "🧳",
-                            title = "No trips yet",
-                            subtitle = "Tap 'New Trip' to create one",
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
-                    } else {
-                        val visibleTrips = if (entryFilter) {
-                            trips.filter { (previews[it.id]?.entryCount ?: 0) > 0 }
-                        } else {
-                            trips
-                        }
-                        LazyColumn(
-                            // The outer Column already applies the scaffold padding —
-                            // applying it again pushed the filters off the header.
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            if (communityEnabled) {
-                                item(key = "mode") {
-                                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                        SegmentedButton(
-                                            selected = !communityMode,
-                                            onClick = { communityMode = false },
-                                            shape = SegmentedButtonDefaults.itemShape(0, 2),
-                                        ) { Text("My trips") }
-                                        SegmentedButton(
-                                            selected = communityMode,
-                                            onClick = { communityMode = true },
-                                            shape = SegmentedButtonDefaults.itemShape(1, 2),
-                                        ) { Text("Community") }
-                                    }
-                                }
+                    Column(Modifier.fillMaxSize()) {
+                        // The mode toggle lives above the content so it stays
+                        // reachable even with zero trips (fresh accounts).
+                        if (communityEnabled) {
+                            SingleChoiceSegmentedButtonRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                            ) {
+                                SegmentedButton(
+                                    selected = !communityMode,
+                                    onClick = { communityMode = false },
+                                    shape = SegmentedButtonDefaults.itemShape(0, 2),
+                                ) { Text("My trips") }
+                                SegmentedButton(
+                                    selected = communityMode,
+                                    onClick = { communityMode = true },
+                                    shape = SegmentedButtonDefaults.itemShape(1, 2),
+                                ) { Text("Community") }
                             }
-                            if (communityMode) {
-                                when (val s = stories) {
-                                    is TripViewModel.StoriesUiState.Loading -> item(key = "stories-loading") {
-                                        Text(
-                                            "Loading stories…",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(vertical = 24.dp),
-                                        )
-                                    }
-                                    is TripViewModel.StoriesUiState.Error -> item(key = "stories-error") {
-                                        Column {
-                                            Text(
-                                                s.message,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.error,
-                                            )
-                                            androidx.compose.material3.TextButton(onClick = { viewModel.loadStories(reset = true) }) {
-                                                Text("Retry")
-                                            }
-                                        }
-                                    }
-                                    is TripViewModel.StoriesUiState.Success -> {
-                                        if (s.stories.isEmpty()) {
-                                            item(key = "stories-empty") {
-                                                Text(
-                                                    "No published stories on this server yet",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.padding(vertical = 24.dp),
-                                                )
-                                            }
-                                        }
-                                        itemsIndexed(s.stories, key = { _, row -> row.story.id }) { _, row ->
-                                            StoryCard(row = row, onClick = { openStory = row })
-                                        }
-                                        if (!s.endReached) {
-                                            item(key = "stories-more") {
-                                                androidx.compose.material3.OutlinedButton(
-                                                    onClick = { viewModel.loadStories() },
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                ) { Text("Load more") }
-                                            }
-                                        }
-                                    }
-                                }
+                        }
+                        if (communityMode) {
+                            CommunityStoriesList(
+                                state = stories,
+                                onRetry = { viewModel.loadStories(reset = true) },
+                                onLoadMore = { viewModel.loadStories() },
+                                onOpen = { openStory = it },
+                            )
+                        } else if (state.trips.isEmpty()) {
+                            EmptyState(
+                                emoji = "🧳",
+                                title = "No trips yet",
+                                subtitle = "Tap 'New Trip' to create one",
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                            )
+                        } else {
+                            val visibleTrips = if (entryFilter) {
+                                trips.filter { (previews[it.id]?.entryCount ?: 0) > 0 }
                             } else {
+                                trips
+                            }
+                            LazyColumn(
+                                // The outer Column already applies the scaffold padding —
+                                // applying it again pushed the filters off the header.
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
                                 item(key = "filter") {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         androidx.compose.material3.FilterChip(
@@ -357,8 +323,8 @@ fun TripsListScreen(
                                         },
                                     )
                                 }
+                                item { Spacer(Modifier.height(100.dp)) }
                             }
-                            item { Spacer(Modifier.height(100.dp)) }
                         }
                     }
                 }
@@ -384,6 +350,62 @@ private fun TripCardSkeleton() {
                 Spacer(Modifier.height(8.dp))
                 SkeletonBox(Modifier.fillMaxWidth(0.4f).height(14.dp))
             }
+        }
+    }
+}
+
+/** The Community feed list — loading / error / paginated stories. */
+@Composable
+private fun CommunityStoriesList(
+    state: TripViewModel.StoriesUiState,
+    onRetry: () -> Unit,
+    onLoadMore: () -> Unit,
+    onOpen: (TripViewModel.StoryRow) -> Unit,
+) {
+    when (state) {
+        is TripViewModel.StoriesUiState.Loading -> Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        is TripViewModel.StoriesUiState.Error -> Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                state.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+            androidx.compose.material3.TextButton(onClick = onRetry) { Text("Retry") }
+        }
+        is TripViewModel.StoriesUiState.Success -> LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (state.stories.isEmpty()) {
+                item(key = "stories-empty") {
+                    Text(
+                        "No published stories on this server yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 24.dp),
+                    )
+                }
+            }
+            itemsIndexed(state.stories, key = { _, row -> row.story.id }) { _, row ->
+                StoryCard(row = row, onClick = { onOpen(row) })
+            }
+            if (!state.endReached) {
+                item(key = "stories-more") {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onLoadMore,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Load more") }
+                }
+            }
+            item { Spacer(Modifier.height(100.dp)) }
         }
     }
 }

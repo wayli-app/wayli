@@ -97,12 +97,25 @@ class StatsViewModel @Inject constructor(
             // Heatmap always uses the server-side activity calendar (trailing
             // 371 days, like the web) — independent of the selected range so
             // the 12-week grid has data even when a shorter range is picked.
-            val calendar = statsRepo.getActivityCalendar(userId).getOrDefault(emptyList())
+            val calendarResult = statsRepo.getActivityCalendar(userId)
+            val calendar = calendarResult.getOrDefault(emptyList())
 
-            val daily = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
-                .getOrDefault(emptyList())
-            val points = statsRepo.fetchPoints(userId, start.toString(), end.toString())
-                .getOrDefault(emptyList())
+            val dailyResult = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
+            val daily = dailyResult.getOrDefault(emptyList())
+            val pointsResult = statsRepo.fetchPoints(userId, start.toString(), end.toString())
+            val points = pointsResult.getOrDefault(emptyList())
+
+            // Distinguish "no data" from "queries failing": if every source
+            // errored (network/permissions), say so instead of showing zeros.
+            if (calendarResult.isFailure && dailyResult.isFailure && pointsResult.isFailure) {
+                _state.value = StatsUiState.Error(
+                    calendarResult.exceptionOrNull()?.message
+                        ?: dailyResult.exceptionOrNull()?.message
+                        ?: pointsResult.exceptionOrNull()?.message
+                        ?: "Failed to load statistics",
+                )
+                return@launch
+            }
 
             if (daily.isEmpty() && points.isEmpty() && calendar.isEmpty()) {
                 _state.value = StatsUiState.Success(
