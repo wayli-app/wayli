@@ -572,9 +572,11 @@ jobs:
           if [ -n "$WAYLI_KEYSTORE_BASE64" ]; then
             echo "$WAYLI_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/wayli-release.keystore"
             echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "asset_suffix=" >> "$GITHUB_OUTPUT"
           else
             echo "No keystore secret found — building UNSIGNED release APKs."
             echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "asset_suffix=-unsigned" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build release APKs + Play AAB
@@ -592,20 +594,24 @@ jobs:
             -PversionCode=${{ steps.version.outputs.versionCode }}
 
       - name: Rename artifacts
+        env:
+          ASSET_SUFFIX: ${{ steps.keystore.outputs.asset_suffix }}
         run: |
           cd android/app/build/outputs
-          mv apk/gplay/release/app-gplay-release.apk "apk/gplay/release/wayli-${{ env.VERSION }}-gplay.apk"
-          mv apk/foss/release/app-foss-release.apk "apk/foss/release/wayli-${{ env.VERSION }}-foss.apk"
-          mv bundle/gplayRelease/app-gplay-release.aab "bundle/gplayRelease/wayli-${{ env.VERSION }}-gplay.aab"
+          # AGP appends "-unsigned" to the APK names when no signing config is
+          # set, so match either spelling with a glob.
+          mv apk/gplay/release/app-gplay-release*.apk "apk/gplay/release/wayli-${{ env.VERSION }}${ASSET_SUFFIX}-gplay.apk"
+          mv apk/foss/release/app-foss-release*.apk "apk/foss/release/wayli-${{ env.VERSION }}${ASSET_SUFFIX}-foss.apk"
+          mv bundle/gplayRelease/app-gplay-release.aab "bundle/gplayRelease/wayli-${{ env.VERSION }}${ASSET_SUFFIX}-gplay.aab"
 
       - name: Attach APKs + AAB to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           files: |
-            android/app/build/outputs/apk/gplay/release/wayli-${{ env.VERSION }}-gplay.apk
-            android/app/build/outputs/apk/foss/release/wayli-${{ env.VERSION }}-foss.apk
-            android/app/build/outputs/bundle/gplayRelease/wayli-${{ env.VERSION }}-gplay.aab
+            android/app/build/outputs/apk/gplay/release/wayli-${{ env.VERSION }}${{ steps.keystore.outputs.asset_suffix }}-gplay.apk
+            android/app/build/outputs/apk/foss/release/wayli-${{ env.VERSION }}${{ steps.keystore.outputs.asset_suffix }}-foss.apk
+            android/app/build/outputs/bundle/gplayRelease/wayli-${{ env.VERSION }}${{ steps.keystore.outputs.asset_suffix }}-gplay.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
