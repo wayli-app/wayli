@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +28,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,6 +67,26 @@ fun EntryDetailScreen(
 ) {
     val entry by viewModel.entry.collectAsState()
     val gallery by viewModel.gallery.collectAsState()
+    var menuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var confirmDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (confirmDelete && entry != null) {
+        val target = entry
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete entry?") },
+            text = { Text("\"${target?.title ?: "This entry"}\" will be removed permanently.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmDelete = false
+                    target?.let { viewModel.deleteEntry(it) { onBack() } }
+                }) { Text("Delete", color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -78,6 +100,20 @@ fun EntryDetailScreen(
                 actions = {
                     IconButton(onClick = { entry?.let(onEdit) }) {
                         Icon(Icons.Filled.Edit, contentDescription = "Edit entry")
+                    }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "Entry options")
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                        ) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Delete entry") },
+                                onClick = { menuOpen = false; confirmDelete = true },
+                            )
+                        }
                     }
                 },
             )
@@ -170,6 +206,20 @@ class EntryDetailViewModel @Inject constructor(
 
     private val _gallery = MutableStateFlow<List<String>>(emptyList())
     val gallery: StateFlow<List<String>> = _gallery.asStateFlow()
+
+    /** Delete the entry (owner-only via RLS); demo/local entries just vanish. */
+    fun deleteEntry(entry: TripEntry, onDone: (Boolean) -> Unit = {}) {
+        if (demoManager.isDemoMode || entry.id.startsWith("local-")) {
+            _entry.value = null
+            onDone(true)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = tripRepo.deleteEntry(entry.id)
+            _entry.value = null
+            kotlinx.coroutines.withContext(Dispatchers.Main) { onDone(result.isSuccess) }
+        }
+    }
 
     /** Hero URL — computed once the gallery resolves (cover rule applied). */
     var heroUrl: String? = null

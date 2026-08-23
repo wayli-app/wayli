@@ -158,6 +158,34 @@ class TripRepository @Inject constructor(
         }
 
     /**
+     * Update an existing trip's editable fields (owner-only via RLS).
+     */
+    suspend fun updateTrip(
+        tripId: String,
+        title: String? = null,
+        description: String? = null,
+        startDate: String? = null,
+        endDate: String? = null,
+        visibility: String? = null,
+    ): Result<Unit> = runCatching {
+        val values = buildMap<String, Any> {
+            title?.let { put("title", it) }
+            description?.let { put("description", it) }
+            startDate?.let { put("start_date", it) }
+            endDate?.let { put("end_date", it) }
+            visibility?.let { put("visibility", it) }
+        }
+        client.from<Trip>("trips").eq("id", tripId).update(values)
+    }
+
+    /**
+     * Delete a journal entry (owner-only via RLS).
+     */
+    suspend fun deleteEntry(entryId: String): Result<Unit> = runCatching {
+        client.from<TripEntry>("trip_entries").eq("id", entryId).delete()
+    }
+
+    /**
      * Delete a trip.
      */
     suspend fun deleteTrip(tripId: String): Result<Unit> = runCatching {

@@ -366,7 +366,7 @@ class InstanceSetupViewModel @Inject constructor(
                     return@launch
                 }
 
-                instanceManager.setConfig(discovered.fluxbaseUrl, discovered.anonKey, allowInsecureTls)
+                instanceManager.setConfig(discovered.fluxbaseUrl, discovered.anonKey, allowInsecureTls, webUrl = normalized.takeIf { it != discovered.fluxbaseUrl })
                 finish(true, "")
             } catch (e: Exception) {
                 finish(false, "Could not reach: ${e.message}")
