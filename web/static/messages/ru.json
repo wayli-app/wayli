@@ -1238,7 +1238,7 @@
 		"aiProviderReadOnly": "Только чтение",
 		"aiProviderReadOnlyDescription": "Этот поставщик AI настраивается с помощью переменных среды или конфигурации YAML и не может быть изменен через пользовательский интерфейс.",
 		"aiProviders": {
-			"openai": "OpenAI (GPT-4, GPT-3.5)",
+			"openai": "OpenAI",
 			"anthropic": "Anthropic (Claude)",
 			"ollama": "Ollama (локальный)",
 			"openrouter": "OpenRouter",

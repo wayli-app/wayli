@@ -1234,7 +1234,7 @@
 		"aiProviderReadOnly": "Somente leitura",
 		"aiProviderReadOnlyDescription": "Este provedor de IA é configurado por meio de variáveis ​​de ambiente ou configuração YAML e não pode ser modificado por meio da IU.",
 		"aiProviders": {
-			"openai": "OpenAI (GPT-4, GPT-3.5)",
+			"openai": "OpenAI",
 			"anthropic": "Anthropic (Claude)",
 			"ollama": "Ollama (local)",
 			"openrouter": "OpenRouter",

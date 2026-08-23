@@ -190,6 +190,7 @@
 	let providerType = $state('openai');
 	let providerModel = $state('gpt-4.1-mini-2025-04-14');
 	let providerApiKey = $state('');
+	let providerApiKeyConfigured = $state(false);
 	let providerApiEndpoint = $state('');
 	let providerMaxTokens = $state(4096);
 	let providerTemperature = $state(0.7);
@@ -1460,6 +1461,7 @@
 
 			// Load default provider into form if available
 			const defaultProvider = app?.ai?.default_provider;
+			providerApiKeyConfigured = false;
 			if (defaultProvider) {
 				providerName = 'wayli-default'; // Always use fixed provider name
 				providerDisplayName = defaultProvider.display_name ?? 'OpenAI';
@@ -1470,7 +1472,9 @@
 				providerTemperature = defaultProvider.config?.temperature ?? 0.7;
 				providerIsDefault = defaultProvider.is_default ?? true;
 				providerReadOnly = defaultProvider.read_only ?? false;
-				// Note: API key is not returned for security reasons
+				// The API key itself is never returned; the server masks it
+				// with a sentinel when one is stored.
+				providerApiKeyConfigured = defaultProvider.config?.api_key === '***masked***';
 			}
 
 			// Load chatbot usage limits from the live wayli-assistant record.
@@ -3267,14 +3271,34 @@
 									>
 										{t('serverAdmin.aiApiKey')}
 									</label>
-									<Input
-										id="providerApiKey"
-										type="password"
-										bind:value={providerApiKey}
-										disabled={providerReadOnly}
-										class="w-full"
-										placeholder={t('serverAdmin.aiApiKeyPlaceholder')}
-									/>
+									{#if providerApiKeyConfigured}
+										<div
+											class="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 dark:border-green-800 dark:bg-green-900/20"
+										>
+											<span class="text-sm font-medium text-green-700 dark:text-green-300">
+												{t('serverAdmin.secretConfigured')}
+											</span>
+										</div>
+										<div class="mt-2">
+											<Input
+												id="providerApiKey"
+												type="password"
+												bind:value={providerApiKey}
+												disabled={providerReadOnly}
+												class="w-full"
+												placeholder={t('serverAdmin.enterNewKeyToReplace')}
+											/>
+										</div>
+									{:else}
+										<Input
+											id="providerApiKey"
+											type="password"
+											bind:value={providerApiKey}
+											disabled={providerReadOnly}
+											class="w-full"
+											placeholder={t('serverAdmin.aiApiKeyPlaceholder')}
+										/>
+									{/if}
 								</div>
 
 								{#if providerType === 'ollama' || providerType === 'azure' || providerType === 'custom'}

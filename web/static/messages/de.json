@@ -1234,7 +1234,7 @@
 		"aiProviderReadOnly": "Schreibgeschützt",
 		"aiProviderReadOnlyDescription": "Dieser KI-Anbieter wird über Umgebungsvariablen oder YAML-Konfiguration konfiguriert und kann nicht über die Benutzeroberfläche geändert werden.",
 		"aiProviders": {
-			"openai": "OpenAI (GPT-4, GPT-3.5)",
+			"openai": "OpenAI",
 			"anthropic": "Anthropic (Claude)",
 			"ollama": "Ollama (lokal)",
 			"openrouter": "OpenRouter",
