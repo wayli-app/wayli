@@ -20,6 +20,8 @@ import io.github.nimbleflux.wayli.repo.WishlistRepository
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +50,14 @@ sealed interface HomeUiState {
     data class Error(val message: String) : HomeUiState
     data class Success(val data: HomeData) : HomeUiState
 }
+
+/** Results of [HomeViewModel]'s parallel initial fetches. */
+private data class LoadResults(
+    val trips: kotlin.Result<List<Trip>>,
+    val wishlist: List<WantToVisit>,
+    val profile: UserProfile?,
+    val notifications: List<Notification>,
+)
 
 /**
  * Feeds the Home dashboard. In demo mode it serves [DemoData] instantly so the
@@ -127,28 +137,37 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = HomeUiState.Loading
-            val tripsResult = tripRepo.listTrips(userId)
-            val wishlistResult = wishlistRepo.listPlaces(userId)
-            if (tripsResult.isSuccess) {
-                val trips = tripsResult.getOrDefault(emptyList())
-                val wishlist = wishlistResult.getOrDefault(emptyList())
-                val profile = userRepo.getProfile(userId).getOrNull()
-                val notifications = notificationRepo.list(userId, limit = 20).getOrDefault(emptyList())
-
+            // Parallel fetches — the dashboard's first paint waits on the
+            // slowest call, not the sum of all of them.
+            val results = coroutineScope {
+                val trips = async { tripRepo.listTrips(userId) }
+                val wishlist = async { wishlistRepo.listPlaces(userId) }
+                val profile = async { userRepo.getProfile(userId).getOrNull() }
+                val notifications = async {
+                    notificationRepo.list(userId, limit = 20).getOrDefault(emptyList())
+                }
+                LoadResults(
+                    trips = trips.await(),
+                    wishlist = wishlist.await().getOrDefault(emptyList()),
+                    profile = profile.await(),
+                    notifications = notifications.await(),
+                )
+            }
+            if (results.trips.isSuccess) {
                 _uiState.value = HomeUiState.Success(
                     HomeData(
-                        profile = profile,
-                        initials = initials(profile),
-                        stats = HomeStats("", "", "", trips.size.toString()),
-                        trips = trips,
-                        wishlist = wishlist,
-                        activity = notifications,
+                        profile = results.profile,
+                        initials = initials(results.profile),
+                        stats = HomeStats("", "", "", results.trips.getOrDefault(emptyList()).size.toString()),
+                        trips = results.trips.getOrDefault(emptyList()),
+                        wishlist = results.wishlist,
+                        activity = results.notifications,
                     ),
                 )
                 loadWindow()
             } else {
                 _uiState.value =
-                    HomeUiState.Error(tripsResult.exceptionOrNull()?.message ?: "Failed to load")
+                    HomeUiState.Error(results.trips.exceptionOrNull()?.message ?: "Failed to load")
             }
         }
     }
@@ -160,10 +179,17 @@ class HomeViewModel @Inject constructor(
         val current = _uiState.value as? HomeUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val (start, end) = _selectedRange.value.toDates()
-            val daily = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
-                .getOrDefault(emptyList())
-            val pointRows = statsRepo.fetchPoints(userId, start.toString(), end.toString())
-                .getOrDefault(emptyList())
+            val (daily, pointRows) = coroutineScope {
+                val dailyDeferred = async {
+                    statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
+                        .getOrDefault(emptyList())
+                }
+                val pointsDeferred = async {
+                    statsRepo.fetchPoints(userId, start.toString(), end.toString())
+                        .getOrDefault(emptyList())
+                }
+                dailyDeferred.await() to pointsDeferred.await()
+            }
             val totals = if (daily.isNotEmpty()) {
                 StatsAggregator.totalsFromDailyActivity(daily)
             } else {
