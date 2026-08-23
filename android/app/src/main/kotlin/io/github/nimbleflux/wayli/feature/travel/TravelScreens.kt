@@ -196,7 +196,8 @@ fun TripsListScreen(
             when (state) {
                 is TripUiState.Loading -> {
                     LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                        // The outer Column already applies the scaffold padding.
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         item { Spacer(Modifier.height(8.dp)) }
@@ -207,7 +208,7 @@ fun TripsListScreen(
                 is TripUiState.Error -> {
                     ErrorState(
                         message = state.message,
-                        modifier = Modifier.padding(padding),
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
                 is TripUiState.Success -> {
@@ -216,7 +217,7 @@ fun TripsListScreen(
                             emoji = "🧳",
                             title = "No trips yet",
                             subtitle = "Tap 'New Trip' to create one",
-                            modifier = Modifier.padding(padding),
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     } else {
                         val visibleTrips = if (entryFilter) {
@@ -225,7 +226,9 @@ fun TripsListScreen(
                             trips
                         }
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                            // The outer Column already applies the scaffold padding —
+                            // applying it again pushed the filters off the header.
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             item(key = "filter") {
