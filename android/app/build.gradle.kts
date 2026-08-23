@@ -13,7 +13,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.nimbleflux.wayli"
+        applicationId = "com.nimbleflux.wayli"
         minSdk = 26
         targetSdk = 35
         // Release builds stamp these via -PversionName/-PversionCode

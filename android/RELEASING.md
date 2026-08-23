@@ -43,7 +43,7 @@ Without the `PLAY_SERVICE_ACCOUNT_JSON` secret the workflow skips gracefully.
 
 ### One-time Play Console setup (you do this once, by hand)
 1. Play Console → **All apps → Create app** with package
-   `io.github.nimbleflux.wayli`.
+   `com.nimbleflux.wayli`.
 2. **The API cannot create a release for an app that has none yet** — upload
    the first AAB manually once: Internal testing → Release → upload
    `wayli-<version>-gplay.aab` from the GitHub release. Enroll in
