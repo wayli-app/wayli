@@ -135,15 +135,13 @@ class FusedLocationProvider @Inject constructor(
             .build()
 
     private fun buildRequest(config: TrackingConfig, kind: ActivityKind): LocationRequest {
-        val priority = if (AdaptiveTrackingPolicy.wantsPassive(kind)) {
-            Priority.PRIORITY_PASSIVE
-        } else {
-            when (config.accuracy) {
-                AccuracyProfile.HIGH -> Priority.PRIORITY_HIGH_ACCURACY
-                AccuracyProfile.BALANCED -> Priority.PRIORITY_BALANCED_POWER_ACCURACY
-                AccuracyProfile.LOW -> Priority.PRIORITY_LOW_POWER
-                AccuracyProfile.POWER -> Priority.PRIORITY_PASSIVE
-            }
+        // Never passive by activity — only an explicit POWER profile opts in
+        // (passive delivers nothing on a quiet device; see AdaptiveTrackingPolicy).
+        val priority = when (config.accuracy) {
+            AccuracyProfile.HIGH -> Priority.PRIORITY_HIGH_ACCURACY
+            AccuracyProfile.BALANCED -> Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            AccuracyProfile.LOW -> Priority.PRIORITY_LOW_POWER
+            AccuracyProfile.POWER -> Priority.PRIORITY_PASSIVE
         }
         val intervalMs = AdaptiveTrackingPolicy.intervalMs(config, kind)
         return LocationRequest.Builder(priority, intervalMs)

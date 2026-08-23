@@ -10,26 +10,22 @@ class AdaptiveTrackingPolicyTest {
     private val config = TrackingConfig(minIntervalSec = 30) // base 30s
 
     @Test
-    fun `still drops to passive at 4x interval`() {
+    fun `still backs off to a 4x interval but stays active`() {
         val effective = AdaptiveTrackingPolicy.effectiveFor(ActivityKind.STILL)
         assertEquals(4, effective.intervalMultiplier)
-        assertTrue(effective.passivePriority)
         assertEquals(120_000L, AdaptiveTrackingPolicy.intervalMs(config, ActivityKind.STILL))
-        assertTrue(AdaptiveTrackingPolicy.wantsPassive(ActivityKind.STILL))
     }
 
     @Test
     fun `moving kinds use the configured interval`() {
         listOf(ActivityKind.ON_FOOT, ActivityKind.IN_VEHICLE, ActivityKind.ON_BIKE).forEach { kind ->
             assertEquals(30_000L, AdaptiveTrackingPolicy.intervalMs(config, kind), "$kind")
-            assertFalse(AdaptiveTrackingPolicy.wantsPassive(kind), "$kind")
         }
     }
 
     @Test
     fun `unknown keeps configured values`() {
         assertEquals(30_000L, AdaptiveTrackingPolicy.intervalMs(config, ActivityKind.UNKNOWN))
-        assertFalse(AdaptiveTrackingPolicy.wantsPassive(ActivityKind.UNKNOWN))
     }
 
     @Test
