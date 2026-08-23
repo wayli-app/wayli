@@ -81,6 +81,8 @@ fun HomeScreen(
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
     onNotificationsClick: () -> Unit = {},
+    autoStartRecording: Boolean = false,
+    onAutoActionConsumed: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -106,6 +108,8 @@ fun HomeScreen(
                     onTripClick = onTripClick,
                     onWishlistClick = onWishlistClick,
                     onNotificationsClick = onNotificationsClick,
+                    autoStartRecording = autoStartRecording,
+                    onAutoActionConsumed = onAutoActionConsumed,
                 )
             }
         }
@@ -124,6 +128,8 @@ private fun HomeContent(
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
     onNotificationsClick: () -> Unit = {},
+    autoStartRecording: Boolean = false,
+    onAutoActionConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val recordingVm: RecordingViewModel = hiltViewModel()
@@ -170,6 +176,14 @@ private fun HomeContent(
             }
         } else {
             permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    // "Start recording" launcher shortcut: run the permission-gated resume flow once.
+    androidx.compose.runtime.LaunchedEffect(autoStartRecording) {
+        if (autoStartRecording && !recordingVm.isDemo) {
+            resumeWithPermission()
+            onAutoActionConsumed()
         }
     }
 

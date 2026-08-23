@@ -21,9 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import androidx.navigation.NavType
@@ -110,7 +114,37 @@ class NavViewModel @Inject constructor(
     private val encryptedStorage: io.github.nimbleflux.wayli.session.EncryptedStorageAdapter,
     private val deviceTokenStore: io.github.nimbleflux.wayli.session.DeviceTokenStore,
     private val deviceTokenRepo: io.github.nimbleflux.wayli.repo.DeviceTokenRepository,
+    private val tripRepo: io.github.nimbleflux.wayli.repo.TripRepository,
+    private val draftRepo: io.github.nimbleflux.wayli.repo.DraftRepository,
 ) : ViewModel() {
+
+    /** Trips offered by the share-target inbox ("save to trip…"). */
+    val inboxTrips = MutableStateFlow<List<io.github.nimbleflux.wayli.models.Trip>>(emptyList())
+
+    fun loadInboxTrips() {
+        viewModelScope.launch(Dispatchers.IO) {
+            inboxTrips.value = if (demoManager.isDemoMode) {
+                io.github.nimbleflux.wayli.demo.DemoData.trips.sortedByDescending { it.startDate }
+            } else {
+                val userId = fluxbaseClient.auth.currentSession?.user?.id
+                if (userId == null) emptyList() else tripRepo.listTrips(userId).getOrDefault(emptyList())
+            }
+        }
+    }
+
+    /** Save a shared payload as a journal draft under [tripId]. */
+    suspend fun saveSharedDraft(
+        tripId: String,
+        text: String?,
+        photoPaths: List<String>,
+    ): String = draftRepo.save(
+        io.github.nimbleflux.wayli.repo.EntryDraft(
+            tripId = tripId,
+            body = text.orEmpty(),
+            photos = photoPaths,
+        ),
+    )
+
     /** Live read — demo mode can flip mid-session (Try Demo / Exit demo). */
     val isDemoMode: Boolean get() = demoManager.isDemoMode
 
@@ -216,6 +250,26 @@ fun WayliNavHost() {
         }
     }
 
+    // ---- Launcher shortcuts + share-target (QuickActionBus) ----
+    var autoRecord by remember { mutableStateOf(false) }
+    var autoNewTrip by remember { mutableStateOf(false) }
+    val quickAction by io.github.nimbleflux.wayli.util.QuickActionBus.pending.collectAsState()
+    LaunchedEffect(quickAction) {
+        when (quickAction) {
+            io.github.nimbleflux.wayli.util.QuickActionBus.QuickAction.Record -> {
+                navController.navigate(Routes.MAP) { launchSingleTop = true }
+                autoRecord = true
+                io.github.nimbleflux.wayli.util.QuickActionBus.consume()
+            }
+            io.github.nimbleflux.wayli.util.QuickActionBus.QuickAction.NewTrip -> {
+                navController.navigate(Routes.TRAVEL) { launchSingleTop = true }
+                autoNewTrip = true
+                io.github.nimbleflux.wayli.util.QuickActionBus.consume()
+            }
+            else -> Unit // Shared handled by the inbox dialog below
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
@@ -288,12 +342,16 @@ fun WayliNavHost() {
                     onStatsClick = { navController.navigate(Routes.STATS) },
                     onTripClick = { trip: Trip -> navController.navigate("trip_detail/${trip.id}") },
                     onWishlistClick = { switchTab(Routes.WISHLIST) },
+                    autoStartRecording = autoRecord,
+                    onAutoActionConsumed = { autoRecord = false },
                 )
             }
             composable(Routes.TRAVEL) {
                 TripsListScreen(
                     onTripClick = { trip -> navController.navigate("trip_detail/${trip.id}") },
                     onNewTrip = {},
+                    autoOpenCreate = autoNewTrip,
+                    onAutoActionConsumed = { autoNewTrip = false },
                 )
             }
             composable(Routes.WISHLIST) {
@@ -477,4 +535,76 @@ fun WayliNavHost() {
             )
         }
     }
+
+    // Share-target inbox: pick which trip receives the shared text/photos.
+    val sharedAction = quickAction as? io.github.nimbleflux.wayli.util.QuickActionBus.QuickAction.Shared
+    if (sharedAction != null) {
+        ShareInboxDialog(
+            shared = sharedAction,
+            viewModel = viewModel,
+            onDismiss = { io.github.nimbleflux.wayli.util.QuickActionBus.consume() },
+            onSaved = { tripId, draftId ->
+                io.github.nimbleflux.wayli.util.QuickActionBus.consume()
+                navController.navigate("entry_editor/${tripId}?entryId=&draftId=$draftId")
+            },
+        )
+    }
+}
+
+@Composable
+private fun ShareInboxDialog(
+    shared: io.github.nimbleflux.wayli.util.QuickActionBus.QuickAction.Shared,
+    viewModel: NavViewModel,
+    onDismiss: () -> Unit,
+    onSaved: (tripId: String, draftId: String) -> Unit,
+) {
+    val trips by viewModel.inboxTrips.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.loadInboxTrips() }
+    val saving = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { androidx.compose.material3.Text("Save to trip") },
+        text = {
+            androidx.compose.foundation.layout.Column {
+                androidx.compose.material3.Text(
+                    buildString {
+                        shared.text?.let { append("\"").append(it.take(80)).append("\"") }
+                        if (shared.photoPaths.isNotEmpty()) {
+                            if (isNotEmpty()) append("\n")
+                            append("${shared.photoPaths.size} photo(s)")
+                        }
+                    },
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                )
+                if (trips.isEmpty()) {
+                    androidx.compose.material3.Text(
+                        if (saving.value) "Saving…" else "No trips yet — create one first.",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    trips.take(6).forEach { trip ->
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                if (!saving.value) {
+                                    saving.value = true
+                                    viewModel.viewModelScope.launch {
+                                        val draftId = viewModel.saveSharedDraft(trip.id, shared.text, shared.photoPaths)
+                                        onSaved(trip.id, draftId)
+                                    }
+                                }
+                            },
+                        ) {
+                            androidx.compose.material3.Text(trip.title)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { androidx.compose.material3.Text("Cancel") }
+        },
+    )
 }
