@@ -172,12 +172,17 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** True while the range-scoped stats/map window is re-fetching. */
+    private val _windowLoading = MutableStateFlow(false)
+    val windowLoading: StateFlow<Boolean> = _windowLoading.asStateFlow()
+
     /** Reload stats + map track for the selected range (real mode). */
     private fun loadWindow() {
         if (demoManager.isDemoMode) return
         val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: return
         val current = _uiState.value as? HomeUiState.Success ?: return
         viewModelScope.launch(Dispatchers.IO) {
+            _windowLoading.value = true
             val (start, end) = _selectedRange.value.toDates()
             val (daily, pointRows) = coroutineScope {
                 val dailyDeferred = async {
@@ -208,6 +213,7 @@ class HomeViewModel @Inject constructor(
                     ),
                 ),
             )
+            _windowLoading.value = false
         }
     }
 

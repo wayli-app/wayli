@@ -58,6 +58,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,6 +109,7 @@ fun TripsListScreen(
     val detectRunning by viewModel.detectRunning.collectAsState()
     val communityEnabled by viewModel.communityEnabled.collectAsState()
     val stories by viewModel.stories.collectAsState()
+    val loadingMore by viewModel.storiesLoadingMore.collectAsState()
     var communityMode by remember { androidx.compose.runtime.mutableStateOf(false) }
     var openStory by remember { androidx.compose.runtime.mutableStateOf<TripViewModel.StoryRow?>(null) }
     var showCreateDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -264,6 +266,7 @@ fun TripsListScreen(
                         if (communityMode) {
                             CommunityStoriesList(
                                 state = stories,
+                                loadingMore = loadingMore,
                                 onRetry = { viewModel.loadStories(reset = true) },
                                 onLoadMore = { viewModel.loadStories() },
                                 onOpen = { openStory = it },
@@ -354,10 +357,11 @@ private fun TripCardSkeleton() {
     }
 }
 
-/** The Community feed list — loading / error / paginated stories. */
+/** The Community feed list — loading / error / infinite-scrolling stories. */
 @Composable
 private fun CommunityStoriesList(
     state: TripViewModel.StoriesUiState,
+    loadingMore: Boolean,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onOpen: (TripViewModel.StoryRow) -> Unit,
@@ -380,32 +384,51 @@ private fun CommunityStoriesList(
             )
             androidx.compose.material3.TextButton(onClick = onRetry) { Text("Retry") }
         }
-        is TripViewModel.StoriesUiState.Success -> LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (state.stories.isEmpty()) {
-                item(key = "stories-empty") {
-                    Text(
-                        "No published stories on this server yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 24.dp),
-                    )
+        is TripViewModel.StoriesUiState.Success -> {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+            // Infinite scroll: fetch the next page as the end comes into view.
+            androidx.compose.runtime.LaunchedEffect(state.endReached, loadingMore) {
+                if (state.endReached || loadingMore) return@LaunchedEffect
+                snapshotFlow {
+                    val info = listState.layoutInfo
+                    (info.visibleItemsInfo.lastOrNull()?.index ?: -1) to info.totalItemsCount
+                }.collect { (last, total) ->
+                    if (total > 0 && last >= total - 2) onLoadMore()
                 }
             }
-            itemsIndexed(state.stories, key = { _, row -> row.story.id }) { _, row ->
-                StoryCard(row = row, onClick = { onOpen(row) })
-            }
-            if (!state.endReached) {
-                item(key = "stories-more") {
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = onLoadMore,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Load more") }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (state.stories.isEmpty()) {
+                    item(key = "stories-empty") {
+                        Text(
+                            "No published stories on this server yet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 24.dp),
+                        )
+                    }
                 }
+                itemsIndexed(state.stories, key = { _, row -> row.story.id }) { _, row ->
+                    StoryCard(row = row, onClick = { onOpen(row) })
+                }
+                if (loadingMore && !state.endReached) {
+                    item(key = "stories-more") {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(28.dp),
+                                strokeWidth = 3.dp,
+                            )
+                        }
+                    }
+                }
+                item { Spacer(Modifier.height(100.dp)) }
             }
-            item { Spacer(Modifier.height(100.dp)) }
         }
     }
 }

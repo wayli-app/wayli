@@ -62,6 +62,7 @@ fun StatsScreen(
     viewModel: StatsViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.state.collectAsState()
+    val reloading by viewModel.reloading.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val isDemo = viewModel.isDemoMode
     val message by viewModel.message.collectAsState()
@@ -92,13 +93,24 @@ fun StatsScreen(
             )
         },
     ) { padding ->
-        when (val s = uiState) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.fillMaxSize().padding(padding),
+        ) {
+            // Subtle indicator while re-fetching (range switch / refresh) —
+            // the previous data stays on screen underneath it.
+            if (reloading && uiState is StatsUiState.Success) {
+                androidx.compose.material3.LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+            }
+            when (val s = uiState) {
             is StatsUiState.Loading -> Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) { androidx.compose.material3.CircularProgressIndicator() }
             is StatsUiState.Error -> Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) { Text(s.message, color = MaterialTheme.colorScheme.error) }
             is StatsUiState.Success -> StatsContent(
@@ -108,8 +120,9 @@ fun StatsScreen(
                 selectedRange = selectedRange,
                 onRangeSelected = viewModel::setRange,
                 onBuildActivity = viewModel::buildActivityData,
-                padding = padding,
+                padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
             )
+        }
         }
     }
 }
