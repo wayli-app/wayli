@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,6 +72,7 @@ import io.github.nimbleflux.wayli.designsystem.fadeInUp
 import io.github.nimbleflux.wayli.designsystem.map.MapTrack
 import io.github.nimbleflux.wayli.designsystem.map.WayliMap
 import io.github.nimbleflux.wayli.models.Trip
+import kotlinx.coroutines.launch
 import io.github.nimbleflux.wayli.models.TripEntry
 import io.github.nimbleflux.wayli.models.distanceMeters
 import org.maplibre.android.geometry.LatLng
@@ -431,6 +433,30 @@ fun TripDetailScreen(
     val drafts by viewModel.drafts.collectAsState()
     val media by viewModel.media.collectAsState()
     val snackbar = remember { androidx.compose.material3.SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val shareScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    var showEdit by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showDelete by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showSharePublic by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var menuOpen by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    fun launchShare(trip: Trip) {
+        shareScope.launch {
+            val link = viewModel.shareLinkFor(trip)
+            val text = buildString {
+                append("📍 ${trip.title}")
+                append("\n${formatDateRange(trip.startDate, trip.endDate)}")
+                link?.let { append("\n\n$it") }
+            }
+            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, text)
+                putExtra(android.content.Intent.EXTRA_SUBJECT, trip.title)
+            }
+            context.startActivity(android.content.Intent.createChooser(intent, "Share trip"))
+        }
+    }
 
     // Re-check drafts whenever the screen (re)appears — the editor may have
     // auto-saved one while we were away.
@@ -438,6 +464,57 @@ fun TripDetailScreen(
 
     // The hero replaces the top bar on Success; other states keep the plain one.
     val isSuccess = state is TripDetailUiState.Success
+
+    val currentTrip = (state as? TripDetailUiState.Success)?.data?.trip
+    if (showEdit && currentTrip != null) {
+        EditTripDialog(
+            trip = currentTrip,
+            onDismiss = { showEdit = false },
+            onSave = { title, description, startDate, endDate, visibility ->
+                showEdit = false
+                viewModel.updateTrip(currentTrip.id, title, description, startDate, endDate, visibility) { ok ->
+                    shareScope.launch {
+                        snackbar.showSnackbar(if (ok) "Trip updated" else "Couldn't update trip")
+                    }
+                }
+            },
+        )
+    }
+    if (showDelete && currentTrip != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDelete = false },
+            title = { Text("Delete trip?") },
+            text = { Text("\"${currentTrip.title}\" and its journal entries will be removed. This can't be undone.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showDelete = false
+                    viewModel.deleteTrip(currentTrip.id) { onBack() }
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDelete = false }) { Text("Cancel") }
+            },
+        )
+    }
+    if (showSharePublic && currentTrip != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showSharePublic = false },
+            title = { Text("Share a private trip?") },
+            text = { Text("Only public trips can be opened from a share link. Make this trip public and share it?") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showSharePublic = false
+                    val trip = currentTrip
+                    viewModel.setVisibility(trip, "public") { ok ->
+                        if (ok) launchShare(trip)
+                    }
+                }) { Text("Make public & share") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showSharePublic = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -477,6 +554,39 @@ fun TripDetailScreen(
                             trip = data.trip,
                             coverUrl = viewModel.tripCoverFor(data.trip),
                             onBack = onBack,
+                            menu = {
+                                Box {
+                                    GlassIconButton(
+                                        icon = Icons.Filled.MoreVert,
+                                        contentDescription = "Trip options",
+                                        onClick = { menuOpen = true },
+                                    )
+                                    androidx.compose.material3.DropdownMenu(
+                                        expanded = menuOpen,
+                                        onDismissRequest = { menuOpen = false },
+                                    ) {
+                                        androidx.compose.material3.DropdownMenuItem(
+                                            text = { Text("Edit trip") },
+                                            onClick = { menuOpen = false; showEdit = true },
+                                        )
+                                        androidx.compose.material3.DropdownMenuItem(
+                                            text = { Text("Share") },
+                                            onClick = {
+                                                menuOpen = false
+                                                if (data.trip.visibility == "public") {
+                                                    launchShare(data.trip)
+                                                } else {
+                                                    showSharePublic = true
+                                                }
+                                            },
+                                        )
+                                        androidx.compose.material3.DropdownMenuItem(
+                                            text = { Text("Delete trip", color = MaterialTheme.colorScheme.error) },
+                                            onClick = { menuOpen = false; showDelete = true },
+                                        )
+                                    }
+                                }
+                            },
                         )
                     }
                     item(key = "meta") { TripMetaRow(trip = data.trip, entryCount = entries.size) }
@@ -550,9 +660,14 @@ fun TripDetailScreen(
     }
 }
 
-/** Full-bleed trip hero: cover with scrim, back button, and overlaid title. */
+/** Full-bleed trip hero: cover with scrim, back button, overlaid title, and a menu slot. */
 @Composable
-private fun TripHero(trip: Trip, coverUrl: String?, onBack: () -> Unit) {
+private fun TripHero(
+    trip: Trip,
+    coverUrl: String?,
+    onBack: () -> Unit,
+    menu: @Composable () -> Unit = {},
+) {
     Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
         if (coverUrl != null) {
             WayliAsyncImage(
@@ -570,6 +685,11 @@ private fun TripHero(trip: Trip, coverUrl: String?, onBack: () -> Unit) {
             onClick = onBack,
             modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(12.dp),
         )
+        Box(
+            modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp),
+        ) {
+            menu()
+        }
         Column(
             modifier = Modifier.align(Alignment.BottomStart).padding(20.dp),
         ) {

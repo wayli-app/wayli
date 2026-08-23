@@ -49,6 +49,8 @@ class TripDetailViewModel @Inject constructor(
     private val client: FluxbaseClient,
     private val draftRepo: DraftRepository,
     private val mediaUploader: io.github.nimbleflux.wayli.feature.media.MediaUploader,
+    private val instanceManager: io.github.nimbleflux.wayli.session.InstanceManager,
+    private val userRepo: io.github.nimbleflux.wayli.repo.UserRepository,
 ) : ViewModel() {
 
     val tripId: String = savedStateHandle.get<String>("tripId") ?: ""
@@ -180,5 +182,80 @@ class TripDetailViewModel @Inject constructor(
             }
         }
         refreshDrafts()
+    }
+
+    // ---- Edit / share / delete ----
+
+    private var cachedUsername: String? = null
+
+    /** The shareable web URL, or null when the instance has no known web app. */
+    suspend fun shareLinkFor(trip: Trip): String? {
+        val webUrl = instanceManager.getConfig()?.webUrl ?: return null
+        val username = cachedUsername ?: run {
+            val userId = client.auth.currentSession?.user?.id ?: return null
+            userRepo.getProfile(userId).getOrNull()?.username?.also { cachedUsername = it }
+        } ?: return null
+        return "$webUrl/u/$username/trips/${trip.id}"
+    }
+
+    fun updateTrip(
+        tripId: String,
+        title: String,
+        description: String?,
+        startDate: String,
+        endDate: String?,
+        visibility: String,
+        onDone: (Boolean) -> Unit = {},
+    ) {
+        if (demoManager.isDemoMode) {
+            val current = (_state.value as? TripDetailUiState.Success)?.data?.trip ?: return
+            _state.value = TripDetailUiState.Success(
+                TripDetailData(current.copy(title = title, description = description, startDate = startDate, endDate = endDate, visibility = visibility)),
+            )
+            onDone(true)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = tripRepo.updateTrip(tripId, title, description, startDate, endDate, visibility)
+            load()
+            kotlinx.coroutines.withContext(Dispatchers.Main) { onDone(result.isSuccess) }
+        }
+    }
+
+    fun setVisibility(trip: Trip, visibility: String, onDone: (Boolean) -> Unit = {}) {
+        if (demoManager.isDemoMode) {
+            updateTrip(trip.id, trip.title, trip.description, trip.startDate, trip.endDate, visibility, onDone)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = tripRepo.updateTrip(trip.id, visibility = visibility)
+            kotlinx.coroutines.withContext(Dispatchers.Main) { onDone(result.isSuccess) }
+        }
+    }
+
+    fun deleteTrip(tripId: String, onDone: (Boolean) -> Unit = {}) {
+        if (demoManager.isDemoMode) {
+            onDone(true)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = tripRepo.deleteTrip(tripId)
+            kotlinx.coroutines.withContext(Dispatchers.Main) { onDone(result.isSuccess) }
+        }
+    }
+
+    fun deleteEntry(entry: TripEntry, onDone: (Boolean) -> Unit = {}) {
+        if (demoManager.isDemoMode || entry.id.startsWith("local-")) {
+            _entries.value = _entries.value.filter { it.id != entry.id }
+            onDone(true)
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = tripRepo.deleteEntry(entry.id)
+            if (result.isSuccess) {
+                tripRepo.listEntries(tripId).onSuccess { _entries.value = it }
+            }
+            kotlinx.coroutines.withContext(Dispatchers.Main) { onDone(result.isSuccess) }
+        }
     }
 }
