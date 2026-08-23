@@ -68,6 +68,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Quick-toggle actions on the tracking notification. -->
+        <receiver
+            android:name="io.github.nimbleflux.wayli.gps.TrackingActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- WorkManager: on-demand initialization with the Hilt worker factory. -->
         <provider
             android:name="androidx.startup.InitializationProvider"

@@ -92,6 +92,9 @@ class TrackingService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(contentIntent)
+            // Quick toggles straight from the notification drawer.
+            .addAction(0, "Pause", TrackingActionReceiver.pendingIntent(this, TrackingActionReceiver.ACTION_PAUSE))
+            .addAction(0, "Stop", TrackingActionReceiver.pendingIntent(this, TrackingActionReceiver.ACTION_STOP))
             .build()
     }
 
