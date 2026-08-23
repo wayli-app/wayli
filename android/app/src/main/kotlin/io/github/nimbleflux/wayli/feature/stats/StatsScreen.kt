@@ -167,6 +167,8 @@ private fun StatsContent(
                 StatCard(modifier = Modifier.weight(1f), label = "Data Points", value = points, unit = "")
             }
 
+            io.github.nimbleflux.wayli.designsystem.WorldMapCard(visited = data.visited)
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,

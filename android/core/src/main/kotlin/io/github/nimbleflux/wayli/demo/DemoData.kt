@@ -212,6 +212,9 @@ object DemoData {
         ),
     )
 
+    /** Countries "visited" in demo mode (tracker country_code style, alpha-2). */
+    val visitedCountries = setOf("PT", "ES", "JP", "NL", "TH", "VN", "KH")
+
     /** Hero photos per demo entry (entryId → URL) — used by the trip journal overview. */
     val entryHeroes = mapOf(
         "entry-1" to "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=450&fit=crop", // Tokyo night

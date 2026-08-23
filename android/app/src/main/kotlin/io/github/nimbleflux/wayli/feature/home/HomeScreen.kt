@@ -85,6 +85,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val track by viewModel.track.collectAsState()
+    val visitedCountries by viewModel.visitedCountries.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val online by viewModel.online.collectAsState()
 
@@ -98,6 +99,7 @@ fun HomeScreen(
                     data = state.data,
                     isDemo = viewModel.isDemoMode,
                     track = track,
+                    visitedCountries = visitedCountries,
                     selectedRange = selectedRange,
                     onRangeSelected = viewModel::setRange,
                     onStatsClick = onStatsClick,
@@ -115,6 +117,7 @@ private fun HomeContent(
     data: HomeData,
     isDemo: Boolean,
     track: List<Pair<Double, Double>>,
+    visitedCountries: Set<String>,
     selectedRange: DateRange,
     onRangeSelected: (DateRange) -> Unit,
     onStatsClick: () -> Unit,
@@ -205,6 +208,13 @@ private fun HomeContent(
         }
 
         item { MapHeroCard(data = data, isDemo = isDemo, track = track) }
+
+        item {
+            io.github.nimbleflux.wayli.designsystem.WorldMapCard(
+                visited = visitedCountries,
+                title = if (isDemo) "Where I've Been · sample" else "Where I've Been",
+            )
+        }
 
         item {
             SectionHeader(

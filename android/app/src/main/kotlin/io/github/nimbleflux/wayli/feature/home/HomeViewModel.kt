@@ -84,6 +84,10 @@ class HomeViewModel @Inject constructor(
     private val _track = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
     val track: StateFlow<List<Pair<Double, Double>>> = _track.asStateFlow()
 
+    /** ISO alpha-2 country codes visited in the selected range (world map). */
+    private val _visitedCountries = MutableStateFlow<Set<String>>(emptySet())
+    val visitedCountries: StateFlow<Set<String>> = _visitedCountries.asStateFlow()
+
     init {
         load()
     }
@@ -98,6 +102,7 @@ class HomeViewModel @Inject constructor(
     fun load() {
         if (demoManager.isDemoMode) {
             _track.value = DemoData.homeTrack
+            _visitedCountries.value = DemoData.visitedCountries
             val d = DemoData
             _uiState.value = HomeUiState.Success(
                 HomeData(
@@ -166,6 +171,7 @@ class HomeViewModel @Inject constructor(
             }
 
             _track.value = StatsAggregator.track(pointRows)
+            _visitedCountries.value = pointRows.mapNotNull { it.countryCode?.uppercase() }.toSet()
             _uiState.value = current.copy(
                 data = current.data.copy(
                     stats = HomeStats(
