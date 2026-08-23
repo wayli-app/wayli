@@ -255,6 +255,55 @@ object DemoData {
     /** Countries "visited" in demo mode (tracker country_code style, alpha-2). */
     val visitedCountries = setOf("PT", "ES", "JP", "NL", "TH", "VN", "KH")
 
+    /** Seeded community stories for the demo-mode Community section. */
+    data class DemoStory(
+        val id: String,
+        val tripId: String,
+        val title: String,
+        val body: String,
+        val entryDate: String,
+        val tripTitle: String,
+        val tripImageUrl: String,
+        val authorName: String,
+        val authorUsername: String,
+    )
+
+    val communityStories = listOf(
+        DemoStory(
+            id = "story-1",
+            tripId = "story-trip-1",
+            title = "Sunrise over the Himalayas",
+            body = "Woke at 4am in Namche Bazaar and hiked to the viewpoint in the dark. When the first light hit Everest the whole ridge line turned gold. Shared tea with a Sherpa family who laughed at how many layers I was wearing.",
+            entryDate = "2025-11-03",
+            tripTitle = "Everest Base Camp Trek",
+            tripImageUrl = "https://images.unsplash.com/photo-1544198365-f5d60b6d1ca0?w=800&h=450&fit=crop",
+            authorName = "Maya Chen",
+            authorUsername = "maya",
+        ),
+        DemoStory(
+            id = "story-2",
+            tripId = "story-trip-2",
+            title = "Night train to the Sahara",
+            body = "The couchette from Marrakech rattled all night but waking up to the Atlas mountains at dawn was worth every lost hour. Two more hours by 4x4 and suddenly there was nothing but dunes in every direction.",
+            entryDate = "2025-10-18",
+            tripTitle = "Morocco Loop",
+            tripImageUrl = "https://images.unsplash.com/photo-1597211833712-5e41faa202ea?w=800&h=450&fit=crop",
+            authorName = "Jonas Weber",
+            authorUsername = "jonasw",
+        ),
+        DemoStory(
+            id = "story-3",
+            tripId = "story-trip-3",
+            title = "Cooking class in Hoi An",
+            body = "Started at the market at 6am choosing herbs I couldn't name, then spent the morning learning banh xeo from a grandmother who never once measured anything. Ate the results by the river as lanterns went up.",
+            entryDate = "2025-09-22",
+            tripTitle = "Vietnam Slow Travel",
+            tripImageUrl = "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&h=450&fit=crop",
+            authorName = "Priya Nair",
+            authorUsername = "priya",
+        ),
+    )
+
     /** Hero photos per demo entry (entryId → URL) — used by the trip journal overview. */
     val entryHeroes = mapOf(
         "entry-1" to "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=450&fit=crop", // Tokyo night

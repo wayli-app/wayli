@@ -6,11 +6,15 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.github.nimbleflux.fluxbase.FluxbaseClient
 import io.github.nimbleflux.wayli.models.Trip
 import io.github.nimbleflux.wayli.repo.AdminRepository
+import io.github.nimbleflux.wayli.repo.CommunityRepository
+import io.github.nimbleflux.wayli.repo.CommunityStory
 import io.github.nimbleflux.wayli.repo.TripRepository
+import io.github.nimbleflux.wayli.session.InstanceManager
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 sealed interface TripUiState {
@@ -32,6 +36,8 @@ class TripViewModel @Inject constructor(
     private val fluxbaseClient: FluxbaseClient,
     private val demoManager: io.github.nimbleflux.wayli.demo.DemoManager,
     private val adminRepo: AdminRepository,
+    private val communityRepo: CommunityRepository,
+    private val instanceManager: InstanceManager,
     onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
 
@@ -152,4 +158,101 @@ class TripViewModel @Inject constructor(
     }
 
     fun clearDetectMessage() { _detectMessage.value = null }
+
+    // ---- Community (public stories feed, hidden when the hub is disabled) ----
+
+    /** Story + resolved author, ready to render. */
+    data class StoryRow(
+        val story: CommunityStory,
+        val authorName: String?,
+        val authorUsername: String?,
+    )
+
+    sealed interface StoriesUiState {
+        data object Loading : StoriesUiState
+        data class Success(val stories: List<StoryRow>, val endReached: Boolean) : StoriesUiState
+        data class Error(val message: String) : StoriesUiState
+    }
+
+    private val _communityEnabled = MutableStateFlow(false)
+    val communityEnabled: StateFlow<Boolean> = _communityEnabled.asStateFlow()
+
+    private val _stories = MutableStateFlow<StoriesUiState>(StoriesUiState.Loading)
+    val stories: StateFlow<StoriesUiState> = _stories.asStateFlow()
+
+    private var communityChecked = false
+
+    /** Check the server's community-hub setting once per session (demo: on). */
+    fun checkCommunity() {
+        if (demoManager.isDemoMode) {
+            _communityEnabled.value = true
+            return
+        }
+        if (communityChecked) return
+        communityChecked = true
+        viewModelScope.launch(Dispatchers.IO) {
+            _communityEnabled.value = communityRepo.communityEnabled()
+        }
+    }
+
+    /** Load (or page) the stories feed; [reset] restarts from the top. */
+    fun loadStories(reset: Boolean = false) {
+        if (demoManager.isDemoMode) {
+            _stories.value = StoriesUiState.Success(
+                io.github.nimbleflux.wayli.demo.DemoData.communityStories.map {
+                    StoryRow(
+                        story = CommunityStory(
+                            id = it.id,
+                            tripId = it.tripId,
+                            title = it.title,
+                            body = it.body,
+                            entryDate = it.entryDate,
+                            tripTitle = it.tripTitle,
+                            tripImageUrl = it.tripImageUrl,
+                        ),
+                        authorName = it.authorName,
+                        authorUsername = it.authorUsername,
+                    )
+                },
+                endReached = true,
+            )
+            return
+        }
+        val current = _stories.value as? StoriesUiState.Success
+        val offset = when {
+            reset || current == null -> 0
+            else -> current.stories.size
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            if (offset == 0) _stories.value = StoriesUiState.Loading
+            communityRepo.stories(offset).fold(
+                onSuccess = { (page, authors) ->
+                    val byId = authors.associateBy { it.id }
+                    val rows = page.map { story ->
+                        val author = story.tripOwnerId?.let { byId[it] }
+                        StoryRow(
+                            story = story,
+                            authorName = author?.fullName ?: author?.username,
+                            authorUsername = author?.username,
+                        )
+                    }
+                    val merged = if (offset == 0) rows else (current?.stories ?: emptyList()) + rows
+                    _stories.value = StoriesUiState.Success(merged, endReached = page.isEmpty())
+                },
+                onFailure = {
+                    _stories.value = StoriesUiState.Error(it.message ?: "Failed to load stories")
+                },
+            )
+        }
+    }
+
+    /**
+     * Public web URL for a story's trip — only when both the Wayli web URL is
+     * configured and the author's username is known (`/u/{username}/trips/{id}`).
+     */
+    fun storyWebUrl(row: StoryRow): String? {
+        val webUrl = instanceManager.getConfig()?.webUrl ?: return null
+        val username = row.authorUsername ?: return null
+        return "$webUrl/u/$username/trips/${row.story.tripId}"
+    }
 }
