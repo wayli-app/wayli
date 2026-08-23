@@ -55,10 +55,12 @@ class StatsRepository @Inject constructor(
             .eq("user_id", userId)
             .gte("recorded_at", "${startDate}T00:00:00Z")
             .lte("recorded_at", "${endDate}T23:59:59Z")
-            .order("recorded_at")
-            .limit(5000) // Match web's client-side cap
+            // Newest N points (web's client-side cap) — an ascending order
+            // would keep the OLDEST 5000 and starve the recent-weeks heatmap.
+            .order("recorded_at", ascending = false)
+            .limit(5000)
             .execute()
-        result.data ?: emptyList()
+        (result.data ?: emptyList()).reversed() // back to chronological order
     }
 
     /**
@@ -78,10 +80,12 @@ class StatsRepository @Inject constructor(
                     .eq("user_id", userId)
                     .gte("recorded_at", "${startDate}T00:00:00Z")
                     .lte("recorded_at", "${endDate}T23:59:59Z")
-                    .order("recorded_at")
+                    .order("recorded_at", ascending = false)
                     .limit(5000)
                     .execute()
-                (result.data ?: emptyList()).mapNotNull { StatsAggregator.parseLocation(it.location) }
+                (result.data ?: emptyList())
+                    .reversed()
+                    .mapNotNull { StatsAggregator.parseLocation(it.location) }
             }
         }
 
@@ -107,22 +111,55 @@ class StatsRepository @Inject constructor(
         }
 
     /**
-     * Get the activity-calendar data via RPC (server-side aggregation).
+     * Activity calendar via RPC (server-side aggregation over
+     * tracker_daily_activity) — the same call the web heatmap uses. Covers a
+     * trailing window of [days] regardless of the selected range, so the
+     * 12-week grid always has data even when the range is narrower.
      */
     suspend fun getActivityCalendar(
         userId: String,
-        startDate: String,
-        endDate: String,
-    ): Result< kotlinx.serialization.json.JsonElement> = runCatching {
-        val result = client.rpc.invoke(
-            "activity-calendar",
-            mapOf(
-                "user_id" to userId,
-                "start_date" to startDate,
-                "end_date" to endDate,
-            ),
-            io.github.nimbleflux.fluxbase.rpc.RpcInvokeOptions(namespace = "wayli"),
-        )
-        result.data?.result ?: kotlinx.serialization.json.JsonNull
+        days: Int = 371,
+    ): Result<List<DailyActivity>> =
+        cache.withCacheList("calendar:$userId", DailyActivity.serializer()) {
+            runCatching {
+                val res = client.rpc.invoke(
+                    "activity-calendar",
+                    mapOf(
+                        "user_id" to userId,
+                        "days" to days,
+                    ),
+                    io.github.nimbleflux.fluxbase.rpc.RpcInvokeOptions(namespace = "wayli"),
+                )
+                res.error?.let { error(it.message ?: "activity-calendar failed") }
+                parseCalendarRows(res.data?.result)
+            }
+        }
+
+    /**
+     * RPC results arrive as a JsonElement that may be an array of rows, a
+     * JSON-encoded string, or nested — unwrap defensively (the web app does
+     * the same).
+     */
+    private fun parseCalendarRows(result: kotlinx.serialization.json.JsonElement?): List<DailyActivity> {
+        val element = when (result) {
+            null -> return emptyList()
+            is kotlinx.serialization.json.JsonPrimitive ->
+                runCatching { kotlinx.serialization.json.Json.parseToJsonElement(result.content) }
+                    .getOrElse { return emptyList() }
+            else -> result
+        }
+        val array = when (element) {
+            is kotlinx.serialization.json.JsonArray -> element
+            is kotlinx.serialization.json.JsonObject ->
+                element["result"] as? kotlinx.serialization.json.JsonArray
+                    ?: element["rows"] as? kotlinx.serialization.json.JsonArray
+                    ?: return emptyList()
+            else -> return emptyList()
+        }
+        return array.mapNotNull { row ->
+            runCatching {
+                kotlinx.serialization.json.Json.decodeFromJsonElement(DailyActivity.serializer(), row)
+            }.getOrNull()
+        }
     }
 }

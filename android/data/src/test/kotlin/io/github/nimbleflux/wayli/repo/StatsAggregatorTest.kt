@@ -195,4 +195,14 @@ class StatsAggregatorTest {
         assertEquals(2.0, daily["2026-08-01"]!!, 1e-9)
         assertEquals(2.0, daily["2026-08-02"]!!, 1e-9)
     }
+
+    @Test
+    fun `daily distance from points buckets by local calendar day`() {
+        // 23:30 UTC is already the next day at UTC+2 — the point must land on
+        // 2026-08-02, not the UTC date 2026-08-01 (web parity).
+        val points = listOf(tp(recordedAt = "2026-08-01T23:30:00Z", distance = 1500.0))
+        val daily = StatsAggregator.dailyDistanceFromPoints(points, zone = java.time.ZoneId.of("UTC+2"))
+        assertEquals(1.5, daily["2026-08-02"]!!, 1e-9)
+        assertNull(daily["2026-08-01"])
+    }
 }

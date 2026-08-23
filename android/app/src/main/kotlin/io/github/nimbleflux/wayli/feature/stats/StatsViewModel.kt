@@ -94,12 +94,17 @@ class StatsViewModel @Inject constructor(
             _state.value = StatsUiState.Loading
             val (start, end) = _selectedRange.value.toDates()
 
+            // Heatmap always uses the server-side activity calendar (trailing
+            // 371 days, like the web) — independent of the selected range so
+            // the 12-week grid has data even when a shorter range is picked.
+            val calendar = statsRepo.getActivityCalendar(userId).getOrDefault(emptyList())
+
             val daily = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
                 .getOrDefault(emptyList())
             val points = statsRepo.fetchPoints(userId, start.toString(), end.toString())
                 .getOrDefault(emptyList())
 
-            if (daily.isEmpty() && points.isEmpty()) {
+            if (daily.isEmpty() && points.isEmpty() && calendar.isEmpty()) {
                 _state.value = StatsUiState.Success(
                     StatsData("0", "0", "0", "0", emptyMap(), emptyMap(), emptyList()),
                 )
@@ -108,16 +113,17 @@ class StatsViewModel @Inject constructor(
 
             // Prefer the daily-activity cache; fall back to client-side
             // aggregation from raw points when the cache hasn't been built
-            // yet (fresh instances) — for both totals and the heatmap.
+            // yet (fresh instances) — for totals. The heatmap uses the
+            // calendar rows with the range-scope/daily rows as fallback.
             val totals = if (daily.isNotEmpty()) {
                 StatsAggregator.totalsFromDailyActivity(daily)
             } else {
                 StatsAggregator.totalsFromPoints(points)
             }
-            val heatmap = if (daily.isNotEmpty()) {
-                StatsAggregator.dailyDistance(daily)
-            } else {
-                StatsAggregator.dailyDistanceFromPoints(points)
+            val heatmap = when {
+                calendar.isNotEmpty() -> StatsAggregator.dailyDistance(calendar)
+                daily.isNotEmpty() -> StatsAggregator.dailyDistance(daily)
+                else -> StatsAggregator.dailyDistanceFromPoints(points)
             }
             _state.value = StatsUiState.Success(
                 StatsData(
@@ -128,7 +134,7 @@ class StatsViewModel @Inject constructor(
                     modes = StatsAggregator.transportModeShares(points),
                     dailyActivity = heatmap,
                     track = StatsAggregator.track(points).takeIf { it.size >= 2 },
-                    dailyCacheEmpty = daily.isEmpty(),
+                    dailyCacheEmpty = daily.isEmpty() && calendar.isEmpty(),
                     visited = points.mapNotNull { it.countryCode?.uppercase() }.toSet(),
                 ),
             )
