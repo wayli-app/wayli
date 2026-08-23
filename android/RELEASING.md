@@ -6,12 +6,14 @@ The `Release` workflow (`.github/workflows/release.yml`) has a **Publish Android
 APKs** toggle (`publish_android`, on by default). When enabled, every release
 (RC or stable):
 
-1. Builds signed `gplay` + `foss` release APKs at the release tag
+1. Builds signed `gplay` + `foss` release APKs **and the `gplay` AAB** at the
+   release tag
 2. Stamps `versionName` from the release version and `versionCode` from the date
-3. Attaches `wayli-<version>-gplay.apk` / `wayli-<version>-foss.apk` to the GitHub release
+3. Attaches `wayli-<version>-gplay.apk`, `wayli-<version>-foss.apk` and
+   `wayli-<version>-gplay.aab` to the GitHub release
 
 Without the keystore secrets (below) the job still runs and attaches **unsigned**
-APKs — set up signing before announcing a release.
+artifacts — set up signing before announcing a release.
 
 ### CI signing secrets
 - `WAYLI_KEYSTORE_BASE64` — `base64 -w0 wayli-release.jks` output
@@ -21,6 +23,40 @@ APKs — set up signing before announcing a release.
 
 The app resolves `fluxbase-kotlin` from GitHub Packages using the workflow's
 `GITHUB_TOKEN` (needs `packages: read`, granted by the job).
+
+## Google Play deploy (manual pipeline)
+
+After a release cut its artifacts, the **Play Deploy** workflow
+(`.github/workflows/play-deploy.yml`) pushes the AAB to a Play track — manual
+trigger only:
+
+1. Actions → Play Deploy → Run workflow
+2. Pick the release **tag** (e.g. `v2.5.0-rc.1`), the **track**
+   (internal/alpha/beta/production; default `internal`) and the release
+   status (`draft` keeps the release unreviewed in the track — recommended
+   for a first look)
+3. The job downloads `wayli-<version>-gplay.aab` from the GitHub release and
+   uploads it together with the store metadata + screenshots in
+   `fastlane/metadata/android/` via `fastlane supply`
+
+Without the `PLAY_SERVICE_ACCOUNT_JSON` secret the workflow skips gracefully.
+
+### One-time Play Console setup (you do this once, by hand)
+1. Play Console → **All apps → Create app** with package
+   `io.github.nimbleflux.wayli`.
+2. **The API cannot create a release for an app that has none yet** — upload
+   the first AAB manually once: Internal testing → Release → upload
+   `wayli-<version>-gplay.aab` from the GitHub release. Enroll in
+   **Play App Signing** when prompted (Google holds the app signing key; the
+   upload keystore above stays ours).
+3. Play Console → **Setup → API access** → link (or create) a Google Cloud
+   service account with Play release permissions, create a JSON key.
+4. Add the JSON as the repo secret **`PLAY_SERVICE_ACCOUNT_JSON`** (raw JSON
+   contents, single line is fine).
+
+From then on, every Play deploy is the manual button above — including
+metadata and screenshot refreshes (already capped to Play's 8-per-device
+screenshot limit in `fastlane/metadata/`).
 
 ## Signing
 
@@ -59,9 +95,7 @@ Set environment variables in GitHub Actions secrets:
 
 ## Google Play
 
-1. Build the `gplay` release AAB
-2. Upload to Play Console → Internal testing
-3. Promote to production after review
+Automated via the Play Deploy workflow — see "Google Play deploy" above.
 
 ## F-Droid
 
