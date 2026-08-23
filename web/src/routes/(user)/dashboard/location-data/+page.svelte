@@ -29,7 +29,6 @@
 	import { state as appState } from '$lib/stores/app-state.svelte';
 	import { fluxbase } from '$lib/fluxbase';
 	import { ClientStatisticsService } from '$lib/services/client-statistics.service';
-	import { TRANSPORT_MODE_COLORS } from '$lib/utils/colors';
 	import { segmentByGaps } from '$lib/services/transport-mode';
 	import {
 		TRANSPORT_MODE_COLORS,
