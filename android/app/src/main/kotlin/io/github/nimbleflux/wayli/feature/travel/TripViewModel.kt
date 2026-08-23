@@ -180,6 +180,10 @@ class TripViewModel @Inject constructor(
     private val _stories = MutableStateFlow<StoriesUiState>(StoriesUiState.Loading)
     val stories: StateFlow<StoriesUiState> = _stories.asStateFlow()
 
+    /** True while a further page of stories is fetching (infinite-scroll footer). */
+    private val _storiesLoadingMore = MutableStateFlow(false)
+    val storiesLoadingMore: StateFlow<Boolean> = _storiesLoadingMore.asStateFlow()
+
     private var communityChecked = false
 
     /** Check the server's community-hub setting once per session (demo: on). */
@@ -223,8 +227,13 @@ class TripViewModel @Inject constructor(
             reset || current == null -> 0
             else -> current.stories.size
         }
+        if (offset > 0 && _storiesLoadingMore.value) return
         viewModelScope.launch(Dispatchers.IO) {
-            if (offset == 0) _stories.value = StoriesUiState.Loading
+            if (offset == 0) {
+                _stories.value = StoriesUiState.Loading
+            } else {
+                _storiesLoadingMore.value = true
+            }
             communityRepo.stories(offset).fold(
                 onSuccess = { (page, authors) ->
                     val byId = authors.associateBy { it.id }
@@ -240,9 +249,12 @@ class TripViewModel @Inject constructor(
                     _stories.value = StoriesUiState.Success(merged, endReached = page.isEmpty())
                 },
                 onFailure = {
-                    _stories.value = StoriesUiState.Error(it.message ?: "Failed to load stories")
+                    if (offset == 0) {
+                        _stories.value = StoriesUiState.Error(it.message ?: "Failed to load stories")
+                    } // paging failures keep the current rows; the next scroll retries
                 },
             )
+            _storiesLoadingMore.value = false
         }
     }
 

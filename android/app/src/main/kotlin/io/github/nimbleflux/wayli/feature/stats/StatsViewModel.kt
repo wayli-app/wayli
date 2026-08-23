@@ -55,6 +55,14 @@ class StatsViewModel @Inject constructor(
     private val _state = MutableStateFlow<StatsUiState>(StatsUiState.Loading)
     val state: StateFlow<StatsUiState> = _state.asStateFlow()
 
+    /**
+     * True while re-fetching with data already on screen (range switch,
+     * refresh): the previous numbers stay visible under a subtle indicator
+     * instead of the whole screen flashing to a spinner.
+     */
+    private val _reloading = MutableStateFlow(false)
+    val reloading: StateFlow<Boolean> = _reloading.asStateFlow()
+
     val isDemoMode: Boolean = demoManager.isDemoMode
 
     /** Selected stats period — shared with Home, everything on screen reacts to it. */
@@ -91,7 +99,11 @@ class StatsViewModel @Inject constructor(
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
-            _state.value = StatsUiState.Loading
+            // Keep the current data on screen while re-fetching (range
+            // switch / refresh); only a first-ever load shows the spinner.
+            val hasData = _state.value is StatsUiState.Success
+            _reloading.value = hasData
+            if (!hasData) _state.value = StatsUiState.Loading
             val (start, end) = _selectedRange.value.toDates()
 
             // Heatmap always uses the server-side activity calendar (trailing
@@ -108,6 +120,7 @@ class StatsViewModel @Inject constructor(
             // Distinguish "no data" from "queries failing": if every source
             // errored (network/permissions), say so instead of showing zeros.
             if (calendarResult.isFailure && dailyResult.isFailure && pointsResult.isFailure) {
+                _reloading.value = false
                 _state.value = StatsUiState.Error(
                     calendarResult.exceptionOrNull()?.message
                         ?: dailyResult.exceptionOrNull()?.message
@@ -118,6 +131,7 @@ class StatsViewModel @Inject constructor(
             }
 
             if (daily.isEmpty() && points.isEmpty() && calendar.isEmpty()) {
+                _reloading.value = false
                 _state.value = StatsUiState.Success(
                     StatsData("0", "0", "0", "0", emptyMap(), emptyMap(), emptyList()),
                 )
@@ -138,6 +152,7 @@ class StatsViewModel @Inject constructor(
                 daily.isNotEmpty() -> StatsAggregator.dailyDistance(daily)
                 else -> StatsAggregator.dailyDistanceFromPoints(points)
             }
+            _reloading.value = false
             _state.value = StatsUiState.Success(
                 StatsData(
                     distanceKm = "%.0f".format(totals.totalDistanceKm),

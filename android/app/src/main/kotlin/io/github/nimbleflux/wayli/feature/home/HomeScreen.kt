@@ -88,6 +88,7 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val track by viewModel.track.collectAsState()
     val visitedCountries by viewModel.visitedCountries.collectAsState()
+    val windowLoading by viewModel.windowLoading.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val online by viewModel.online.collectAsState()
 
@@ -103,6 +104,7 @@ fun HomeScreen(
                     track = track,
                     visitedCountries = visitedCountries,
                     selectedRange = selectedRange,
+                    windowLoading = windowLoading,
                     onRangeSelected = viewModel::setRange,
                     onStatsClick = onStatsClick,
                     onTripClick = onTripClick,
@@ -123,6 +125,7 @@ private fun HomeContent(
     track: List<Pair<Double, Double>>,
     visitedCountries: Set<String>,
     selectedRange: DateRange,
+    windowLoading: Boolean = false,
     onRangeSelected: (DateRange) -> Unit,
     onStatsClick: () -> Unit,
     onTripClick: (Trip) -> Unit,
@@ -233,10 +236,22 @@ private fun HomeContent(
 
         if (!isDemo) {
             item {
-                io.github.nimbleflux.wayli.designsystem.DateRangeSelector(
-                    selected = selectedRange,
-                    onSelect = onRangeSelected,
-                )
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    io.github.nimbleflux.wayli.designsystem.DateRangeSelector(
+                        selected = selectedRange,
+                        onSelect = onRangeSelected,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (windowLoading) {
+                        Spacer(Modifier.width(8.dp))
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                }
             }
         }
         item {
