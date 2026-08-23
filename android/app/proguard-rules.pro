@@ -25,3 +25,9 @@
 
 # ---- EncryptedSharedPreferences ----
 -keep class androidx.security.crypto.** { *; }
+
+# ---- Tink (transitively via security-crypto) ----
+# Tink references Error Prone's compile-time-only annotations; they are absent
+# from the foss flavor's dependency graph (a Play Services artifact pulls them
+# in on gplay). Safe to ignore at runtime.
+-dontwarn com.google.errorprone.annotations.**
