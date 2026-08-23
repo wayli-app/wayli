@@ -74,7 +74,7 @@ object DemoData {
             visibility = "private",
             labels = listOf("city", "cycling", "museums"),
             metadata = buildJsonObject { put("distanceTraveled", 96000.0) },
-            imageUrl = "https://images.unsplash.com/photo-1534351590666-13e3e96c5017?w=800&h=500&fit=crop",
+            imageUrl = "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?w=800&h=500&fit=crop",
             createdAt = "2024-09-19T12:00:00Z",
             updatedAt = "2024-09-22T22:00:00Z",
         ),
@@ -143,6 +143,46 @@ object DemoData {
                 body = "Took a boat tour to the famous Benagil Sea Cave. The natural skylight inside the cave is stunning. Spent the afternoon at Praia da Marinha — one of the most beautiful beaches I've ever seen. The water was freezing but refreshing.",
                 status = "published",
                 createdAt = "2024-05-18T17:00:00Z",
+            ),
+        ),
+        "demo-trip-3" to listOf(
+            TripEntry(
+                id = "entry-6",
+                tripId = "demo-trip-3",
+                entryDate = "2024-09-21",
+                title = "Canal Cruise and the Rijksmuseum",
+                body = "Started the day with a slow cruise along the grachten, gliding past gabled houses and houseboats while the skipper explained how the city was built on wooden poles. Spent the whole afternoon lost in the Rijksmuseum — the Night Watch alone is worth the trip. Ended with bitterballen and a cold beer by the water.",
+                status = "published",
+                createdAt = "2024-09-21T20:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-7",
+                tripId = "demo-trip-3",
+                entryDate = "2024-09-22",
+                title = "Cycling to Zaanse Schans",
+                body = "Rented a bike and followed the ferry north out of the city. Within half an hour the streets turned into meadows and the first windmills appeared on the horizon. Watched a working mill grind pigment the traditional way, then cycled back along the Zaan with the wind at our backs. My legs are done but it was the perfect last day.",
+                status = "published",
+                createdAt = "2024-09-22T18:00:00Z",
+            ),
+        ),
+        "demo-trip-4" to listOf(
+            TripEntry(
+                id = "entry-8",
+                tripId = "demo-trip-4",
+                entryDate = "2025-03-03",
+                title = "Arrival in Bangkok",
+                body = "Stepped out of Suvarnabhumi straight into a wall of heat and noise. Took the river ferry down the Chao Phraya just as Wat Arun lit up in the sunset — easily the best two baht I have ever spent. Street food crawl through Chinatown afterwards: pad thai from a wok the size of a satellite dish, mango sticky rice for dessert.",
+                status = "published",
+                createdAt = "2025-03-03T19:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-9",
+                tripId = "demo-trip-4",
+                entryDate = "2025-03-10",
+                title = "Island Hopping from Krabi",
+                body = "Chartered a longtail boat with three other travellers from Ao Nang. First stop Railay, climbing through a jungle path to a viewpoint that almost killed me but paid off twice over. Snorkelled at Poda island where the water is impossibly turquoise, and watched a monitor lizard stroll across the beach like he owned it. Slow boat back at golden hour.",
+                status = "published",
+                createdAt = "2025-03-10T18:00:00Z",
             ),
         ),
     )
@@ -222,6 +262,10 @@ object DemoData {
         "entry-3" to "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=450&fit=crop", // onsen
         "entry-4" to "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=450&fit=crop",    // coast road
         "entry-5" to "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=450&fit=crop", // sea cave beach
+        "entry-6" to "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?w=800&h=450&fit=crop", // Amsterdam grachten at dusk
+        "entry-7" to "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=450&fit=crop", // cycling through an old town
+        "entry-8" to "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&h=450&fit=crop", // Wat Arun at sunset
+        "entry-9" to "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&h=450&fit=crop", // Railay beach, Krabi
     )
 
     val notifications = listOf(
@@ -341,6 +385,12 @@ object DemoData {
         "demo-trip-3" to listOf( // Weekend in Amsterdam
             52.3676 to 4.9041,
             52.37 to 4.89,
+        ),
+        "demo-trip-4" to listOf( // Southeast Asia Backpacking
+            13.7563 to 100.5018, // Bangkok
+            13.4419 to 100.1236, // Samut Songkhram
+            8.0444 to 98.7253, // Khao Lak
+            8.0114 to 98.8432, // Ao Nang, Krabi
         ),
     )
 

@@ -27,12 +27,32 @@ adb install app/build/outputs/apk/gplay/debug/app-gplay-debug.apk
 ### Demo mode
 The app has a built-in demo mode for app store reviewers. On the instance setup
 screen, tap **"Try Demo"** to explore the app with realistic sample data — no
-server needed.
+server needed. The Play Store screenshots are generated from demo mode; see
+[docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
 ### Connecting to a real instance
-1. Enter your Wayli instance URL (e.g., `https://flux.example.com`)
-2. Enter the anon key (from your instance settings)
-3. Sign in or create an account
+1. Enter your Wayli URL (e.g., `https://track.example.com`) — just the Wayli
+   address; no keys needed. The app discovers the Fluxbase URL and anon key
+   automatically: it checks the `wayli-app.json` manifest, then a
+   `window.WAYLI_CONFIG` snippet in the landing page HTML, then
+   `/api/v1/auth/config`.
+2. If discovery fails (unusual setups), tap **Enter Fluxbase URL manually** and
+   provide the backend URL and anon key yourself.
+3. Sign in with OAuth (system browser) or e-mail + password.
+
+For OAuth sign-in, the backend validates the app's redirect URI before
+contacting the identity provider: add `wayli://oauth/callback` to the
+**Redirect URIs** of your OAuth provider in the Wayli **server admin** (not only
+in Authelia/your IdP), or sign-in will fail with "Server rejected the app's
+redirect URI".
+
+## Feature overview
+Dashboard with "Where I've Been" world map, immersive trip covers with journal
+entries and photo attachments, statistics (transport breakdown, activity
+heatmap, countries), wishlist with place search, notifications center, a jobs
+monitor with live logs, full offline caching (Room, serve-stale), app shortcuts
+and a system share-target for quick capture. See
+[docs/FEATURE_MATRIX.md](docs/FEATURE_MATRIX.md) for Android vs web parity.
 
 ## Architecture
 
@@ -51,6 +71,10 @@ server needed.
 ## SDK dependency
 The app consumes `io.github.nimbleflux:fluxbase-kotlin` from GitHub Packages or
 via composite build for local development. See `settings.gradle.kts`.
+
+## Screenshots
+Regenerate Play Store screenshots from the emulator (demo mode) with
+`bash tools/screenshots.sh` — see [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
 ## Release
 See [RELEASING.md](RELEASING.md) for signing, publishing to Play/F-Droid, and
