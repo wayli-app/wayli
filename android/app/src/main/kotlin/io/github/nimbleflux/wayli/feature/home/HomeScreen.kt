@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.Explore
@@ -79,6 +80,7 @@ fun HomeScreen(
     onStatsClick: () -> Unit,
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
+    onNotificationsClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -101,6 +103,7 @@ fun HomeScreen(
                     onStatsClick = onStatsClick,
                     onTripClick = onTripClick,
                     onWishlistClick = onWishlistClick,
+                    onNotificationsClick = onNotificationsClick,
                 )
             }
         }
@@ -117,6 +120,7 @@ private fun HomeContent(
     onStatsClick: () -> Unit,
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
+    onNotificationsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val recordingVm: RecordingViewModel = hiltViewModel()
@@ -174,7 +178,7 @@ private fun HomeContent(
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { HomeHeader(data) }
+        item { HomeHeader(data, onNotificationsClick) }
 
         if (!isDemo) {
             item {
@@ -232,11 +236,12 @@ private fun HomeContent(
 // ---- Sections ----
 
 @Composable
-private fun HomeHeader(data: HomeData) {
+private fun HomeHeader(data: HomeData, onNotificationsClick: () -> Unit = {}) {
     val greeting = remember { greetingFor(LocalTime.now().hour) }
     val dateText = remember {
         DateTimeFormatter.ofPattern("EEEE, MMM d").format(LocalDate.now())
     }
+    val unread = data.activity.count { it.readAt == null }
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -258,6 +263,24 @@ private fun HomeHeader(data: HomeData) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        if (data.activity.isNotEmpty() || unread > 0) {
+            androidx.compose.material3.BadgedBox(
+                badge = {
+                    if (unread > 0) {
+                        androidx.compose.material3.Badge { Text(unread.toString()) }
+                    }
+                },
+            ) {
+                androidx.compose.material3.IconButton(onClick = onNotificationsClick) {
+                    androidx.compose.material3.Icon(
+                        Icons.Filled.Notifications,
+                        contentDescription = "Notifications",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.size(8.dp))
         }
         // Wayli logo mark (replaces the initials avatar)
         WayliLogo(size = 44.dp)
