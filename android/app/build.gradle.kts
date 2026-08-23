@@ -55,14 +55,20 @@ android {
                     ?: System.getenv("WAYLI_KEYSTORE_FILE")
                 )?.trim()?.takeIf { it.isNotBlank() }
             if (keystoreFile != null) {
+                // PKCS12 keystores use a single password for store and key,
+                // so accept either secret when only one is configured.
+                val storePwd = providers.gradleProperty("wayli.keystore.password").orNull
+                    ?: System.getenv("WAYLI_KEYSTORE_PASSWORD")
+                    ?: System.getenv("WAYLI_KEY_PASSWORD")
+                val keyPwd = providers.gradleProperty("wayli.key.password").orNull
+                    ?: System.getenv("WAYLI_KEY_PASSWORD")
+                    ?: System.getenv("WAYLI_KEYSTORE_PASSWORD")
                 signingConfig = signingConfigs.create("release") {
                     storeFile = file(keystoreFile)
-                    storePassword = providers.gradleProperty("wayli.keystore.password").orNull
-                        ?: System.getenv("WAYLI_KEYSTORE_PASSWORD")
+                    storePassword = storePwd
                     keyAlias = providers.gradleProperty("wayli.key.alias").orNull
                         ?: System.getenv("WAYLI_KEY_ALIAS")
-                    keyPassword = providers.gradleProperty("wayli.key.password").orNull
-                        ?: System.getenv("WAYLI_KEY_PASSWORD")
+                    keyPassword = keyPwd
                 }
             }
         }
