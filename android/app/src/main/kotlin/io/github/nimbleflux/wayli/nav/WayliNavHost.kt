@@ -228,6 +228,8 @@ fun WayliNavHost() {
     // Re-route when the session ends outside the manual sign-out flow —
     // e.g. revoked/expired server-side. The manual Settings sign-out already
     // navigates; the launchSingleTop guard makes the duplicate event a no-op.
+    // SIGNED_IN re-routes without a process restart after the OAuth deep-link
+    // exchange, so returning from the browser lands on Home immediately.
     androidx.compose.runtime.LaunchedEffect(Unit) {
         viewModel.authEvents.collect { state ->
             val route = navController.currentBackStackEntry?.destination?.route
@@ -235,6 +237,12 @@ fun WayliNavHost() {
             if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_OUT && onTabs) {
                 navController.navigate(Routes.SIGN_IN) {
                     popUpTo(Routes.MAP) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_IN && route == Routes.SIGN_IN) {
+                navController.navigate(Routes.MAP) {
+                    popUpTo(Routes.SIGN_IN) { inclusive = true }
                     launchSingleTop = true
                 }
             }

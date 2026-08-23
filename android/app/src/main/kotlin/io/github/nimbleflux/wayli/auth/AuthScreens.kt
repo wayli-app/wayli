@@ -104,19 +104,31 @@ fun SignInScreen(
 
     val providers by viewModel.oauth.collectAsState()
     val passwordEnabled by viewModel.passwordEnabled.collectAsState()
-    viewModel.loadOAuth()
+    // A pending deep link means we're mid OAuth return — skip the provider
+    // re-fetch and go straight to the code exchange.
+    if (OAuthDeepLinkBus.uri.value == null) viewModel.loadOAuth()
 
     // Complete the flow when the browser deep link arrives (wayli://oauth/callback?…).
     androidx.compose.runtime.LaunchedEffect(Unit) {
         OAuthDeepLinkBus.uri.collect { uri ->
             if (uri != null) {
                 OAuthDeepLinkBus.uri.value = null
-                viewModel.completeOAuth(uri, context)
+                viewModel.completeOAuth(uri, onSignedIn)
             }
         }
     }
 
     AuthScreenContainer {
+        if (viewModel.completingOAuth) {
+            CircularProgressIndicator()
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Signing you in…",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            return@AuthScreenContainer
+        }
         WayliLogoSmall()
         Spacer(Modifier.height(24.dp))
         Text(
@@ -580,6 +592,10 @@ class AuthViewModel @Inject constructor(
     var oauthError by mutableStateOf<String?>(null)
         private set
 
+    /** True while the deep-link code is being exchanged for a session. */
+    var completingOAuth by mutableStateOf(false)
+        private set
+
     fun loadOAuth() {
         if (oauthLoaded) return
         oauthLoaded = true
@@ -617,17 +633,26 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    /** Exchange the deep-link code; restarts into the app on success. */
-    fun completeOAuth(uri: android.net.Uri, context: android.content.Context) {
+    /**
+     * Exchange the deep-link code. Navigates in place on success — no process
+     * restart — so returning from the browser lands on Home immediately. (The
+     * NavHost's SIGNED_IN auth-event collector is a backstop if this callback
+     * is missed.)
+     */
+    fun completeOAuth(uri: android.net.Uri, onSignedIn: () -> Unit) {
         val code = uri.getQueryParameter("code")
         if (code == null) {
             oauthError = "Malformed sign-in callback"
             return
         }
         val state = uri.getQueryParameter("state")
+        completingOAuth = true
+        oauthError = null
         viewModelScope.launch(Dispatchers.IO) {
-            if (oauthClient.completeOAuth(code, state)) {
-                io.github.nimbleflux.wayli.util.restartApp(context)
+            val ok = oauthClient.completeOAuth(code, state)
+            completingOAuth = false
+            if (ok) {
+                withContext(Dispatchers.Main) { onSignedIn() }
             } else {
                 oauthError = "Sign-in failed — try again"
             }
