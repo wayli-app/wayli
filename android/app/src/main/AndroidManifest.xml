@@ -37,6 +37,21 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="wayli" android:host="oauth" android:path="/callback" />
             </intent-filter>
+            <!-- Share-target: send text/links/photos from any app into a journal draft. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <service

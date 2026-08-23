@@ -89,6 +89,8 @@ import org.maplibre.android.geometry.LatLng
 fun TripsListScreen(
     onTripClick: (Trip) -> Unit,
     onNewTrip: () -> Unit,
+    autoOpenCreate: Boolean = false,
+    onAutoActionConsumed: () -> Unit = {},
     viewModel: TripViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -101,6 +103,14 @@ fun TripsListScreen(
     val snackbar = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) { viewModel.loadTrips() }
+
+    // "New trip" launcher shortcut: open the create dialog once.
+    LaunchedEffect(autoOpenCreate) {
+        if (autoOpenCreate) {
+            showCreateDialog = true
+            onAutoActionConsumed()
+        }
+    }
 
     LaunchedEffect(detectMessage) {
         detectMessage?.let {
