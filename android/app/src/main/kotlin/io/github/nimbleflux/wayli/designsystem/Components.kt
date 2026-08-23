@@ -200,6 +200,52 @@ fun LoadingState(modifier: Modifier = Modifier) {
     }
 }
 
+/** "Where I've Been" card — offline canvas world map with visited countries highlighted. */
+@Composable
+fun WorldMapCard(
+    visited: Set<String>,
+    modifier: Modifier = Modifier,
+    title: String = "Where I've Been",
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            ) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "${visited.size} ${if (visited.size == 1) "country" else "countries"}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            io.github.nimbleflux.wayli.designsystem.map.WorldMap(
+                visited = visited,
+                baseColor = MaterialTheme.colorScheme.surfaceVariant,
+                highlightColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (visited.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    visited.sorted().joinToString(" ") { flagEmoji(it) },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
+    }
+}
+
+/** ISO alpha-2 → regional-indicator flag emoji. */
+fun flagEmoji(countryCode: String): String =
+    countryCode.uppercase().map { 127397 + it.code }.joinToString("") { String(Character.toChars(it)) }
+
 /** Slim banner shown while offline — repositories serve cached data. */
 @Composable
 fun OfflineBanner(visible: Boolean, modifier: Modifier = Modifier) {

@@ -29,6 +29,8 @@ data class StatsData(
     val track: List<Pair<Double, Double>>?,
     /** True when the heatmap was derived from raw points, not the server cache. */
     val dailyCacheEmpty: Boolean = false,
+    /** ISO alpha-2 country codes present in the range (world map). */
+    val visited: Set<String> = emptySet(),
 )
 
 sealed interface StatsUiState {
@@ -79,6 +81,7 @@ class StatsViewModel @Inject constructor(
                     modes = DemoData.transportModeBreakdown,
                     dailyActivity = DemoData.dailyActivity,
                     track = DemoData.homeTrack,
+                    visited = DemoData.visitedCountries,
                 ),
             )
             return
@@ -126,6 +129,7 @@ class StatsViewModel @Inject constructor(
                     dailyActivity = heatmap,
                     track = StatsAggregator.track(points).takeIf { it.size >= 2 },
                     dailyCacheEmpty = daily.isEmpty(),
+                    visited = points.mapNotNull { it.countryCode?.uppercase() }.toSet(),
                 ),
             )
         }
