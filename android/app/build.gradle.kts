@@ -48,8 +48,12 @@ android {
             // For local release builds, create a debug-compatible keystore or
             // set WAYLI_KEYSTORE_FILE, WAYLI_KEYSTORE_PASSWORD, WAYLI_KEY_ALIAS,
             // WAYLI_KEY_PASSWORD in ~/.gradle/gradle.properties.
-            val keystoreFile = providers.gradleProperty("wayli.keystore.file").orNull
-                ?: System.getenv("WAYLI_KEYSTORE_FILE")
+            // CI passes an EMPTY env when no keystore secret is configured —
+            // treat blank as absent so the unsigned fallback build still works.
+            val keystoreFile = (
+                providers.gradleProperty("wayli.keystore.file").orNull
+                    ?: System.getenv("WAYLI_KEYSTORE_FILE")
+                )?.trim()?.takeIf { it.isNotBlank() }
             if (keystoreFile != null) {
                 signingConfig = signingConfigs.create("release") {
                     storeFile = file(keystoreFile)
