@@ -22,8 +22,11 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
@@ -193,6 +196,10 @@ fun SettingsScreen(
                 SettingRow(icon = Icons.Filled.Devices, label = "Connections & Integrations", onClick = onConnections)
             }
 
+            // Permissions — what tracking needs, with status and a direct
+            // request/settings path.
+            PermissionCard()
+
             // Data & Trips
             WayliSectionCard(title = "Data & Trips") {
                 SettingRow(icon = Icons.Filled.BatteryFull, label = "Data Sampling", onClick = onDataSampling)
@@ -277,6 +284,150 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(100.dp)) // clear the floating dock
         }
+    }
+}
+
+/**
+ * Runtime-permission status card. Each row shows granted/denied and taps
+ * into the system request dialog; background location only links to the
+ * app-details screen (Play policy keeps it out of runtime prompts). Rows
+ * re-check whenever the screen resumes so changes made in system settings
+ * are reflected immediately.
+ */
+@Composable
+private fun PermissionCard() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var refreshKey by remember { mutableStateOf(0) }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) refreshKey++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { refreshKey++ }
+
+    fun openAppSettings() {
+        runCatching {
+            context.startActivity(
+                android.content.Intent(
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    android.net.Uri.fromParts("package", context.packageName, null),
+                ),
+            )
+        }
+    }
+
+    fun granted(permission: String): Boolean = refreshKey.let {
+        androidx.core.content.ContextCompat.checkSelfPermission(context, permission) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    val anyDenied = !granted(android.Manifest.permission.ACCESS_FINE_LOCATION) ||
+        (android.os.Build.VERSION.SDK_INT >= 33 && !granted(android.Manifest.permission.POST_NOTIFICATIONS)) ||
+        (
+            io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
+                !granted(android.Manifest.permission.ACTIVITY_RECOGNITION)
+            )
+
+    WayliSectionCard(title = "Permissions") {
+        PermissionStatusRow(
+            icon = Icons.Filled.LocationOn,
+            label = "Location",
+            granted = granted(android.Manifest.permission.ACCESS_FINE_LOCATION),
+            onClick = {
+                if (granted(android.Manifest.permission.ACCESS_FINE_LOCATION)) {
+                    openAppSettings()
+                } else {
+                    launcher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                }
+            },
+        )
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            PermissionStatusRow(
+                icon = Icons.Filled.Notifications,
+                label = "Notifications",
+                granted = granted(android.Manifest.permission.POST_NOTIFICATIONS),
+                onClick = {
+                    if (granted(android.Manifest.permission.POST_NOTIFICATIONS)) {
+                        openAppSettings()
+                    } else {
+                        launcher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+            )
+        }
+        if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition) {
+            PermissionStatusRow(
+                icon = Icons.Filled.DirectionsRun,
+                label = "Activity recognition",
+                granted = granted(android.Manifest.permission.ACTIVITY_RECOGNITION),
+                onClick = {
+                    if (granted(android.Manifest.permission.ACTIVITY_RECOGNITION)) {
+                        openAppSettings()
+                    } else {
+                        launcher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
+                    }
+                },
+            )
+        }
+        PermissionStatusRow(
+            icon = Icons.Filled.Map,
+            label = "Background location",
+            granted = granted(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+            onClick = { openAppSettings() }, // special toggle lives in system settings only
+        )
+        if (anyDenied) {
+            Text(
+                "Denied permissions can be re-enabled from the app's system settings.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PermissionStatusRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    granted: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp),
+        )
+        Spacer(Modifier.size(16.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            if (granted) "Granted" else "Not granted",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Medium,
+            color = if (granted) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.error
+            },
+        )
     }
 }
 
