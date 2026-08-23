@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.LocationOn
@@ -84,6 +85,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit = {},
     onAdminUsers: () -> Unit = {},
     onAdminMaintenance: () -> Unit = {},
+    onJobs: () -> Unit = {},
     serverUrl: String? = null,
     onReconfigureServer: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
@@ -196,6 +198,13 @@ fun SettingsScreen(
                 SettingRow(icon = Icons.Filled.BatteryFull, label = "Data Sampling", onClick = onDataSampling)
                 SettingRow(icon = Icons.Filled.Block, label = "Trip Exclusions", onClick = onTripExclusions)
                 SettingRow(icon = Icons.Filled.SwapVert, label = "Import / Export", onClick = onImportExport)
+                if (!demoMode) {
+                    SettingRow(
+                        icon = Icons.Filled.Bolt,
+                        label = "Jobs & logs",
+                        onClick = onJobs,
+                    )
+                }
             }
 
             // Preferences
