@@ -92,6 +92,7 @@ object Routes {
     const val ADMIN_USERS = "admin_users"
     const val ADMIN_MAINTENANCE = "admin_maintenance"
     const val JOBS = "jobs"
+    const val NOTIFICATIONS = "notifications"
 }
 
 private val tabs = listOf(
@@ -283,6 +284,7 @@ fun WayliNavHost() {
             // ---- Tab screens ----
             composable(Routes.MAP) {
                 HomeScreen(
+                    onNotificationsClick = { navController.navigate(Routes.NOTIFICATIONS) },
                     onStatsClick = { navController.navigate(Routes.STATS) },
                     onTripClick = { trip: Trip -> navController.navigate("trip_detail/${trip.id}") },
                     onWishlistClick = { switchTab(Routes.WISHLIST) },
@@ -455,6 +457,11 @@ fun WayliNavHost() {
             }
             composable(Routes.JOBS) {
                 io.github.nimbleflux.wayli.feature.jobs.JobsScreen(
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.NOTIFICATIONS) {
+                io.github.nimbleflux.wayli.feature.notifications.NotificationsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }

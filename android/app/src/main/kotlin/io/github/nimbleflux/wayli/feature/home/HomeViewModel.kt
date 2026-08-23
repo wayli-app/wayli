@@ -63,6 +63,7 @@ class HomeViewModel @Inject constructor(
     private val wishlistRepo: WishlistRepository,
     private val statsRepo: StatsRepository,
     private val userRepo: UserRepository,
+    private val notificationRepo: io.github.nimbleflux.wayli.repo.NotificationRepository,
     private val rangeStore: io.github.nimbleflux.wayli.feature.stats.StatsRangeStore,
     onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
@@ -127,6 +128,7 @@ class HomeViewModel @Inject constructor(
                 val trips = tripsResult.getOrDefault(emptyList())
                 val wishlist = wishlistResult.getOrDefault(emptyList())
                 val profile = userRepo.getProfile(userId).getOrNull()
+                val notifications = notificationRepo.list(userId, limit = 20).getOrDefault(emptyList())
 
                 _uiState.value = HomeUiState.Success(
                     HomeData(
@@ -135,7 +137,7 @@ class HomeViewModel @Inject constructor(
                         stats = HomeStats("", "", "", trips.size.toString()),
                         trips = trips,
                         wishlist = wishlist,
-                        activity = emptyList(),
+                        activity = notifications,
                     ),
                 )
                 loadWindow()
