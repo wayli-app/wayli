@@ -383,10 +383,17 @@ class InstanceSetupViewModel @Inject constructor(
         httpGet("$url/wayli-app.json", allowInsecureTls)?.let { body ->
             ServerDiscovery.parseAppManifest(body)?.let { return it }
         }
-        // 2+3. A Fluxbase API on this origin — either proxied under the web
-        // app or the URL IS the backend. Identified by a JSON response from
-        // /auth/config: the Wayli web app's SPA fallback answers 200 + HTML
-        // for every path (including /health), but never JSON here.
+        // 2. The web page itself: startup.sh injects window.WAYLI_CONFIG with
+        //    the backend URL + anon key. Works on deployments that don't serve
+        //    the manifest (older images) — the SPA fallback answers HTML for
+        //    every path, and this parses that HTML.
+        httpGet(url, allowInsecureTls)?.let { body ->
+            ServerDiscovery.parseWayliConfigGlobal(body)?.let { return it }
+        }
+        // 3. A Fluxbase API on this origin — either proxied under the web
+        //    app or the URL IS the backend. Identified by a JSON response from
+        //    /auth/config: the Wayli web app's SPA fallback answers 200 + HTML
+        //    for every path (including /health), but never JSON here.
         httpGet("$url/api/v1/auth/config", allowInsecureTls)?.let { body ->
             if (ServerDiscovery.isJsonObject(body)) {
                 return ServerDiscovery.Discovered(url, ServerDiscovery.parseAnonKeyFromAuthConfig(body))

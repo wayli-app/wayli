@@ -31,11 +31,16 @@ class AppOAuthClient @Inject constructor(
         client.auth.getAuthConfig().data?.passwordLoginEnabled != false
     }
 
+    /** Result of starting an OAuth flow: the URL on success, else the server's error. */
+    data class OAuthBegin(val url: String?, val error: String?)
+
     /** Returns the IdP authorization URL to open in the browser. */
-    suspend fun beginOAuth(provider: String): String? = withContext(Dispatchers.IO) {
-        client.auth
-            .getOAuthUrl(provider, OAuthOptions(redirectUri = redirectUri))
-            .data?.url
+    suspend fun beginOAuth(provider: String): OAuthBegin = withContext(Dispatchers.IO) {
+        val response = client.auth.getOAuthUrl(provider, OAuthOptions(redirectUri = redirectUri))
+        OAuthBegin(
+            url = response.data?.url,
+            error = response.data?.url?.let { null } ?: response.error?.message,
+        )
     }
 
     /** Exchange the deep-link code; the SDK establishes + persists the session. */

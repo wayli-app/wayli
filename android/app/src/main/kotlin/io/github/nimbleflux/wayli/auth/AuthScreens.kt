@@ -594,17 +594,25 @@ class AuthViewModel @Inject constructor(
         oauthBusy = true
         oauthError = null
         viewModelScope.launch(Dispatchers.IO) {
-            val url = oauthClient.beginOAuth(provider)
+            val begin = oauthClient.beginOAuth(provider)
             oauthBusy = false
-            if (url != null) {
+            if (begin.url != null) {
                 // System browser / Custom Tab — never an in-app WebView (IdPs block them).
                 runCatching {
                     context.startActivity(
-                        android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
+                        android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse(begin.url),
+                        ),
                     )
                 }
             } else {
-                oauthError = "Could not start $provider sign-in"
+                oauthError = when {
+                    begin.error?.contains("redirect", ignoreCase = true) == true ->
+                        "Server rejected the app's redirect URI — add wayli://oauth/callback to the " +
+                            "provider's redirect URLs in the Wayli server admin, then try again."
+                    else -> "Could not start $provider sign-in${begin.error?.let { ": $it" }.orEmpty()}"
+                }
             }
         }
     }

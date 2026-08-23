@@ -90,4 +90,20 @@ object ServerDiscovery {
         if (!isJsonObject(configBody)) return null
         return Discovered(baseUrl.trimEnd('/'), parseAnonKeyFromAuthConfig(configBody))
     }
+
+    /**
+     * Parse the `window.WAYLI_CONFIG = { fluxbaseUrl: '…', fluxbaseAnonKey: '…' }`
+     * block the web app injects into its HTML (startup.sh). It's a JS object
+     * literal, not JSON — keys are unquoted, values single-quoted — so this is
+     * a tolerant regex extraction scoped to the WAYLI_CONFIG assignment.
+     */
+    fun parseWayliConfigGlobal(html: String): Discovered? {
+        val start = html.indexOf("WAYLI_CONFIG") 
+        if (start < 0) return null
+        val block = html.substring(start, minOf(html.length, start + 800))
+        val url = Regex("""fluxbaseUrl\s*:\s*['"]([^'"]+)['"]""").find(block)?.groupValues?.get(1)
+        if (url == null || isPlaceholder(url) || !url.startsWith("http")) return null
+        val key = Regex("""fluxbaseAnonKey\s*:\s*['"]([^'"]+)['"]""").find(block)?.groupValues?.get(1)
+        return Discovered(url.trimEnd('/'), key?.takeUnless { isPlaceholder(it) })
+    }
 }
