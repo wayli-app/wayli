@@ -494,25 +494,27 @@ jobs:
 
           git add web/package.json web/bun.lock charts/wayli/Chart.yaml charts/wayli/values.yaml deploy/docker-compose/.env.example
 
-          # Only commit when the version bump actually produced a diff. When the
-          # target version is already in the files (e.g. a re-run, or the version
-          # was already committed), `git commit` fails with "nothing to commit" —
-          # guard against that so the release can proceed to tag/publish.
+          # Always create a release commit, even when the version files are
+          # already at the target version. GITHUB_TOKEN is an App token and may
+          # never introduce workflow-file changes: tagging a commit whose diff
+          # touches .github/workflows/* is rejected even when that commit is
+          # already on the server. A dedicated (possibly empty) release commit
+          # keeps the tag target's diff limited to version files.
           if git diff --staged --quiet; then
             echo "No version-file changes to commit (version already at v${{ env.VERSION }})"
+            git commit --allow-empty -m "chore(release): v${{ env.VERSION }}"
           else
             git commit -m "chore(release): v${{ env.VERSION }}"
-            git push
           fi
+          git push
 
-          # Tag only if it doesn't already exist, so re-runs don't fail on a
-          # duplicate tag. `git tag` errors on an existing tag; `git tag -l`
-          # lets us check first.
-          if [ -n "$(git tag -l v${{ env.VERSION }})" ]; then
+          # Push only this release's tag — `git push --tags` would send every
+          # stray local tag along (and can trip the same App-token check).
+          if [ -n "$(git ls-remote --tags origin "refs/tags/v${{ env.VERSION }}")" ]; then
             echo "Tag v${{ env.VERSION }} already exists - skipping tag/push"
           else
             git tag v${{ env.VERSION }}
-            git push --tags
+            git push origin "refs/tags/v${{ env.VERSION }}"
           fi
 
           echo "Release v${{ env.VERSION }} committed and tagged"
