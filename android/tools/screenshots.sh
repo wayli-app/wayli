@@ -15,7 +15,7 @@ ANDROID_HOME="${ANDROID_HOME:-$HOME/.local/android-sdk}"
 ADB="$ANDROID_HOME/platform-tools/adb"
 OUT="fastlane/metadata/android/en-US/images/phoneScreenshots"
 APK="app/build/outputs/apk/gplay/debug/app-gplay-debug.apk"
-PKG="io.github.nimbleflux.wayli"
+PKG="com.nimbleflux.wayli"
 
 mkdir -p "$OUT"
 rm -f "$OUT"/*.png
