@@ -139,17 +139,16 @@ private fun HomeContent(
     // Location permission gate — the foreground service can't run without it.
     // On the gplay flavor we then also request activity recognition (adaptive
     // tracking); denial is non-fatal — tracking falls back to fixed intervals.
+    // Notification permission is requested alongside (Android 13+) so the
+    // tracking toggle in the drawer is visible; its denial is non-fatal too.
     val activityPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { recordingVm.resume() }
 
-    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+    val notifPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (!granted) {
-            recordingVm.pause()
-            return@rememberLauncherForActivityResult
-        }
+    ) {
+        // Granted or not, continue into the activity-recognition step / resume.
         if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
             androidx.core.content.ContextCompat.checkSelfPermission(
                 context, android.Manifest.permission.ACTIVITY_RECOGNITION,
@@ -160,11 +159,28 @@ private fun HomeContent(
             recordingVm.resume()
         }
     }
-    val resumeWithPermission: () -> Unit = {
-        if (recordingVm.isDemo || androidx.core.content.ContextCompat.checkSelfPermission(
-                context, android.Manifest.permission.ACCESS_FINE_LOCATION,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    /** Request notification permission once (non-fatal), then continue [next]. */
+    val withNotificationPermission: (() -> Unit) -> Unit = { next ->
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.POST_NOTIFICATIONS,
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
+            notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            next()
+        }
+    }
+
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (!granted) {
+            recordingVm.pause()
+            return@rememberLauncherForActivityResult
+        }
+        withNotificationPermission {
             if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
                 androidx.core.content.ContextCompat.checkSelfPermission(
                     context, android.Manifest.permission.ACTIVITY_RECOGNITION,
@@ -173,6 +189,24 @@ private fun HomeContent(
                 activityPermissionLauncher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
             } else {
                 recordingVm.resume()
+            }
+        }
+    }
+    val resumeWithPermission: () -> Unit = {
+        if (recordingVm.isDemo || androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            withNotificationPermission {
+                if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(
+                        context, android.Manifest.permission.ACTIVITY_RECOGNITION,
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    activityPermissionLauncher.launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
+                } else {
+                    recordingVm.resume()
+                }
             }
         } else {
             permissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)

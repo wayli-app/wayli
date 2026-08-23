@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.nimbleflux.wayli.demo.DemoManager
+import io.github.nimbleflux.wayli.gps.TrackingActionReceiver
 import io.github.nimbleflux.wayli.gps.TrackingConfigStore
 import io.github.nimbleflux.wayli.gps.TrackingService
 import javax.inject.Inject
@@ -34,12 +35,19 @@ class RecordingViewModel @Inject constructor(
     fun pause() {
         _isRecording.value = false
         store.isTracking = false
-        if (!demoManager.isDemoMode) TrackingService.stop(appContext)
+        if (!demoManager.isDemoMode) {
+            TrackingService.stop(appContext)
+            // Keep the drawer toggle alive: paused ≠ stopped.
+            TrackingActionReceiver.postPausedNotification(appContext)
+        }
     }
 
     fun resume() {
         _isRecording.value = true
         store.isTracking = true
-        if (!demoManager.isDemoMode) TrackingService.start(appContext)
+        if (!demoManager.isDemoMode) {
+            TrackingActionReceiver.cancelPausedNotification(appContext)
+            TrackingService.start(appContext)
+        }
     }
 }
