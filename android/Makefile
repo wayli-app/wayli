@@ -114,6 +114,10 @@ screenshot: ## Capture a screenshot → FILE=/tmp/wayli.png
 	$(ADB) pull /sdcard/wayli-shot.png $(FILE)
 	@echo "Saved $(FILE)"
 
+.PHONY: screenshots
+screenshots: ## Capture all Play Store screenshots (demo mode) → fastlane/metadata/…
+	bash tools/screenshots.sh
+
 FILE ?= /tmp/wayli.png
 
 .PHONY: uidump
