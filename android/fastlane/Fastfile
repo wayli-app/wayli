@@ -1,0 +1,12 @@
+# fastlane is invoked directly by .github/workflows/play-deploy.yml with
+# explicit flags (supply --aab ... --track ...), so no Fastfile is needed.
+# This file only exists so tooling that expects a Fastfile finds one and to
+# document the manual equivalent:
+
+#   gem install fastlane
+#   fastlane supply \
+#     --aab wayli-<version>-gplay.aab \
+#     --track internal \
+#     --release_status draft \
+#     --json_key play-service-account.json \
+#     --metadata_path fastlane/metadata/android

@@ -577,7 +577,7 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build release APKs
+      - name: Build release APKs + Play AAB
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -587,23 +587,25 @@ jobs:
           WAYLI_KEY_PASSWORD: ${{ secrets.WAYLI_KEY_PASSWORD }}
         run: |
           cd android
-          ./gradlew :app:assembleGplayRelease :app:assembleFossRelease \
+          ./gradlew :app:assembleGplayRelease :app:assembleFossRelease :app:bundleGplayRelease \
             -PversionName=${{ env.VERSION }} \
             -PversionCode=${{ steps.version.outputs.versionCode }}
 
       - name: Rename artifacts
         run: |
-          cd android/app/build/outputs/apk
-          mv gplay/release/app-gplay-release.apk "wayli-${{ env.VERSION }}-gplay.apk"
-          mv foss/release/app-foss-release.apk "wayli-${{ env.VERSION }}-foss.apk"
+          cd android/app/build/outputs
+          mv apk/gplay/release/app-gplay-release.apk "apk/gplay/release/wayli-${{ env.VERSION }}-gplay.apk"
+          mv apk/foss/release/app-foss-release.apk "apk/foss/release/wayli-${{ env.VERSION }}-foss.apk"
+          mv bundle/gplayRelease/app-gplay-release.aab "bundle/gplayRelease/wayli-${{ env.VERSION }}-gplay.aab"
 
-      - name: Attach APKs to GitHub Release
+      - name: Attach APKs + AAB to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           files: |
             android/app/build/outputs/apk/gplay/release/wayli-${{ env.VERSION }}-gplay.apk
             android/app/build/outputs/apk/foss/release/wayli-${{ env.VERSION }}-foss.apk
+            android/app/build/outputs/bundle/gplayRelease/wayli-${{ env.VERSION }}-gplay.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
