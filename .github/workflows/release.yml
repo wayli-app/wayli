@@ -581,6 +581,38 @@ jobs:
             echo "asset_suffix=-unsigned" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Diagnose signing config
+        if: steps.keystore.outputs.available == 'true'
+        env:
+          WAYLI_KEYSTORE_PASSWORD: ${{ secrets.WAYLI_KEYSTORE_PASSWORD }}
+          WAYLI_KEY_PASSWORD: ${{ secrets.WAYLI_KEY_PASSWORD }}
+          WAYLI_KEY_ALIAS: ${{ secrets.WAYLI_KEY_ALIAS }}
+        run: |
+          KS="$RUNNER_TEMP/wayli-release.keystore"
+          STOREPASS="${WAYLI_KEYSTORE_PASSWORD:-$WAYLI_KEY_PASSWORD}"
+          echo "decoded keystore: $(stat -c%s "$KS") bytes, sha256 $(sha256sum "$KS" | cut -c1-16)…, magic $(head -c4 "$KS" | xxd -p)"
+          echo "store password length as seen by the runner: ${#STOREPASS} (0 = secret missing; expected+1 = trailing newline)"
+          if keytool -list -keystore "$KS" -storepass "$STOREPASS" > /tmp/ks.out 2>&1; then
+            echo "keystore opens with the configured password"
+            if keytool -list -keystore "$KS" -storepass "$STOREPASS" -alias "${WAYLI_KEY_ALIAS:-wayli}" > /dev/null 2>&1; then
+              echo "alias found"
+            else
+              echo "::error::Keystore opens but the configured alias does not exist in it. Entries:"
+              keytool -list -keystore "$KS" -storepass "$STOREPASS" | sed -n '/^[a-zA-Z]/p' | head -5
+              exit 1
+            fi
+          else
+            echo "::error::The configured password does NOT open this keystore. keytool said:"
+            cat /tmp/ks.out
+            echo ""
+            echo "Likely causes, in order of probability:"
+            echo " 1. The password value in the secret differs from the keytool password (typo, keyboard layout). Re-set it by typing fresh."
+            echo " 2. A trailing newline/whitespace was pasted into the secret (see the length above)."
+            echo " 3. WAYLI_KEYSTORE_BASE64 holds a DIFFERENT keystore file than the one this password opens."
+            echo "    Compare locally: sha256sum wayli-release.keystore  — the first 16 hex chars must match the sha256 above."
+            exit 1
+          fi
+
       - name: Build release APKs + Play AAB
         env:
           GITHUB_ACTOR: ${{ github.actor }}
