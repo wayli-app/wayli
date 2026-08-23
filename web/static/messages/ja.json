@@ -1238,7 +1238,7 @@
 		"aiProviderReadOnly": "読み取り専用",
 		"aiProviderReadOnlyDescription": "この AI プロバイダーは環境変数または YAML 構成を介して構成され、UI を介して変更することはできません。",
 		"aiProviders": {
-			"openai": "OpenAI (GPT-4, GPT-3.5)",
+			"openai": "OpenAI",
 			"anthropic": "Anthropic (Claude)",
 			"ollama": "Ollama (ローカル)",
 			"openrouter": "OpenRouter",

@@ -1518,10 +1518,16 @@ export class ServiceAdapter {
 		// Get custom Wayli settings via the namespace prefix fetch — one request
 		// that returns every visible `wayli.*` key server-side (RLS- and
 		// tenant-filtered) instead of listSettings() returning ALL custom rows
-		// and filtering client-side. Requires Fluxbase SDK ≥ 2026.8.3.
-		const wayliSettings = await fluxbase.admin.settings.app.getSettings([], {
-			prefix: 'wayli.'
-		});
+		// and filtering client-side. Requires Fluxbase SDK ≥ 2026.8.3. Guarded:
+		// a failure here must not fail the whole settings load.
+		let wayliSettings: any = {};
+		try {
+			wayliSettings = await fluxbase.admin.settings.app.getSettings([], {
+				prefix: 'wayli.'
+			});
+		} catch {
+			// Prefix batch read unavailable — leave custom settings empty
+		}
 
 		// Get AI providers from FluxbaseAdmin SDK first
 		let providers: any[] = [];
@@ -1559,8 +1565,14 @@ export class ServiceAdapter {
 			aiEnabled = true;
 		}
 
-		// Get Email settings using the new SDK email settings manager
-		const emailSettings = await fluxbase.admin.settings.email.get();
+		// Get Email settings using the new SDK email settings manager; fall
+		// back to the email block from the bulk app settings on older servers.
+		let emailSettings: any;
+		try {
+			emailSettings = await fluxbase.admin.settings.email.get();
+		} catch {
+			emailSettings = (appSettings as any)?.email ?? {};
+		}
 
 		// Build settings with AI and Email from SDK data
 		const appSettingsWithAll = {
