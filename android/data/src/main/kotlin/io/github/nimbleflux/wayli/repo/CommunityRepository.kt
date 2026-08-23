@@ -46,28 +46,37 @@ class CommunityRepository @Inject constructor(
 ) {
 
     /**
-     * Whether the server's community hub is enabled (`wayli.community_enabled`
-     * setting, readable anonymously). False on any fetch/parse failure — a
-     * disabled or unreachable hub simply hides the Community section.
+     * Whether the server's community hub is enabled — web parity: the hub is
+     * on unless `wayli.community_enabled` is explicitly false (a missing
+     * setting means enabled, and unreadable/unreachable settings fall back
+     * the same way). Batch-fetched with the `wayli.` prefix, which silently
+     * drops keys the caller can't read.
      */
     suspend fun communityEnabled(): Boolean = runCatching {
-        val res = client.settings.getMany(listOf(COMMUNITY_SETTING))
-        if (res.error != null) return@runCatching false
-        val element = res.data ?: return@runCatching false
+        val res = client.settings.getMany(emptyList(), SETTING_PREFIX)
+        if (res.error != null) return@runCatching true
+        val element = res.data ?: return@runCatching true
         val rows = when (element) {
             is JsonArray -> element
-            is JsonObject -> element["result"] as? JsonArray ?: element["rows"] as? JsonArray ?: return@runCatching false
-            else -> return@runCatching false
+            is JsonObject -> element["result"] as? JsonArray ?: element["rows"] as? JsonArray ?: return@runCatching true
+            else -> return@runCatching true
         }
-        rows.any { row ->
-            val obj = row as? JsonObject ?: return@any false
+        rows.forEach { row ->
+            val obj = row as? JsonObject ?: return@forEach
             val key = (obj["key"] as? JsonPrimitive)?.content
                 ?: (obj["name"] as? JsonPrimitive)?.content
-            if (key != COMMUNITY_SETTING) return@any false
-            // Values may arrive as a boolean or a string primitive.
-            (obj["value"] as? JsonPrimitive)?.content == "true"
+            if (key != COMMUNITY_SETTING) return@forEach
+            // Values may be a bare primitive or wrapped ({value: …}).
+            val value = when (val v = obj["value"]) {
+                is JsonPrimitive -> v.content
+                is JsonObject -> (v["value"] as? JsonPrimitive)?.content
+                    ?: (v["data"] as? JsonObject)?.get("value")?.let { (it as? JsonPrimitive)?.content }
+                else -> null
+            }
+            if (value == "false") return false
         }
-    }.getOrDefault(false)
+        true
+    }.getOrDefault(true)
 
     /**
      * One page of the stories feed, newest first. Authors are resolved in a
@@ -99,6 +108,7 @@ class CommunityRepository @Inject constructor(
     }
 
     companion object {
+        private const val SETTING_PREFIX = "wayli."
         private const val COMMUNITY_SETTING = "wayli.community_enabled"
     }
 }
