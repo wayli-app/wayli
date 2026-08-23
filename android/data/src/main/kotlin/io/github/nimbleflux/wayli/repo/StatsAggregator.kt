@@ -50,11 +50,19 @@ object StatsAggregator {
     /**
      * day → km computed straight from raw points — the heatmap fallback when
      * the `tracker_daily_activity` cache is empty. Day = local calendar day
-     * of `recorded_at`.
+     * of `recorded_at` (web parity — UTC buckets put late-evening moves on
+     * the wrong day for most longitudes).
      */
-    fun dailyDistanceFromPoints(points: List<TrackerPoint>): Map<String, Double> =
+    fun dailyDistanceFromPoints(
+        points: List<TrackerPoint>,
+        zone: java.time.ZoneId = java.time.ZoneId.systemDefault(),
+    ): Map<String, Double> =
         points
-            .groupBy { it.recordedAt.take(10) }
+            .groupBy { point ->
+                runCatching {
+                    java.time.Instant.parse(point.recordedAt).atZone(zone).toLocalDate().toString()
+                }.getOrElse { point.recordedAt.take(10) }
+            }
             .mapValues { (_, dayPoints) -> dayPoints.sumOf { it.distance ?: 0.0 } / 1000.0 }
             .filterValues { it > 0.0 }
 
