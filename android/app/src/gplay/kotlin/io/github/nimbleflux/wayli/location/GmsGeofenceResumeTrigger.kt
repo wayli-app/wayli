@@ -49,7 +49,8 @@ class GmsGeofenceResumeTrigger @Inject constructor(
             .addGeofence(geofence)
             .build()
 
-        val intent = Intent(ACTION)
+        // Package-scoped: U+ rejects PendingIntents with implicit intents.
+        val intent = Intent(ACTION).setPackage(context.packageName)
         val pi = PendingIntent.getBroadcast(
             context,
             REQUEST_CODE,
