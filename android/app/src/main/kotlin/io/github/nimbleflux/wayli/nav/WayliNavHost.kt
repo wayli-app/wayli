@@ -91,6 +91,7 @@ object Routes {
     const val IMPORT_EXPORT = "import_export"
     const val ADMIN_USERS = "admin_users"
     const val ADMIN_MAINTENANCE = "admin_maintenance"
+    const val JOBS = "jobs"
 }
 
 private val tabs = listOf(
@@ -316,6 +317,7 @@ fun WayliNavHost() {
                     onPreferences = { navController.navigate(Routes.PREFERENCES) },
                     onAdminUsers = { navController.navigate(Routes.ADMIN_USERS) },
                     onAdminMaintenance = { navController.navigate(Routes.ADMIN_MAINTENANCE) },
+                    onJobs = { navController.navigate(Routes.JOBS) },
                     onStats = { navController.navigate(Routes.STATS) },
                     onReconfigureServer = {
                         viewModel.reconfigureServer()
@@ -450,6 +452,11 @@ fun WayliNavHost() {
             }
             composable(Routes.ADMIN_MAINTENANCE) {
                 AdminMaintenanceScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Routes.JOBS) {
+                io.github.nimbleflux.wayli.feature.jobs.JobsScreen(
+                    onBack = { navController.popBackStack() },
+                )
             }
         }
 
