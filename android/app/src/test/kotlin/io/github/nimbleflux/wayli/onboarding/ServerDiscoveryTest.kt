@@ -119,6 +119,36 @@ class ServerDiscoveryTest {
         assertNull(ServerDiscovery.fromBackendConfig("https://flux.example.com", ""))
     }
 
+    // ---- window.WAYLI_CONFIG scraping (deployments without a manifest) ----
+
+    @Test
+    fun `parses the injected WAYLI_CONFIG JS literal`() {
+        val html = """
+            <html><head><script>
+                window.WAYLI_CONFIG = {
+                    fluxbaseUrl: 'https://flux.hazen.nu',
+                    fluxbaseAnonKey: 'eyJhbGciOiJIUzI1NiJ9.anon-key.sig'
+                };
+            </script></head><body>Wayli</body></html>
+        """.trimIndent()
+        val discovered = ServerDiscovery.parseWayliConfigGlobal(html)
+        assertNotNull(discovered)
+        assertEquals("https://flux.hazen.nu", discovered.fluxbaseUrl)
+        assertEquals("eyJhbGciOiJIUzI1NiJ9.anon-key.sig", discovered.anonKey)
+    }
+
+    @Test
+    fun `WAYLI_CONFIG scraping ignores placeholders and plain pages`() {
+        // Unsubstituted template value (dev build without startup.sh).
+        assertNull(
+            ServerDiscovery.parseWayliConfigGlobal(
+                """window.WAYLI_CONFIG = { fluxbaseUrl: '{{FLUXBASE_PUBLIC_BASE_URL}}' };""",
+            ),
+        )
+        // Regular page that mentions the key names but has no assignment.
+        assertNull(ServerDiscovery.parseWayliConfigGlobal("<p>fluxbaseUrl docs</p>"))
+    }
+
     @Test
     fun `explicit backend without a published anon key yields a null key`() {
         val discovered = ServerDiscovery.fromBackendConfig(
