@@ -63,7 +63,8 @@ class FusedLocationProvider @Inject constructor(
         if (config.mode == TrackingMode.SIGNIFICANT) {
             // ---- Transition-driven "Places" mode ----
             val arClient = ActivityRecognition.getClient(context)
-            val intent = Intent(TRANSITION_ACTION)
+            // Package-scoped: U+ rejects PendingIntents with implicit intents.
+            val intent = Intent(TRANSITION_ACTION).setPackage(context.packageName)
             val pi = PendingIntent.getBroadcast(
                 context,
                 TRANSITION_REQUEST_CODE,
