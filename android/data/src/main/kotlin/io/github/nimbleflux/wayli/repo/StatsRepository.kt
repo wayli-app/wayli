@@ -60,7 +60,7 @@ class StatsRepository @Inject constructor(
             .order("recorded_at", ascending = false)
             .limit(5000)
             .execute()
-        (result.data ?: emptyList()).reversed() // back to chronological order
+        (result.dataOrThrow() ?: emptyList()).reversed() // back to chronological order
     }
 
     /**
@@ -83,7 +83,7 @@ class StatsRepository @Inject constructor(
                     .order("recorded_at", ascending = false)
                     .limit(5000)
                     .execute()
-                (result.data ?: emptyList())
+                (result.dataOrThrow() ?: emptyList())
                     .reversed()
                     .mapNotNull { StatsAggregator.parseLocation(it.location) }
             }
@@ -106,7 +106,41 @@ class StatsRepository @Inject constructor(
                     .lte("day", endDate)
                     .order("day")
                     .execute()
-                result.data ?: emptyList()
+                result.dataOrThrow() ?: emptyList()
+            }
+        }
+
+    /** Slim tracker_data row for country aggregation — only the code column. */
+    @Serializable
+    data class CountryCodeRow(
+        @SerialName("country_code") val countryCode: String? = null,
+    )
+
+    /**
+     * Distinct ISO alpha-2 country codes recorded in the range. A dedicated
+     * one-column projection (not the capped [fetchPoints] list, which keeps
+     * only the newest 5000 rows and silently drops older countries on long
+     * ranges) — feeds the countries count and the world map.
+     */
+    suspend fun fetchCountryCodes(
+        userId: String,
+        startDate: String,
+        endDate: String,
+    ): Result<List<String>> =
+        cache.withCache("countries:$userId:$startDate:$endDate", ListSerializer(String.serializer())) {
+            runCatching {
+                val result = client.from<CountryCodeRow>("tracker_data")
+                    .select("country_code")
+                    .eq("user_id", userId)
+                    .gte("recorded_at", "${startDate}T00:00:00Z")
+                    .lte("recorded_at", "${endDate}T23:59:59Z")
+                    .limit(50_000)
+                    .execute()
+                (result.dataOrThrow() ?: emptyList())
+                    .mapNotNull { it.countryCode?.trim()?.uppercase() }
+                    .filter { it.isNotEmpty() }
+                    .distinct()
+                    .sorted()
             }
         }
 

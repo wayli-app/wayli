@@ -30,7 +30,7 @@ class TripRepository @Inject constructor(
                     .eq("user_id", userId)
                     .order("created_at", ascending = false)
                     .execute()
-                result.data ?: emptyList()
+                result.dataOrThrow() ?: emptyList()
             }
         }
 
@@ -102,7 +102,7 @@ class TripRepository @Inject constructor(
                     .eq("trip_id", tripId)
                     .order("entry_date")
                     .execute()
-                result.data ?: emptyList()
+                result.dataOrThrow() ?: emptyList()
             }
         }
 
@@ -153,7 +153,7 @@ class TripRepository @Inject constructor(
                     .eq("trip_id", tripId)
                     .order("sort_order")
                 entryId?.let { query = query.eq("entry_id", it) }
-                query.execute().data ?: emptyList()
+                query.execute().dataOrThrow() ?: emptyList()
             }
         }
 

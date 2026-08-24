@@ -20,7 +20,7 @@ class WishlistRepository @Inject constructor(
                     .eq("user_id", userId)
                     .order("created_at", ascending = false)
                     .execute()
-                result.data ?: emptyList()
+                result.dataOrThrow() ?: emptyList()
             }
         }
 
