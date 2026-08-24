@@ -458,10 +458,18 @@ private fun StoryCard(row: TripViewModel.StoryRow, onClick: () -> Unit) {
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    io.github.nimbleflux.wayli.designsystem.Avatar(
+                        url = row.authorAvatarUrl,
+                        initials = row.authorName?.split(" ")?.mapNotNull { it.firstOrNull()?.uppercase() }?.take(2)?.joinToString("") ?: "?",
+                        size = 24.dp,
+                    )
+                    Spacer(Modifier.padding(start = 8.dp))
                 Text(
                     buildString {
                         append(row.authorName ?: "A traveler")
+                        io.github.nimbleflux.wayli.designsystem.formatEntryDate(row.story.entryDate)?.let { append(" · $it") }
                         row.story.tripTitle?.let { append(" · $it") }
                     },
                     style = MaterialTheme.typography.labelMedium,
@@ -469,6 +477,7 @@ private fun StoryCard(row: TripViewModel.StoryRow, onClick: () -> Unit) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                }
                 row.story.body?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -515,15 +524,23 @@ private fun StoryDetailSheet(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
             )
-            Text(
-                buildString {
-                    append(row.authorName ?: "A traveler")
-                    row.story.entryDate?.let { append(" · $it") }
-                    row.story.tripTitle?.let { append("\n$it") }
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                io.github.nimbleflux.wayli.designsystem.Avatar(
+                    url = row.authorAvatarUrl,
+                    initials = row.authorName?.split(" ")?.mapNotNull { it.firstOrNull()?.uppercase() }?.take(2)?.joinToString("") ?: "?",
+                    size = 32.dp,
+                )
+                Spacer(Modifier.padding(start = 10.dp))
+                Text(
+                    buildString {
+                        append(row.authorName ?: "A traveler")
+                        io.github.nimbleflux.wayli.designsystem.formatEntryDate(row.story.entryDate)?.let { append(" · $it") }
+                        row.story.tripTitle?.let { append("\n$it") }
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             row.story.body?.takeIf { it.isNotBlank() }?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium)
             }

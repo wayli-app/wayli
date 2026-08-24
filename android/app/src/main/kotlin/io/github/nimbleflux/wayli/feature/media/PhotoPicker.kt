@@ -108,7 +108,7 @@ fun PhotoPicker(
                     uploadedPaths.take(4).forEach { path ->
                         val url = signedUrls[path]
                         if (url != null) {
-                            coil.compose.AsyncImage(
+                            io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
                                 model = url,
                                 contentDescription = "Uploaded photo",
                                 contentScale = ContentScale.Crop,
