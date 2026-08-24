@@ -163,7 +163,7 @@ class EntryEditorViewModel @Inject constructor(
                     }
                 existingMedia = tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
                     .mapNotNull { media ->
-                        mediaUploader.getSignedUrl(path = media.storagePath).getOrNull()
+                        mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
                     }
             } else {
                 io.github.nimbleflux.wayli.demo.DemoData.entries[tripId]

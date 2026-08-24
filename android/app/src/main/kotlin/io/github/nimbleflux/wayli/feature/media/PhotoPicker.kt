@@ -72,8 +72,9 @@ fun PhotoPicker(
     LaunchedEffect(uploadedPaths) {
         val missing = uploadedPaths.filter { it !in signedUrls }
         missing.forEach { path ->
-            viewModel.signedUrlFor(path)
-                .onSuccess { url -> signedUrls = signedUrls + (path to url) }
+            viewModel.signedUrlFor(path)?.let { url ->
+                signedUrls = signedUrls + (path to url)
+            }
         }
     }
 
@@ -207,7 +208,7 @@ class MediaViewModel @Inject constructor(
         }
     }
 
-    /** Signed URL for rendering an uploaded photo. */
-    suspend fun signedUrlFor(path: String): Result<String> =
-        mediaUploader.getSignedUrl(path = path)
+    /** Display URL for rendering an uploaded photo (absolute or signed). */
+    suspend fun signedUrlFor(path: String): String? =
+        mediaUploader.resolveDisplayUrl(storagePath = path)
 }

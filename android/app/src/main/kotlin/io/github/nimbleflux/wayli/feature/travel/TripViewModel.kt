@@ -38,6 +38,7 @@ class TripViewModel @Inject constructor(
     private val adminRepo: AdminRepository,
     private val communityRepo: CommunityRepository,
     private val instanceManager: InstanceManager,
+    private val mediaUploader: io.github.nimbleflux.wayli.feature.media.MediaUploader,
     onlineMonitor: io.github.nimbleflux.wayli.util.OnlineMonitor,
 ) : ViewModel() {
 
@@ -78,8 +79,37 @@ class TripViewModel @Inject constructor(
                 .onSuccess { trips ->
                     _uiState.value = TripUiState.Success(trips)
                     loadJournalPreviews(trips)
+                    fillMissingCovers(trips)
                 }
                 .onFailure { _uiState.value = TripUiState.Error(it.message ?: "Failed to load trips") }
+        }
+    }
+
+    /**
+     * Auto-detected trips usually have no `image_url` — fall back to the
+     * trip's first photo (one batched `trip_media` query) so list cards and
+     * heroes aren't stuck on the placeholder. Only patches trips that are
+     * still on screen.
+     */
+    private fun fillMissingCovers(trips: List<Trip>) {
+        val missing = trips.filter { it.imageUrl.isNullOrBlank() }
+        if (missing.isEmpty()) return
+        viewModelScope.launch {
+            val firstMedia = tripRepo.firstMediaPerTrip(missing.map { it.id }).getOrNull() ?: return@launch
+            val patches = mutableMapOf<String, String>()
+            missing.forEach { trip ->
+                val media = firstMedia[trip.id] ?: return@forEach
+                mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)?.let { url ->
+                    patches[trip.id] = url
+                }
+            }
+            if (patches.isEmpty()) return@launch
+            val current = _uiState.value as? TripUiState.Success ?: return@launch
+            _uiState.value = TripUiState.Success(
+                current.trips.map { trip ->
+                    patches[trip.id]?.let { trip.copy(imageUrl = it) } ?: trip
+                },
+            )
         }
     }
 

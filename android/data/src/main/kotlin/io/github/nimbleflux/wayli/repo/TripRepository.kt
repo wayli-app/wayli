@@ -158,6 +158,25 @@ class TripRepository @Inject constructor(
         }
 
     /**
+     * First media row per trip for a batch of trips — one query, used as the
+     * cover fallback for trips whose `image_url` is null (auto-detected
+     * trips). Ordering matches [listMedia] (lowest sort_order first).
+     */
+    suspend fun firstMediaPerTrip(tripIds: List<String>): Result<Map<String, io.github.nimbleflux.wayli.models.TripMedia>> =
+        runCatching {
+            if (tripIds.isEmpty()) return@runCatching emptyMap()
+            val result = client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+                .select()
+                .`in`("trip_id", tripIds)
+                .order("sort_order")
+                .limit(1000)
+                .execute()
+            (result.dataOrThrow() ?: emptyList())
+                .groupBy { it.tripId }
+                .mapValues { (_, rows) -> rows.first() }
+        }
+
+    /**
      * Update an existing trip's editable fields (owner-only via RLS).
      */
     suspend fun updateTrip(
