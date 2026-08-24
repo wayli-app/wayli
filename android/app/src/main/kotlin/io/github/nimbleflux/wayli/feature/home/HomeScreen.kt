@@ -89,13 +89,35 @@ fun HomeScreen(
     val track by viewModel.track.collectAsState()
     val visitedCountries by viewModel.visitedCountries.collectAsState()
     val windowLoading by viewModel.windowLoading.collectAsState()
+    val windowError by viewModel.windowError.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val online by viewModel.online.collectAsState()
+
+    // One silent retry when returning to a failed dashboard — e.g. the app
+    // resumed with connectivity restored.
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        var retried = false
+        val observer = object : androidx.lifecycle.DefaultLifecycleObserver {
+            override fun onResume(owner: androidx.lifecycle.LifecycleOwner) {
+                if (!retried && uiState is HomeUiState.Error && !viewModel.isDemoMode) {
+                    retried = true
+                    viewModel.load()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold { padding ->
         when (val state = uiState) {
             is HomeUiState.Loading -> LoadingState(Modifier.padding(padding))
-            is HomeUiState.Error -> ErrorState(state.message, modifier = Modifier.padding(padding))
+            is HomeUiState.Error -> ErrorState(
+                state.message,
+                modifier = Modifier.padding(padding),
+                onRetry = { viewModel.load() },
+            )
             is HomeUiState.Success -> Column(Modifier.fillMaxSize().padding(padding)) {
                 io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
                 HomeContent(
@@ -105,6 +127,7 @@ fun HomeScreen(
                     visitedCountries = visitedCountries,
                     selectedRange = selectedRange,
                     windowLoading = windowLoading,
+                    windowError = windowError,
                     onRangeSelected = viewModel::setRange,
                     onStatsClick = onStatsClick,
                     onTripClick = onTripClick,
@@ -126,6 +149,7 @@ private fun HomeContent(
     visitedCountries: Set<String>,
     selectedRange: DateRange,
     windowLoading: Boolean = false,
+    windowError: Boolean = false,
     onRangeSelected: (DateRange) -> Unit,
     onStatsClick: () -> Unit,
     onTripClick: (Trip) -> Unit,
@@ -236,19 +260,29 @@ private fun HomeContent(
 
         if (!isDemo) {
             item {
-                androidx.compose.foundation.layout.Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                ) {
-                    io.github.nimbleflux.wayli.designsystem.DateRangeSelector(
-                        selected = selectedRange,
-                        onSelect = onRangeSelected,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (windowLoading) {
-                        Spacer(Modifier.width(8.dp))
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
+                Column {
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        io.github.nimbleflux.wayli.designsystem.DateRangeSelector(
+                            selected = selectedRange,
+                            onSelect = onRangeSelected,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (windowLoading) {
+                            Spacer(Modifier.width(8.dp))
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                    }
+                    if (windowError) {
+                        Text(
+                            "Couldn't refresh — showing the previous numbers",
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
                 }

@@ -22,9 +22,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
 /** Headline numbers shown in the "At a glance" grid. */
@@ -100,6 +102,23 @@ class HomeViewModel @Inject constructor(
 
     init {
         load()
+        // Reload when the session is (re)established — e.g. the OAuth return
+        // after a cold start restored a dead token: the first load() failed,
+        // and without this the dashboard would stay empty until a process
+        // death. Mirrors the routing collector in WayliNavHost.
+        viewModelScope.launch {
+            callbackFlow {
+                val unsubscribe = fluxbaseClient.auth.onAuthStateChange { trySend(it) }
+                awaitClose { unsubscribe() }
+            }.collect { state ->
+                val event = state.event
+                val signedIn = event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_IN ||
+                    event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.TOKEN_REFRESHED
+                if (signedIn && !demoManager.isDemoMode && _uiState.value !is HomeUiState.Loading) {
+                    load()
+                }
+            }
+        }
     }
 
     fun setRange(range: DateRange) {
@@ -108,6 +127,9 @@ class HomeViewModel @Inject constructor(
         rangeStore.set(range)
         loadWindow()
     }
+
+    /** In-flight initial load, so retries/auth-event reloads can't overlap it. */
+    private var loadJob: kotlinx.coroutines.Job? = null
 
     fun load() {
         if (demoManager.isDemoMode) {
@@ -135,7 +157,8 @@ class HomeViewModel @Inject constructor(
             _uiState.value = HomeUiState.Error("Not authenticated")
             return
         }
-        viewModelScope.launch(Dispatchers.IO) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = HomeUiState.Loading
             // Parallel fetches — the dashboard's first paint waits on the
             // slowest call, not the sum of all of them.
@@ -153,19 +176,23 @@ class HomeViewModel @Inject constructor(
                     notifications = notifications.await(),
                 )
             }
-            if (results.trips.isSuccess) {
+            val tripsValue = results.trips.getOrNull()
+            if (tripsValue != null) {
                 _uiState.value = HomeUiState.Success(
                     HomeData(
                         profile = results.profile,
                         initials = initials(results.profile),
-                        stats = HomeStats("", "", "", results.trips.getOrDefault(emptyList()).size.toString()),
-                        trips = results.trips.getOrDefault(emptyList()),
+                        stats = HomeStats("", "", "", tripsValue.size.toString()),
+                        trips = tripsValue,
                         wishlist = results.wishlist,
                         activity = results.notifications,
                     ),
                 )
                 loadWindow()
             } else {
+                // Offline or auth failure — serve the stale cache if the repo
+                // could (it already tried); otherwise surface the error with
+                // a retry hook (see HomeScreen).
                 _uiState.value =
                     HomeUiState.Error(results.trips.exceptionOrNull()?.message ?: "Failed to load")
             }
@@ -176,44 +203,80 @@ class HomeViewModel @Inject constructor(
     private val _windowLoading = MutableStateFlow(false)
     val windowLoading: StateFlow<Boolean> = _windowLoading.asStateFlow()
 
+    /** Transient "couldn't refresh the window" hint — previous numbers stay. */
+    private val _windowError = MutableStateFlow(false)
+    val windowError: StateFlow<Boolean> = _windowError.asStateFlow()
+
+    private var windowJob: kotlinx.coroutines.Job? = null
+
     /** Reload stats + map track for the selected range (real mode). */
     private fun loadWindow() {
         if (demoManager.isDemoMode) return
         val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: return
-        val current = _uiState.value as? HomeUiState.Success ?: return
-        viewModelScope.launch(Dispatchers.IO) {
+        if (_uiState.value !is HomeUiState.Success) return
+        // Capture the triggering range up front — the fetch must answer the
+        // selection that started it, whatever the user taps next.
+        val range = _selectedRange.value
+        // Cancel any in-flight window load so a slow old range can never
+        // overwrite the results of a newer one.
+        windowJob?.cancel()
+        windowJob = viewModelScope.launch(Dispatchers.IO) {
             _windowLoading.value = true
-            val (start, end) = _selectedRange.value.toDates()
-            val (daily, pointRows) = coroutineScope {
-                val dailyDeferred = async {
-                    statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
-                        .getOrDefault(emptyList())
+            try {
+                val (start, end) = range.toDates()
+                val (dailyResult, pointsResult, countriesResult) = coroutineScope {
+                    val dailyDeferred = async {
+                        statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
+                    }
+                    val pointsDeferred = async {
+                        statsRepo.fetchPoints(userId, start.toString(), end.toString())
+                    }
+                    val countriesDeferred = async {
+                        statsRepo.fetchCountryCodes(userId, start.toString(), end.toString())
+                    }
+                    Triple(dailyDeferred.await(), pointsDeferred.await(), countriesDeferred.await())
                 }
-                val pointsDeferred = async {
-                    statsRepo.fetchPoints(userId, start.toString(), end.toString())
-                        .getOrDefault(emptyList())
-                }
-                dailyDeferred.await() to pointsDeferred.await()
-            }
-            val totals = if (daily.isNotEmpty()) {
-                StatsAggregator.totalsFromDailyActivity(daily)
-            } else {
-                StatsAggregator.totalsFromPoints(pointRows)
-            }
+                val daily = dailyResult.getOrNull().orEmpty()
+                val pointRows = pointsResult.getOrNull().orEmpty()
 
-            _track.value = StatsAggregator.track(pointRows)
-            _visitedCountries.value = pointRows.mapNotNull { it.countryCode?.uppercase() }.toSet()
-            _uiState.value = current.copy(
-                data = current.data.copy(
-                    stats = HomeStats(
-                        distanceKm = "%.0f".format(totals.totalDistanceKm),
-                        countries = StatsAggregator.countries(pointRows).toString(),
-                        timeMovingHours = "%.0f".format(totals.timeMovingHours),
-                        trips = current.data.stats.trips,
+                if (dailyResult.isFailure && pointsResult.isFailure && countriesResult.isFailure) {
+                    // Keep the previous numbers on screen — zeroing them out
+                    // on a flaky connection would look like lost data.
+                    _windowError.value = true
+                    return@launch
+                }
+                _windowError.value = false
+
+                val totals = if (daily.isNotEmpty()) {
+                    StatsAggregator.totalsFromDailyActivity(daily)
+                } else {
+                    StatsAggregator.totalsFromPoints(pointRows)
+                }
+
+                if (pointsResult.isSuccess) {
+                    _track.value = StatsAggregator.track(pointRows)
+                }
+                val countriesValue = countriesResult.getOrNull()
+                if (countriesValue != null) {
+                    _visitedCountries.value = countriesValue.toSet()
+                }
+
+                // Write back into the CURRENT state (not a pre-launch
+                // snapshot) — the dashboard may have reloaded meanwhile.
+                val current = _uiState.value as? HomeUiState.Success ?: return@launch
+                _uiState.value = current.copy(
+                    data = current.data.copy(
+                        stats = HomeStats(
+                            distanceKm = "%.0f".format(totals.totalDistanceKm),
+                            countries = (countriesValue?.size ?: current.data.stats.countries.toIntOrNull() ?: 0).toString(),
+                            timeMovingHours = "%.0f".format(totals.timeMovingHours),
+                            trips = current.data.stats.trips,
+                        ),
                     ),
-                ),
-            )
-            _windowLoading.value = false
+                )
+            } finally {
+                _windowLoading.value = false
+            }
         }
     }
 
