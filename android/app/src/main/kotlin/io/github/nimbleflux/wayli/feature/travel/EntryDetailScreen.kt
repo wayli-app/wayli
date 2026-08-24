@@ -1,21 +1,25 @@
 package io.github.nimbleflux.wayli.feature.travel
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,10 +32,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -69,6 +80,7 @@ fun EntryDetailScreen(
     val gallery by viewModel.gallery.collectAsState()
     var menuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var confirmDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var viewerIndex by remember { mutableStateOf<Int?>(null) }
 
     if (confirmDelete && entry != null) {
         val target = entry
@@ -167,25 +179,122 @@ fun EntryDetailScreen(
                 }
             }
 
-            // Photo gallery (hero excluded — it's shown above)
-            if (gallery.size > 1) {
+            // Photo tiles — a 3-wide grid under the hero, tappable for the
+            // fullscreen viewer (any count, including a single photo).
+            if (gallery.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text("Photos", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(gallery.size) { i ->
-                        io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
-                            model = gallery[i],
-                            contentDescription = "Photo ${i + 1}",
-                            modifier = Modifier
-                                .fillMaxWidth(0.45f)
-                                .height(140.dp)
-                                .clip(RoundedCornerShape(12.dp)),
-                        )
+                gallery.chunked(3).forEachIndexed { rowIndex, rowUrls ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowUrls.forEachIndexed { inRow, url ->
+                            val index = rowIndex * 3 + inRow
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { viewerIndex = index },
+                            ) {
+                                io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
+                                    model = url,
+                                    contentDescription = "Photo ${index + 1}",
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+                        // Pad a short last row so its tiles keep the grid width.
+                        repeat(3 - rowUrls.size) { Spacer(Modifier.weight(1f)) }
                     }
+                    Spacer(Modifier.height(8.dp))
                 }
             }
             Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    if (viewerIndex != null && gallery.isNotEmpty()) {
+        PhotoViewer(
+            urls = gallery,
+            initialIndex = viewerIndex ?: 0,
+            onDismiss = { viewerIndex = null },
+        )
+    }
+}
+
+/**
+ * Fullscreen photo viewer: swipe between photos, pinch to zoom (1–5×),
+ * tap or the ✕ button to close.
+ */
+@Composable
+private fun PhotoViewer(
+    urls: List<String>,
+    initialIndex: Int,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+            initialPage = initialIndex,
+        ) { urls.size }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { onDismiss() },
+        ) {
+            androidx.compose.foundation.pager.HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                var scale by remember { mutableFloatStateOf(1f) }
+                var offset by remember { mutableStateOf(Offset.Zero) }
+                val transformState = androidx.compose.foundation.gestures.rememberTransformableState(
+                    onTransformation = { zoom, pan, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        offset = if (scale > 1f) offset + pan else Offset.Zero
+                    },
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .transformable(transformState),
+                ) {
+                    coil.compose.AsyncImage(
+                        model = urls[page],
+                        contentDescription = "Photo ${page + 1}",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = offset.x
+                                translationY = offset.y
+                            },
+                    )
+                }
+            }
+            Text(
+                "${pagerState.settledPage + 1} / ${urls.size}",
+                color = Color.White.copy(alpha = 0.8f),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 32.dp),
+            )
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 16.dp, end = 8.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Close viewer",
+                    tint = Color.White,
+                )
+            }
         }
     }
 }
@@ -234,8 +343,9 @@ class EntryDetailViewModel @Inject constructor(
             val demo = io.github.nimbleflux.wayli.demo.DemoData.entries[tripId]
                 ?.firstOrNull { it.id == entryId }
             _entry.value = demo
-            heroUrl = io.github.nimbleflux.wayli.demo.DemoData.entryHeroes[entryId]
-            _gallery.value = heroUrl?.let { listOf(it) } ?: emptyList()
+            val images = io.github.nimbleflux.wayli.demo.DemoData.entryImages[entryId].orEmpty()
+            heroUrl = images.firstOrNull()
+            _gallery.value = images
             return
         }
 
