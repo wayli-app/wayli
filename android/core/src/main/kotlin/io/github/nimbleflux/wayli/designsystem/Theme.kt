@@ -53,6 +53,14 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 /**
+ * Effective dark-theme flag as resolved by [WayliTheme] (LIGHT/DARK/SYSTEM
+ * setting, not just the OS one). Map styles and other non-Material surfaces
+ * read this instead of [isSystemInDarkTheme] so they follow the app setting.
+ * The default only matters in previews outside [WayliTheme].
+ */
+val LocalWayliDarkTheme = androidx.compose.runtime.compositionLocalOf { false }
+
+/**
  * Wayli theme — M3 with brand tokens (navy #233869 / #60a5fa).
  *
  * [themeMode] controls Light/Dark/System. When SYSTEM, follows
@@ -87,10 +95,12 @@ fun WayliTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = WayliTypography,
-        shapes = WayliShapes,
-        content = content,
-    )
+    androidx.compose.runtime.CompositionLocalProvider(LocalWayliDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = WayliTypography,
+            shapes = WayliShapes,
+            content = content,
+        )
+    }
 }
