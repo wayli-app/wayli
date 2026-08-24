@@ -2,7 +2,6 @@ package io.github.nimbleflux.wayli.designsystem.map
 
 import android.content.Context
 import android.os.Bundle
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -56,8 +55,8 @@ data class MapTrack(
  *
  * Lifecycle: forwards the host's create/start/resume/pause/stop/destroy to the
  * underlying [MapView] (via [DefaultLifecycleObserver]) so it doesn't leak GPU
- * memory or crash on backgrounding. [darkTheme] defaults to the system theme so
- * the map switches to the dark CartoDB style automatically. Per-point [MapPoint]
+ * * memory or crash on backgrounding. [darkTheme] resolves LIGHT/DARK/SYSTEM so
+ * * the map follows the app theme (see LocalWayliDarkTheme). Per-point [MapPoint]
  * colors are honored, GeoJSON is built with kotlinx.serialization (no string
  * injection), and points/tracks re-render when the arguments change.
  */
@@ -68,7 +67,9 @@ fun WayliMap(
     tracks: List<MapTrack> = emptyList(),
     center: LatLng? = null,
     zoom: Double = 10.0,
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Defaults to the APP theme (LIGHT/DARK/SYSTEM setting), not just the OS
+    // one — see LocalWayliDarkTheme.
+    darkTheme: Boolean = io.github.nimbleflux.wayli.designsystem.LocalWayliDarkTheme.current,
 ) {
     // MapLibre.getInstance() is called in WayliApplication.onCreate() — must
     // happen before any MapView is created.
@@ -113,14 +114,22 @@ fun WayliMap(
             mapView.apply {
                 getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
                     mapRef = map
-                    map.setStyle(Style.Builder().fromUri(styleUrl)) { style: Style ->
-                        styleRef = style
-                    }
                 })
             }
         },
         modifier = modifier,
     )
+
+    // Apply (and re-apply) the style whenever the theme changes — the factory
+    // runs once, so a theme switch mid-session would otherwise leave the map
+    // frozen on the old palette. MapLibre preserves the camera across
+    // setStyle; layers/sources re-add via the styleRef effect below.
+    LaunchedEffect(mapRef, darkTheme) {
+        val map = mapRef ?: return@LaunchedEffect
+        map.setStyle(Style.Builder().fromUri(styleUrl)) { style: Style ->
+            styleRef = style
+        }
+    }
 
     // Render points/tracks whenever the style is ready or the data changes.
     LaunchedEffect(styleRef, points, tracks) {
