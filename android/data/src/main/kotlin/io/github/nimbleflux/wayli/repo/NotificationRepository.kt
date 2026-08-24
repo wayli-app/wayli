@@ -29,7 +29,7 @@ class NotificationRepository @Inject constructor(
                     .order("created_at", ascending = false)
                     .limit(limit)
                     .execute()
-                result.data ?: emptyList()
+                result.dataOrThrow() ?: emptyList()
             }
         }
 
