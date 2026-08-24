@@ -196,6 +196,7 @@ class TripViewModel @Inject constructor(
         val story: CommunityStory,
         val authorName: String?,
         val authorUsername: String?,
+        val authorAvatarUrl: String? = null,
     )
 
     sealed interface StoriesUiState {
@@ -246,6 +247,7 @@ class TripViewModel @Inject constructor(
                         ),
                         authorName = it.authorName,
                         authorUsername = it.authorUsername,
+                        authorAvatarUrl = null,
                     )
                 },
                 endReached = true,
@@ -273,6 +275,7 @@ class TripViewModel @Inject constructor(
                             story = story,
                             authorName = author?.fullName ?: author?.username,
                             authorUsername = author?.username,
+                            authorAvatarUrl = author?.avatarUrl,
                         )
                     }
                     val merged = if (offset == 0) rows else (current?.stories ?: emptyList()) + rows

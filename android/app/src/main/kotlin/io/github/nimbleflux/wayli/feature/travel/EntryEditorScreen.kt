@@ -558,7 +558,7 @@ fun EntryEditorScreen(
 @Composable
 private fun PhotoTile(model: Any, onRemove: () -> Unit) {
     Box {
-        coil.compose.AsyncImage(
+        io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
             model = model,
             contentDescription = "Photo",
             contentScale = androidx.compose.ui.layout.ContentScale.Crop,
@@ -642,7 +642,7 @@ private fun EntryPreviewPane(
                     .height(220.dp)
                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
             ) {
-                coil.compose.AsyncImage(
+                io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
                     model = photos.first(),
                     contentDescription = "Hero photo",
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
@@ -676,7 +676,7 @@ private fun EntryPreviewPane(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(photos.size - 1) { i ->
-                    coil.compose.AsyncImage(
+                    io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
                         model = photos[i + 1],
                         contentDescription = "Photo",
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,

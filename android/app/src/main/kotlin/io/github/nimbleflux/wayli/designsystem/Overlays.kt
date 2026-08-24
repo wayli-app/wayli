@@ -117,6 +117,16 @@ fun CoverFallback(modifier: Modifier = Modifier, icon: ImageVector = Icons.Fille
     }
 }
 
+/**
+ * Locale-friendly entry date ("Aug 15, 2026"); null when [isoDate] can't be
+ * parsed. Shared by journal cards, story cards and detail sheets.
+ */
+fun formatEntryDate(isoDate: String?): String? {
+    if (isoDate.isNullOrBlank()) return null
+    val date = runCatching { java.time.LocalDate.parse(isoDate) }.getOrNull() ?: return null
+    return java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy").format(date)
+}
+
 /** Calendar-tile badge: month abbreviation over day number (web's date badge). */
 @Composable
 fun DateBadge(isoDate: String, modifier: Modifier = Modifier) {
@@ -124,7 +134,9 @@ fun DateBadge(isoDate: String, modifier: Modifier = Modifier) {
         runCatching { java.time.LocalDate.parse(isoDate) }.getOrNull()
     }
     val month = remember(date) {
-        date?.let { java.time.format.DateTimeFormatter.ofPattern("MMM").format(it)?.uppercase() } ?: "·"
+        date?.let { java.time.format.DateTimeFormatter.ofPattern("MMM").format(it)?.uppercase() }
+            // Unparseable dates still show something identifiable.
+            ?: isoDate.take(3).uppercase().ifBlank { "·" }
     }
     Surface(
         modifier = modifier,
@@ -141,7 +153,7 @@ fun DateBadge(isoDate: String, modifier: Modifier = Modifier) {
                 color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
             )
             Text(
-                date?.dayOfMonth?.toString() ?: "?",
+                date?.dayOfMonth?.toString() ?: "·",
                 style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
