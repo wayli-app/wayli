@@ -1,6 +1,8 @@
 package io.github.nimbleflux.wayli.feature.stats
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,15 +33,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.nimbleflux.wayli.designsystem.TransportModeColors
 import io.github.nimbleflux.wayli.designsystem.displayLabel
 import io.github.nimbleflux.wayli.designsystem.map.MapTrack
@@ -143,14 +149,19 @@ private fun StatsContent(
     val points = data.dataPoints
     val modes = data.modes
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding)
-            .padding(horizontal = 16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    var selectedDay by remember {
+        mutableStateOf<Pair<java.time.LocalDate, io.github.nimbleflux.wayli.repo.DailyActivity>?>(null)
+    }
+
+    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             Spacer(Modifier.height(8.dp))
 
             if (showSelector) {
@@ -228,7 +239,7 @@ private fun StatsContent(
                 }
             }
 
-            // Activity heatmap (daily distance over the last ~12 weeks)
+            // Activity heatmap (daily distance over the past year)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
@@ -242,7 +253,9 @@ private fun StatsContent(
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(Modifier.height(12.dp))
-                    ActivityHeatmap(activity = data.dailyActivity)
+                    ActivityHeatmap(rows = data.dailyRows, onDayClick = { day, row ->
+                        selectedDay = day to row
+                    })
                     Spacer(Modifier.height(10.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -305,6 +318,10 @@ private fun StatsContent(
 
             Spacer(Modifier.height(32.dp))
         }
+        selectedDay?.let { (day, row) ->
+            DayDetailSheet(day = day, row = row, onDismiss = { selectedDay = null })
+        }
+    }
 }
 
 private fun formatNumber(n: Int): String = "%,d".format(n)
@@ -347,40 +364,165 @@ private fun ColumnScope.ModeBar(label: String, fraction: Float, percentText: Str
 
 /**
  * GitHub-style activity heatmap: columns = weeks (oldest left), rows = weekdays
- * (Mon–Sun). Cell intensity scales with that day's distance relative to the max.
+ * (Mon–Sun). Covers a full trailing year (53 weeks) in a horizontally
+ * scrollable strip; cells scale with that day's distance relative to the max,
+ * and tapping a day with data opens a detail sheet.
  */
 @Composable
-private fun ActivityHeatmap(activity: Map<String, Double>, modifier: Modifier = Modifier) {
+private fun ActivityHeatmap(
+    rows: Map<String, io.github.nimbleflux.wayli.repo.DailyActivity>,
+    onDayClick: (java.time.LocalDate, io.github.nimbleflux.wayli.repo.DailyActivity) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val today = remember { java.time.LocalDate.now() }
-    val maxKm = remember(activity) { (activity.values.maxOrNull() ?: 0.0).coerceAtLeast(1.0) }
-    val weeks = 12
+    val weeks = 53
     val startMonday = remember(today) {
         today.minusWeeks((weeks - 1).toLong())
             .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
     }
+    val kmByDay = remember(rows) {
+        rows.mapValues { (_, row) -> (row.distance ?: 0.0) / 1000.0 }
+    }
+    val maxKm = remember(rows) { (kmByDay.values.maxOrNull() ?: 0.0).coerceAtLeast(1.0) }
     val empty = MaterialTheme.colorScheme.surfaceVariant
     val active = MaterialTheme.colorScheme.primary
+    val monthLabel = remember { java.time.format.DateTimeFormatter.ofPattern("LLL") }
+
+    val scrollState = rememberScrollState()
+    // Start at the newest week (right end) — that's what users care about.
+    LaunchedEffect(Unit) { scrollState.scrollTo(scrollState.maxValue) }
+
+    val cellSize = 13.dp
+    val cellGap = 3.dp
+    val slot = cellSize + cellGap
 
     Column(modifier = modifier) {
-        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            for (w in 0 until weeks) {
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    for (dow in 0 until 7) {
-                        val date = startMonday.plusWeeks(w.toLong()).plusDays(dow.toLong())
-                        val inRange = !date.isAfter(today)
-                        val km = if (inRange) activity[date.toString()] ?: 0.0 else 0.0
-                        val color = if (inRange && km > 0.0) {
-                            active.copy(alpha = 0.25f + 0.75f * (km / maxKm).toFloat().coerceIn(0f, 1f))
-                        } else {
-                            empty.copy(alpha = if (inRange) 0.4f else 0.15f)
+        // Month labels — one per week column that contains the 1st of a month.
+        Row {
+            Spacer(Modifier.width(slot * 2.6f)) // room for the weekday labels
+            Row(horizontalArrangement = Arrangement.spacedBy(cellGap)) {
+                for (w in 0 until weeks) {
+                    val weekStart = startMonday.plusWeeks(w.toLong())
+                    val firstOfMonth = remember(weekStart) {
+                        (1..7).map { weekStart.plusDays((it - 1).toLong()) }
+                            .firstOrNull { it.dayOfMonth == 1 }
+                    }
+                    Box(modifier = Modifier.width(cellSize)) {
+                        if (firstOfMonth != null) {
+                            Text(
+                                firstOfMonth.format(monthLabel),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.CenterStart),
+                            )
                         }
-                        Box(
-                            modifier = Modifier
-                                .size(13.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(color),
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        Row {
+            // Weekday labels at the Mon/Wed/Fri slots.
+            Column(verticalArrangement = Arrangement.spacedBy(cellGap)) {
+                listOf("M", "W", "F").forEachIndexed { i, label ->
+                    Box(modifier = Modifier.size(cellSize), contentAlignment = Alignment.Center) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    if (i < 2) Spacer(Modifier.height(cellSize * 2 + cellGap * 2 - cellGap))
+                }
+            }
+            Spacer(Modifier.width(cellGap))
+            Row(
+                modifier = Modifier.horizontalScroll(scrollState),
+                horizontalArrangement = Arrangement.spacedBy(cellGap),
+            ) {
+                for (w in 0 until weeks) {
+                    Column(verticalArrangement = Arrangement.spacedBy(cellGap)) {
+                        for (dow in 0 until 7) {
+                            val date = startMonday.plusWeeks(w.toLong()).plusDays(dow.toLong())
+                            val inRange = !date.isAfter(today)
+                            val row = rows[date.toString()]
+                            val km = if (inRange) kmByDay[date.toString()] ?: 0.0 else 0.0
+                            val hasData = inRange && row != null && km > 0.0
+                            val color = if (hasData) {
+                                active.copy(alpha = 0.25f + 0.75f * (km / maxKm).toFloat().coerceIn(0f, 1f))
+                            } else {
+                                empty.copy(alpha = if (inRange) 0.4f else 0.15f)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(cellSize)
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(color)
+                                    .then(
+                                        if (hasData) {
+                                            Modifier.clickable { onDayClick(date, row!!) }
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Day detail sheet behind a heatmap cell: date plus the day's distance,
+ * moving time and recorded point count.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun DayDetailSheet(
+    day: java.time.LocalDate,
+    row: io.github.nimbleflux.wayli.repo.DailyActivity?,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            val dateText = remember(day) {
+                day.format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.FULL))
+            }
+            Text(
+                dateText,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            val km = (row?.distance ?: 0.0) / 1000.0
+            val seconds = row?.timeSpent ?: 0.0
+            val hours = (seconds / 3600).toInt()
+            val minutes = ((seconds % 3600) / 60).toInt()
+            val timeText = when {
+                hours > 0 -> "${hours}h ${minutes}m"
+                minutes > 0 -> "${minutes}m"
+                else -> "—"
+            }
+            if (km <= 0.0) {
+                Text(
+                    "No activity recorded on this day.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard(modifier = Modifier.weight(1f), label = "Distance", value = "%.1f".format(km), unit = "km")
+                    StatCard(modifier = Modifier.weight(1f), label = "Moving time", value = timeText, unit = "")
+                    StatCard(modifier = Modifier.weight(1f), label = "Points", value = (row?.points ?: 0).toString(), unit = "")
                 }
             }
         }

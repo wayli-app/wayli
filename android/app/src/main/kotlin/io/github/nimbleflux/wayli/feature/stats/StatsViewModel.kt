@@ -12,6 +12,7 @@ import io.github.nimbleflux.wayli.repo.StatsAggregator
 import io.github.nimbleflux.wayli.repo.StatsRepository
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +25,8 @@ data class StatsData(
     val timeMovingHours: String,
     val dataPoints: String,
     val modes: Map<String, Double>,
-    val dailyActivity: Map<String, Double>,
+    /** Full per-day rows keyed by ISO date — feeds the heatmap and the day sheet. */
+    val dailyRows: Map<String, io.github.nimbleflux.wayli.repo.DailyActivity>,
     /** Ordered (lat, lon) track for the activity map; null → hide the map card. */
     val track: List<Pair<Double, Double>>?,
     /** True when the heatmap was derived from raw points, not the server cache. */
@@ -38,6 +40,14 @@ sealed interface StatsUiState {
     data class Error(val message: String) : StatsUiState
     data class Success(val data: StatsData) : StatsUiState
 }
+
+/** Results of [StatsViewModel]'s parallel fetches. */
+private data class StatsFetches(
+    val calendar: Result<List<io.github.nimbleflux.wayli.repo.DailyActivity>>,
+    val daily: Result<List<io.github.nimbleflux.wayli.repo.DailyActivity>>,
+    val points: Result<List<io.github.nimbleflux.wayli.models.TrackerPoint>>,
+    val countries: Result<List<String>>,
+)
 
 /**
  * Feeds the Stats screen. Demo mode serves [DemoData]; real mode aggregates
@@ -87,7 +97,10 @@ class StatsViewModel @Inject constructor(
                     timeMovingHours = DemoData.timeMovingHours.toString(),
                     dataPoints = formatNumber(DemoData.dataPoints),
                     modes = DemoData.transportModeBreakdown,
-                    dailyActivity = DemoData.dailyActivity,
+                    // Demo map is km/day; DailyActivity carries meters.
+                    dailyRows = DemoData.dailyActivity.mapValues { (day, km) ->
+                        io.github.nimbleflux.wayli.repo.DailyActivity(day = day, distance = km * 1000.0)
+                    },
                     track = DemoData.homeTrack,
                     visited = DemoData.visitedCountries,
                 ),
@@ -101,39 +114,81 @@ class StatsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             // Keep the current data on screen while re-fetching (range
             // switch / refresh); only a first-ever load shows the spinner.
-            val hasData = _state.value is StatsUiState.Success
-            _reloading.value = hasData
-            if (!hasData) _state.value = StatsUiState.Loading
+            val previous = _state.value as? StatsUiState.Success
+            _reloading.value = previous != null
+            if (previous == null) _state.value = StatsUiState.Loading
             val (start, end) = _selectedRange.value.toDates()
 
             // Heatmap always uses the server-side activity calendar (trailing
             // 371 days, like the web) — independent of the selected range so
-            // the 12-week grid has data even when a shorter range is picked.
-            val calendarResult = statsRepo.getActivityCalendar(userId)
+            // the grid covers the full year even when a shorter range is picked.
+            val results = kotlinx.coroutines.coroutineScope {
+                val calendar = async { statsRepo.getActivityCalendar(userId) }
+                val daily = async {
+                    statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
+                }
+                val points = async {
+                    statsRepo.fetchPoints(userId, start.toString(), end.toString())
+                }
+                val countries = async {
+                    statsRepo.fetchCountryCodes(userId, start.toString(), end.toString())
+                }
+                StatsFetches(calendar.await(), daily.await(), points.await(), countries.await())
+            }
+            val calendarResult = results.calendar
+            val dailyResult = results.daily
+            val pointsResult = results.points
+            val countriesResult = results.countries
             val calendar = calendarResult.getOrDefault(emptyList())
-
-            val dailyResult = statsRepo.fetchDailyActivity(userId, start.toString(), end.toString())
             val daily = dailyResult.getOrDefault(emptyList())
-            val pointsResult = statsRepo.fetchPoints(userId, start.toString(), end.toString())
             val points = pointsResult.getOrDefault(emptyList())
+            val countryCodes = countriesResult.getOrDefault(emptyList())
 
             // Distinguish "no data" from "queries failing": if every source
             // errored (network/permissions), say so instead of showing zeros.
-            if (calendarResult.isFailure && dailyResult.isFailure && pointsResult.isFailure) {
+            if (calendarResult.isFailure && dailyResult.isFailure &&
+                pointsResult.isFailure && countriesResult.isFailure
+            ) {
                 _reloading.value = false
                 _state.value = StatsUiState.Error(
                     calendarResult.exceptionOrNull()?.message
                         ?: dailyResult.exceptionOrNull()?.message
                         ?: pointsResult.exceptionOrNull()?.message
+                        ?: countriesResult.exceptionOrNull()?.message
                         ?: "Failed to load statistics",
                 )
                 return@launch
             }
 
+            // Partial failures keep the previous values for the affected
+            // fields instead of silently zeroing them — a failed points fetch
+            // must not wipe the countries count or the world map.
+            val prevData = previous?.data
+            val countriesValue = when {
+                countriesResult.isSuccess -> countryCodes.size.toString()
+                prevData != null -> prevData.countries
+                else -> "0"
+            }
+            val visitedValue = when {
+                countriesResult.isSuccess -> countryCodes.toSet()
+                prevData != null -> prevData.visited
+                else -> emptySet()
+            }
+            val modesValue = when {
+                pointsResult.isSuccess -> StatsAggregator.transportModeShares(points)
+                prevData != null -> prevData.modes
+                else -> emptyMap()
+            }
+            val trackValue = when {
+                pointsResult.isSuccess -> StatsAggregator.track(points).takeIf { it.size >= 2 }
+                prevData != null -> prevData.track
+                else -> null
+            }
+
             if (daily.isEmpty() && points.isEmpty() && calendar.isEmpty()) {
                 _reloading.value = false
                 _state.value = StatsUiState.Success(
-                    StatsData("0", "0", "0", "0", emptyMap(), emptyMap(), emptyList()),
+                    StatsData("0", countriesValue, "0", "0", emptyMap(), emptyMap(), null, visited = visitedValue),
                 )
                 return@launch
             }
@@ -141,29 +196,43 @@ class StatsViewModel @Inject constructor(
             // Prefer the daily-activity cache; fall back to client-side
             // aggregation from raw points when the cache hasn't been built
             // yet (fresh instances) — for totals. The heatmap uses the
-            // calendar rows with the range-scope/daily rows as fallback.
+            // calendar rows with the range-scoped daily rows as fallback.
             val totals = if (daily.isNotEmpty()) {
                 StatsAggregator.totalsFromDailyActivity(daily)
             } else {
                 StatsAggregator.totalsFromPoints(points)
             }
-            val heatmap = when {
-                calendar.isNotEmpty() -> StatsAggregator.dailyDistance(calendar)
-                daily.isNotEmpty() -> StatsAggregator.dailyDistance(daily)
-                else -> StatsAggregator.dailyDistanceFromPoints(points)
+            val heatRows = when {
+                calendar.isNotEmpty() -> calendar
+                daily.isNotEmpty() -> daily
+                else -> emptyList()
+            }
+            val dailyRows = heatRows.associateBy { it.day }.let { byDay ->
+                if (heatRows.isEmpty()) {
+                    // Last resort: bucket raw points into local-day rows.
+                    StatsAggregator.dailyDistanceFromPoints(points).entries.associate { (day, km) ->
+                        day to io.github.nimbleflux.wayli.repo.DailyActivity(day = day, distance = km * 1000.0)
+                    }
+                } else {
+                    byDay
+                }
             }
             _reloading.value = false
             _state.value = StatsUiState.Success(
                 StatsData(
                     distanceKm = "%.0f".format(totals.totalDistanceKm),
-                    countries = StatsAggregator.countries(points).toString(),
+                    countries = countriesValue,
                     timeMovingHours = "%.0f".format(totals.timeMovingHours),
-                    dataPoints = formatNumber(points.size.coerceAtLeast(totals.points)),
-                    modes = StatsAggregator.transportModeShares(points),
-                    dailyActivity = heatmap,
-                    track = StatsAggregator.track(points).takeIf { it.size >= 2 },
+                    dataPoints = if (pointsResult.isSuccess) {
+                        formatNumber(points.size.coerceAtLeast(totals.points))
+                    } else {
+                        prevData?.dataPoints ?: "0"
+                    },
+                    modes = modesValue,
+                    dailyRows = dailyRows,
+                    track = trackValue,
                     dailyCacheEmpty = daily.isEmpty() && calendar.isEmpty(),
-                    visited = points.mapNotNull { it.countryCode?.uppercase() }.toSet(),
+                    visited = visitedValue,
                 ),
             )
         }
