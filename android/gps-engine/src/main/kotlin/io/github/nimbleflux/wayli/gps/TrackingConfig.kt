@@ -111,6 +111,11 @@ class TrackingConfigStore(context: Context) {
         get() = prefs.getBoolean(KEY_IS_TRACKING, true)
         set(value) = prefs.edit { putBoolean(KEY_IS_TRACKING, value) }
 
+    /** Whether the persistent "tracking off" status notification stays posted. */
+    var statusNotificationEnabled: Boolean
+        get() = prefs.getBoolean(KEY_STATUS_NOTIFICATION, true)
+        set(value) = prefs.edit { putBoolean(KEY_STATUS_NOTIFICATION, value) }
+
     companion object {
         private const val KEY_MODE = "mode"
         private const val KEY_MIN_INTERVAL = "min_interval"
@@ -133,5 +138,6 @@ class TrackingConfigStore(context: Context) {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_START_ON_BOOT = "start_on_boot"
         private const val KEY_IS_TRACKING = "is_tracking"
+        private const val KEY_STATUS_NOTIFICATION = "status_notification"
     }
 }
