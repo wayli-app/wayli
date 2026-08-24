@@ -42,6 +42,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -248,6 +250,43 @@ private fun HomeContent(
         }
     }
 
+    // ---- First-run permission priming (separate from the tracking chain,
+    // so granting here never starts a session) ----
+    val primePrefs = remember { context.getSharedPreferences("wayli-permissions", android.content.Context.MODE_PRIVATE) }
+    var primed by remember { mutableStateOf(primePrefs.getBoolean("primed", false)) }
+    fun markPrimed() {
+        primePrefs.edit().putBoolean("primed", true).apply()
+        primed = true
+    }
+    val missingPermissions = remember(primed) {
+        buildList {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.POST_NOTIFICATIONS,
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                add(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition &&
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.ACTIVITY_RECOGNITION,
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                add(android.Manifest.permission.ACTIVITY_RECOGNITION)
+            }
+        }
+    }
+    val primeLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+    ) { markPrimed() }
+    val showPrimeBanner = !isDemo && !primed && missingPermissions.isNotEmpty()
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -257,6 +296,44 @@ private fun HomeContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { HomeHeader(data, onNotificationsClick) }
+
+        if (showPrimeBanner) {
+            item {
+                androidx.compose.material3.Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Allow what Wayli needs",
+                                style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Location for tracking, notifications for the drawer toggle" +
+                                    if (io.github.nimbleflux.wayli.di.FlavorCapabilities.requestsActivityRecognition) {
+                                        ", activity recognition for adaptive tracking."
+                                    } else ".",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        androidx.compose.material3.Button(onClick = { primeLauncher.launch(missingPermissions.toTypedArray()) }) {
+                            Text("Allow")
+                        }
+                        androidx.compose.material3.TextButton(onClick = { markPrimed() }) {
+                            Text("Not now")
+                        }
+                    }
+                }
+            }
+        }
 
         if (!isDemo) {
             item {

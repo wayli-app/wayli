@@ -262,8 +262,20 @@ fun TrackingSettingsScreen(
             }
 
             // System
+            val context = androidx.compose.ui.platform.LocalContext.current
             WayliSectionCard(title = "System") {
                 SwitchRow(label = "Start on boot", checked = config.startOnBoot) { viewModel.update(config.copy(startOnBoot = it)) }
+                SwitchRow(
+                    label = "Persistent status notification",
+                    checked = viewModel.statusNotification,
+                ) { enabled ->
+                    viewModel.updateStatusNotification(enabled)
+                    if (enabled) {
+                        io.github.nimbleflux.wayli.gps.TrackingActionReceiver.syncNotifications(context)
+                    } else {
+                        io.github.nimbleflux.wayli.gps.TrackingActionReceiver.cancelIdleNotification(context)
+                    }
+                }
             }
 
             Spacer(Modifier.height(32.dp))
@@ -278,9 +290,17 @@ class TrackingSettingsViewModel @Inject constructor(
     var config by mutableStateOf(store.get())
         private set
 
+    var statusNotification by mutableStateOf(store.statusNotificationEnabled)
+        private set
+
     fun update(newConfig: TrackingConfig) {
         config = newConfig
         store.set(newConfig)
+    }
+
+    fun updateStatusNotification(enabled: Boolean) {
+        statusNotification = enabled
+        store.statusNotificationEnabled = enabled
     }
 }
 

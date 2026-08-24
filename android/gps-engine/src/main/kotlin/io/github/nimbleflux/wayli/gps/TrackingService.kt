@@ -61,6 +61,10 @@ class TrackingService : Service() {
             return START_NOT_STICKY
         }
         configStore.isTracking = true
+        // The persistent "tracking off" toggle is replaced by this FGS
+        // notification; a stale paused notification is equally obsolete.
+        TrackingActionReceiver.cancelIdleNotification(this)
+        TrackingActionReceiver.cancelPausedNotification(this)
         controller.onServiceStarted()
         return START_STICKY // Restart if killed
     }

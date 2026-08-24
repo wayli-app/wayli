@@ -13,6 +13,7 @@ import io.github.nimbleflux.wayli.auth.OAuthDeepLinkBus
 import io.github.nimbleflux.wayli.designsystem.ThemeManager
 import io.github.nimbleflux.wayli.designsystem.WayliTheme
 import io.github.nimbleflux.wayli.nav.WayliNavHost
+import io.github.nimbleflux.wayli.gps.TrackingActionReceiver
 import io.github.nimbleflux.wayli.util.QuickActionBus
 import io.github.nimbleflux.wayli.util.copySharedImage
 import javax.inject.Inject
@@ -29,6 +30,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         OAuthDeepLinkBus.deliver(intent.data)
         handleQuickAction(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Reconcile the notification drawer with persisted tracking state:
+        // clears a stale "paused" notification after a process death and
+        // keeps the persistent tracking toggle posted while off.
+        TrackingActionReceiver.syncNotifications(applicationContext)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
