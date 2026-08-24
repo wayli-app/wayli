@@ -32,7 +32,10 @@ class MediaUploader @Inject constructor(
      * Upload a photo from a content [Uri]. Compresses to JPEG (quality 85,
      * max edge 1920px) before uploading to the `trip-images` bucket.
      *
-     * @return the storage path of the uploaded file.
+     * @return the PUBLIC absolute URL of the uploaded file — the same format
+     * the web client stores in `trip_media.storage_path` (web renders
+     * `<img src={storage_path}>` directly, so a bare bucket path would break
+     * there).
      */
     suspend fun uploadPhoto(
         context: Context,
@@ -44,13 +47,33 @@ class MediaUploader @Inject constructor(
         val bytes = bitmapToJpeg(bitmap, quality = 85)
         val path = "$pathPrefix/${UUID.randomUUID()}.jpg"
 
-        val result = client.storage.from(bucket).upload(
+        client.storage.from(bucket).upload(
             path = path,
             data = bytes,
             contentType = "image/jpeg",
             upsert = false,
         )
-        path
+        client.storage.from(bucket).getPublicUrl(path)
+    }
+
+    /**
+     * Resolve a `trip_media.storage_path` value into a displayable URL.
+     * Web clients store the ABSOLUTE public URL there; older Android builds
+     * stored the bare bucket path. Absolute URLs load directly (object GETs
+     * are public on self-hosted instances) — signing them would ask the
+     * server to sign the whole URL as if it were an object key and 404.
+     * Bare paths still go through [getSignedUrl].
+     */
+    suspend fun resolveDisplayUrl(
+        bucket: String = "trip-images",
+        storagePath: String?,
+    ): String? {
+        if (storagePath.isNullOrBlank()) return null
+        return if (storagePath.startsWith("http://") || storagePath.startsWith("https://")) {
+            storagePath
+        } else {
+            getSignedUrl(bucket = bucket, path = storagePath).getOrNull()
+        }
     }
 
     /**

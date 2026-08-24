@@ -247,7 +247,7 @@ class EntryDetailViewModel @Inject constructor(
         val urls = coroutineScope {
             media.map { m ->
                 async {
-                    mediaUploader.getSignedUrl(path = m.storagePath).getOrNull()?.let { m.id to it }
+                    mediaUploader.resolveDisplayUrl(storagePath = m.storagePath)?.let { m.id to it }
                 }
             }.map { it.await() }
         }.filterNotNull().toMap()
