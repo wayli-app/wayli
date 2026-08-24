@@ -304,18 +304,56 @@ object DemoData {
         ),
     )
 
-    /** Hero photos per demo entry (entryId → URL) — used by the trip journal overview. */
-    val entryHeroes = mapOf(
-        "entry-1" to "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=450&fit=crop", // Tokyo night
-        "entry-2" to "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=450&fit=crop",   // ski slopes
-        "entry-3" to "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=450&fit=crop", // onsen
-        "entry-4" to "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=450&fit=crop",    // coast road
-        "entry-5" to "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=450&fit=crop", // sea cave beach
-        "entry-6" to "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?w=800&h=450&fit=crop", // Amsterdam grachten at dusk
-        "entry-7" to "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=450&fit=crop", // cycling through an old town
-        "entry-8" to "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&h=450&fit=crop", // Wat Arun at sunset
-        "entry-9" to "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&h=450&fit=crop", // Railay beach, Krabi
+    /**
+     * Photos per demo entry (entryId → URLs, first = hero/cover) — used by
+     * the trip journal overview and the entry detail tile grid.
+     */
+    val entryImages = mapOf(
+        "entry-1" to listOf(
+            "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=450&fit=crop", // Tokyo night
+            "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&h=600&fit=crop", // Tokyo street
+            "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&h=600&fit=crop", // lanterns
+        ),
+        "entry-2" to listOf(
+            "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=450&fit=crop",    // ski slopes
+            "https://images.unsplash.com/photo-1605540436563-66e387032159?w=600&h=600&fit=crop", // snow cabin
+        ),
+        "entry-3" to listOf(
+            "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=450&fit=crop", // onsen
+            "https://images.unsplash.com/photo-1526481280693-3bfa7568e0f3?w=600&h=600&fit=crop", // ryokan dinner
+            "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=600&h=600&fit=crop", // forest path
+        ),
+        "entry-4" to listOf(
+            "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=450&fit=crop",    // coast road
+            "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=600&h=600&fit=crop", // cliff walk
+        ),
+        "entry-5" to listOf(
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=450&fit=crop", // sea cave beach
+            "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=600&h=600&fit=crop", // beach umbrella
+            "https://images.unsplash.com/photo-1476673160081-cf065607f449?w=600&h=600&fit=crop", // waves
+        ),
+        "entry-6" to listOf(
+            "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?w=800&h=450&fit=crop", // Amsterdam grachten at dusk
+            "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&h=600&fit=crop", // canal bikes
+            "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=600&h=600&fit=crop", // bicycles
+        ),
+        "entry-7" to listOf(
+            "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=450&fit=crop", // cycling through an old town
+            "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=600&h=600&fit=crop", // windmill
+        ),
+        "entry-8" to listOf(
+            "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&h=450&fit=crop", // Wat Arun at sunset
+            "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=600&fit=crop", // street food
+            "https://images.unsplash.com/photo-1528181304800-259b08848526?w=600&h=600&fit=crop", // temple gold
+        ),
+        "entry-9" to listOf(
+            "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&h=450&fit=crop",    // Railay beach, Krabi
+            "https://images.unsplash.com/photo-1589197331516-4d84b72ebde9?w=600&h=600&fit=crop", // longtail boat
+        ),
     )
+
+    /** Hero photo per demo entry — the first of [entryImages]. */
+    val entryHeroes: Map<String, String> = entryImages.mapValues { (_, urls) -> urls.first() }
 
     val notifications = listOf(
         Notification(
