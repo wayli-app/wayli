@@ -31,22 +31,15 @@ class GpsUploadWorker @AssistedInject constructor(
     private val dao: PendingPointDao,
     private val deviceTokenStore: DeviceTokenStore,
     private val instanceManager: InstanceManager,
-    private val configStore: TrackingConfigStore,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         val token = deviceTokenStore.token
         val instanceUrl = instanceManager.getConfig()?.url
         if (token == null || instanceUrl == null) {
-            // Manual endpoint/token override from Tracking Settings still works.
-            val config = configStore.get()
-            val manualUrl = config.endpointUrl.takeIf { it.isNotBlank() }
-            val manualToken = config.authToken.takeIf { it.isNotBlank() }
-            if (manualUrl == null || manualToken == null) {
-                // No credentials configured — retry later (user may create a token).
-                return if (runAttemptCount < MAX_RUN_ATTEMPTS) Result.retry() else Result.failure()
-            }
-            return drain(manualUrl, manualToken)
+            // Credentials are auto-provisioned (see NavViewModel/RecordingViewModel);
+            // if they're not ready yet, retry until the device token lands.
+            return if (runAttemptCount < MAX_RUN_ATTEMPTS) Result.retry() else Result.failure()
         }
         return drain("$instanceUrl/api/v1/functions/owntracks-points/invoke?namespace=wayli", token)
     }

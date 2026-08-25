@@ -31,9 +31,6 @@ data class TrackingConfig(
     val payloadBattery: Boolean = true,
 
     // ---- Transport / server endpoint (OwnTracks HTTP mode) ----
-    val endpointUrl: String = "",
-    val authToken: String = "",
-    val publishTopic: String = "",
     val locatorDisplacementM: Float = 0f,
     val locatorIntervalSec: Long = 0L,
     val ignoreInaccurate: Boolean = false,
@@ -72,9 +69,6 @@ class TrackingConfigStore(context: Context) {
         payloadHeading = prefs.getBoolean(KEY_PAYLOAD_HEADING, true),
         payloadSpeed = prefs.getBoolean(KEY_PAYLOAD_SPEED, true),
         payloadBattery = prefs.getBoolean(KEY_PAYLOAD_BATTERY, true),
-        endpointUrl = prefs.getString(KEY_ENDPOINT_URL, "") ?: "",
-        authToken = prefs.getString(KEY_AUTH_TOKEN, "") ?: "",
-        publishTopic = prefs.getString(KEY_PUBLISH_TOPIC, "") ?: "",
         locatorDisplacementM = prefs.getFloat(KEY_LOCATOR_DISPLACEMENT, 0f),
         locatorIntervalSec = prefs.getLong(KEY_LOCATOR_INTERVAL, 0L),
         ignoreInaccurate = prefs.getBoolean(KEY_IGNORE_INACCURATE, false),
@@ -96,9 +90,6 @@ class TrackingConfigStore(context: Context) {
             putBoolean(KEY_PAYLOAD_HEADING, config.payloadHeading)
             putBoolean(KEY_PAYLOAD_SPEED, config.payloadSpeed)
             putBoolean(KEY_PAYLOAD_BATTERY, config.payloadBattery)
-            putString(KEY_ENDPOINT_URL, config.endpointUrl)
-            putString(KEY_AUTH_TOKEN, config.authToken)
-            putString(KEY_PUBLISH_TOPIC, config.publishTopic)
             putFloat(KEY_LOCATOR_DISPLACEMENT, config.locatorDisplacementM)
             putLong(KEY_LOCATOR_INTERVAL, config.locatorIntervalSec)
             putBoolean(KEY_IGNORE_INACCURATE, config.ignoreInaccurate)
@@ -129,9 +120,6 @@ class TrackingConfigStore(context: Context) {
         private const val KEY_PAYLOAD_HEADING = "payload_heading"
         private const val KEY_PAYLOAD_SPEED = "payload_speed"
         private const val KEY_PAYLOAD_BATTERY = "payload_battery"
-        private const val KEY_ENDPOINT_URL = "endpoint_url"
-        private const val KEY_AUTH_TOKEN = "auth_token"
-        private const val KEY_PUBLISH_TOPIC = "publish_topic"
         private const val KEY_LOCATOR_DISPLACEMENT = "locator_displacement"
         private const val KEY_LOCATOR_INTERVAL = "locator_interval"
         private const val KEY_IGNORE_INACCURATE = "ignore_inaccurate"

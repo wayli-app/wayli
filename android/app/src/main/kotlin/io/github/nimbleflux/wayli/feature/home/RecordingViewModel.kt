@@ -2,6 +2,7 @@ package io.github.nimbleflux.wayli.feature.home
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.nimbleflux.wayli.demo.DemoManager
@@ -12,6 +13,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Recording control layer. Holds the user's recording on/off intent (on by
@@ -26,6 +28,8 @@ class RecordingViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val store: TrackingConfigStore,
     private val demoManager: DemoManager,
+    private val deviceTokenStore: io.github.nimbleflux.wayli.session.DeviceTokenStore,
+    private val deviceTokenRepo: io.github.nimbleflux.wayli.repo.DeviceTokenRepository,
 ) : ViewModel() {
     private val _isRecording = MutableStateFlow(store.isTracking)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
@@ -48,6 +52,19 @@ class RecordingViewModel @Inject constructor(
         if (!demoManager.isDemoMode) {
             TrackingActionReceiver.cancelPausedNotification(appContext)
             TrackingService.start(appContext)
+            ensureTrackingToken()
+        }
+    }
+
+    /**
+     * Tracking uploads authenticate with an auto-provisioned device token
+     * (created at sign-in). If it's somehow missing, create it now — the
+     * upload worker retries until it lands.
+     */
+    private fun ensureTrackingToken() {
+        if (deviceTokenStore.isActive) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { deviceTokenRepo.create(label = android.os.Build.MODEL) }
         }
     }
 }
