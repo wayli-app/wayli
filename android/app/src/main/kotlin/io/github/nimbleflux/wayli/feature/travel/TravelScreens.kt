@@ -1131,6 +1131,9 @@ private fun TripMapCard(track: List<Pair<Double, Double>>) {
                 WayliMap(
                     modifier = Modifier.fillMaxSize(),
                     tracks = tracks,
+                    // Pan disabled inside the trip-detail LazyColumn (gesture
+                    // conflict); zoom still works.
+                    panEnabled = false,
                 )
             }
         }

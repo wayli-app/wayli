@@ -82,6 +82,7 @@ fun HomeScreen(
     onStatsClick: () -> Unit,
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
+    onOpenMap: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     autoStartRecording: Boolean = false,
     onAutoActionConsumed: () -> Unit = {},
@@ -134,6 +135,7 @@ fun HomeScreen(
                     onStatsClick = onStatsClick,
                     onTripClick = onTripClick,
                     onWishlistClick = onWishlistClick,
+                    onOpenMap = onOpenMap,
                     onNotificationsClick = onNotificationsClick,
                     autoStartRecording = autoStartRecording,
                     onAutoActionConsumed = onAutoActionConsumed,
@@ -156,6 +158,7 @@ private fun HomeContent(
     onStatsClick: () -> Unit,
     onTripClick: (Trip) -> Unit,
     onWishlistClick: () -> Unit,
+    onOpenMap: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     autoStartRecording: Boolean = false,
     onAutoActionConsumed: () -> Unit = {},
@@ -381,7 +384,7 @@ private fun HomeContent(
             )
         }
 
-        item { MapHeroCard(data = data, isDemo = isDemo, track = track) }
+        item { MapHeroCard(data = data, isDemo = isDemo, track = track, onExpand = onOpenMap) }
 
         item {
             io.github.nimbleflux.wayli.designsystem.WorldMapCard(
@@ -582,7 +585,7 @@ private fun RecordingControl(isRecording: Boolean, onPause: () -> Unit, onResume
 }
 
 @Composable
-private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double, Double>>) {
+private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double, Double>>, onExpand: () -> Unit) {
     val points = remember(isDemo, data.wishlist) {
         if (isDemo) {
             io.github.nimbleflux.wayli.demo.DemoData.homePoints
@@ -614,11 +617,12 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Your journeys", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    if (isDemo) "Sample data" else if (tracks.isEmpty()) "No trips yet" else "Your track",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                androidx.compose.material3.TextButton(
+                    onClick = onExpand,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text("Fullscreen ›", style = MaterialTheme.typography.labelSmall)
+                }
             }
             Spacer(Modifier.height(12.dp))
             Box(
@@ -631,6 +635,9 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double
                     modifier = Modifier.fillMaxSize(),
                     points = points,
                     tracks = tracks,
+                    // Panning inside the scrollable home list fights the
+                    // LazyColumn for vertical drags — see WayliMap.panEnabled.
+                    panEnabled = false,
                 )
             }
         }
