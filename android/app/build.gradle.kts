@@ -85,6 +85,15 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField(
+            "String",
+            "FLUXBASE_KOTLIN_VERSION",
+            "\"${libs.versions.fluxbase.kotlin.get()}\"",
+        )
     }
 }
 

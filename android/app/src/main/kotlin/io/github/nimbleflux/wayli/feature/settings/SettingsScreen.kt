@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Bolt
@@ -84,7 +83,6 @@ fun SettingsScreen(
     onTripExclusions: () -> Unit = {},
     onImportExport: () -> Unit = {},
     onPreferences: () -> Unit = {},
-    onStats: () -> Unit = {},
     onSignOut: () -> Unit = {},
     onAdminUsers: () -> Unit = {},
     onAdminMaintenance: () -> Unit = {},
@@ -233,11 +231,6 @@ fun SettingsScreen(
                 }
             }
 
-            // Insights
-            WayliSectionCard(title = "Insights") {
-                SettingRow(icon = Icons.Filled.BarChart, label = "Statistics", onClick = onStats)
-            }
-
             // About
             WayliSectionCard(title = "About") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -245,11 +238,11 @@ fun SettingsScreen(
                     Spacer(Modifier.size(12.dp))
                     Column {
                         Text("Wayli", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text("Android v1.0.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Android v${io.github.nimbleflux.wayli.BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("fluxbase-kotlin 2026.8.8-rc.1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("fluxbase-kotlin ${io.github.nimbleflux.wayli.BuildConfig.FLUXBASE_KOTLIN_VERSION}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             // Sign out / Exit demo
@@ -282,7 +275,6 @@ fun SettingsScreen(
                 )
             }
 
-            Spacer(Modifier.height(100.dp)) // clear the floating dock
         }
     }
 }
