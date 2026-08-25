@@ -43,17 +43,17 @@ class DeviceTokenRepository @Inject constructor(
     private val store: DeviceTokenStore,
 ) {
     /** List the current user's tokens (no hashes are ever returned). */
-    suspend fun list(): Result<List<DeviceToken>> = runCatching {
+    suspend fun list(): Result<List<DeviceToken>> = withRpcAuthRetry(client) { runCatching {
         val res = client.rpc.invoke("list-device-tokens", null, RpcInvokeOptions(namespace = NAMESPACE))
         res.error?.let { error(it.message ?: "list-device-tokens failed") }
         parseRows(res.data?.result)
-    }
+    } }
 
     /**
      * Register a new token for this device and persist the plaintext.
      * Returns the plaintext (shown once in the UI, never stored server-side).
      */
-    suspend fun create(label: String): Result<String> = runCatching {
+    suspend fun create(label: String): Result<String> = withRpcAuthRetry(client) { runCatching {
         val token = DeviceTokenCodec.generate()
         val res = client.rpc.invoke(
             "create-device-token",
@@ -68,10 +68,10 @@ class DeviceTokenRepository @Inject constructor(
             ?: error("create-device-token returned no row")
         store.save(token = token, id = row.id, label = row.label)
         token
-    }
+    } }
 
     /** Revoke a token server-side; clears the local store if it was active. */
-    suspend fun revoke(id: String): Result<Unit> = runCatching {
+    suspend fun revoke(id: String): Result<Unit> = withRpcAuthRetry(client) { runCatching {
         val res = client.rpc.invoke(
             "revoke-device-token",
             mapOf("id" to id),
@@ -79,7 +79,7 @@ class DeviceTokenRepository @Inject constructor(
         )
         res.error?.let { error(it.message ?: "revoke-device-token failed") }
         if (store.tokenId == id) store.clear()
-    }
+    } }
 
     /** True when this device holds an active token (ready to submit points). */
     fun hasActiveToken(): Boolean = store.isActive

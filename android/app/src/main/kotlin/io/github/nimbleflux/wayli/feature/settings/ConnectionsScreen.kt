@@ -93,9 +93,9 @@ class ConnectionsViewModel @Inject constructor(
 
     init { refresh() }
 
-    /** True when the device-token listing failed (shown with a retry). */
-    private val _tokensError = MutableStateFlow(false)
-    val tokensError: StateFlow<Boolean> = _tokensError.asStateFlow()
+    /** Device-token listing failure (shown with a retry + the real message). */
+    private val _tokensError = MutableStateFlow<String?>(null)
+    val tokensError: StateFlow<String?> = _tokensError.asStateFlow()
 
     fun loadDeviceTokens() {
         if (isDemo) return
@@ -103,9 +103,9 @@ class ConnectionsViewModel @Inject constructor(
             deviceTokenRepo.list()
                 .onSuccess {
                     _deviceTokens.value = it
-                    _tokensError.value = false
+                    _tokensError.value = null
                 }
-                .onFailure { _tokensError.value = true }
+                .onFailure { _tokensError.value = it.message ?: "Network error" }
             _activeTokenLabel.value = deviceTokenStore.label
         }
     }
@@ -117,6 +117,7 @@ class ConnectionsViewModel @Inject constructor(
             _busy.value = true
             deviceTokenRepo.create(label)
                 .onSuccess { token -> _createdToken.value = token }
+                .onFailure { _tokensError.value = "Couldn't create token: ${it.message ?: "network error"}" }
             loadDeviceTokens()
             _busy.value = false
         }
@@ -127,6 +128,7 @@ class ConnectionsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _busy.value = true
             deviceTokenRepo.revoke(id)
+                .onFailure { _tokensError.value = "Couldn't revoke token: ${it.message ?: "network error"}" }
             loadDeviceTokens()
             _busy.value = false
         }
@@ -256,9 +258,9 @@ fun ConnectionsScreen(
                     ) { Text("Revoke") }
                     Spacer(Modifier.height(8.dp))
                 }
-            } else if (!viewModel.isDemo && tokensError) {
+            } else if (!viewModel.isDemo && tokensError != null) {
                 Text(
-                    "Couldn't load device tokens.",
+                    "Couldn't load device tokens: $tokensError",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )

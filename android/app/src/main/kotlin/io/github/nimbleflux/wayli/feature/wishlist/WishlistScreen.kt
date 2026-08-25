@@ -155,7 +155,6 @@ fun WishlistScreen(
                                     PlaceCard(place = place) {}
                                 }
                             }
-                            item { Spacer(Modifier.height(100.dp)) }
                         }
                     }
                 }

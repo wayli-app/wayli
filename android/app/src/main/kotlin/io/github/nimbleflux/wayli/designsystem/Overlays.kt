@@ -138,7 +138,10 @@ fun DateBadge(isoDate: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+        // Solid surface: translucent variants vanished against photo scrims.
+        color = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),

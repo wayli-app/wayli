@@ -10,6 +10,13 @@
 # `make build` or the script builds it when missing).
 set -euo pipefail
 
+restore_scales() {
+  adb shell settings put global window_animation_scale 1 || true
+  adb shell settings put global transition_animation_scale 1 || true
+  adb shell settings put global animator_duration_scale 1 || true
+}
+trap restore_scales EXIT
+
 cd "$(dirname "$0")/.."
 ANDROID_HOME="${ANDROID_HOME:-$HOME/.local/android-sdk}"
 ADB="$ANDROID_HOME/platform-tools/adb"
