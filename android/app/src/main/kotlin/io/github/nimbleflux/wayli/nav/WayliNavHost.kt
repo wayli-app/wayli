@@ -81,6 +81,7 @@ object Routes {
 
     // Pushed screens
     const val TRIP_DETAIL = "trip_detail/{tripId}"
+    const val FULL_MAP = "full_map?tripId={tripId}"
     const val ENTRY_EDITOR = "entry_editor/{tripId}?entryId={entryId}&draftId={draftId}"
     const val ENTRY_DETAIL = "entry_detail/{tripId}/{entryId}"
     const val STATS = "stats"
@@ -350,6 +351,7 @@ fun WayliNavHost() {
                     onStatsClick = { navController.navigate(Routes.STATS) },
                     onTripClick = { trip: Trip -> navController.navigate("trip_detail/${trip.id}") },
                     onWishlistClick = { switchTab(Routes.WISHLIST) },
+                    onOpenMap = { navController.navigate(Routes.FULL_MAP) },
                     autoStartRecording = autoRecord,
                     onAutoActionConsumed = { autoRecord = false },
                 )
@@ -477,6 +479,17 @@ fun WayliNavHost() {
                         navController.popBackStack()
                     },
                 )
+            }
+            composable(
+                Routes.FULL_MAP,
+                arguments = listOf(
+                    androidx.navigation.navArgument("tripId") {
+                        type = androidx.navigation.NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) {
+                io.github.nimbleflux.wayli.feature.map.FullMapScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.STATS) {
                 StatsScreen(

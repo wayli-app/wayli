@@ -70,6 +70,14 @@ fun WayliMap(
     // Defaults to the APP theme (LIGHT/DARK/SYSTEM setting), not just the OS
     // one — see LocalWayliDarkTheme.
     darkTheme: Boolean = io.github.nimbleflux.wayli.designsystem.LocalWayliDarkTheme.current,
+    /**
+     * Mini maps embedded in scrollable lists must disable pan: a full-gesture
+     * MapView steals vertical drags from the surrounding LazyColumn, which is
+     * exactly the "sometimes it pans, sometimes it scrolls" lottery. Pinch
+     * zoom stays enabled (it doesn't conflict with list scrolling); an expand
+     * affordance opens a fullscreen map with all gestures.
+     */
+    panEnabled: Boolean = true,
 ) {
     // MapLibre.getInstance() is called in WayliApplication.onCreate() — must
     // happen before any MapView is created.
@@ -113,6 +121,7 @@ fun WayliMap(
         factory = {
             mapView.apply {
                 getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
+                    map.uiSettings.isScrollGesturesEnabled = panEnabled
                     mapRef = map
                 })
             }
