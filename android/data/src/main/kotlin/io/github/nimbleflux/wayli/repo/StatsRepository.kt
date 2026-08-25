@@ -67,8 +67,10 @@ class StatsRepository @Inject constructor(
                 .order("recorded_at", ascending = false)
                 .range(offset, offset + PAGE_SIZE - 1)
                 .execute()
-            val batch = result.dataOrThrow() ?: break
-            if (batch.isEmpty()) break
+            val batch = result.dataOrThrow()
+            if (batch == null || batch.isEmpty()) {
+                break
+            }
             all += batch
             if (batch.size < PAGE_SIZE) break
             offset += PAGE_SIZE
@@ -81,7 +83,10 @@ class StatsRepository @Inject constructor(
         startDate: String,
         endDate: String,
     ): Result<List<TrackerPoint>> = runCatching {
-        pageTrackerData(userId, startDate, endDate, maxRows = 5000)
+        // Two pages is plenty for on-device aggregation (modes, countries
+        // fallback, local-day heat): the year-long heatmap comes from the
+        // server-side calendar RPC, and track rendering uses fetchTrack.
+        pageTrackerData(userId, startDate, endDate, maxRows = 2 * PAGE_SIZE)
     }
 
     /**
@@ -104,11 +109,13 @@ class StatsRepository @Inject constructor(
                     .order("recorded_at", ascending = false)
                     .limit(5000)
                     .execute()
+                // One page, pre-downsampled server-side by recency: polyline
+                // fidelity at card zoom doesn't justify more rows.
                 StatsAggregator.downsample(
                     (result.dataOrThrow() ?: emptyList())
                         .reversed()
                         .mapNotNull { StatsAggregator.parseLocation(it.location) },
-                    maxPoints = 1000,
+                    maxPoints = 600,
                 )
             }
         }
@@ -158,7 +165,13 @@ class StatsRepository @Inject constructor(
                 // made the countries count stick at the home country.
                 val codes = mutableSetOf<String>()
                 var offset = 0
+                var pages = 0
+                // Early-exit: stop paging once a FULL page contributes no new
+                // codes — recent pages carry recent countries, and stale scans
+                // of tens of thousands of rows are pure waste.
                 while (offset < 50_000) {
+                    val codesBefore = codes.size
+                    pages++
                     val result = client.from<CountryCodeRow>("tracker_data")
                         .select("country_code")
                         .eq("user_id", userId)
@@ -167,12 +180,15 @@ class StatsRepository @Inject constructor(
                         .order("recorded_at", ascending = false)
                         .range(offset, offset + PAGE_SIZE - 1)
                         .execute()
-                    val batch = result.dataOrThrow() ?: break
-                    if (batch.isEmpty()) break
+                    val batch = result.dataOrThrow()
+                    if (batch == null || batch.isEmpty()) {
+                        break
+                    }
                     batch.forEach { row ->
                         row.countryCode?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }?.let { codes += it }
                     }
                     if (batch.size < PAGE_SIZE) break
+                    if (codes.size == codesBefore && pages >= 2) break
                     offset += PAGE_SIZE
                 }
                 codes.sorted()
@@ -193,6 +209,7 @@ class StatsRepository @Inject constructor(
         userId: String,
         days: Int = 371,
     ): Result<List<DailyActivity>> =
+        withRpcAuthRetry(client) {
         cache.withCacheList("calendar:$userId", DailyActivity.serializer()) {
             runCatching {
                 val res = client.rpc.invoke(
@@ -206,6 +223,7 @@ class StatsRepository @Inject constructor(
                 res.error?.let { error(it.message ?: "activity-calendar failed") }
                 parseCalendarRows(res.data?.result)
             }
+        }
         }
 
     /**

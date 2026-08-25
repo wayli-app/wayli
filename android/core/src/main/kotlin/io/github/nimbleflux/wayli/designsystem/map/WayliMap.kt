@@ -131,7 +131,14 @@ fun WayliMap(
             factory = {
                 mapView.apply {
                     getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
-                        map.uiSettings.isScrollGesturesEnabled = panEnabled
+                        if (panEnabled) {
+                            map.uiSettings.isScrollGesturesEnabled = true
+                        } else {
+                            // A static mini map must not intercept ANY gesture —
+                            // an AndroidView that steals touches breaks both list
+                            // scrolling and pull-to-refresh around it.
+                            map.uiSettings.setAllGesturesEnabled(false)
+                        }
                         // The compass rose duplicates the gesture experience
                         // and clutters small cards; attribution stays.
                         map.uiSettings.isCompassEnabled = false

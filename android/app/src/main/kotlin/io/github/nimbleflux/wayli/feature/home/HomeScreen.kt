@@ -90,6 +90,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val track by viewModel.track.collectAsState()
+    val trackSegments by viewModel.trackSegments.collectAsState()
     val visitedCountries by viewModel.visitedCountries.collectAsState()
     val windowLoading by viewModel.windowLoading.collectAsState()
     val windowError by viewModel.windowError.collectAsState()
@@ -122,17 +123,18 @@ fun HomeScreen(
                 modifier = Modifier.padding(padding),
                 onRetry = { viewModel.load() },
             )
-            is HomeUiState.Success -> Column(Modifier.fillMaxSize().padding(padding)) {
+            is HomeUiState.Success -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { viewModel.load(silent = true) },
+                modifier = Modifier.fillMaxSize().padding(padding),
+            ) {
+                Column(Modifier.fillMaxSize()) {
                 io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
-                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-                    isRefreshing = refreshing,
-                    onRefresh = { viewModel.load(silent = true) },
-                    modifier = Modifier.fillMaxSize(),
-                ) {
                 HomeContent(
                     data = state.data,
                     isDemo = viewModel.isDemoMode,
                     track = track,
+                    trackSegments = trackSegments,
                     visitedCountries = visitedCountries,
                     selectedRange = selectedRange,
                     windowLoading = windowLoading,
@@ -157,6 +159,7 @@ private fun HomeContent(
     data: HomeData,
     isDemo: Boolean,
     track: List<Pair<Double, Double>>,
+    trackSegments: List<io.github.nimbleflux.wayli.repo.StatsAggregator.TrackSegment> = emptyList(),
     visitedCountries: Set<String>,
     selectedRange: DateRange,
     windowLoading: Boolean = false,
@@ -356,13 +359,12 @@ private fun HomeContent(
                             onSelect = onRangeSelected,
                             modifier = Modifier.weight(1f),
                         )
-                        if (windowLoading) {
-                            Spacer(Modifier.width(8.dp))
-                            androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                            )
-                        }
+                    }
+                    if (windowLoading) {
+                        Spacer(Modifier.height(6.dp))
+                        androidx.compose.material3.LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                     if (windowError) {
                         Text(
@@ -391,7 +393,7 @@ private fun HomeContent(
             )
         }
 
-        item { MapHeroCard(data = data, isDemo = isDemo, track = track, onExpand = onOpenMap) }
+        item { MapHeroCard(data = data, isDemo = isDemo, track = track, trackSegments = trackSegments, onExpand = onOpenMap) }
 
         item {
             io.github.nimbleflux.wayli.designsystem.WorldMapCard(
@@ -423,7 +425,6 @@ private fun HomeContent(
         }
         item { ActivitySection(activity = data.activity) }
 
-        item { Spacer(Modifier.height(100.dp)) } // clear the floating dock
     }
 }
 
@@ -592,7 +593,13 @@ private fun RecordingControl(isRecording: Boolean, onPause: () -> Unit, onResume
 }
 
 @Composable
-private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double, Double>>, onExpand: () -> Unit) {
+private fun MapHeroCard(
+    data: HomeData,
+    isDemo: Boolean,
+    track: List<Pair<Double, Double>>,
+    trackSegments: List<io.github.nimbleflux.wayli.repo.StatsAggregator.TrackSegment>,
+    onExpand: () -> Unit,
+) {
     val points = remember(isDemo, data.wishlist) {
         if (isDemo) {
             io.github.nimbleflux.wayli.demo.DemoData.homePoints
@@ -604,11 +611,18 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double
             }
         }
     }
-    val tracks = remember(isDemo, track) {
-        if (track.size >= 2) {
-            listOf(MapTrack(points = track.map { LatLng(it.first, it.second) }, color = "#3b82f6", width = 5f))
-        } else {
-            emptyList()
+    val tracks = remember(isDemo, track, trackSegments) {
+        val segments = trackSegments.filter { it.points.size >= 2 }
+        when {
+            segments.isNotEmpty() -> segments.map { seg ->
+                MapTrack(
+                    points = seg.points.map { LatLng(it.first, it.second) },
+                    color = io.github.nimbleflux.wayli.designsystem.TransportModeColors.hexFor(seg.mode),
+                    width = 5f,
+                )
+            }
+            track.size >= 2 -> listOf(MapTrack(points = track.map { LatLng(it.first, it.second) }, color = "#3b82f6", width = 5f))
+            else -> emptyList()
         }
     }
 
@@ -646,6 +660,14 @@ private fun MapHeroCard(data: HomeData, isDemo: Boolean, track: List<Pair<Double
                     // LazyColumn for vertical drags — see WayliMap.panEnabled.
                     panEnabled = false,
                 )
+                if (tracks.size > 1) {
+                    io.github.nimbleflux.wayli.designsystem.MapLegend(
+                        colors = tracks.map { it.color },
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
+                    )
+                }
             }
         }
     }
@@ -699,7 +721,7 @@ private fun CompactTripCard(trip: Trip, onClick: () -> Unit) {
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "${trip.startDate.take(7)} • ${trip.endDate?.take(7) ?: "ongoing"}",
+                    io.github.nimbleflux.wayli.feature.travel.shortTripRange(trip.startDate, trip.endDate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -800,6 +822,15 @@ private fun ActivityRow(notif: Notification) {
                 Text(notif.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 notif.body?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                }
+                if (notif.createdAt.isNotBlank()) {
+                    io.github.nimbleflux.wayli.util.parseIsoDate(notif.createdAt)?.let { date ->
+                        Text(
+                            date.format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy")),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

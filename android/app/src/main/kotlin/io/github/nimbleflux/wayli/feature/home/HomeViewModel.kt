@@ -99,6 +99,10 @@ class HomeViewModel @Inject constructor(
     private val _track = MutableStateFlow<List<Pair<Double, Double>>>(emptyList())
     val track: StateFlow<List<Pair<Double, Double>>> = _track.asStateFlow()
 
+    /** Transport-mode-colored polyline segments for the map card. */
+    private val _trackSegments = MutableStateFlow<List<StatsAggregator.TrackSegment>>(emptyList())
+    val trackSegments: StateFlow<List<StatsAggregator.TrackSegment>> = _trackSegments.asStateFlow()
+
     /** ISO alpha-2 country codes visited in the selected range (world map). */
     private val _visitedCountries = MutableStateFlow<Set<String>>(emptySet())
     val visitedCountries: StateFlow<Set<String>> = _visitedCountries.asStateFlow()
@@ -144,6 +148,10 @@ class HomeViewModel @Inject constructor(
     fun load(silent: Boolean = false) {
         if (sessionDead || demoManager.isDemoMode) {
             _track.value = DemoData.homeTrack
+            _trackSegments.value = listOf(
+                StatsAggregator.TrackSegment("car", DemoData.homeTrack.take(DemoData.homeTrack.size / 2)),
+                StatsAggregator.TrackSegment("walking", DemoData.homeTrack.drop(DemoData.homeTrack.size / 2)),
+            )
             _visitedCountries.value = DemoData.visitedCountries
             val d = DemoData
             _uiState.value = HomeUiState.Success(
@@ -294,6 +302,7 @@ class HomeViewModel @Inject constructor(
 
                 if (pointsResult.isSuccess) {
                     _track.value = StatsAggregator.track(pointRows)
+                    _trackSegments.value = StatsAggregator.segmentsByMode(pointRows)
                 }
                 val countriesValue = countriesResult.getOrNull()
                 if (countriesValue != null) {
