@@ -85,14 +85,17 @@ data class EditorState(
     val entryDate: String = "",
     /** Newly picked photos — local app-file paths, uploaded on save. */
     val localPhotos: List<String> = emptyList(),
-    /** Existing server media for the edited entry, as signed URLs. */
-    val existingMediaUrls: List<String> = emptyList(),
+    /** Existing server media for the edited entry (id + display URL). */
+    val existingMedia: List<ExistingMedia> = emptyList(),
     val saving: Boolean = false,
     val pendingSyncNotice: Boolean = false,
     val loaded: Boolean = false,
-    /** Preview (read-only render) vs Edit. Preview is default when content exists. */
+    /** Preview (read-only render) vs Edit — Edit is the default; toggle in the top bar. */
     val previewMode: Boolean = false,
 )
+
+/** A server-side photo attached to the entry being edited. */
+data class ExistingMedia(val id: String, val url: String)
 
 /**
  * Backing for the full-screen journal-entry editor (Polarsteps-style).
@@ -146,7 +149,7 @@ class EntryEditorViewModel @Inject constructor(
         var title = ""
         var body = ""
         var date = java.time.LocalDate.now().toString()
-        var existingMedia = emptyList<String>()
+        var existingMedia = emptyList<List<ExistingMedia>>()
 
         if (editing) {
             if (cached != null && cached.id == entryId) {
@@ -161,10 +164,13 @@ class EntryEditorViewModel @Inject constructor(
                         body = entry.body.orEmpty()
                         date = entry.entryDate
                     }
-                existingMedia = tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
-                    .mapNotNull { media ->
-                        mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
-                    }
+                existingMedia = listOf(
+                    tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
+                        .mapNotNull { media ->
+                            mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
+                                ?.let { ExistingMedia(media.id, it) }
+                        },
+                )
             } else {
                 io.github.nimbleflux.wayli.demo.DemoData.entries[tripId]
                     ?.firstOrNull { it.id == entryId }
@@ -193,10 +199,9 @@ class EntryEditorViewModel @Inject constructor(
             body = body,
             entryDate = date,
             localPhotos = localPhotos,
-            existingMediaUrls = existingMedia,
+            existingMedia = existingMedia.firstOrNull().orEmpty(),
             pendingSyncNotice = draft?.pendingSync == true,
             loaded = true,
-            previewMode = title.isNotBlank() || body.isNotBlank(),
         )
         lastSaved = draft
     }
@@ -228,6 +233,28 @@ class EntryEditorViewModel @Inject constructor(
     }
 
     fun removePhoto(path: String) = update { it.copy(localPhotos = it.localPhotos - path) }
+
+    /** Delete an existing server photo from the entry (row + storage, best effort). */
+    fun deleteExistingMedia(mediaId: String) {
+        update { it.copy(existingMedia = it.existingMedia.filterNot { m -> m.id == mediaId }) }
+        if (!demoManager.isDemoMode && entryId != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                tripRepo.deleteMedia(mediaId).onFailure {
+                    message.value = "Couldn't delete the photo: ${it.message ?: "network error"}"
+                }
+            }
+        }
+    }
+
+    /** Make an existing photo the entry's cover (hero). */
+    fun setCover(mediaId: String) {
+        if (demoManager.isDemoMode || entryId == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            tripRepo.updateEntryCover(entryId!!, mediaId)
+                .onSuccess { message.value = "Cover updated" }
+                .onFailure { message.value = "Couldn't set the cover: ${it.message ?: "network error"}" }
+        }
+    }
 
     private fun update(transform: (EditorState) -> EditorState) {
         _state.value = transform(_state.value)
@@ -408,6 +435,10 @@ fun EntryEditorScreen(
                 },
                 actions = {
                     androidx.compose.material3.TextButton(
+                        onClick = { viewModel.togglePreview() },
+                        enabled = state.loaded && !state.saving,
+                    ) { Text(if (state.previewMode) "Edit" else "Preview") }
+                    androidx.compose.material3.TextButton(
                         onClick = { viewModel.save() },
                         enabled = state.loaded && !state.saving,
                     ) { Text("Save", fontWeight = FontWeight.Bold) }
@@ -436,7 +467,7 @@ fun EntryEditorScreen(
                     title = state.title,
                     body = state.body,
                     entryDate = state.entryDate,
-                    photos = state.existingMediaUrls +
+                    photos = state.existingMedia.map { it.url } +
                         state.localPhotos.map { java.io.File(it) },
                 )
                 return@Column
@@ -520,15 +551,21 @@ fun EntryEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                val existingCount = state.existingMediaUrls.size
+                val existingCount = state.existingMedia.size
                 val totalCount = existingCount + state.localPhotos.size + 1
                 items(totalCount) { index ->
                     when {
-                        index < existingCount ->
-                            PhotoTile(model = state.existingMediaUrls[index]) {}
+                        index < existingCount -> {
+                            val media = state.existingMedia[index]
+                            PhotoTile(
+                                model = media.url,
+                                onRemove = { viewModel.deleteExistingMedia(media.id) },
+                                onSetCover = { viewModel.setCover(media.id) },
+                            )
+                        }
                         index < existingCount + state.localPhotos.size -> {
                             val path = state.localPhotos[index - existingCount]
-                            PhotoTile(model = java.io.File(path)) { viewModel.removePhoto(path) }
+                            PhotoTile(model = java.io.File(path), onRemove = { viewModel.removePhoto(path) })
                         }
                         else -> AddPhotoTile {
                             photoPicker.launch(
@@ -556,7 +593,7 @@ fun EntryEditorScreen(
 }
 
 @Composable
-private fun PhotoTile(model: Any, onRemove: () -> Unit) {
+private fun PhotoTile(model: Any, onRemove: () -> Unit, onSetCover: (() -> Unit)? = null) {
     Box {
         io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
             model = model,
@@ -566,6 +603,20 @@ private fun PhotoTile(model: Any, onRemove: () -> Unit) {
                 .size(84.dp)
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp)),
         )
+        if (onSetCover != null) {
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+                    .size(24.dp),
+            ) {
+                androidx.compose.material3.IconButton(onClick = onSetCover, modifier = Modifier.size(24.dp)) {
+                    Text("★", style = MaterialTheme.typography.titleSmall)
+                }
+            }
+        }
         androidx.compose.material3.Surface(
             shape = androidx.compose.foundation.shape.CircleShape,
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
