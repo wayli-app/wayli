@@ -135,6 +135,45 @@ class TripRepository @Inject constructor(
         client.from<TripEntry>("trip_entries").eq("id", entryId).update(values)
     }
 
+    /** Point the entry's cover_media_id at a specific media row (the hero). */
+    suspend fun updateEntryCover(entryId: String, mediaId: String): Result<Unit> = runCatching {
+        client.from<TripEntry>("trip_entries")
+            .eq("id", entryId)
+            .update(mapOf("cover_media_id" to mediaId))
+    }
+
+    /**
+     * Delete an attached media row; the stored object is removed too
+     * (best-effort — rows written by the web carry absolute URLs, from which
+     * the bucket path is the segment after the bucket name).
+     */
+    suspend fun deleteMedia(mediaId: String): Result<Unit> = runCatching {
+        // Read the path before the row goes away.
+        val path = client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+            .select("storage_path")
+            .eq("id", mediaId)
+            .single()
+            .data?.storagePath
+        client.from<io.github.nimbleflux.wayli.models.TripMedia>("trip_media")
+            .eq("id", mediaId)
+            .delete()
+        // Best-effort object cleanup; a failure here leaves only an orphaned
+        // file, which is preferable to blocking the row delete.
+        if (path != null) {
+            runCatching {
+                val bucket = "trip-images"
+                val objectPath = if (path.startsWith("http")) {
+                    // …/api/v1/storage/{bucket}/{path…}
+                    path.substringAfter("/storage/$bucket/").substringBefore("?")
+                } else {
+                    path
+                }
+                if (objectPath.isNotBlank()) client.storage.from(bucket).remove(objectPath)
+            }
+        }
+        Unit
+    }
+
     /**
      * Attach an uploaded photo to a trip/entry (`trip_media` row).
      */
