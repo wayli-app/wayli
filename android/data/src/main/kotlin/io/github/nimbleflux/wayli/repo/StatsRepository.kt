@@ -45,22 +45,43 @@ class StatsRepository @Inject constructor(
             fetchPointsLive(userId, startDate, endDate)
         }
 
+    /**
+     * Page size for tracker_data reads — the server caps any single response
+     * (MaxPageSize, typically 1000), so one un-paginated query silently sees
+     * only the newest ~1000 rows. The web pages by 1000 for the same reason.
+     */
+    private suspend fun pageTrackerData(
+        userId: String,
+        startDate: String,
+        endDate: String,
+        maxRows: Int,
+    ): List<TrackerPoint> {
+        val all = mutableListOf<TrackerPoint>()
+        var offset = 0
+        while (offset < maxRows) {
+            val result = client.from<TrackerPoint>("tracker_data")
+                .select()
+                .eq("user_id", userId)
+                .gte("recorded_at", "${startDate}T00:00:00Z")
+                .lte("recorded_at", "${endDate}T23:59:59Z")
+                .order("recorded_at", ascending = false)
+                .range(offset, offset + PAGE_SIZE - 1)
+                .execute()
+            val batch = result.dataOrThrow() ?: break
+            if (batch.isEmpty()) break
+            all += batch
+            if (batch.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
+        }
+        return all.reversed() // back to chronological order
+    }
+
     private suspend fun fetchPointsLive(
         userId: String,
         startDate: String,
         endDate: String,
     ): Result<List<TrackerPoint>> = runCatching {
-        val result = client.from<TrackerPoint>("tracker_data")
-            .select()
-            .eq("user_id", userId)
-            .gte("recorded_at", "${startDate}T00:00:00Z")
-            .lte("recorded_at", "${endDate}T23:59:59Z")
-            // Newest N points (web's client-side cap) — an ascending order
-            // would keep the OLDEST 5000 and starve the recent-weeks heatmap.
-            .order("recorded_at", ascending = false)
-            .limit(5000)
-            .execute()
-        (result.dataOrThrow() ?: emptyList()).reversed() // back to chronological order
+        pageTrackerData(userId, startDate, endDate, maxRows = 5000)
     }
 
     /**
@@ -130,22 +151,37 @@ class StatsRepository @Inject constructor(
         startDate: String,
         endDate: String,
     ): Result<List<String>> =
-        cache.withCache("countries:$userId:$startDate:$endDate", ListSerializer(String.serializer())) {
+        cache.withCache("countries2:$userId:$startDate:$endDate", ListSerializer(String.serializer())) {
             runCatching {
-                val result = client.from<CountryCodeRow>("tracker_data")
-                    .select("country_code")
-                    .eq("user_id", userId)
-                    .gte("recorded_at", "${startDate}T00:00:00Z")
-                    .lte("recorded_at", "${endDate}T23:59:59Z")
-                    .limit(50_000)
-                    .execute()
-                (result.dataOrThrow() ?: emptyList())
-                    .mapNotNull { it.countryCode?.trim()?.uppercase() }
-                    .filter { it.isNotEmpty() }
-                    .distinct()
-                    .sorted()
+                // Paginate: a single query only returns the newest ~1000 rows
+                // (server MaxPageSize), which truncated older trips abroad and
+                // made the countries count stick at the home country.
+                val codes = mutableSetOf<String>()
+                var offset = 0
+                while (offset < 50_000) {
+                    val result = client.from<CountryCodeRow>("tracker_data")
+                        .select("country_code")
+                        .eq("user_id", userId)
+                        .gte("recorded_at", "${startDate}T00:00:00Z")
+                        .lte("recorded_at", "${endDate}T23:59:59Z")
+                        .order("recorded_at", ascending = false)
+                        .range(offset, offset + PAGE_SIZE - 1)
+                        .execute()
+                    val batch = result.dataOrThrow() ?: break
+                    if (batch.isEmpty()) break
+                    batch.forEach { row ->
+                        row.countryCode?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }?.let { codes += it }
+                    }
+                    if (batch.size < PAGE_SIZE) break
+                    offset += PAGE_SIZE
+                }
+                codes.sorted()
             }
         }
+
+    private companion object {
+        const val PAGE_SIZE = 1000
+    }
 
     /**
      * Activity calendar via RPC (server-side aggregation over
