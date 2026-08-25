@@ -36,6 +36,10 @@ import io.github.nimbleflux.wayli.models.Trip
 @Composable
 fun EditTripDialog(
     trip: Trip,
+    heroImageUrl: String? = null,
+    heroUploading: Boolean = false,
+    onPickHeroImage: () -> Unit = {},
+    onRemoveHeroImage: () -> Unit = {},
     onDismiss: () -> Unit,
     onSave: (title: String, description: String?, startDate: String, endDate: String?, visibility: String) -> Unit,
 ) {
@@ -101,6 +105,38 @@ fun EditTripDialog(
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                 )
+                Spacer(Modifier.height(10.dp))
+                Text("Cover photo", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(84.dp),
+                    ) {
+                        if (heroImageUrl != null) {
+                            io.github.nimbleflux.wayli.designsystem.WayliAsyncImage(
+                                model = heroImageUrl,
+                                contentDescription = "Trip cover",
+                                modifier = Modifier.fillMaxWidth().height(84.dp),
+                            )
+                        } else {
+                            androidx.compose.material3.Surface(
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth().height(84.dp),
+                            ) {}
+                        }
+                    }
+                    Column {
+                        OutlinedButton(onClick = onPickHeroImage, enabled = !heroUploading) {
+                            Text(if (heroUploading) "Uploading…" else "Choose")
+                        }
+                        if (heroImageUrl != null) {
+                            TextButton(onClick = onRemoveHeroImage) { Text("Remove") }
+                        }
+                    }
+                }
                 Text("Visibility", style = MaterialTheme.typography.labelMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("private", "friends", "public").forEach { option ->

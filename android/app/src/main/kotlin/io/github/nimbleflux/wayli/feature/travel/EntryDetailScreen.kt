@@ -2,6 +2,7 @@ package io.github.nimbleflux.wayli.feature.travel
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -162,18 +164,11 @@ fun EntryDetailScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 DateBadge(isoDate = e.entryDate)
                 Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        e.title ?: "Entry",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        formatFriendlyDate(e.entryDate),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    e.title ?: "Entry",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                )
             }
             e.body?.takeIf { it.isNotBlank() }?.let { body ->
                 Spacer(Modifier.height(20.dp))
@@ -250,7 +245,11 @@ private fun PhotoViewer(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clickable { onDismiss() },
+                // Tap-only dismiss: a clickable() backdrop consumed aborted
+                // swipes as taps and closed the viewer mid-gesture.
+                .pointerInput(Unit) {
+                    detectTapGestures { onDismiss() }
+                },
         ) {
             androidx.compose.foundation.pager.HorizontalPager(
                 state = pagerState,
@@ -267,7 +266,10 @@ private fun PhotoViewer(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .transformable(transformState),
+                        // Zoom/pan handling only engages once zoomed — at rest
+                        // zoom the HorizontalPager must own horizontal drags
+                        // (transformable otherwise eats every swipe).
+                        .then(if (scale > 1f) Modifier.transformable(transformState) else Modifier),
                 ) {
                     coil.compose.AsyncImage(
                         model = urls[page],
@@ -280,6 +282,18 @@ private fun PhotoViewer(
                                 scaleY = scale
                                 translationX = offset.x
                                 translationY = offset.y
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        if (scale > 1f) {
+                                            scale = 1f
+                                            offset = Offset.Zero
+                                        } else {
+                                            scale = 2.5f
+                                        }
+                                    },
+                                )
                             },
                     )
                 }
