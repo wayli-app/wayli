@@ -60,3 +60,4 @@ charts/wayli/values.tmp.yaml
 .claude/
 user_data.zip
 .zcode/
+secrets/
