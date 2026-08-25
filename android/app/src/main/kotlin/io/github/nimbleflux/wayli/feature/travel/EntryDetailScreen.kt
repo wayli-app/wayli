@@ -131,7 +131,14 @@ fun EntryDetailScreen(
             )
         },
     ) { padding ->
-        val e = entry ?: return@Scaffold
+        val e = entry ?: run {
+            // Fetching — never a blank scaffold.
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) { androidx.compose.material3.CircularProgressIndicator() }
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -349,11 +356,15 @@ class EntryDetailViewModel @Inject constructor(
             return
         }
 
-        val entry = tripRepo.listEntries(tripId).getOrNull()
-            ?.firstOrNull { it.id == entryId }
+        // Entry and its media in parallel; the entry itself is fetched by id
+        // (server-side filter) instead of downloading the whole journal.
+        val (entry, media) = coroutineScope {
+            val entryDeferred = async { tripRepo.getEntry(entryId).getOrNull() }
+            val mediaDeferred = async { tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty() }
+            entryDeferred.await() to mediaDeferred.await()
+        }
         _entry.value = entry ?: return
 
-        val media = tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
         val urls = coroutineScope {
             media.map { m ->
                 async {

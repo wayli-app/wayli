@@ -195,7 +195,7 @@ class MediaViewModel @Inject constructor(
 
     fun uploadPhoto(context: android.content.Context, uri: Uri, onDone: (String) -> Unit) {
         uploadState.value = MediaUploadState.Uploading
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             mediaUploader.uploadPhoto(context, uri)
                 .onSuccess { path ->
                     _uploadedPaths.value = _uploadedPaths.value + path

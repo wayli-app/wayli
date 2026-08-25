@@ -43,17 +43,21 @@ class MediaUploader @Inject constructor(
         bucket: String = "trip-images",
         pathPrefix: String = "entries",
     ): Result<String> = runCatching {
-        val bitmap = decodeAndCompress(context, uri, maxEdge = 1920)
-        val bytes = bitmapToJpeg(bitmap, quality = 85)
-        val path = "$pathPrefix/${UUID.randomUUID()}.jpg"
+        // Bitmap decode + JPEG compression are heavy CPU work — keep them off
+        // the main thread no matter which dispatcher the caller used.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val bitmap = decodeAndCompress(context, uri, maxEdge = 1920)
+            val bytes = bitmapToJpeg(bitmap, quality = 85)
+            val path = "$pathPrefix/${UUID.randomUUID()}.jpg"
 
-        client.storage.from(bucket).upload(
-            path = path,
-            data = bytes,
-            contentType = "image/jpeg",
-            upsert = false,
-        )
-        client.storage.from(bucket).getPublicUrl(path)
+            client.storage.from(bucket).upload(
+                path = path,
+                data = bytes,
+                contentType = "image/jpeg",
+                upsert = false,
+            )
+            client.storage.from(bucket).getPublicUrl(path)
+        }
     }
 
     /**
@@ -104,17 +108,19 @@ class MediaUploader @Inject constructor(
      * return a long-lived signed URL suitable for storing on `avatar_url`.
      */
     suspend fun uploadAvatar(context: Context, uri: Uri, userId: String): Result<String> = runCatching {
-        val bitmap = decodeAndCompress(context, uri, maxEdge = 256)
-        val bytes = bitmapToJpeg(bitmap, quality = 85)
-        val path = "$userId/avatar-${UUID.randomUUID()}.jpg"
-        client.storage.from("trip-images").upload(
-            path = path,
-            data = bytes,
-            contentType = "image/jpeg",
-            upsert = false,
-        )
-        val signed = client.storage.from("trip-images").createSignedUrl(path, 31_536_000)
-        signed.data?.signedUrl ?: throw Exception("Failed to get signed URL")
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val bitmap = decodeAndCompress(context, uri, maxEdge = 256)
+            val bytes = bitmapToJpeg(bitmap, quality = 85)
+            val path = "$userId/avatar-${UUID.randomUUID()}.jpg"
+            client.storage.from("trip-images").upload(
+                path = path,
+                data = bytes,
+                contentType = "image/jpeg",
+                upsert = false,
+            )
+            val signed = client.storage.from("trip-images").createSignedUrl(path, 31_536_000)
+            signed.data?.signedUrl ?: throw Exception("Failed to get signed URL")
+        }
     }
 
     private fun decodeAndCompress(context: Context, uri: Uri, maxEdge: Int): Bitmap {

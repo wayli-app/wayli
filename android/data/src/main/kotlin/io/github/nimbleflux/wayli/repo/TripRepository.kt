@@ -49,6 +49,18 @@ class TripRepository @Inject constructor(
         }
 
     /**
+     * One entry by id, filtered server-side — opening a single entry must not
+     * download the trip's whole journal to filter client-side.
+     */
+    suspend fun getEntry(entryId: String): Result<TripEntry> = runCatching {
+        val result = client.from<TripEntry>("trip_entries")
+            .select()
+            .eq("id", entryId)
+            .single()
+        result.data ?: throw (result.error ?: Exception("Entry not found"))
+    }
+
+    /**
      * Create a new trip.
      */
     suspend fun createTrip(
