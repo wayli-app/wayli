@@ -18,6 +18,18 @@ internal fun formatDateRange(startIso: String, endIso: String?): String {
     }
 }
 
+
+/** Compact range for home trip cards: "Mar 1 – Apr 2, 2025" / "Mar 1, 2025 · ongoing". */
+internal fun shortTripRange(startIso: String, endIso: String?): String {
+    val start = io.github.nimbleflux.wayli.util.parseIsoDate(startIso) ?: return startIso.take(10)
+    val end = io.github.nimbleflux.wayli.util.parseIsoDate(endIso) ?: return "${format(start, "MMM d, yyyy")} · ongoing"
+    return when {
+        start.year == end.year && start.month == end.month -> "${format(start, "MMM d")} – ${format(end, "d, yyyy")}"
+        start.year == end.year -> "${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}"
+        else -> "${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}"
+    }
+}
+
 /** Inclusive day count of a trip (open trips count up to today). */
 internal fun tripDays(startIso: String, endIso: String?): Long {
     val start = io.github.nimbleflux.wayli.util.parseIsoDate(startIso) ?: return 0

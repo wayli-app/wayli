@@ -237,16 +237,54 @@ class TripRepository @Inject constructor(
         startDate: String? = null,
         endDate: String? = null,
         visibility: String? = null,
+        imageUrl: String? = null,
+        clearImage: Boolean = false,
     ): Result<Unit> = runCatching {
-        val values = buildMap<String, Any> {
+        val values = buildMap<String, Any?> {
             title?.let { put("title", it) }
             description?.let { put("description", it) }
             startDate?.let { put("start_date", it) }
             endDate?.let { put("end_date", it) }
             visibility?.let { put("visibility", it) }
+            if (clearImage) put("image_url", null) else imageUrl?.let { put("image_url", it) }
         }
         client.from<Trip>("trips").eq("id", tripId).update(values)
     }
+
+    // ---- Auto-suggested trips (status='pending') ----
+
+    /** Trips waiting for review (auto-detected, closed). */
+    suspend fun listPendingTrips(userId: String): Result<List<Trip>> = runCatching {
+        val result = client.from<Trip>("trips")
+            .select()
+            .eq("user_id", userId)
+            .eq("status", "pending")
+            .order("start_date", ascending = false)
+            .execute()
+        result.dataOrThrow() ?: emptyList()
+    }
+
+    /** Approve a suggestion — server flips to completed and computes distance. */
+    suspend fun approveSuggestion(tripId: String): Result<Unit> = withRpcAuthRetry(client) { runCatching {
+        val res = client.rpc.invoke(
+            "approve-detected-trip",
+            mapOf("id" to tripId),
+            io.github.nimbleflux.fluxbase.rpc.RpcInvokeOptions(namespace = "wayli"),
+        )
+        res.error?.let { throw it }
+        Unit
+    } }
+
+    /** Dismiss a suggestion (status → rejected). */
+    suspend fun rejectSuggestion(tripId: String): Result<Unit> = withRpcAuthRetry(client) { runCatching {
+        val res = client.rpc.invoke(
+            "reject-detected-trip",
+            mapOf("id" to tripId),
+            io.github.nimbleflux.fluxbase.rpc.RpcInvokeOptions(namespace = "wayli"),
+        )
+        res.error?.let { throw it }
+        Unit
+    } }
 
     /**
      * Delete a journal entry (owner-only via RLS).

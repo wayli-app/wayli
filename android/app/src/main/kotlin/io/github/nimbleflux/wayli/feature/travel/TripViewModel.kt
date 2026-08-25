@@ -52,6 +52,13 @@ class TripViewModel @Inject constructor(
     private val _selectedTrip = MutableStateFlow<Trip?>(null)
     val selectedTrip: StateFlow<Trip?> = _selectedTrip.asStateFlow()
 
+    /** Auto-suggested trips (status='pending') waiting for review. */
+    private val _pendingSuggestions = MutableStateFlow<List<Trip>>(emptyList())
+    val pendingSuggestions: StateFlow<List<Trip>> = _pendingSuggestions.asStateFlow()
+
+    private val _suggestionsLoading = MutableStateFlow(false)
+    val suggestionsLoading: StateFlow<Boolean> = _suggestionsLoading.asStateFlow()
+
     /** Trip id → journal summary (merges the old Journals tab into Travel). */
     private val _journalPreviews = MutableStateFlow<Map<String, JournalPreview>>(emptyMap())
     val journalPreviews: StateFlow<Map<String, JournalPreview>> = _journalPreviews.asStateFlow()
@@ -87,6 +94,7 @@ class TripViewModel @Inject constructor(
                         _uiState.value = TripUiState.Success(trips)
                         loadJournalPreviews(trips)
                         fillMissingCovers(trips)
+                        loadSuggestions()
                     }
                     .onFailure { _uiState.value = TripUiState.Error(it.message ?: "Failed to load trips") }
             } finally {
@@ -145,6 +153,38 @@ class TripViewModel @Inject constructor(
 
     fun selectTrip(trip: Trip) {
         _selectedTrip.value = trip
+    }
+
+    fun loadSuggestions() {
+        if (demoManager.isDemoMode) return
+        val userId = fluxbaseClient.auth?.currentSession?.user?.id ?: return
+        viewModelScope.launch {
+            _suggestionsLoading.value = true
+            tripRepo.listPendingTrips(userId)
+                .onSuccess { _pendingSuggestions.value = it }
+            _suggestionsLoading.value = false
+        }
+    }
+
+    fun approveSuggestion(tripId: String, onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val ok = tripRepo.approveSuggestion(tripId).isSuccess
+            if (ok) {
+                _pendingSuggestions.value = _pendingSuggestions.value.filterNot { it.id == tripId }
+                loadTrips()
+            }
+            onDone(ok)
+        }
+    }
+
+    fun rejectSuggestion(tripId: String, onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val ok = tripRepo.rejectSuggestion(tripId).isSuccess
+            if (ok) {
+                _pendingSuggestions.value = _pendingSuggestions.value.filterNot { it.id == tripId }
+            }
+            onDone(ok)
+        }
     }
 
     fun createTrip(title: String, startDate: String, endDate: String?, description: String?) {
