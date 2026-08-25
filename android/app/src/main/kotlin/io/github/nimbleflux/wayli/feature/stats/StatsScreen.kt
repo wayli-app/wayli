@@ -393,7 +393,22 @@ private fun ActivityHeatmap(
     val kmByDay = remember(rows) {
         rows.mapValues { (_, row) -> (row.distance ?: 0.0) / 1000.0 }
     }
-    val maxKm = remember(rows) { (kmByDay.values.maxOrNull() ?: 0.0).coerceAtLeast(1.0) }
+    // GitHub-style intensity LEVELS by rank (quartiles of the active days),
+    // not a linear ratio to the max — a single huge day otherwise compresses
+    // every other day into the same barely-tinted shade.
+    val thresholds = remember(rows) {
+        val active = kmByDay.values.filter { it > 0.0 }.sorted()
+        when {
+            active.isEmpty() -> doubleArrayOf(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE)
+            active.size < 4 -> doubleArrayOf(active[0], active[0], active[active.size - 1])
+            else -> doubleArrayOf(
+                active[active.size / 4],
+                active[active.size / 2],
+                active[(active.size * 3) / 4],
+            )
+        }
+    }
+    val levelAlpha = floatArrayOf(0.20f, 0.40f, 0.62f, 0.88f)
     val empty = MaterialTheme.colorScheme.surfaceVariant
     val active = MaterialTheme.colorScheme.primary
     val monthLabel = remember { java.time.format.DateTimeFormatter.ofPattern("LLL") }
@@ -461,7 +476,13 @@ private fun ActivityHeatmap(
                             val km = if (inRange) kmByDay[date.toString()] ?: 0.0 else 0.0
                             val hasData = inRange && row != null && km > 0.0
                             val color = if (hasData) {
-                                active.copy(alpha = 0.25f + 0.75f * (km / maxKm).toFloat().coerceIn(0f, 1f))
+                                val level = when {
+                                    km <= thresholds[0] -> 0
+                                    km <= thresholds[1] -> 1
+                                    km <= thresholds[2] -> 2
+                                    else -> 3
+                                }
+                                active.copy(alpha = levelAlpha[level])
                             } else {
                                 empty.copy(alpha = if (inRange) 0.4f else 0.15f)
                             }
