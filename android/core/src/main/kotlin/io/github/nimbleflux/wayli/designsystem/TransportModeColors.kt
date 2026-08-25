@@ -27,6 +27,16 @@ object TransportModeColors {
         "stationary" -> stationary
         else -> unknown
     }
+
+    /** `#RRGGBB` for MapLibre layers (MapTrack.color). */
+    fun hexFor(mode: String?): String {
+        val c = forMode(mode)
+        return "#%02X%02X%02X".format(
+            (c.red * 255).toInt(),
+            (c.green * 255).toInt(),
+            (c.blue * 255).toInt(),
+        )
+    }
 }
 
 /**
@@ -54,4 +64,5 @@ object MapColors {
     val homeMarker = Color(0xFF3B82F6)
     val visitedCountry = Color(0xFF3B82F6)
     val border = Color(0xFF1D4ED8)
+
 }

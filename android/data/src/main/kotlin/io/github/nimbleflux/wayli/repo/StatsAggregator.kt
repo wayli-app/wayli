@@ -125,6 +125,58 @@ object StatsAggregator {
     fun track(points: List<TrackerPoint>): List<Pair<Double, Double>> =
         downsample(points.mapNotNull { parseLocation(it.location) }, maxPoints = 800)
 
+    /** A renderable polyline segment, colored by transport mode on the map. */
+    data class TrackSegment(
+        val mode: String?,
+        val points: List<Pair<Double, Double>>,
+    )
+
+    /**
+     * Split a point stream into map segments by transport mode AND movement
+     * gaps (web parity: segmentByGaps with SEGMENT_GAP_MS = 5 min). Each
+     * segment becomes its own colored polyline.
+     *
+     * Fragmentation control: detection flaps between modes for a point or two
+     * and leaves long runs unlabeled — both would shred the track into
+     * confetti. Short mode runs (< [MIN_MODE_RUN] points) are absorbed into
+     * the surrounding segment, and null/unknown labels never start a new
+     * segment (they inherit the current one).
+     */
+    fun segmentsByMode(points: List<TrackerPoint>, @Suppress("UNUSED_PARAMETER") gapMs: Long = 5 * 60 * 1000): List<TrackSegment> {
+        val segments = mutableListOf<TrackSegment>()
+        var currentMode: String? = null
+        var current = mutableListOf<Pair<Double, Double>>()
+
+        fun flush() {
+            if (current.size >= 2) {
+                segments += TrackSegment(currentMode, downsample(current, maxPoints = 400))
+            }
+            current = mutableListOf()
+        }
+
+        points.forEachIndexed { index, point ->
+            val coords = parseLocation(point.location) ?: return@forEachIndexed
+
+            val mode = point.transportMode?.takeIf { it.isNotBlank() && it != "unknown" }
+            // A new mode only starts a segment if it STAYS for MIN_MODE_RUN
+            // points; otherwise it's detection noise and gets absorbed.
+            val modeBreak = mode != null && mode != currentMode && current.isNotEmpty() && run {
+                val lookahead = points.subList(index, minOf(index + MIN_MODE_RUN, points.size))
+                lookahead.count { it.transportMode == mode } >= MIN_MODE_RUN
+            }
+            // Time gaps do NOT split the polyline — the line bridges the gap
+            // (straight connector in the previous mode's color), keeping the
+            // journey one continuous thread instead of confetti fragments.
+            if (modeBreak) flush()
+            if (current.isEmpty()) currentMode = mode ?: currentMode
+            current += coords
+        }
+        flush()
+        return segments
+    }
+
+    private const val MIN_MODE_RUN = 3
+
     /**
      * Stride-downsample a polyline for rendering (the web caps map points the
      * same way). Full-resolution tracks made mini-map composition take
