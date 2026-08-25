@@ -542,7 +542,7 @@ private fun StoryDetailSheet(
                 )
             }
             row.story.body?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium)
+                io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = it)
             }
             webUrl?.let { url ->
                 androidx.compose.material3.OutlinedButton(
