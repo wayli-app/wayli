@@ -17,7 +17,12 @@ class SecretsRepository @Inject constructor(
 ) {
     /** List metadata for all of the current user's secrets. */
     suspend fun listSecrets(): Result<List<UserSecretMetadata>> = runCatching {
-        client.settings.listUserSecrets().data ?: emptyList()
+        val response = client.settings.listUserSecrets()
+        // `data ?: emptyList()` would mask a 401/404/network failure as "no
+        // secrets configured" — the Connections screen then shows 'Not
+        // configured' for keys that exist. Propagate the error instead.
+        response.error?.let { throw it }
+        response.data ?: emptyList()
     }
 
     /** Metadata for a single key, or null if it isn't set. */
