@@ -20,6 +20,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -87,6 +89,7 @@ object Routes {
     const val ENTRY_EDITOR = "entry_editor/{tripId}?entryId={entryId}&draftId={draftId}"
     const val ENTRY_DETAIL = "entry_detail/{tripId}/{entryId}"
     const val STATS = "stats"
+    const val SUGGESTIONS = "suggestions"
     const val TRACKING_SETTINGS = "tracking_settings"
     const val PROFILE = "profile"
     const val SECURITY = "security"
@@ -321,7 +324,10 @@ fun WayliNavHost() {
         NavHost(
             navController = navController,
             startDestination = viewModel.startRoute,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 86.dp), // clear the persistent floating dock
+
             enterTransition = { fadeIn(animationSpec = tween(220)) },
             exitTransition = { fadeOut(animationSpec = tween(160)) },
             popEnterTransition = { fadeIn(animationSpec = tween(220)) },
@@ -400,6 +406,7 @@ fun WayliNavHost() {
                     onNewTrip = {},
                     autoOpenCreate = autoNewTrip,
                     onAutoActionConsumed = { autoNewTrip = false },
+                    onReviewSuggestions = { navController.navigate(Routes.SUGGESTIONS) },
                 )
             }
             composable(Routes.WISHLIST) {
@@ -426,7 +433,6 @@ fun WayliNavHost() {
                     onAdminUsers = { navController.navigate(Routes.ADMIN_USERS) },
                     onAdminMaintenance = { navController.navigate(Routes.ADMIN_MAINTENANCE) },
                     onJobs = { navController.navigate(Routes.JOBS) },
-                    onStats = { navController.navigate(Routes.STATS) },
                     onReconfigureServer = {
                         viewModel.reconfigureServer()
                         navController.navigate(Routes.INSTANCE_SETUP) {
@@ -529,6 +535,9 @@ fun WayliNavHost() {
             ) {
                 io.github.nimbleflux.wayli.feature.map.FullMapScreen(onBack = { navController.popBackStack() })
             }
+            composable(Routes.SUGGESTIONS) {
+                io.github.nimbleflux.wayli.feature.travel.SuggestionsScreen(onBack = { navController.popBackStack() })
+            }
             composable(Routes.STATS) {
                 StatsScreen(
                     demoMode = viewModel.isDemoMode,
@@ -584,13 +593,18 @@ fun WayliNavHost() {
             }
         }
 
-        // Floating dock navigation — overlays content, only on tab routes
-        if (isTabRoute) {
+        // Floating dock navigation — persistent on every screen; the tab
+        // highlight only applies on tab routes. NavHost content is padded so
+        // screens clear the dock.
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(4f),
+        ) {
             WayliBottomBar(
                 tabs = tabs,
                 currentRoute = currentRoute,
                 onTabSelected = switchTab,
-                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }

@@ -198,6 +198,40 @@ class TripDetailViewModel @Inject constructor(
         return "$webUrl/u/$username/trips/${trip.id}"
     }
 
+    /** One-shot upload error surfaced by the screen as a snackbar. */
+    val uploadError = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
+    /** Pending hero image for the trip editor: uploaded URL or null=unchanged. */
+    val heroImage = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val heroImageCleared = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val heroUploading = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /** Upload a picked image to the covers folder; the URL feeds the editor. */
+    fun pickHeroImage(context: android.content.Context, uri: android.net.Uri) {
+        if (demoManager.isDemoMode) return
+        val userId = client.auth.currentSession?.user?.id ?: return
+        viewModelScope.launch {
+            heroUploading.value = true
+            mediaUploader.uploadPhoto(
+                context,
+                uri,
+                bucket = "trip-images",
+                pathPrefix = "$userId/covers",
+            )
+                .onSuccess { url ->
+                    heroImage.value = url
+                    heroImageCleared.value = false
+                }
+                .onFailure { uploadError.value = "Couldn't upload the image: ${it.message ?: "error"}" }
+            heroUploading.value = false
+        }
+    }
+
+    fun clearHeroImage() {
+        heroImage.value = null
+        heroImageCleared.value = true
+    }
+
     fun updateTrip(
         tripId: String,
         title: String,
@@ -215,8 +249,16 @@ class TripDetailViewModel @Inject constructor(
             onDone(true)
             return
         }
+        val newHero = heroImage.value
+        val clearHero = heroImageCleared.value
         viewModelScope.launch(Dispatchers.IO) {
-            val result = tripRepo.updateTrip(tripId, title, description, startDate, endDate, visibility)
+            val result = tripRepo.updateTrip(
+                tripId, title, description, startDate, endDate, visibility,
+                imageUrl = newHero,
+                clearImage = clearHero,
+            )
+            heroImage.value = null
+            heroImageCleared.value = false
             load()
             kotlinx.coroutines.withContext(Dispatchers.Main) { onDone(result.isSuccess) }
         }

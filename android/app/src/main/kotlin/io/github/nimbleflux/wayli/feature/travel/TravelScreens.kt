@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -78,6 +80,8 @@ import io.github.nimbleflux.wayli.designsystem.LoadingState
 import io.github.nimbleflux.wayli.designsystem.SkeletonBox
 import io.github.nimbleflux.wayli.designsystem.WayliAsyncImage
 import io.github.nimbleflux.wayli.designsystem.bottomScrim
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import io.github.nimbleflux.wayli.designsystem.fadeInUp
 import io.github.nimbleflux.wayli.designsystem.map.MapTrack
 import io.github.nimbleflux.wayli.designsystem.map.WayliMap
@@ -101,6 +105,7 @@ fun TripsListScreen(
     onNewTrip: () -> Unit,
     autoOpenCreate: Boolean = false,
     onAutoActionConsumed: () -> Unit = {},
+    onReviewSuggestions: () -> Unit = {},
     viewModel: TripViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -112,6 +117,7 @@ fun TripsListScreen(
     val communityEnabled by viewModel.communityEnabled.collectAsState()
     val stories by viewModel.stories.collectAsState()
     val loadingMore by viewModel.storiesLoadingMore.collectAsState()
+    val pendingSuggestions by viewModel.pendingSuggestions.collectAsState()
     var communityMode by remember { androidx.compose.runtime.mutableStateOf(false) }
     var openStory by remember { androidx.compose.runtime.mutableStateOf<TripViewModel.StoryRow?>(null) }
     var showCreateDialog by remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -213,7 +219,7 @@ fun TripsListScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showCreateDialog = true },
-                modifier = Modifier.padding(bottom = 110.dp), // clear the floating dock
+                modifier = Modifier.padding(bottom = 12.dp), // content area already sits above the dock
                 icon = { Icon(Icons.Filled.Add, contentDescription = null) },
                 text = { Text("New Trip") },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -242,7 +248,6 @@ fun TripsListScreen(
                     ) {
                         item { Spacer(Modifier.height(8.dp)) }
                         items(3) { TripCardSkeleton() }
-                        item { Spacer(Modifier.height(100.dp)) }
                     }
                 }
                 is TripUiState.Error -> {
@@ -300,6 +305,35 @@ fun TripsListScreen(
                                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
+                                if (!viewModel.isDemoMode && pendingSuggestions.isNotEmpty()) {
+                                    item(key = "suggestions") {
+                                        androidx.compose.material3.Surface(
+                                            onClick = onReviewSuggestions,
+                                            shape = MaterialTheme.shapes.large,
+                                            color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Icon(
+                                                    Icons.Filled.AutoAwesome,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.tertiary,
+                                                    modifier = Modifier.size(20.dp),
+                                                )
+                                                Spacer(Modifier.width(10.dp))
+                                                Text(
+                                                    "${pendingSuggestions.size} suggested trip${if (pendingSuggestions.size == 1) "" else "s"} to review",
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                                Text("Review ›", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.tertiary)
+                                            }
+                                        }
+                                    }
+                                }
                                 item(key = "filter") {
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         androidx.compose.material3.FilterChip(
@@ -338,8 +372,7 @@ fun TripsListScreen(
                                     )
                                     }
                                 }
-                                item { Spacer(Modifier.height(100.dp)) }
-                            }
+                                    }
                         }
                     }
                 }
@@ -441,7 +474,6 @@ private fun CommunityStoriesList(
                         }
                     }
                 }
-                item { Spacer(Modifier.height(100.dp)) }
             }
         }
     }
@@ -588,17 +620,29 @@ private fun TripCard(
     index: Int = 0,
     onClick: () -> Unit,
 ) {
+    // Press-scale: cards physically respond to touch instead of sitting flat.
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(stiffness = 600f),
+        label = "cardScale",
+    )
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .fadeInUp(index)
-            .clickable(onClick = onClick),
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         shape = MaterialTheme.shapes.large,
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
             Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp),
+                modifier = Modifier.fillMaxWidth().height(260.dp),
             ) {
                 if (trip.imageUrl != null) {
                     WayliAsyncImage(
@@ -632,73 +676,15 @@ private fun TripCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.85f),
                     )
-                }
-            }
-
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Journal summary — merges the old Journals tab into Travel.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Icon(
-                            Icons.Filled.AutoStories,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        val preview = journalPreview
-                        if (preview != null && preview.entryCount > 0 && preview.latestTitle != null) {
-                            Text(
-                                "${preview.latestTitle} · ${preview.entryCount} " +
-                                    if (preview.entryCount == 1) "entry" else "entries",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        } else {
-                            Text(
-                                if (preview != null && preview.entryCount > 0) "${preview.entryCount} entries" else "No entries yet",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        GlassPill("${tripDays(trip.startDate, trip.endDate)} days")
+                        trip.distanceMeters?.let { GlassPill(formatDistance(it)) }
+                        val entries = journalPreview?.entryCount ?: 0
+                        if (entries > 0) {
+                            GlassPill("$entries ${if (entries == 1) "entry" else "entries"}")
                         }
                     }
-                    // Precomputed distance from metadata (hidden when absent —
-                    // fresh/ongoing trips may not have it yet), web parity.
-                    trip.distanceMeters?.let { meters ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.padding(start = 12.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.Route,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                formatDistance(meters),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-
-                trip.description?.takeIf { it.isNotBlank() }?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        it.take(120),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
         }
@@ -753,14 +739,37 @@ fun TripDetailScreen(
     // Re-check drafts whenever the screen (re)appears — the editor may have
     // auto-saved one while we were away.
     LaunchedEffect(Unit) { viewModel.refreshDrafts() }
+    val uploadError by viewModel.uploadError.collectAsState()
+    LaunchedEffect(uploadError) {
+        uploadError?.let {
+            shareScope.launch { snackbar.showSnackbar(it) }
+            viewModel.uploadError.value = null
+        }
+    }
 
     // The hero replaces the top bar on Success; other states keep the plain one.
     val isSuccess = state is TripDetailUiState.Success
 
     val currentTrip = (state as? TripDetailUiState.Success)?.data?.trip
     if (showEdit && currentTrip != null) {
+        val heroUrl by viewModel.heroImage.collectAsState()
+        val heroUploading by viewModel.heroUploading.collectAsState()
+        val heroPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+        ) { uri -> uri?.let { viewModel.pickHeroImage(context, it) } }
+        val context = androidx.compose.ui.platform.LocalContext.current
         EditTripDialog(
             trip = currentTrip,
+            heroImageUrl = heroUrl ?: currentTrip.imageUrl,
+            heroUploading = heroUploading,
+            onPickHeroImage = {
+                heroPicker.launch(
+                    androidx.activity.result.PickVisualMediaRequest(
+                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                    ),
+                )
+            },
+            onRemoveHeroImage = { viewModel.clearHeroImage() },
             onDismiss = { showEdit = false },
             onSave = { title, description, startDate, endDate, visibility ->
                 showEdit = false
@@ -929,23 +938,28 @@ fun TripDetailScreen(
                             }
                         }
                     } else {
-                        items(entries, key = { it.id }) { entry ->
+                        itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
                             val hero = if (viewModel.isDemoMode) {
                                 io.github.nimbleflux.wayli.demo.DemoData.entryHeroes[entry.id]
                             } else {
                                 viewModel.heroFor(entry)
                             }
                             val photoCount = media.count { it.entryId == entry.id }
-                            JournalEntryCard(
+                            JournalTimelineRow(
                                 entry = entry,
-                                heroUrl = hero,
-                                photoCount = photoCount,
-                                onClick = { onOpenEntry(entry) },
-                                modifier = Modifier.padding(horizontal = 16.dp).fadeInUp(),
-                            )
+                                isFirst = index == 0,
+                                isLast = index == entries.lastIndex,
+                            ) {
+                                JournalEntryCard(
+                                    entry = entry,
+                                    heroUrl = hero,
+                                    photoCount = photoCount,
+                                    onClick = { onOpenEntry(entry) },
+                                    modifier = Modifier.fillMaxWidth().fadeInUp(),
+                                )
+                            }
                         }
                     }
-                    item(key = "bottom") { Spacer(Modifier.height(96.dp)) }
                 }
             }
         }
@@ -993,12 +1007,7 @@ private fun TripHero(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                formatDateRange(trip.startDate, trip.endDate),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.85f),
-            )
+            // Dates live in the meta row below the hero — not on the photo.
         }
     }
 }
@@ -1150,6 +1159,52 @@ private fun TripMapCard(track: List<Pair<Double, Double>>) {
     }
 }
 
+/**
+ * Journal timeline row: date node on a left rail with a connector line,
+ * content card to the right. Reads chronologically like a journal.
+ */
+@Composable
+private fun JournalTimelineRow(
+    entry: TripEntry,
+    isFirst: Boolean,
+    isLast: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val lineColor = MaterialTheme.colorScheme.outlineVariant
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
+        verticalAlignment = Alignment.Top,
+    ) {
+        // Rail
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(44.dp),
+        ) {
+            if (!isFirst) {
+                Box(
+                    Modifier
+                        .width(2.dp)
+                        .height(14.dp)
+                        .background(lineColor),
+                )
+            }
+            DateBadge(isoDate = entry.entryDate)
+            if (!isLast) {
+                Box(
+                    Modifier
+                        .width(2.dp)
+                        .fillMaxHeight()
+                        .background(lineColor),
+                )
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Box(Modifier.weight(1f)) { content() }
+    }
+}
+
 /** Journal entry card — hero photo over a date badge + title row. */
 @Composable
 private fun JournalEntryCard(
@@ -1161,20 +1216,17 @@ private fun JournalEntryCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
-            // Full-bleed hero with the date badge overlaid; entries without
-            // a photo get a tonal header strip so the badge always sits on
-            // something.
+            // Full-bleed hero with the date badge overlaid. Photoless
+            // entries are clean text cards — the date lives on the timeline
+            // rail, so no header strip is needed.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (heroUrl != null) 170.dp else 76.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                    ),
+                    .height(if (heroUrl != null) 170.dp else 0.dp),
             ) {
                 heroUrl?.let { url ->
                     WayliAsyncImage(
@@ -1183,16 +1235,13 @@ private fun JournalEntryCard(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-                Box(modifier = Modifier.align(Alignment.TopStart).padding(10.dp)) {
-                    DateBadge(isoDate = entry.entryDate)
-                }
                 if (photoCount > 0) {
                     Text(
                         "📷 $photoCount",
                         style = MaterialTheme.typography.labelSmall,
                         color = androidx.compose.ui.graphics.Color.White,
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
+                            .align(Alignment.TopEnd)
                             .padding(10.dp)
                             .background(
                                 androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f),
@@ -1201,22 +1250,41 @@ private fun JournalEntryCard(
                             .padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
+                // Title rides ON the photo via the scrim — the same language
+                // as the journal page hero the design extends.
+                if (heroUrl != null) {
+                    Box(Modifier.matchParentSize().bottomScrim())
+                    Column(
+                        modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+                    ) {
+                        Text(
+                            entry.title ?: "Entry",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = androidx.compose.ui.graphics.Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
-            Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-                Text(
-                    entry.title ?: "Entry",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                io.github.nimbleflux.wayli.designsystem.formatEntryDate(entry.entryDate)?.let {
-                    Spacer(Modifier.height(2.dp))
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)) {
+                if (heroUrl == null) {
                     Text(
-                        it,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        entry.title ?: "Entry",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                    io.github.nimbleflux.wayli.designsystem.formatEntryDate(entry.entryDate)?.let {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
                 entry.body?.takeIf { it.isNotBlank() }?.let {
                     Spacer(Modifier.height(6.dp))
