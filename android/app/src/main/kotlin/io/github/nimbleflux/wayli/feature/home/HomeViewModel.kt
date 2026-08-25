@@ -178,10 +178,17 @@ class HomeViewModel @Inject constructor(
             }
             val tripsValue = results.trips.getOrNull()
             if (tripsValue != null) {
+                // Android sign-ups (and some OAuth flows) can miss creating
+                // the user_profiles row — the web bootstraps it on every
+                // sign-in. Lazily ensure it exists instead of greeting the
+                // user as "Traveler" forever.
+                val profile = results.profile ?: run {
+                    userRepo.ensureProfile(userId).getOrNull() ?: userRepo.getProfile(userId).getOrNull()
+                }
                 _uiState.value = HomeUiState.Success(
                     HomeData(
-                        profile = results.profile,
-                        initials = initials(results.profile),
+                        profile = profile,
+                        initials = initials(profile),
                         stats = HomeStats("", "", "", tripsValue.size.toString()),
                         trips = tripsValue,
                         wishlist = results.wishlist,
@@ -190,11 +197,19 @@ class HomeViewModel @Inject constructor(
                 )
                 loadWindow()
             } else {
-                // Offline or auth failure — serve the stale cache if the repo
-                // could (it already tried); otherwise surface the error with
-                // a retry hook (see HomeScreen).
-                _uiState.value =
-                    HomeUiState.Error(results.trips.exceptionOrNull()?.message ?: "Failed to load")
+                val error = results.trips.exceptionOrNull()
+                // A dead session (refresh failed server-side without emitting
+                // SIGNED_OUT) makes every call 401 forever while Room serves
+                // cached trips — a zombie "logged-out" dashboard. Clear the
+                // session instead: signOut emits SIGNED_OUT and WayliNavHost
+                // routes to the sign-in screen.
+                val status = (error as? io.github.nimbleflux.fluxbase.FluxbaseError)?.status
+                    ?: (error as? io.github.nimbleflux.fluxbase.core.FluxbaseException)?.status
+                if (status == 401) {
+                    runCatching { fluxbaseClient.auth?.signOut() }
+                    return@launch
+                }
+                _uiState.value = HomeUiState.Error(error?.message ?: "Failed to load")
             }
         }
     }

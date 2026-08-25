@@ -33,12 +33,23 @@ class CacheStore @Inject constructor(
     /**
      * Write-through + serve-stale around a [fetch]: cache the success value,
      * and when the fetch fails answer with the cached copy if one exists.
+     *
+     * Exception: a 401 is a dead session, not a connectivity blip — serving
+     * the stale cache there would keep a logged-out dashboard rendering
+     * cached data indefinitely, so auth failures propagate to the caller.
      */
     suspend fun <T> withCache(key: String, serializer: KSerializer<T>, fetch: suspend () -> Result<T>): Result<T> {
         val result = fetch()
         result.onSuccess { put(key, it, serializer) }
         if (result.isSuccess) return result
+        if (isAuthFailure(result)) return result
         return get(key, serializer)?.let { Result.success(it) } ?: result
+    }
+
+    private fun isAuthFailure(result: Result<*>): Boolean {
+        val error = result.exceptionOrNull()
+        return (error as? io.github.nimbleflux.fluxbase.FluxbaseError)?.status == 401 ||
+            (error as? io.github.nimbleflux.fluxbase.core.FluxbaseException)?.status == 401
     }
 
     /** List convenience — most cached payloads are whole result lists. */
