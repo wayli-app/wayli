@@ -601,18 +601,16 @@ private fun AddPhotoTile(onAdd: () -> Unit) {
 
 // ---- Date helpers ----
 
-/** "2026-08-15" → "Aug 15, 2026" (today's date when unparseable/blank). */
+/** "2026-08-15" (or full timestamp) → "Aug 15, 2026"; today when unparseable. */
 internal fun formatFriendlyDate(iso: String): String {
-    val date = runCatching { java.time.LocalDate.parse(iso) }.getOrNull()
-        ?: java.time.LocalDate.now()
+    val date = io.github.nimbleflux.wayli.util.parseIsoDate(iso) ?: java.time.LocalDate.now()
     return java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy")
         .format(date)
 }
 
-/** ISO date → epoch millis for the picker (UTC midnight); today as fallback. */
+/** ISO date/timestamp → epoch millis for the picker (UTC midnight); today as fallback. */
 internal fun parseDateMillis(iso: String): Long {
-    val date = runCatching { java.time.LocalDate.parse(iso) }.getOrNull()
-        ?: java.time.LocalDate.now()
+    val date = io.github.nimbleflux.wayli.util.parseIsoDate(iso) ?: java.time.LocalDate.now()
     return date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
 }
 

@@ -528,6 +528,7 @@ private fun logColor(level: String?): Color = when (level?.lowercase()) {
 }
 
 private fun formatJobTime(iso: String): String = runCatching {
-    LocalDateTime.parse(iso.substringBefore('.'), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+    // Timestamps may or may not carry milliseconds before the Z.
+    java.time.Instant.parse(iso).atZone(java.time.ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
 }.getOrDefault(iso.take(16))

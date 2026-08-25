@@ -8,10 +8,11 @@ import kotlin.math.roundToInt
 /** Friendly date rendering for trips and entries (web parity: "Aug 12 – Aug 19, 2026"). */
 
 internal fun formatDateRange(startIso: String, endIso: String?): String {
-    val start = runCatching { LocalDate.parse(startIso) }.getOrNull() ?: return startIso
-    val end = endIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    val start = io.github.nimbleflux.wayli.util.parseIsoDate(startIso) ?: return startIso.take(10)
+    val end = io.github.nimbleflux.wayli.util.parseIsoDate(endIso)
     return when {
         end == null -> "${format(start, "MMM d, yyyy")} · ongoing"
+        start.year == end.year && start.month == end.month -> "${format(start, "MMM d")} – ${format(end, "d, yyyy")}"
         start.year == end.year -> "${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}"
         else -> "${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}"
     }
@@ -19,8 +20,8 @@ internal fun formatDateRange(startIso: String, endIso: String?): String {
 
 /** Inclusive day count of a trip (open trips count up to today). */
 internal fun tripDays(startIso: String, endIso: String?): Long {
-    val start = runCatching { LocalDate.parse(startIso) }.getOrNull() ?: return 0
-    val end = endIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()
+    val start = io.github.nimbleflux.wayli.util.parseIsoDate(startIso) ?: return 0
+    val end = io.github.nimbleflux.wayli.util.parseIsoDate(endIso) ?: LocalDate.now()
     if (end.isBefore(start)) return 1
     return ChronoUnit.DAYS.between(start, end) + 1
 }

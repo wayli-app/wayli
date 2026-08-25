@@ -122,17 +122,14 @@ fun CoverFallback(modifier: Modifier = Modifier, icon: ImageVector = Icons.Fille
  * parsed. Shared by journal cards, story cards and detail sheets.
  */
 fun formatEntryDate(isoDate: String?): String? {
-    if (isoDate.isNullOrBlank()) return null
-    val date = runCatching { java.time.LocalDate.parse(isoDate) }.getOrNull() ?: return null
+    val date = io.github.nimbleflux.wayli.util.parseIsoDate(isoDate) ?: return null
     return java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy").format(date)
 }
 
 /** Calendar-tile badge: month abbreviation over day number (web's date badge). */
 @Composable
 fun DateBadge(isoDate: String, modifier: Modifier = Modifier) {
-    val date = remember(isoDate) {
-        runCatching { java.time.LocalDate.parse(isoDate) }.getOrNull()
-    }
+    val date = remember(isoDate) { io.github.nimbleflux.wayli.util.parseIsoDate(isoDate) }
     val month = remember(date) {
         date?.let { java.time.format.DateTimeFormatter.ofPattern("MMM").format(it)?.uppercase() }
             // Unparseable dates still show something identifiable.
