@@ -45,6 +45,10 @@ class TripViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<TripUiState>(TripUiState.Loading)
     val uiState: StateFlow<TripUiState> = _uiState.asStateFlow()
 
+    /** True while a (re)load is in flight — drives pull-to-refresh. */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
     private val _selectedTrip = MutableStateFlow<Trip?>(null)
     val selectedTrip: StateFlow<Trip?> = _selectedTrip.asStateFlow()
 
@@ -74,14 +78,20 @@ class TripViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            _uiState.value = TripUiState.Loading
-            tripRepo.listTrips(userId)
-                .onSuccess { trips ->
-                    _uiState.value = TripUiState.Success(trips)
-                    loadJournalPreviews(trips)
-                    fillMissingCovers(trips)
-                }
-                .onFailure { _uiState.value = TripUiState.Error(it.message ?: "Failed to load trips") }
+            // Keep the current list visible during refreshes (pull-to-refresh);
+            // only the very first load shows skeletons.
+            if (_uiState.value is TripUiState.Success) _refreshing.value = true else _uiState.value = TripUiState.Loading
+            try {
+                tripRepo.listTrips(userId)
+                    .onSuccess { trips ->
+                        _uiState.value = TripUiState.Success(trips)
+                        loadJournalPreviews(trips)
+                        fillMissingCovers(trips)
+                    }
+                    .onFailure { _uiState.value = TripUiState.Error(it.message ?: "Failed to load trips") }
+            } finally {
+                _refreshing.value = false
+            }
         }
     }
 

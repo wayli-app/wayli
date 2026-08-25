@@ -144,7 +144,7 @@ fun EntryDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 16.dp),
         ) {
             // Hero photo
             viewModel.heroUrl?.let { url ->

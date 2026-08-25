@@ -50,6 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -86,9 +87,12 @@ fun WishlistScreen(
     var placeState by remember(effectivePlaces) { mutableStateOf(effectivePlaces) }
     var showAdd by remember { mutableStateOf(false) }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
+                scrollBehavior = scrollBehavior,
                 title = { Text("Wishlist") },
                 actions = {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.padding(end = 16.dp)) {
@@ -146,7 +150,11 @@ fun WishlistScreen(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(placeState, key = { it.id }) { place -> PlaceCard(place = place) {} }
+                            items(placeState, key = { it.id }) { place ->
+                                androidx.compose.foundation.layout.Box(Modifier.animateItem()) {
+                                    PlaceCard(place = place) {}
+                                }
+                            }
                             item { Spacer(Modifier.height(100.dp)) }
                         }
                     }

@@ -35,6 +35,13 @@ import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
 import java.util.concurrent.atomic.AtomicInteger
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.fillMaxSize
 
 data class MapPoint(
     val lat: Double,
@@ -78,6 +85,8 @@ fun WayliMap(
      * affordance opens a fullscreen map with all gestures.
      */
     panEnabled: Boolean = true,
+    /** Zoom +/- and reframe buttons (fullscreen maps; mini cards go without). */
+    controls: Boolean = false,
 ) {
     // MapLibre.getInstance() is called in WayliApplication.onCreate() — must
     // happen before any MapView is created.
@@ -117,17 +126,48 @@ fun WayliMap(
         "asset://map-styles/positron.json"
     }
 
-    AndroidView(
-        factory = {
-            mapView.apply {
-                getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
-                    map.uiSettings.isScrollGesturesEnabled = panEnabled
-                    mapRef = map
-                })
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = {
+                mapView.apply {
+                    getMapAsync(OnMapReadyCallback { map: MapLibreMap ->
+                        map.uiSettings.isScrollGesturesEnabled = panEnabled
+                        // The compass rose duplicates the gesture experience
+                        // and clutters small cards; attribution stays.
+                        map.uiSettings.isCompassEnabled = false
+                        mapRef = map
+                    })
+                }
+            },
+            modifier = Modifier.matchParentSize(),
+        )
+
+        if (controls) {
+            Row(
+                modifier = Modifier
+                    .align(androidx.compose.ui.Alignment.BottomEnd)
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MapControlButton("−", contentDescription = "Zoom out") {
+                    mapRef?.moveCamera(CameraUpdateFactory.zoomOut())
+                }
+                MapControlButton("+", contentDescription = "Zoom in") {
+                    mapRef?.moveCamera(CameraUpdateFactory.zoomIn())
+                }
+                MapControlButton("⌖", contentDescription = "Recenter on track") {
+                    val map = mapRef ?: return@MapControlButton
+                    val all = points.map { LatLng(it.lat, it.lng) } + tracks.flatMap { it.points }
+                    if (all.isNotEmpty()) {
+                        runCatching {
+                            val bounds = LatLngBounds.Builder().includes(all).build()
+                            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
+                        }
+                    }
+                }
             }
-        },
-        modifier = modifier,
-    )
+        }
+    }
 
     // Apply (and re-apply) the style whenever the theme changes — the factory
     // runs once, so a theme switch mid-session would otherwise leave the map
@@ -274,5 +314,29 @@ private fun addTracksToMap(
             ),
         )
         register(id, sourceId)
+    }
+}
+
+/** Small round overlay button for the map's zoom/reframe controls. */
+@androidx.compose.runtime.Composable
+private fun MapControlButton(
+    label: String,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    androidx.compose.material3.Surface(
+        onClick = onClick,
+        shape = androidx.compose.foundation.shape.CircleShape,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        tonalElevation = 2.dp,
+        modifier = Modifier.size(44.dp),
+    ) {
+        Box(contentAlignment = androidx.compose.ui.Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            androidx.compose.material3.Text(
+                label,
+                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }
