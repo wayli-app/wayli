@@ -126,7 +126,7 @@ class ProfileEditViewModel @Inject constructor(
         if (demoManager.isDemoMode) return
         val uid = fluxbaseClient.auth?.currentSession?.user?.id ?: return
         _saving.value = true
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             mediaUploader.uploadAvatar(context, uri, uid)
                 .onSuccess { _message.value = "Avatar updated"; load() }
                 .onFailure { _message.value = it.message ?: "Avatar upload failed" }
