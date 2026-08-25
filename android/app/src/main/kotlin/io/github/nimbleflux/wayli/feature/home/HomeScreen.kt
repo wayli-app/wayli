@@ -95,6 +95,7 @@ fun HomeScreen(
     val windowError by viewModel.windowError.collectAsState()
     val selectedRange by viewModel.selectedRange.collectAsState()
     val online by viewModel.online.collectAsState()
+    val refreshing by viewModel.refreshing.collectAsState()
 
     // One silent retry when returning to a failed dashboard — e.g. the app
     // resumed with connectivity restored.
@@ -123,6 +124,11 @@ fun HomeScreen(
             )
             is HomeUiState.Success -> Column(Modifier.fillMaxSize().padding(padding)) {
                 io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
+                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = refreshing,
+                    onRefresh = { viewModel.load(silent = true) },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                 HomeContent(
                     data = state.data,
                     isDemo = viewModel.isDemoMode,
@@ -140,6 +146,7 @@ fun HomeScreen(
                     autoStartRecording = autoStartRecording,
                     onAutoActionConsumed = onAutoActionConsumed,
                 )
+                }
             }
         }
     }

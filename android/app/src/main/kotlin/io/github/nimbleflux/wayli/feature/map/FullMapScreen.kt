@@ -72,6 +72,7 @@ fun FullMapScreen(
                     modifier = Modifier.fillMaxSize(),
                     tracks = s.tracks,
                     zoom = 6.0,
+                    controls = true,
                 )
                 is FullMapUiState.Error -> Text(s.message, color = androidx.compose.material3.MaterialTheme.colorScheme.error)
             }

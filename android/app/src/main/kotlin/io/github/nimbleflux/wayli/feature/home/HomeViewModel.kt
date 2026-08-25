@@ -131,7 +131,11 @@ class HomeViewModel @Inject constructor(
     /** In-flight initial load, so retries/auth-event reloads can't overlap it. */
     private var loadJob: kotlinx.coroutines.Job? = null
 
-    fun load() {
+    /** True while a silent (keep-content) refresh runs — pull-to-refresh. */
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    fun load(silent: Boolean = false) {
         if (demoManager.isDemoMode) {
             _track.value = DemoData.homeTrack
             _visitedCountries.value = DemoData.visitedCountries
@@ -158,8 +162,10 @@ class HomeViewModel @Inject constructor(
             return
         }
         loadJob?.cancel()
+        val keepContent = silent && _uiState.value is HomeUiState.Success
         loadJob = viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = HomeUiState.Loading
+            if (keepContent) _refreshing.value = true else _uiState.value = HomeUiState.Loading
+            try {
             // Parallel fetches — the dashboard's first paint waits on the
             // slowest call, not the sum of all of them.
             val results = coroutineScope {
@@ -210,6 +216,9 @@ class HomeViewModel @Inject constructor(
                     return@launch
                 }
                 _uiState.value = HomeUiState.Error(error?.message ?: "Failed to load")
+            }
+            } finally {
+                if (keepContent) _refreshing.value = false
             }
         }
     }

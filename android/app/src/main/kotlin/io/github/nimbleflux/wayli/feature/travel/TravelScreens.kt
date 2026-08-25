@@ -2,7 +2,6 @@ package io.github.nimbleflux.wayli.feature.travel
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
@@ -62,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -108,6 +108,7 @@ fun TripsListScreen(
     val online by viewModel.online.collectAsState()
     val detectMessage by viewModel.detectMessage.collectAsState()
     val detectRunning by viewModel.detectRunning.collectAsState()
+    val refreshing by viewModel.refreshing.collectAsState()
     val communityEnabled by viewModel.communityEnabled.collectAsState()
     val stories by viewModel.stories.collectAsState()
     val loadingMore by viewModel.storiesLoadingMore.collectAsState()
@@ -178,10 +179,13 @@ fun TripsListScreen(
     // Entry filter (web parity: "With journal" lives as a filter chip there).
     var entryFilter by remember { mutableStateOf(false) }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
+                scrollBehavior = scrollBehavior,
                 title = {
                     Column {
                         Text("Travel")
@@ -218,11 +222,16 @@ fun TripsListScreen(
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             io.github.nimbleflux.wayli.designsystem.OfflineBanner(visible = !online)
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { viewModel.loadTrips() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             Crossfade(
                 targetState = uiState,
                 label = "tripsState",
                 animationSpec = tween(300),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxSize(),
             ) { state ->
             when (state) {
                 is TripUiState.Loading -> {
@@ -317,6 +326,7 @@ fun TripsListScreen(
                                 }
                                 item { Spacer(Modifier.height(4.dp)) }
                                 itemsIndexed(visibleTrips, key = { _, trip -> trip.id }) { index, trip ->
+                                    Box(Modifier.animateItem()) {
                                     TripCard(
                                         trip = trip,
                                         journalPreview = previews[trip.id],
@@ -326,6 +336,7 @@ fun TripsListScreen(
                                             onTripClick(trip)
                                         },
                                     )
+                                    }
                                 }
                                 item { Spacer(Modifier.height(100.dp)) }
                             }
@@ -333,8 +344,9 @@ fun TripsListScreen(
                     }
                 }
             }
+            }
         }
-        }
+    }
     }
 }
 
@@ -412,7 +424,9 @@ private fun CommunityStoriesList(
                     }
                 }
                 itemsIndexed(state.stories, key = { _, row -> row.story.id }) { _, row ->
-                    StoryCard(row = row, onClick = { onOpen(row) })
+                    Box(Modifier.animateItem()) {
+                        StoryCard(row = row, onClick = { onOpen(row) })
+                    }
                 }
                 if (loadingMore && !state.endReached) {
                     item(key = "stories-more") {

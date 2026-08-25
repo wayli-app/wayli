@@ -1,6 +1,8 @@
 package io.github.nimbleflux.wayli.nav
 
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -306,10 +308,18 @@ fun WayliNavHost() {
             navController = navController,
             startDestination = viewModel.startRoute,
             modifier = Modifier.fillMaxSize(),
-            enterTransition = { fadeIn(animationSpec = tween(220)) },
-            exitTransition = { fadeOut(animationSpec = tween(220)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(220)) },
-            popExitTransition = { fadeOut(animationSpec = tween(220)) },
+            // Pushed screens slide in gently; tab switches keep a light
+            // fade so the bottom dock never feels dislodged.
+            enterTransition = {
+                fadeIn(animationSpec = tween(260)) +
+                    slideInHorizontally(animationSpec = tween(300)) { it / 8 }
+            },
+            exitTransition = { fadeOut(animationSpec = tween(160)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(260)) },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(160)) +
+                    slideOutHorizontally(animationSpec = tween(300)) { it / 8 }
+            },
         ) {
             composable(Routes.INSTANCE_SETUP) {
                 InstanceSetupScreen(

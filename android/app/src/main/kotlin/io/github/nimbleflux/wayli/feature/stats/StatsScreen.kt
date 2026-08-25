@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -81,10 +82,13 @@ fun StatsScreen(
         }
     }
 
+    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
         snackbarHost = { androidx.compose.material3.SnackbarHost(snackbar) },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
+                scrollBehavior = scrollBehavior,
                 title = { Text("Statistics") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -119,7 +123,12 @@ fun StatsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) { Text(s.message, color = MaterialTheme.colorScheme.error) }
-            is StatsUiState.Success -> StatsContent(
+            is StatsUiState.Success -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = reloading,
+                onRefresh = { viewModel.load() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                StatsContent(
                 data = s.data,
                 rangeLabel = if (isDemo) "Sample data · all time" else selectedRange.displayLabel(),
                 showSelector = !isDemo,
@@ -128,6 +137,7 @@ fun StatsScreen(
                 onBuildActivity = viewModel::buildActivityData,
                 padding = androidx.compose.foundation.layout.PaddingValues(0.dp),
             )
+            }
         }
         }
     }
