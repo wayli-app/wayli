@@ -183,40 +183,6 @@ fun TrackingSettingsScreen(
                 ) { viewModel.update(config.copy(onlyWhileCharging = it)) }
             }
 
-            // Server endpoint (OwnTracks transport)
-            WayliSectionCard(title = "Server") {
-                OutlinedTextField(
-                    value = config.endpointUrl,
-                    onValueChange = { viewModel.update(config.copy(endpointUrl = it)) },
-                    label = { Text("HTTP Endpoint URL") },
-                    placeholder = { Text("https://wayli.example.com/api/v1/locations") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = config.authToken,
-                    onValueChange = { viewModel.update(config.copy(authToken = it)) },
-                    label = { Text("Auth Token") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = config.publishTopic,
-                    onValueChange = { viewModel.update(config.copy(publishTopic = it)) },
-                    label = { Text("Publish Topic") },
-                    placeholder = { Text("wayli/userId/deviceId") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                )
-            }
-
             // Locator (OwnTracks locator settings)
             WayliSectionCard(title = "Locator") {
                 SliderRow(

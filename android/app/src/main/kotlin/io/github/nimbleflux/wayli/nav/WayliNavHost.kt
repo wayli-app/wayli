@@ -191,6 +191,18 @@ class NavViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Auto-provision the tracking upload credential: a device token created
+     * via the authenticated RPC (the user is signed in — nothing to configure
+     * by hand). Guarded by isActive so re-sign-ins don't spawn extra tokens.
+     */
+    fun ensureTrackingToken() {
+        if (deviceTokenStore.isActive || demoManager.isDemoMode) return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { deviceTokenRepo.create(label = android.os.Build.MODEL) }
+        }
+    }
+
     /** The currently configured server URL, if any (for display in Settings). */
     val instanceUrl: String? get() = instanceManager.getConfig()?.url
 
@@ -241,13 +253,23 @@ fun WayliNavHost() {
                     launchSingleTop = true
                 }
             }
-            if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_IN && route == Routes.SIGN_IN) {
-                navController.navigate(Routes.MAP) {
-                    popUpTo(Routes.SIGN_IN) { inclusive = true }
-                    launchSingleTop = true
+            if (state.event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_IN) {
+                viewModel.ensureTrackingToken()
+                if (route == Routes.SIGN_IN) {
+                    navController.navigate(Routes.MAP) {
+                        popUpTo(Routes.SIGN_IN) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 }
             }
+
         }
+    }
+
+    // A restored session (cold start straight to the dashboard) never fired
+    // SIGNED_IN — provision the tracking token once here.
+    if (viewModel.startRoute == Routes.MAP) {
+        androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureTrackingToken() }
     }
 
     // Switching to a tab restores its saved state and pops back to Home.
