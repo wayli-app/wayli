@@ -3,6 +3,7 @@ package io.github.nimbleflux.wayli.feature.travel
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -343,8 +344,7 @@ private fun TripCardSkeleton() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
             SkeletonBox(Modifier.fillMaxWidth().height(200.dp))
@@ -439,8 +439,7 @@ private fun StoryCard(row: TripViewModel.StoryRow, onClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
             Box(Modifier.fillMaxWidth().height(150.dp)) {
@@ -581,8 +580,7 @@ private fun TripCard(
             .fadeInUp(index)
             .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
             Box(
@@ -1057,8 +1055,7 @@ private fun DraftCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         ),
@@ -1099,8 +1096,7 @@ private fun TripMapCard(track: List<Pair<Double, Double>>) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(220.dp),
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
             Row(
@@ -1152,49 +1148,71 @@ private fun JournalEntryCard(
     Card(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = MaterialTheme.shapes.large,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column {
-            heroUrl?.let { url ->
-                Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+            // Full-bleed hero with the date badge overlaid; entries without
+            // a photo get a tonal header strip so the badge always sits on
+            // something.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (heroUrl != null) 170.dp else 76.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    ),
+            ) {
+                heroUrl?.let { url ->
                     WayliAsyncImage(
                         model = url,
                         contentDescription = entry.title ?: "Entry",
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                DateBadge(isoDate = entry.entryDate)
-                Column(modifier = Modifier.weight(1f)) {
+                Box(modifier = Modifier.align(Alignment.TopStart).padding(10.dp)) {
+                    DateBadge(isoDate = entry.entryDate)
+                }
+                if (photoCount > 0) {
                     Text(
-                        entry.title ?: "Entry",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+                        "📷 $photoCount",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = androidx.compose.ui.graphics.Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(10.dp)
+                            .background(
+                                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f),
+                                androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                            )
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+            Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                Text(
+                    entry.title ?: "Entry",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                io.github.nimbleflux.wayli.designsystem.formatEntryDate(entry.entryDate)?.let {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                entry.body?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (photoCount > 0) {
-                        Text(
-                            "$photoCount ${if (photoCount == 1) "photo" else "photos"}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    entry.body?.let {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                 }
             }
         }
