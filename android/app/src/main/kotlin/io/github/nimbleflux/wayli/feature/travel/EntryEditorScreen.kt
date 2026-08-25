@@ -714,7 +714,7 @@ private fun EntryPreviewPane(
         )
         if (body.isNotBlank()) {
             Spacer(Modifier.height(16.dp))
-            Text(body, style = MaterialTheme.typography.bodyLarge)
+            io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = body)
         }
 
         if (photos.size > 1) {
