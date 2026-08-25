@@ -83,9 +83,12 @@ class StatsRepository @Inject constructor(
                     .order("recorded_at", ascending = false)
                     .limit(5000)
                     .execute()
-                (result.dataOrThrow() ?: emptyList())
-                    .reversed()
-                    .mapNotNull { StatsAggregator.parseLocation(it.location) }
+                StatsAggregator.downsample(
+                    (result.dataOrThrow() ?: emptyList())
+                        .reversed()
+                        .mapNotNull { StatsAggregator.parseLocation(it.location) },
+                    maxPoints = 1000,
+                )
             }
         }
 
