@@ -123,7 +123,19 @@ object StatsAggregator {
 
     /** Ordered (lat, lon) track from points; invalid locations skipped. */
     fun track(points: List<TrackerPoint>): List<Pair<Double, Double>> =
-        points.mapNotNull { parseLocation(it.location) }
+        downsample(points.mapNotNull { parseLocation(it.location) }, maxPoints = 800)
+
+    /**
+     * Stride-downsample a polyline for rendering (the web caps map points the
+     * same way). Full-resolution tracks made mini-map composition take
+     * multi-second main-thread frames — 800 vertices is visually identical at
+     * card sizes and keeps the GeoJSON build trivial.
+     */
+    fun downsample(track: List<Pair<Double, Double>>, maxPoints: Int): List<Pair<Double, Double>> {
+        if (track.size <= maxPoints) return track
+        val stride = Math.ceil(track.size.toDouble() / maxPoints).toInt()
+        return track.filterIndexed { index, _ -> index % stride == 0 } + track.last()
+    }
 
     /**
      * Parse a point location into (lat, lon). The tables API returns a
