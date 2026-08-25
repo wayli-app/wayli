@@ -274,6 +274,20 @@ fun WayliNavHost() {
         androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureTrackingToken() }
     }
 
+    // A dead persisted session (expired refresh token): perform the hardened
+    // sign-out and route to sign-in instead of looping the dashboard.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        io.github.nimbleflux.wayli.util.SessionExpiryBus.expired.collect { expired ->
+            if (expired && !viewModel.isDemoMode) {
+                io.github.nimbleflux.wayli.util.SessionExpiryBus.consume()
+                viewModel.signOut()
+                navController.navigate(Routes.SIGN_IN) {
+                    popUpTo(Routes.MAP) { inclusive = true }
+                }
+            }
+        }
+    }
+
     // Switching to a tab restores its saved state and pops back to Home.
     val switchTab: (String) -> Unit = { route ->
         navController.navigate(route) {
@@ -308,18 +322,10 @@ fun WayliNavHost() {
             navController = navController,
             startDestination = viewModel.startRoute,
             modifier = Modifier.fillMaxSize(),
-            // Pushed screens slide in gently; tab switches keep a light
-            // fade so the bottom dock never feels dislodged.
-            enterTransition = {
-                fadeIn(animationSpec = tween(260)) +
-                    slideInHorizontally(animationSpec = tween(300)) { it / 8 }
-            },
+            enterTransition = { fadeIn(animationSpec = tween(220)) },
             exitTransition = { fadeOut(animationSpec = tween(160)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(260)) },
-            popExitTransition = {
-                fadeOut(animationSpec = tween(160)) +
-                    slideOutHorizontally(animationSpec = tween(300)) { it / 8 }
-            },
+            popEnterTransition = { fadeIn(animationSpec = tween(220)) },
+            popExitTransition = { fadeOut(animationSpec = tween(160)) },
         ) {
             composable(Routes.INSTANCE_SETUP) {
                 InstanceSetupScreen(

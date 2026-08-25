@@ -83,6 +83,9 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    /** Set once a 401 declares the persisted session dead; blocks retry loops. */
+    @Volatile private var sessionDead = false
+
     val isDemoMode: Boolean = demoManager.isDemoMode
 
     /** Live connectivity — drives the offline banner (cached data served). */
@@ -114,7 +117,10 @@ class HomeViewModel @Inject constructor(
                 val event = state.event
                 val signedIn = event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.SIGNED_IN ||
                     event == io.github.nimbleflux.fluxbase.auth.AuthChangeEvent.TOKEN_REFRESHED
-                if (signedIn && !demoManager.isDemoMode && _uiState.value !is HomeUiState.Loading) {
+                // Once the session is declared dead, stop reacting to auth
+                // events entirely — the failed-refresh cycle keeps emitting
+                // them and would loop the dashboard between Loading/Error.
+                if (signedIn && !sessionDead && !demoManager.isDemoMode && _uiState.value !is HomeUiState.Loading) {
                     load()
                 }
             }
@@ -136,7 +142,7 @@ class HomeViewModel @Inject constructor(
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
 
     fun load(silent: Boolean = false) {
-        if (demoManager.isDemoMode) {
+        if (sessionDead || demoManager.isDemoMode) {
             _track.value = DemoData.homeTrack
             _visitedCountries.value = DemoData.visitedCountries
             val d = DemoData
@@ -211,8 +217,17 @@ class HomeViewModel @Inject constructor(
                 // routes to the sign-in screen.
                 val status = (error as? io.github.nimbleflux.fluxbase.FluxbaseError)?.status
                     ?: (error as? io.github.nimbleflux.fluxbase.core.FluxbaseException)?.status
-                if (status == 401) {
-                    runCatching { fluxbaseClient.auth?.signOut() }
+                val tokenDead = status == 401 ||
+                    error?.message?.contains("expired token", ignoreCase = true) == true ||
+                    error?.message?.contains("invalid token", ignoreCase = true) == true
+                if (tokenDead) {
+                    // NEVER gate the UI on the sign-out network call — a
+                    // hanging POST here froze the dashboard on a blank
+                    // Loading screen. WayliNavHost performs the hardened
+                    // sign-out and routes to the sign-in screen via the bus.
+                    sessionDead = true
+                    io.github.nimbleflux.wayli.util.SessionExpiryBus.fire()
+                    _uiState.value = HomeUiState.Error("Session expired — please sign in again")
                     return@launch
                 }
                 _uiState.value = HomeUiState.Error(error?.message ?: "Failed to load")
