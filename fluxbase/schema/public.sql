@@ -633,6 +633,8 @@ CREATE POLICY "Users can view their own tracker data" ON tracker_data FOR SELECT
 CREATE TABLE IF NOT EXISTS fitness_activities (
     id uuid DEFAULT gen_random_uuid(),
     user_id uuid NOT NULL,
+    title text,
+    description text,
     sport text,
     sub_sport text,
     started_at timestamptz NOT NULL,
@@ -667,6 +669,12 @@ CREATE TABLE IF NOT EXISTS fitness_activities (
 
 
 COMMENT ON TABLE fitness_activities IS 'Fitness activity sessions imported from .fit files (beta). GPS points live in tracker_data; this table holds the session summary decoded from the FIT session message.';
+
+
+COMMENT ON COLUMN fitness_activities.title IS 'User-defined activity name; NULL falls back to sport + date in the UI';
+
+
+COMMENT ON COLUMN fitness_activities.description IS 'User-defined comment/notes for the activity';
 
 
 COMMENT ON COLUMN fitness_activities.sport IS 'FIT sport mapped to a lowercase slug (e.g. cycling, running); fitness when unmappable';

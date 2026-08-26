@@ -142,10 +142,12 @@
 										</span>
 										<div>
 											<p class="text-foreground text-sm font-semibold">
-												{t(theme.labelKey)}
+												{activity.title ?? t(theme.labelKey)}
 											</p>
 											<p class="text-muted-foreground text-xs">
-												{formatStart(activity.started_at)} · {formatTime(activity.started_at)}
+												{activity.title ? `${t(theme.labelKey)} · ` : ''}{formatStart(
+													activity.started_at
+												)} · {formatTime(activity.started_at)}
 											</p>
 										</div>
 									</div>

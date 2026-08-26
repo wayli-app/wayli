@@ -1919,6 +1919,19 @@
 			"rowing": "Canottaggio",
 			"fitness": "Allenamento",
 			"generic": "Attività"
+		},
+		"edit": {
+			"rename": "Rinomina / aggiungi commento",
+			"delete": "Elimina attività",
+			"deleteHint": "Elimina l'attività e le sue metriche. I punti GPS restano nello storico.",
+			"titleLabel": "Titolo",
+			"titlePlaceholder": "es. Giro serale lungo l'Amstel",
+			"commentLabel": "Commento",
+			"commentPlaceholder": "Com'è andata? Meteo, sforzi, momenti top…",
+			"saved": "Attività aggiornata",
+			"saveFailed": "Aggiornamento dell'attività non riuscito",
+			"deleted": "Attività eliminata",
+			"deleteFailed": "Eliminazione dell'attività non riuscita"
 		}
 	}
 }

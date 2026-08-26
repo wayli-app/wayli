@@ -7,10 +7,14 @@
 		Flag,
 		MapPin,
 		Loader2,
-		Route
+		Pencil,
+		Route,
+		Trash2
 	} from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 
 	import { translate } from '$lib/i18n';
 	import { fluxbase } from '$lib/fluxbase';
@@ -35,6 +39,16 @@
 	let nextActivity = $state<FitnessActivity | null>(null);
 	let loading = $state(true);
 	let notFound = $state(false);
+
+	// ── Editing (title / comment) ──
+	let editing = $state(false);
+	let savingEdits = $state(false);
+	let titleInput = $state('');
+	let descriptionInput = $state('');
+
+	// ── Deletion ──
+	let confirmingDelete = $state(false);
+	let deleting = $state(false);
 
 	interface TrackPoint {
 		t: number;
@@ -276,6 +290,55 @@
 		track = sampled;
 	}
 
+	// ── Title / comment editing ──
+	function startEditing() {
+		if (!activity) return;
+		titleInput = activity.title ?? '';
+		descriptionInput = activity.description ?? '';
+		confirmingDelete = false;
+		editing = true;
+	}
+
+	async function saveEdits() {
+		if (!activity || savingEdits) return;
+		savingEdits = true;
+		try {
+			const title = titleInput.trim() || null;
+			const description = descriptionInput.trim() || null;
+			const { error } = await fluxbase
+				.from<Record<string, any>>('fitness_activities')
+				.update({ title, description })
+				.eq('id', activity.id);
+			if (error) throw new Error(error.message);
+			activity = { ...activity, title, description };
+			editing = false;
+			toast.success(t('fitness.edit.saved'));
+		} catch (error) {
+			console.error('Failed to save activity:', error);
+			toast.error(t('fitness.edit.saveFailed'));
+		} finally {
+			savingEdits = false;
+		}
+	}
+
+	async function deleteActivity() {
+		if (!activity || deleting) return;
+		deleting = true;
+		try {
+			const { error } = await fluxbase
+				.from<Record<string, any>>('fitness_activities')
+				.delete()
+				.eq('id', activity.id);
+			if (error) throw new Error(error.message);
+			toast.success(t('fitness.edit.deleted'));
+			goto('/dashboard/fitness');
+		} catch (error) {
+			console.error('Failed to delete activity:', error);
+			toast.error(t('fitness.edit.deleteFailed'));
+			deleting = false;
+		}
+	}
+
 	// ── Map rendering ──
 	async function renderMap() {
 		if (track.length === 0) return;
@@ -513,7 +576,7 @@
 <svelte:head>
 	<title
 		>{activity
-			? `${t(theme.labelKey)} · ${formatHeaderDate(activity.started_at)}`
+			? `${activity.title ?? t(theme.labelKey)} · ${formatHeaderDate(activity.started_at)}`
 			: t('fitness.title')} · Wayli</title
 	>
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -576,31 +639,139 @@
 				class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.25),transparent_55%)]"
 			></div>
 			<div class="relative flex flex-wrap items-end justify-between gap-4 p-6 text-white sm:p-8">
-				<div>
+				<div class="min-w-0 flex-1">
 					<p class="mb-1 text-sm font-medium tracking-wider text-white/75 uppercase">
 						{t(theme.labelKey)}{activity.sub_sport ? ` · ${activity.sub_sport}` : ''}
 					</p>
-					<h1 class="text-2xl font-bold sm:text-3xl">{formatHeaderDate(activity.started_at)}</h1>
+					<h1 class="text-2xl font-bold sm:text-3xl">
+						{activity.title ?? formatHeaderDate(activity.started_at)}
+					</h1>
 					<p class="mt-1 text-white/80">
-						{formatHeaderTime(activity.started_at)} – {activity.ended_at
-							? formatHeaderTime(activity.ended_at)
-							: ''}
+						{formatHeaderDate(activity.started_at)} · {formatHeaderTime(activity.started_at)} –
+						{activity.ended_at ? formatHeaderTime(activity.ended_at) : ''}
 					</p>
+					{#if activity.description}
+						<p class="mt-3 max-w-2xl text-sm text-white/90">{activity.description}</p>
+					{/if}
 				</div>
-				<div class="flex items-baseline gap-6">
-					<div>
-						<p class="text-3xl font-bold tabular-nums">
-							{formatDistance(activity.total_distance_m)}
-						</p>
+				<div class="flex items-center gap-6">
+					<div class="hidden items-baseline gap-6 sm:flex">
+						<div>
+							<p class="text-3xl font-bold tabular-nums">
+								{formatDistance(activity.total_distance_m)}
+							</p>
+						</div>
+						<div>
+							<p class="text-3xl font-bold tabular-nums">
+								{formatDuration(activity.moving_time_s ?? activity.elapsed_time_s)}
+							</p>
+						</div>
 					</div>
-					<div>
-						<p class="text-3xl font-bold tabular-nums">
-							{formatDuration(activity.moving_time_s ?? activity.elapsed_time_s)}
-						</p>
-					</div>
+					{#if !editing}
+						<div class="flex shrink-0 items-center gap-2">
+							<button
+								type="button"
+								class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-white/25"
+								onclick={startEditing}
+								aria-label={t('fitness.edit.rename')}
+								title={t('fitness.edit.rename')}
+							>
+								<Pencil class="h-4 w-4" />
+							</button>
+							{#if confirmingDelete}
+								<div class="flex flex-col items-end gap-1.5">
+									<div class="flex items-center gap-2">
+										<button
+											type="button"
+											class="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+											onclick={deleteActivity}
+											disabled={deleting}
+										>
+											{#if deleting}
+												<Loader2 class="h-4 w-4 animate-spin" />
+											{:else}
+												<Trash2 class="h-4 w-4" />
+											{/if}
+											{t('common.actions.delete')}
+										</button>
+										<button
+											type="button"
+											class="flex h-9 cursor-pointer items-center rounded-lg bg-white/15 px-3 text-sm font-medium text-white transition-colors hover:bg-white/25"
+											onclick={() => (confirmingDelete = false)}
+											disabled={deleting}
+										>
+											{t('common.actions.cancel')}
+										</button>
+									</div>
+									<p class="max-w-xs text-right text-xs text-white/75">
+										{t('fitness.edit.deleteHint')}
+									</p>
+								</div>
+							{:else}
+								<button
+									type="button"
+									class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg bg-white/15 text-white transition-colors hover:bg-red-600"
+									onclick={() => (confirmingDelete = true)}
+									aria-label={t('fitness.edit.delete')}
+									title={t('fitness.edit.delete')}
+								>
+									<Trash2 class="h-4 w-4" />
+								</button>
+							{/if}
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
+
+		<!-- Edit form (title / comment) -->
+		{#if editing}
+			<div class="bg-card border-border mb-6 rounded-xl border p-5">
+				<label class="mb-1.5 block text-sm font-medium" for="fitness-title">
+					{t('fitness.edit.titleLabel')}
+				</label>
+				<input
+					id="fitness-title"
+					type="text"
+					bind:value={titleInput}
+					placeholder={t('fitness.edit.titlePlaceholder')}
+					maxlength="120"
+					class="border-border bg-background text-foreground placeholder:text-muted-foreground mb-4 w-full rounded-lg border px-3 py-2 text-sm"
+				/>
+				<label class="mb-1.5 block text-sm font-medium" for="fitness-description">
+					{t('fitness.edit.commentLabel')}
+				</label>
+				<textarea
+					id="fitness-description"
+					bind:value={descriptionInput}
+					placeholder={t('fitness.edit.commentPlaceholder')}
+					rows="3"
+					maxlength="2000"
+					class="border-border bg-background text-foreground placeholder:text-muted-foreground w-full resize-y rounded-lg border px-3 py-2 text-sm"
+				></textarea>
+				<div class="mt-4 flex justify-end gap-2">
+					<button
+						type="button"
+						class="border-border hover:bg-muted cursor-pointer rounded-lg border px-4 py-2 text-sm font-medium"
+						onclick={() => (editing = false)}
+						disabled={savingEdits}
+					>
+						{t('common.actions.cancel')}
+					</button>
+					<button
+						type="button"
+						class="bg-primary hover:bg-primary/90 inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+						onclick={saveEdits}
+						disabled={savingEdits}
+					>
+						{#if savingEdits}
+							<Loader2 class="h-4 w-4 animate-spin" />
+						{/if}
+						{t('common.actions.save')}
+					</button>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Stats grid -->
 		<div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -1919,6 +1919,19 @@
 			"rowing": "Roeien",
 			"fitness": "Training",
 			"generic": "Activiteit"
+		},
+		"edit": {
+			"rename": "Naam geven / commentaar toevoegen",
+			"delete": "Activiteit verwijderen",
+			"deleteHint": "Verwijdert de activiteit en de metingen. De GPS-punten blijven in je locatiegeschiedenis.",
+			"titleLabel": "Titel",
+			"titlePlaceholder": "bijv. Avondrit langs de Amstel",
+			"commentLabel": "Commentaar",
+			"commentPlaceholder": "Hoe was het? Weer, inspanning, hoogtepunten…",
+			"saved": "Activiteit bijgewerkt",
+			"saveFailed": "Bijwerken van de activiteit mislukt",
+			"deleted": "Activiteit verwijderd",
+			"deleteFailed": "Verwijderen van de activiteit mislukt"
 		}
 	}
 }

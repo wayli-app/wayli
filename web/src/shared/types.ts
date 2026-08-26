@@ -13,6 +13,8 @@ export interface Database {
 				Row: {
 					id: string;
 					user_id: string;
+					title: string | null;
+					description: string | null;
 					sport: string | null;
 					sub_sport: string | null;
 					started_at: string;
@@ -35,6 +37,8 @@ export interface Database {
 				Insert: {
 					id?: string;
 					user_id: string;
+					title?: string;
+					description?: string;
 					sport?: string;
 					sub_sport?: string;
 					started_at: string;
@@ -57,6 +61,8 @@ export interface Database {
 				Update: {
 					id?: string;
 					user_id?: string;
+					title?: string;
+					description?: string;
 					sport?: string;
 					sub_sport?: string;
 					started_at?: string;

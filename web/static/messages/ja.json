@@ -1923,6 +1923,19 @@
 			"rowing": "ローイング",
 			"fitness": "ワークアウト",
 			"generic": "アクティビティ"
+		},
+		"edit": {
+			"rename": "名前の変更／コメントを追加",
+			"delete": "アクティビティを削除",
+			"deleteHint": "アクティビティとメトリクスを削除します。GPSポイントは位置履歴に残ります。",
+			"titleLabel": "タイトル",
+			"titlePlaceholder": "例：アムステル川沿いのイブニングライド",
+			"commentLabel": "コメント",
+			"commentPlaceholder": "調子はどうでしたか？天気、努力、ハイライトなど…",
+			"saved": "アクティビティを更新しました",
+			"saveFailed": "アクティビティの更新に失敗しました",
+			"deleted": "アクティビティを削除しました",
+			"deleteFailed": "アクティビティの削除に失敗しました"
 		}
 	}
 }

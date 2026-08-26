@@ -1917,6 +1917,19 @@
       "rowing": "Rowing",
       "fitness": "Workout",
       "generic": "Activity"
+    },
+    "edit": {
+      "rename": "Rename / add comment",
+      "delete": "Delete activity",
+      "deleteHint": "Deletes the activity and its metrics. The GPS points stay in your location history.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Evening ride along the Amstel",
+      "commentLabel": "Comment",
+      "commentPlaceholder": "How did it go? Weather, efforts, highlights…",
+      "saved": "Activity updated",
+      "saveFailed": "Failed to update the activity",
+      "deleted": "Activity deleted",
+      "deleteFailed": "Failed to delete the activity"
     }
   }
 }

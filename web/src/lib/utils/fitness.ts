@@ -5,6 +5,8 @@
 export interface FitnessActivity {
 	id: string;
 	user_id: string;
+	title: string | null;
+	description: string | null;
 	sport: string | null;
 	sub_sport: string | null;
 	started_at: string;

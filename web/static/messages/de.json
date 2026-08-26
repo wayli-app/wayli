@@ -1919,6 +1919,19 @@
 			"rowing": "Rudern",
 			"fitness": "Workout",
 			"generic": "Aktivität"
+		},
+		"edit": {
+			"rename": "Umbenennen / Kommentar hinzufügen",
+			"delete": "Aktivität löschen",
+			"deleteHint": "Löscht die Aktivität und ihre Messwerte. Die GPS-Punkte bleiben im Standortverlauf.",
+			"titleLabel": "Titel",
+			"titlePlaceholder": "z. B. Abendride an der Amstel",
+			"commentLabel": "Kommentar",
+			"commentPlaceholder": "Wie lief es? Wetter, Anstrengung, Highlights…",
+			"saved": "Aktivität aktualisiert",
+			"saveFailed": "Aktualisieren der Aktivität fehlgeschlagen",
+			"deleted": "Aktivität gelöscht",
+			"deleteFailed": "Löschen der Aktivität fehlgeschlagen"
 		}
 	}
 }

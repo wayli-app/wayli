@@ -1922,6 +1922,19 @@
 			"rowing": "Aviron",
 			"fitness": "Entraînement",
 			"generic": "Activité"
+		},
+		"edit": {
+			"rename": "Renommer / ajouter un commentaire",
+			"delete": "Supprimer l'activité",
+			"deleteHint": "Supprime l'activité et ses mesures. Les points GPS restent dans votre historique.",
+			"titleLabel": "Titre",
+			"titlePlaceholder": "ex. Sortie du soir le long de l'Amstel",
+			"commentLabel": "Commentaire",
+			"commentPlaceholder": "Comment c'était ? Météo, efforts, moments forts…",
+			"saved": "Activité mise à jour",
+			"saveFailed": "Échec de la mise à jour de l'activité",
+			"deleted": "Activité supprimée",
+			"deleteFailed": "Échec de la suppression de l'activité"
 		}
 	}
 }

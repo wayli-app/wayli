@@ -1919,6 +1919,19 @@
 			"rowing": "Remo",
 			"fitness": "Entrenamiento",
 			"generic": "Actividad"
+		},
+		"edit": {
+			"rename": "Renombrar / añadir comentario",
+			"delete": "Eliminar actividad",
+			"deleteHint": "Elimina la actividad y sus métricas. Los puntos GPS permanecen en tu historial.",
+			"titleLabel": "Título",
+			"titlePlaceholder": "p. ej., paseo vespertino por el Amstel",
+			"commentLabel": "Comentario",
+			"commentPlaceholder": "¿Cómo fue? Clima, esfuerzos, momentos…",
+			"saved": "Actividad actualizada",
+			"saveFailed": "Error al actualizar la actividad",
+			"deleted": "Actividad eliminada",
+			"deleteFailed": "Error al eliminar la actividad"
 		}
 	}
 }

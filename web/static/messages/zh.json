@@ -1923,6 +1923,19 @@
 			"rowing": "赛艇",
 			"fitness": "锻炼",
 			"generic": "活动"
+		},
+		"edit": {
+			"rename": "重命名 / 添加备注",
+			"delete": "删除活动",
+			"deleteHint": "删除活动及其指标。GPS 轨迹点将保留在位置历史中。",
+			"titleLabel": "标题",
+			"titlePlaceholder": "例如：傍晚沿阿姆斯特尔河骑行",
+			"commentLabel": "备注",
+			"commentPlaceholder": "感觉如何？天气、强度、亮点……",
+			"saved": "活动已更新",
+			"saveFailed": "更新活动失败",
+			"deleted": "活动已删除",
+			"deleteFailed": "删除活动失败"
 		}
 	}
 }
