@@ -6,6 +6,18 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
     }
+    resolutionStrategy {
+        eachPlugin {
+            // plugins.gradle.org intermittently rejects anonymous CI marker
+            // lookups (the release pipeline hit "plugin not found" for a
+            // version that demonstrably exists). The Hilt plugin JAR itself
+            // is on Maven Central, so resolve it by coordinates and skip the
+            // portal marker entirely.
+            if (requested.id.id == "com.google.dagger.hilt.android") {
+                useModule("com.google.dagger:hilt-android-gradle-plugin:${requested.version}")
+            }
+        }
+    }
 }
 
 dependencyResolutionManagement {
