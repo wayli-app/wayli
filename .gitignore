@@ -61,3 +61,7 @@ charts/wayli/values.tmp.yaml
 user_data.zip
 .zcode/
 secrets/
+
+# Local test files (never commit personal activity data)
+/*.fit
+.mimosa/
