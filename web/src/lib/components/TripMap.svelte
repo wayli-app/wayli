@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import { MAP_COLORS } from '$lib/utils/colors';
 	import type { Map as LeafletMap } from 'leaflet';
 
@@ -25,13 +25,8 @@
 
 		const mapInstance = L.map(mapContainer, { scrollWheelZoom: true });
 		map = mapInstance;
-		// ponytail: theme-aware tile layer — rebuilds on dark/light toggle
-		cleanupThemeWatcher = watchMapTheme(mapInstance, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, {
-				attribution: TILE_URLS[theme].attribution,
-				maxZoom: 18
-			})
-		);
+		// ponytail: theme-aware basemap — rebuilds on dark/light toggle
+		cleanupThemeWatcher = watchMapTheme(mapInstance, createBasemapLayer);
 
 		mainLayer = L.layerGroup().addTo(map);
 		highlightLayer = L.layerGroup().addTo(map);

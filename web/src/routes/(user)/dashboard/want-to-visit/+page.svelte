@@ -3,7 +3,7 @@
 	import { Skeleton } from '$lib/components/ui';
 
 	import type { Map as LeafletMap } from 'leaflet';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 
 	import { debounce } from '$lib/utils';
 	import {
@@ -502,6 +502,10 @@
 			// Import markercluster plugin
 			await import('leaflet.markercluster');
 			if (map) return;
+			// The plugin's UMD factory attaches L.markerClusterGroup to Leaflet's
+			// CommonJS exports object — under Vite's ESM interop that is
+			// `L.default`, not the module namespace.
+			const Lf: any = (L as any).default ?? L;
 
 			map = L.map(mapContainer, {
 				center: [20, 0],
@@ -526,7 +530,7 @@
 			});
 
 			// Initialize marker cluster group
-			markerClusterGroup = L.markerClusterGroup({
+			markerClusterGroup = Lf.markerClusterGroup({
 				chunkedLoading: true,
 				spiderfyOnMaxZoom: true,
 				showCoverageOnHover: false,
@@ -556,10 +560,8 @@
 			// Add cluster group to map
 			map.addLayer(markerClusterGroup);
 
-			// Theme-aware tile layer via shared utility — consistent with all other maps
-			cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-				L.tileLayer(TILE_URLS[theme].url, { attribution: TILE_URLS[theme].attribution })
-			);
+			// Theme-aware basemap via shared utility — consistent with all other maps
+			cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 
 			// Load places from database
 			loadPlaces();

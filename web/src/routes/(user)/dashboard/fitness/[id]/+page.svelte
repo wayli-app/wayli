@@ -297,7 +297,6 @@
 		// Leaflet needs an initial view — a map without one stays unloaded and
 		// renders a single tile; fitBounds below moves to the actual track.
 		map = L.map(mapContainer, {
-			attributionControl: false,
 			zoomControl: true,
 			center: [track[0].lat, track[0].lon],
 			zoom: 12
@@ -517,6 +516,7 @@
 			? `${t(theme.labelKey)} · ${formatHeaderDate(activity.started_at)}`
 			: t('fitness.title')} · Wayli</title
 	>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </svelte:head>
 
 <div>

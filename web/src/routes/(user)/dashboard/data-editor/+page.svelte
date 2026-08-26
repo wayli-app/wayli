@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { slide } from 'svelte/transition';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import { fluxbase } from '$lib/fluxbase';
 	import {
 		getPoints,
@@ -212,12 +212,7 @@
 		if (!mapContainer || !L || destroyed) return;
 
 		map = L.map(mapContainer, { scrollWheelZoom: true });
-		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, {
-				attribution: TILE_URLS[theme].attribution,
-				maxZoom: 18
-			})
-		);
+		cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 
 		// Ensure the map container is sized before drawing layers —
 		// bringToBack() on layers crashes if the pane DOM isn't ready yet

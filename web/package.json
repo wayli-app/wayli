@@ -84,6 +84,7 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
+    "@maplibre/maplibre-gl-leaflet": "^0.1.4",
     "@nimbleflux/fluxbase-sdk": "2026.8.14",
     "@svelte-plugins/datepicker": "^1.0.11",
     "@turf/turf": "^7.3.5",
@@ -97,6 +98,7 @@
     "leaflet.heat": "^0.2.0",
     "leaflet.markercluster": "^1.5.3",
     "lucide-svelte": "^1.0.1",
+    "maplibre-gl": "^6.6.0",
     "marked": "^18.0.7",
     "metascraper": "^5.53.0",
     "metascraper-description": "^5.53.0",

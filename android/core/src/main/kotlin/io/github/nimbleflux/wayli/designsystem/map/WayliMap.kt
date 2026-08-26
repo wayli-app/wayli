@@ -57,8 +57,8 @@ data class MapTrack(
 )
 
 /**
- * Reusable MapLibre composable. Renders a vector map with CartoDB tiles
- * (same as the web app). No Google dependency — works in both flavors.
+ * Reusable MapLibre composable. Renders a vector map with OpenFreeMap
+ * tiles (same as the web app). No Google dependency — works in both flavors.
  *
  * Lifecycle: forwards the host's create/start/resume/pause/stop/destroy to the
  * underlying [MapView] (via [DefaultLifecycleObserver]) so it doesn't leak GPU
@@ -118,12 +118,13 @@ fun WayliMap(
         }
     }
 
-    // Bundled style descriptors (asset://) — no network round-trip on first
-    // paint; tiles/sprites/glyphs still stream from CartoDB as usual.
+    // OpenFreeMap vector styles (free, no API key): Positron for light,
+    // Dark for dark — the same look as the web app's basemaps. The style
+    // JSON loads over HTTPS; tiles/sprites/glyphs stream from OpenFreeMap.
     val styleUrl = if (darkTheme) {
-        "asset://map-styles/dark-matter.json"
+        "https://tiles.openfreemap.org/styles/dark"
     } else {
-        "asset://map-styles/positron.json"
+        "https://tiles.openfreemap.org/styles/positron"
     }
 
     Box(modifier = modifier) {

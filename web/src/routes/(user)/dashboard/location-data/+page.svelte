@@ -53,7 +53,7 @@
 	} from '$lib/utils/fitness';
 
 	import type { Map as LeafletMap } from 'leaflet';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { SvelteDate } from 'svelte/reactivity';
@@ -950,8 +950,18 @@
 		import('leaflet.heat')
 			.then(() => {
 				if (!map || !L) return;
-				const heatFn = (L as any).heatLayer;
-				if (!heatFn) return;
+				// leaflet.heat's UMD factory attaches L.heatLayer to Leaflet's
+				// CommonJS exports object. Under Vite's ESM interop that object
+				// is `L.default`, not the module namespace — resolve whichever
+				// this build exposes (the namespace worked under older bundlers).
+				const leafletExports = (L as any).default ?? L;
+				const heatFn = leafletExports.heatLayer;
+				if (!heatFn) {
+					// Should not happen, but a silent bail here makes a dead
+					// Heatmap toggle impossible to debug from the outside.
+					console.warn('L.heatLayer missing after leaflet.heat import');
+					return;
+				}
 				heatLayer = heatFn(heatPoints, {
 					radius: 25,
 					blur: 18,
@@ -1611,8 +1621,7 @@
 			map = L.map(mapContainer, {
 				center: [20, 0],
 				zoom: 2,
-				zoomControl: true,
-				attributionControl: false
+				zoomControl: true
 			});
 
 			mapInvalidateTimeout = setTimeout(() => {
@@ -1621,12 +1630,8 @@
 				}
 			}, 200);
 
-			// Theme-aware tile layer via shared utility — consistent with all other maps
-			cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-				L.tileLayer(TILE_URLS[theme].url, {
-					attribution: TILE_URLS[theme].attribution
-				})
-			);
+			// Theme-aware basemap via shared utility — consistent with all other maps
+			cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 
 			// Shift-drag box selection: adds every segment with a point inside
 			// the drawn rectangle to the selection. Shift-clicking a marker still
