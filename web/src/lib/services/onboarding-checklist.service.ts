@@ -44,16 +44,17 @@ export class OnboardingChecklistService {
 	/**
 	 * Write the preferences back, upserting the row if it doesn't exist yet
 	 * (new users may not have a user_preferences row until preferences are
-	 * first saved — using .update() alone silently no-ops on a missing row).
+	 * first saved — an .update() without an error can still match 0 rows and
+	 * silently no-op, so verify a row was actually written before returning).
 	 */
 	private static async writeState(userId: string, preferences: Record<string, any>): Promise<void> {
-		const { error: updateError } = await fluxbase
+		const { data: updated, error: updateError } = await fluxbase
 			.from<Record<string, any>>('user_preferences')
 			.update({ preferences })
-			.eq('id', userId);
+			.eq('id', userId)
+			.select('id');
 
-		// If the update matched 0 rows (no preferences row exists yet), insert.
-		if (!updateError) return;
+		if (!updateError && updated && updated.length > 0) return;
 		await fluxbase.from<Record<string, any>>('user_preferences').upsert({
 			id: userId,
 			preferences

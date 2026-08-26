@@ -229,7 +229,9 @@ export async function parseStream(
     }
   }
 
-  // Fitness tables (beta opt-in only)
+  // Fitness tables: always written when a FIT file is imported. The opt-in
+  // beta flag gates the web UI (nav, import page, dashboards), not storage —
+  // this way data imported before opting in is available once the user does.
   if (metricRows.size > 0 && firstRecordAt && lastRecordAt) {
     await importFitnessData(
       fluxbase,
@@ -257,8 +259,8 @@ export async function parseStream(
 }
 
 /**
- * Write the session summary and per-point metrics to the fitness tables when
- * the user has opted in to the fitness beta. No-op (with a log line) otherwise.
+ * Write the session summary and per-point metrics to the fitness tables.
+ * Runs for every FIT import — the fitness beta flag only gates the UI.
  */
 async function importFitnessData(
   fluxbase: FluxbaseClient,
@@ -271,29 +273,6 @@ async function importFitnessData(
   firstRecordAt: string,
   lastRecordAt: string
 ): Promise<void> {
-  let betaEnabled = false;
-  try {
-    const { data: prefs, error: prefsError } = await fluxbase
-      .from('user_preferences')
-      .select('preferences')
-      .eq('id', userId)
-      .maybeSingle();
-    if (prefsError) {
-      console.warn(`Could not read user preferences: ${prefsError.message}`);
-    } else {
-      betaEnabled = (prefs?.preferences as any)?.beta_features?.fitness === true;
-    }
-  } catch (prefsFailure) {
-    console.warn(`Error reading user preferences:`, prefsFailure);
-  }
-
-  if (!betaEnabled) {
-    console.log(
-      'Fitness beta not enabled for this user; skipping fitness tables (GPS points only)'
-    );
-    return;
-  }
-
   const startedAt = session?.startTime ?? firstRecordAt;
   let endedAt = lastRecordAt;
   if (session?.totalElapsedTimeS !== undefined) {
