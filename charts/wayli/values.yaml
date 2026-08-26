@@ -389,9 +389,8 @@ fluxbase:
   #     jwt_secret: ""  # Use existingSecret in production
   #     anon_key: ""    # Pre-signed JWT for client apps
   #     jwt_expiry: "1h"
-  #     # Longer than the Fluxbase 168h default so mobile users stay signed
-  #     # in; the app refreshes the token on every use (2160h = 90 days).
-  #     refresh_expiry: "2160h"
+  #     # refresh_expiry: Fluxbase default is already 2160h (90-day sliding
+  #     # window — tokens rotate on every refresh); no override needed.
   #     magic_link_expiry: "15m"
   #     password_reset_expiry: "1h"
   #     password_min_length: 8
