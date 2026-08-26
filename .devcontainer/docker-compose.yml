@@ -6,7 +6,6 @@ services:
     volumes:
       - ..:/workspace:cached
       - /var/run/docker.sock:/var/run/docker.sock
-      - /Users/bart/Dev/fluxbase:/fluxbase:cached
     command: /bin/sh -c "while sleep 1000; do :; done"
     # When developing with local Fluxbase: comment out depends_on and use fluxbase-network
     # When developing Wayli standalone: uncomment depends_on and comment out networks
