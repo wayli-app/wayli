@@ -208,19 +208,47 @@
 
 	// ── Map rendering ──
 	async function renderMap() {
-		if (!mapContainer || track.length === 0) return;
+		if (track.length === 0) return;
 		if (!L) L = await import('leaflet');
+
+		// The map card may have just entered the DOM (loading → content
+		// swap); wait a frame so bind:this has fired and the container is
+		// measured before Leaflet initializes.
+		if (!mapContainer) {
+			await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+			if (!mapContainer) return;
+		}
+
 		if (map) {
 			drawTrack();
 			return;
 		}
 
-		map = L.map(mapContainer, { attributionControl: false, zoomControl: true });
+		// Leaflet needs an initial view — a map without one stays unloaded and
+		// renders a single tile; fitBounds below moves to the actual track.
+		map = L.map(mapContainer, {
+			attributionControl: false,
+			zoomControl: true,
+			center: [track[0].lat, track[0].lon],
+			zoom: 12
+		});
 		cleanupThemeWatcher = watchMapTheme(map, (leafletTheme) =>
 			L.tileLayer(TILE_URLS[leafletTheme].url, { attribution: TILE_URLS[leafletTheme].attribution })
 		);
 		drawTrack();
-		setTimeout(() => map?.invalidateSize(), 150);
+
+		// If the container was still settling when Leaflet measured it, its
+		// cached size (and therefore fitBounds' zoom) is wrong. Recompute the
+		// size and re-fit the track bounds once layout has settled.
+		setTimeout(() => {
+			if (!map) return;
+			map.invalidateSize();
+			if (track.length > 1) {
+				map.fitBounds(L.latLngBounds(track.map((p) => [p.lat, p.lon] as [number, number])), {
+					padding: [30, 30]
+				});
+			}
+		}, 250);
 	}
 
 	function speedColor(kmh: number | null): string {
