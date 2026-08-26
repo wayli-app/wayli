@@ -24,7 +24,7 @@ type JobType =
 	| 'distance-calculation';
 
 // All formats now use the unified data-import job
-const SUPPORTED_IMPORT_FORMATS = ['GeoJSON', 'GPX', 'KML', 'OwnTracks', 'Polarsteps'];
+const SUPPORTED_IMPORT_FORMATS = ['GeoJSON', 'GPX', 'KML', 'OwnTracks', 'Polarsteps', 'FIT'];
 
 type JobPriority = number; // 1-10, where 10 is highest priority
 
