@@ -1890,7 +1890,10 @@
 			"heartRate": "Frecuencia cardíaca (ppm)",
 			"power": "Potencia (W)",
 			"speed": "Velocidad (km/h)",
-			"hint": "Pasa el cursor por los gráficos para ver valores y ubicar el momento en el mapa"
+			"hint": "Pasa el cursor por los gráficos para ver valores y ubicar el momento en el mapa",
+			"cadence": "Cadencia (rpm)",
+			"time": "Tiempo",
+			"distance": "Distancia"
 		},
 		"stats": {
 			"distance": "Distancia",

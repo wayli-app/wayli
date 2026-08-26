@@ -1888,7 +1888,10 @@
       "heartRate": "Heart rate (bpm)",
       "power": "Power (W)",
       "speed": "Speed (km/h)",
-      "hint": "Hover over the charts to inspect values and locate the moment on the map"
+      "hint": "Hover over the charts to inspect values and locate the moment on the map",
+      "cadence": "Cadence (rpm)",
+      "time": "Time",
+      "distance": "Distance"
     },
     "stats": {
       "distance": "Distance",

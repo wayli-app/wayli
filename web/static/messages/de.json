@@ -1890,7 +1890,10 @@
 			"heartRate": "Herzfrequenz (Spm)",
 			"power": "Leistung (W)",
 			"speed": "Geschwindigkeit (km/h)",
-			"hint": "Fahre über die Diagramme, um Werte zu prüfen und den Moment auf der Karte zu finden"
+			"hint": "Fahre über die Diagramme, um Werte zu prüfen und den Moment auf der Karte zu finden",
+			"cadence": "Trittfrequenz (rpm)",
+			"time": "Zeit",
+			"distance": "Distanz"
 		},
 		"stats": {
 			"distance": "Distanz",

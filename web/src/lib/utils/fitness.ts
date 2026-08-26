@@ -184,3 +184,27 @@ export function movingAverage(
 	}
 	return result;
 }
+
+/**
+ * Cumulative distance in meters along a lat/lon track (haversine), used as a
+ * fallback x axis when the device reported no per-record distance.
+ */
+export function cumulativeDistances(points: Array<{ lat: number; lon: number }>): number[] {
+	const EARTH_RADIUS_M = 6371000;
+	const out: number[] = [];
+	let total = 0;
+	let prev: { lat: number; lon: number } | null = null;
+	for (const p of points) {
+		if (prev) {
+			const dLat = ((p.lat - prev.lat) * Math.PI) / 180;
+			const dLon = ((p.lon - prev.lon) * Math.PI) / 180;
+			const lat1 = (prev.lat * Math.PI) / 180;
+			const lat2 = (p.lat * Math.PI) / 180;
+			const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+			total += 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
+		}
+		out.push(total);
+		prev = p;
+	}
+	return out;
+}

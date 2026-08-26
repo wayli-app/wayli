@@ -1894,7 +1894,10 @@
 			"heartRate": "心率（bpm）",
 			"power": "功率（W）",
 			"speed": "速度（km/h）",
-			"hint": "将鼠标悬停在图表上可查看数值并在地图上定位对应时刻"
+			"hint": "将鼠标悬停在图表上可查看数值并在地图上定位对应时刻",
+			"cadence": "踏频（rpm）",
+			"time": "时间",
+			"distance": "距离"
 		},
 		"stats": {
 			"distance": "距离",

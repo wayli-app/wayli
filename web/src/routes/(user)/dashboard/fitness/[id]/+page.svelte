@@ -1,13 +1,23 @@
 <script lang="ts">
-	import { ArrowLeft, ChevronLeft, ChevronRight, Flag, MapPin, Loader2 } from 'lucide-svelte';
+	import {
+		ArrowLeft,
+		ChevronLeft,
+		ChevronRight,
+		Clock,
+		Flag,
+		MapPin,
+		Loader2,
+		Route
+	} from 'lucide-svelte';
 	import { onDestroy, onMount } from 'svelte';
 	import { page } from '$app/state';
 
 	import { translate } from '$lib/i18n';
 	import { fluxbase } from '$lib/fluxbase';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import FitnessChart from '$lib/components/fitness/FitnessChart.svelte';
 	import {
+		cumulativeDistances,
 		elevationGain,
 		formatDistance,
 		formatDuration,
@@ -35,11 +45,19 @@
 		speed: number | null;
 		/** Geometry-derived speeds are jittery; charts and map colours use this ~30 s average */
 		speedSmooth: number | null;
+		/** Cumulative distance in meters (device-reported, geometry fallback) */
+		dist: number;
+		/** Device-reported cumulative distance, before the geometry fallback */
+		fitDist: number | null;
 		hr: number | null;
 		power: number | null;
+		cadence: number | null;
 	}
 	let track = $state<TrackPoint[]>([]);
 	let elevation = $state<number | null>(null);
+
+	// Chart x axis: elapsed time or distance covered
+	let xMode = $state<'time' | 'distance'>('time');
 
 	// ── Map ──
 	let mapContainer = $state<HTMLDivElement | null>(null);
@@ -52,28 +70,39 @@
 
 	const theme = $derived(sportTheme(activity?.sport));
 
-	// Chart series built from the track (chart index maps 1:1 to track index)
+	function xOf(p: TrackPoint): number {
+		return xMode === 'distance' ? p.dist : p.t;
+	}
+
+	// Chart series built from the track; x follows the selected axis mode
 	let hrPowerSeries = $derived([
 		{
 			label: 'bpm',
 			color: '#ef4444',
 			area: true,
-			points: track.filter((p) => p.hr != null).map((p) => ({ t: p.t, v: p.hr as number }))
+			points: track.filter((p) => p.hr != null).map((p) => ({ x: xOf(p), v: p.hr as number }))
 		},
 		{
 			label: 'W',
 			color: '#3b82f6',
-			points: track.filter((p) => p.power != null).map((p) => ({ t: p.t, v: p.power as number }))
+			points: track.filter((p) => p.power != null).map((p) => ({ x: xOf(p), v: p.power as number }))
 		}
 	]);
-	let speedSeries = $derived([
+	let speedCadenceSeries = $derived([
 		{
 			label: 'km/h',
 			color: theme.stroke,
 			area: true,
 			points: track
 				.filter((p) => p.speedSmooth != null)
-				.map((p) => ({ t: p.t, v: Math.round((p.speedSmooth as number) * 10) / 10 }))
+				.map((p) => ({ x: xOf(p), v: Math.round((p.speedSmooth as number) * 10) / 10 }))
+		},
+		{
+			label: 'rpm',
+			color: '#a855f7',
+			points: track
+				.filter((p) => p.cadence != null && p.cadence > 0)
+				.map((p) => ({ x: xOf(p), v: p.cadence as number }))
 		}
 	]);
 
@@ -172,19 +201,32 @@
 		}
 
 		// Metrics join on recorded_at (equality — same source timestamps)
-		const metrics = new Map<string, { hr: number | null; power: number | null }>();
+		const metrics = new Map<
+			string,
+			{
+				hr: number | null;
+				power: number | null;
+				cadence: number | null;
+				dist: number | null;
+			}
+		>();
 		let mOffset = 0;
 		while (true) {
 			const { data, error } = await fluxbase
 				.from<Record<string, any>>('fitness_records')
-				.select('recorded_at, heart_rate, power')
+				.select('recorded_at, heart_rate, power, cadence, cumulative_distance_m')
 				.eq('activity_id', activity.id)
 				.order('recorded_at', { ascending: true })
 				.range(mOffset, mOffset + 999);
 			if (error) break;
 			const batch = (data as any[]) ?? [];
 			for (const row of batch) {
-				metrics.set(row.recorded_at, { hr: row.heart_rate, power: row.power });
+				metrics.set(row.recorded_at, {
+					hr: row.heart_rate,
+					power: row.power,
+					cadence: row.cadence,
+					dist: row.cumulative_distance_m != null ? parseFloat(row.cumulative_distance_m) : null
+				});
 			}
 			if (batch.length < 1000) break;
 			mOffset += 1000;
@@ -200,8 +242,11 @@
 				altitude: p.altitude,
 				speed: p.speed,
 				speedSmooth: null,
+				dist: m?.dist ?? 0,
+				fitDist: m?.dist ?? null,
 				hr: m?.hr ?? null,
-				power: m?.power ?? null
+				power: m?.power ?? null,
+				cadence: m?.cadence ?? null
 			});
 		}
 		merged.sort((a, b) => a.t - b.t);
@@ -218,6 +263,16 @@
 		for (let i = 0; i < sampled.length; i++) {
 			sampled[i].speedSmooth = smoothed[i];
 		}
+
+		// Cumulative distance: prefer the device-reported values, fall back to
+		// geometry-derived for points (or files) without them.
+		const geoDistances = cumulativeDistances(sampled);
+		let lastFit: number | null = null;
+		for (let i = 0; i < sampled.length; i++) {
+			if (sampled[i].fitDist != null) lastFit = sampled[i].fitDist;
+			sampled[i].dist = lastFit ?? geoDistances[i];
+		}
+
 		track = sampled;
 	}
 
@@ -247,9 +302,7 @@
 			center: [track[0].lat, track[0].lon],
 			zoom: 12
 		});
-		cleanupThemeWatcher = watchMapTheme(map, (leafletTheme) =>
-			L.tileLayer(TILE_URLS[leafletTheme].url, { attribution: TILE_URLS[leafletTheme].attribution })
-		);
+		cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 		drawTrack();
 
 		// If the container was still settling when Leaflet measured it, its
@@ -329,16 +382,25 @@
 		map.fitBounds(bounds, { padding: [30, 30] });
 	}
 
-	function handleScrub(index: number | null) {
+	/** Resolve a scrubbed chart x value (time or distance) to the map marker. */
+	function handleScrub(x: number | null) {
 		if (!map || !L) return;
-		if (index == null || !track[index]) {
+		if (x == null || track.length === 0) {
 			scrubMarker?.remove();
 			scrubMarker = null;
 			return;
 		}
-		const p = track[index];
+		let best = track[0];
+		let bestDelta = Infinity;
+		for (const p of track) {
+			const delta = Math.abs(xOf(p) - x);
+			if (delta < bestDelta) {
+				bestDelta = delta;
+				best = p;
+			}
+		}
 		if (!scrubMarker) {
-			scrubMarker = L.circleMarker([p.lat, p.lon], {
+			scrubMarker = L.circleMarker([best.lat, best.lon], {
 				radius: 7,
 				color: '#ffffff',
 				weight: 3,
@@ -346,7 +408,7 @@
 				fillOpacity: 1
 			}).addTo(map);
 		} else {
-			scrubMarker.setLatLng([p.lat, p.lon]);
+			scrubMarker.setLatLng([best.lat, best.lon]);
 		}
 	}
 
@@ -571,6 +633,36 @@
 			</div>
 
 			<!-- Charts -->
+			{#if hrPowerSeries[0].points.length > 0 || hrPowerSeries[1].points.length > 0 || speedCadenceSeries[0].points.length > 0 || speedCadenceSeries[1].points.length > 0}
+				<div class="mb-3 flex items-center justify-end">
+					<div class="bg-muted inline-flex rounded-lg p-0.5" role="group" aria-label="X axis">
+						<button
+							type="button"
+							class="cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors {xMode ===
+							'time'
+								? 'bg-background text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'}"
+							onclick={() => (xMode = 'time')}
+							aria-pressed={xMode === 'time'}
+						>
+							<Clock class="mr-1 inline h-3.5 w-3.5" />
+							{t('fitness.chart.time')}
+						</button>
+						<button
+							type="button"
+							class="cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors {xMode ===
+							'distance'
+								? 'bg-background text-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'}"
+							onclick={() => (xMode = 'distance')}
+							aria-pressed={xMode === 'distance'}
+						>
+							<Route class="mr-1 inline h-3.5 w-3.5" />
+							{t('fitness.chart.distance')}
+						</button>
+					</div>
+				</div>
+			{/if}
 			<div class="grid gap-6 lg:grid-cols-2">
 				{#if hrPowerSeries[0].points.length > 0 || hrPowerSeries[1].points.length > 0}
 					<div class="bg-card border-border rounded-xl border p-4">
@@ -579,16 +671,20 @@
 								{t('fitness.chart.heartRate')} · {t('fitness.chart.power')}
 							</h3>
 						</div>
-						<FitnessChart series={hrPowerSeries} onscrub={handleScrub} />
+						<FitnessChart series={hrPowerSeries} xAxis={xMode} onscrub={handleScrub} />
 						<div class="text-muted-foreground/70 mt-1 text-center text-[11px]">
 							{t('fitness.chart.hint')}
 						</div>
 					</div>
 				{/if}
-				{#if speedSeries[0].points.length > 0}
+				{#if speedCadenceSeries[0].points.length > 0 || speedCadenceSeries[1].points.length > 0}
 					<div class="bg-card border-border rounded-xl border p-4">
-						<h3 class="text-foreground mb-2 text-sm font-semibold">{t('fitness.chart.speed')}</h3>
-						<FitnessChart series={speedSeries} onscrub={handleScrub} />
+						<div class="mb-2 flex items-center justify-between">
+							<h3 class="text-foreground text-sm font-semibold">
+								{t('fitness.chart.speed')} · {t('fitness.chart.cadence')}
+							</h3>
+						</div>
+						<FitnessChart series={speedCadenceSeries} xAxis={xMode} onscrub={handleScrub} />
 						<div class="text-muted-foreground/70 mt-1 text-center text-[11px]">
 							{t('fitness.chart.hint')}
 						</div>

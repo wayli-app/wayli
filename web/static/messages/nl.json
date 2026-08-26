@@ -1890,7 +1890,10 @@
 			"heartRate": "Hartslag (spm)",
 			"power": "Vermogen (W)",
 			"speed": "Snelheid (km/u)",
-			"hint": "Beweeg over de grafieken om waarden te bekijken en het moment op de kaart te vinden"
+			"hint": "Beweeg over de grafieken om waarden te bekijken en het moment op de kaart te vinden",
+			"cadence": "Cadans (rpm)",
+			"time": "Tijd",
+			"distance": "Afstand"
 		},
 		"stats": {
 			"distance": "Afstand",

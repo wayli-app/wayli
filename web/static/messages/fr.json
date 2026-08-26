@@ -1893,7 +1893,10 @@
 			"heartRate": "Fréquence cardiaque (bpm)",
 			"power": "Puissance (W)",
 			"speed": "Vitesse (km/h)",
-			"hint": "Survolez les graphiques pour lire les valeurs et localiser l'instant sur la carte"
+			"hint": "Survolez les graphiques pour lire les valeurs et localiser l'instant sur la carte",
+			"cadence": "Cadence (tr/min)",
+			"time": "Temps",
+			"distance": "Distance"
 		},
 		"stats": {
 			"distance": "Distance",
