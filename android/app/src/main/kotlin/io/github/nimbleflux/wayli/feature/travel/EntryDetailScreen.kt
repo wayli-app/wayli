@@ -80,6 +80,7 @@ fun EntryDetailScreen(
 ) {
     val entry by viewModel.entry.collectAsState()
     val gallery by viewModel.gallery.collectAsState()
+    val resolvedBody by viewModel.resolvedBody.collectAsState()
     var menuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var confirmDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var viewerIndex by remember { mutableStateOf<Int?>(null) }
@@ -170,15 +171,11 @@ fun EntryDetailScreen(
                     fontWeight = FontWeight.Bold,
                 )
             }
-            e.body?.takeIf { it.isNotBlank() }?.let { body ->
+            if (resolvedBody.isNotBlank()) {
                 Spacer(Modifier.height(20.dp))
-                // Render blank-line-separated paragraphs with breathing room.
-                body.split(Regex("\n\\s*\n")).forEach { paragraph ->
-                    if (paragraph.isNotBlank()) {
-                        Text(paragraph.trim(), style = MaterialTheme.typography.bodyLarge)
-                        Spacer(Modifier.height(12.dp))
-                    }
-                }
+                // Same markdown renderer as the editor preview — inline image
+                // tokens are already resolved to display URLs.
+                io.github.nimbleflux.wayli.designsystem.MarkdownText(markdown = resolvedBody)
             }
 
             // Photo tiles — a 3-wide grid under the hero, tappable for the
@@ -337,6 +334,10 @@ class EntryDetailViewModel @Inject constructor(
     private val _gallery = MutableStateFlow<List<String>>(emptyList())
     val gallery: StateFlow<List<String>> = _gallery.asStateFlow()
 
+    /** Body with inline image tokens resolved to display URLs (markdown-ready). */
+    private val _resolvedBody = MutableStateFlow("")
+    val resolvedBody: StateFlow<String> = _resolvedBody.asStateFlow()
+
     /** Delete the entry (owner-only via RLS); demo/local entries just vanish. */
     fun deleteEntry(entry: TripEntry, onDone: (Boolean) -> Unit = {}) {
         if (demoManager.isDemoMode || entry.id.startsWith("local-")) {
@@ -386,11 +387,21 @@ class EntryDetailViewModel @Inject constructor(
                 }
             }.map { it.await() }
         }.filterNotNull().toMap()
-        val ordered = media.mapNotNull { urls[it.id] }
+        // Photos already placed inline in the body are not repeated in the
+        // bottom gallery; the body's tokens resolve to the same URLs.
+        val inlinePaths = io.github.nimbleflux.wayli.feature.travel.InlineMedia.inlineMediaPaths(entry.body)
+        val galleryMedia = media.filterNot { it.storagePath in inlinePaths }
+        val ordered = galleryMedia.mapNotNull { urls[it.id] }
 
         // Cover rule: cover_media_id → first by sort_order.
         val coverId = entry.coverMediaId
         heroUrl = if (coverId != null) urls[coverId] ?: ordered.firstOrNull() else ordered.firstOrNull()
         _gallery.value = ordered
+
+        val pathToUrl = media.mapNotNull { m -> urls[m.id]?.let { m.storagePath to it } }.toMap()
+        _resolvedBody.value = io.github.nimbleflux.wayli.feature.travel.InlineMedia.resolve(
+            entry.body.orEmpty(),
+            resolveMedia = { path -> pathToUrl[path] },
+        )
     }
 }

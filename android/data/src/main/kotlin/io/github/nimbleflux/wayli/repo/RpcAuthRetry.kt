@@ -20,6 +20,12 @@ suspend fun <T> withRpcAuthRetry(
     val authish = (err as? FluxbaseError)?.status == 403 &&
         err.message?.contains("procedure requires authentication", ignoreCase = true) == true
     if (!authish) return first
-    val refreshed = client.auth?.refreshSession()?.getOrNull() ?: return first
-    return if (refreshed != null) block() else first
+    val refreshed = client.auth?.refreshSession()?.getOrNull()
+    if (refreshed == null) {
+        // The refresh token itself is dead — flag it so the nav host routes
+        // to sign-in instead of leaving a zombie screen.
+        io.github.nimbleflux.wayli.session.SessionExpiryBus.fire()
+        return first
+    }
+    return block()
 }

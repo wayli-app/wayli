@@ -29,7 +29,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreVert
@@ -65,7 +67,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -718,6 +724,9 @@ fun TripDetailScreen(
     var showDelete by remember { androidx.compose.runtime.mutableStateOf(false) }
     var showSharePublic by remember { androidx.compose.runtime.mutableStateOf(false) }
     var menuOpen by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var draftToDelete by remember {
+        androidx.compose.runtime.mutableStateOf<io.github.nimbleflux.wayli.repo.EntryDraft?>(null)
+    }
 
     fun launchShare(trip: Trip) {
         shareScope.launch {
@@ -813,6 +822,26 @@ fun TripDetailScreen(
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showSharePublic = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (draftToDelete != null) {
+        val draft = draftToDelete
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { draftToDelete = null },
+            title = { Text("Discard draft?") },
+            text = {
+                Text("\"${draft?.title?.ifBlank { "Untitled draft" }}\" will be removed from this device. This can't be undone.")
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    draft?.let { viewModel.deleteDraft(it.id) }
+                    draftToDelete = null
+                }) { Text("Discard", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { draftToDelete = null }) { Text("Cancel") }
             },
         )
     }
@@ -919,6 +948,7 @@ fun TripDetailScreen(
                                 title = draft.title.ifBlank { "Untitled draft" },
                                 pendingSync = draft.pendingSync,
                                 onEdit = { onOpenDraft(draft) },
+                                onDelete = { draftToDelete = draft },
                                 modifier = Modifier.padding(horizontal = 16.dp),
                             )
                         }
@@ -1067,48 +1097,83 @@ private fun MetaChip(icon: ImageVector, text: String) {
     }
 }
 
-/** A locally saved draft: title + amber "Draft" label + edit button. */
+/**
+ * A locally saved draft: pencil chip, title, amber "Draft" pill, and edit /
+ * discard actions on a dashed amber outline — visually "unfinished", not a
+ * filled grey box.
+ */
 @Composable
 private fun DraftCard(
     title: String,
     pendingSync: Boolean,
     onEdit: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        ),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.size(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFD97706).copy(alpha = 0.15f), // web's amber draft badge
-                    ) {
-                        Text(
-                            if (pendingSync) "Draft · online pending" else "Draft",
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFB45309),
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
+    val amber = Color(0xFFD97706) // web's amber draft badge
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
+            .drawBehind {
+                drawRoundRect(
+                    color = amber.copy(alpha = 0.55f),
+                    cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()),
+                    style = Stroke(
+                        width = 1.5.dp.toPx(),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)),
+                    ),
+                )
             }
-            androidx.compose.material3.IconButton(onClick = onEdit) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit draft", tint = MaterialTheme.colorScheme.primary)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.EditNote,
+                contentDescription = null,
+                tint = amber,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.size(10.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.size(8.dp))
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = amber.copy(alpha = 0.15f),
+            ) {
+                Text(
+                    if (pendingSync) "Draft · online pending" else "Draft",
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFB45309),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            androidx.compose.material3.IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit draft", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            }
+            androidx.compose.material3.IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Discard draft",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
+        Text(
+            if (pendingSync) "Waiting to go online — publishes automatically." else "Unpublished — tap to keep writing.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

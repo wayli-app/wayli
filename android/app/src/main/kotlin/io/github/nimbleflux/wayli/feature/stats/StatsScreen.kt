@@ -49,10 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.nimbleflux.wayli.designsystem.TransportModeColors
 import io.github.nimbleflux.wayli.designsystem.displayLabel
-import io.github.nimbleflux.wayli.designsystem.map.MapTrack
-import io.github.nimbleflux.wayli.designsystem.map.WayliMap
 import io.github.nimbleflux.wayli.demo.DemoData
-import org.maplibre.android.geometry.LatLng
 
 /**
  * Stats / Where-I've-Been screen — mobile-native design:
@@ -298,33 +295,8 @@ private fun StatsContent(
                 }
             }
 
-            // Activity map — real track when available
-            val mapTracks = remember(data.track) {
-                data.track?.takeIf { it.isNotEmpty() }?.let { track ->
-                    listOf(
-                        MapTrack(
-                            points = track.map { LatLng(it.first, it.second) },
-                            color = "#3b82f6",
-                            width = 4f,
-                        ),
-                    )
-                }.orEmpty()
-            }
-            if (mapTracks.isNotEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().height(240.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        WayliMap(
-                            modifier = Modifier.fillMaxSize(),
-                            tracks = mapTracks,
-                        )
-                    }
-                }
-            }
-
+            // NOTE: no duplicate track map here — the Home "Your journeys"
+            // map already shows the same range WITH transport-mode colors.
 
             Spacer(Modifier.height(32.dp))
         }

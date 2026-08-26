@@ -16,8 +16,13 @@
 	import { getTripsService } from '$lib/services/service-layer-adapter';
 	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { mediaToken, resolveInlineMedia, inlineMediaRefs } from '$lib/utils/inline-media';
 	import { compressImage } from '$lib/utils/image-compress';
-	import { uploadMedia } from '$lib/services/trip-media.service';
+	import {
+		uploadMedia,
+		createMedia,
+		attachMediaToEntry
+	} from '$lib/services/trip-media.service';
 	import TripMap from '$lib/components/TripMap.svelte';
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
@@ -25,6 +30,7 @@
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
+	import ConfirmationModal from '$lib/components/modals/ConfirmationModal.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import WorldMap from '$lib/components/WorldMap.svelte';
 	import {
@@ -126,6 +132,9 @@
 	let editorStatus = $state<'published' | 'draft'>('published');
 	let editorEndDate = $state('');
 	let isSaving = $state(false);
+	/** Media uploaded inline while composing a NEW entry (entry_id still null) —
+	 * attached to the entry once it is saved. */
+	let editorInlineMediaIds = $state<string[]>([]);
 
 	// ── New trip modal state ──
 	let showTripModal = $state(false);
@@ -519,6 +528,7 @@
 		editorDate = new Date().toISOString().slice(0, 10);
 		editorEndDate = '';
 		editorStatus = 'published';
+		editorInlineMediaIds = [];
 		showEditor = true;
 	}
 
@@ -530,7 +540,39 @@
 		editorDate = entry.entry_date?.slice(0, 10) ?? '';
 		editorEndDate = entry.end_date?.slice(0, 10) ?? '';
 		editorStatus = (entry.status as 'published' | 'draft') ?? 'published';
+		editorInlineMediaIds = [];
 		showEditor = true;
+	}
+
+	/**
+	 * Upload a photo picked from the markdown toolbar and return the inline
+	 * token to insert at the cursor. Existing entries link the media row
+	 * immediately; new entries attach theirs when the entry is saved.
+	 */
+	async function handleInsertImage(file: File): Promise<string> {
+		if (!$userStore?.id || !editorTripId) throw new Error('No trip selected');
+		const { full, thumbnail } = await compressImage(file);
+		const timestamp = Date.now();
+		const fullPath = await uploadMedia($userStore.id, editorTripId, full.blob, `${timestamp}-${file.name}`);
+		const thumbPath = await uploadMedia(
+			$userStore.id,
+			editorTripId,
+			thumbnail.blob,
+			`${timestamp}-thumb-${file.name}`
+		);
+		const created = await createMedia({
+			user_id: $userStore.id,
+			trip_id: editorTripId,
+			entry_id: editingEntry?.id ?? undefined,
+			storage_path: fullPath,
+			thumbnail_path: thumbPath,
+			width: full.width,
+			height: full.height,
+			taken_at: full.takenAt ?? undefined,
+			exif: full.exif ?? undefined
+		});
+		if (!editingEntry) editorInlineMediaIds = [...editorInlineMediaIds, created.id];
+		return mediaToken(fullPath);
 	}
 
 	async function saveEntry(status?: 'published' | 'draft') {
@@ -548,7 +590,7 @@
 				});
 				entries = entries.map((e) => (e.id === updated.id ? { ...e, ...updated } : e));
 			} else {
-				await createEntry($userStore.id, {
+				const created = await createEntry($userStore.id, {
 					trip_id: editorTripId,
 					title: editorTitle,
 					body: editorBody,
@@ -556,6 +598,9 @@
 					end_date: editorEndDate || null,
 					status: saveAs
 				} as any);
+				// Photos placed inline before the entry existed — link them now.
+				await attachMediaToEntry(created.id, editorInlineMediaIds);
+				editorInlineMediaIds = [];
 				await loadEntries();
 			}
 			showEditor = false;
@@ -568,8 +613,18 @@
 		}
 	}
 
+	// ── Destructive actions ask through the styled modal, not window.confirm ──
+	let pendingDeleteEntry = $state<JournalEntry | null>(null);
+	let pendingDeleteTripId = $state<string | null>(null);
+
 	async function handleDeleteEntry(entry: JournalEntry) {
-		if (!confirm(t('travel.confirmDeleteEntry'))) return;
+		pendingDeleteEntry = entry;
+	}
+
+	async function confirmDeleteEntry() {
+		const entry = pendingDeleteEntry;
+		pendingDeleteEntry = null;
+		if (!entry) return;
 		try {
 			await deleteEntry(entry.id);
 			entries = entries.filter((e) => e.id !== entry.id);
@@ -923,7 +978,13 @@
 	}
 
 	async function deleteTrip(tripId: string) {
-		if (!confirm(t('travel.confirmDeleteTrip'))) return;
+		pendingDeleteTripId = tripId;
+	}
+
+	async function confirmDeleteTrip() {
+		const tripId = pendingDeleteTripId;
+		pendingDeleteTripId = null;
+		if (!tripId) return;
 		try {
 			const tripsService = await getTripsService();
 			await tripsService.deleteTrip(tripId);
@@ -1566,22 +1627,23 @@
 															{/if}
 														</h3>
 													{/if}
-													{#if entry.body}
-														<div
-															class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
-														>
-															<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-															{@html renderMarkdown(entry.body)}
-														</div>
-													{/if}
+												{#if entry.body}
+													<div
+														class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
+													>
+														<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+														{@html renderMarkdown(resolveInlineMedia(entry.body))}
+													</div>
+												{/if}
 
-													<!-- Photos -->
+													<!-- Photos (inline-placed ones are filtered out) -->
 													<div class="mt-3">
 														<PhotoGallery
 															tripId={trip.id}
 															entryId={entry.id}
 															coverMediaId={entry.cover_media_id}
 															onCoverChange={handleSetCover}
+															excludeRefs={inlineMediaRefs(entry.body)}
 														/>
 													</div>
 
@@ -1627,6 +1689,32 @@
 					</div>
 				{/if}
 
+				<!-- Delete confirmations (styled modal, not window.confirm) -->
+				<ConfirmationModal
+					open={pendingDeleteEntry !== null}
+					title={t('travel.confirmDeleteEntry')}
+					message={t('trips.deleteConfirmation', {
+						title: pendingDeleteEntry?.title || pendingDeleteEntry?.trip_title || ''
+					})}
+					confirmText={t('common.actions.delete')}
+					cancelText={t('common.actions.cancel')}
+					variant="danger"
+					onConfirm={confirmDeleteEntry}
+					onCancel={() => (pendingDeleteEntry = null)}
+				/>
+				<ConfirmationModal
+					open={pendingDeleteTripId !== null}
+					title={t('travel.confirmDeleteTrip')}
+					message={t('trips.deleteConfirmation', {
+						title: trips.find((tr) => tr.id === pendingDeleteTripId)?.title ?? ''
+					})}
+					confirmText={t('common.actions.delete')}
+					cancelText={t('common.actions.cancel')}
+					variant="danger"
+					onConfirm={confirmDeleteTrip}
+					onCancel={() => (pendingDeleteTripId = null)}
+				/>
+
 				<!-- Entry editor modal -->
 				{#if showEditor}
 					<div
@@ -1665,7 +1753,7 @@
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 							/>
 
-							<MarkdownEditor bind:value={editorBody} />
+							<MarkdownEditor bind:value={editorBody} onPickImage={handleInsertImage} />
 
 							{#if editingEntry}
 								<div class="border-border rounded-lg border p-3">

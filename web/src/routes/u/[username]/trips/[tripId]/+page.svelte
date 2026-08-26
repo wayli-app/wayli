@@ -5,6 +5,7 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { resolveInlineMedia, inlineMediaRefs } from '$lib/utils/inline-media';
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
@@ -516,17 +517,17 @@
 									{entry.title}
 								</h3>
 							{/if}
-							{#if entry.body}
-								<div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
-									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-									{@html renderMarkdown(entry.body)}
-								</div>
-							{/if}
+						{#if entry.body}
+							<div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
+								<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+								{@html renderMarkdown(resolveInlineMedia(entry.body))}
+							</div>
+						{/if}
 
-							<!-- Per-entry photos -->
-							{#if media.filter((m) => m.entry_id === entry.id).length > 0}
-								<div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-									{#each media.filter((m) => m.entry_id === entry.id) as item (item.id)}
+						<!-- Per-entry photos (inline-placed ones are filtered out) -->
+						{#if media.filter((m) => m.entry_id === entry.id && !inlineMediaRefs(entry.body).has(m.storage_path)).length > 0}
+							<div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+								{#each media.filter((m) => m.entry_id === entry.id && !inlineMediaRefs(entry.body).has(m.storage_path)) as item (item.id)}
 										<button
 											type="button"
 											onclick={() => (lightbox = item)}

@@ -5,6 +5,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -122,6 +124,7 @@ class NavViewModel @Inject constructor(
     private val deviceTokenRepo: io.github.nimbleflux.wayli.repo.DeviceTokenRepository,
     private val tripRepo: io.github.nimbleflux.wayli.repo.TripRepository,
     private val draftRepo: io.github.nimbleflux.wayli.repo.DraftRepository,
+    val sessionRefresher: io.github.nimbleflux.wayli.session.SessionRefresher,
 ) : ViewModel() {
 
     /** Trips offered by the share-target inbox ("save to trip…"). */
@@ -242,6 +245,14 @@ fun WayliNavHost() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isTabRoute = currentRoute in tabs.map { it.route }
+    // Auth/setup screens show no dock (logged-out users must not see the main
+    // menu) — also drops the NavHost's dock-clearing bottom padding there.
+    val isAuthRoute = currentRoute in setOf(
+        Routes.SIGN_IN,
+        Routes.SIGN_UP,
+        Routes.FORGOT_PASSWORD,
+        Routes.INSTANCE_SETUP,
+    ) || currentRoute?.startsWith("two_factor") == true
 
     // Re-route when the session ends outside the manual sign-out flow —
     // e.g. revoked/expired server-side. The manual Settings sign-out already
@@ -277,15 +288,20 @@ fun WayliNavHost() {
         androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.ensureTrackingToken() }
     }
 
+    // Keep the session alive: proactively refresh the access token before it
+    // expires (the Kotlin SDK has no autoRefresh of its own).
+    LaunchedEffect(Unit) { viewModel.sessionRefresher.runLoop() }
+
     // A dead persisted session (expired refresh token): perform the hardened
     // sign-out and route to sign-in instead of looping the dashboard.
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        io.github.nimbleflux.wayli.util.SessionExpiryBus.expired.collect { expired ->
+        io.github.nimbleflux.wayli.session.SessionExpiryBus.expired.collect { expired ->
             if (expired && !viewModel.isDemoMode) {
-                io.github.nimbleflux.wayli.util.SessionExpiryBus.consume()
+                io.github.nimbleflux.wayli.session.SessionExpiryBus.consume()
                 viewModel.signOut()
                 navController.navigate(Routes.SIGN_IN) {
                     popUpTo(Routes.MAP) { inclusive = true }
+                    launchSingleTop = true
                 }
             }
         }
@@ -320,13 +336,22 @@ fun WayliNavHost() {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // The strip below the floating dock (nav-bar inset + margin) is painted by
+    // the window background, which follows the SYSTEM dark mode — a dark bar
+    // under a light theme. Paint the root with the Compose theme background so
+    // it always matches the in-app theme.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
         NavHost(
             navController = navController,
             startDestination = viewModel.startRoute,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 86.dp), // clear the persistent floating dock
+                // clear the persistent floating dock (absent on auth screens)
+                .padding(bottom = if (isAuthRoute) 0.dp else 86.dp),
 
             enterTransition = { fadeIn(animationSpec = tween(220)) },
             exitTransition = { fadeOut(animationSpec = tween(160)) },
@@ -593,19 +618,25 @@ fun WayliNavHost() {
             }
         }
 
-        // Floating dock navigation — persistent on every screen; the tab
-        // highlight only applies on tab routes. NavHost content is padded so
-        // screens clear the dock.
-        Box(
+        // Floating dock navigation — persistent on every screen except the
+        // auth/setup flow, where a logged-out user must not see (or tap) the
+        // main menu; the tab highlight only applies on tab routes. NavHost
+        // content is padded so screens clear the dock.
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !isAuthRoute,
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)),
+            exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150)),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .zIndex(4f),
         ) {
-            WayliBottomBar(
-                tabs = tabs,
-                currentRoute = currentRoute,
-                onTabSelected = switchTab,
-            )
+            Box {
+                WayliBottomBar(
+                    tabs = tabs,
+                    currentRoute = currentRoute,
+                    onTabSelected = switchTab,
+                )
+            }
         }
     }
 

@@ -144,13 +144,17 @@ fun DateBadge(isoDate: String, modifier: Modifier = Modifier) {
         shadowElevation = 4.dp,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 month,
                 style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
                 color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                // The badge lives in a narrow 44dp timeline rail — long month
+                // names ("SEPT") must never wrap onto a second line.
+                softWrap = false,
+                maxLines = 1,
             )
             Text(
                 date?.dayOfMonth?.toString() ?: "·",

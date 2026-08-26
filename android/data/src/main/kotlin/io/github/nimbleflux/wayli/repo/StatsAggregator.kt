@@ -164,10 +164,17 @@ object StatsAggregator {
                 val lookahead = points.subList(index, minOf(index + MIN_MODE_RUN, points.size))
                 lookahead.count { it.transportMode == mode } >= MIN_MODE_RUN
             }
+            if (modeBreak) {
+                // Close the outgoing segment ON the transition point so the
+                // next segment starts where this one ends — without the shared
+                // endpoint each mode change leaves one undrawn hop between the
+                // two polylines, which reads as a disconnected journey.
+                current += coords
+                flush()
+            }
             // Time gaps do NOT split the polyline — the line bridges the gap
             // (straight connector in the previous mode's color), keeping the
             // journey one continuous thread instead of confetti fragments.
-            if (modeBreak) flush()
             if (current.isEmpty()) currentMode = mode ?: currentMode
             current += coords
         }

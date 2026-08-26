@@ -223,18 +223,13 @@ class HomeViewModel @Inject constructor(
                 // cached trips — a zombie "logged-out" dashboard. Clear the
                 // session instead: signOut emits SIGNED_OUT and WayliNavHost
                 // routes to the sign-in screen.
-                val status = (error as? io.github.nimbleflux.fluxbase.FluxbaseError)?.status
-                    ?: (error as? io.github.nimbleflux.fluxbase.core.FluxbaseException)?.status
-                val tokenDead = status == 401 ||
-                    error?.message?.contains("expired token", ignoreCase = true) == true ||
-                    error?.message?.contains("invalid token", ignoreCase = true) == true
-                if (tokenDead) {
+                if (io.github.nimbleflux.wayli.session.isSessionDeadError(error)) {
                     // NEVER gate the UI on the sign-out network call — a
                     // hanging POST here froze the dashboard on a blank
                     // Loading screen. WayliNavHost performs the hardened
                     // sign-out and routes to the sign-in screen via the bus.
                     sessionDead = true
-                    io.github.nimbleflux.wayli.util.SessionExpiryBus.fire()
+                    io.github.nimbleflux.wayli.session.SessionExpiryBus.fire()
                     _uiState.value = HomeUiState.Error("Session expired — please sign in again")
                     return@launch
                 }

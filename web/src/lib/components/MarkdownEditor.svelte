@@ -1,15 +1,27 @@
 <script lang="ts">
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import { Bold, Italic, Heading, Link as LinkIcon, Eye, Pencil } from 'lucide-svelte';
+	import { Bold, Italic, Heading, Link as LinkIcon, Eye, Pencil, ImagePlus, Loader2 } from 'lucide-svelte';
 
 	type Props = {
 		value?: string;
 		placeholder?: string;
+		/**
+		 * When provided, an image button appears: it hands the picked file to
+		 * this handler (which uploads it) and inserts the returned markdown
+		 * token at the cursor — photos inline in the text.
+		 */
+		onPickImage?: (file: File) => Promise<string>;
 	};
 
-	let { value = $bindable(''), placeholder = 'Write your story in markdown...' }: Props = $props();
+	let {
+		value = $bindable(''),
+		placeholder = 'Write your story in markdown...',
+		onPickImage
+	}: Props = $props();
 
 	let mode = $state<'edit' | 'preview'>('edit');
+	let uploading = $state(false);
+	let fileInput = $state<HTMLInputElement>();
 
 	function insert(before: string, after: string = '') {
 		const el = document.getElementById('markdown-editor-textarea') as HTMLTextAreaElement | null;
@@ -21,6 +33,22 @@
 		el.focus();
 		// Place cursor after the inserted text
 		el.selectionStart = el.selectionEnd = start + before.length + selected.length + after.length;
+	}
+
+	async function handleImageSelect(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file || !onPickImage) return;
+		uploading = true;
+		try {
+			const token = await onPickImage(file);
+			insert(`\n\n${token}\n\n`);
+		} catch (err) {
+			console.error('Image upload failed:', err);
+		} finally {
+			uploading = false;
+		}
 	}
 </script>
 
@@ -52,6 +80,28 @@
 				class="hover:bg-muted rounded p-1.5 text-sm transition-colors"
 				title="Link"><LinkIcon class="h-4 w-4" /></button
 			>
+			{#if onPickImage}
+				<input
+					bind:this={fileInput}
+					type="file"
+					accept="image/*"
+					class="hidden"
+					onchange={handleImageSelect}
+				/>
+				<button
+					type="button"
+					onclick={() => fileInput?.click()}
+					disabled={uploading}
+					class="hover:bg-muted rounded p-1.5 text-sm transition-colors disabled:opacity-50"
+					title="Add photo in text"
+				>
+					{#if uploading}
+						<Loader2 class="h-4 w-4 animate-spin" />
+					{:else}
+						<ImagePlus class="h-4 w-4" />
+					{/if}
+				</button>
+			{/if}
 		</div>
 		<button
 			type="button"

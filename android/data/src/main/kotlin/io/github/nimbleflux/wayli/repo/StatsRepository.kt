@@ -152,44 +152,38 @@ class StatsRepository @Inject constructor(
      * one-column projection (not the capped [fetchPoints] list, which keeps
      * only the newest 5000 rows and silently drops older countries on long
      * ranges) — feeds the countries count and the world map.
+     *
+     * Exact via keyset pagination: rows are ordered by `country_code` and each
+     * query fetches exactly one row strictly greater than the last code seen,
+     * so the loop costs one small request per distinct country regardless of
+     * how many thousands of points sit in between. (The previous newest-first
+     * paged scan stopped early once recent pages repeated the home country and
+     * never reached older trips abroad, undercounting on long ranges.)
      */
     suspend fun fetchCountryCodes(
         userId: String,
         startDate: String,
         endDate: String,
     ): Result<List<String>> =
-        cache.withCache("countries2:$userId:$startDate:$endDate", ListSerializer(String.serializer())) {
+        cache.withCache("countries3:$userId:$startDate:$endDate", ListSerializer(String.serializer())) {
             runCatching {
-                // Paginate: a single query only returns the newest ~1000 rows
-                // (server MaxPageSize), which truncated older trips abroad and
-                // made the countries count stick at the home country.
-                val codes = mutableSetOf<String>()
-                var offset = 0
-                var pages = 0
-                // Early-exit: stop paging once a FULL page contributes no new
-                // codes — recent pages carry recent countries, and stale scans
-                // of tens of thousands of rows are pure waste.
-                while (offset < 50_000) {
-                    val codesBefore = codes.size
-                    pages++
-                    val result = client.from<CountryCodeRow>("tracker_data")
+                val codes = mutableListOf<String>()
+                var lastCode: String? = null
+                // Safety cap — more than any traveled set of countries.
+                while (codes.size < 250) {
+                    var query = client.from<CountryCodeRow>("tracker_data")
                         .select("country_code")
                         .eq("user_id", userId)
                         .gte("recorded_at", "${startDate}T00:00:00Z")
                         .lte("recorded_at", "${endDate}T23:59:59Z")
-                        .order("recorded_at", ascending = false)
-                        .range(offset, offset + PAGE_SIZE - 1)
-                        .execute()
-                    val batch = result.dataOrThrow()
-                    if (batch == null || batch.isEmpty()) {
-                        break
-                    }
-                    batch.forEach { row ->
-                        row.countryCode?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }?.let { codes += it }
-                    }
-                    if (batch.size < PAGE_SIZE) break
-                    if (codes.size == codesBefore && pages >= 2) break
-                    offset += PAGE_SIZE
+                        .order("country_code", ascending = true)
+                    lastCode?.let { query = query.gt("country_code", it) }
+                    val row = query.limit(1).execute().dataOrThrow()?.firstOrNull() ?: break
+                    // NULLs sort last in PostgreSQL ASC order and are excluded
+                    // by `gt` — a null here means every code has been seen.
+                    val code = row.countryCode?.trim()?.uppercase()?.takeIf { it.isNotEmpty() } ?: break
+                    codes += code
+                    lastCode = code
                 }
                 codes.sorted()
             }

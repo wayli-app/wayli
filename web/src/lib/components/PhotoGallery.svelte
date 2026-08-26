@@ -18,9 +18,12 @@
 		entryId?: string;
 		coverMediaId?: string | null;
 		onCoverChange?: (mediaId: string, photoUrl?: string) => void;
+		/** Storage refs already placed inline in the entry body — the read-view
+		 * gallery hides them so photos don't appear twice. */
+		excludeRefs?: Set<string>;
 	};
 
-	let { tripId, entryId, coverMediaId = null, onCoverChange }: Props = $props();
+	let { tripId, entryId, coverMediaId = null, onCoverChange, excludeRefs }: Props = $props();
 
 	let media = $state<TripMedia[]>([]);
 	let isLoading = $state(true);
@@ -42,6 +45,9 @@
 			let all = await listMedia(tripIdSafe);
 			if (entryId) {
 				all = all.filter((m) => m.entry_id === entryId);
+			}
+			if (excludeRefs) {
+				all = all.filter((m) => !excludeRefs.has(m.storage_path));
 			}
 			media = all;
 		} catch (err) {

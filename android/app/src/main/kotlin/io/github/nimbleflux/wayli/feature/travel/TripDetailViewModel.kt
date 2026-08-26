@@ -104,6 +104,7 @@ class TripDetailViewModel @Inject constructor(
             }
             _state.value = TripDetailUiState.Success(TripDetailData(trip))
             _entries.value = DemoData.entries[tripId].orEmpty()
+                .sortedWith(compareByDescending<TripEntry> { it.entryDate }.thenByDescending { it.createdAt })
             _track.value = DemoData.tripTracks[tripId].orEmpty()
             return
         }
@@ -167,6 +168,14 @@ class TripDetailViewModel @Inject constructor(
         }
     }
 
+    /** Discard a local draft after confirmation on the trip screen. */
+    fun deleteDraft(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            draftRepo.delete(id)
+            refreshDrafts()
+        }
+    }
+
     /**
      * Called when returning from the editor. In real mode (or when no
      * in-memory entry was handed back) the entries reload; demo entries are
@@ -174,7 +183,10 @@ class TripDetailViewModel @Inject constructor(
      */
     fun applyEditorResult(entry: TripEntry?) {
         if (entry != null && (demoManager.isDemoMode || entry.id.startsWith("local-"))) {
-            _entries.value = listOf(entry) + _entries.value.filter { it.id != entry.id }
+            // Newest first — re-sort instead of prepend so an older-dated
+            // entry lands in its chronological slot.
+            _entries.value = (_entries.value.filter { it.id != entry.id } + entry)
+                .sortedWith(compareByDescending<TripEntry> { it.entryDate }.thenByDescending { it.createdAt })
         } else if (!demoManager.isDemoMode) {
             viewModelScope.launch(Dispatchers.IO) {
                 tripRepo.listEntries(tripId)

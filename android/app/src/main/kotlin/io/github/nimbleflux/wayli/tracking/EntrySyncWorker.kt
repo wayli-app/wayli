@@ -47,7 +47,27 @@ class EntrySyncWorker @AssistedInject constructor(
                 continue
             }
             val date = draft.entryDate.ifBlank { java.time.LocalDate.now().toString() }
-            val body = draft.body.trim().takeIf { it.isNotBlank() }
+
+            // Upload photos first so the body's inline wayli-draft: tokens can
+            // be rewritten to final storage paths before the entry is written.
+            val uploadedPaths = mutableListOf<String>()
+            var mediaFailed = false
+            draft.photos.forEach { path ->
+                val uploaded = mediaUploader.uploadPhoto(applicationContext, Uri.fromFile(File(path)))
+                val storagePath = uploaded.getOrNull()
+                if (storagePath == null) {
+                    mediaFailed = true
+                } else {
+                    uploadedPaths += storagePath
+                }
+            }
+            if (mediaFailed) {
+                anyFailed = true
+                continue
+            }
+            val body = io.github.nimbleflux.wayli.feature.travel.InlineMedia
+                .rewriteDraftTokens(draft.body.trim()) { index -> uploadedPaths.getOrNull(index) }
+                .takeIf { it.isNotBlank() }
 
             val existingId = draft.entryId
             val entryId: String? = if (existingId != null) {
@@ -61,13 +81,8 @@ class EntrySyncWorker @AssistedInject constructor(
                 continue
             }
 
-            var mediaFailed = false
-            draft.photos.forEachIndexed { index, path ->
-                val uploaded = mediaUploader.uploadPhoto(applicationContext, Uri.fromFile(File(path)))
-                val storagePath = uploaded.getOrNull()
-                if (storagePath == null ||
-                    tripRepo.createMedia(draft.tripId, entryId, storagePath, index).isFailure
-                ) {
+            uploadedPaths.forEachIndexed { index, storagePath ->
+                if (tripRepo.createMedia(draft.tripId, entryId, storagePath, index).isFailure) {
                     mediaFailed = true
                 }
             }

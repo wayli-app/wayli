@@ -205,4 +205,44 @@ class StatsAggregatorTest {
         assertEquals(1.5, daily["2026-08-02"]!!, 1e-9)
         assertNull(daily["2026-08-01"])
     }
+
+    // ---- Mode segments (journey-map polyline continuity) ----
+
+    private fun at(lng: Double, lat: Double, mode: String?): TrackerPoint = tp(
+        recordedAt = "2026-08-01T10:00:00Z",
+        location = Json.parseToJsonElement("""{"type":"Point","coordinates":[$lng,$lat]}"""),
+        mode = mode,
+    )
+
+    @Test
+    fun `adjacent mode segments share the transition point`() {
+        // 3 car points then 3 train points (>= MIN_MODE_RUN) — the mode break
+        // must not leave an undrawn hop between the two polylines.
+        val points = listOf(
+            at(4.90, 52.35, "car"), at(4.92, 52.36, "car"), at(4.94, 52.37, "car"),
+            at(4.96, 52.38, "train"), at(4.98, 52.39, "train"), at(5.00, 52.40, "train"),
+        )
+        val segments = StatsAggregator.segmentsByMode(points)
+        assertEquals(2, segments.size)
+        assertEquals("car", segments[0].mode)
+        assertEquals("train", segments[1].mode)
+        // The car segment must END on the first train point, and the train
+        // segment must START there — a shared endpoint draws a continuous line.
+        val transition = 52.38 to 4.96
+        assertEquals(transition, segments[0].points.last())
+        assertEquals(transition, segments[1].points.first())
+    }
+
+    @Test
+    fun `short mode runs are absorbed without splitting`() {
+        // A one-point train blip inside a car run is detection noise.
+        val points = listOf(
+            at(4.90, 52.35, "car"), at(4.92, 52.36, "car"), at(4.94, 52.37, "train"),
+            at(4.96, 52.38, "car"), at(4.98, 52.39, "car"), at(5.00, 52.40, "car"),
+        )
+        val segments = StatsAggregator.segmentsByMode(points)
+        assertEquals(1, segments.size)
+        assertEquals("car", segments[0].mode)
+        assertEquals(6, segments[0].points.size)
+    }
 }

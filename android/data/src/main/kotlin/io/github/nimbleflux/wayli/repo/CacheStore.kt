@@ -36,21 +36,23 @@ class CacheStore @Inject constructor(
      *
      * Exception: a 401 is a dead session, not a connectivity blip — serving
      * the stale cache there would keep a logged-out dashboard rendering
-     * cached data indefinitely, so auth failures propagate to the caller.
+     * cached data indefinitely, so auth failures propagate to the caller AND
+     * fire [SessionExpiryBus] so the nav host routes to sign-in from any
+     * screen, not just Home.
      */
     suspend fun <T> withCache(key: String, serializer: KSerializer<T>, fetch: suspend () -> Result<T>): Result<T> {
         val result = fetch()
         result.onSuccess { put(key, it, serializer) }
         if (result.isSuccess) return result
-        if (isAuthFailure(result)) return result
+        if (isAuthFailure(result)) {
+            io.github.nimbleflux.wayli.session.SessionExpiryBus.fire()
+            return result
+        }
         return get(key, serializer)?.let { Result.success(it) } ?: result
     }
 
-    private fun isAuthFailure(result: Result<*>): Boolean {
-        val error = result.exceptionOrNull()
-        return (error as? io.github.nimbleflux.fluxbase.FluxbaseError)?.status == 401 ||
-            (error as? io.github.nimbleflux.fluxbase.core.FluxbaseException)?.status == 401
-    }
+    private fun isAuthFailure(result: Result<*>): Boolean =
+        io.github.nimbleflux.wayli.session.isSessionDeadError(result.exceptionOrNull())
 
     /** List convenience — most cached payloads are whole result lists. */
     suspend fun <T> withCacheList(key: String, element: KSerializer<T>, fetch: suspend () -> Result<List<T>>): Result<List<T>> =

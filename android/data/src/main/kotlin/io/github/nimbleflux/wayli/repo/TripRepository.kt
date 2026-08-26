@@ -50,15 +50,19 @@ class TripRepository @Inject constructor(
 
     /**
      * One entry by id, filtered server-side — opening a single entry must not
-     * download the trip's whole journal to filter client-side.
+     * download the trip's whole journal to filter client-side. Cached so a
+     * previously opened entry still reads offline.
      */
-    suspend fun getEntry(entryId: String): Result<TripEntry> = runCatching {
-        val result = client.from<TripEntry>("trip_entries")
-            .select()
-            .eq("id", entryId)
-            .single()
-        result.data ?: throw (result.error ?: Exception("Entry not found"))
-    }
+    suspend fun getEntry(entryId: String): Result<TripEntry> =
+        cache.withCache("entry:$entryId", TripEntry.serializer()) {
+            runCatching {
+                val result = client.from<TripEntry>("trip_entries")
+                    .select()
+                    .eq("id", entryId)
+                    .single()
+                result.data ?: throw (result.error ?: Exception("Entry not found"))
+            }
+        }
 
     /**
      * Create a new trip.
@@ -104,7 +108,10 @@ class TripRepository @Inject constructor(
         }
 
     /**
-     * List journal entries for a trip.
+     * List journal entries for a trip — newest first (latest posts at the top
+     * of the timeline, matching the web dashboard). Re-sorted after the cache
+     * layer so a stale cache written by an older (ascending) build can't leak
+     * the old order.
      */
     suspend fun listEntries(tripId: String): Result<List<TripEntry>> =
         cache.withCacheList("entries:$tripId", TripEntry.serializer()) {
@@ -112,10 +119,15 @@ class TripRepository @Inject constructor(
                 val result = client.from<TripEntry>("trip_entries")
                     .select()
                     .eq("trip_id", tripId)
-                    .order("entry_date")
+                    .order("entry_date", ascending = false)
+                    .order("created_at", ascending = false)
                     .execute()
                 result.dataOrThrow() ?: emptyList()
             }
+        }.map { entries ->
+            entries.sortedWith(
+                compareByDescending<TripEntry> { it.entryDate }.thenByDescending { it.createdAt },
+            )
         }
 
     /**

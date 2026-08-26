@@ -48,6 +48,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Icon
@@ -107,7 +109,7 @@ data class EditorState(
 )
 
 /** A server-side photo attached to the entry being edited. */
-data class ExistingMedia(val id: String, val url: String)
+data class ExistingMedia(val id: String, val url: String, val storagePath: String = "")
 
 /**
  * Backing for the full-screen journal-entry editor (Polarsteps-style).
@@ -148,6 +150,29 @@ class EntryEditorViewModel @Inject constructor(
     val queuedOffline = MutableStateFlow(false)
 
     private var lastSaved: EntryDraft? = null
+
+    /** Draft-relevant fields only — preview mode, cover picks and server-photo
+     * deletes are not draft content; changing them must NOT conjure a draft
+     * for an otherwise-unchanged published entry. */
+    private data class DraftContent(
+        val title: String,
+        val body: String,
+        val entryDate: String,
+        val photos: List<String>,
+    )
+
+    /** Draft content at load time — persist() only acts on divergence. */
+    private var baseline: DraftContent? = null
+
+    /** The draft row resumed from nav args (never auto-deleted on close). */
+    private val resumedDraftId: String? = draftId
+
+    private fun draftContentOf(state: EditorState) = DraftContent(
+        title = state.title,
+        body = state.body,
+        entryDate = state.entryDate,
+        photos = state.localPhotos,
+    )
 
     init {
         viewModelScope.launch(Dispatchers.IO) { loadInitial() }
@@ -207,7 +232,7 @@ class EntryEditorViewModel @Inject constructor(
                 tripRepo.listMedia(tripId, entryId).getOrNull().orEmpty()
                     .mapNotNull { media ->
                         mediaUploader.resolveDisplayUrl(storagePath = media.storagePath)
-                            ?.let { ExistingMedia(media.id, it) }
+                            ?.let { ExistingMedia(media.id, it, media.storagePath) }
                     },
             )
         }
@@ -225,6 +250,7 @@ class EntryEditorViewModel @Inject constructor(
             loaded = true,
         )
         lastSaved = draft
+        baseline = draftContentOf(_state.value)
     }
 
     fun togglePreview() = update { it.copy(previewMode = !it.previewMode) }
@@ -238,19 +264,43 @@ class EntryEditorViewModel @Inject constructor(
     /** Copies the picked image into app storage so the draft survives restarts. */
     fun addPhoto(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
-                val dir = File(appContext.filesDir, "entry-media").apply { mkdirs() }
-                val file = File(dir, "${UUID.randomUUID()}.jpg")
-                appContext.contentResolver.openInputStream(uri)!!.use { input ->
-                    file.outputStream().use { output -> input.copyTo(output) }
+            runCatching { copyPhotoLocally(uri) }
+                .onSuccess { path ->
+                    update { it.copy(localPhotos = it.localPhotos + path) }
+                }.onFailure {
+                    message.value = "Could not read the selected photo"
                 }
-                file.absolutePath
-            }.onSuccess { path ->
-                update { it.copy(localPhotos = it.localPhotos + path) }
-            }.onFailure {
-                message.value = "Could not read the selected photo"
-            }
         }
+    }
+
+    /**
+     * Adds a photo AND embeds it inline at the end of the story text —
+     * photos can live between paragraphs, not only in the bottom gallery.
+     */
+    fun addPhotoInline(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { copyPhotoLocally(uri) }
+                .onSuccess { path ->
+                    update { state ->
+                        val index = state.localPhotos.size
+                        state.copy(
+                            localPhotos = state.localPhotos + path,
+                            body = InlineMedia.appendDraftImage(state.body, index),
+                        )
+                    }
+                }.onFailure {
+                    message.value = "Could not read the selected photo"
+                }
+        }
+    }
+
+    private fun copyPhotoLocally(uri: Uri): String {
+        val dir = File(appContext.filesDir, "entry-media").apply { mkdirs() }
+        val file = File(dir, "${UUID.randomUUID()}.jpg")
+        appContext.contentResolver.openInputStream(uri)!!.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        }
+        return file.absolutePath
     }
 
     fun removePhoto(path: String) = update { it.copy(localPhotos = it.localPhotos - path) }
@@ -314,9 +364,20 @@ class EntryEditorViewModel @Inject constructor(
         persist()
     }
 
-    /** Debounced draft persistence — one stable draft row per editor session. */
+    /**
+     * Debounced draft persistence — one stable draft row per editor session.
+     * A draft is only written when the draft-relevant content has DIVERGED
+     * from the loaded baseline; reverting back to baseline deletes the draft
+     * row again, so closing an unchanged editor never leaves a phantom
+     * "draft" behind for a published entry.
+     */
     private fun persist() {
         val snapshot = _state.value
+        val base = baseline ?: return
+        if (draftContentOf(snapshot) == base) {
+            deleteSessionDraftIfAny()
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             kotlinx.coroutines.delay(800) // debounce
             if (snapshot !== _state.value && !savingNow()) return@launch // superseded
@@ -335,6 +396,43 @@ class EntryEditorViewModel @Inject constructor(
             }
             lastSaved = draft
         }
+    }
+
+    /**
+     * Remove a draft row created THIS session (not one resumed from args)
+     * when its content matches the baseline. Called from persist() on
+     * revert and from onCleared() so closing an unchanged editor —
+     * including via the system back gesture — leaves no draft behind.
+     */
+    private fun deleteSessionDraftIfAny() {
+        val current = _state.value
+        val id = current.draftId.takeIf { it.isNotBlank() } ?: return
+        if (id == resumedDraftId) return
+        if (current.pendingSyncNotice || sessionDraftPendingSync) return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { draftRepo.delete(id) }
+            if (_state.value.draftId == id) {
+                _state.value = _state.value.copy(draftId = "")
+            }
+        }
+    }
+
+    /** True once save() queued this session's draft for background publish. */
+    @Volatile private var sessionDraftPendingSync = false
+
+    override fun onCleared() {
+        // Closing the editor without net changes (arrow OR system back) must
+        // not leave a phantom draft — viewModelScope is already cancelled by
+        // the time onCleared runs, so this tiny Room delete runs blocking.
+        val state = _state.value
+        val base = baseline
+        val id = state.draftId.takeIf { it.isNotBlank() }
+        if (base != null && draftContentOf(state) == base &&
+            id != null && id != resumedDraftId && !sessionDraftPendingSync
+        ) {
+            runCatching { kotlinx.coroutines.runBlocking { draftRepo.delete(id) } }
+        }
+        super.onCleared()
     }
 
     private fun savingNow() = _state.value.saving
@@ -395,6 +493,7 @@ class EntryEditorViewModel @Inject constructor(
                     )
                 }
                 draftRepo.markPendingSync(draftIdNow)
+                sessionDraftPendingSync = true
                 io.github.nimbleflux.wayli.tracking.EntrySyncWorker.schedule(appContext)
                 queuedOffline.value = true
                 message.value = "No connection — saved as a draft. It will be published automatically when you're back online."
@@ -407,7 +506,19 @@ class EntryEditorViewModel @Inject constructor(
     private suspend fun publishReal(snapshot: EditorState): PublishResult {
         val title = snapshot.title.trim()
         val date = snapshot.entryDate.ifBlank { java.time.LocalDate.now().toString() }
-        val body = snapshot.body.trim().takeIf { it.isNotBlank() }
+
+        // Upload local photos FIRST: the body's wayli-draft: tokens are
+        // rewritten to the final storage paths, so the entry row is written
+        // with its definitive body in one go.
+        val uploadedPaths = mutableListOf<String>()
+        snapshot.localPhotos.forEachIndexed { _, path ->
+            val storagePath = mediaUploader.uploadPhoto(appContext, Uri.fromFile(File(path))).getOrNull()
+                ?: return PublishResult.Failed
+            uploadedPaths += storagePath
+        }
+        val body = InlineMedia.rewriteDraftTokens(snapshot.body.trim()) { index ->
+            uploadedPaths.getOrNull(index)
+        }.takeIf { it.isNotBlank() }
 
         val targetEntryId: String = if (entryId != null) {
             val updated = tripRepo.updateEntry(entryId, title, date, body)
@@ -418,10 +529,8 @@ class EntryEditorViewModel @Inject constructor(
             created.getOrNull()?.id ?: return PublishResult.Failed
         }
 
-        // Upload newly added photos and attach them to the entry.
-        snapshot.localPhotos.forEachIndexed { index, path ->
-            val uploaded = mediaUploader.uploadPhoto(appContext, Uri.fromFile(File(path)))
-            val storagePath = uploaded.getOrNull() ?: return PublishResult.Failed
+        // Attach the uploaded photos as media rows.
+        uploadedPaths.forEachIndexed { index, storagePath ->
             if (tripRepo.createMedia(tripId, targetEntryId, storagePath, index).isFailure) {
                 return PublishResult.Failed
             }
@@ -456,6 +565,34 @@ fun EntryEditorScreen(
     val photoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let(viewModel::addPhoto) }
+
+    // Inline variant — the photo is appended to the story text, not the grid.
+    val inlinePhotoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> uri?.let(viewModel::addPhotoInline) }
+
+    // Destructive photo removals ask first — deleting a server photo also
+    // removes the stored file.
+    var pendingPhotoDelete by remember {
+        androidx.compose.runtime.mutableStateOf<Pair<String, () -> Unit>?>(null)
+    }
+    if (pendingPhotoDelete != null) {
+        val (label, confirm) = pendingPhotoDelete!!
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingPhotoDelete = null },
+            title = { Text("Remove photo?") },
+            text = { Text("$label will be removed${if (state.isEdit) " everywhere" else ""}. This can't be undone.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirm()
+                    pendingPhotoDelete = null
+                }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pendingPhotoDelete = null }) { Text("Cancel") }
+            },
+        )
+    }
 
     LaunchedEffect(savedEntry) {
         if (savedEntry != null) onSaved()
@@ -517,12 +654,26 @@ fun EntryEditorScreen(
         ) {
             if (state.previewMode) {
                 // ---- Preview pane: read-only render (also used for drafts) ----
+                // Tokens resolve to real display URLs (server photos) or local
+                // files (picks not yet uploaded); photos already placed inline
+                // are not repeated in the strip below.
+                val previewBody = remember(state.body, state.existingMedia, state.localPhotos) {
+                    InlineMedia.resolve(
+                        state.body,
+                        resolveMedia = { path -> state.existingMedia.firstOrNull { it.storagePath == path }?.url },
+                        resolveDraft = { index -> state.localPhotos.getOrNull(index)?.let { java.io.File(it).toURI().toString() } },
+                    )
+                }
+                val inlineDraftIndexes = remember(state.body) { InlineMedia.inlineDraftIndexes(state.body) }
+                val inlinePaths = remember(state.body) { InlineMedia.inlineMediaPaths(state.body) }
                 EntryPreviewPane(
                     title = state.title,
-                    body = state.body,
+                    body = previewBody,
                     entryDate = state.entryDate,
-                    photos = state.existingMedia.map { it.url } +
-                        state.localPhotos.map { java.io.File(it) },
+                    photos = state.existingMedia.filterNot { it.storagePath in inlinePaths }.map { it.url } +
+                        state.localPhotos.mapIndexed { i, path -> i to path }
+                            .filterNot { it.first in inlineDraftIndexes }
+                            .map { java.io.File(it.second) },
                 )
                 return@Column
             }
@@ -610,7 +761,32 @@ fun EntryEditorScreen(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp),
                 textStyle = MaterialTheme.typography.bodyLarge,
             )
-            Spacer(Modifier.height(16.dp))
+            // Photos land INLINE at the end of the story (drag the token in
+            // the text to move it); the bottom grid is for the rest.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        inlinePhotoPicker.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                            ),
+                        )
+                    },
+                    enabled = !state.saving,
+                ) {
+                    Icon(
+                        androidx.compose.material.icons.Icons.Filled.AddPhotoAlternate,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    Text("Add photo in text", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
 
             // ---- Photos: grid below the editor. Tap one photo, then
             // another, to swap their positions (reorder). ----
@@ -640,7 +816,9 @@ fun EntryEditorScreen(
                                         model = media.url,
                                         selected = swapFrom == index,
                                         isHero = media.id == state.heroMediaId,
-                                        onRemove = { viewModel.deleteExistingMedia(media.id) },
+                                        onRemove = {
+                                            pendingPhotoDelete = "This photo" to { viewModel.deleteExistingMedia(media.id) }
+                                        },
                                         onSetCover = { viewModel.setCover(media.id) },
                                         onToggleSelect = {
                                             swapFrom = if (swapFrom == index) null else viewModel.toggleSwap(swapFrom, index).let { null }
@@ -652,7 +830,9 @@ fun EntryEditorScreen(
                                     PhotoTile(
                                         model = java.io.File(path),
                                         selected = swapFrom == index,
-                                        onRemove = { viewModel.removePhoto(path) },
+                                        onRemove = {
+                                            pendingPhotoDelete = "This photo" to { viewModel.removePhoto(path) }
+                                        },
                                         onToggleSelect = {
                                             swapFrom = if (swapFrom == index) null else viewModel.toggleSwap(swapFrom, index).let { null }
                                         },
@@ -714,10 +894,10 @@ private fun PhotoTile(
                 .clickable(onClick = onToggleSelect),
         )
         if (isHero) {
-            Text(
-                "★",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+            // Vector icons center optically inside the badge; text glyphs
+            // ("★") sit off-center because of font metrics.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(4.dp)
@@ -725,8 +905,15 @@ private fun PhotoTile(
                         MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                         androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
                     )
-                    .padding(horizontal = 5.dp, vertical = 1.dp),
-            )
+                    .padding(3.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Star,
+                    contentDescription = "Cover photo",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
         }
         if (onSetCover != null) {
             androidx.compose.material3.Surface(
@@ -735,10 +922,15 @@ private fun PhotoTile(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp)
-                    .size(24.dp),
+                    .size(26.dp),
             ) {
-                androidx.compose.material3.IconButton(onClick = onSetCover, modifier = Modifier.size(24.dp)) {
-                    Text("★", style = MaterialTheme.typography.titleSmall)
+                androidx.compose.material3.IconButton(onClick = onSetCover, modifier = Modifier.size(26.dp)) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = "Set as cover",
+                        modifier = Modifier.size(15.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -748,10 +940,15 @@ private fun PhotoTile(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(4.dp)
-                .size(24.dp),
+                .size(26.dp),
         ) {
-            androidx.compose.material3.IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
-                Text("×", style = MaterialTheme.typography.titleMedium)
+            androidx.compose.material3.IconButton(onClick = onRemove, modifier = Modifier.size(26.dp)) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Remove photo",
+                    modifier = Modifier.size(15.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
