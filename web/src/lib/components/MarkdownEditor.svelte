@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import { Bold, Italic, Heading, Link as LinkIcon, Eye, Pencil, ImagePlus, Loader2 } from 'lucide-svelte';
+	import {
+		Bold,
+		Italic,
+		Heading,
+		Link as LinkIcon,
+		Eye,
+		Pencil,
+		ImagePlus,
+		Loader2
+	} from 'lucide-svelte';
 
 	type Props = {
 		value?: string;

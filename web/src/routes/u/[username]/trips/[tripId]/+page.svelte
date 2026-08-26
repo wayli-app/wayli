@@ -515,33 +515,33 @@
 								</div>
 							</div>
 
-						{#if entry.title}
-							<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
-								{entry.title}
-							</h3>
-						{/if}
-						{#if entry.body || media.some((m) => m.entry_id === entry.id)}
-							{@const entryMedia = media.filter((m) => m.entry_id === entry.id)}
-							{@const entryBlockList = effectiveBlocks(
-								{ body: entry.body, blocks: normalizeEntryBlocks(entry.blocks) },
-								entryMedia
-							)}
-							{#if entryBlockList.length > 0}
-								<EntryBlocksView
-									blocks={entryBlockList}
-									mediaById={new Map(
-										entryMedia.map((m) => [
-											m.id,
-											{
-												url: storageRefToUrl(m.thumbnail_path ?? m.storage_path),
-												fullUrl: storageRefToUrl(m.storage_path),
-												caption: m.caption
-											}
-										])
-									)}
-								/>
+							{#if entry.title}
+								<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
+									{entry.title}
+								</h3>
 							{/if}
-						{/if}
+							{#if entry.body || media.some((m) => m.entry_id === entry.id)}
+								{@const entryMedia = media.filter((m) => m.entry_id === entry.id)}
+								{@const entryBlockList = effectiveBlocks(
+									{ body: entry.body, blocks: normalizeEntryBlocks(entry.blocks) },
+									entryMedia
+								)}
+								{#if entryBlockList.length > 0}
+									<EntryBlocksView
+										blocks={entryBlockList}
+										mediaById={new Map(
+											entryMedia.map((m) => [
+												m.id,
+												{
+													url: storageRefToUrl(m.thumbnail_path ?? m.storage_path),
+													fullUrl: storageRefToUrl(m.storage_path),
+													caption: m.caption
+												}
+											])
+										)}
+									/>
+								{/if}
+							{/if}
 
 							<!-- Engagement -->
 							<div class="border-border mt-5 flex items-start gap-3 border-t pt-4">

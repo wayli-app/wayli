@@ -102,7 +102,13 @@ describe('legacyBodyFromBlocks', () => {
 		const body =
 			'Intro.\n\n![photo](wayli-media:entries/p1.jpg)\n\n![photo](wayli-media:entries/p2.jpg)\n\nOutro.';
 		const derived = blocksFromLegacy(body, [M1, M2])!;
-		const projected = legacyBodyFromBlocks(derived.blocks, new Map([[M1.id, M1], [M2.id, M2]]));
+		const projected = legacyBodyFromBlocks(
+			derived.blocks,
+			new Map([
+				[M1.id, M1],
+				[M2.id, M2]
+			])
+		);
 		expect(projected).toBe(body);
 	});
 });
@@ -130,8 +136,20 @@ describe('effectiveBlocks', () => {
 describe('normalizeEntryBlocks', () => {
 	it('accepts valid v1 payloads', () => {
 		expect(
-			normalizeEntryBlocks({ v: 1, blocks: [{ t: 'text', md: 'x' }, { t: 'photos', ids: ['a'] }] })
-		).toEqual({ v: 1, blocks: [{ t: 'text', md: 'x' }, { t: 'photos', ids: ['a'] }] });
+			normalizeEntryBlocks({
+				v: 1,
+				blocks: [
+					{ t: 'text', md: 'x' },
+					{ t: 'photos', ids: ['a'] }
+				]
+			})
+		).toEqual({
+			v: 1,
+			blocks: [
+				{ t: 'text', md: 'x' },
+				{ t: 'photos', ids: ['a'] }
+			]
+		});
 	});
 
 	it('rejects unknown versions and malformed shapes', () => {

@@ -19,7 +19,9 @@
 
 	/** All photos across blocks, in block order — the lightbox sequence. */
 	const flatPhotos = $derived(
-		blocks.flatMap((b) => (b.t === 'photos' ? b.ids : [])).map((id) => ({ id, ...mediaById.get(id) }))
+		blocks
+			.flatMap((b) => (b.t === 'photos' ? b.ids : []))
+			.map((id) => ({ id, ...mediaById.get(id) }))
 	);
 
 	let lightboxId = $state<string | null>(null);

@@ -691,7 +691,10 @@
 		try {
 			const cleaned = cleanEditorBlocks();
 			const mediaMap = new Map<string, BlockMedia>(
-				editorMedia.map((m) => [m.id, { id: m.id, storage_path: m.storage_path, caption: m.caption }])
+				editorMedia.map((m) => [
+					m.id,
+					{ id: m.id, storage_path: m.storage_path, caption: m.caption }
+				])
 			);
 			const body = legacyBodyFromBlocks(cleaned, mediaMap);
 			const blocksPayload = cleaned.length > 0 ? { v: 1 as const, blocks: cleaned } : null;

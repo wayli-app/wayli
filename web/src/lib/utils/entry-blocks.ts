@@ -115,7 +115,7 @@ export function legacyBodyFromBlocks(
 			const tokens = block.ids
 				.map((id) => mediaById.get(id))
 				.filter((m): m is BlockMedia => !!m)
-				.map((m) => mediaToken(m.storage_path, sanitizeCaption(m.caption)))
+				.map((m) => mediaToken(m.storage_path, sanitizeCaption(m.caption)));
 			if (tokens.length > 0) out.push(tokens.join('\n\n'));
 		}
 	}

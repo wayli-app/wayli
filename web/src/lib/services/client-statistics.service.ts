@@ -453,7 +453,8 @@ export class ClientStatisticsService {
 						.map((point) => ({
 							...point,
 							distance: point.distance != null ? point.distance * sampleRate : point.distance,
-							time_spent: point.time_spent != null ? point.time_spent * sampleRate : point.time_spent
+							time_spent:
+								point.time_spent != null ? point.time_spent * sampleRate : point.time_spent
 						}));
 				} else {
 					dataToProcess = batchData;
