@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
+	import { MAP_COLORS } from '$lib/utils/colors';
 	import { feature } from 'topojson-client';
 	import type { Topology } from 'topojson-specification';
 
@@ -208,17 +209,10 @@
 			worldCopyJump: false
 		});
 
-		// Use the same tile layer as the statistics/location-data page (TILE_URLS
-		// with _all tiles). This page previously used no-labels tiles + a GeoJSON
-		// overlay, but the SVG polygon edges produced visible horizontal lines at
-		// low zoom. The _all tiles render coastlines/borders cleanly without SVG
-		// anti-aliasing artifacts.
-		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, {
-				attribution: TILE_URLS[theme].attribution,
-				maxZoom: 5
-			})
-		);
+		// Same basemap as every other map (OpenFreeMap vector style). The
+		// basemap renders coastlines/borders cleanly; the visited-countries
+		// GeoJSON overlay draws on top.
+		cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 
 		try {
 			const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
@@ -235,10 +229,10 @@
 					const isVisited = visitedNumeric.has(numId);
 					if (isVisited) {
 						return {
-							fillColor: '#3b82f6',
+							fillColor: MAP_COLORS.visitedCountry,
 							weight: 0,
 							opacity: 0,
-							color: '#1d4ed8',
+							color: MAP_COLORS.border,
 							fillOpacity: 0.5
 						};
 					}
@@ -252,7 +246,7 @@
 					const isVisited = visitedNumeric.has(numId);
 					if (isVisited) {
 						layer.bindTooltip(
-							`${name}<br><span style="font-size:11px;color:#3b82f6">Visited</span>`,
+							`${name}<br><span style="font-size:11px;color:${MAP_COLORS.visitedCountry}">Visited</span>`,
 							{ sticky: true }
 						);
 					}

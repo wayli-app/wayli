@@ -36,6 +36,7 @@
 	import PlaceAutocomplete from '$lib/components/PlaceAutocomplete.svelte';
 	import { fetchLinkPreview, type LinkPreview } from '$lib/services/link-preview.service';
 	import { translate } from '$lib/i18n';
+	import { PLAN_CATEGORY_COLORS } from '$lib/utils/colors';
 	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
 
 	let t = $derived($translate);
@@ -145,14 +146,15 @@
 	let selectedCoords = $state<{ lat: number; lng: number } | null>(null);
 	let selectedAddress = $state<string | null>(null);
 
+	// Plan item types — icons + labels stay here; colors from shared PLAN_CATEGORY_COLORS.
 	const TYPE_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-		sightseeing: { icon: '📷', color: '#3b82f6', label: 'Sightseeing' },
-		food: { icon: '🍴', color: '#f59e0b', label: 'Food' },
-		activity: { icon: '🎯', color: '#22c55e', label: 'Activity' },
-		transport: { icon: '🚇', color: '#8b5cf6', label: 'Transport' },
-		accommodation: { icon: '🏨', color: '#ec4899', label: 'Stay' },
-		rest: { icon: '☕', color: '#6b7280', label: 'Rest' },
-		shopping: { icon: '🛍️', color: '#14b8a6', label: 'Shopping' }
+		sightseeing: { icon: '📷', color: PLAN_CATEGORY_COLORS.sightseeing, label: 'Sightseeing' },
+		food: { icon: '🍴', color: PLAN_CATEGORY_COLORS.food, label: 'Food' },
+		activity: { icon: '🎯', color: PLAN_CATEGORY_COLORS.activity, label: 'Activity' },
+		transport: { icon: '🚇', color: PLAN_CATEGORY_COLORS.transport, label: 'Transport' },
+		accommodation: { icon: '🏨', color: PLAN_CATEGORY_COLORS.accommodation, label: 'Stay' },
+		rest: { icon: '☕', color: PLAN_CATEGORY_COLORS.rest, label: 'Rest' },
+		shopping: { icon: '🛍️', color: PLAN_CATEGORY_COLORS.shopping, label: 'Shopping' }
 	};
 
 	const numDays = $derived(

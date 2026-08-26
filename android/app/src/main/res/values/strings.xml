@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wayli</string>
+    <string name="shortcut_record">Record</string>
+    <string name="shortcut_record_long">Start recording</string>
+    <string name="shortcut_new_trip">New trip</string>
+    <string name="shortcut_new_trip_long">Create a new trip</string>
+</resources>

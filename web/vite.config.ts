@@ -62,7 +62,15 @@ export default defineConfig(({ mode }) => {
 			chunkSizeWarningLimit: 1000
 		},
 
-		// Optimize dependencies
+		// Optimize dependencies. maplibre-gl must NOT be pre-bundled: it
+		// locates its web worker via `new URL('./maplibre-gl-worker.mjs',
+		// import.meta.url)` relative to the module file, and the optimizer
+		// renames modules in .vite/deps so that URL 404s — the GL map then
+		// stalls silently (no tiles, no error). Excluded here, the dev server
+		// serves the real dist files; map-theme.ts additionally passes an
+		// explicit worker URL (Vite's ?worker&url) to maplibre so the
+		// production build emits the worker file instead of leaving the
+		// relative URL dangling.
 		optimizeDeps: {
 			include: [
 				'svelte',
@@ -70,10 +78,12 @@ export default defineConfig(({ mode }) => {
 				'lucide-svelte',
 				'date-fns',
 				'leaflet',
+				'@maplibre/maplibre-gl-leaflet',
 				'@turf/turf',
 				'qrcode',
 				'zod'
-			]
+			],
+			exclude: ['maplibre-gl']
 		},
 
 		// Server configuration

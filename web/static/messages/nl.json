@@ -96,7 +96,8 @@
 			"travel": "Reis",
 			"explore": "Ontdekken",
 			"feed": "Voer",
-			"friends": "Vrienden"
+			"friends": "Vrienden",
+			"fitness": "Fitness"
 		},
 		"validation": {
 			"fillAllFields": "Vul alle velden in",
@@ -547,7 +548,9 @@
 		"more": "Meer",
 		"distancePerDay": "afstand per dag",
 		"whenYouMoveMost": "Wanneer je het meest beweegt",
-		"speedAxisLabel": "km/u, gekleurd naar dominante wijze"
+		"speedAxisLabel": "km/u, gekleurd naar dominante wijze",
+		"fitnessSessions": "Fitnessactiviteiten",
+		"fitnessInPeriod": "{count} fitnessactiviteiten in beeld"
 	},
 	"connections": {
 		"title": "Verbindingen",
@@ -629,7 +632,9 @@
 		"exportStartFailed": "Kan het exporteren niet starten. Probeer het opnieuw.",
 		"exportStarted": "Het exporteren is gestart: u ontvangt een melding wanneer het gereed is.",
 		"polarstepsDescription": "Importeer ritten, journaalgegevens, GPS-gegevens en foto's uit een Polarsteps-export (.zip)",
-		"subtitle": "Importeer of exporteer uw locatiegegevens"
+		"subtitle": "Importeer of exporteer uw locatiegegevens",
+		"fitDescription": "Garmin FIT-activiteitsbestand van sporthorloges en fietskompeters",
+		"fitBetaRequired": "Schakel de fitnessbèta in via Accountinstellingen om .fit-bestanden te importeren"
 	},
 	"trips": {
 		"title": "Reizen",
@@ -1062,7 +1067,11 @@
 		"samplingSaved": "Bemonsteringsconfiguratie opgeslagen",
 		"samplingTitle": "Automatische gegevensbemonstering",
 		"maxTripExclusionsReached": "Maximaal 10 uitgesloten zones bereikt. Verwijder er één om een ​​andere toe te voegen.",
-		"apiKeyCheckFailed": "Kan de status van de API-sleutel niet verifiëren. Als een sleutel is geconfigureerd, is deze nog steeds in gebruik."
+		"apiKeyCheckFailed": "Kan de status van de API-sleutel niet verifiëren. Als een sleutel is geconfigureerd, is deze nog steeds in gebruik.",
+		"betaFeaturesTitle": "Betafuncties",
+		"betaFeaturesDescription": "Meld je aan voor experimentele functies. Deze kunnen op elk moment veranderen of verdwijnen.",
+		"fitnessBetaName": "Fitness",
+		"fitnessBetaDescription": "Importeer .fit-trainingsbestanden en analyseer je sessies (hartslag, vermogen, cadans)."
 	},
 	"serverAdmin": {
 		"title": "Server beheerder instellingen",
@@ -1863,5 +1872,66 @@
 		"technicalDetails": "Technische details",
 		"webNotSearched": "Zoeken op internet was gepland, maar is niet uitgevoerd",
 		"webSearched": "Op internet gezocht"
+	},
+	"fitness": {
+		"title": "Fitness",
+		"subtitle": "Je geïmporteerde trainingssessies",
+		"betaBadge": "Beta",
+		"emptyTitle": "Nog geen fitnessactiviteiten",
+		"emptyHint": "Importeer een .fit-bestand op de pagina Import/Export om je trainingen hier te zien.",
+		"backToList": "Alle activiteiten",
+		"previous": "Vorige activiteit",
+		"next": "Volgende activiteit",
+		"loading": "Activiteit laden…",
+		"notFound": "Activiteit niet gevonden",
+		"start": "Start",
+		"finish": "Finish",
+		"chart": {
+			"heartRate": "Hartslag (spm)",
+			"power": "Vermogen (W)",
+			"speed": "Snelheid (km/u)",
+			"hint": "Beweeg over de grafieken om waarden te bekijken en het moment op de kaart te vinden",
+			"cadence": "Cadans (rpm)",
+			"time": "Tijd",
+			"distance": "Afstand"
+		},
+		"stats": {
+			"distance": "Afstand",
+			"movingTime": "Beweegtijd",
+			"avgSpeed": "Gem. snelheid",
+			"elevation": "Hoogteverschil",
+			"avgHr": "Gem. hartslag",
+			"maxHr": "Max. hartslag",
+			"avgPower": "Gem. vermogen",
+			"maxPower": "Max. vermogen",
+			"avgCadence": "Gem. cadans",
+			"calories": "Calorieën",
+			"device": "Apparaat",
+			"source": "Bronbestand"
+		},
+		"sport": {
+			"cycling": "Fietsen",
+			"running": "Hardlopen",
+			"walking": "Wandelen",
+			"hiking": "Bergwandelen",
+			"swimming": "Zwemmen",
+			"e_biking": "E-biken",
+			"rowing": "Roeien",
+			"fitness": "Training",
+			"generic": "Activiteit"
+		},
+		"edit": {
+			"rename": "Naam geven / commentaar toevoegen",
+			"delete": "Activiteit verwijderen",
+			"deleteHint": "Verwijdert de activiteit en de metingen. De GPS-punten blijven in je locatiegeschiedenis.",
+			"titleLabel": "Titel",
+			"titlePlaceholder": "bijv. Avondrit langs de Amstel",
+			"commentLabel": "Commentaar",
+			"commentPlaceholder": "Hoe was het? Weer, inspanning, hoogtepunten…",
+			"saved": "Activiteit bijgewerkt",
+			"saveFailed": "Bijwerken van de activiteit mislukt",
+			"deleted": "Activiteit verwijderd",
+			"deleteFailed": "Verwijderen van de activiteit mislukt"
+		}
 	}
 }

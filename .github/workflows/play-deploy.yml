@@ -1,0 +1,134 @@
+name: Play Deploy
+
+# Pushes a released gplay AAB to the Google Play internal testing track,
+# together with the store metadata/screenshots in android/fastlane.
+#
+# Manual by design — nothing ships without a human pressing the button:
+#   1. Cut a release first (Release workflow) so the AAB exists on a tag.
+#   2. Actions → Play Deploy → Run workflow → pick the tag (e.g. v2.5.0-rc.1).
+#   3. This job downloads wayli-<version>-gplay.aab from the GitHub release
+#      and uploads it to the internal track via `fastlane supply`.
+#
+# One-time setup (see android/RELEASING.md):
+#   - The app must already exist in Play Console (the API cannot create it —
+#     upload the first AAB manually once).
+#   - Repo secret PLAY_SERVICE_ACCOUNT_JSON with a service-account key that
+#     has Play Console release access. Without it this workflow skips
+#     gracefully instead of failing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to deploy (e.g. v2.5.0-rc.1)'
+        required: true
+        type: string
+      track:
+        description: 'Play track'
+        required: true
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+        default: internal
+      release_status:
+        description: 'Release status (draft keeps it unreviewed in the track)'
+        required: true
+        type: choice
+        options:
+          - draft
+          - completed
+        default: draft
+
+jobs:
+  deploy:
+    name: Deploy AAB to Play (${{ inputs.track }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check service account secret
+        id: creds
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "PLAY_SERVICE_ACCOUNT_JSON secret is not set — nothing to deploy."
+            echo "Set it up (android/RELEASING.md) and re-run this workflow."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout (fastlane config)
+        if: steps.creds.outputs.available == 'true'
+        uses: actions/checkout@v7
+
+      - name: Download AAB from the release
+        if: steps.creds.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ inputs.tag }}"
+          VERSION="${VERSION#v}"
+          gh release download "${{ inputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "wayli-${VERSION}-gplay.aab" \
+            --dir /tmp/play
+          ls -la /tmp/play
+
+      - name: Set up JDK 21
+        if: steps.creds.outputs.available == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        if: steps.creds.outputs.available == 'true'
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Ruby + fastlane
+        if: steps.creds.outputs.available == 'true'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: false
+
+      - name: Install fastlane
+        if: steps.creds.outputs.available == 'true'
+        run: gem install fastlane --no-document
+
+      - name: Write service account key
+        if: steps.creds.outputs.available == 'true'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/play-service-account.json"
+
+      - name: Upload to Play
+        if: steps.creds.outputs.available == 'true'
+        working-directory: android
+        env:
+          VERSION: ${{ inputs.tag }}
+        run: |
+          VERSION="${VERSION#v}"
+          fastlane supply \
+            --aab "/tmp/play/wayli-${VERSION}-gplay.aab" \
+            --track "${{ inputs.track }}" \
+            --release_status "${{ inputs.release_status }}" \
+            --json_key "$RUNNER_TEMP/play-service-account.json" \
+            --metadata_path fastlane/metadata/android \
+            --skip_upload_images false \
+            --skip_upload_screenshots false \
+            --skip_upload_metadata false
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.creds.outputs.available }}" = "true" ]; then
+            echo "Deployed ${{ inputs.tag }} to the ${{ inputs.track }} track (${{ inputs.release_status }})."
+          else
+            echo "Skipped — PLAY_SERVICE_ACCOUNT_JSON is not configured."
+          fi

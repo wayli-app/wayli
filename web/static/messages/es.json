@@ -96,7 +96,8 @@
 			"travel": "Viajar",
 			"explore": "Explorar",
 			"feed": "Alimentar",
-			"friends": "Amigos"
+			"friends": "Amigos",
+			"fitness": "Fitness"
 		},
 		"validation": {
 			"fillAllFields": "Por favor completa todos los campos",
@@ -547,7 +548,9 @@
 		"more": "Más",
 		"distancePerDay": "distancia por día",
 		"whenYouMoveMost": "Cuándo te mueves más",
-		"speedAxisLabel": "km/h, coloreado por modo dominante"
+		"speedAxisLabel": "km/h, coloreado por modo dominante",
+		"fitnessSessions": "Sesiones de fitness",
+		"fitnessInPeriod": "{count} sesiones de fitness a la vista"
 	},
 	"connections": {
 		"title": "Conexiones",
@@ -629,7 +632,9 @@
 		"exportStartFailed": "No se pudo iniciar la exportación. Por favor inténtalo de nuevo.",
 		"exportStarted": "Exportación iniciada: se le notificará cuando esté lista.",
 		"polarstepsDescription": "Importe viajes, entradas de diario, datos de GPS y fotografías desde una exportación de Polarsteps (.zip)",
-		"subtitle": "Importa o exporta tus datos de ubicación"
+		"subtitle": "Importa o exporta tus datos de ubicación",
+		"fitDescription": "Archivo de actividad Garmin FIT de relojes deportivos y cicloscomputadoras",
+		"fitBetaRequired": "Activa la beta de Fitness en Ajustes de cuenta para importar archivos .fit"
 	},
 	"trips": {
 		"title": "Viajes",
@@ -1062,7 +1067,11 @@
 		"samplingSaved": "Configuración de muestreo guardada",
 		"samplingTitle": "Muestreo automático de datos",
 		"maxTripExclusionsReached": "Se alcanzó el máximo de 10 zonas excluidas. Elimina uno para agregar otro.",
-		"apiKeyCheckFailed": "No se pudo verificar el estado de la clave de API. Si hay una clave configurada, sigue en uso."
+		"apiKeyCheckFailed": "No se pudo verificar el estado de la clave de API. Si hay una clave configurada, sigue en uso.",
+		"betaFeaturesTitle": "Funciones beta",
+		"betaFeaturesDescription": "Actívate funciones experimentales. Pueden cambiar o desaparecer en cualquier momento.",
+		"fitnessBetaName": "Fitness",
+		"fitnessBetaDescription": "Importa archivos de entrenamiento .fit y analiza tus sesiones (frecuencia cardíaca, potencia, cadencia)."
 	},
 	"serverAdmin": {
 		"title": "Configuración del administrador del servidor",
@@ -1863,5 +1872,66 @@
 		"technicalDetails": "Detalles técnicos",
 		"webNotSearched": "Se planeó una búsqueda web pero no se ejecutó",
 		"webSearched": "Busqué en la web"
+	},
+	"fitness": {
+		"title": "Fitness",
+		"subtitle": "Tus sesiones de entrenamiento importadas",
+		"betaBadge": "Beta",
+		"emptyTitle": "Aún no hay sesiones de fitness",
+		"emptyHint": "Importa un archivo .fit en la página de Importar/Exportar para ver tus entrenamientos aquí.",
+		"backToList": "Todas las actividades",
+		"previous": "Actividad anterior",
+		"next": "Actividad siguiente",
+		"loading": "Cargando actividad…",
+		"notFound": "Actividad no encontrada",
+		"start": "Inicio",
+		"finish": "Llegada",
+		"chart": {
+			"heartRate": "Frecuencia cardíaca (ppm)",
+			"power": "Potencia (W)",
+			"speed": "Velocidad (km/h)",
+			"hint": "Pasa el cursor por los gráficos para ver valores y ubicar el momento en el mapa",
+			"cadence": "Cadencia (rpm)",
+			"time": "Tiempo",
+			"distance": "Distancia"
+		},
+		"stats": {
+			"distance": "Distancia",
+			"movingTime": "Tiempo en movimiento",
+			"avgSpeed": "Vel. media",
+			"elevation": "Desnivel positivo",
+			"avgHr": "FC media",
+			"maxHr": "FC máx.",
+			"avgPower": "Potencia media",
+			"maxPower": "Potencia máx.",
+			"avgCadence": "Cadencia media",
+			"calories": "Calorías",
+			"device": "Dispositivo",
+			"source": "Archivo de origen"
+		},
+		"sport": {
+			"cycling": "Ciclismo",
+			"running": "Correr",
+			"walking": "Caminar",
+			"hiking": "Senderismo",
+			"swimming": "Natación",
+			"e_biking": "Bici eléctrica",
+			"rowing": "Remo",
+			"fitness": "Entrenamiento",
+			"generic": "Actividad"
+		},
+		"edit": {
+			"rename": "Renombrar / añadir comentario",
+			"delete": "Eliminar actividad",
+			"deleteHint": "Elimina la actividad y sus métricas. Los puntos GPS permanecen en tu historial.",
+			"titleLabel": "Título",
+			"titlePlaceholder": "p. ej., paseo vespertino por el Amstel",
+			"commentLabel": "Comentario",
+			"commentPlaceholder": "¿Cómo fue? Clima, esfuerzos, momentos…",
+			"saved": "Actividad actualizada",
+			"saveFailed": "Error al actualizar la actividad",
+			"deleted": "Actividad eliminada",
+			"deleteFailed": "Error al eliminar la actividad"
+		}
 	}
 }

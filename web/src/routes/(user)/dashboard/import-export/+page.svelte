@@ -20,6 +20,7 @@
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
 	import { jobCreationService } from '$lib/services/job-creation.service';
 	import { sessionStore } from '$lib/stores/auth';
+	import { isFitnessBetaEnabled, loadFitnessBeta } from '$lib/stores/fitness-beta.svelte';
 
 	let t = $derived($translate);
 
@@ -42,7 +43,7 @@
 	let includeTripsExport = $state(true);
 
 	// ── Format detection ──
-	const FORMAT_BADGES = [
+	const ALL_FORMAT_BADGES = [
 		{ ext: 'GeoJSON', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
 		{ ext: 'GPX', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
 		{
@@ -53,11 +54,26 @@
 			ext: 'OwnTracks',
 			color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'
 		},
-		{ ext: 'Polarsteps', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300' }
+		{
+			ext: 'Polarsteps',
+			color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300'
+		},
+		{
+			ext: 'FIT',
+			color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+		}
 	];
 
-	function detectImportFormat(file: File): string {
+	// FIT import is part of the fitness beta; it only appears when opted in.
+	let fitnessBeta = $state(false);
+	let FORMAT_BADGES = $derived(
+		fitnessBeta ? ALL_FORMAT_BADGES : ALL_FORMAT_BADGES.filter((b) => b.ext !== 'FIT')
+	);
+
+	/** Returns the format id, or null when the file is a .fit but the beta is off. */
+	function detectImportFormat(file: File): string | null {
 		const name = file.name.toLowerCase();
+		if (name.endsWith('.fit')) return fitnessBeta ? 'FIT' : null;
 		if (name.endsWith('.geojson') || name.endsWith('.json')) return 'GeoJSON';
 		if (name.endsWith('.zip')) return 'Polarsteps';
 		if (name.endsWith('.kml')) return 'KML';
@@ -74,8 +90,14 @@
 	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files?.[0]) {
+			const format = detectImportFormat(target.files[0]);
+			if (!format) {
+				target.value = '';
+				toast.error(t('importExport.fitBetaRequired'));
+				return;
+			}
 			selectedFile = target.files[0];
-			importFormat = detectImportFormat(selectedFile);
+			importFormat = format;
 		}
 	}
 
@@ -84,8 +106,13 @@
 		isDragOver = false;
 		const file = event.dataTransfer?.files?.[0];
 		if (file) {
+			const format = detectImportFormat(file);
+			if (!format) {
+				toast.error(t('importExport.fitBetaRequired'));
+				return;
+			}
 			selectedFile = file;
-			importFormat = detectImportFormat(file);
+			importFormat = format;
 		}
 	}
 
@@ -183,6 +210,10 @@
 	}
 
 	onMount(fetchLastSuccessfulImport);
+	onMount(async () => {
+		await loadFitnessBeta();
+		fitnessBeta = isFitnessBetaEnabled();
+	});
 </script>
 
 <svelte:head>
@@ -211,7 +242,9 @@
 			<input
 				type="file"
 				bind:this={fileInputEl}
-				accept=".geojson,.json,.kml,.gpx,.rec,.zip"
+				accept={fitnessBeta
+					? '.geojson,.json,.kml,.gpx,.rec,.zip,.fit'
+					: '.geojson,.json,.kml,.gpx,.rec,.zip'}
 				class="hidden"
 				onchange={handleFileSelect}
 			/>

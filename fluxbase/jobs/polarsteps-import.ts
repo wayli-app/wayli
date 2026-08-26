@@ -374,6 +374,9 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
     }
 
     let firstPhotoUrl: string | null = null;
+    // Set when this step created the entry (vs. attaching to an existing
+    // one) — only then is it safe to write blocks wholesale.
+    let createdEntryHere = false;
 
     for (const step of steps) {
       const entryDate = dateFromUnix(step.start_time);
@@ -416,6 +419,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
           continue;
         }
         entryId = (entryData as any).id;
+        createdEntryHere = true;
         entriesCreated++;
       }
 
@@ -431,6 +435,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
       }
 
       let firstPhotoMediaId: string | null = null;
+      const stepMediaIds: string[] = [];
 
       for (const photoFile of photoFiles) {
         try {
@@ -494,6 +499,7 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
           const mediaId = (mediaData as any).id;
           if (!firstPhotoMediaId) firstPhotoMediaId = mediaId;
           if (!firstPhotoUrl) firstPhotoUrl = publicUrl;
+          stepMediaIds.push(mediaId);
         } catch {
           photosSkipped++;
         }
@@ -509,6 +515,32 @@ async function doImport(fluxbase: FluxbaseClient, fluxbaseService: FluxbaseClien
             .is('cover_media_id', null);
         } catch {
           // non-critical
+        }
+      }
+
+      // Write the block structure for entries created by this import: an
+      // optional text block from the step description + one photo block.
+      // Pre-existing entries are left alone (blocks stays NULL → clients
+      // derive from body + media).
+      if (createdEntryHere) {
+        const stepBlocks: Array<Record<string, unknown>> = [];
+        const description = (step.description || '').trim();
+        if (description) {
+          stepBlocks.push({ t: 'text', md: description });
+        }
+        if (stepMediaIds.length > 0) {
+          stepBlocks.push({ t: 'photos', ids: stepMediaIds });
+        }
+        if (stepBlocks.length > 0) {
+          try {
+            await fluxbase
+              .from('trip_entries')
+              .update({ blocks: { v: 1, blocks: stepBlocks } })
+              .eq('id', entryId)
+              .is('blocks', null);
+          } catch {
+            // non-critical — clients derive from body + media
+          }
         }
       }
     }

@@ -44,9 +44,16 @@
 	} from '$lib/types/transport-detection-reasons';
 	import { formatDateInTimezone, getTimezoneFromOffset } from '$lib/utils/timezone-utils';
 	import { formatLocalDate } from '$lib/utils/utils';
+	import { isFitnessBetaEnabled, loadFitnessBeta } from '$lib/stores/fitness-beta.svelte';
+	import {
+		formatDistance as formatFitnessDistance,
+		formatDuration as formatFitnessDuration,
+		sportTheme,
+		type FitnessActivity
+	} from '$lib/utils/fitness';
 
 	import type { Map as LeafletMap } from 'leaflet';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { SvelteDate } from 'svelte/reactivity';
@@ -357,6 +364,8 @@
 				// Refresh the heat layer too (only renders if the toggle is on).
 				updateHeatmap(rawDataPoints);
 			}
+			// Fitness beta: overlay clickable session tracks for this period
+			drawFitnessSessions();
 		} catch (error) {
 			console.error('❌ Error loading statistics:', error);
 			statisticsError = error instanceof Error ? error.message : 'Unknown error';
@@ -406,6 +415,8 @@
 			if (canProceed) {
 				await loadStatisticsData();
 			}
+			// Fitness beta: refresh the session overlays for the new range
+			void loadFitnessSessions();
 		} finally {
 			isHandlingDateChange = false;
 		}
@@ -791,7 +802,7 @@
 	function clearMapMarkers() {
 		if (!map || !L) return;
 		for (const marker of mapMarkers) {
-			// Remove all event listeners before removing from map
+			// Remove all event listeners before removing from the map
 			if (marker.off) {
 				marker.off();
 			}
@@ -803,7 +814,91 @@
 			map.removeLayer(heatLayer);
 			heatLayer = null;
 		}
+		clearFitnessOverlays();
 		// Note: Exclusion zones are kept when clearing markers, as they're independent
+	}
+
+	// ── Fitness sessions (beta) ───────────────────────────────────────────────
+	// When the user opted in, fitness activities overlapping the selected date
+	// range are drawn as clickable sport-coloured tracks and listed as chips
+	// linking to the fitness dashboard.
+	let fitnessBeta = $state(false);
+	let fitnessSessions = $state<FitnessActivity[]>([]);
+	let fitnessLayers: import('leaflet').Polyline[] = [];
+
+	function clearFitnessOverlays() {
+		if (!map) return;
+		for (const layer of fitnessLayers) map.removeLayer(layer);
+		fitnessLayers = [];
+	}
+
+	function drawFitnessSessions() {
+		if (!map || !L || !fitnessBeta) return;
+		clearFitnessOverlays();
+		for (const session of fitnessSessions) {
+			const theme = sportTheme(session.sport);
+			const line = L.polyline([], {
+				color: theme.stroke,
+				weight: 5,
+				opacity: 0.85,
+				lineCap: 'round'
+			}).addTo(map);
+			line.on('click', () => {
+				window.location.assign(`/dashboard/fitness/${session.id}`);
+			});
+			fitnessLayers.push(line);
+			void loadSessionTrack(session, line);
+		}
+	}
+
+	/** Fetch a session's GPS track (downsampled) into an existing polyline. */
+	async function loadSessionTrack(session: FitnessActivity, line: import('leaflet').Polyline) {
+		try {
+			const from = session.started_at;
+			const to =
+				session.ended_at ?? new Date(new Date(from).getTime() + 24 * 3600 * 1000).toISOString();
+			const { data, error } = await fluxbase
+				.from<Record<string, any>>('tracker_data')
+				.select('recorded_at, location')
+				.gte('recorded_at', from)
+				.lte('recorded_at', to)
+				.order('recorded_at', { ascending: true })
+				.range(0, 999);
+			if (error || !data) return;
+			const latlngs = (data as any[])
+				.map((row) => row.location?.coordinates)
+				.filter(Boolean)
+				.map((coords) => [parseFloat(coords[1]), parseFloat(coords[0])] as [number, number]);
+			if (latlngs.length > 1) line.setLatLngs(latlngs);
+		} catch (err) {
+			console.warn('Failed to load fitness session track:', err);
+		}
+	}
+
+	async function loadFitnessSessions() {
+		if (!fitnessBeta) return;
+		try {
+			const start = appState.filtersStartDate;
+			const end = appState.filtersEndDate;
+			const from = start instanceof Date ? start.toISOString() : null;
+			const to = end instanceof Date ? end.toISOString() : null;
+			let query = fluxbase
+				.from<Record<string, any>>('fitness_activities')
+				.select('*')
+				.order('started_at', { ascending: false })
+				.range(0, 49);
+			if (from) query = query.gte('started_at', from);
+			if (to) query = query.lte('started_at', to);
+			const { data, error } = await query;
+			if (error) {
+				console.warn('Failed to load fitness sessions:', error);
+				return;
+			}
+			fitnessSessions = ((data as any[]) ?? []) as unknown as FitnessActivity[];
+			drawFitnessSessions();
+		} catch (err) {
+			console.warn('Failed to load fitness sessions:', err);
+		}
 	}
 
 	// ── Heat layer ────────────────────────────────────────────────────────────
@@ -855,8 +950,18 @@
 		import('leaflet.heat')
 			.then(() => {
 				if (!map || !L) return;
-				const heatFn = (L as any).heatLayer;
-				if (!heatFn) return;
+				// leaflet.heat's UMD factory attaches L.heatLayer to Leaflet's
+				// CommonJS exports object. Under Vite's ESM interop that object
+				// is `L.default`, not the module namespace — resolve whichever
+				// this build exposes (the namespace worked under older bundlers).
+				const leafletExports = (L as any).default ?? L;
+				const heatFn = leafletExports.heatLayer;
+				if (!heatFn) {
+					// Should not happen, but a silent bail here makes a dead
+					// Heatmap toggle impossible to debug from the outside.
+					console.warn('L.heatLayer missing after leaflet.heat import');
+					return;
+				}
 				heatLayer = heatFn(heatPoints, {
 					radius: 25,
 					blur: 18,
@@ -1370,6 +1475,18 @@
 				calendarLoading = false;
 			}
 		})();
+
+		// Fire-and-forget: fitness beta opt-in flag, then session overlays for
+		// the current date range (drawn on top of the regular data points).
+		(async () => {
+			try {
+				await loadFitnessBeta();
+				fitnessBeta = isFitnessBetaEnabled();
+				await loadFitnessSessions();
+			} catch {
+				/* non-fatal */
+			}
+		})();
 	});
 
 	// Manual calendar refresh: submits the refresh-daily-activity job, waits for
@@ -1504,8 +1621,7 @@
 			map = L.map(mapContainer, {
 				center: [20, 0],
 				zoom: 2,
-				zoomControl: true,
-				attributionControl: false
+				zoomControl: true
 			});
 
 			mapInvalidateTimeout = setTimeout(() => {
@@ -1514,12 +1630,8 @@
 				}
 			}, 200);
 
-			// Theme-aware tile layer via shared utility — consistent with all other maps
-			cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-				L.tileLayer(TILE_URLS[theme].url, {
-					attribution: TILE_URLS[theme].attribution
-				})
-			);
+			// Theme-aware basemap via shared utility — consistent with all other maps
+			cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 
 			// Shift-drag box selection: adds every segment with a point inside
 			// the drawn rectangle to the selection. Shift-clicking a marker still
@@ -1939,6 +2051,40 @@
 			</div>
 		{/if}
 	</div>
+	<!-- Fitness sessions (beta): quick links to workouts in this date range -->
+	{#if fitnessBeta && fitnessSessions.length > 0}
+		<div class="bg-card border-border mb-8 rounded-xl border p-4">
+			<div class="mb-2 flex items-center gap-2">
+				<Activity class="{sportTheme(fitnessSessions[0].sport).text} h-4 w-4" />
+				<h3 class="text-foreground text-sm font-semibold">
+					{t('statistics.fitnessInPeriod', { count: fitnessSessions.length })}
+				</h3>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				{#each fitnessSessions as session (session.id)}
+					{@const theme = sportTheme(session.sport)}
+					<a
+						href="/dashboard/fitness/{session.id}"
+						class="border-border hover:border-primary/50 flex items-center gap-2 rounded-full border py-1 pr-3 pl-1.5 text-xs font-medium transition-colors"
+					>
+						<span class="h-2.5 w-2.5 rounded-full" style="background: {theme.stroke}"></span>
+						<span>{t(theme.labelKey)}</span>
+						<span class="text-muted-foreground">
+							{new Date(session.started_at).toLocaleDateString(undefined, {
+								day: 'numeric',
+								month: 'short'
+							})}
+						</span>
+						<span class="text-muted-foreground tabular-nums">
+							{formatFitnessDistance(session.total_distance_m)} · {formatFitnessDuration(
+								session.moving_time_s ?? session.elapsed_time_s
+							)}
+						</span>
+					</a>
+				{/each}
+			</div>
+		</div>
+	{/if}
 	<!-- Loading State -->
 	{#if statisticsLoading}
 		<div class="mb-8 grid gap-6 md:grid-cols-2 lg:grid-cols-4">

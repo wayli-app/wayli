@@ -55,6 +55,26 @@ Cross-schema triggers (e.g. on `jobs.queue`) are **not** managed here —
 Fluxbase-owned. Keep such trigger *functions* in `public.sql` if they're useful,
 but don't expect the declarative sync to attach triggers to platform tables.
 
+## One-off backfills
+
+Additive schema changes land in `public.sql`, but **data backfills** for
+existing rows ship as standalone scripts in this directory
+(e.g. [`backfill-entry-blocks.sql`](backfill-entry-blocks.sql)). They are
+idempotent and are run manually once per environment after the schema sync
+that accompanies them:
+
+```bash
+# docker-compose deployments
+docker exec -i fluxbase-postgres psql -U fluxbase -d fluxbase \
+  < fluxbase/schema/backfill-entry-blocks.sql
+
+# kubernetes deployments
+kubectl exec -i deploy/wayli-fluxbase-postgres -- \
+  psql -U fluxbase -d fluxbase < fluxbase/schema/backfill-entry-blocks.sql
+```
+
+Fresh installs don't need backfills (no pre-existing rows).
+
 ## Regenerating the baseline
 
 `public.sql` was produced from a live database dump so the initial sync was a

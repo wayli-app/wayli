@@ -16,15 +16,31 @@
 	import { getTripsService } from '$lib/services/service-layer-adapter';
 	import { aiDrawer, type PlanSuggestion } from '$lib/stores/ai-drawer';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { storageRefToUrl } from '$lib/utils/inline-media';
+	import {
+		effectiveBlocks,
+		legacyBodyFromBlocks,
+		normalizeEntryBlocks,
+		type BlockMedia
+	} from '$lib/utils/entry-blocks';
+	import type { EntryBlock, EntryBlocks } from '$lib/types/journal.types';
 	import { compressImage } from '$lib/utils/image-compress';
-	import { uploadMedia } from '$lib/services/trip-media.service';
+	import {
+		uploadMedia,
+		createMedia,
+		deleteMedia as deleteMediaRow,
+		listMedia,
+		reorderMedia,
+		attachMediaToEntry
+	} from '$lib/services/trip-media.service';
 	import TripMap from '$lib/components/TripMap.svelte';
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
-	import PhotoGallery from '$lib/components/PhotoGallery.svelte';
-	import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
+	import EntryBlockEditor from '$lib/components/EntryBlockEditor.svelte';
+	import EntryBlocksView from '$lib/components/EntryBlocksView.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import TripGenerationModal from '$lib/components/modals/TripGenerationModal.svelte';
+	import ConfirmationModal from '$lib/components/modals/ConfirmationModal.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import WorldMap from '$lib/components/WorldMap.svelte';
 	import {
@@ -80,6 +96,7 @@
 		user_id: string;
 		title: string;
 		body: string;
+		blocks?: EntryBlocks | null;
 		entry_date: string;
 		end_date?: string | null;
 		status?: string;
@@ -121,11 +138,21 @@
 	let editingEntry = $state<JournalEntry | null>(null);
 	let editorTripId = $state('');
 	let editorTitle = $state('');
-	let editorBody = $state('');
+	/** Block list — the source of truth while editing. */
+	let editorBlocks = $state<EntryBlock[]>([]);
+	/** Media rows relevant to the editor entry (drives projection + thumbs). */
+	let editorMedia = $state<import('$lib/types/media.types').TripMedia[]>([]);
+	/** Cover pick for entries that don't exist yet (persisted on save). */
+	let editorCoverId = $state<string | null>(null);
 	let editorDate = $state('');
 	let editorStatus = $state<'published' | 'draft'>('published');
 	let editorEndDate = $state('');
 	let isSaving = $state(false);
+	/** Media uploaded while composing a NEW entry (entry_id still null) —
+	 * attached to the entry once it is saved. */
+	let editorInlineMediaIds = $state<string[]>([]);
+	/** Read-view media, lazily loaded per expanded trip (like gpsCache). */
+	let mediaCache = $state<Map<string, import('$lib/types/media.types').TripMedia[]>>(new Map());
 
 	// ── New trip modal state ──
 	let showTripModal = $state(false);
@@ -433,11 +460,47 @@
 		} else {
 			next.add(tripId);
 			activeTripId = tripId;
-			// Lazily fetch this trip's GPS track now that it's expanded.
+			// Lazily fetch this trip's GPS track + media now that it's expanded.
 			loadTripGps(tripId);
+			loadTripMedia(tripId);
 		}
 		expandedTrips = next;
 		setTimeout(() => setupObserver(), 50);
+	}
+
+	async function loadTripMedia(tripId: string) {
+		if (mediaCache.has(tripId)) return;
+		try {
+			const rows = await listMedia(tripId);
+			mediaCache.set(tripId, rows);
+			mediaCache = new Map(mediaCache); // trigger reactivity
+		} catch (err) {
+			console.error('Failed to load trip media:', err);
+		}
+	}
+
+	/** The entry's media rows for block derivation (BlockMedia compatible). */
+	function mediaForEntry(tripId: string, entryId: string): BlockMedia[] {
+		return (mediaCache.get(tripId) ?? []).filter((m) => m.entry_id === entryId);
+	}
+
+	/** Resolved display URLs for EntryBlocksView. */
+	function viewMediaMap(
+		list: BlockMedia[] | import('$lib/types/media.types').TripMedia[]
+	): Map<string, { url: string; fullUrl?: string; caption?: string | null }> {
+		return new Map(
+			list.map((m) => {
+				const full = m as import('$lib/types/media.types').TripMedia;
+				return [
+					m.id,
+					{
+						url: storageRefToUrl(full.thumbnail_path ?? m.storage_path),
+						fullUrl: storageRefToUrl(m.storage_path),
+						caption: m.caption ?? null
+					}
+				];
+			})
+		);
 	}
 
 	let isGenerating = $state(false);
@@ -515,22 +578,110 @@
 		editingEntry = null;
 		editorTripId = tripId;
 		editorTitle = '';
-		editorBody = '';
+		editorBlocks = [{ t: 'text', md: '' }];
+		editorMedia = [];
+		editorCoverId = null;
 		editorDate = new Date().toISOString().slice(0, 10);
 		editorEndDate = '';
 		editorStatus = 'published';
+		editorInlineMediaIds = [];
 		showEditor = true;
 	}
 
-	function openEditEditor(entry: JournalEntry) {
+	async function openEditEditor(entry: JournalEntry) {
 		editingEntry = entry;
 		editorTripId = entry.trip_id;
 		editorTitle = entry.title;
-		editorBody = entry.body;
 		editorDate = entry.entry_date?.slice(0, 10) ?? '';
 		editorEndDate = entry.end_date?.slice(0, 10) ?? '';
 		editorStatus = (entry.status as 'published' | 'draft') ?? 'published';
+		editorCoverId = entry.cover_media_id ?? null;
+		editorInlineMediaIds = [];
+		try {
+			editorMedia = (await listMedia(entry.trip_id)).filter((m) => m.entry_id === entry.id);
+		} catch (err) {
+			console.error('Failed to load entry media:', err);
+			editorMedia = [];
+		}
+		const effective = effectiveBlocks(
+			{ body: entry.body, blocks: normalizeEntryBlocks(entry.blocks) },
+			editorMedia
+		);
+		editorBlocks = effective.map((b) => ({ ...b }));
+		if (editorBlocks.length === 0) editorBlocks = [{ t: 'text', md: '' }];
 		showEditor = true;
+	}
+
+	/**
+	 * Upload picked photos for the editor. Existing entries link the media
+	 * rows immediately; new entries attach theirs when the entry is saved.
+	 * Resolves with the created media ids (appended as a photo block).
+	 */
+	async function handleAddPhotos(files: File[]): Promise<string[]> {
+		if (!$userStore?.id || !editorTripId) throw new Error('No trip selected');
+		const createdIds: string[] = [];
+		for (const file of files) {
+			const { full, thumbnail } = await compressImage(file);
+			const timestamp = Date.now();
+			const fullPath = await uploadMedia(
+				$userStore.id,
+				editorTripId,
+				full.blob,
+				`${timestamp}-${file.name}`
+			);
+			const thumbPath = await uploadMedia(
+				$userStore.id,
+				editorTripId,
+				thumbnail.blob,
+				`${timestamp}-thumb-${file.name}`
+			);
+			const created = await createMedia({
+				user_id: $userStore.id,
+				trip_id: editorTripId,
+				entry_id: editingEntry?.id ?? undefined,
+				storage_path: fullPath,
+				thumbnail_path: thumbPath,
+				width: full.width,
+				height: full.height,
+				taken_at: full.takenAt ?? undefined,
+				exif: full.exif ?? undefined
+			});
+			if (!editingEntry) editorInlineMediaIds = [...editorInlineMediaIds, created.id];
+			editorMedia = [...editorMedia, created];
+			createdIds.push(created.id);
+		}
+		return createdIds;
+	}
+
+	/** Delete a media row removed from a photo block (after inline confirm). */
+	async function handleEditorDeletePhoto(mediaId: string): Promise<void> {
+		const row = editorMedia.find((m) => m.id === mediaId);
+		editorMedia = editorMedia.filter((m) => m.id !== mediaId);
+		editorInlineMediaIds = editorInlineMediaIds.filter((id) => id !== mediaId);
+		if (editorCoverId === mediaId) editorCoverId = null;
+		if (row) {
+			await deleteMediaRow(row);
+			const cached = mediaCache.get(row.trip_id);
+			if (cached) {
+				mediaCache.set(
+					row.trip_id,
+					cached.filter((m) => m.id !== mediaId)
+				);
+			}
+		}
+	}
+
+	function handleEditorSetCover(mediaId: string) {
+		editorCoverId = mediaId;
+		handleSetCover(mediaId);
+	}
+
+	/** Drop blank text blocks and empty photo blocks before saving. */
+	function cleanEditorBlocks(): EntryBlock[] {
+		return editorBlocks
+			.map((b) => (b.t === 'text' ? { t: 'text' as const, md: b.md.trim() } : b))
+			.filter((b) => b.t === 'photos' || b.md !== '')
+			.filter((b) => b.t === 'text' || b.ids.length > 0);
 	}
 
 	async function saveEntry(status?: 'published' | 'draft') {
@@ -538,25 +689,49 @@
 		if (!$userStore?.id || !editorTripId || !editorDate) return;
 		isSaving = true;
 		try {
+			const cleaned = cleanEditorBlocks();
+			const mediaMap = new Map<string, BlockMedia>(
+				editorMedia.map((m) => [m.id, { id: m.id, storage_path: m.storage_path, caption: m.caption }])
+			);
+			const body = legacyBodyFromBlocks(cleaned, mediaMap);
+			const blocksPayload = cleaned.length > 0 ? { v: 1 as const, blocks: cleaned } : null;
 			if (editingEntry) {
 				const updated = await updateEntry(editingEntry.id, {
 					title: editorTitle,
-					body: editorBody,
+					body,
+					blocks: blocksPayload,
 					entry_date: editorDate,
 					end_date: editorEndDate || null,
 					status: saveAs
 				});
 				entries = entries.map((e) => (e.id === updated.id ? { ...e, ...updated } : e));
 			} else {
-				await createEntry($userStore.id, {
+				const created = await createEntry($userStore.id, {
 					trip_id: editorTripId,
 					title: editorTitle,
-					body: editorBody,
+					body,
+					blocks: blocksPayload,
 					entry_date: editorDate,
 					end_date: editorEndDate || null,
-					status: saveAs
+					status: saveAs,
+					cover_media_id: editorCoverId
 				} as any);
+				// Photos placed before the entry existed — link them now.
+				await attachMediaToEntry(created.id, editorInlineMediaIds);
+				editorInlineMediaIds = [];
 				await loadEntries();
+			}
+			// Keep trip_media.sort_order aligned with the block order so legacy
+			// cover-from-first-media fallbacks match the visual order.
+			const orderedIds: string[] = [];
+			for (const b of cleaned) if (b.t === 'photos') orderedIds.push(...b.ids);
+			const orderedRows = editorMedia
+				.filter((m) => orderedIds.includes(m.id))
+				.sort((a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id));
+			if (orderedRows.length > 0) {
+				await reorderMedia(orderedRows).catch(() => {});
+				const tripId = orderedRows[0].trip_id;
+				mediaCache.delete(tripId);
 			}
 			showEditor = false;
 			setTimeout(() => setupObserver(), 100);
@@ -568,8 +743,18 @@
 		}
 	}
 
+	// ── Destructive actions ask through the styled modal, not window.confirm ──
+	let pendingDeleteEntry = $state<JournalEntry | null>(null);
+	let pendingDeleteTripId = $state<string | null>(null);
+
 	async function handleDeleteEntry(entry: JournalEntry) {
-		if (!confirm(t('travel.confirmDeleteEntry'))) return;
+		pendingDeleteEntry = entry;
+	}
+
+	async function confirmDeleteEntry() {
+		const entry = pendingDeleteEntry;
+		pendingDeleteEntry = null;
+		if (!entry) return;
 		try {
 			await deleteEntry(entry.id);
 			entries = entries.filter((e) => e.id !== entry.id);
@@ -923,7 +1108,13 @@
 	}
 
 	async function deleteTrip(tripId: string) {
-		if (!confirm(t('travel.confirmDeleteTrip'))) return;
+		pendingDeleteTripId = tripId;
+	}
+
+	async function confirmDeleteTrip() {
+		const tripId = pendingDeleteTripId;
+		pendingDeleteTripId = null;
+		if (!tripId) return;
 		try {
 			const tripsService = await getTripsService();
 			await tripsService.deleteTrip(tripId);
@@ -1566,24 +1757,21 @@
 															{/if}
 														</h3>
 													{/if}
-													{#if entry.body}
-														<div
-															class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
-														>
-															<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-															{@html renderMarkdown(entry.body)}
-														</div>
+													{#if mediaForEntry(trip.id, entry.id).length > 0 || entry.body}
+														{@const entryMedia = mediaForEntry(trip.id, entry.id)}
+														{@const effectiveEntryBlocks = effectiveBlocks(
+															{ body: entry.body, blocks: normalizeEntryBlocks(entry.blocks) },
+															entryMedia
+														)}
+														{#if effectiveEntryBlocks.length > 0}
+															<div class="mb-3">
+																<EntryBlocksView
+																	blocks={effectiveEntryBlocks}
+																	mediaById={viewMediaMap(entryMedia)}
+																/>
+															</div>
+														{/if}
 													{/if}
-
-													<!-- Photos -->
-													<div class="mt-3">
-														<PhotoGallery
-															tripId={trip.id}
-															entryId={entry.id}
-															coverMediaId={entry.cover_media_id}
-															onCoverChange={handleSetCover}
-														/>
-													</div>
 
 													<!-- Engagement -->
 													<div class="border-border mt-3 flex items-start gap-3 border-t pt-2">
@@ -1627,6 +1815,32 @@
 					</div>
 				{/if}
 
+				<!-- Delete confirmations (styled modal, not window.confirm) -->
+				<ConfirmationModal
+					open={pendingDeleteEntry !== null}
+					title={t('travel.confirmDeleteEntry')}
+					message={t('trips.deleteConfirmation', {
+						title: pendingDeleteEntry?.title || pendingDeleteEntry?.trip_title || ''
+					})}
+					confirmText={t('common.actions.delete')}
+					cancelText={t('common.actions.cancel')}
+					variant="danger"
+					onConfirm={confirmDeleteEntry}
+					onCancel={() => (pendingDeleteEntry = null)}
+				/>
+				<ConfirmationModal
+					open={pendingDeleteTripId !== null}
+					title={t('travel.confirmDeleteTrip')}
+					message={t('trips.deleteConfirmation', {
+						title: trips.find((tr) => tr.id === pendingDeleteTripId)?.title ?? ''
+					})}
+					confirmText={t('common.actions.delete')}
+					cancelText={t('common.actions.cancel')}
+					variant="danger"
+					onConfirm={confirmDeleteTrip}
+					onCancel={() => (pendingDeleteTripId = null)}
+				/>
+
 				<!-- Entry editor modal -->
 				{#if showEditor}
 					<div
@@ -1665,21 +1879,15 @@
 								class="border-border focus:ring-primary w-full rounded-lg border bg-transparent px-3 py-2 text-sm focus:ring-2 focus:outline-none"
 							/>
 
-							<MarkdownEditor bind:value={editorBody} />
-
-							{#if editingEntry}
-								<div class="border-border rounded-lg border p-3">
-									<span class="text-muted-foreground mb-2 block text-xs font-medium"
-										>{t('travel.photos')}</span
-									>
-									<PhotoGallery
-										tripId={editingEntry.trip_id}
-										entryId={editingEntry.id}
-										coverMediaId={editingEntry.cover_media_id}
-										onCoverChange={handleSetCover}
-									/>
-								</div>
-							{/if}
+							<EntryBlockEditor
+								bind:blocks={editorBlocks}
+								mediaById={viewMediaMap(editorMedia)}
+								coverMediaId={editorCoverId}
+								onSetCover={handleEditorSetCover}
+								onAddPhotos={handleAddPhotos}
+								onDeletePhoto={handleEditorDeletePhoto}
+								disabled={isSaving}
+							/>
 
 							<div class="flex justify-end gap-2">
 								<button

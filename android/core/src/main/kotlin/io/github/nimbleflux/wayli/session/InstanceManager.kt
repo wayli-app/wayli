@@ -1,0 +1,62 @@
+package io.github.nimbleflux.wayli.session
+
+import android.content.Context
+import android.content.SharedPreferences
+
+/**
+ * Stores the Wayli instance configuration (URL + anon key) that the user
+ * enters during onboarding. Persists across app restarts via SharedPreferences.
+ *
+ * The anon key is the Fluxbase pre-signed JWT with `role: "anon"` — it's not
+ * a secret (it's embedded in the web app's HTML), but we store it here so the
+ * FluxbaseClient can be reconstructed on app launch.
+ */
+class InstanceManager(context: Context) {
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("wayli-instance", Context.MODE_PRIVATE)
+
+    data class InstanceConfig(
+        val url: String,
+        val anonKey: String,
+        /** User opted to skip TLS validation for this instance (self-signed cert). */
+        val insecureTls: Boolean = false,
+        /** The Wayli web app address the user entered (for share links); null
+         *  when the instance was configured via a bare Fluxbase URL. */
+        val webUrl: String? = null,
+    )
+
+    fun getConfig(): InstanceConfig? {
+        val url = prefs.getString(KEY_URL, null) ?: return null
+        val anonKey = prefs.getString(KEY_ANON_KEY, null) ?: return null
+        return InstanceConfig(
+            url,
+            anonKey,
+            prefs.getBoolean(KEY_INSECURE_TLS, false),
+            prefs.getString(KEY_WEB_URL, null),
+        )
+    }
+
+    fun setConfig(url: String, anonKey: String, insecureTls: Boolean = false, webUrl: String? = null) {
+        // commit() (synchronous): onboarding restarts the process right
+        // after this — apply()'s async write can be lost to the kill.
+        prefs.edit()
+            .putString(KEY_URL, url.trimEnd('/'))
+            .putString(KEY_ANON_KEY, anonKey)
+            .putBoolean(KEY_INSECURE_TLS, insecureTls)
+            .putString(KEY_WEB_URL, webUrl?.trimEnd('/') ?: "")
+            .commit()
+    }
+
+    fun clear() {
+        prefs.edit().clear().commit()
+    }
+
+    val isConfigured: Boolean get() = getConfig() != null
+
+    companion object {
+        private const val KEY_URL = "instance_url"
+        private const val KEY_WEB_URL = "instance_web_url"
+        private const val KEY_ANON_KEY = "instance_anon_key"
+        private const val KEY_INSECURE_TLS = "instance_insecure_tls"
+    }
+}

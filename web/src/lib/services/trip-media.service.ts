@@ -126,9 +126,23 @@ export async function updateMediaCaption(mediaId: string, caption: string): Prom
 export async function reorderMedia(items: TripMedia[]): Promise<void> {
 	for (let i = 0; i < items.length; i++) {
 		const { error } = await fluxbase
-			.from('trip_media')
+			.from<TripMedia>('trip_media')
 			.update({ sort_order: i })
 			.eq('id', items[i].id);
 		if (error) throw new Error(error.message);
 	}
+}
+
+/**
+ * Link media rows to an entry after it exists — photos uploaded inline while
+ * composing a NEW entry are created with entry_id null and attached here once
+ * the entry row is saved.
+ */
+export async function attachMediaToEntry(entryId: string, mediaIds: string[]): Promise<void> {
+	if (mediaIds.length === 0) return;
+	const { error } = await fluxbase
+		.from<TripMedia>('trip_media')
+		.update({ entry_id: entryId })
+		.in('id', mediaIds);
+	if (error) throw new Error(error.message);
 }

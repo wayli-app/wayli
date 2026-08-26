@@ -24,6 +24,7 @@
 	import TwoFactorSetup from '$lib/components/TwoFactorSetup.svelte';
 	import TwoFactorDisable from '$lib/components/TwoFactorDisable.svelte';
 	import LanguageSelector from '$lib/components/ui/language-selector/index.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 	import PannableCover from '$lib/components/PannableCover.svelte';
 	import { translate, changeLocale, currentLocale, type SupportedLocale } from '$lib/i18n';
 	import { ServiceAdapter } from '$lib/services/api/service-adapter';
@@ -31,6 +32,8 @@
 	import { sessionStore, userStore } from '$lib/stores/auth';
 	import { fluxbase } from '$lib/fluxbase';
 	import { readSetting } from '$lib/utils/settings';
+	import { setFitnessBeta } from '$lib/stores/fitness-beta.svelte';
+	import { FlaskConical } from 'lucide-svelte';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -107,6 +110,29 @@
 	let preferredTimezone = $state('');
 	let notificationsEnabled = $state(false);
 	let valhallaEnabled = $state(false);
+	// Fitness beta opt-in; persisted immediately (not via the Save button)
+	// because gated UI depends on it.
+	let fitnessBetaEnabled = $state(false);
+	let fitnessBetaUpdating = $state(false);
+
+	async function handleFitnessBetaToggle() {
+		fitnessBetaUpdating = true;
+		try {
+			await setFitnessBeta(fitnessBetaEnabled);
+			toast.success(
+				fitnessBetaEnabled
+					? `${t('accountSettings.fitnessBetaName')} — ${t('fitness.betaBadge')}`
+					: t('accountSettings.betaFeaturesTitle')
+			);
+		} catch (error) {
+			// Revert the checkbox on failure
+			fitnessBetaEnabled = !fitnessBetaEnabled;
+			console.error('Failed to toggle fitness beta:', error);
+			toast.error(t('accountSettings.betaFeaturesTitle'));
+		} finally {
+			fitnessBetaUpdating = false;
+		}
+	}
 	let profileAvatarUrl = $state('');
 	let avatarFileInput: HTMLInputElement | undefined = $state();
 	let profileCoverUrl = $state('');
@@ -369,6 +395,7 @@
 				preferredUnit = (preferences as any).preferences?.units || 'metric';
 				notificationsEnabled = preferences.notifications_enabled ?? false;
 				valhallaEnabled = (preferences as any).preferences?.use_valhalla_transport === true;
+				fitnessBetaEnabled = (preferences as any).preferences?.beta_features?.fitness === true;
 			}
 
 			// Load user secret metadata via listSecrets (batch — no 404 per key).
@@ -2047,6 +2074,50 @@
 					? t('accountSettings.savingPreferences')
 					: t('accountSettings.savePreferences')}
 			</button>
+		</div>
+
+		<!-- Beta Features -->
+		<div class="border-border dark:border-border dark:bg-card mt-8 rounded-xl border bg-white p-6">
+			<div class="mb-6">
+				<div class="flex items-center gap-2">
+					<FlaskConical class="text-muted-foreground h-5 w-5" />
+					<h2 class="text-foreground text-xl font-semibold">
+						{t('accountSettings.betaFeaturesTitle')}
+					</h2>
+				</div>
+				<p class="dark:text-foreground mt-1 text-sm text-gray-600">
+					{t('accountSettings.betaFeaturesDescription')}
+				</p>
+			</div>
+
+			<div>
+				<div class="flex items-start justify-between gap-4">
+					<div>
+						<span class="text-foreground mb-1.5 block text-sm font-medium">
+							{t('accountSettings.fitnessBetaName')}
+							<span
+								class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+							>
+								{t('fitness.betaBadge')}
+							</span>
+						</span>
+						<p class="text-muted-foreground text-sm">
+							{t('accountSettings.fitnessBetaDescription')}
+						</p>
+					</div>
+					<div class="flex shrink-0 items-center gap-2">
+						{#if fitnessBetaUpdating}
+							<Loader2 class="text-muted-foreground h-4 w-4 animate-spin" />
+						{/if}
+						<Switch
+							bind:checked={fitnessBetaEnabled}
+							onchange={() => handleFitnessBetaToggle()}
+							disabled={fitnessBetaUpdating}
+							label={t('accountSettings.fitnessBetaName')}
+						/>
+					</div>
+				</div>
+			</div>
 		</div>
 
 		<!-- AI Settings - User-level provider configuration is managed via Fluxbase SDK -->

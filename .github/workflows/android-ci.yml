@@ -1,0 +1,98 @@
+name: Android CI
+
+# CI quality gate for the Android app. Runs lint + test + build on PRs and pushes
+# that touch android/ files. Uses dorny/paths-filter so only relevant jobs run.
+#
+# Publishing is handled by the main release.yml workflow (publish_android toggle).
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "android/**"
+      - ".github/workflows/android-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      source: ${{ steps.filter.outputs.source }}
+      ci-config: ${{ steps.filter.outputs.ci-config }}
+      any: ${{ steps.filter.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            source:
+              - 'android/app/src/**'
+              - 'android/core/src/**'
+              - 'android/data/src/**'
+              - 'android/gps-engine/src/**'
+              - 'android/sensors/src/**'
+              - 'android/**/build.gradle.kts'
+              - 'android/gradle/**'
+            ci-config:
+              - '.github/workflows/android-ci.yml'
+            any:
+              - 'android/**'
+              - '.github/workflows/android-ci.yml'
+
+  build:
+    name: Build & Test
+    needs: changes
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.source == 'true' ||
+      needs.changes.outputs.ci-config == 'true'
+    runs-on: ubuntu-latest
+    env:
+      # fluxbase-kotlin resolves from GitHub Packages; settings.gradle.kts
+      # reads GITHUB_ACTOR/GITHUB_TOKEN from the environment.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        working-directory: android
+        run: ./gradlew test
+
+      - name: Build gplay debug APK
+        working-directory: android
+        run: ./gradlew :app:assembleGplayDebug
+
+      - name: Build foss debug APK
+        working-directory: android
+        run: ./gradlew :app:assembleFossDebug
+
+      - name: Upload APKs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apks
+          path: |
+            android/app/build/outputs/apk/gplay/debug/*.apk
+            android/app/build/outputs/apk/foss/debug/*.apk

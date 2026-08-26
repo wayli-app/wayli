@@ -96,7 +96,8 @@
 			"travel": "Reisen",
 			"explore": "Erkunden",
 			"feed": "Füttern",
-			"friends": "Freunde"
+			"friends": "Freunde",
+			"fitness": "Fitness"
 		},
 		"validation": {
 			"fillAllFields": "Bitte füllen Sie alle Felder aus",
@@ -547,7 +548,9 @@
 		"more": "Mehr",
 		"distancePerDay": "Strecke pro Tag",
 		"whenYouMoveMost": "Wann du dich am meisten bewegst",
-		"speedAxisLabel": "km/h, eingefärbt nach Hauptmodus"
+		"speedAxisLabel": "km/h, eingefärbt nach Hauptmodus",
+		"fitnessSessions": "Fitness-Einheiten",
+		"fitnessInPeriod": "{count} Fitness-Einheiten im Zeitraum"
 	},
 	"connections": {
 		"title": "Verbindungen",
@@ -629,7 +632,9 @@
 		"exportStartFailed": "Der Export konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
 		"exportStarted": "Der Export wurde gestartet – Sie werden benachrichtigt, wenn er fertig ist.",
 		"polarstepsDescription": "Importieren Sie Reisen, Tagebucheinträge, GPS-Daten und Fotos aus einem Polarsteps-Export (.zip)",
-		"subtitle": "Importieren oder exportieren Sie Ihre Standortdaten"
+		"subtitle": "Importieren oder exportieren Sie Ihre Standortdaten",
+		"fitDescription": "Garmin FIT-Aktivitätsdatei von Sportuhren und Fahrradcomputern",
+		"fitBetaRequired": "Aktiviere die Fitness-Beta in den Kontoeinstellungen, um .fit-Dateien zu importieren"
 	},
 	"trips": {
 		"title": "Ausflüge",
@@ -1062,7 +1067,11 @@
 		"samplingSaved": "Sampling-Konfiguration gespeichert",
 		"samplingTitle": "Automatische Datenerfassung",
 		"maxTripExclusionsReached": "Maximal 10 ausgeschlossene Zonen erreicht. Entfernen Sie eines, um ein weiteres hinzuzufügen.",
-		"apiKeyCheckFailed": "API-Schlüssel-Status konnte nicht geprüft werden. Falls ein Schlüssel konfiguriert ist, wird er weiterhin verwendet."
+		"apiKeyCheckFailed": "API-Schlüssel-Status konnte nicht geprüft werden. Falls ein Schlüssel konfiguriert ist, wird er weiterhin verwendet.",
+		"betaFeaturesTitle": "Beta-Funktionen",
+		"betaFeaturesDescription": "Aktiviere experimentelle Funktionen. Diese können sich jederzeit ändern oder entfernt werden.",
+		"fitnessBetaName": "Fitness",
+		"fitnessBetaDescription": "Importiere .fit-Trainingsdateien und analysiere deine Einheiten (Herzfrequenz, Leistung, Trittfrequenz)."
 	},
 	"serverAdmin": {
 		"title": "Serveradministratoreinstellungen",
@@ -1863,5 +1872,66 @@
 		"technicalDetails": "Technische Details",
 		"webNotSearched": "Die Websuche war geplant, wurde aber nicht ausgeführt",
 		"webSearched": "Habe das Internet durchsucht"
+	},
+	"fitness": {
+		"title": "Fitness",
+		"subtitle": "Deine importierten Trainingseinheiten",
+		"betaBadge": "Beta",
+		"emptyTitle": "Noch keine Fitness-Aktivitäten",
+		"emptyHint": "Importiere auf der Seite Import/Export eine .fit-Datei, um deine Workouts hier zu sehen.",
+		"backToList": "Alle Aktivitäten",
+		"previous": "Vorherige Aktivität",
+		"next": "Nächste Aktivität",
+		"loading": "Aktivität wird geladen…",
+		"notFound": "Aktivität nicht gefunden",
+		"start": "Start",
+		"finish": "Ziel",
+		"chart": {
+			"heartRate": "Herzfrequenz (Spm)",
+			"power": "Leistung (W)",
+			"speed": "Geschwindigkeit (km/h)",
+			"hint": "Fahre über die Diagramme, um Werte zu prüfen und den Moment auf der Karte zu finden",
+			"cadence": "Trittfrequenz (rpm)",
+			"time": "Zeit",
+			"distance": "Distanz"
+		},
+		"stats": {
+			"distance": "Distanz",
+			"movingTime": "Bewegungszeit",
+			"avgSpeed": "Ø Tempo",
+			"elevation": "Höhenmeter",
+			"avgHr": "Ø Herzfrequenz",
+			"maxHr": "Max. Herzfrequenz",
+			"avgPower": "Ø Leistung",
+			"maxPower": "Max. Leistung",
+			"avgCadence": "Ø Trittfrequenz",
+			"calories": "Kalorien",
+			"device": "Gerät",
+			"source": "Quelldatei"
+		},
+		"sport": {
+			"cycling": "Radfahren",
+			"running": "Laufen",
+			"walking": "Wandern",
+			"hiking": "Bergwandern",
+			"swimming": "Schwimmen",
+			"e_biking": "E-Biken",
+			"rowing": "Rudern",
+			"fitness": "Workout",
+			"generic": "Aktivität"
+		},
+		"edit": {
+			"rename": "Umbenennen / Kommentar hinzufügen",
+			"delete": "Aktivität löschen",
+			"deleteHint": "Löscht die Aktivität und ihre Messwerte. Die GPS-Punkte bleiben im Standortverlauf.",
+			"titleLabel": "Titel",
+			"titlePlaceholder": "z. B. Abendride an der Amstel",
+			"commentLabel": "Kommentar",
+			"commentPlaceholder": "Wie lief es? Wetter, Anstrengung, Highlights…",
+			"saved": "Aktivität aktualisiert",
+			"saveFailed": "Aktualisieren der Aktivität fehlgeschlagen",
+			"deleted": "Aktivität gelöscht",
+			"deleteFailed": "Löschen der Aktivität fehlgeschlagen"
+		}
 	}
 }

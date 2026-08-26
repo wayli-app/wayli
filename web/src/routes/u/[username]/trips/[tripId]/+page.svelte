@@ -5,10 +5,14 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { loadPublicSettings, getSetting } from '$lib/stores/settings.svelte';
 	import { renderMarkdown } from '$lib/utils/markdown';
+	import { storageRefToUrl } from '$lib/utils/inline-media';
+	import { effectiveBlocks, normalizeEntryBlocks } from '$lib/utils/entry-blocks';
+	import EntryBlocksView from '$lib/components/EntryBlocksView.svelte';
 	import TripMap from '$lib/components/TripMap.svelte';
 	import EntryComments from '$lib/components/EntryComments.svelte';
 	import EntryLikeButton from '$lib/components/EntryLikeButton.svelte';
 	import { fetchTrackPoints } from '$lib/services/gps.service';
+	import { PLAN_CATEGORY_COLORS } from '$lib/utils/colors';
 	import {
 		ArrowLeft,
 		Calendar,
@@ -35,15 +39,8 @@
 		rest: '☕',
 		shopping: '🛍️'
 	};
-	const TYPE_COLORS: Record<string, string> = {
-		sightseeing: '#3b82f6',
-		food: '#f59e0b',
-		activity: '#22c55e',
-		transport: '#8b5cf6',
-		accommodation: '#ec4899',
-		rest: '#6b7280',
-		shopping: '#14b8a6'
-	};
+	// Plan item colors (shared palette from $lib/utils/colors.ts)
+	const TYPE_COLORS = PLAN_CATEGORY_COLORS;
 
 	type Trip = {
 		id: string;
@@ -62,6 +59,7 @@
 		id: string;
 		title: string;
 		body: string;
+		blocks?: unknown;
 		entry_date: string;
 		end_date?: string | null;
 	};
@@ -222,7 +220,7 @@
 			const isOwnerViewer = (trip as any).user_id === currentUserId;
 			const entryQuery = fluxbase
 				.from('trip_entries')
-				.select('id, title, body, entry_date, end_date')
+				.select('id, title, body, blocks, entry_date, end_date')
 				.eq('trip_id', tripId)
 				.order('entry_date', { ascending: true });
 			if (!isOwnerViewer) {
@@ -517,38 +515,33 @@
 								</div>
 							</div>
 
-							{#if entry.title}
-								<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
-									{entry.title}
-								</h3>
+						{#if entry.title}
+							<h3 class="text-foreground mb-3 text-2xl font-bold tracking-tight">
+								{entry.title}
+							</h3>
+						{/if}
+						{#if entry.body || media.some((m) => m.entry_id === entry.id)}
+							{@const entryMedia = media.filter((m) => m.entry_id === entry.id)}
+							{@const entryBlockList = effectiveBlocks(
+								{ body: entry.body, blocks: normalizeEntryBlocks(entry.blocks) },
+								entryMedia
+							)}
+							{#if entryBlockList.length > 0}
+								<EntryBlocksView
+									blocks={entryBlockList}
+									mediaById={new Map(
+										entryMedia.map((m) => [
+											m.id,
+											{
+												url: storageRefToUrl(m.thumbnail_path ?? m.storage_path),
+												fullUrl: storageRefToUrl(m.storage_path),
+												caption: m.caption
+											}
+										])
+									)}
+								/>
 							{/if}
-							{#if entry.body}
-								<div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed">
-									<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-									{@html renderMarkdown(entry.body)}
-								</div>
-							{/if}
-
-							<!-- Per-entry photos -->
-							{#if media.filter((m) => m.entry_id === entry.id).length > 0}
-								<div class="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
-									{#each media.filter((m) => m.entry_id === entry.id) as item (item.id)}
-										<button
-											type="button"
-											onclick={() => (lightbox = item)}
-											class="group/img aspect-square overflow-hidden rounded-xl"
-											aria-label="View photo"
-										>
-											<img
-												src={item.thumbnail_path ?? item.storage_path}
-												alt={item.caption || 'Photo'}
-												class="h-full w-full object-cover transition-transform duration-500 group-hover/img:scale-110"
-												loading="lazy"
-											/>
-										</button>
-									{/each}
-								</div>
-							{/if}
+						{/if}
 
 							<!-- Engagement -->
 							<div class="border-border mt-5 flex items-start gap-3 border-t pt-4">

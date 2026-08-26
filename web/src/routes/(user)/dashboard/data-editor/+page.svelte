@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { slide } from 'svelte/transition';
-	import { watchMapTheme, TILE_URLS } from '$lib/utils/map-theme';
+	import { watchMapTheme, createBasemapLayer } from '$lib/utils/map-theme';
 	import { fluxbase } from '$lib/fluxbase';
 	import {
 		getPoints,
@@ -25,6 +25,7 @@
 	} from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { translate } from '$lib/i18n';
+	import { TRANSPORT_MODE_COLORS } from '$lib/utils/colors';
 	import DateRangePicker from '$lib/components/ui/date-range-picker.svelte';
 
 	type SelectedPoint = DataPoint & { selected: boolean; excluded: boolean };
@@ -73,14 +74,8 @@
 
 	let pointLayers = $state<Map<string, any>>(new Map());
 
-	const COLOR_BY_MODE: Record<string, string> = {
-		walking: '#22c55e',
-		driving: '#3b82f6',
-		cycling: '#f59e0b',
-		flying: '#a855f7',
-		train: '#ec4899',
-		unknown: '#6b7280'
-	};
+	// Transport mode colors (unified palette — uses correct DB keys: car, not driving; airplane, not flying)
+	const COLOR_BY_MODE = TRANSPORT_MODE_COLORS;
 
 	onMount(async () => {
 		const now = new Date();
@@ -217,12 +212,7 @@
 		if (!mapContainer || !L || destroyed) return;
 
 		map = L.map(mapContainer, { scrollWheelZoom: true });
-		cleanupThemeWatcher = watchMapTheme(map, (theme) =>
-			L.tileLayer(TILE_URLS[theme].url, {
-				attribution: TILE_URLS[theme].attribution,
-				maxZoom: 18
-			})
-		);
+		cleanupThemeWatcher = watchMapTheme(map, createBasemapLayer);
 
 		// Ensure the map container is sized before drawing layers —
 		// bringToBack() on layers crashes if the pane DOM isn't ready yet
@@ -345,7 +335,7 @@
 				? '#ef4444'
 				: p.excluded
 					? '#9ca3af'
-					: COLOR_BY_MODE[p.activity_type || 'unknown'] || '#6b7280';
+					: COLOR_BY_MODE[p.activity_type || 'unknown'] || TRANSPORT_MODE_COLORS.unknown;
 			const radius = p.selected ? 6 : 4;
 
 			const icon = L.divIcon({

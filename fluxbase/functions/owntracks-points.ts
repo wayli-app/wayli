@@ -374,52 +374,129 @@ async function reverseGeocodeWithRetry(
   return null;
 }
 
+// SHA-256 hex digest via Web Crypto (Deno runtime)
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * Device-token authentication (preferred).
+ *
+ * The Wayli Android app registers a device token via the create-device-token
+ * RPC: the plaintext (wayli_dt_ + 32 random bytes hex) stays on the device and
+ * only its SHA-256 hash is stored. Submissions carry the plaintext in the
+ * Authorization: Bearer header — never in the URL, where it would leak into
+ * logs. Lookup by hash via index is inherently timing-safe (no plaintext
+ * comparison happens at all).
+ *
+ * Returns the owning user id, or null when the token is unknown, revoked, or
+ * expired.
+ */
+async function authenticateDeviceToken(
+  req: Request,
+  fluxbaseService: FluxbaseClient
+): Promise<string | null> {
+  const authHeader = req.headers.get('authorization') ?? '';
+  const match = /^Bearer\s+(wayli_dt_[0-9a-f]{64})$/i.exec(authHeader.trim());
+  if (!match) return null;
+
+  const tokenHash = await sha256Hex(match[1].toLowerCase());
+  const { data, error } = await fluxbaseService
+    .from('device_tokens')
+    .select('id, user_id, expires_at, revoked_at')
+    .eq('token_hash', tokenHash)
+    .maybeSingle();
+
+  if (error || !data) {
+    logError('Device token lookup failed', 'OWNTRACKS_POINTS', { error });
+    return null;
+  }
+  if (data.revoked_at) {
+    logError('Revoked device token used', 'OWNTRACKS_POINTS', { tokenId: data.id });
+    return null;
+  }
+  if (data.expires_at && new Date(data.expires_at) <= new Date()) {
+    logError('Expired device token used', 'OWNTRACKS_POINTS', { tokenId: data.id });
+    return null;
+  }
+
+  // Fire-and-forget last_used_at bump — a failure here must not fail ingestion.
+  fluxbaseService
+    .from('device_tokens')
+    .update({ last_used_at: new Date().toISOString() })
+    .eq('id', data.id)
+    .then(() => {}, () => {});
+
+  logInfo('Device token authentication successful', 'OWNTRACKS_POINTS', {
+    tokenId: data.id,
+    userId: data.user_id,
+  });
+  return data.user_id as string;
+}
+
 async function handler(
   req: Request,
   _fluxbase: FluxbaseClient,
   fluxbaseService: FluxbaseClient
 ): Promise<Response> {
   try {
-    // This endpoint uses API key authentication instead of JWT
-    // We check for query parameters first to allow OwnTracks devices to connect
-    // without JWT tokens.
-    // Parse query parameters from the URL since req.params may not include them
-    const url = new URL(req.url);
-    const apiKey = url.searchParams.get('api_key');
-    const userId = url.searchParams.get('user_id');
+    // Two authentication paths:
+    //   1. Authorization: Bearer wayli_dt_… (device token — used by the Wayli
+    //      app; the token never appears in the URL).
+    //   2. ?api_key=…&user_id=… (legacy — kept so existing OwnTracks apps and
+    //      previously configured devices keep working).
+    let userId: string | null = null;
+    let authMethod: 'device_token' | 'api_key' = 'api_key';
 
-    if (!userId || !apiKey) {
-      logError('Missing api_key or user_id in query parameters', 'OWNTRACKS_POINTS');
-      return errorResponse(400);
-    }
+    const deviceUserId = await authenticateDeviceToken(req, fluxbaseService);
+    if (deviceUserId) {
+      userId = deviceUserId;
+      authMethod = 'device_token';
+    } else {
+      // Parse query parameters from the URL since req.params may not include them
+      const url = new URL(req.url);
+      const apiKey = url.searchParams.get('api_key');
+      userId = url.searchParams.get('user_id');
 
-    // Validate UUID format for user ID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userId)) {
-      logError('Invalid user ID format', 'OWNTRACKS_POINTS');
-      return errorResponse(400);
-    }
+      if (!userId || !apiKey) {
+        logError('Missing Bearer device token or api_key/user_id query parameters', 'OWNTRACKS_POINTS');
+        return errorResponse(400);
+      }
 
-    // Verify API key by retrieving and decrypting the user's stored secret
-    // This uses the service role client to access the admin API
-    let storedApiKey: string | null = null;
-    try {
-      storedApiKey = await fluxbaseService.admin.settings.app.getUserSecretValue(
-        userId,
-        'owntracks_api_key'
-      );
-    } catch (error) {
-      // Secret not found or decryption failed
-      logError('Failed to retrieve API key', 'OWNTRACKS_POINTS', { userId, error });
-    }
+      // Validate UUID format for user ID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(userId)) {
+        logError('Invalid user ID format', 'OWNTRACKS_POINTS');
+        return errorResponse(400);
+      }
 
-    if (!storedApiKey || storedApiKey !== apiKey) {
-      logError('Invalid API key', 'OWNTRACKS_POINTS', { userId });
-      return errorResponse(401);
+      // Verify API key by retrieving and decrypting the user's stored secret
+      // This uses the service role client to access the admin API
+      let storedApiKey: string | null = null;
+      try {
+        storedApiKey = await fluxbaseService.admin.settings.app.getUserSecretValue(
+          userId,
+          'owntracks_api_key'
+        );
+      } catch (error) {
+        // Secret not found or decryption failed
+        logError('Failed to retrieve API key', 'OWNTRACKS_POINTS', { userId, error });
+      }
+
+      if (!storedApiKey || storedApiKey !== apiKey) {
+        logError('Invalid API key', 'OWNTRACKS_POINTS', { userId });
+        return errorResponse(401);
+      }
+
+      logInfo('API key authentication successful', 'OWNTRACKS_POINTS', { userId });
     }
 
     const user = { id: userId };
-    logInfo('API key authentication successful', 'OWNTRACKS_POINTS', { userId });
+    logInfo('Processing OwnTracks points', 'OWNTRACKS_POINTS', { userId: user.id, authMethod });
 
     // Only allow POST requests (OwnTracks sends location data in POST body)
     if (req.method !== 'POST') {
@@ -544,6 +621,9 @@ async function handler(
           // ponytail: wrap heading into [0,360) — OwnTracks-Android emits cog=360 for due north, which trips the tracker_data_valid_heading CHECK (heading < 360)
           heading: point.cog != null ? ((Number(point.cog) % 360) + 360) % 360 : null,
           battery_level: point.batt != null ? Math.min(100, Math.max(0, Number(point.batt))) : null,
+          // Wayli app extension: activity-recognition hint (still/on_foot/in_vehicle/on_bike).
+          // Ignored by real OwnTracks devices (field absent → null).
+          activity_type: typeof point.act === 'string' ? point.act : null,
           geocode: geocodeData,
           country_code: countryCode,
           tz_diff: tzDiff

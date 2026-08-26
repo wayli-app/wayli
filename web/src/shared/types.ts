@@ -9,6 +9,115 @@
 export interface Database {
 	public: {
 		Tables: {
+			fitness_activities: {
+				Row: {
+					id: string;
+					user_id: string;
+					title: string | null;
+					description: string | null;
+					sport: string | null;
+					sub_sport: string | null;
+					started_at: string;
+					ended_at: string | null;
+					total_distance_m: number | null;
+					elapsed_time_s: number | null;
+					moving_time_s: number | null;
+					avg_heartrate: number | null;
+					max_heartrate: number | null;
+					avg_power: number | null;
+					max_power: number | null;
+					avg_cadence: number | null;
+					calories: number | null;
+					manufacturer: string | null;
+					product: string | null;
+					serial_number: string | null;
+					source_file: string | null;
+					created_at: string | null;
+				};
+				Insert: {
+					id?: string;
+					user_id: string;
+					title?: string;
+					description?: string;
+					sport?: string;
+					sub_sport?: string;
+					started_at: string;
+					ended_at?: string;
+					total_distance_m?: number;
+					elapsed_time_s?: number;
+					moving_time_s?: number;
+					avg_heartrate?: number;
+					max_heartrate?: number;
+					avg_power?: number;
+					max_power?: number;
+					avg_cadence?: number;
+					calories?: number;
+					manufacturer?: string;
+					product?: string;
+					serial_number?: string;
+					source_file?: string;
+					created_at?: string;
+				};
+				Update: {
+					id?: string;
+					user_id?: string;
+					title?: string;
+					description?: string;
+					sport?: string;
+					sub_sport?: string;
+					started_at?: string;
+					ended_at?: string;
+					total_distance_m?: number;
+					elapsed_time_s?: number;
+					moving_time_s?: number;
+					avg_heartrate?: number;
+					max_heartrate?: number;
+					avg_power?: number;
+					max_power?: number;
+					avg_cadence?: number;
+					calories?: number;
+					manufacturer?: string;
+					product?: string;
+					serial_number?: string;
+					source_file?: string;
+					created_at?: string;
+				};
+			};
+			fitness_records: {
+				Row: {
+					activity_id: string;
+					user_id: string;
+					recorded_at: string;
+					heart_rate: number | null;
+					cadence: number | null;
+					power: number | null;
+					temperature: number | null;
+					cumulative_distance_m: number | null;
+					created_at: string | null;
+				};
+				Insert: {
+					activity_id: string;
+					user_id: string;
+					recorded_at: string;
+					heart_rate?: number;
+					cadence?: number;
+					power?: number;
+					temperature?: number;
+					cumulative_distance_m?: number;
+					created_at?: string;
+				};
+				Update: {
+					activity_id?: string;
+					user_id?: string;
+					recorded_at?: string;
+					heart_rate?: number;
+					cadence?: number;
+					power?: number;
+					temperature?: number;
+					cumulative_distance_m?: number;
+					created_at?: string;
+				};
+			};
 			country_name_aliases: {
 				Row: {
 					name: string;

@@ -10,7 +10,8 @@
 		MapPin,
 		Sun,
 		Moon,
-		Menu
+		Menu,
+		Activity
 	} from 'lucide-svelte';
 
 	import { translate } from '$lib/i18n';
@@ -20,6 +21,7 @@
 	import { fluxbase } from '$lib/fluxbase';
 	import { pendingTripCount } from '$lib/stores/trip-suggestions';
 	import { pendingFriendRequestCount } from '$lib/stores/friends.svelte';
+	import { isFitnessBetaEnabled, loadFitnessBeta } from '$lib/stores/fitness-beta.svelte';
 
 	import NotificationsButton from './NotificationsButton.svelte';
 	import UploadProgressButton from './UploadProgressButton.svelte';
@@ -53,16 +55,28 @@
 	let travelVisited = $state(false);
 
 	// Reactive navigation items that update with language changes and AI enabled state
-	let navMain = $derived([
-		{ href: '/dashboard/location-data', label: t('common.navigation.statistics'), icon: MapPin },
-		{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
-		{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
-		{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
-		{ href: '/dashboard/want-to-visit', label: t('common.navigation.wantToVisit'), icon: Star },
-		{ href: '/dashboard/import-export', label: t('common.navigation.importExport'), icon: Import },
-		{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
-		{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database }
-	]);
+	let navMain = $derived(
+		[
+			{ href: '/dashboard/location-data', label: t('common.navigation.statistics'), icon: MapPin },
+			{
+				href: '/dashboard/fitness',
+				label: t('common.navigation.fitness'),
+				icon: Activity,
+				beta: true
+			},
+			{ href: '/dashboard/travel', label: t('common.navigation.travel'), icon: Globe },
+			{ href: '/dashboard/feed', label: t('common.navigation.feed'), icon: Newspaper },
+			{ href: '/dashboard/friends', label: t('common.navigation.friends'), icon: Users },
+			{ href: '/dashboard/want-to-visit', label: t('common.navigation.wantToVisit'), icon: Star },
+			{
+				href: '/dashboard/import-export',
+				label: t('common.navigation.importExport'),
+				icon: Import
+			},
+			{ href: '/dashboard/connections', label: t('common.navigation.connections'), icon: Link },
+			{ href: '/dashboard/data-editor', label: t('common.navigation.dataEditor'), icon: Database }
+		].filter((item) => !(item as { beta?: boolean }).beta || isFitnessBetaEnabled())
+	);
 
 	// Force reactive update after navigation
 	afterNavigate(() => {
@@ -81,6 +95,9 @@
 				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 				currentTheme = prefersDark ? 'dark' : 'light';
 			}
+
+			// Load the fitness beta opt-in flag (gates the Fitness nav entry)
+			void loadFitnessBeta();
 
 			// Read the "has visited Travel page" flag, and keep it in sync
 			// across tabs/windows via storage events (so the badge disappears

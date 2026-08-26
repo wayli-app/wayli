@@ -2,6 +2,7 @@
 // Tests for API validation schemas
 
 import { describe, it, expect } from 'vitest';
+import { MOCK_PASSWORD_OLD, MOCK_PASSWORD_NEW, MOCK_PASSWORD_WEAK } from '../helpers/test-fixtures';
 
 import {
 	paginationSchema,
@@ -472,8 +473,8 @@ describe('API Validation Schemas', () => {
 	describe('changePasswordSchema', () => {
 		it('should validate correct password change data', () => {
 			const validChange = {
-				currentPassword: 'OldPassword123!',
-				newPassword: 'NewPassword123!'
+				currentPassword: MOCK_PASSWORD_OLD,
+				newPassword: MOCK_PASSWORD_NEW
 			};
 
 			const result = changePasswordSchema.safeParse(validChange);
@@ -482,8 +483,8 @@ describe('API Validation Schemas', () => {
 
 		it('should reject short new password', () => {
 			const invalidChange = {
-				currentPassword: 'OldPassword123!',
-				newPassword: 'short'
+				currentPassword: MOCK_PASSWORD_OLD,
+				newPassword: MOCK_PASSWORD_WEAK
 			};
 
 			const result = changePasswordSchema.safeParse(invalidChange);

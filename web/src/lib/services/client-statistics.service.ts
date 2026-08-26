@@ -440,11 +440,21 @@ export class ClientStatisticsService {
 				// Apply client-side sampling if needed
 				let dataToProcess: TrackerDataPoint[];
 				if (sampleRate > 1) {
-					// Sample every Nth point, maintaining global index across batches
-					dataToProcess = batchData.filter((_, index) => {
-						const globalIndex = globalPointIndex + index;
-						return globalIndex % sampleRate === 0;
-					});
+					// Sample every Nth point, maintaining global index across batches.
+					// Each kept point only carries its own slice since the previous
+					// RAW point, so distance/time_spent totals would shrink ~N× —
+					// scale them so aggregates (distance totals, per-country visit
+					// time) stay representative on long ranges.
+					dataToProcess = batchData
+						.filter((_, index) => {
+							const globalIndex = globalPointIndex + index;
+							return globalIndex % sampleRate === 0;
+						})
+						.map((point) => ({
+							...point,
+							distance: point.distance != null ? point.distance * sampleRate : point.distance,
+							time_spent: point.time_spent != null ? point.time_spent * sampleRate : point.time_spent
+						}));
 				} else {
 					dataToProcess = batchData;
 				}

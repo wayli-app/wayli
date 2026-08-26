@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="start-recording"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_record"
+        android:shortcutLongLabel="@string/shortcut_record_long">
+        <intent
+            android:action="io.github.nimbleflux.wayli.RECORD"
+            android:targetPackage="com.nimbleflux.wayli"
+            android:targetClass="io.github.nimbleflux.wayli.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="new-trip"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_new_trip"
+        android:shortcutLongLabel="@string/shortcut_new_trip_long">
+        <intent
+            android:action="io.github.nimbleflux.wayli.NEW_TRIP"
+            android:targetPackage="com.nimbleflux.wayli"
+            android:targetClass="io.github.nimbleflux.wayli.MainActivity" />
+    </shortcut>
+</shortcuts>

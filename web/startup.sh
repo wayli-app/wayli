@@ -52,6 +52,14 @@ configure_nginx() {
         fi
     done
 
+    # wayli-app.json is the instance manifest the Android app discovers its
+    # Fluxbase backend through (same placeholders as the HTML).
+    if [ -f wayli-app.json ]; then
+        echo "   Processing wayli-app.json..."
+        sed -i "s|{{FLUXBASE_PUBLIC_BASE_URL}}|${FLUXBASE_PUBLIC_BASE_URL}|g" wayli-app.json
+        sed -i "s|{{FLUXBASE_ANON_KEY}}|${PUBLIC_FLUXBASE_ANON_KEY:-$FLUXBASE_ANON_KEY}|g" wayli-app.json
+    fi
+
     echo "Nginx configuration complete"
 }
 

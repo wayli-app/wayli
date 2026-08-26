@@ -627,6 +627,196 @@ CREATE POLICY "Users can update their own tracker data" ON tracker_data FOR UPDA
 CREATE POLICY "Users can view their own tracker data" ON tracker_data FOR SELECT TO authenticated USING (auth.uid() = user_id);
 
 --
+-- Name: fitness_activities; Type: TABLE; Schema: -; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS fitness_activities (
+    id uuid DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    title text,
+    description text,
+    sport text,
+    sub_sport text,
+    started_at timestamptz NOT NULL,
+    ended_at timestamptz,
+    total_distance_m numeric(12,2),
+    elapsed_time_s numeric(12,2),
+    moving_time_s numeric(12,2),
+    avg_heartrate integer,
+    max_heartrate integer,
+    avg_power integer,
+    max_power integer,
+    avg_cadence integer,
+    calories integer,
+    manufacturer text,
+    product text,
+    serial_number text,
+    source_file text,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fitness_activities_pkey PRIMARY KEY (id),
+    CONSTRAINT fitness_activities_user_started_key UNIQUE (user_id, started_at),
+    CONSTRAINT fitness_activities_time_order CHECK (ended_at IS NULL OR ended_at >= started_at),
+    CONSTRAINT fitness_activities_valid_heartrate CHECK (avg_heartrate IS NULL OR avg_heartrate >= 0 AND avg_heartrate <= 255),
+    CONSTRAINT fitness_activities_valid_max_heartrate CHECK (max_heartrate IS NULL OR max_heartrate >= 0 AND max_heartrate <= 255),
+    CONSTRAINT fitness_activities_valid_power CHECK (avg_power IS NULL OR avg_power >= 0 AND avg_power <= 65535),
+    CONSTRAINT fitness_activities_valid_max_power CHECK (max_power IS NULL OR max_power >= 0 AND max_power <= 65535),
+    CONSTRAINT fitness_activities_valid_cadence CHECK (avg_cadence IS NULL OR avg_cadence >= 0 AND avg_cadence <= 255),
+    CONSTRAINT fitness_activities_valid_calories CHECK (calories IS NULL OR calories >= 0),
+    CONSTRAINT fitness_activities_valid_distance CHECK (total_distance_m IS NULL OR total_distance_m >= 0::numeric),
+    CONSTRAINT fitness_activities_valid_elapsed CHECK (elapsed_time_s IS NULL OR elapsed_time_s >= 0::numeric),
+    CONSTRAINT fitness_activities_valid_moving CHECK (moving_time_s IS NULL OR moving_time_s >= 0::numeric)
+);
+
+
+COMMENT ON TABLE fitness_activities IS 'Fitness activity sessions imported from .fit files (beta). GPS points live in tracker_data; this table holds the session summary decoded from the FIT session message.';
+
+
+COMMENT ON COLUMN fitness_activities.title IS 'User-defined activity name; NULL falls back to sport + date in the UI';
+
+
+COMMENT ON COLUMN fitness_activities.description IS 'User-defined comment/notes for the activity';
+
+
+COMMENT ON COLUMN fitness_activities.sport IS 'FIT sport mapped to a lowercase slug (e.g. cycling, running); fitness when unmappable';
+
+
+COMMENT ON COLUMN fitness_activities.sub_sport IS 'FIT sub_sport mapped to a lowercase slug (e.g. road, mountain, gravel)';
+
+
+COMMENT ON COLUMN fitness_activities.total_distance_m IS 'Total distance in meters from the FIT session message';
+
+
+COMMENT ON COLUMN fitness_activities.elapsed_time_s IS 'Total elapsed time in seconds from the FIT session message';
+
+
+COMMENT ON COLUMN fitness_activities.moving_time_s IS 'Timer (moving) time in seconds from the FIT session message';
+
+--
+-- Name: fitness_records; Type: TABLE; Schema: -; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS fitness_records (
+    activity_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    recorded_at timestamptz NOT NULL,
+    heart_rate integer,
+    cadence integer,
+    power integer,
+    temperature integer,
+    cumulative_distance_m numeric(12,2),
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fitness_records_pkey PRIMARY KEY (activity_id, recorded_at),
+    CONSTRAINT fitness_records_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES fitness_activities (id) ON DELETE CASCADE,
+    CONSTRAINT fitness_records_valid_heartrate CHECK (heart_rate IS NULL OR heart_rate >= 0 AND heart_rate <= 255),
+    CONSTRAINT fitness_records_valid_cadence CHECK (cadence IS NULL OR cadence >= 0 AND cadence <= 255),
+    CONSTRAINT fitness_records_valid_power CHECK (power IS NULL OR power >= 0 AND power <= 65535),
+    CONSTRAINT fitness_records_valid_temperature CHECK (temperature IS NULL OR temperature >= -100 AND temperature <= 100),
+    CONSTRAINT fitness_records_valid_distance CHECK (cumulative_distance_m IS NULL OR cumulative_distance_m >= 0::numeric)
+);
+
+
+COMMENT ON TABLE fitness_records IS 'Per-point fitness metrics (heart rate, cadence, power, temperature) for a fitness activity, one row per FIT record. Joins tracker_data by recorded_at within the activity time range.';
+
+
+COMMENT ON COLUMN fitness_records.cumulative_distance_m IS 'Cumulative distance in meters since activity start, as reported by the device';
+
+--
+-- Name: idx_fitness_records_user_recorded; Type: INDEX; Schema: -; Owner: -
+--
+
+CREATE INDEX IF NOT EXISTS idx_fitness_records_user_recorded ON fitness_records (user_id, recorded_at);
+
+--
+-- Name: fitness_activities; Type: RLS; Schema: -; Owner: -
+--
+
+ALTER TABLE fitness_activities ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: Admin users have full access to fitness_activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Admin users have full access to fitness_activities" ON fitness_activities TO authenticated USING ((auth.jwt() ->> 'role') = 'admin') WITH CHECK ((auth.jwt() ->> 'role') = 'admin');
+
+--
+-- Name: Service role has full access to fitness_activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Service role has full access to fitness_activities" ON fitness_activities TO service_role USING (true) WITH CHECK (true);
+
+--
+-- Name: Tenant service full access to fitness_activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Tenant service full access to fitness_activities" ON fitness_activities TO tenant_service USING (true) WITH CHECK (true);
+
+--
+-- Name: Users can delete their own fitness activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can delete their own fitness activities" ON fitness_activities FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+--
+-- Name: Users can insert their own fitness activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can insert their own fitness activities" ON fitness_activities FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+--
+-- Name: Users can update their own fitness activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can update their own fitness activities" ON fitness_activities FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+--
+-- Name: Users can view their own fitness activities; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can view their own fitness activities" ON fitness_activities FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+--
+-- Name: fitness_records; Type: RLS; Schema: -; Owner: -
+--
+
+ALTER TABLE fitness_records ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: Admin users have full access to fitness_records; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Admin users have full access to fitness_records" ON fitness_records TO authenticated USING ((auth.jwt() ->> 'role') = 'admin') WITH CHECK ((auth.jwt() ->> 'role') = 'admin');
+
+--
+-- Name: Service role has full access to fitness_records; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Service role has full access to fitness_records" ON fitness_records TO service_role USING (true) WITH CHECK (true);
+
+--
+-- Name: Tenant service full access to fitness_records; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Tenant service full access to fitness_records" ON fitness_records TO tenant_service USING (true) WITH CHECK (true);
+
+--
+-- Name: Users can delete their own fitness records; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can delete their own fitness records" ON fitness_records FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+--
+-- Name: Users can insert their own fitness records; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can insert their own fitness records" ON fitness_records FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+--
+-- Name: Users can view their own fitness records; Type: POLICY; Schema: -; Owner: -
+--
+
+CREATE POLICY "Users can view their own fitness records" ON fitness_records FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+--
 -- Name: transport_mode_state; Type: TABLE; Schema: -; Owner: -
 --
 
@@ -1577,7 +1767,8 @@ CREATE TABLE IF NOT EXISTS trip_entries (
     cover_media_id uuid,
     cover_focal_x real DEFAULT 0.5,
     cover_focal_y real DEFAULT 0.5,
-    status text DEFAULT 'published',
+    status text DEFAULT 'published'::text,
+    blocks jsonb,
     CONSTRAINT trip_entries_pkey PRIMARY KEY (id),
     CONSTRAINT trip_entries_trip_id_fkey FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE,
     CONSTRAINT trip_entries_status_check CHECK (status IN ('published'::text, 'draft'::text))
@@ -1585,6 +1776,8 @@ CREATE TABLE IF NOT EXISTS trip_entries (
 
 
 COMMENT ON TABLE trip_entries IS 'Dated markdown journal entries within a trip (Polarsteps-style).';
+
+COMMENT ON COLUMN trip_entries.blocks IS 'Ordered content blocks: {"v":1,"blocks":[{"t":"text","md":"…"},{"t":"photos","ids":["<trip_media.id>",…]}]}. Source of truth for entry content; body is the flat markdown projection (inline wayli-media: tokens at photo-block positions) kept for legacy clients, search, and excerpts. NULL = not yet migrated, derive from body + trip_media.';
 
 
 COMMENT ON COLUMN trip_entries.highlight_start IS 'Optional start of the map highlight window. NULL = use entry_date 00:00.';
@@ -4437,10 +4630,127 @@ END;
 $$;
 
 --
+-- Name: wayli_entry_blocks_for_entry(uuid); Type: FUNCTION; Schema: -; Owner: -
+--
+
+-- Derives the block structure for an entry from its legacy representation
+-- (body markdown + trip_media rows). Used by the one-off entry-blocks
+-- backfill; also usable to lazily derive blocks for rows written by legacy
+-- clients. Rules:
+--   * body is split on `![caption](wayli-media:<storage_path>)` tokens;
+--   * runs of tokens separated only by whitespace become ONE photo block;
+--   * token refs are resolved to trip_media.id via exact storage_path match;
+--     unresolvable tokens are kept as literal text (no data loss);
+--   * media rows not referenced inline are appended as a trailing photo
+--     block, ordered by sort_order/created_at;
+--   * returns NULL when there is no content at all (empty body, no media).
+CREATE OR REPLACE FUNCTION wayli_entry_blocks_for_entry(p_entry_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
+DECLARE
+    v_body text;
+    v_parts text[];
+    v_el text;
+    v_ref text;
+    v_media_id uuid;
+    v_remaining uuid[];
+    v_blocks jsonb := '[]'::jsonb;
+    v_text text := '';
+    v_ids jsonb := '[]'::jsonb;
+BEGIN
+    SELECT e.body INTO v_body FROM trip_entries e WHERE e.id = p_entry_id;
+    v_body := coalesce(v_body, '');
+
+    SELECT coalesce(array_agg(m.id ORDER BY m.sort_order NULLS LAST, m.created_at), '{}'::uuid[])
+      INTO v_remaining
+      FROM trip_media m
+     WHERE m.entry_id = p_entry_id;
+
+    -- Postgres regexp_split_to_array drops the delimiter (capture groups are
+    -- NOT included, unlike JS String.split), so wrap each token in chr(1)
+    -- sentinels first and split on those: every token becomes its own element.
+    v_parts := string_to_array(
+        regexp_replace(
+            v_body,
+            '(!\[[^\]]*\]\(wayli-media:[^)\s]+\))',
+            chr(1) || '\1' || chr(1),
+            'g'
+        ),
+        chr(1)
+    );
+
+    FOR i IN 1 .. coalesce(array_length(v_parts, 1), 0) LOOP
+        v_el := v_parts[i];
+        CONTINUE WHEN v_el = '';
+        IF v_el ~ '^!\[' THEN
+            v_ref := (regexp_match(v_el, '\(wayli-media:([^)\s]+)\)'))[1];
+            SELECT m.id INTO v_media_id
+              FROM trip_media m
+             WHERE m.entry_id = p_entry_id AND m.storage_path = v_ref
+             LIMIT 1;
+            IF v_media_id IS NULL THEN
+                -- Unresolvable ref: keep the token as literal text.
+                v_text := v_text || v_el;
+            ELSE
+                v_ids := v_ids || to_jsonb(v_media_id);
+                v_remaining := array_remove(v_remaining, v_media_id);
+            END IF;
+        ELSIF btrim(v_el, E' \t\n\r') = '' THEN
+            -- Whitespace-only run between tokens: keeps the photo group open.
+            v_text := v_text || v_el;
+        ELSE
+            IF jsonb_array_length(v_ids) > 0 THEN
+                v_blocks := v_blocks || jsonb_build_array(jsonb_build_object('t', 'photos', 'ids', v_ids));
+                v_ids := '[]'::jsonb;
+            END IF;
+            v_text := v_text || v_el;
+            IF btrim(v_text, E' \t\n\r') <> '' THEN
+                v_blocks := v_blocks || jsonb_build_array(jsonb_build_object('t', 'text', 'md', btrim(v_text, E' \t\n\r')));
+            END IF;
+            v_text := '';
+        END IF;
+    END LOOP;
+
+    IF jsonb_array_length(v_ids) > 0 THEN
+        v_blocks := v_blocks || jsonb_build_array(jsonb_build_object('t', 'photos', 'ids', v_ids));
+    END IF;
+    IF coalesce(array_length(v_remaining, 1), 0) > 0 THEN
+        v_blocks := v_blocks || jsonb_build_array(jsonb_build_object('t', 'photos', 'ids', to_jsonb(v_remaining)));
+    END IF;
+
+    IF jsonb_array_length(v_blocks) = 0 THEN
+        RETURN NULL;
+    END IF;
+    RETURN jsonb_build_object('v', 1, 'blocks', v_blocks);
+END;
+$$;
+
+COMMENT ON FUNCTION wayli_entry_blocks_for_entry(uuid) IS 'Derives {"v":1,"blocks":[…]} for an entry from legacy body + trip_media. See backfill-entry-blocks.sql.';
+
+
+
+--
 -- Name: validate_tracking_query_limits(integer, integer); Type: FUNCTION; Schema: -; Owner: -
 --
 
 COMMENT ON FUNCTION validate_tracking_query_limits(integer, integer) IS 'Validates query limits to prevent DoS attacks via unbounded queries';
+
+--
+-- Name: fitness_activities_user_id_fkey; Type: CONSTRAINT; Schema: -; Owner: -
+--
+
+ALTER TABLE fitness_activities
+ADD CONSTRAINT fitness_activities_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE;
+
+--
+-- Name: fitness_records_user_id_fkey; Type: CONSTRAINT; Schema: -; Owner: -
+--
+
+ALTER TABLE fitness_records
+ADD CONSTRAINT fitness_records_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE;
 
 --
 -- Name: place_visits_user_id_fkey; Type: CONSTRAINT; Schema: -; Owner: -
@@ -4848,6 +5158,7 @@ CREATE OR REPLACE VIEW my_trip_entries AS
     te.user_id,
     te.title,
     te.body,
+    te.blocks,
     te.entry_date,
     te.end_date,
     te.created_at,
@@ -4960,7 +5271,8 @@ CREATE OR REPLACE VIEW public_trip_entries AS
     t.start_date AS trip_start,
     t.end_date AS trip_end,
     t.visibility AS trip_visibility,
-    e.cover_media_id
+    e.cover_media_id,
+    e.blocks
    FROM trip_entries e
      JOIN trips t ON t.id = e.trip_id
   WHERE e.status = 'published'::text AND (t.user_id = auth.uid() OR t.visibility = 'public'::text OR (EXISTS ( SELECT 1
@@ -5985,6 +6297,18 @@ GRANT EXECUTE ON FUNCTION validate_tracking_query_limits(p_limit integer, p_max_
 GRANT SELECT ON TABLE country_name_aliases TO authenticated;
 
 --
+-- Name: fitness_activities; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE fitness_activities TO authenticated;
+
+--
+-- Name: fitness_records; Type: PRIVILEGE; Schema: privileges; Owner: -
+--
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE fitness_records TO authenticated;
+
+--
 -- Name: place_visits; Type: PRIVILEGE; Schema: privileges; Owner: -
 --
 
@@ -6412,3 +6736,82 @@ GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON
 GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE visible_plan_items TO tenant_service;
 
 
+
+
+--
+-- Name: device_tokens; Type: TABLE; Schema: public
+--
+
+CREATE TABLE IF NOT EXISTS device_tokens (
+    id uuid DEFAULT gen_random_uuid(),
+    user_id uuid NOT NULL,
+    label text NOT NULL DEFAULT 'Android',
+    token_hash text NOT NULL,
+    scopes text[] DEFAULT ARRAY['gps:write']::text[],
+    last_used_at timestamptz,
+    expires_at timestamptz,
+    revoked_at timestamptz,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT device_tokens_pkey PRIMARY KEY (id),
+    CONSTRAINT device_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
+);
+
+
+COMMENT ON TABLE device_tokens IS 'Scoped device tokens for GPS tracker authentication. The Wayli app authenticates point submissions with wayli_dt_ tokens (SHA-256 hash stored, plaintext shown once at creation).';
+
+COMMENT ON COLUMN device_tokens.token_hash IS 'SHA-256 hex digest of the wayli_dt_ token. The plaintext is never stored server-side.';
+
+COMMENT ON COLUMN device_tokens.scopes IS 'Token permission scopes. gps:write allows posting location points only.';
+
+
+--
+-- Name: idx_device_tokens_user_id; Type: INDEX
+--
+
+CREATE INDEX IF NOT EXISTS idx_device_tokens_user_id ON device_tokens (user_id);
+
+
+--
+-- Name: idx_device_tokens_token_hash; Type: INDEX
+--
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_device_tokens_token_hash ON device_tokens (token_hash);
+
+
+--
+-- Row Level Security for device_tokens
+--
+
+ALTER TABLE device_tokens ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "Admin users full access to device_tokens" ON device_tokens TO authenticated USING ((auth.jwt() ->> 'role') = 'admin') WITH CHECK ((auth.jwt() ->> 'role') = 'admin');
+
+
+CREATE POLICY "Service role full access to device_tokens" ON device_tokens TO service_role USING (true) WITH CHECK (true);
+
+
+CREATE POLICY "Tenant service full access to device_tokens" ON device_tokens TO tenant_service USING (true) WITH CHECK (true);
+
+
+CREATE POLICY "Users can view own device_tokens" ON device_tokens FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can create own device_tokens" ON device_tokens FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+
+CREATE POLICY "Users can update own device_tokens" ON device_tokens FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+
+--
+-- Privileges for device_tokens
+--
+
+
+GRANT SELECT ON TABLE device_tokens TO authenticated;
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE device_tokens TO service_role;
+
+GRANT DELETE, INSERT, MAINTAIN, REFERENCES, SELECT, TRIGGER, TRUNCATE, UPDATE ON TABLE device_tokens TO tenant_migration_role;
+
+GRANT DELETE, INSERT, SELECT, UPDATE ON TABLE device_tokens TO tenant_service;

@@ -81,6 +81,11 @@ on:
         required: false
         type: boolean
         default: true
+      publish_android:
+        description: 'Build and publish Android APKs (gplay + foss) to the release'
+        required: false
+        type: boolean
+        default: true
       generate_ai_notes:
         description: 'Generate AI-assisted release notes'
         required: false
@@ -489,25 +494,27 @@ jobs:
 
           git add web/package.json web/bun.lock charts/wayli/Chart.yaml charts/wayli/values.yaml deploy/docker-compose/.env.example
 
-          # Only commit when the version bump actually produced a diff. When the
-          # target version is already in the files (e.g. a re-run, or the version
-          # was already committed), `git commit` fails with "nothing to commit" —
-          # guard against that so the release can proceed to tag/publish.
+          # Always create a release commit, even when the version files are
+          # already at the target version. GITHUB_TOKEN is an App token and may
+          # never introduce workflow-file changes: tagging a commit whose diff
+          # touches .github/workflows/* is rejected even when that commit is
+          # already on the server. A dedicated (possibly empty) release commit
+          # keeps the tag target's diff limited to version files.
           if git diff --staged --quiet; then
             echo "No version-file changes to commit (version already at v${{ env.VERSION }})"
+            git commit --allow-empty -m "chore(release): v${{ env.VERSION }}"
           else
             git commit -m "chore(release): v${{ env.VERSION }}"
-            git push
           fi
+          git push
 
-          # Tag only if it doesn't already exist, so re-runs don't fail on a
-          # duplicate tag. `git tag` errors on an existing tag; `git tag -l`
-          # lets us check first.
-          if [ -n "$(git tag -l v${{ env.VERSION }})" ]; then
+          # Push only this release's tag — `git push --tags` would send every
+          # stray local tag along (and can trip the same App-token check).
+          if [ -n "$(git ls-remote --tags origin "refs/tags/v${{ env.VERSION }}")" ]; then
             echo "Tag v${{ env.VERSION }} already exists - skipping tag/push"
           else
             git tag v${{ env.VERSION }}
-            git push --tags
+            git push origin "refs/tags/v${{ env.VERSION }}"
           fi
 
           echo "Release v${{ env.VERSION }} committed and tagged"
@@ -520,6 +527,125 @@ jobs:
           name: v${{ env.VERSION }}
           prerelease: ${{ env.IS_RC == 'true' }}
           body: ${{ needs.generate-changelog.outputs.body }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================================================
+  # Android App Publishing (gplay + foss APKs, attached to the release)
+  # ==========================================================================
+
+  publish-android:
+    name: Build Android APKs
+    runs-on: ubuntu-latest
+    needs: [get-version, release]
+    if: inputs.dry_run == false && inputs.publish_android
+    env:
+      VERSION: ${{ needs.get-version.outputs.version }}
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: v${{ env.VERSION }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # fluxbase-kotlin resolves from GitHub Packages with the workflow token
+      # (settings.gradle.kts reads GITHUB_ACTOR/GITHUB_TOKEN).
+      - name: Resolve version
+        id: version
+        run: |
+          echo "versionCode=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Decode signing keystore
+        id: keystore
+        env:
+          WAYLI_KEYSTORE_BASE64: ${{ secrets.WAYLI_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$WAYLI_KEYSTORE_BASE64" ]; then
+            echo "$WAYLI_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/wayli-release.keystore"
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "asset_suffix=" >> "$GITHUB_OUTPUT"
+          else
+            echo "No keystore secret found — building UNSIGNED release APKs."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "asset_suffix=-unsigned" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Diagnose signing config
+        if: steps.keystore.outputs.available == 'true'
+        env:
+          WAYLI_KEYSTORE_PASSWORD: ${{ secrets.WAYLI_KEYSTORE_PASSWORD }}
+          WAYLI_KEY_PASSWORD: ${{ secrets.WAYLI_KEY_PASSWORD }}
+          WAYLI_KEY_ALIAS: ${{ secrets.WAYLI_KEY_ALIAS }}
+        run: |
+          KS="$RUNNER_TEMP/wayli-release.keystore"
+          STOREPASS="${WAYLI_KEYSTORE_PASSWORD:-$WAYLI_KEY_PASSWORD}"
+          echo "decoded keystore: $(stat -c%s "$KS") bytes, sha256 $(sha256sum "$KS" | cut -c1-16)…, magic $(head -c4 "$KS" | xxd -p)"
+          echo "store password length as seen by the runner: ${#STOREPASS} (0 = secret missing; expected+1 = trailing newline)"
+          if keytool -list -keystore "$KS" -storepass "$STOREPASS" > /tmp/ks.out 2>&1; then
+            echo "keystore opens with the configured password"
+            if keytool -list -keystore "$KS" -storepass "$STOREPASS" -alias "${WAYLI_KEY_ALIAS:-wayli}" > /dev/null 2>&1; then
+              echo "alias found"
+            else
+              echo "::error::Keystore opens but the configured alias does not exist in it. Entries:"
+              keytool -list -keystore "$KS" -storepass "$STOREPASS" | sed -n '/^[a-zA-Z]/p' | head -5
+              exit 1
+            fi
+          else
+            echo "::error::The configured password does NOT open this keystore. keytool said:"
+            cat /tmp/ks.out
+            echo ""
+            echo "Likely causes, in order of probability:"
+            echo " 1. The password value in the secret differs from the keytool password (typo, keyboard layout). Re-set it by typing fresh."
+            echo " 2. A trailing newline/whitespace was pasted into the secret (see the length above)."
+            echo " 3. WAYLI_KEYSTORE_BASE64 holds a DIFFERENT keystore file than the one this password opens."
+            echo "    Compare locally: sha256sum wayli-release.keystore  — the first 16 hex chars must match the sha256 above."
+            exit 1
+          fi
+
+      - name: Build release APKs + Play AAB
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WAYLI_KEYSTORE_FILE: ${{ steps.keystore.outputs.available == 'true' && format('{0}/wayli-release.keystore', runner.temp) || '' }}
+          WAYLI_KEYSTORE_PASSWORD: ${{ secrets.WAYLI_KEYSTORE_PASSWORD }}
+          WAYLI_KEY_ALIAS: ${{ secrets.WAYLI_KEY_ALIAS }}
+          WAYLI_KEY_PASSWORD: ${{ secrets.WAYLI_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew :app:assembleGplayRelease :app:assembleFossRelease :app:bundleGplayRelease \
+            -PversionName=${{ env.VERSION }} \
+            -PversionCode=${{ steps.version.outputs.versionCode }}
+
+      - name: Rename artifacts
+        env:
+          ASSET_SUFFIX: ${{ steps.keystore.outputs.asset_suffix }}
+        run: |
+          cd android/app/build/outputs
+          # AGP appends "-unsigned" to the APK names when no signing config is
+          # set, so match either spelling with a glob.
+          mv apk/gplay/release/app-gplay-release*.apk "apk/gplay/release/wayli-${{ env.VERSION }}${ASSET_SUFFIX}-gplay.apk"
+          mv apk/foss/release/app-foss-release*.apk "apk/foss/release/wayli-${{ env.VERSION }}${ASSET_SUFFIX}-foss.apk"
+          mv bundle/gplayRelease/app-gplay-release.aab "bundle/gplayRelease/wayli-${{ env.VERSION }}${ASSET_SUFFIX}-gplay.aab"
+
+      - name: Attach APKs + AAB to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ env.VERSION }}
+          files: |
+            android/app/build/outputs/apk/gplay/release/wayli-${{ env.VERSION }}${{ steps.keystore.outputs.asset_suffix }}-gplay.apk
+            android/app/build/outputs/apk/foss/release/wayli-${{ env.VERSION }}${{ steps.keystore.outputs.asset_suffix }}-foss.apk
+            android/app/build/outputs/bundle/gplayRelease/wayli-${{ env.VERSION }}${{ steps.keystore.outputs.asset_suffix }}-gplay.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

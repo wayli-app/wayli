@@ -94,7 +94,8 @@
       "journal": "Journal",
       "explore": "Explore",
       "feed": "Feed",
-      "friends": "Friends"
+      "friends": "Friends",
+      "fitness": "Fitness"
     },
     "badges": {
       "new": "NEW"
@@ -545,7 +546,9 @@
     "more": "More",
     "distancePerDay": "distance per day",
     "whenYouMoveMost": "When you move most",
-    "speedAxisLabel": "km/h, coloured by dominant mode"
+    "speedAxisLabel": "km/h, coloured by dominant mode",
+    "fitnessSessions": "Fitness sessions",
+    "fitnessInPeriod": "{count} fitness sessions in view"
   },
   "connections": {
     "title": "Connections",
@@ -627,7 +630,9 @@
     "polarstepsDescription": "Import trips, journal entries, GPS data and photos from a Polarsteps export (.zip)",
     "subtitle": "Import or export your location data",
     "exportStarted": "Export started — you will be notified when it is ready.",
-    "exportStartFailed": "Failed to start export. Please try again."
+    "exportStartFailed": "Failed to start export. Please try again.",
+    "fitDescription": "Garmin FIT activity file from sports watches and bike computers",
+    "fitBetaRequired": "Enable the Fitness beta in Account settings to import .fit files"
   },
   "trips": {
     "title": "Trips",
@@ -1060,7 +1065,11 @@
     "samplingLastRun": "Last run: {date} · deleted {deleted} points",
     "samplingSaved": "Sampling config saved",
     "samplingSaveFailed": "Failed to save sampling config",
-    "maxTripExclusionsReached": "Maximum of 10 excluded zones reached. Remove one to add another."
+    "maxTripExclusionsReached": "Maximum of 10 excluded zones reached. Remove one to add another.",
+    "betaFeaturesTitle": "Beta features",
+    "betaFeaturesDescription": "Opt in to experimental features. They may change or be removed at any time.",
+    "fitnessBetaName": "Fitness",
+    "fitnessBetaDescription": "Import .fit workout files and analyze your sessions (heart rate, power, cadence)."
   },
   "serverAdmin": {
     "title": "Server admin settings",
@@ -1232,7 +1241,7 @@
     "aiProviderReadOnly": "Read-only",
     "aiProviderReadOnlyDescription": "This AI provider is configured via environment variables or YAML configuration and cannot be modified through the UI.",
     "aiProviders": {
-			"openai": "OpenAI",
+      "openai": "OpenAI",
       "anthropic": "Anthropic (Claude)",
       "ollama": "Ollama (Local)",
       "openrouter": "OpenRouter",
@@ -1861,5 +1870,66 @@
     "cost": "Cost",
     "addressPlaceholder": "Address (venue name or street)",
     "addToDay": "Add to Day {day}"
+  },
+  "fitness": {
+    "title": "Fitness",
+    "subtitle": "Your imported workout sessions",
+    "betaBadge": "Beta",
+    "emptyTitle": "No fitness activities yet",
+    "emptyHint": "Import a .fit file on the Import/Export page to see your workouts here.",
+    "backToList": "All activities",
+    "previous": "Previous activity",
+    "next": "Next activity",
+    "loading": "Loading activity…",
+    "notFound": "Activity not found",
+    "start": "Start",
+    "finish": "Finish",
+    "chart": {
+      "heartRate": "Heart rate (bpm)",
+      "power": "Power (W)",
+      "speed": "Speed (km/h)",
+      "hint": "Hover over the charts to inspect values and locate the moment on the map",
+      "cadence": "Cadence (rpm)",
+      "time": "Time",
+      "distance": "Distance"
+    },
+    "stats": {
+      "distance": "Distance",
+      "movingTime": "Moving time",
+      "avgSpeed": "Avg speed",
+      "elevation": "Elevation gain",
+      "avgHr": "Avg HR",
+      "maxHr": "Max HR",
+      "avgPower": "Avg power",
+      "maxPower": "Max power",
+      "avgCadence": "Avg cadence",
+      "calories": "Calories",
+      "device": "Device",
+      "source": "Source file"
+    },
+    "sport": {
+      "cycling": "Cycling",
+      "running": "Running",
+      "walking": "Walking",
+      "hiking": "Hiking",
+      "swimming": "Swimming",
+      "e_biking": "E-biking",
+      "rowing": "Rowing",
+      "fitness": "Workout",
+      "generic": "Activity"
+    },
+    "edit": {
+      "rename": "Rename / add comment",
+      "delete": "Delete activity",
+      "deleteHint": "Deletes the activity and its metrics. The GPS points stay in your location history.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Evening ride along the Amstel",
+      "commentLabel": "Comment",
+      "commentPlaceholder": "How did it go? Weather, efforts, highlights…",
+      "saved": "Activity updated",
+      "saveFailed": "Failed to update the activity",
+      "deleted": "Activity deleted",
+      "deleteFailed": "Failed to delete the activity"
+    }
   }
 }

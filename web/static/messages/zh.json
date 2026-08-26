@@ -96,7 +96,8 @@
 			"travel": "旅行",
 			"explore": "探索",
 			"feed": "喂养",
-			"friends": "朋友们"
+			"friends": "朋友们",
+			"fitness": "健身"
 		},
 		"validation": {
 			"fillAllFields": "请填写所有字段",
@@ -547,7 +548,9 @@
 		"more": "多",
 		"distancePerDay": "每日距离",
 		"whenYouMoveMost": "你移动最多的时间",
-		"speedAxisLabel": "km/h，按主要方式着色"
+		"speedAxisLabel": "km/h，按主要方式着色",
+		"fitnessSessions": "健身活动",
+		"fitnessInPeriod": "当前视图中的健身活动：{count}个"
 	},
 	"connections": {
 		"title": "连接",
@@ -629,7 +632,9 @@
 		"exportStartFailed": "无法开始导出。请再试一次。",
 		"exportStarted": "导出已开始 — 准备就绪后您将收到通知。",
 		"polarstepsDescription": "从 Polarsteps 导出 (.zip) 导入行程、日记条目、GPS 数据和照片",
-		"subtitle": "导入或导出您的位置数据"
+		"subtitle": "导入或导出您的位置数据",
+		"fitDescription": "来自运动手表和码表的 Garmin FIT 活动文件",
+		"fitBetaRequired": "请在账户设置中启用健身测试版后才能导入 .fit 文件"
 	},
 	"trips": {
 		"title": "行程",
@@ -1066,7 +1071,11 @@
 		"samplingSaved": "采样配置已保存",
 		"samplingTitle": "自动数据采样",
 		"maxTripExclusionsReached": "已达到最多 10 个排除区域。删除一个以添加另一个。",
-		"apiKeyCheckFailed": "无法验证 API 密钥状态。如果已配置密钥，它仍在使用中。"
+		"apiKeyCheckFailed": "无法验证 API 密钥状态。如果已配置密钥，它仍在使用中。",
+		"betaFeaturesTitle": "测试版功能",
+		"betaFeaturesDescription": "启用实验性功能。这些功能可能随时更改或移除。",
+		"fitnessBetaName": "健身",
+		"fitnessBetaDescription": "导入 .fit 训练文件并分析您的训练（心率、功率、踏频）。"
 	},
 	"serverAdmin": {
 		"title": "服务器管理设置",
@@ -1867,5 +1876,66 @@
 		"technicalDetails": "技术细节",
 		"webNotSearched": "计划进行网络搜索但未运行",
 		"webSearched": "网上搜了一下"
+	},
+	"fitness": {
+		"title": "健身",
+		"subtitle": "您导入的训练活动",
+		"betaBadge": "测试版",
+		"emptyTitle": "还没有健身活动",
+		"emptyHint": "在导入/导出页面导入 .fit 文件，即可在此查看您的训练。",
+		"backToList": "所有活动",
+		"previous": "上一个活动",
+		"next": "下一个活动",
+		"loading": "正在加载活动…",
+		"notFound": "未找到活动",
+		"start": "起点",
+		"finish": "终点",
+		"chart": {
+			"heartRate": "心率（bpm）",
+			"power": "功率（W）",
+			"speed": "速度（km/h）",
+			"hint": "将鼠标悬停在图表上可查看数值并在地图上定位对应时刻",
+			"cadence": "踏频（rpm）",
+			"time": "时间",
+			"distance": "距离"
+		},
+		"stats": {
+			"distance": "距离",
+			"movingTime": "移动时间",
+			"avgSpeed": "平均速度",
+			"elevation": "累计爬升",
+			"avgHr": "平均心率",
+			"maxHr": "最大心率",
+			"avgPower": "平均功率",
+			"maxPower": "最大功率",
+			"avgCadence": "平均踏频",
+			"calories": "卡路里",
+			"device": "设备",
+			"source": "源文件"
+		},
+		"sport": {
+			"cycling": "骑行",
+			"running": "跑步",
+			"walking": "步行",
+			"hiking": "徒步",
+			"swimming": "游泳",
+			"e_biking": "电动骑行",
+			"rowing": "赛艇",
+			"fitness": "锻炼",
+			"generic": "活动"
+		},
+		"edit": {
+			"rename": "重命名 / 添加备注",
+			"delete": "删除活动",
+			"deleteHint": "删除活动及其指标。GPS 轨迹点将保留在位置历史中。",
+			"titleLabel": "标题",
+			"titlePlaceholder": "例如：傍晚沿阿姆斯特尔河骑行",
+			"commentLabel": "备注",
+			"commentPlaceholder": "感觉如何？天气、强度、亮点……",
+			"saved": "活动已更新",
+			"saveFailed": "更新活动失败",
+			"deleted": "活动已删除",
+			"deleteFailed": "删除活动失败"
+		}
 	}
 }

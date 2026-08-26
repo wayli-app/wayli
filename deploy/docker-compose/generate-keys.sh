@@ -157,11 +157,6 @@ check_requirements() {
     if [ $missing -eq 1 ]; then
         exit 1
     fi
-
-    if ! command -v docker &> /dev/null; then
-        print_warning "docker is not installed - JWT tokens will need to be generated manually"
-        return 1
-    fi
     return 0
 }
 
@@ -181,67 +176,49 @@ generate_encryption_key() {
     openssl rand -base64 32 | head -c 32
 }
 
-# Generate JWT tokens using Node.js via Docker
+# Base64url-encode stdin (RFC 4648, no padding)
+b64url_encode() {
+    openssl base64 -A | tr '+/' '-_' | tr -d '='
+}
+
+# Generate an HS256 JWT for a Fluxbase role (anon or service_role)
+generate_jwt() {
+    local role=$1
+    local jwt_secret=$2
+    local now
+    local exp
+    now=$(date +%s)
+    exp=$((now + 10 * 365 * 24 * 60 * 60)) # 10 years
+
+    local header
+    local payload
+    local signature
+    header=$(printf '{"alg":"HS256","typ":"JWT"}' | b64url_encode)
+    payload=$(printf '{"role":"%s","iss":"fluxbase","iat":%s,"exp":%s}' "$role" "$now" "$exp" | b64url_encode)
+    signature=$(printf '%s.%s' "$header" "$payload" | openssl dgst -binary -sha256 -hmac "$jwt_secret" | b64url_encode)
+
+    printf '%s.%s.%s' "$header" "$payload" "$signature"
+}
+
+# Generate JWT tokens using openssl (no Docker or Node.js required)
 generate_jwt_tokens() {
     local jwt_secret=$1
 
-    print_info "Generating JWT tokens using Docker..."
-
-    local jwt_output
-    if jwt_output=$(docker run --rm node:20-alpine node -e "
-        const crypto = require('crypto');
-
-        function base64url(input) {
-            return Buffer.from(input)
-                .toString('base64')
-                .replace(/=/g, '')
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_');
-        }
-
-        function generateToken(role, secret) {
-            const now = Math.floor(Date.now() / 1000);
-            const exp = now + (10 * 365 * 24 * 60 * 60); // 10 years
-
-            const header = {
-                alg: 'HS256',
-                typ: 'JWT'
-            };
-
-            const payload = {
-                role: role,
-                iss: 'fluxbase',
-                iat: now,
-                exp: exp
-            };
-
-            const headerB64 = base64url(JSON.stringify(header));
-            const payloadB64 = base64url(JSON.stringify(payload));
-            const signature = crypto
-                .createHmac('sha256', secret)
-                .update(headerB64 + '.' + payloadB64)
-                .digest('base64')
-                .replace(/=/g, '')
-                .replace(/\+/g, '-')
-                .replace(/\//g, '_');
-
-            return headerB64 + '.' + payloadB64 + '.' + signature;
-        }
-
-        const anonToken = generateToken('anon', '$jwt_secret');
-        const serviceToken = generateToken('service_role', '$jwt_secret');
-        console.log('ANON_KEY=' + anonToken);
-        console.log('SERVICE_ROLE_KEY=' + serviceToken);
-    " 2>&1); then
-        if echo "$jwt_output" | grep -q "^ANON_KEY=eyJ"; then
-            print_success "JWT tokens generated successfully"
-            echo "$jwt_output"
-            return 0
-        fi
+    local anon_key
+    local service_role_key
+    if ! anon_key=$(generate_jwt "anon" "$jwt_secret"); then
+        print_warning "Could not generate JWT tokens automatically"
+        return 1
+    fi
+    if ! service_role_key=$(generate_jwt "service_role" "$jwt_secret"); then
+        print_warning "Could not generate JWT tokens automatically"
+        return 1
     fi
 
-    print_warning "Could not generate JWT tokens automatically"
-    return 1
+    print_success "JWT tokens generated successfully"
+    echo "ANON_KEY=${anon_key}"
+    echo "SERVICE_ROLE_KEY=${service_role_key}"
+    return 0
 }
 
 # Generate and output .env content to stdout (non-interactive mode)
@@ -250,11 +227,6 @@ generate_stdout() {
     if ! command -v openssl &> /dev/null; then
         echo "Error: openssl is required but not installed" >&2
         exit 1
-    fi
-
-    local has_docker=true
-    if ! command -v docker &> /dev/null; then
-        has_docker=false
     fi
 
     # Use defaults for Dev Container
@@ -272,13 +244,11 @@ generate_stdout() {
     local anon_key=""
     local service_role_key=""
 
-    if [ "$has_docker" = true ]; then
-        local jwt_output
-        jwt_output=$(generate_jwt_tokens "$jwt_secret" 2>/dev/null) || true
-        if [ -n "$jwt_output" ]; then
-            anon_key=$(echo "$jwt_output" | grep "^ANON_KEY=" | cut -d'=' -f2-)
-            service_role_key=$(echo "$jwt_output" | grep "^SERVICE_ROLE_KEY=" | cut -d'=' -f2-)
-        fi
+    local jwt_output
+    jwt_output=$(generate_jwt_tokens "$jwt_secret" 2>/dev/null) || true
+    if [ -n "$jwt_output" ]; then
+        anon_key=$(echo "$jwt_output" | grep "^ANON_KEY=" | cut -d'=' -f2-)
+        service_role_key=$(echo "$jwt_output" | grep "^SERVICE_ROLE_KEY=" | cut -d'=' -f2-)
     fi
 
     # Output .env content
@@ -337,8 +307,7 @@ main() {
     echo -e "${NC}"
 
     # Check requirements
-    local has_docker=true
-    check_requirements || has_docker=false
+    check_requirements
 
     # Prompt for output format
     print_header "Output Format"
@@ -519,7 +488,7 @@ main() {
         echo ""
         print_info "FLUXBASE_ANON_KEY (using existing)"
         print_info "FLUXBASE_SERVICE_ROLE_KEY (using existing)"
-    elif [ "$has_docker" = true ]; then
+    elif [ -n "$FLUXBASE_AUTH_JWT_SECRET" ]; then
         # Generate new JWT tokens (using existing or new JWT secret)
         echo ""
         jwt_output=$(generate_jwt_tokens "$FLUXBASE_AUTH_JWT_SECRET") || true

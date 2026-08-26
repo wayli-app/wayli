@@ -1,0 +1,491 @@
+package io.github.nimbleflux.wayli.demo
+
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import io.github.nimbleflux.wayli.designsystem.map.MapPoint
+import io.github.nimbleflux.wayli.models.Notification
+import io.github.nimbleflux.wayli.models.Trip
+import io.github.nimbleflux.wayli.models.TripEntry
+import io.github.nimbleflux.wayli.models.UserProfile
+import io.github.nimbleflux.wayli.models.WantToVisit
+
+/**
+ * Demo mode for app store reviewers. When enabled, the app shows realistic
+ * fake data without needing a live Wayli instance. The reviewer can browse
+ * trips, journal entries, stats, wishlist, and settings — everything works
+ * offline with pre-populated data.
+ *
+ * Enable demo mode from the instance setup screen by tapping "Try Demo" or
+ * entering "demo" as the instance URL.
+ */
+object DemoData {
+
+    val profile = UserProfile(
+        id = "demo-user",
+        firstName = "Alex",
+        lastName = "Traveler",
+        fullName = "Alex Traveler",
+        username = "alex",
+        role = "user",
+        avatarUrl = null,
+        discoverable = "everyone",
+    )
+
+    val trips = listOf(
+        Trip(
+            id = "demo-trip-1",
+            userId = "demo-user",
+            title = "Japanese Alps Adventure",
+            description = "Two weeks exploring Tokyo, Hakuba, and the Japanese Alps. Incredible food, stunning mountain scenery, and some of the best powder snow I've ever skied.",
+            startDate = "2024-02-10",
+            endDate = "2024-02-24",
+            status = "completed",
+            visibility = "public",
+            labels = listOf("skiing", "japan", "mountains"),
+            metadata = buildJsonObject { put("distanceTraveled", 1240000.0) },
+            imageUrl = "https://images.unsplash.com/photo-1542640244-7e672d6cef4e?w=800&h=500&fit=crop",
+            createdAt = "2024-02-10T08:00:00Z",
+            updatedAt = "2024-02-24T20:00:00Z",
+        ),
+        Trip(
+            id = "demo-trip-2",
+            userId = "demo-user",
+            title = "Portuguese Coast Road Trip",
+            description = "Drove from Lisbon to the Algarve along the Atlantic coast. Beautiful beaches, amazing seafood, and perfect weather.",
+            startDate = "2024-05-15",
+            endDate = "2024-05-22",
+            status = "completed",
+            visibility = "public",
+            labels = listOf("road-trip", "beaches", "portugal"),
+            metadata = buildJsonObject { put("distanceTraveled", 843000.0) },
+            imageUrl = "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=500&fit=crop",
+            createdAt = "2024-05-14T18:00:00Z",
+            updatedAt = "2024-05-22T16:00:00Z",
+        ),
+        Trip(
+            id = "demo-trip-3",
+            userId = "demo-user",
+            title = "Weekend in Amsterdam",
+            description = "Quick weekend trip to visit museums, cycle along the canals, and try some local food.",
+            startDate = "2024-09-20",
+            endDate = "2024-09-22",
+            status = "completed",
+            visibility = "private",
+            labels = listOf("city", "cycling", "museums"),
+            metadata = buildJsonObject { put("distanceTraveled", 96000.0) },
+            imageUrl = "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?w=800&h=500&fit=crop",
+            createdAt = "2024-09-19T12:00:00Z",
+            updatedAt = "2024-09-22T22:00:00Z",
+        ),
+        Trip(
+            id = "demo-trip-4",
+            userId = "demo-user",
+            title = "Southeast Asia Backpacking",
+            description = "Currently planning a 6-week backpacking trip through Thailand, Vietnam, and Cambodia for next spring.",
+            startDate = "2025-03-01",
+            endDate = null,
+            status = "planned",
+            visibility = "public",
+            labels = listOf("backpacking", "asia", "planning"),
+            metadata = buildJsonObject { put("distanceTraveled", 3260000.0) },
+            imageUrl = "https://images.unsplash.com/photo-1528127269322-539801943592?w=800&h=500&fit=crop",
+            createdAt = "2024-11-01T10:00:00Z",
+            updatedAt = "2024-12-15T14:00:00Z",
+        ),
+    )
+
+    val entries = mapOf(
+        "demo-trip-1" to listOf(
+            TripEntry(
+                id = "entry-1",
+                tripId = "demo-trip-1",
+                entryDate = "2024-02-10",
+                title = "Arrival in Tokyo",
+                body = "Landed at Narita after a 12-hour flight. The city is enormous and incredibly clean. First stop: ramen in Shibuya. The neon lights at night are absolutely breathtaking — photos don't do it justice.",
+                status = "published",
+                createdAt = "2024-02-10T20:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-2",
+                tripId = "demo-trip-1",
+                entryDate = "2024-02-13",
+                title = "First Day Skiing in Hakuba",
+                body = "Took the bullet train to Hakuba this morning. The snow quality is unbelievable — light, dry powder that makes you feel weightless. Skied the Happo-One resort all day. The views of the Japanese Alps from the top of the lift are something I'll never forget.",
+                status = "published",
+                createdAt = "2024-02-13T18:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-3",
+                tripId = "demo-trip-1",
+                entryDate = "2024-02-20",
+                title = "Onsen and Recovery",
+                body = "After a week of hard skiing, today was a rest day. Spent the afternoon at a traditional onsen in the mountains. Soaking in the hot mineral water surrounded by snow was the perfect recovery. Followed it with an incredible kaiseki dinner.",
+                status = "published",
+                createdAt = "2024-02-20T21:00:00Z",
+            ),
+        ),
+        "demo-trip-2" to listOf(
+            TripEntry(
+                id = "entry-4",
+                tripId = "demo-trip-2",
+                entryDate = "2024-05-15",
+                title = "Lisbon to Cascais",
+                body = "Picked up the rental car and drove along the coast to Cascais. Stopped at Cabo da Roca, the westernmost point of mainland Europe. The cliffs are dramatic and the Atlantic is deep blue. Had grilled fish for dinner at a tiny local restaurant.",
+                status = "published",
+                createdAt = "2024-05-15T19:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-5",
+                tripId = "demo-trip-2",
+                entryDate = "2024-05-18",
+                title = "Algarve Sea Caves",
+                body = "Took a boat tour to the famous Benagil Sea Cave. The natural skylight inside the cave is stunning. Spent the afternoon at Praia da Marinha — one of the most beautiful beaches I've ever seen. The water was freezing but refreshing.",
+                status = "published",
+                createdAt = "2024-05-18T17:00:00Z",
+            ),
+        ),
+        "demo-trip-3" to listOf(
+            TripEntry(
+                id = "entry-6",
+                tripId = "demo-trip-3",
+                entryDate = "2024-09-21",
+                title = "Canal Cruise and the Rijksmuseum",
+                body = "Started the day with a slow cruise along the grachten, gliding past gabled houses and houseboats while the skipper explained how the city was built on wooden poles. Spent the whole afternoon lost in the Rijksmuseum — the Night Watch alone is worth the trip. Ended with bitterballen and a cold beer by the water.",
+                status = "published",
+                createdAt = "2024-09-21T20:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-7",
+                tripId = "demo-trip-3",
+                entryDate = "2024-09-22",
+                title = "Cycling to Zaanse Schans",
+                body = "Rented a bike and followed the ferry north out of the city. Within half an hour the streets turned into meadows and the first windmills appeared on the horizon. Watched a working mill grind pigment the traditional way, then cycled back along the Zaan with the wind at our backs. My legs are done but it was the perfect last day.",
+                status = "published",
+                createdAt = "2024-09-22T18:00:00Z",
+            ),
+        ),
+        "demo-trip-4" to listOf(
+            TripEntry(
+                id = "entry-8",
+                tripId = "demo-trip-4",
+                entryDate = "2025-03-03",
+                title = "Arrival in Bangkok",
+                body = "Stepped out of Suvarnabhumi straight into a wall of heat and noise. Took the river ferry down the Chao Phraya just as Wat Arun lit up in the sunset — easily the best two baht I have ever spent. Street food crawl through Chinatown afterwards: pad thai from a wok the size of a satellite dish, mango sticky rice for dessert.",
+                status = "published",
+                createdAt = "2025-03-03T19:00:00Z",
+            ),
+            TripEntry(
+                id = "entry-9",
+                tripId = "demo-trip-4",
+                entryDate = "2025-03-10",
+                title = "Island Hopping from Krabi",
+                body = "Chartered a longtail boat with three other travellers from Ao Nang. First stop Railay, climbing through a jungle path to a viewpoint that almost killed me but paid off twice over. Snorkelled at Poda island where the water is impossibly turquoise, and watched a monitor lizard stroll across the beach like he owned it. Slow boat back at golden hour.",
+                status = "published",
+                createdAt = "2025-03-10T18:00:00Z",
+            ),
+        ),
+    )
+
+    val wishlist = listOf(
+        WantToVisit(
+            id = "wish-1",
+            userId = "demo-user",
+            title = "Patagonia, Argentina",
+            location = JsonPrimitive("POINT(-72.8 -50.3)"),
+            address = "Patagonia, Argentina",
+            countryCode = "AR",
+            markerType = "mountain",
+            markerColor = "#3B82F6",
+            rating = 5,
+            favorite = true,
+            imageUrl = "https://images.unsplash.com/photo-1531176175280-33e81d6a5d56?w=600&h=400&fit=crop",
+        ),
+        WantToVisit(
+            id = "wish-2",
+            userId = "demo-user",
+            title = "Marrakech, Morocco",
+            location = JsonPrimitive("POINT(-8.0 31.6)"),
+            address = "Marrakech, Morocco",
+            countryCode = "MA",
+            markerType = "building",
+            markerColor = "#EA580C",
+            rating = 4,
+            imageUrl = "https://images.unsplash.com/photo-1597211833712-5e41faa202ea?w=600&h=400&fit=crop",
+        ),
+        WantToVisit(
+            id = "wish-3",
+            userId = "demo-user",
+            title = "Northern Lights, Iceland",
+            location = JsonPrimitive("POINT(-19.0 64.9)"),
+            address = "Iceland",
+            countryCode = "IS",
+            markerType = "tree",
+            markerColor = "#10B981",
+            rating = 5,
+            favorite = true,
+            imageUrl = "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=600&h=400&fit=crop",
+        ),
+        WantToVisit(
+            id = "wish-4",
+            userId = "demo-user",
+            title = "Kyoto Temples, Japan",
+            location = JsonPrimitive("POINT(135.8 35.0)"),
+            address = "Kyoto, Japan",
+            countryCode = "JP",
+            markerType = "building",
+            markerColor = "#8B5CF6",
+            rating = 5,
+            imageUrl = "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&h=400&fit=crop",
+        ),
+        WantToVisit(
+            id = "wish-5",
+            userId = "demo-user",
+            title = "Santorini, Greece",
+            location = JsonPrimitive("POINT(25.5 36.4)"),
+            address = "Santorini, Greece",
+            countryCode = "GR",
+            markerType = "home",
+            markerColor = "#06B6D4",
+            rating = 4,
+            imageUrl = "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=600&h=400&fit=crop",
+        ),
+    )
+
+    /** Countries "visited" in demo mode (tracker country_code style, alpha-2). */
+    val visitedCountries = setOf("PT", "ES", "JP", "NL", "TH", "VN", "KH")
+
+    /** Seeded community stories for the demo-mode Community section. */
+    data class DemoStory(
+        val id: String,
+        val tripId: String,
+        val title: String,
+        val body: String,
+        val entryDate: String,
+        val tripTitle: String,
+        val tripImageUrl: String,
+        val authorName: String,
+        val authorUsername: String,
+    )
+
+    val communityStories = listOf(
+        DemoStory(
+            id = "story-1",
+            tripId = "story-trip-1",
+            title = "Sunrise over the Himalayas",
+            body = "Woke at 4am in Namche Bazaar and hiked to the viewpoint in the dark. When the first light hit Everest the whole ridge line turned gold. Shared tea with a Sherpa family who laughed at how many layers I was wearing.",
+            entryDate = "2025-11-03",
+            tripTitle = "Everest Base Camp Trek",
+            tripImageUrl = "https://images.unsplash.com/photo-1544198365-f5d60b6d1ca0?w=800&h=450&fit=crop",
+            authorName = "Maya Chen",
+            authorUsername = "maya",
+        ),
+        DemoStory(
+            id = "story-2",
+            tripId = "story-trip-2",
+            title = "Night train to the Sahara",
+            body = "The couchette from Marrakech rattled all night but waking up to the Atlas mountains at dawn was worth every lost hour. Two more hours by 4x4 and suddenly there was nothing but dunes in every direction.",
+            entryDate = "2025-10-18",
+            tripTitle = "Morocco Loop",
+            tripImageUrl = "https://images.unsplash.com/photo-1597211833712-5e41faa202ea?w=800&h=450&fit=crop",
+            authorName = "Jonas Weber",
+            authorUsername = "jonasw",
+        ),
+        DemoStory(
+            id = "story-3",
+            tripId = "story-trip-3",
+            title = "Cooking class in Hoi An",
+            body = "Started at the market at 6am choosing herbs I couldn't name, then spent the morning learning banh xeo from a grandmother who never once measured anything. Ate the results by the river as lanterns went up.",
+            entryDate = "2025-09-22",
+            tripTitle = "Vietnam Slow Travel",
+            tripImageUrl = "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&h=450&fit=crop",
+            authorName = "Priya Nair",
+            authorUsername = "priya",
+        ),
+    )
+
+    /**
+     * Photos per demo entry (entryId → URLs, first = hero/cover) — used by
+     * the trip journal overview and the entry detail tile grid.
+     */
+    val entryImages = mapOf(
+        "entry-1" to listOf(
+            "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=800&h=450&fit=crop", // Tokyo night
+            "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=600&h=600&fit=crop", // Tokyo street
+            "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&h=600&fit=crop", // lanterns
+        ),
+        "entry-2" to listOf(
+            "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=450&fit=crop",    // ski slopes
+            "https://images.unsplash.com/photo-1605540436563-66e387032159?w=600&h=600&fit=crop", // snow cabin
+        ),
+        "entry-3" to listOf(
+            "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&h=450&fit=crop", // onsen
+            "https://images.unsplash.com/photo-1526481280693-3bfa7568e0f3?w=600&h=600&fit=crop", // ryokan dinner
+            "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=600&h=600&fit=crop", // forest path
+        ),
+        "entry-4" to listOf(
+            "https://images.unsplash.com/photo-1555881400-74d7acaacd8b?w=800&h=450&fit=crop",    // coast road
+            "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=600&h=600&fit=crop", // cliff walk
+        ),
+        "entry-5" to listOf(
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=450&fit=crop", // sea cave beach
+            "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=600&h=600&fit=crop", // beach umbrella
+            "https://images.unsplash.com/photo-1476673160081-cf065607f449?w=600&h=600&fit=crop", // waves
+        ),
+        "entry-6" to listOf(
+            "https://images.unsplash.com/photo-1512470876302-972faa2aa9a4?w=800&h=450&fit=crop", // Amsterdam grachten at dusk
+            "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&h=600&fit=crop", // canal bikes
+            "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=600&h=600&fit=crop", // bicycles
+        ),
+        "entry-7" to listOf(
+            "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&h=450&fit=crop", // cycling through an old town
+            "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=600&h=600&fit=crop", // windmill
+        ),
+        "entry-8" to listOf(
+            "https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&h=450&fit=crop", // Wat Arun at sunset
+            "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=600&fit=crop", // street food
+            "https://images.unsplash.com/photo-1528181304800-259b08848526?w=600&h=600&fit=crop", // temple gold
+        ),
+        "entry-9" to listOf(
+            "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&h=450&fit=crop",    // Railay beach, Krabi
+            "https://images.unsplash.com/photo-1589197331516-4d84b72ebde9?w=600&h=600&fit=crop", // longtail boat
+        ),
+    )
+
+    /** Hero photo per demo entry — the first of [entryImages]. */
+    val entryHeroes: Map<String, String> = entryImages.mapValues { (_, urls) -> urls.first() }
+
+    val notifications = listOf(
+        Notification(
+            id = "notif-1",
+            userId = "demo-user",
+            type = "trip_detected",
+            title = "New trip detected",
+            body = "We noticed a trip to Amsterdam. Review and add details?",
+            icon = "travel_explore",
+            createdAt = "2024-09-23T10:00:00Z",
+        ),
+        Notification(
+            id = "notif-2",
+            userId = "demo-user",
+            type = "friend_request",
+            title = "New friend request",
+            body = "Sarah wants to connect with you.",
+            icon = "person",
+            createdAt = "2024-11-15T14:00:00Z",
+        ),
+        Notification(
+            id = "notif-3",
+            userId = "demo-user",
+            type = "comment",
+            title = "New comment on your trip",
+            body = "Mike commented on 'Portuguese Coast Road Trip'",
+            icon = "comment",
+            createdAt = "2024-05-25T09:00:00Z",
+            readAt = "2024-05-25T12:00:00Z",
+        ),
+    )
+
+    // Stats summary
+    val totalDistanceKm = 15_847
+    val countriesVisited = 23
+    val timeMovingHours = 482
+    val dataPoints = 89_341
+    val totalSteps = 1_204_553
+
+    /**
+     * Synthesized daily distance (km) for the last ~12 weeks, keyed by ISO date.
+     * Drives the activity heatmap on Statistics in demo mode. Deterministic for a
+     * given day so the heatmap looks stable.
+     */
+    val dailyActivity: Map<String, Double> by lazy {
+        val today = java.time.LocalDate.now()
+        val out = LinkedHashMap<String, Double>()
+        for (i in 83 downTo 0) {
+            val day = today.minusDays(i.toLong())
+            val seed = day.toEpochDay()
+            val r = ((seed * 1103515245L + 12345L) and 0x7fffffffL).toDouble() / 2147483647.0
+            val km = when {
+                r < 0.25 -> 0.0
+                day.dayOfWeek.value >= 6 -> 12.0 + r * 20.0
+                else -> 3.0 + r * 14.0
+            }
+            out[day.toString()] = (km * 10).toLong().toDouble() / 10.0
+        }
+        out
+    }
+
+    val transportModeBreakdown = mapOf(
+        "car" to 0.42,
+        "walking" to 0.24,
+        "train" to 0.16,
+        "cycling" to 0.10,
+        "airplane" to 0.08,
+    )
+
+    val countriesList = listOf(
+        "Japan", "Portugal", "Netherlands", "France", "Germany", "Spain",
+        "Italy", "United Kingdom", "United States", "Canada", "Mexico",
+        "Brazil", "Argentina", "Thailand", "Vietnam", "Cambodia", "Australia",
+        "New Zealand", "Iceland", "Morocco", "Greece", "Turkey", "Norway",
+    )
+
+    // ---- Map data for the Home dashboard and Trip detail ----
+
+    /** Recent points shown on the Home map (around the demo home base in NL). */
+    val homePoints: List<MapPoint> = listOf(
+        MapPoint(lat = 52.3676, lng = 4.9041, title = "Amsterdam", color = "#233869"),
+        MapPoint(lat = 52.0907, lng = 5.1214, title = "Utrecht", color = "#3b82f6"),
+        MapPoint(lat = 51.9244, lng = 4.4777, title = "Rotterdam", color = "#10B981"),
+        MapPoint(lat = 52.5122, lng = 6.0959, title = "Hengelo", color = "#8B5CF6"),
+        MapPoint(lat = 50.8514, lng = 5.6905, title = "Maastricht", color = "#EA580C"),
+    )
+
+    /**
+     * Recent activity track on the Home map, as (lat, lng) pairs — kept free of
+     * MapLibre types so [DemoData] doesn't depend on the map SDK.
+     */
+    val homeTrack: List<Pair<Double, Double>> = listOf(
+        52.3676 to 4.9041, // Amsterdam
+        52.0907 to 5.1214, // Utrecht
+        51.9244 to 4.4777, // Rotterdam
+        51.5719 to 4.7683, // Breda
+        52.5122 to 6.0959, // Hengelo
+        53.2012 to 5.7999, // Leeuwarden
+        52.3676 to 4.9041, // back to Amsterdam
+    )
+
+    /** Representative (lat, lng) tracks for trips, so Trip detail's map is meaningful. */
+    val tripTracks: Map<String, List<Pair<Double, Double>>> = mapOf(
+        "demo-trip-1" to listOf( // Japanese Alps Adventure
+            35.6762 to 139.6503, // Tokyo
+            36.06 to 137.85, // Hakuba
+            36.56 to 136.65, // Kanazawa
+            35.6762 to 139.6503, // Tokyo
+        ),
+        "demo-trip-2" to listOf( // Portuguese Coast Road Trip
+            38.7167 to -9.1393, // Lisbon
+            38.6979 to -9.4215, // Cascais
+            38.78 to -9.50, // Cabo da Roca
+            37.02 to -8.0, // Algarve
+        ),
+        "demo-trip-3" to listOf( // Weekend in Amsterdam
+            52.3676 to 4.9041,
+            52.37 to 4.89,
+        ),
+        "demo-trip-4" to listOf( // Southeast Asia Backpacking
+            13.7563 to 100.5018, // Bangkok
+            13.4419 to 100.1236, // Samut Songkhram
+            8.0444 to 98.7253, // Khao Lak
+            8.0114 to 98.8432, // Ao Nang, Krabi
+        ),
+    )
+
+    /** Map center (lat, lng) per trip id. */
+    val tripCenters: Map<String, Pair<Double, Double>> = mapOf(
+        "demo-trip-1" to (36.2 to 138.0),
+        "demo-trip-2" to (38.2 to -8.8),
+        "demo-trip-3" to (52.37 to 4.90),
+        "demo-trip-4" to (13.0 to 105.0),
+    )
+}
